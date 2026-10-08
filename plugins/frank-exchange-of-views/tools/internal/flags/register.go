@@ -58,18 +58,6 @@ func ReadPayload(c *cobra.Command) (string, error) {
 	return p.Read(), nil
 }
 
-// Set writes a flag's value under a payload key, ONLY when it is non-empty.
-//
-// Setting it unconditionally is a trap worth naming: required-field validation asks
-// whether the key is PRESENT, so writing an empty string makes a missing flag look
-// supplied and the check passes on nothing. That regression was introduced while
-// renaming --gap-id to --id and caught by the bench's own required-fields test.
-func Set[P interface{ Set(string, any) P }](p P, key string, c *cobra.Command, flag string) {
-	if v := Value(c, flag); v != "" {
-		p.Set(key, v)
-	}
-}
-
 // Value reads a flag AS A STRING WHATEVER ITS TYPE, and that qualifier is the whole point.
 //
 // `GetString` returns ("", err) for any flag that is not a string flag, and every caller here

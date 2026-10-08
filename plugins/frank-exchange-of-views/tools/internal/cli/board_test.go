@@ -242,7 +242,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 // `opinion.gap_id` is a FOREIGN KEY onto `mint.gap_id` now. The row cannot be written — not by the
 // CLI, not by a fixture, not by anything writing SQL at the file — so there is no dangling
 // reference to surface, no anomaly channel to carry it, and the replay's arm for it is a hard
-// error rather than a note (see missingGap). The state moved from "detected after the fact" to
+// error rather than a note. The state moved from "detected after the fact" to
 // "unrepresentable", which is what the whole storage change was for.
 //
 // What survives is the write-path refusal, which has its own test: the CLI answers a `--id` naming

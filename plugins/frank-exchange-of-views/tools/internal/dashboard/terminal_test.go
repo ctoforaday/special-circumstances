@@ -16,7 +16,7 @@ import (
 // A STUBBED report.md IS NOT A FINISHED RUN, and for the life of every run it was read as one.
 //
 // setup's skeleton stubbed report.md — while documenting that file as `bench assemble`'s
-// output — and Terminal was fileExists(runDir/report.md). So the dashboard
+// output — and Terminal was a stat of runDir/report.md. So the dashboard
 // said "run complete — the assembler wrote the report" from the moment setup ran, before a seat
 // was dispatched. Measured 2026-08-22: it said so for 55 minutes with blue-lane-1 live in the
 // very next section of the same page.

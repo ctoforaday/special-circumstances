@@ -108,12 +108,7 @@ type Board struct {
 	Name string
 	// Seat is who the board is FOR. A board is built for one seat's sitting; the others are
 	// present only as the authors of the state it inherits.
-	Seat string
-	// Lens is the lens seat that mints the board's gaps — and, because the originator closes
-	// (plans/roundless.md §III.B.3), the seat that closes the ones staged Closed. Empty means
-	// `red-lens-evidence`; see Minter. The chair mints nothing: a board staged through it would
-	// record a state no seat can reach, which is what Build exists to refuse.
-	Lens    string
+	Seat    string
 	Report  string
 	Gaps    []Gap
 	Avenues []Avenue
@@ -153,18 +148,6 @@ type Board struct {
 	// production prompt has ever contained that sentence. Withholding the tool makes the block
 	// REAL: the seat discovers it by reaching, which is the sitting the board is for.
 	Deny []string
-}
-
-// DefaultLens is the lens that stages a board's gaps when the board names none.
-const DefaultLens = "red-lens-evidence"
-
-// Minter is the lens seat whose mints the board carries — and whose closes, since a gap belongs
-// to the lens that minted it for its whole life.
-func (b Board) Minter() string {
-	if b.Lens != "" {
-		return b.Lens
-	}
-	return DefaultLens
 }
 
 // arithmetic: the sharpest case for code-not-prose. Every gap turns on a number, and the numbers

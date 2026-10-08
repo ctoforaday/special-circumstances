@@ -218,14 +218,6 @@ func knownPaths() map[string]bool {
 	return knownCache
 }
 
-func isRole(s string) bool {
-	switch s {
-	case "lens", "chair", "blue", "bench":
-		return true
-	}
-	return false
-}
-
 // tracked wraps a direct binary call so the oracles' invocations are tallied too.
 func tracked(bin string, args ...string) ([]byte, error) {
 	out, err := exec.Command(bin, args...).CombinedOutput()
@@ -242,7 +234,7 @@ func tracked(bin string, args ...string) ([]byte, error) {
 //
 // WHAT IT DOES NOT REPRODUCE, stated so nobody reads it as equivalent: refuseUnknownCommandFirst
 // (unexported, and only answers argv naming a command that does not exist — which a read-only
-// sweep never sends), the signal guard, and os.Exit.
+// sweep never sends) and os.Exit.
 //
 // THE os.Exit CAVEAT USED TO BE AN EXCLUSION AND IS NOW A RULE ABOUT THE PRODUCT. `dashboard` and
 // `scorecard` answered a bad argv by printing a usage line and exiting from inside their cobra

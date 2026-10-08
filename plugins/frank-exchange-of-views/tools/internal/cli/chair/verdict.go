@@ -15,7 +15,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
 // The help document renders what holds a PASS from the gate's own table rather than restating
@@ -52,7 +51,7 @@ func newVerdict() *cobra.Command {
 		if _, err := record.Append(s.Identity(), &recordpb.Gate{Verdict: &v}); err != nil {
 			return nil, err
 		}
-		open, closed, err := view.Counts(run)
+		open, closed, err := record.BoardCounts(run)
 		if err != nil {
 			return nil, err
 		}

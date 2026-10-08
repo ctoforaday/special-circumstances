@@ -591,16 +591,6 @@ func sameSet(a, b []string) bool {
 	return true
 }
 
-func numField(row map[string]any, key string) (int, bool) {
-	switch n := row[key].(type) {
-	case int:
-		return n, true
-	case float64:
-		return int(n), true
-	}
-	return 0, false
-}
-
 // findCycle walks the supersedes edges; the write path makes a cycle unconstructible (an ancestor
 // must already exist), so a hit here means the record was built by something other than the tool.
 func findCycle(gt *groundTruth) string {

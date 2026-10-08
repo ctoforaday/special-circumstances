@@ -60,16 +60,6 @@ func workGapStatesT(t *testing.T, run Run) []WorkGapState {
 	return gaps
 }
 
-// positions stands in for events.id on a hand-built stream with no database: 1..n in stream
-// order, the ids an append-only record assigns.
-func positions(evs []*Event) []int64 {
-	out := make([]int64, len(evs))
-	for i := range out {
-		out[i] = int64(i + 1)
-	}
-	return out
-}
-
 // mustWorkJSONT is WorkJSONOfRun or a fatal.
 func mustWorkJSONT(t *testing.T, run Run) WorkJSON {
 	t.Helper()

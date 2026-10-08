@@ -61,7 +61,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	app(red, &recordpb.Regrade{GapId: proto.String("G3"),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("moved")})
 	// G3: closed by red in round 1, then ruled by the bench in round 2 — BOTH arms.
-	// Attribution must follow the bench (last), the embedded body must stay red's (closureBody).
+	// Attribution must follow the bench (last), the embedded body must stay red's.
 	app(red, &recordpb.Close{GapId: proto.String("G3"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
@@ -118,7 +118,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		t.Errorf("G3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedEpoch)
 	}
 	if g3.Closure == nil || g3.Closure["prose"] != "verified at the leaf" {
-		t.Errorf("G3 embedded closure = %v, want red's close body (closureBody's precedence)", g3.Closure)
+		t.Errorf("G3 embedded closure = %v, want red's close body (red's close is preferred)", g3.Closure)
 	}
 	if len(g3.Regrades) != 1 {
 		t.Errorf("G3 regrades = %v, want the one recorded regrade embedded", g3.Regrades)

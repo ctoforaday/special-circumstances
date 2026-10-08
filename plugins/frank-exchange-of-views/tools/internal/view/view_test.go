@@ -208,11 +208,11 @@ func TestMassSumIgnoresUngradedGaps(t *testing.T) {
 	}
 }
 
-// ---- projection tests (relocated: call view.Markdown / TelemetryJSONL / Counts) ----
+// ---- projection tests (call view.Markdown / TelemetryJSONL and record.BoardCounts) ----
 
 func TestMarkdownOnAnEmptyRun(t *testing.T) {
 	runDir := t.TempDir()
-	open, closed, err := Counts(runtest.Open(t, runDir))
+	open, closed, err := record.BoardCounts(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
 		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("G3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
-	open, closed, err := Counts(runtest.Open(t, runDir))
+	open, closed, err := record.BoardCounts(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

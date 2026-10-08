@@ -7,9 +7,8 @@
 // capture imports computeScorecards/renderChair/chairHeader and the dashboard imports
 // parseRenderedRows/latestSection — so this and scorecards.mjs must agree", which was true while
 // scorecards.mjs existed. It does not: no .mjs in the tree defines any of those five functions,
-// the rendered rows are read back by Go (setup.ParseRenderedRows), and debate.js's in-run
-// self-read prompt calls `feov-record scorecard`. So there is no second implementation to agree
-// with, and the byte-identity notes below are a debt to a port that finished, not a live
+// and debate.js's in-run self-read prompt calls `feov-record scorecard`. So there is no second
+// implementation to agree with, and the byte-identity notes below are a debt to a port that finished, not a live
 // constraint — they are kept because the shapes they pin (jsToFixed2Num, insertion-order object
 // rows) are still what the renderer emits.
 //
@@ -143,7 +142,7 @@ func ReadResults(run record.Run) []map[string]any {
 // the `close` body and `BenchClosure` the bench's; a gap holding only the latter was disposed of,
 // never repaired.
 //
-// BoardJSON cannot express that: closureBody prefers Closure and falls back to the bench body, so
+// BoardJSON cannot express that: it prefers Closure and falls back to the bench body, so
 // the JSON's single `Closure` field cannot say which one filled it. The alternative was to add a
 // field to GapJSON — a `view --json` contract change for one consumer — against moving a kernel
 // with two call sites. The "pure kernel over the board JSON (JS computeAnchoredClosures)" this

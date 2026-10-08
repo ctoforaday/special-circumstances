@@ -1241,7 +1241,7 @@ func (r *runner) mint(seatID string) string {
 	return env.Result.GapID
 }
 
-// collapseWS mirrors record.collapse, which is unexported: the guard measures its threshold on
+// collapseWS collapses runs of whitespace: the guard measures its threshold on
 // whitespace-collapsed text, so a length taken any other way would pick a different sentence.
 func collapseWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
@@ -1585,11 +1585,6 @@ var directives = []string{dirApply, dirApply, dirCounter, dirCounter, dirDispute
 
 // satisfied reports whether a directive means the gap is repaired and red should close it.
 func satisfied(directive string) bool { return directive == dirApply || directive == dirCounter }
-
-// contested reports whether the directive routes through a grade dispute rather than a repair.
-func contested(directive string) bool {
-	return directive == dirDisputeWon || directive == dirDisputeLost
-}
 
 // outcomeRe reads the verdict debate.js states in the assembler's prompt.
 var outcomeRe = regexp.MustCompile(`Debate outcome: ([A-Z]+)`)
@@ -4413,9 +4408,6 @@ func mintedGapIDs(run record.Run) []string {
 	return out
 }
 
-// someProposal returns a gap carrying a concrete proposal, with its exact pair, so the fuzz
-// can drive the VERBATIM-application path rather than only the counter-edit one.
-
 // scenarioOf reads a gap's directive BACK FROM THE BOARD, not from Go memory. The round trip
 // is part of what is tested: if required_fix stopped surviving a mint, every seat would
 // silently revert to coin-flip behaviour and the oracle would catch it.
@@ -4902,28 +4894,6 @@ func sweepReadOnly(bin, runDir string) string {
 		}
 	}
 	return ""
-}
-
-// seatFor returns a seat id bound to the role, since `show` is role-scoped like any verb.
-func seatFor(role string) string {
-	switch role {
-	case "lens":
-		return "red-lens-evidence"
-	case "chair":
-		return "red-chair"
-	case "blue":
-		return "blue-respond"
-	default:
-		return "judge"
-	}
-}
-
-func sumCounts(m map[string]int) int {
-	n := 0
-	for _, v := range m {
-		n += v
-	}
-	return n
 }
 
 // THE AVENUE-SUPPORT VOTE IS GONE, and it is the verb that went, not just the fuzz action.

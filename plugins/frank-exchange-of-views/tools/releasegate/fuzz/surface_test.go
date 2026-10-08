@@ -99,15 +99,3 @@ func TestEveryAppendableEventTypeIsInTheCoverageGate(t *testing.T) {
 			len(unknown), strings.Join(unknown, "\n  "))
 	}
 }
-
-func dedupe(xs []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, x := range xs {
-		if !seen[x] {
-			seen[x] = true
-			out = append(out, x)
-		}
-	}
-	return out
-}

@@ -619,24 +619,6 @@ func basisNote(basis string) string {
 	}
 }
 
-// sevRank orders a gap by one grade, using the canonical MASS weight (record.MASS) scaled to an
-// int — so all eight real domain grades sort correctly (realized 0 · trivial 1 · low 2 ·
-// low-medium 3 · medium 4 · medium-high 5 · high 6 · certain 7), consistent with how the rest of
-// the system weights grades. The earlier critical|high|medium|low table matched NONE of the
-// domain grades past high/medium/low and sank certain/realized/medium-high/low-medium/trivial to
-// 0 — the most severe open gaps sorted below the least. An absent grade is the UNSPECIFIED zero,
-// which GradeStr spells "" and MASS has no key for, so it ranks 0 exactly as an absent payload key
-// did.
-//
-// IT TAKES THE TYPED GRADE, and that is not cosmetic. The old signature was `any`, and a
-// `recordpb.Grade` passed to it would still COMPILE — the type assertion inside `grade` would
-// simply fail, every gap would rank 0, and the ordering this function exists to produce would be
-// silently arbitrary with nothing failing. The lower-casing is gone with it: GradeStr returns the
-// schema's own spelling, which is what MASS is keyed on (`low_medium`, one separator).
-func sevRank(g recordpb.Grade) int {
-	return int(record.MASS[record.GradeStr(g)] * 2)
-}
-
 // gradeWord renders a typed grade for the document — the schema's word, or an em dash when the
 // gap carries none. It is `grade`'s counterpart for the replayed board, whose grades are
 // `recordpb.Grade` values rather than the JSON view's `any`.
@@ -1564,8 +1546,8 @@ func revisionHistory(fam record.Family) string {
 //
 // It is not a second spelling of gradeWord: the two answer different questions — "is this
 // interface value a non-empty string" and "does this enum have a word". Merging them would put
-// the `any` assertion back in the path of every typed grade, which is the exact silent zero the
-// sevRank note above describes.
+// the `any` assertion back in the path of every typed grade, which is a silent zero: a typed
+// grade fails the assertion and renders as nothing, with nothing failing.
 func grade(v any) string {
 	if s, ok := v.(string); ok && s != "" {
 		return s

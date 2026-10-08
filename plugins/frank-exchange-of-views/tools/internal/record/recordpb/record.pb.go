@@ -3097,7 +3097,7 @@ type Mint struct {
 	//
 	// Every other gap_id in the schema now references this column, which is only possible because it
 	// is unique and present. Before, a close, an opinion, a regrade or a grade motion could name a
-	// gap that had never been minted, and the file-backed record met that case with a `missingGap`
+	// gap that had never been minted, and the file-backed record met that case with an
 	// ANOMALY — a defect discovered on read, per reader, after the fact. As a foreign key it is not
 	// discoverable at all: the row cannot be written.
 	GapId   *string `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`

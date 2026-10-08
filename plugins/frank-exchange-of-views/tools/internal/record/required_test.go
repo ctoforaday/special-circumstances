@@ -18,19 +18,6 @@ import (
 // So this is behavioural, not structural: for every field the table declares, a payload
 // missing exactly that field must actually be REFUSED by validate.
 
-// seatFor picks a seat of the role that owns each verb, since validate now resolves
-// round-scoped references and needs to know who is writing.
-func seatFor(typ string) string {
-	switch typ {
-	case "opinion", "halt", "certify":
-		return "judge"
-	case "retire", "avenue", "manifest-row", "revision", "confidence":
-		return "blue-respond"
-	default:
-		return "red-chair"
-	}
-}
-
 // review_flag is required to SAY SOMETHING, and the write checks that it did, never what it
 // said: `--review-flag false` is a stated answer, and a check that read the word as a boolean
 // would refuse it. Three separate defects in this codebase have come from treating a falsy value

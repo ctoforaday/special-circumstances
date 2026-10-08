@@ -64,23 +64,6 @@ type entry struct {
 	values []record.EnumValue
 }
 
-// String registers an enum-valued string flag: enumflag parses it, this package documents it.
-//
-// The target keeps its string type deliberately. The record stores these values AS THE WORDS —
-// every consumer switches on the string and every golden contains it — so mapping them onto uint
-// constants would put a translation between the flag and the payload for no gain, and a
-// translation is a place two vocabularies drift.
-func String(c *cobra.Command, target *string, name string, values []record.EnumValue, usage string) {
-	// The typename is what cobra prints after the flag (`--as closure_class`), so it is the
-	// KEY the value-space is documented under, not the flag word repeated back.
-	v := enumflag.NewWithoutDefault(target, typeName(name, values), record.Identifiers(values), enumflag.EnumCaseSensitive)
-	c.Flags().Var(&speaking{Value: v, flag: name, values: values, why: usage}, name, usage)
-	register(c, name, values)
-	// Completion comes from the same table, so a seat pressing TAB and a seat reading --help are
-	// told the same thing by construction.
-	_ = v.RegisterCompletion(c, name, record.CompletionHelp(values))
-}
-
 // Flag registers an enum-valued flag whose value the caller reads back through seat.Str rather
 // than through a bound variable, which is how every verb in this tree already reads its flags.
 //
@@ -97,24 +80,6 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 	c.Flags().Var(&speaking{Value: v, flag: name, values: e.Values, why: e.Why}, name, usage)
 	register(c, name, e.Values)
 	_ = v.RegisterCompletion(c, name, record.CompletionHelp(e.Values))
-}
-
-// Slice registers a repeatable enum-valued flag, for the sets where a seat may name more than one.
-func Slice(c *cobra.Command, target *[]string, name string, values []record.EnumValue, usage string) {
-	v := enumflag.NewSlice(target, typeName(name, values), record.Identifiers(values), enumflag.EnumCaseSensitive)
-	c.Flags().Var(&speaking{Value: v, flag: name, values: values, why: usage}, name, usage)
-	register(c, name, values)
-	_ = v.RegisterCompletion(c, name, record.CompletionHelp(values))
-}
-
-// Document registers values for a flag this package did not create.
-//
-// The escape hatch, and it earns its place: `--proposed` and the grade axes are flags.GradeValue,
-// a pflag.Value over an ORDERED SCALE shared by five axes that already refuses at parse with help
-// generated from one list. Routing it through enumflag would be a second implementation of a rule
-// that has one — but its values still deserve meanings, and this is how they get them.
-func Document(c *cobra.Command, name string, values []record.EnumValue) {
-	register(c, name, values)
 }
 
 // speaking wraps enumflag's Value so the PARSING is the library's and the REFUSAL is ours.
@@ -248,11 +213,4 @@ func Registered(c *cobra.Command) map[string][]record.EnumValue {
 		out[e.flag] = e.values
 	}
 	return out
-}
-
-// HasEnum reports whether a flag on a command is a registered enum, so callers can tell an
-// undocumented set from one that simply is not enumerated.
-func HasEnum(c *cobra.Command, f *pflag.Flag) bool {
-	_, ok := Registered(c)[f.Name]
-	return ok
 }

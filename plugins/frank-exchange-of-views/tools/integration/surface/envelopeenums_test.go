@@ -296,18 +296,6 @@ func parseJSValues(raw string) []string {
 	return out
 }
 
-func equalSets(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // missing returns the members of got that allowed does not contain — the one direction of a set
 // difference, so each side of an asymmetry is reported in its own words rather than as two lists
 // for the reader to diff by eye.

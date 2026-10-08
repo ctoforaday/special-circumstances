@@ -72,7 +72,7 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 // Containment either way, on whitespace-collapsed text: the new finding may quote a fragment
 // of the prescribed sentence or a span that swallows it whole, and both are the same act.
 func EstoppelConflict(f Family, quote string) (gapID, prescribed string) {
-	// VISIBLE, NOT MERELY COLLAPSED. collapse normalises whitespace and leaves the anchors, and the
+	// VISIBLE, NOT MERELY COLLAPSED. Collapsing whitespace alone leaves the anchors, and the
 	// two sides of this comparison differ by exactly that: `fix_new` is red's prose, written before
 	// any anchor existed, while `quote` is taken from the report, which anchors the sentence the
 	// moment the fix lands. On raw bytes this check goes blind at the instant it becomes relevant.
@@ -118,10 +118,6 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 	}
 	return offered, applied, declined
 }
-
-// collapse normalizes runs of whitespace to single spaces so a quote and the prescribed text
-// compare on their words, not on how either was wrapped.
-func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // Proposal is the pair a gap's mint prescribes, as an edit of report applies it — the pair the board
 // serves, `blue edit --accept` sends, and a typed application is compared with, so the three cannot

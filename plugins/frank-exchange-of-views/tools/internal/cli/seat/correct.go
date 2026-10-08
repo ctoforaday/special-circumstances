@@ -169,14 +169,6 @@ func (c Context) CorrectionTarget() (proto.Message, error) {
 	return record.TargetBody(run, c.SeatID, inv.correct.Key, inv.correct.Type)
 }
 
-// CorrectionKey is the key of the act this invocation corrects, "" when it corrects nothing.
-func (c Context) CorrectionKey() string {
-	if inv := invocationOf(c.cmd); inv != nil && inv.correct != nil {
-		return inv.correct.Key
-	}
-	return ""
-}
-
 // writtenKey is the key of the last event of the command's own type this invocation wrote.
 // tracked is false for a command that keeps no write log (not correctable).
 func writtenKey(cmd *cobra.Command) (key string, correcting, tracked bool) {

@@ -638,9 +638,6 @@ func (x StruckIndex) Head(key string) string {
 	return key
 }
 
-// IsStruck answers whether ev was corrected, on a stream's index.
-func IsStruck(idx StruckIndex, ev *Event) bool { return idx.IsStruck(ev.GetKey()) }
-
 // Listed is one act as a LISTING shows it: the act, and — when a correction struck it — who struck
 // it and why. A listing never hides a struck act; it marks it.
 type Listed struct {

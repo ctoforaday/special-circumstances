@@ -386,7 +386,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
 		// record like its neighbour instead of from a filename.
 		//
-		// It was `fileExists(run.Dir()/report.md)`. setup's skeleton then stubbed report.md (while
+		// It was a stat of run.Dir()/report.md. setup's skeleton then stubbed report.md (while
 		// documenting it as `bench assemble`'s output), so
 		// Terminal was true from the moment setup ran, before a seat was dispatched, for the
 		// entire life of every run. Measured 2026-08-22: the dashboard rendered "run complete —
@@ -403,8 +403,6 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		Generated: nowISO(nowMs),
 	}
 }
-
-func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // buildJudiciary reads the bench's traffic off the record: judge sittings, rulings by disposition,
 // grade-motion traffic, the latest recorded verdict, and how long arguments live over supersedes

@@ -76,29 +76,6 @@ func write(t *testing.T, path, body string) {
 	}
 }
 
-// fixtureRun builds a runDir with the file-backed artifacts the file audits read.
-func fixtureRun(t *testing.T, ledgerLines, archiveBlocks int) string {
-	t.Helper()
-	dir := t.TempDir()
-	write(t, filepath.Join(dir, "trajectories", "board-telemetry.jsonl"), `{"epoch":1,"mass":4}`+"\n"+`{"epoch":2,"mass":4}`+"\n")
-	var lb strings.Builder
-	lb.WriteString("# ledger\n## closure index\n")
-	for i := 0; i < ledgerLines; i++ {
-		lb.WriteString("R1-" + itoa(i+1) + " | closed | fixed | -\n")
-	}
-	write(t, filepath.Join(dir, "red", "ledger.md"), lb.String())
-	var ab strings.Builder
-	ab.WriteString("# archive\n")
-	for i := 0; i < archiveBlocks; i++ {
-		ab.WriteString("## R1-" + itoa(i+1) + " — closed\nprose\n")
-	}
-	write(t, filepath.Join(dir, "red", "archive.md"), ab.String())
-	write(t, filepath.Join(dir, "blue", "CHANGELOG.md"), "## Round 1\nedits\n## Round 2\nedits\n")
-	write(t, filepath.Join(dir, "trajectories", "journal.jsonl"),
-		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`}}`+"\n")
-	return dir
-}
-
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

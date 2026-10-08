@@ -708,12 +708,6 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	return tx.Commit()
 }
 
-// insertEvent writes an event whose envelope is already stamped.
-func insertEvent(db *sql.DB, ev *Event) error {
-	_, err := recordsql.Insert(db, ev)
-	return err
-}
-
 // validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
 // and the requirements no schema can express. Error strings are matched verbatim — seats read
 // them, and the golden suite compares them.

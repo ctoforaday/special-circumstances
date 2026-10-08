@@ -387,10 +387,6 @@ func asInt(v any) int {
 
 func asBool(v any) bool { b, _ := v.(bool); return b }
 
-// asString reads a nullable JS string back. debate.js sends null for "the bench never cleared the
-// board", which exports as nil, so the empty string is that state and nothing else.
-func asString(v any) string { s, _ := v.(string); return s }
-
 // optStr reads a string option, returning "" for absent/undefined/null so an unset opt and an empty
 // one are the same to the caller — which they are: both dispatch under the default.
 func optStr(o *goja.Object, k string) string {

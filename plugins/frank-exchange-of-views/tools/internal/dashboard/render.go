@@ -21,13 +21,6 @@ var sevCode = map[string]string{"certain": "c", "high": "h", "medium_high": "mh"
 var sevRank = map[string]int{"certain": 7, "high": 6, "medium_high": 5, "medium": 4, "low_medium": 3, "low": 2, "trivial": 1, "realized": 0}
 var shortName = map[string]string{"frontier": "front", "blue lanes": "lanes", "synthesis": "synth", "assembly": "asm"}
 
-func atoiOr(s string, d int) int {
-	if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil {
-		return n
-	}
-	return d
-}
-
 func round(f float64) float64 { return math.Round(f) }
 
 func nowISO(ms float64) string {
@@ -49,15 +42,6 @@ func anyStr(v any) string {
 	default:
 		return fmt.Sprint(x)
 	}
-}
-
-// or returns anyStr(v) unless empty, else the dash fallback (the JS `x ?? '—'` idiom).
-func orDash(v any) string {
-	s := anyStr(v)
-	if s == "" {
-		return "—"
-	}
-	return s
 }
 
 func esc(s string) string {

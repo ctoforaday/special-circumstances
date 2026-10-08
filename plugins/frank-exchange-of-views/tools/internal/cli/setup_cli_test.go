@@ -54,17 +54,6 @@ func buildSetupBinary(t *testing.T) string {
 	return dst
 }
 
-// toolsDir walks up from the test's cwd (internal/cli) to the tools module root.
-func toolsDir(t *testing.T) string {
-	t.Helper()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// internal/cli -> internal -> tools
-	return filepath.Dir(filepath.Dir(wd))
-}
-
 func gitInit(t *testing.T, dir string) {
 	t.Helper()
 	for _, args := range [][]string{
