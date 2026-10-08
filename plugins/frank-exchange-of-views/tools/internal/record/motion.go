@@ -173,34 +173,6 @@ func MotionSubjectEnum(word string) (recordpb.MotionSubject, bool) {
 	return recordpb.MotionSubject(vd.Number()), true
 }
 
-// motionRulingWord renders whichever ruling the event actually carries.
-//
-// THE VERDICT SET IS KEYED ON THE SUBJECT — that is what MotionVerdicts above says and what the
-// schema's three ruling enums enforce — so there is no single field to read. An arm nobody set
-// returns "", which is what Motion.Ruled() tests: a motion filed and never ruled must stay
-// distinguishable from one ruled with a verdict this binary does not know.
-func motionRulingWord(r *recordpb.MotionRule) string {
-	switch v := r.GetRuling().(type) {
-	case *recordpb.MotionRule_Grade:
-		return enumWord(v.Grade)
-	case *recordpb.MotionRule_Petition:
-		return enumWord(v.Petition)
-	case *recordpb.MotionRule_Avenue:
-		return enumWord(v.Avenue)
-	case *recordpb.MotionRule_Docket:
-		// THE WORD IS ON THE MESSAGE, not the arm — the docket arm is the only one carrying a
-		// message rather than an enum, because the bench records reasoning as well as a verdict.
-		//
-		// Left out, this returns "" for every bench ruling ever made: Motion.Ruled() is false, the
-		// motions view reports the whole docket as filed-and-unanswered, and Compute's
-		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
-		// broken read are the same number. record.go's rulingWord is the twin of this switch and
-		// it has the arm; that is exactly how a pair drifts.
-		return enumWord(v.Docket.GetDisposition())
-	}
-	return ""
-}
-
 // enumWord is the schema's own spelling of an enum value — recordpb.Spelling, reached through the
 // descriptor the generated type already carries.
 //
@@ -274,6 +246,9 @@ type Motion struct {
 	// filed is the place (motionsAt's seq) of the motion's first filing in the stream; zero for a
 	// motion created by its ruling, or one read through MotionsOf, which carries no places.
 	filed int64
+	// ruled is the place (motionsAt's seq) of the ruling the motion carries: a corrected ruling's
+	// is the place it was first made in. Zero for an unruled motion, or one read through MotionsOf.
+	ruled int64
 }
 
 // Ruled reports whether the motion has an answer.
@@ -283,9 +258,15 @@ func (m Motion) Ruled() bool { return m.Ruling != "" }
 // the run-shaped readers (plans/board-as-views.md wave 1c) fetch events without a fold.
 func MotionsOf(evs []*Event, win WindowIndex) []*Motion { return motionsAt(evs, nil, win) }
 
-// motionsAt is MotionsOf carrying each motion's filing place, off seq — evs's places (events.id, or
-// the stream position), aligned with it. The one walk that folds the motions is the one that knows
-// where each was filed, so a reader asking "has its owner sat since" needs no second pass.
+// motionsAt is MotionsOf carrying each motion's filing place and its ruling's, off seq — evs's
+// places (events.id, or the stream position), aligned with it. The one walk that folds the motions
+// is the one that knows where each was filed and ruled, so a reader asking "has its owner sat
+// since" or "what followed the ruling" needs no second pass and no second rule for which ruling.
+//
+// A MOTION'S ANSWER IS ITS FIRST RULING AND ITS FIRST APPEAL THAT STAND — the rule the write
+// enforces (requireUnanswered) and motion_answers states in SQL.
+// TestEveryMotionReaderStatesFirstWins holds this walk, AvenuesOf and the view to it on a record
+// seeded past the write.
 //
 // Each filing, proposal and ruling carries the epoch and sitting the record stored it in (win): a
 // filing made in a sitting-record repair is the repaired sitting's, and one made before its
@@ -443,14 +424,16 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		}
 	}
 
-	// PASS 2 attaches every answer. Order-independent by construction, which is the only safe
-	// assumption about a multi-shard log.
+	// PASS 2 attaches each motion's answer: the first ruling and the first appeal in the stream,
+	// each wherever it sits relative to the filing and to the other. A later one of either is not
+	// read at all, so no field of the answer mixes two acts.
 	//
 	// THE ANSWER KNOWS ONLY THE ASK'S ID. A `motion-rule` carries `motion_id` and nothing else that
 	// identifies what it is about — no gap id, no avenue id — so this lookup IS the attribution.
 	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
 	// the empty string and report a board with no rulings on it.
-	for _, e := range evs {
+	ruled := map[*Motion]bool{}
+	for i, e := range evs {
 		id, ok := motionIDOf(e)
 		if !ok || id == "" {
 			continue
@@ -465,11 +448,21 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		}
 		switch f := body.(type) {
 		case *recordpb.MotionRule:
+			if ruled[m] {
+				continue
+			}
+			ruled[m] = true
 			w := win.Of(e)
-			m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = motionRulingWord(f), e.GetSeatId(), w.Epoch, w.Sitting
+			m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = rulingWord(f), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Opinion = f.GetOpinion()
 			m.Principle = f.GetDocket().GetPrinciple()
+			if seq != nil {
+				m.ruled = seq[i]
+			}
 		case *recordpb.MotionAppeal:
+			if m.Appealed {
+				continue
+			}
 			m.Appealed, m.AppealReason = true, f.GetReason()
 		}
 	}
@@ -627,9 +620,9 @@ func noAppeal(word, id string) string {
 
 // requireUnanswered is the first-wins half of the motion guards: a second ruling, a second
 // appeal. It runs INSIDE the writing transaction — insertNumbered's, or appendCorrected's — which
-// takes the write lock at BEGIN. Read before the transaction, it was check-then-insert: every seat
-// that read "unanswered" before the first answer committed landed its own, and the record then
-// held two answers MotionsOf and motion_answers each picked differently.
+// takes the write lock at BEGIN. Read before the transaction it is check-then-insert: every seat
+// that reads "unanswered" before the first answer commits lands its own, and the record holds two
+// answers to one motion.
 //
 // correcting is the key a correction names ("" for an ordinary write).
 func requireUnanswered(q rowQuerier, seatID string, body proto.Message, correcting string) error {

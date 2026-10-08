@@ -1027,9 +1027,10 @@ func benchSatFor(dispatches []dispatchRow, on map[recordpb.Occasion][]int64, gap
 // openGaps reads the open gaps with what the plan needs of each: who minted it, its current
 // severity, whether it is stranded, its docket and its remand's direction — all off the gap view, the
 // same fold every reader uses (how many remands count is the exchange fold's, exchangesOf). "A docket stands unruled" is the view's `unruled_docket_filed` (recordsql/views.go),
-// the one definition the view's own `remanded` is derived from; the PASS gate (MotionsOf)
-// and `motion_answers` ask the same per-motion question of the Go fold and the motion tables, and
-// #1228 folds those readers into this one.
+// the one definition the view's own `remanded` is derived from; the PASS gate (motionsAt) asks
+// the same per-motion question of the events, and
+// TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled holds the two level:
+// the bench is readied for a gap exactly when the gap's motion is among the plan's unruled ones.
 func openGaps(db recordsql.Querier) ([]openGap, error) {
 	rows, err := db.Query(`SELECT g."gap_id", COALESCE(g."minted_by", ''), COALESCE(g."current_severity", ''),
 	    g."material", COALESCE(g."class_material", ''),

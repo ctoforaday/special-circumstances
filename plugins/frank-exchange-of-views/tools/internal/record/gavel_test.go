@@ -12,10 +12,10 @@ import (
 
 // EVERY MOTION SUBJECT DECLARES WHO RULES IT.
 //
-// The gavel used to be a literal argument in internal/cli/motion and nowhere else, so the PASS
-// gate — which lives here and cannot import the CLI — refused a chair seat over an unruled
-// PETITION while telling it to go and rule the thing. requireRuler then refused that, because the
-// bench holds that gavel. The seat had no legal verdict and the round wedged.
+// The PASS gate lives here and cannot import the CLI, whose command tree is the gavel. A gate
+// that does not know who rules a subject refuses a chair seat over an unruled PETITION while
+// telling it to go and rule the thing — a verb its tree does not carry, because the bench holds
+// that gavel. The seat has no legal verdict and the round wedges.
 //
 // Written against the DESCRIPTOR rather than a list of three subjects, so a fourth fails here on
 // the day it is added rather than on the day a run blocks behind it.
@@ -96,7 +96,7 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	// And it must not name the ruler as though the reader were it: the wedge came from an
 	// instruction the seat could follow only into a second refusal.
 	if !strings.Contains(msg, "IF THE GAVEL NAMED ABOVE IS YOURS") {
-		t.Errorf("the rule-it instruction is unconditional, which is what walked a chair seat into requireRuler: %v", err)
+		t.Errorf("the rule-it instruction is unconditional, which walks a chair seat into a verb only the bench's tree carries: %v", err)
 	}
 }
 

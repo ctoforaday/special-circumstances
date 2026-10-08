@@ -44,13 +44,10 @@ import (
 // NewCommandFor builds the motion tree for ONE seat's role.
 //
 // THE GAVEL IS A FACT ABOUT WHICH TREE YOU ARE IN, not a check the verb runs. `rule` is added
-// only to the gavel-holder's surface, which is why newRule carries no requireRuler.
-//
-// THE PAIR IS LOAD-BEARING AND IT CAME APART IN THE CHAIR. verbs.go dropped the runtime check on
-// the strength of this scoping while this constructor still added `rule` to every seat, so for a
-// moment there was no gavel at all: blue ruled its own grade motion and was told it succeeded.
-// Neither half is wrong alone and neither is sufficient alone — TestAHostileSeatIsRefused is what
-// noticed, and it is the reason a verb's absence must be constructed rather than asserted.
+// only to the gavel-holder's surface, and newRule compares no role: this constructor's scoping is
+// the whole of the gavel. A `rule` added to every seat's tree is no gavel at all — blue rules its
+// own grade motion and is told it succeeded. TestAHostileSeatIsRefused holds the scoping, which is
+// why a verb's absence is constructed rather than asserted.
 func NewCommandFor(actingRole string) *cobra.Command {
 	c := &cobra.Command{
 		Use: "motion",
@@ -115,8 +112,8 @@ func GavelRoll() string {
 //
 // It PANICS on an unknown subject or an unannotated one, and that is deliberate: this runs at
 // command construction, so the failure is at startup for every seat rather than at the moment one
-// tries to rule. A subgroup whose gavel nobody declared would otherwise accept rulings from
-// everybody, which is the arm requireRuler exists to close.
+// tries to rule. A subgroup whose gavel nobody declared has no tree to add `rule` to, and a
+// default would hand the verb to a seat nobody chose.
 func rulerFor(name string) string {
 	subj, ok := record.MotionSubjectEnum(name)
 	if !ok {
@@ -211,33 +208,6 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 
 // petitionSubject is the petition's word in the MotionSubject enum.
 var petitionSubject = recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_PETITION)
-
-// actingRole reports the role of the seat running the command, from its identity.
-//
-// Not from tree position (see the package comment) and not from a flag — the seat id is injected
-// and cross-checked (#348), so it is the one identity fact a seat cannot quietly get wrong.
-func actingRole(seatID string) string {
-	for _, r := range []string{"lens", "chair", "blue", "bench"} {
-		if record.CheckSeatRole(r, seatID) == nil {
-			return r
-		}
-	}
-	return ""
-}
-
-// requireRuler refuses a ruling from a seat that does not hold the gavel for this subject.
-//
-// The message NAMES the seat that does. Under a scoped surface "not yours" would otherwise read
-// as "does not exist" — the measured failure where a seat handed an unavailable verb logs
-// friction and works around it, losing the capability for the run.
-func requireRuler(subject, ruler, seatID string) error {
-	if got := actingRole(seatID); got != ruler {
-		return feov.Errorf(feov.Validation,
-			"a %s motion is ruled by the %s seat; you are %s (%s). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle",
-			subject, ruler, seatID, got)
-	}
-	return nil
-}
 
 // prose pulls the one prose field, refusing an empty one by name.
 func prose(cmd *cobra.Command, verb, why string) (string, error) {

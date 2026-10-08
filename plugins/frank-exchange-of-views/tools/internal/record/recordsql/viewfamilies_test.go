@@ -9,9 +9,9 @@ import (
 )
 
 // THE FAMILY VIEWS ARE TESTED IN SQL, INCLUDING THE STATES THE WRITE GUARDS FORBID. Insert
-// bypasses record.Append's validation on purpose: a legacy record can carry two rulings on one
-// motion, and the whole reason motion_answers states first-wins ONCE is that such a record must
-// read as one answered motion, not multiply every join. A view tested only through the guarded
+// bypasses record.Append's validation on purpose: motion_answers states first-wins ONCE so that a
+// record holding two rulings on one motion, which only a raw insert produces, reads as one
+// answered motion and does not multiply every join. A view tested only through the guarded
 // write path is tested only on the states the guards permit — which is the half that was never
 // in danger.
 
@@ -107,7 +107,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}})); err != nil {
 		t.Fatal(err)
 	}
-	// TWO rulings — the state the write guard refuses and a legacy record can still hold.
+	// TWO rulings — the state the write guard refuses, seeded by raw insert.
 	for i, r := range []recordpb.GradeRuling{recordpb.GradeRuling_GRADE_RULING_REJECTED, recordpb.GradeRuling_GRADE_RULING_ACCEPTED} {
 		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 			MotionId: proto.String("M-1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),

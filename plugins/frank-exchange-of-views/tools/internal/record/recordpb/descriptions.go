@@ -146,12 +146,10 @@ func isZeroValue(v protoreflect.EnumValueDescriptor) bool { return v.Number() ==
 
 // RulerOf returns the seat role that holds the gavel for a motion subject.
 //
-// ONE DECLARATION, TWO READERS, and the second one did not exist. `internal/cli/motion` carried
-// the gavel as a literal argument — `subject("petition", …, "bench")` — and enforced it in
-// requireRuler. The PASS gate, in `internal/record`, cannot import the CLI, so its refusal told
-// every blocked seat to "rule it with `motion <subject> rule`" without knowing whose ruling it
-// would be. For a petition that instruction is refused by requireRuler: the chair does not hold
-// that gavel and cannot obtain it, so the seat had no legal verdict and the epoch wedged.
+// ONE DECLARATION, TWO READERS. `internal/cli/motion` adds `rule` only to this role's command
+// tree. The PASS gate, in `internal/record`, cannot import the CLI, so its refusal names the role
+// from here: a seat blocked behind an unruled petition is told the bench rules it, not told to
+// rule a motion whose gavel it does not hold and cannot obtain.
 //
 // The miss is LOUD for the same reason EnumValueDoc's is: a silent "" would put a role-shaped
 // hole in a refusal message, which reads as a motion nobody has to rule.

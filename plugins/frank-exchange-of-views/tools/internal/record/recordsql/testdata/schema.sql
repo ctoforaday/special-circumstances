@@ -1605,10 +1605,9 @@ SELECT
   (SELECT count(*) FROM "events")               AS "events";
 
 -- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
--- ruling and the FIRST appeal are the ones that count: a second of either is refused at the
--- write precisely because it would replace the first in every later reader — so the view
--- states the first-wins rule ONCE, where a legacy record carrying an illegal second row
--- cannot multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
+-- ruling and the FIRST appeal are the ones that count, and a second of either is refused at the
+-- write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
+-- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
 -- because an avenue motion has no filing row (the avenue's proposal IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS

@@ -100,9 +100,9 @@ func RoleOfSeat(seatID string) string {
 //
 // THIS IS THE COST OF SCOPING THE TREE, PAID RATHER THAN HIDDEN. A seat verb is now absent from a
 // process with no identity, so "mint" answers "no such command" where it used to answer "--seat-id
-// is required". That is the failure requireRuler's own comment named — under a scoped surface "not
-// yours" reads as "does not exist", and a seat handed an unavailable verb logs friction and works
-// around it, losing the capability for the run. The surface cannot carry the verb (it does not know
+// is required". Under a scoped surface "not yours" reads as "does not exist", and a seat handed an
+// unavailable verb logs friction and works around it, losing the capability for the run. The
+// surface cannot carry the verb (it does not know
 // which seat's), so the REFUSAL has to carry the reason.
 func noSeatNote(seatID string) string {
 	if strings.TrimSpace(seatID) == "" {
