@@ -3,7 +3,6 @@ package record
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -188,7 +187,8 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// that is not nil, and panic on the absent case this line exists to handle.
 			//
 			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/deferred/
-			// declined/abandoned carries an underscore. AvenueRuling below is the opposite case.
+			// declined/abandoned carries an underscore. AvenueRuling's words do (`out_of_scope`,
+			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())
 			// A CONCLUDED LINE WAS TAKEN: it ends a pursuit, so it is one whether or not the seat
 			// recorded `pursued` on the way.
@@ -217,7 +217,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			//
 			// The subject the CLI spells `avenue` is MOTION_SUBJECT_AVENUE in the schema —
 			// the same subject under the schema's word, and the only one whose ruling set is
-			// AvenueRuling (endorsed / out-of-scope / too-thin).
+			// AvenueRuling (endorsed / out_of_scope / too_thin).
 			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
 				continue
 			}
@@ -320,18 +320,25 @@ func StaleAvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 // pursuing a line red called out-of-scope looked exactly like blue pursuing one red endorsed.
 // Red's ruling is an argument rather than a command — blue may pursue anyway — but the
 // disagreement should be a fact, not something a reader reconstructs from two lists.
-func AvenueRuling(run Run, avenueID string) string {
+//
+// "" MEANS ONE THING: the avenue is on the record and red has not ruled it. A read that fails is
+// the error, and so is an id avenue_state holds no row for — both would otherwise read as "never
+// ruled", which is the answer a caller skips its check on.
+func AvenueRuling(run Run, avenueID string) (string, error) {
 	// The avenue view carries the whole line, this column included: the newest
 	// direction-subject rule decides, and a NULL arm on it is red ruling nothing — "" — not an
-	// invitation to read an older ruling instead. A read error folds into "", as the
-	// board-read error did. The hyphen join is the surface spelling, so it stays a Go concern.
+	// invitation to read an older ruling instead. The word is the schema's (`out_of_scope`), the
+	// one AvenuesOf puts on Avenue.Ruling and every surface accepts.
 	var word sql.NullString
 	found, err := queryRow(run, []any{&word},
 		`SELECT "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = ?`, avenueID)
-	if err != nil || !found {
-		return ""
+	if err != nil {
+		return "", fmt.Errorf("record: the ruling on avenue %s: %w", avenueID, err)
 	}
-	return strings.ReplaceAll(word.String, "_", "-")
+	if !found {
+		return "", fmt.Errorf("record: the ruling on avenue %s: avenue_state holds no row for it — no proposal that stands created that avenue", avenueID)
+	}
+	return word.String, nil
 }
 
 // AvenueReviewDueOf is AvenueReviewDue over the events themselves.
