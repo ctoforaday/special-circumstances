@@ -78,8 +78,8 @@
               "reason": "the synthesizer writes blue/report.md before ingest; it is that seat's file"
             },
             {
-              "path": "plugins/frank-exchange-of-views/skills/research-protocol/SKILL.md",
-              "reason": "the run-directory layout describes the synthesizer's file and its removal at ingest"
+              "path": "plugins/frank-exchange-of-views/skills/research-protocol/references/run-directory.md",
+              "reason": "the operator's run-directory map describes the synthesizer's file and its removal at ingest"
             },
             {
               "path": "plugins/frank-exchange-of-views/tools/internal/cli/blue/ingest.go",

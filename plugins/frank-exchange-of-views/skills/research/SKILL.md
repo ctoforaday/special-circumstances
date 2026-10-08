@@ -17,7 +17,8 @@ is two script invocations.
    the script keeps it.
 2. **Set up the run directory** (mechanics — `setup` is idempotent, keeps anything pre-staged,
    writes the `.run-live` marker for the hook guards, and does NOT create the chair-born
-   artifacts):
+   artifacts; the map of what it lays down, what the record holds, what `assemble` writes last
+   and how a run ends is `${CLAUDE_PLUGIN_ROOT}/skills/research-protocol/references/run-directory.md`):
    `<path to the feov-record executable> setup <run directory> --seat-id operator --topic "<topic>" --model <resolved model> --judgment-model <resolved judgment model> --cite <path>[@pin] ... [--lens-area <area>]... [--lens-area-reason "<why>"] [--k-max <N>] [--mint-budget <N>] [--max-epochs <N>] [--max-sitting-calls <N>] [--lanes <N>] [--bin-dir <directory containing the feov-record binary>]`
    `--seat-id operator` IS REQUIRED ON EVERY COMMAND IN THIS SKILL, including `capture` and the
    dashboard watcher below. The surface is scoped to whoever is asking, and the PreToolUse hook
