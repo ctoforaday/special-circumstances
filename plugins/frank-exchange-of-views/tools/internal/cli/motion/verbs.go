@@ -261,11 +261,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionRuling); err != nil {
 				return nil, err
 			}
-			//
-			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
-			// a seat that cannot rule this subject cannot name the command — the same boundary the
-			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
-			// acting role.
+			// No runtime gavel check: this verb exists only in the gavel-holder's tree
+			// (NewCommandFor), so a seat that cannot rule this subject cannot name the command —
+			// the same boundary the verb set draws everywhere else.
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
 			if err != nil {
 				return nil, err

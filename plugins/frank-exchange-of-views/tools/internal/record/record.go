@@ -1555,7 +1555,13 @@ func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
 	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
 
-// rulingWord is the ruling as a seat spells it, and "" when nothing was ruled.
+// rulingWord is the ruling as a seat spells it, and "" when nothing was ruled. It is the one
+// reading of a ruling's word: the write's refusal, MotionsOf and AvenuesOf all call it.
+//
+// THE VERDICT SET IS KEYED ON THE SUBJECT — the schema's `ruling` oneof carries one arm per
+// subject — so there is no single field to read, and it reads whichever arm is set. An unset arm
+// and an arm holding its enum's zero both read "", which is what Motion.Ruled() tests; the write
+// refuses both, and refuses an arm that is not the ruling's own subject's.
 func rulingWord(r *recordpb.MotionRule) string {
 	switch v := r.GetRuling().(type) {
 	case *recordpb.MotionRule_Grade:
@@ -1567,6 +1573,11 @@ func rulingWord(r *recordpb.MotionRule) string {
 	case *recordpb.MotionRule_Docket:
 		// THE WORD IS ON THE MESSAGE, not the arm — the docket arm is the only one carrying a
 		// message rather than an enum, because the bench records reasoning as well as a verdict.
+		//
+		// Left out, this returns "" for every bench ruling: Motion.Ruled() is false, the motions
+		// view reports the whole docket as filed-and-unanswered, and Compute's
+		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
+		// broken read are the same number.
 		return recordpb.Word(v.Docket.GetDisposition())
 	}
 	return ""

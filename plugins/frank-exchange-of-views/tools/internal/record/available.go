@@ -322,27 +322,26 @@ func anyClosedGap(gaps []WorkGapState) bool {
 // POSITIONS IN evs ARE SOUND UNDER CORRECTIONS. evs is one read of the whole record in id order.
 // A ruling or a regrade is corrected only before another seat acts, and the ruler and the minter
 // are different seats, so no regrade falls between a ruling and its replacement and no pre-ruling
-// regrade is corrected after the ruling. A motion's ruling is placed at its LAST motion-rule event,
-// the one MotionsOf reads as standing. The reader is the work list's whole-record snapshot
+// regrade is corrected after the ruling. The reader is the work list's whole-record snapshot
 // (WorkOfSeat), so win knows every seat's latest sitting.
 //
-// THE JOIN IS MotionsOf, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
-// RULING, and motion.go's projection is the one that pairs them and reads a corrected ruling as
-// its replacement.
+// THE JOIN IS motionsAt, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
+// RULING, and motion.go's projection is the one that pairs them, reads a corrected ruling as its
+// replacement, and says WHICH ruling a motion carries and WHERE it sits — the first that stands,
+// in the place it was first made. This function asks it for the verdict and the place together,
+// so the regrade is weighed against the ruling whose verdict is read.
 func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []string {
 	latest := win.LatestSittingOf(seatID)
-	lastRegrade := map[string]int{}      // gap → position of its last regrade, by any seat
+	lastRegrade := map[string]int64{}    // gap → position of its last regrade, by any seat
 	heldThisSitting := map[string]bool{} // gap → the seat's current sitting holds a regrade of it
-	lastRuling := map[string]int{}       // motion → position of its last ruling
+	places := make([]int64, len(evs))    // evs's stream positions, which motionsAt places a ruling by
 	for i, e := range evs {
+		places[i] = int64(i)
 		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" {
-			lastRegrade[r.GetGapId()] = i
+			lastRegrade[r.GetGapId()] = int64(i)
 			if e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
 				heldThisSitting[r.GetGapId()] = true
 			}
-		}
-		if mr := e.GetMotionRule(); mr != nil {
-			lastRuling[mr.GetMotionId()] = i
 		}
 	}
 	open := map[string]bool{}
@@ -353,7 +352,7 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 	}
 	var out []string
 	seen := map[string]bool{}
-	for _, m := range MotionsOf(evs, win) {
+	for _, m := range motionsAt(evs, places, win) {
 		if m.Subject != "grade" || m.Ruling != "accepted" {
 			continue
 		}
@@ -361,8 +360,7 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 		if id == "" || seen[id] || minted[id] != seatID || !open[id] || heldThisSitting[id] {
 			continue
 		}
-		ruled, isRuled := lastRuling[m.ID]
-		if at, regraded := lastRegrade[id]; !isRuled || (regraded && at > ruled) {
+		if at, regraded := lastRegrade[id]; regraded && at > m.ruled {
 			continue
 		}
 		seen[id] = true

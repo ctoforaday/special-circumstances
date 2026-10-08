@@ -133,9 +133,10 @@ func TestABenchThatDidNotSitSaysSo(t *testing.T) {
 	}
 }
 
-// ONE RULING PER MOTION, ON BOTH ROWS. A motion the bench ruled in one sitting and ruled again in
-// a later one is one ruling — the one that stands. remanded_share and undeclared_inspection_risk
-// count over the same rulings, so the opinion share and the remand share have one denominator.
+// ONE RULING PER MOTION, ON BOTH ROWS. The write refuses a second ruling on a motion, so this
+// seeds one past it: a motion ruled in one sitting and again in a later one is one ruling — its
+// FIRST, the rule MotionsOf states. remanded_share and undeclared_inspection_risk count over the
+// same rulings, so the opinion share and the remand share have one denominator.
 func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
 	rem, rep := recordpb.Disposition_DISPOSITION_REMANDED, recordpb.Disposition_DISPOSITION_REPAIRED
 	const traj = "read off the trajectory of the lens's tool calls"
@@ -149,8 +150,8 @@ func TestAMotionRuledInTwoSittingsIsOneRuling(t *testing.T) {
 		docketRuling(t, "M1", rep, traj),
 	})
 	rows := benchRows(fam)
-	if r := rowByMetric(rows, "remanded_share"); r == nil || r.Value != 0.5 || !strings.HasPrefix(r.Note, "1/2") {
-		t.Errorf("remanded_share = %+v, want 0.5 at 1/2: M1 stands repaired, M2 remanded", r)
+	if r := rowByMetric(rows, "remanded_share"); r == nil || r.Value != 1.0 || !strings.HasPrefix(r.Note, "2/2") {
+		t.Errorf("remanded_share = %+v, want 1 at 2/2: M1's first ruling remanded it, and so did M2's", r)
 	}
 	if r := rowByMetric(rows, "undeclared_inspection_risk"); r == nil || !strings.HasPrefix(r.Note, "1 opinion(s)") {
 		t.Errorf("undeclared_inspection_risk = %+v, want 1 opinion: M1 is one ruling however often it was ruled", r)

@@ -82,19 +82,21 @@ type Avenue struct {
 	// so the report can say exactly what the record holds (`[abandoned before pursuit]`).
 	EverPursued bool
 	SeatID      string // who last moved it — attribution the one-line row has always carried
-	Ruling      string // red's fate, if ruled
-	RulingWhy   string
-	RuledEpoch  int
+	// Ruling, RulingWhy and RuledEpoch are the line's FIRST ruling that stands, all three from
+	// that one act: the rule the write enforces and motion_answers states.
+	Ruling     string // red's fate, if ruled
+	RulingWhy  string
+	RuledEpoch int
 	// Contests was the ruling blue moved AGAINST, recorded by `blue avenue` at the moment
 	// of the move. Read from the field rather than re-derived from (status, ruling): the write
 	// path already decided what counts as contesting, and a second derivation downstream is a
 	// second definition that can disagree with it.
 	//
-	// ITS CARRIER IS THE APPEAL, NOT A FIELD ON THE LINE. The payload key `contests_ruling` is gone
-	// — recordpb's key census calls it "the legacy spelling of an appeal", and #344 replaced the
-	// mechanism with `motion avenue appeal`. So this is set by the MotionAppeal arm of AvenuesOf
-	// below, from the ruling already on the line: an appeal against an unruled line cannot be
-	// written (RequireRuledMotion). Its reader is the avenues projection
+	// ITS CARRIER IS THE APPEAL, NOT A FIELD ON THE LINE: `motion avenue appeal` writes a
+	// MotionAppeal on the line's id. AvenuesOf sets this to the line's ruling when the line is
+	// appealed — the pairing motion_answers states, the first appeal against the first ruling,
+	// whatever their order — and a line never ruled leaves it empty. The write refuses an appeal
+	// against an unruled line (RequireRuledMotion). Its reader is the avenues projection
 	// (view.AvenueBody), which ships as avenues.md; judgments.md carries the same appeal
 	// with the filer's reason. report.md does not render it — the debate over a direction is not
 	// research prose.
@@ -139,6 +141,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 	evs = Live(evs)
 	byID := map[string]*Avenue{}
 	var order []string
+	ruled, appealed := map[*Avenue]bool{}, map[*Avenue]bool{}
 	for _, e := range evs {
 		w := win.Of(e)
 		body, ok := recordpb.Body(e)
@@ -229,34 +232,29 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			if !ok {
 				continue
 			}
-			// AN ABSENT RULING IS THE EMPTY WORD, and the oneof is what says so: a motion-rule
-			// whose `ruling` arm is unset, or is set to another subject's arm, carried no
-			// direction ruling and must leave Avenue.Ruling empty — `GetAvenue()` alone
-			// returns UNSPECIFIED for all three cases and cannot tell them apart.
-			//
-			// NO `_` -> `-` JOIN. AvenueRuling spells AVENUE_RULING_OUT_OF_SCOPE and `Word` yields
-			// `out_of_scope`, which is the word every surface recognizes, so it goes through
-			// unchanged and there is no second spelling to keep in step.
-			a.Ruling = ""
-			if d, isAvenue := t.GetRuling().(*recordpb.MotionRule_Avenue); isAvenue {
-				a.Ruling = recordpb.Word(d.Avenue)
+			// THE LINE'S RULING IS ITS FIRST THAT STANDS, AND THE WHOLE OF IT. A later ruling is
+			// not read at all, so the word, the argument and the epoch are one act's and never the
+			// first word under a later argument. The write refuses a second ruling
+			// (requireUnanswered), and motion_answers states the same rule in SQL.
+			if ruled[a] {
+				continue
 			}
-			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
-			// the field MotionRule carries and the only prose channel it has.
+			ruled[a] = true
+			// rulingWord reads whichever arm of the `ruling` oneof is set. A ruling on an avenue
+			// subject that carries another subject's arm, or none, is refused at the write, so on
+			// a record the write admitted this is the avenue arm's word — the schema's spelling
+			// (`out_of_scope`), which every surface recognizes.
+			a.Ruling = rulingWord(t)
+			// The ruler's argument is `opinion`, the only prose channel MotionRule has.
 			a.RulingWhy, a.RuledEpoch = t.GetOpinion(), w.Epoch
 		case *recordpb.MotionAppeal:
-			// BLUE MOVING AGAINST A RULING, which is the post-#344 carrier of `contests_ruling`.
-			//
-			// The field it replaced was set as a side effect of moving a line to `pursued` against
-			// an adverse ruling, and when it was retired this arm was NOT written — so
-			// `Avenue.Contests` was always empty and the report's "blue took this line against
-			// red's X ruling" line could never render. The comment above recorded that as owed
-			// rather than done; this is the doing.
+			// BLUE MOVING AGAINST A RULING. This arm records only THAT the line is appealed.
 			//
 			// What blue contested is the ruling ON THE RECORD, so it is read off the line rather
-			// than restated by the appeal: an appeal names the motion, and the motion's ruling is
-			// already here. An appeal against a line nobody ruled leaves it empty, because there
-			// is nothing to have moved against.
+			// than restated by the appeal: an appeal names the motion, and the motion carries one
+			// ruling. Contests is filled after the walk, from that ruling, so the pairing does not
+			// depend on which of the two the stream holds first. A line never ruled leaves it
+			// empty, because there is nothing to have moved against.
 			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
 				continue
 			}
@@ -264,7 +262,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			if !ok {
 				continue
 			}
-			a.Contests = a.Ruling
+			appealed[a] = true
 			// THERE IS NO AvenueReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
 			// review is ONE event per epoch about the report as a whole; it names no line, so there
 			// is nothing here for it to join to. Its reader is AvenueReviewDue.
@@ -272,7 +270,11 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 	}
 	out := make([]*Avenue, 0, len(order))
 	for _, id := range order {
-		out = append(out, byID[id])
+		a := byID[id]
+		if appealed[a] {
+			a.Contests = a.Ruling
+		}
+		out = append(out, a)
 	}
 	return out
 }
@@ -314,7 +316,9 @@ func StaleAvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 	return out
 }
 
-// AvenueRuling returns red's most recent ruling on an avenue, or "" if it never ruled.
+// AvenueRuling returns red's ruling on an avenue, or "" if it never ruled. It reads avenue_state,
+// whose column is the avenue's newest ruling that stands — on a record the write admitted, its
+// only one.
 //
 // The ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
 // pursuing a line red called out-of-scope looked exactly like blue pursuing one red endorsed.
@@ -325,10 +329,8 @@ func StaleAvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 // the error, and so is an id avenue_state holds no row for — both would otherwise read as "never
 // ruled", which is the answer a caller skips its check on.
 func AvenueRuling(run Run, avenueID string) (string, error) {
-	// The avenue view carries the whole line, this column included: the newest
-	// direction-subject rule decides, and a NULL arm on it is red ruling nothing — "" — not an
-	// invitation to read an older ruling instead. The word is the schema's (`out_of_scope`), the
-	// one AvenuesOf puts on Avenue.Ruling and every surface accepts.
+	// The avenue view carries the whole line, this column included. The word is the schema's
+	// (`out_of_scope`), the one AvenuesOf puts on Avenue.Ruling and every surface accepts.
 	var word sql.NullString
 	found, err := queryRow(run, []any{&word},
 		`SELECT "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = ?`, avenueID)

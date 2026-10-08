@@ -88,12 +88,10 @@ extend google.protobuf.EnumValueOptions {
   // ruled_by IS WHICH SEAT HOLDS THE GAVEL, and it is on the value for the same reason `closes`
   // is: a new motion subject cannot be added without answering it.
   //
-  // It was a hand-written string in internal/cli/motion (`subject("petition", …, "bench")`) while
-  // the PASS gate's refusal — in internal/record, which cannot import the CLI — told every
-  // blocked seat to "rule it with `motion <subject> rule`". For a PETITION that instruction is
-  // refused by requireRuler, because the bench holds that gavel and the chair does not. Two
-  // hand-written copies of one fact, one of which did not exist, so the message walked a chair
-  // seat into a role refusal and there was no verdict it could legally give.
+  // It names the role. The CLI adds `motion <subject> rule` only to that role's command tree, and
+  // the PASS gate's refusal — in internal/record, which cannot import the CLI — names the role
+  // through RulerOf, so a seat blocked behind an unruled motion is told whose ruling it waits on
+  // and is never told to rule a motion whose gavel another seat holds.
   optional string ruled_by = 50004;
 
   // seat_may_file IS WHETHER A SEAT MAY PUT THIS WORD ON THE RECORD, and it is on the value for

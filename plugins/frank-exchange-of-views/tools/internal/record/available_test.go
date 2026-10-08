@@ -295,6 +295,46 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 		recordtest.Seed(t, dir, accepted(t, "M2")...)
 		admitted(t, run, id, secondKey)
 	})
+
+	// A CORRECTION IS NOT A SECOND RULING. The chair rules and restates its opinion in its sitting
+	// (a correction cannot change the verdict); the motion carries the replacement, in the place
+	// the ruling was first made, and the one regrade that follows discharges it.
+	t.Run("an accepted ruling corrected in its sitting", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		recordtest.Seed(t, dir, gradeMotionFiled(t, "M1", "G1"))
+		chair := sit(t, run, "red-chair")
+		rule := func(opinion string) *recordpb.MotionRule {
+			r := gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule()
+			r.Opinion = proto.String(opinion)
+			return r
+		}
+		k := mustAppend(t, chair, rule("ruled")).GetKey()
+		mustAppend(t, correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
+			rule("the grade moves, and here is why"))
+		admitted(t, run, id, firstKey)
+	})
+
+	// THE REGRADE IS WEIGHED AGAINST THE RULING THE MOTION CARRIES: its first that stands. The
+	// write refuses a second ruling, so these seed one past it. A second ruling after the regrade
+	// that answered the first re-opens no debt, and one that contradicts a rejection affords none.
+	t.Run("a second ruling after the regrade that answered the first", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		admitted(t, run, id, firstKey)
+		recordtest.Seed(t, dir, gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED), registers(t, regradeLens))
+		if listed(t, run) {
+			t.Errorf("a second ruling on an answered motion re-opened the regrade its first ruling asked for")
+		}
+	})
+	t.Run("a second ruling contradicting a rejection", func(t *testing.T) {
+		dir, run, _ := start(t, regradeLens)
+		recordtest.Seed(t, dir, gradeMotionFiled(t, "M1", "G1"),
+			gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_REJECTED),
+			gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
+		if listed(t, run) {
+			t.Errorf("a motion whose first ruling REJECTED it afforded a regrade")
+		}
+	})
 }
 
 // A duty says WHAT is owed, so these read `what`. They used to read `how` — an invocation this
