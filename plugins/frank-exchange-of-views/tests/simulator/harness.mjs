@@ -107,3 +107,40 @@ export function makeResponder({ chair = [chairEnv(), passChair()], judge = [judg
     return 'synopsis'
   }
 }
+
+// THE ENVELOPE SCHEMA, APPLIED AS THE WORKFLOW HARNESS APPLIES IT. The real harness validates a
+// seat's envelope against the schema its dispatch carries and hands a miss back to the seat; this
+// stub world returns whatever a test cans, so a relay the schema would have refused reaches the
+// engine here and one it accepts is never known to be accepted. schemaAccepts answers that
+// question for the keywords debate.js's envelopes use.
+//
+// IT REFUSES A KEYWORD IT DOES NOT IMPLEMENT. A validator that skips what it cannot read accepts
+// everything that keyword would have refused, and reports agreement between a schema and a check
+// it never applied.
+const SCHEMA_KEYWORDS = new Set(['type', 'required', 'properties', 'items', 'enum', 'anyOf', 'minItems', 'maxItems', 'minimum', 'pattern', 'additionalProperties', 'description'])
+const jsonTypeOf = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : Number.isInteger(v) ? 'integer' : typeof v)
+export function schemaAccepts(schema, v) {
+  for (const k of Object.keys(schema)) if (!SCHEMA_KEYWORDS.has(k)) throw new Error(`schemaAccepts: the schema uses \`${k}\`, which this validator does not implement — teach it the keyword before trusting its answer`)
+  if (schema.anyOf && !schema.anyOf.some((s) => schemaAccepts(s, v))) return false
+  const t = jsonTypeOf(v)
+  if (schema.type !== undefined) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type]
+    if (!types.some((want) => want === t || (want === 'number' && t === 'integer'))) return false
+  }
+  if (schema.enum && !schema.enum.includes(v)) return false
+  if (t === 'string' && schema.pattern !== undefined && !new RegExp(schema.pattern).test(v)) return false
+  if ((t === 'integer' || t === 'number') && schema.minimum !== undefined && v < schema.minimum) return false
+  if (t === 'array') {
+    if (schema.minItems !== undefined && v.length < schema.minItems) return false
+    if (schema.maxItems !== undefined && v.length > schema.maxItems) return false
+    if (schema.items && !v.every((x) => schemaAccepts(schema.items, x))) return false
+  }
+  if (t === 'object') {
+    for (const r of schema.required || []) if (v[r] === undefined) return false
+    for (const [k, x] of Object.entries(v)) {
+      const sub = (schema.properties || {})[k]
+      if (sub) { if (x !== undefined && !schemaAccepts(sub, x)) return false } else if (schema.additionalProperties === false) return false
+    }
+  }
+  return true
+}

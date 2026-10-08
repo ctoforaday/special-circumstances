@@ -1,0 +1,73 @@
+{
+  "plan": {
+    "head": 424,
+    "parties": [
+      {
+        "seat_id": "red-lens-adversary",
+        "gap_ids": [
+          "G16",
+          "G17"
+        ],
+        "occasions": []
+      },
+      {
+        "seat_id": "red-lens-architecture",
+        "gap_ids": [
+          "G14",
+          "G15"
+        ],
+        "occasions": []
+      },
+      {
+        "seat_id": "blue-respond",
+        "gap_ids": [
+          "G14",
+          "G15",
+          "G16",
+          "G17"
+        ],
+        "occasions": []
+      }
+    ],
+    "docket": [],
+    "remand_owed": [],
+    "pass_permitted": false,
+    "ceiling": false,
+    "max_epochs": 12,
+    "epoch_limit_reached": false,
+    "why": [
+      "gap G14 is open and material",
+      "gap G15 is open and material",
+      "gap G16 is open and material",
+      "gap G17 is open and material",
+      "lens red-lens-adversary is ready (active)",
+      "lens red-lens-architecture is ready (active)"
+    ],
+    "stale_areas": [
+      {
+        "seat_id": "red-lens-computation",
+        "pin": 301
+      },
+      {
+        "seat_id": "red-lens-dark-side",
+        "pin": 301
+      },
+      {
+        "seat_id": "red-lens-evidence",
+        "pin": 301
+      },
+      {
+        "seat_id": "red-lens-logic",
+        "pin": 207
+      },
+      {
+        "seat_id": "red-lens-voice",
+        "pin": 301
+      }
+    ],
+    "blockers": []
+  },
+  "verdict": null,
+  "notes": "Sitting complete. Avenue review confirms all five avenues (trial division exhaustive, trial division by primes, Fermat's test, factorization, modular arithmetic) are pursued and concluded in the report. Spot-check of stale areas finds no material defects: computational proofs remain valid and cited; disconfirming evidence is presented honestly; citations present; logical inferences sound; report voice acceptable. Position statement clarifies that the mathematical conclusion (91 composite, 7 × 13) is certain, but the lenses contest framing and verification scope. Dispatch relayed verbatim. No verdict recorded this sitting as pass_permitted is false; four open material gaps and two active lenses remain ready for continued debate.\"",
+  "log": []
+}

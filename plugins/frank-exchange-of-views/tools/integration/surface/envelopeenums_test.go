@@ -115,7 +115,14 @@ var envelopeEnumBinding = map[string]enumBind{
 	// WHAT THE PLAN CONVENES THE BENCH FOR. `dispatch next` readies the bench for two of its four
 	// sittings; the terminal sitting and the assembly are the engine's own, convened at the exit,
 	// so the plan never names them.
-	"PLAN.occasions": {typ: "register", key: "occasion", recordOnly: []string{"terminal", "assemble"}},
+	"BENCH_PARTY.occasions": {typ: "register", key: "occasion", recordOnly: []string{"terminal", "assemble"}},
+
+	// WHO A PLAN'S PARTY CAN BE, in the two shapes the chair's envelope gives a party: the bench,
+	// which carries occasions, and a lens or blue, which carries none. The engine has a sitting for
+	// these seats and no other and throws on a plan naming one more, so a seat the schema offered
+	// beyond the record's list is a relay the harness accepts and the run then dies on (m16).
+	"BENCH_PARTY.seat_id":        {typ: "party", key: "bench"},
+	"LENS_OR_BLUE_PARTY.seat_id": {typ: "party", key: "lens_or_blue"},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
@@ -242,6 +249,16 @@ func recordEnumValues(t *testing.T, typ, key string) []string {
 		}
 		out := record.Names(values)
 		sort.Strings(out)
+		return out
+	}
+	// `party` is the seats a dispatch plan can name (record.PartySeats), in the party shape the key
+	// names. It is a roster, not an event field, so EnumFields does not hold it.
+	if typ == "party" {
+		bench, lensOrBlue := record.PartySeats()
+		out := map[string][]string{"bench": {bench}, "lens_or_blue": lensOrBlue}[key]
+		if len(out) == 0 || out[0] == "" {
+			t.Fatalf("no party seats for %q — an empty want compares equal to nothing and would report a pass", key)
+		}
 		return out
 	}
 	// `grade` is the scale itself rather than a field on an event: every graded axis shares it,

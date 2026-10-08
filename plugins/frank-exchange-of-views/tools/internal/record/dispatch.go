@@ -9,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps is
@@ -745,6 +746,21 @@ const benchSeat = "judge"
 
 // blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
 const blueRespondSeat = "blue-respond"
+
+// PartySeats are the seats a plan's party can name, in the two shapes a party takes: the bench,
+// which carries occasions, and every lens seat on the roster with blue's responding seat, which
+// carry none. The chair's envelope schema in debate.js declares the same two lists, and the
+// envelope-enum gate holds each to this one.
+func PartySeats() (bench string, lensOrBlue []string) {
+	for id, s := range seatclass.Seats {
+		if s.Role == "lens" {
+			lensOrBlue = append(lensOrBlue, id)
+		}
+	}
+	lensOrBlue = append(lensOrBlue, blueRespondSeat)
+	sort.Strings(lensOrBlue)
+	return benchSeat, lensOrBlue
+}
 
 // unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor) and
 // the chair has not registered since recording it. The workflow comes back to the chair only after
