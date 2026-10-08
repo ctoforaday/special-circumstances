@@ -1050,7 +1050,19 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
 
 **Value.** `report_op` drops from four insert arms to one; every marker is placed by an `Anchor`
 event, so "where is X placed" has one table. About +35 lines (−14 arms, +15 appends with retry,
-+4 consistency, +30 translation).
++4 consistency, +30 translation). **Measured +49** (+165 −116), against the estimate's +35: the
+arms went as priced (−15 in `views.go`) and the translation came in under (+16 in `gapplace.go`:
+one `owed` arm for the three acts, on the placement check Part 4 already ran); the appends with
+retry cost +42 against +15 — each verb's retry returns the verb's own placement refusal, so
+`cite` and `corroborate` lift theirs out of the first-call path into a function (+12, +17),
+`prove`'s key lookup returns the proof id its retry places (+8), the stored-location query reads
+five tables (+3), and `PlaceOwed` moves from `lens` to `seat` for the blue verbs (+2); the
+consistency walk +7; comments −1. Tests +223 −38. Over the 16
+archived runs: 0 refusals, 182 citation, 99 proof and 11 corroboration Anchors added,
+`archived_renders.golden` byte-identical (raw, normalized, skeleton, every count); over the 28
+runs: 233, 131 and 12 added, the same refusals event for event, and the 21 renderable reports
+byte-identical. After Parts 1–5 the running S6 total is +260, so the ≥ 320 target needs about
+−580 from Part 6.
 
 - [MODIFY] `cite`, `prove` and verify's corroboration append `Anchor{id, location}` after their
   event, as `finding` and `mint` do; a retry under the same key completes a missing `Anchor` by the
