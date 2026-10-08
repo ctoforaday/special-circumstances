@@ -131,6 +131,68 @@ func TestMintRefusesWhatLocateUniqueRefused(t *testing.T) {
 	}
 }
 
+// NO VERB PLACES AN ANCHOR ON A HEADING. Every placing verb refuses a quote that ends in a heading,
+// appends nothing, and says so; a gap or a finding is told how to name the whole section instead.
+func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
+	const report = "# Title\n\n## Method\n\nThe sieve runs once.\n"
+	for _, c := range []struct {
+		verb    string
+		section bool
+		act     func(t *testing.T, runDir string) error
+	}{
+		{"lens mint", true, func(t *testing.T, runDir string) error { _, err := mintQuote(t, runDir, "K", "Method"); return err }},
+		{"lens finding", true, func(t *testing.T, runDir string) error {
+			registerLensOnce(t, runDir)
+			_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", "Method",
+				"--reason", "r", "--severity", "low", "--likelihood", "low", "--impact", "low")
+			return err
+		}},
+		{"blue cite", false, func(t *testing.T, runDir string) error {
+			registerBlue(t, runDir)
+			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://m/1": []byte("<html>the method</html>")}})
+			_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--quote", "Method", "--url", "https://m/1", "--title", "M")
+			return err
+		}},
+		{"blue prove", false, func(t *testing.T, runDir string) error {
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-respond"); err != nil {
+				t.Fatal(err)
+			}
+			_, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond", "--quote", "Method",
+				"--script", script(t, runDir, "m.js", "console.log(1)"), "--reason", "r")
+			return err
+		}},
+		{"lens corroborate", false, func(t *testing.T, runDir string) error {
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
+				t.Fatal(err)
+			}
+			_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence", "--url", "https://m/2", "--title", "M",
+				"--quote", "Method", "--as", "supports", "--confidence", "high", "--reason", "r")
+			return err
+		}},
+	} {
+		t.Run(c.verb, func(t *testing.T) {
+			runDir := newRun(t)
+			writeReport(t, runDir, report)
+			err := c.act(t, runDir)
+			if err == nil || !strings.Contains(err.Error(), c.verb+": the quote ends in a section heading") {
+				t.Fatalf("refusal = %v, want %s to refuse the heading", err, c.verb)
+			}
+			if got := strings.Contains(err.Error(), "--about-kind section"); got != c.section {
+				t.Errorf("refusal names --about-kind section = %v, want %v: %v", got, c.section, err)
+			}
+			if !strings.Contains(err.Error(), "quote a sentence of the section's text") {
+				t.Errorf("refusal does not say what to quote: %v", err)
+			}
+			for _, typ := range []recordpb.EventType{recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_FINDING,
+				recordpb.EventType_EVENT_TYPE_ANCHOR, recordpb.EventType_EVENT_TYPE_CITE, recordpb.EventType_EVENT_TYPE_PROOF, recordpb.EventType_EVENT_TYPE_VERIFY} {
+				if n := countType(t, runDir, typ); n != 0 {
+					t.Errorf("a refused %s appended %d %v event(s)", c.verb, n, typ)
+				}
+			}
+		})
+	}
+}
+
 // A RETRY ANCHORS THE STORED LOCATION. An act appended without its Anchor — the crash window between
 // the two appends — is finished by a retry under its key at the location the act stored, never at
 // the retry's own --quote; where the report has since come to hold that location twice, the retry

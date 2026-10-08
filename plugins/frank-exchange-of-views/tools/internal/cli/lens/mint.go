@@ -339,8 +339,11 @@ func (r mintResult) Human() string {
 // may name its section instead, and one about something not in the report names that.
 func mintPlacementRefusal(err error) error {
 	r := placementRefusal("lens mint", "gap", err)
-	if errors.Is(err, anchortext.ErrAmbiguous) {
+	switch {
+	case errors.Is(err, anchortext.ErrAmbiguous):
 		return fmt.Errorf("%w; name its section with --about-kind section", r)
+	case errors.Is(err, anchortext.ErrOnHeading):
+		return r
 	}
 	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes", r)
 }

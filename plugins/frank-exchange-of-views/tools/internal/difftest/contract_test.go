@@ -176,10 +176,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"unknown seat", []string{"mint", "--seat-id", "purple-team", "--class", "scope-creep"}},
 
 		// AN ANCHOR NEEDS ONE PLACE: every placing verb refuses a quote that repeats, crosses a blank
-		// line or splits a word, in the same words.
+		// line, splits a word or ends in a heading, in the same words.
 		{"a mint quoting a sentence that repeats", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Costs rose."}},
 		{"a mint quoting across a blank line", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "Plain one. Plain two."}},
 		{"a mint quoting inside a word", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "rices climbed"}},
+		{"a mint quoting a heading", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "H"}},
 		{"a finding quoting a sentence that repeats", []string{"finding", "--key", "F9", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "Costs rose.", "--reason", "r"}},
 

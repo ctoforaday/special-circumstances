@@ -2,6 +2,7 @@ package anchortext
 
 import (
 	"errors"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"path/filepath"
@@ -30,7 +31,7 @@ func mustLocateInsert(t *testing.T, report, quote, marker string) (string, int) 
 	if end < 0 {
 		t.Fatalf("locateEnd(%q) = -1, want a match", quote)
 	}
-	if insideFence(report, end) {
+	if InBlock(report, end, anchor.Fence) {
 		t.Fatalf("locateEnd(%q) resolved inside a fence at %d", quote, end)
 	}
 	return string(insertMarker([]byte(report), end, marker)), end
@@ -89,12 +90,12 @@ func TestInsertMarkerAtOffset(t *testing.T) {
 func TestInsideFenceGuardsCode(t *testing.T) {
 	report := "prose here\n```go\ncode line\n```\nmore prose\n"
 	codeAt := locateEnd(report, "code line")
-	if codeAt < 0 || !insideFence(report, codeAt) {
-		t.Errorf("a match inside a fence must report insideFence=true (at=%d)", codeAt)
+	if codeAt < 0 || !InBlock(report, codeAt, anchor.Fence) {
+		t.Errorf("a match inside a fence must report InBlock=true (at=%d)", codeAt)
 	}
 	proseAt := locateEnd(report, "more prose")
-	if insideFence(report, proseAt) {
-		t.Error("a prose match must report insideFence=false")
+	if InBlock(report, proseAt, anchor.Fence) {
+		t.Error("a prose match must report InBlock=false")
 	}
 }
 
@@ -303,7 +304,32 @@ func TestAttachPlacesTheTablesTokenAtTheQuotesEnd(t *testing.T) {
 	}
 }
 
-// A FENCE'S OWN LINES ARE THE FENCE. insideFence reads anchor.Blocks, where a fence runs from its
+// NO ANCHOR SITS ON A HEADING. Attach refuses a quote whose one occurrence ends in a heading, as
+// anchor.Blocks reads one, whatever the heading's level and whatever follows it; a one-line bold
+// paragraph is a paragraph, and so is the line under a heading. Replay's InsertAnchor reproduces an
+// archived placement on a heading rather than re-authorising it.
+func TestAttachRefusesAHeading(t *testing.T) {
+	const doc = "# Title\n\n## Method\nThe sieve runs once.\n\n**Is 91 prime?**\n\n###### Deep\n"
+	for _, c := range []struct {
+		quote string
+		err   error
+	}{
+		{"Title", ErrOnHeading},
+		{"Method", ErrOnHeading},
+		{"Deep", ErrOnHeading},
+		{"The sieve runs once.", nil},
+		{"Is 91 prime?", nil},
+	} {
+		if _, err := Attach(doc, "f-1a2b", c.quote); !errors.Is(err, c.err) {
+			t.Errorf("Attach(%q) = %v, want %v", c.quote, err, c.err)
+		}
+	}
+	if _, err := InsertAnchor([]byte(doc), "Method", anchor.Token("f-1a2b")); err != nil {
+		t.Errorf("replay refused an archived placement on a heading: %v", err)
+	}
+}
+
+// A FENCE'S OWN LINES ARE THE FENCE. InBlock reads anchor.Blocks, where a fence runs from its
 // opener line through its closer line, so a quote ending on either line is refused: a marker there
 // would ship inside the code block's delimiters. The line after the closer is prose again.
 func TestInsideFenceReadsTheBlockReader(t *testing.T) {

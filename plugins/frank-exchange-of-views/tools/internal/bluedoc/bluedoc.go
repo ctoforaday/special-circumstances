@@ -356,10 +356,10 @@ func flatText(s string) string {
 // AutoPlace puts back each anchor of span that new does not carry, where the anchor's sentence in
 // span survives in new word for word and LocateOnce finds it there once — inside the one occurrence
 // it counted, so "Costs rose sharply. Costs rose." is never placed on its first "Costs rose" — at
-// the place the anchor held in that sentence. An anchor it cannot place stays out, for the transit
-// check to refuse by its sentence. The sentence is read within span, the text being replaced: a
-// fragment edit that keeps the fragment re-places the anchor, and ReopenedAnchors, reading the
-// document's sentence, still records it.
+// the place the anchor held in that sentence, unless new makes that place a heading. An anchor it
+// cannot place stays out, for the transit check to refuse by its sentence. The sentence is read
+// within span, the text being replaced: a fragment edit that keeps the fragment re-places the
+// anchor, and ReopenedAnchors, reading the document's sentence, still records it.
 func AutoPlace(span, new string) string {
 	flat := flatText(new)
 	for _, id := range anchor.IDs(span) {
@@ -370,7 +370,7 @@ func AutoPlace(span, new string) string {
 			continue
 		}
 		if s, _, err := anchortext.LocateOnce(new, flatText(span[a:b]), anchortext.StopAtParagraph); err == nil {
-			if j := inStep(span, a, at, new, s); j >= 0 {
+			if j := inStep(span, a, at, new, s); j >= 0 && !anchortext.InBlock(new, j, anchor.Heading) {
 				new = new[:j] + tok + new[j:]
 			}
 		}

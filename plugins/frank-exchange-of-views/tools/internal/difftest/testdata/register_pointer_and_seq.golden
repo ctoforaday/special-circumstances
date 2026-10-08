@@ -93,7 +93,7 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --likelihood high --impact medium --quote ## S2 --reason unfounded leap
+$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --likelihood high --impact medium --quote A claim sits under S2. --reason unfounded leap
 exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
@@ -106,8 +106,8 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:revision:#1","revision":{"text":"first pass"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REVISION"}
 {"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `log` with --reason: required flag(s) \"type\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":5,"type":"EVENT_TYPE_LOG"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"logic-F1","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- avenues

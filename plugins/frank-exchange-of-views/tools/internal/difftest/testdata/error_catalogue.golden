@@ -1802,6 +1802,10 @@ feov-record: lens: lens mint: your span starts or ends inside a word — quote w
 
 For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes
 
+── a mint quoting a heading
+exit 2
+feov-record: lens: lens mint: the quote ends in a section heading, and an anchor sits on prose, never on a heading: quote a sentence of the section's text; for a gap about the whole section, name the section with --about-kind section
+
 ── a finding quoting a sentence that repeats
 exit 2
 feov-record: lens: lens finding: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
@@ -1829,7 +1833,7 @@ feov-record: lens: --correction-why says what was wrong with the act --corrects 
 
 ── correction that changes nothing
 exit 2
-feov-record: lens: record: this correction changes nothing — the replacement equals event 28; correct it with the text you meant
+feov-record: lens: record: this correction changes nothing — the replacement equals event 29; correct it with the text you meant
 
 ── correction of another seat's act
 exit 2
@@ -1951,7 +1955,7 @@ TWO CONSEQUENCES:
 
 ── correction after another seat has acted
 exit 2
-feov-record: lens: record: another seat has acted since this regrade (event 35, a register by red-chair); what you would correct is now on the record they read — say it in a new act
+feov-record: lens: record: another seat has acted since this regrade (event 36, a register by red-chair); what you would correct is now on the record they read — say it in a new act
 
 ── frozen field target: the lens closes G1
 exit 0
@@ -1960,7 +1964,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a PROSE correction moving a frozen field
 exit 2
-feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 37 recorded it. What the act decided is not restated by a correction — say it in a new act
+feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 38 recorded it. What the act decided is not restated by a correction — say it in a new act
 
 ── earlier sitting target: the lens sits again
 exit 0

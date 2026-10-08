@@ -312,16 +312,19 @@ var (
 	ErrInFence  = errors.New("the quote resolves inside a code fence")
 )
 
-// LocateOnce's refusals after ErrMisQuote. Refusal words each for a placement.
+// LocateOnce's refusals after ErrMisQuote, and Attach's ErrOnHeading. Refusal words each for a
+// placement.
 var (
 	ErrAmbiguous        = errors.New("the quote occurs more than once")
 	ErrCrossesParagraph = errors.New("the quote's one match in the report runs across a blank line")
 	ErrSplitsWord       = errors.New("your span starts or ends inside a word — quote whole words")
+	// A heading titles a section and states nothing, so no anchor of any kind sits on one.
+	ErrOnHeading = errors.New("the quote ends in a section heading")
 )
 
 // Refusal is the refusal a placing verb gives for LocateOnce's ambiguity, crossing and word-split
-// sentinels, prefixed with the verb, so every placer teaches them in the same words. ErrMisQuote and
-// ErrInFence, which each verb words for its own quote, come back unchanged.
+// sentinels and for ErrOnHeading, prefixed with the verb, so every placer teaches them in the same
+// words. ErrMisQuote and ErrInFence, which each verb words for its own quote, come back unchanged.
 //
 // None advises one placement per site: an anchor names one place, and a quote that occurs twice is
 // made unique by the text before it in its paragraph.
@@ -333,6 +336,8 @@ func Refusal(verb string, err error) error {
 		return fmt.Errorf("%s: %w, and an anchor sits in one passage: quote text inside one paragraph", verb, err)
 	case errors.Is(err, ErrSplitsWord):
 		return fmt.Errorf("%s: %w", verb, err)
+	case errors.Is(err, ErrOnHeading):
+		return fmt.Errorf("%s: %w, and an anchor sits on prose, never on a heading: quote a sentence of the section's text", verb, err)
 	}
 	return err
 }
@@ -346,23 +351,25 @@ func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
 	if end < 0 {
 		return nil, ErrMisQuote
 	}
-	if insideFence(string(report), end) {
+	if InBlock(string(report), end, anchor.Fence) {
 		return nil, ErrInFence
 	}
 	return insertMarker(report, end, marker), nil
 }
 
 // Attach is the one write-time placement: doc with the anchor id's token at the end of the quote's
-// one occurrence within one paragraph — LocateOnce's refusals, then ErrInFence. Every placing verb
-// validates its anchor through it and builds no token of its own; each words ErrMisQuote and
-// ErrInFence itself and the rest through Refusal.
+// one occurrence within one paragraph — LocateOnce's refusals, then ErrInFence, then ErrOnHeading.
+// Every placing verb validates its anchor through it and builds no token of its own; each words
+// ErrMisQuote and ErrInFence itself and the rest through Refusal.
 func Attach(doc, id, quote string) (string, error) {
 	_, end, err := LocateOnce(doc, quote, StopAtParagraph)
-	if err != nil {
+	switch {
+	case err != nil:
 		return "", err
-	}
-	if insideFence(doc, end) {
+	case InBlock(doc, end, anchor.Fence):
 		return "", ErrInFence
+	case InBlock(doc, end, anchor.Heading):
+		return "", ErrOnHeading
 	}
 	return string(insertMarker([]byte(doc), end, anchor.Token(id))), nil
 }
@@ -374,12 +381,12 @@ func ContentEnd(text string) int {
 	return max(end, 0)
 }
 
-// insideFence reports whether byte offset `at` falls inside a fenced code block, its opener and
-// closer lines included, as anchor.Blocks reads one. A marker must never land in code (it would
-// ship literally / corrupt the fence).
-func insideFence(report string, at int) bool {
+// InBlock reports whether byte offset `at` falls inside a block of kind k, its first and last lines
+// included, as anchor.Blocks reads one. A marker must never land in code (it would ship literally /
+// corrupt the fence), nor on a heading.
+func InBlock(report string, at int, k anchor.BlockKind) bool {
 	for _, b := range anchor.Blocks(report) {
-		if b.Kind == anchor.Fence && b.Start <= at && at <= b.End {
+		if b.Kind == k && b.Start <= at && at <= b.End {
 			return true
 		}
 	}

@@ -152,13 +152,16 @@ func newFinding() *cobra.Command {
 }
 
 // placementRefusal is the refusal `finding` and `mint` give for a quote Attach will not place; noun
-// is what the quote anchors.
+// is what the quote anchors. Both verbs name a section by --about-kind, so a quote on a heading is
+// told to.
 func placementRefusal(verb, noun string, err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
 		return fmt.Errorf("%s: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a %s anchors ONE passage", verb, noun)
 	case errors.Is(err, anchortext.ErrInFence):
 		return fmt.Errorf("%s: the quote resolves inside a code fence — anchor a prose sentence, not code", verb)
+	case errors.Is(err, anchortext.ErrOnHeading):
+		return fmt.Errorf("%w; for a %s about the whole section, name the section with --about-kind section", anchortext.Refusal(verb, err), noun)
 	}
 	return anchortext.Refusal(verb, err)
 }
