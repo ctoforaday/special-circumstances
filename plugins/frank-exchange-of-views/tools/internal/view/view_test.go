@@ -587,7 +587,7 @@ func TestMarkdownDebateAndAvenue(t *testing.T) {
 func TestMarkdownDebateSkipsEmptyEpochs(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-evidence"
-	// Three chair sittings, and the only thing done in the third is a friction log.
+	// Three chair sittings, and the only thing done in the third is a log entry.
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 1), chairSits(t, 2), chairSits(t, 3),
 		recordtest.At(t, lens, lens+":friction:#1", &recordpb.Log{Text: proto.String("not debate content"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),

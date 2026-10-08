@@ -77,7 +77,7 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 		t.Fatal("walked the tree and found no leaves — this gate would pass forever")
 	}
 
-	// Group by (role, event type): a split is two verbs of ONE role writing one type. `friction` is
+	// Group by (role, event type): a split is two verbs of ONE role writing one type. `log` is
 	// written by every role and is not a split; those verbs never compete for one seat's choice.
 	byType := map[string][]leaf{}
 	annotated := map[string]bool{}

@@ -67,7 +67,7 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 			t.Fatalf("the missing verb is not on the record: %q", got)
 		}
 	})
-	t.Run("the operator's refusals are not a seat's friction", func(t *testing.T) {
+	t.Run("the operator's refusals are not logged as a seat's", func(t *testing.T) {
 		runDir := seatRun(t)
 		_, _ = run(t, "propose", "--run", runDir, "--seat-id", record.OperatorRole)
 		if got := refusals(t, runDir); len(got) != 0 {

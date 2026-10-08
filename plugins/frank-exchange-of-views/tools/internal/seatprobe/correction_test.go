@@ -37,8 +37,8 @@ func TestACorrectedLogIsReadOnceAndIsNotAVerb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Friction) != 1 || c.Friction[0] != "the tool refused the cite" {
-		t.Errorf("friction = %q, want only the corrected wording", c.Friction)
+	if len(c.Log) != 1 || c.Log[0] != "the tool refused the cite" {
+		t.Errorf("log = %q, want only the corrected wording", c.Log)
 	}
 	if n := c.Used["correction"]; n != 0 {
 		t.Errorf("the probe counted %d use(s) of a `correction` verb no surface offers", n)

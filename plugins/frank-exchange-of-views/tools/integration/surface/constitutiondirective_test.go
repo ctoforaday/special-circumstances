@@ -41,13 +41,13 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	}
 	// AND THE CONSEQUENCE OF ABSENCE IS THE TOOL'S TO STATE, on the page where absence is
 	// discovered. All four constitutions used to carry "what is not listed does not exist for
-	// you" — a fifth copy of a sentence the friction footer closes EVERY help page with,
+	// you" — a fifth copy of a sentence the log footer closes EVERY help page with,
 	// including the page a seat is looking at in the moment it fails to find a verb. That is
 	// where the sentence does its work; four hand-kept copies in system prompts is the fork this
 	// gate exists to prevent, and the way to not fork a sentence is to have one of it.
-	for _, w := range []string{"it does not exist for you", "a finding about the tooling"} {
-		if !strings.Contains(seat.FrictionFooter, w) {
-			t.Fatalf("the friction footer no longer says %q — the constitutions were stripped of it on the "+
+	for _, w := range []string{"it does not exist for you", "a fact about the tooling"} {
+		if !strings.Contains(seat.LogFooter, w) {
+			t.Fatalf("the log footer no longer says %q — the constitutions were stripped of it on the "+
 				"understanding that every help page carries it, so this end of that trade has to hold", w)
 		}
 	}
@@ -167,7 +167,7 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 		}
 		// `--help` is the directive itself; anything else backticked-and-lowercase in this block
 		// is a candidate verb name.
-		for _, bad := range []string{"`mint`", "`close`", "`finding`", "`verify`", "`register`", "`friction`"} {
+		for _, bad := range []string{"`mint`", "`close`", "`finding`", "`verify`", "`register`", "`log`"} {
 			if strings.Contains(block, bad) {
 				t.Errorf("%s names %s inside the surface-discovery duty — the directive replaces the list rather than carrying one", filepath.Base(p), bad)
 			}
@@ -192,7 +192,7 @@ func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") 
 // Same shape as the surface-discovery gate above and the same justification: the constitutions are
 // authored markdown the harness reads directly, so the text cannot be generated, and a guard is
 // what the rules allow when generation is impossible. What it holds is the DUTY and the account
-// owed when nothing blocked you; what it refuses is any copy of what the log verb's help says on the
+// owed when nothing cost you anything; what it refuses is any copy of what the log verb's help says on the
 // page a seat opens, and any retired duty — in the constitution AND in every prompt a seat is
 // handed, because a prompt that asks for "your log entry saying so" on a clean sitting contradicts
 // the constitution beside it, and a gate reading only constitutions passed it (#1209).
@@ -254,7 +254,7 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		text := normalizeWS(string(b))
 		for _, w := range want {
 			if !strings.Contains(text, normalizeWS(w)) {
-				t.Errorf("%s does not state the friction duty (%q). Four copies of one clause drift the "+
+				t.Errorf("%s does not state the log duty (%q). Four copies of one clause drift the "+
 					"moment one of them is edited alone.", filepath.Base(p), w)
 			}
 		}

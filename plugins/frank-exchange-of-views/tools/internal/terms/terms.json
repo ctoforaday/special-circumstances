@@ -464,7 +464,7 @@
     },
     {
       "term": "the log",
-      "definition": "The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or an impediment, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.",
+      "definition": "The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.",
       "seats": [
         "lens",
         "chair",
@@ -496,7 +496,7 @@
         {
           "variant": "friction (the whole log)",
           "kind": "GATED",
-          "pattern": "\\blog is (open — )?for friction\\b|\\bmet no friction\\b|\\bfriction (channel|log)\\b|\\blog \\([^)]*\\) — friction\\b|\\b(collated|collected|aggregated|gathered) friction\\b|\\bfriction (so far|collected|collated|aggregated|gathered)\\b|\\bthe (run|sitting|seat|bench|chair)'s friction\\b"
+          "pattern": "\\blog is (open — )?for friction\\b|\\bmet no friction\\b|\\bfriction (channel|log|footer)\\b|\\blog \\([^)]*\\) — friction\\b|\\b(collated|collected|aggregated|gathered) friction\\b|\\bfriction (so far|collected|collated|aggregated|gathered)\\b|\\bthe (run|sitting|seat|bench|chair)'s friction\\b"
         }
       ],
       "collisions": [
@@ -508,7 +508,7 @@
     },
     {
       "term": "friction",
-      "definition": "Friction is one type of log entry: the work was impeded and the seat is noting it.",
+      "definition": "Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.",
       "seats": [
         "lens",
         "chair",
@@ -516,7 +516,13 @@
         "bench",
         "operator"
       ],
-      "bans": [],
+      "bans": [
+        {
+          "variant": "impeded / impediment (the log read as blockage)",
+          "kind": "GATED",
+          "pattern": "\\bimped(e|ed|es|ing|iment|iments)\\b"
+        }
+      ],
       "collisions": []
     },
     {
@@ -677,7 +683,13 @@
       "bans": [
         {
           "variant": "finding (a complaint about the tooling)",
-          "kind": "REGISTRY-ONLY"
+          "kind": "GATED",
+          "pattern": "\\bfinding about the tooling\\b"
+        },
+        {
+          "variant": "finding (a capture-audit failure)",
+          "kind": "GATED",
+          "pattern": "\\bfinding against you\\b"
         }
       ],
       "collisions": []

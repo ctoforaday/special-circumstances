@@ -27,7 +27,7 @@ import (
 // This is the prompt-side twin of the command-path gate in trajectory_test.go: that one asks
 // "is every verb driven", this one asks "does every verb we TELL a seat to run exist". A
 // seat handed a nonexistent verb does not fail loudly — the role boundary answers "verb
-// outside this seat's role" and the seat, per the friction footer, logs friction and works
+// outside this seat's role" and the seat, per the log footer, logs a request and works
 // around it. The capability is simply lost for the run.
 //
 // The tree is the authority, as everywhere else: cli.CommandPaths() walks the real cobra
@@ -124,7 +124,7 @@ var promptMotion = regexp.MustCompile(
 // `work` rename, and a sibling sweep that named it.
 //
 // So: the role-less form of every real command path, generated from the tree. ONE-WORD paths are
-// excluded — `mint`, `close`, `edit`, `verify`, `friction` are ordinary English and matching them
+// excluded — `mint`, `close`, `edit`, `verify`, `log` are ordinary English and matching them
 // bare would fire on prose describing the act, which is the register the prompts are supposed to
 // be written in. Two-or-more-word paths (`show board`, `class new`, `avenue propose`) are
 // not English; they are invocations with the role filed off.
@@ -189,7 +189,7 @@ var jsComment = regexp.MustCompile(`(?m)^\s*//.*$`)
 // The verb gate cannot see this: a projection is a flag VALUE, not a verb, so `show --view
 // telemetry` in a constitution passes `feov-record bench show` and says nothing about
 // whether `telemetry` is a real view. The failure is identical in kind — the seat is told
-// to read something, the tool answers "unknown view", and per the friction footer the seat
+// to read something, the tool answers "unknown view", and per the log footer the seat
 // logs it and works around it. The capability is gone for the run and the sweep stays green.
 //
 // Caught in authoring: this file's own doctrine PR briefly documented `--view telemetry`,
@@ -356,7 +356,7 @@ func TestEveryVerbNamedInAPromptExists(t *testing.T) {
 		msgs = append(msgs, k)
 	}
 	if len(msgs) > 0 {
-		t.Errorf("%d verb(s) named in an agent-facing file do NOT exist in the command tree — a seat told to run one loses that capability for the whole run and merely logs friction:\n  %s",
+		t.Errorf("%d verb(s) named in an agent-facing file do NOT exist in the command tree — a seat told to run one loses that capability for the whole run and merely logs a request:\n  %s",
 			len(msgs), strings.Join(msgs, "\n  "))
 	}
 }
@@ -788,7 +788,7 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 
 	// SCOPE: the five ROLE groups. The role IS the seat, so a path under one is a seat act by
 	// construction — no list to maintain and nothing to rot. Root commands are deliberately out:
-	// `setup`, `capture`, `dashboard`, `graph`, `scorecard`, `verify`, `friction` and the hooks
+	// `setup`, `capture`, `dashboard`, `graph`, `scorecard`, `verify`, `ops` and the hooks
 	// belong to the operator and the engine, and this document is titled for the seat.
 	//
 	// Two root commands a seat IS told to run — `fetch` and `count-claims` — are documented in the
@@ -904,7 +904,7 @@ func TestEveryViewNamedInAPromptExists(t *testing.T) {
 //
 // The third prompt-side gate. The first asks whether a named VERB exists; the second whether a
 // named VIEW exists; this asks whether a named VALUE does. Same failure in all three: the tool
-// refuses, and per the friction footer the seat logs it and works around it, so the capability
+// refuses, and per the log footer the seat logs it and works around it, so the capability
 // is lost for the run behind a green sweep.
 //
 // SCOPE, STATED SO THE GAP IS NOT MISTAKEN FOR COVERAGE. This reads FLAG-VALUE PAIRS — the text
@@ -1017,7 +1017,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 	}
 	if len(msgs) > 0 {
 		t.Errorf("%d value(s) a prompt tells a seat to pass are refused by the tool:\n  %s\n\n"+
-			"The seat runs the command, the tool refuses, and per the friction footer it logs and works\n"+
+			"The seat runs the command, the tool refuses, and per the log footer it logs and works\n"+
 			"around it — so the capability is lost for the run while every sweep stays green.",
 			len(msgs), strings.Join(msgs, "\n  "))
 	}

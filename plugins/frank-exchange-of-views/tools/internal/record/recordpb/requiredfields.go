@@ -77,7 +77,7 @@ func checkRequiredIn(verb string, m protoreflect.Message) error {
 			return fmt.Errorf("record: %s requires --%s%s", verb, flagFor(fd, o), because(o))
 		}
 		// PRESENT IS NOT ENOUGH FOR PROSE. A required string that is EMPTY is a duty discharged by
-		// silence — an acceptance check demanding nothing, a friction entry saying nothing — and
+		// silence — an acceptance check demanding nothing, a log entry saying nothing — and
 		// the check was presence-only for a while after the Go table's two flavours collapsed into
 		// one annotation. `allow_empty` is the narrow exception, declared at the field: a
 		// docket ruling's `settled` may bar nothing, so an empty answer there is an answer.

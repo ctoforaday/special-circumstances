@@ -272,7 +272,7 @@ The operator is the person running the research, and the seat id their own comma
 
 ## the log
 
-The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or an impediment, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
+The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
@@ -284,7 +284,7 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 | friction verb | GATED | `friction verb` |  |  |
 | complaint channel | GATED | `complaint channel` |  |  |
 | the envelope's friction field | GATED | `envelope's .friction. field` |  |  |
-| friction (the whole log) | GATED | `\blog is (open — )?for friction\b\|\bmet no friction\b\|\bfriction (channel\|log)\b\|\blog \([^)]*\) — friction\b\|\b(collated\|collected\|aggregated\|gathered) friction\b\|\bfriction (so far\|collected\|collated\|aggregated\|gathered)\b\|\bthe (run\|sitting\|seat\|bench\|chair)'s friction\b` |  |  |
+| friction (the whole log) | GATED | `\blog is (open — )?for friction\b\|\bmet no friction\b\|\bfriction (channel\|log\|footer)\b\|\blog \([^)]*\) — friction\b\|\b(collated\|collected\|aggregated\|gathered) friction\b\|\bfriction (so far\|collected\|collated\|aggregated\|gathered)\b\|\bthe (run\|sitting\|seat\|bench\|chair)'s friction\b` |  |  |
 
 **Collisions:**
 
@@ -292,9 +292,15 @@ The log is the entries a seat files for the operator with the `log` verb — a m
 
 ## friction
 
-Friction is one type of log entry: the work was impeded and the seat is noting it.
+Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
 
 **Delivered to:** lens, chair, blue, bench, operator
+
+**Not:**
+
+| variant | kind | pattern | masks | allowed in |
+|---|---|---|---|---|
+| impeded / impediment (the log read as blockage) | GATED | `\bimped(e\|ed\|es\|ing\|iment\|iments)\b` |  |  |
 
 ## missing capability
 
@@ -388,7 +394,8 @@ A finding is a lens's recorded observation of a defect in the report, or of a di
 
 | variant | kind | pattern | masks | allowed in |
 |---|---|---|---|---|
-| finding (a complaint about the tooling) | REGISTRY-ONLY |  |  |  |
+| finding (a complaint about the tooling) | GATED | `\bfinding about the tooling\b` |  |  |
+| finding (a capture-audit failure) | GATED | `\bfinding against you\b` |  |  |
 
 ## gap
 

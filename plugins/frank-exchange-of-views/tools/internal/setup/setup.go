@@ -26,7 +26,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// dirs are the run's directories. friction.md is deliberately absent (friction lives on the
+// dirs are the run's directories. friction.md is deliberately absent (the log lives on the
 // record); ledger/archive/telemetry are red-merge-born.
 //
 // `records` is NOT in this list — it is created at its RESOLVED location by BuildSkeleton,

@@ -140,7 +140,7 @@ func TestAMovingProofIsGradedObserved(t *testing.T) {
 
 // A proof that cannot run is not evidence, and the failure is a capability signal — the same
 // treatment `blue cite` gives an unreachable source.
-func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
+func TestAnUnrunnableProofIsRefusedAndLogged(t *testing.T) {
 	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "mystery.rb", "puts 1")
@@ -150,7 +150,7 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 		t.Fatal("a script with no known interpreter was accepted as evidence")
 	}
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
-		t.Error("the refusal logged no friction, so the capability gap is invisible to the retool loop")
+		t.Error("the refusal wrote no log entry, so the missing capability is invisible to the retool loop")
 	}
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF) != 0 {
 		t.Error("a refused proof still landed on the record")

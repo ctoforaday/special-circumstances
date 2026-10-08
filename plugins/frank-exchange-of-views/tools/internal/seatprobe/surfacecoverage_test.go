@@ -236,7 +236,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		for _, e := range b.Expect {
 			n, tracked := needs[e.Verb]
 			if !tracked {
-				continue // verbs with no precondition: edit, cite, prove, friction, mint, position …
+				continue // verbs with no precondition: edit, cite, prove, log, mint, position …
 			}
 			if !n.has(b) {
 				t.Errorf("board %q expects %q and does not carry %s.\n\n"+

@@ -1915,7 +1915,7 @@ type Sql struct {
 	// allow_empty says a required STRING field may be present and EMPTY.
 	//
 	// `required` means the seat SAID something, and for prose that means it said something with
-	// content: an acceptance check of "" is a contract that demands nothing, and a friction entry of
+	// content: an acceptance check of "" is a contract that demands nothing, and a log entry of
 	// "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
 	// to `complete: true` while the channel reported one entry saying nothing.
 	//
@@ -7122,6 +7122,14 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 	},
 	{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: (*string)(nil),
+		Field:         50009,
+		Name:          "feov.record.v1.defined_term",
+		Tag:           "bytes,50009,opt,name=defined_term",
+		Filename:      "record.proto",
+	},
+	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
 		ExtensionType: (*bool)(nil),
 		Field:         50003,
 		Name:          "feov.record.v1.closes",
@@ -7190,6 +7198,17 @@ var (
 var (
 	// optional string means = 50001;
 	E_Means = &file_record_proto_extTypes[2]
+	// defined_term IS `means` FOR A VALUE WHOSE MEANING IS A CONCEPT THE TERMS REGISTRY DEFINES. The
+	// value names the registry entry (its `term` key in internal/terms/terms.json) and carries no
+	// prose of its own: `--help`, the refusal a seat reads and the vocabulary table render the
+	// registry's definition, so the glossary a seat is handed and the menu beside it are one
+	// sentence with one author. A value declares exactly one of `means` and `defined_term`.
+	//
+	// The name says "defined term" because a bare "term" is already what a run is held to — its
+	// epoch limit, its per-sitting tool-call limit.
+	//
+	// optional string defined_term = 50009;
+	E_DefinedTerm = &file_record_proto_extTypes[3]
 	// closes is WHETHER THIS WORD ENDS THE GAP, and it is on the value because that is the only
 	// place a new value cannot be added without answering the question.
 	//
@@ -7203,7 +7222,7 @@ var (
 	// table that is partly annotated, and the column is NOT NULL.
 	//
 	// optional bool closes = 50003;
-	E_Closes = &file_record_proto_extTypes[3]
+	E_Closes = &file_record_proto_extTypes[4]
 	// ruled_by IS WHICH SEAT HOLDS THE GAVEL, and it is on the value for the same reason `closes`
 	// is: a new motion subject cannot be added without answering it.
 	//
@@ -7213,7 +7232,7 @@ var (
 	// and is never told to rule a motion whose gavel another seat holds.
 	//
 	// optional string ruled_by = 50004;
-	E_RuledBy = &file_record_proto_extTypes[4]
+	E_RuledBy = &file_record_proto_extTypes[5]
 	// seat_may_file IS WHETHER A SEAT MAY PUT THIS WORD ON THE RECORD, and it is on the value for
 	// the same reason `closes` and `ruled_by` are: a word cannot be added to the vocabulary without
 	// answering it, and the schema refuses a facet declared on some values and not others.
@@ -7230,7 +7249,7 @@ var (
 	// for every word: may a SEAT file this. `source` still records who actually did.
 	//
 	// optional bool seat_may_file = 50006;
-	E_SeatMayFile = &file_record_proto_extTypes[5]
+	E_SeatMayFile = &file_record_proto_extTypes[6]
 	// mass IS WHAT A GRADE WEIGHS, and it is on the value because the weight is a property of the
 	// word rather than of whoever is multiplying it.
 	//
@@ -7249,7 +7268,7 @@ var (
 	// weight, not an absent one, which is exactly why the column is NOT NULL.
 	//
 	// optional double mass = 50005;
-	E_Mass = &file_record_proto_extTypes[6]
+	E_Mass = &file_record_proto_extTypes[7]
 	// correct IS WHETHER THE SEAT THAT WROTE AN ACT OF THIS TYPE MAY CORRECT IT in the same sitting,
 	// and how much of it. It is on the EventType value for the reason `closes` is on a disposition: a
 	// type cannot be added without answering it, because the schema refuses a facet declared on some
@@ -7258,13 +7277,13 @@ var (
 	// be.
 	//
 	// optional feov.record.v1.CorrectionTier correct = 50007;
-	E_Correct = &file_record_proto_extTypes[7]
+	E_Correct = &file_record_proto_extTypes[8]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[8]
+	E_Check = &file_record_proto_extTypes[9]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -7979,7 +7998,7 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xfe\"\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xfc\"\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12<\n" +
@@ -7993,8 +8012,8 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1aN\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\xb8\xb5\x18\x03\x12e\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aM\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\xb8\xb5\x18\x02\x12W\n" +
-	"\x12EVENT_TYPE_FINDING\x10\v\x1a?\x8a\xb5\x187something red found, graded but not yet minted as a gap\xb8\xb5\x18\x01\x12\xcc\x01\n" +
-	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb7\x01\x8a\xb5\x18\xae\x01an entry addressed to the operator who can retool the seat: a defect, a request or an impediment — never a clean sitting, which is derived from having sat and filed nothing\xb8\xb5\x18\x03\x12h\n" +
+	"\x12EVENT_TYPE_FINDING\x10\v\x1a?\x8a\xb5\x187something red found, graded but not yet minted as a gap\xb8\xb5\x18\x01\x12\xca\x01\n" +
+	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb5\x01\x8a\xb5\x18\xac\x01an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing\xb8\xb5\x18\x03\x12h\n" +
 	"\x0fEVENT_TYPE_HALT\x10\x0e\x1aS\x8a\xb5\x18Kthe bench ending the run on a safety, ethics, consent or integrity boundary\xb8\xb5\x18\x02\x12f\n" +
 	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aI\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\xb8\xb5\x18\x03\x12q\n" +
 	"\x0fEVENT_TYPE_MINT\x10\x10\x1a\\\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\xb8\xb5\x18\x01\x12r\n" +
@@ -8141,12 +8160,13 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xc6\r\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xd4\n" +
+	"\n" +
 	"\aLogType\x12\x18\n" +
 	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xef\x01\n" +
 	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd9\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\xb0\xb5\x18\x01\x12\xcf\x01\n" +
-	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12\x98\x03\n" +
-	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x80\x03\x8a\xb5\x18\xf7\x02something cost you a call, a guess or an act — a refusal, a name you guessed, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect. An act that no surface offers at all is a request, not this\xb0\xb5\x18\x01\x12\xaa\x02\n" +
+	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12'\n" +
+	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x10\xb0\xb5\x18\x01ʵ\x18\bfriction\x12\xaa\x02\n" +
 	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\xf0\x01\n" +
 	"\x10LOG_TYPE_FAILURE\x10\a\x1a\xd9\x01\x8a\xb5\x18\xd0\x01a seat's tool call FAILED and the harness saw it: the tool, what it was aimed at, and the error's first line. Recorded by the tool, not filed by the seat; a refusal the record tool gave is `refusal`, not this\xb0\xb5\x18\x00\x12\x89\x02\n" +
 	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\x96\x03\n" +
@@ -8175,7 +8195,8 @@ const file_record_proto_rawDesc = "" +
 	"\x11OCCASION_ASSEMBLE\x10\x04\x1aG\x8a\xb5\x18Cassembling the final report by union-copy. The last step of the run:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:8\n" +
 	"\x05prose\x12\x1d.google.protobuf.FieldOptions\x18؆\x03 \x01(\bR\x05prose\x88\x01\x01:<\n" +
-	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:>\n" +
+	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:I\n" +
+	"\fdefined_term\x12!.google.protobuf.EnumValueOptions\x18ن\x03 \x01(\tR\vdefinedTerm\x88\x01\x01:>\n" +
 	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:A\n" +
 	"\bruled_by\x12!.google.protobuf.EnumValueOptions\x18Ԇ\x03 \x01(\tR\aruledBy\x88\x01\x01:J\n" +
 	"\rseat_may_file\x12!.google.protobuf.EnumValueOptions\x18ֆ\x03 \x01(\bR\vseatMayFile\x88\x01\x01::\n" +
@@ -8378,19 +8399,20 @@ var file_record_proto_depIdxs = []int32{
 	78,  // 94: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
 	78,  // 95: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
 	79,  // 96: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	79,  // 97: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	79,  // 98: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	79,  // 99: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	79,  // 100: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	79,  // 101: feov.record.v1.correct:extendee -> google.protobuf.EnumValueOptions
-	80,  // 102: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	28,  // 103: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	0,   // 104: feov.record.v1.correct:type_name -> feov.record.v1.CorrectionTier
-	27,  // 105: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	106, // [106:106] is the sub-list for method output_type
-	106, // [106:106] is the sub-list for method input_type
-	103, // [103:106] is the sub-list for extension type_name
-	94,  // [94:103] is the sub-list for extension extendee
+	79,  // 97: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	79,  // 98: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	79,  // 99: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	79,  // 100: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	79,  // 101: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	79,  // 102: feov.record.v1.correct:extendee -> google.protobuf.EnumValueOptions
+	80,  // 103: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	28,  // 104: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	0,   // 105: feov.record.v1.correct:type_name -> feov.record.v1.CorrectionTier
+	27,  // 106: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	107, // [107:107] is the sub-list for method output_type
+	107, // [107:107] is the sub-list for method input_type
+	104, // [104:107] is the sub-list for extension type_name
+	94,  // [94:104] is the sub-list for extension extendee
 	0,   // [0:94] is the sub-list for field type_name
 }
 
@@ -8503,7 +8525,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      27,
 			NumMessages:   51,
-			NumExtensions: 9,
+			NumExtensions: 10,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

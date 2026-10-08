@@ -30,7 +30,7 @@ import (
 // name is what a seat can READ, and it drifts the same way: the prompt-verb gate would not
 // have caught `--view telemetry` in a constitution, because that is a flag VALUE and not a
 // verb. A named view that does not exist fails the way every unmediated fact in this engine
-// fails — the seat is told to read something, the tool refuses, and the seat logs friction
+// fails — the seat is told to read something, the tool refuses, and the seat logs it
 // and works around it, so the capability is simply absent for the run.
 func ViewNames() []string { return seat.ViewNames() }
 
@@ -96,7 +96,7 @@ func commandsByPath() map[string]*cobra.Command {
 	//
 	// The role is re-composed into the key HERE and nowhere a seat can see it. `blue edit` is not
 	// something anyone types — a blue seat types `edit` — but the identity of a command IS
-	// (role, verb), because `closing`, `position`, `friction`, `register` and `show` each exist
+	// (role, verb), because `closing`, `position`, `log`, `register` and `show` each exist
 	// under several roles with different contracts. The key is a JOIN KEY for the trigger map and
 	// the gates, not an invocation.
 	for _, role := range []string{"lens", "chair", "blue", "bench"} {

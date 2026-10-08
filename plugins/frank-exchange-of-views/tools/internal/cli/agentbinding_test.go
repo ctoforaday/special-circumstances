@@ -293,7 +293,7 @@ func TestASurfaceWhoseRegisterCarriesMoreStillRefuses(t *testing.T) {
 				"its register would have to say", w.seat, w.seat)
 			continue
 		}
-		// THE REFUSAL MUST NAME THE ONE REMEDY. A seat handed an unexplained refusal logs friction
+		// THE REFUSAL MUST NAME THE ONE REMEDY. A seat handed an unexplained refusal logs it
 		// and works around it, losing the capability for the run — measured, and the reason every
 		// refusal in this tree carries its own way out.
 		if !strings.Contains(err.Error(), "register") {

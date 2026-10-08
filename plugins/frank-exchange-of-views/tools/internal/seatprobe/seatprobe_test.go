@@ -133,12 +133,12 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 	}
 }
 
-// AN EMPTY FRICTION LOG IS REPORTED AS AMBIGUOUS, NEVER AS CLEAN.
+// AN EMPTY LOG IS REPORTED AS AMBIGUOUS, NEVER AS CLEAN.
 //
-// Zero friction entries is equally consistent with a seat that met no obstacle and one that met
+// Zero log entries is equally consistent with a seat that met no obstacle and one that met
 // several and never used the channel. Printing it as a clean board is the plausible zero this
 // project keeps finding, and the report must refuse to produce it.
-func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
+func TestAnEmptyLogIsNotReportedAsACleanBoard(t *testing.T) {
 	runDir := writeRun(t, []struct {
 		seat    string
 		payload proto.Message
@@ -149,8 +149,8 @@ func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "does not mean none was met") {
-		t.Errorf("an empty friction log must be reported as ambiguous, got:\n%s", out)
+	if !strings.Contains(out, "does not mean nothing cost the seat a call") {
+		t.Errorf("an empty log must be reported as ambiguous, got:\n%s", out)
 	}
 }
 

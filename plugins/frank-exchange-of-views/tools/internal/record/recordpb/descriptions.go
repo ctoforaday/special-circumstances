@@ -3,29 +3,26 @@ package recordpb
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/terms"
 )
 
-// WHAT EACH ENUM VALUE MEANS, DECLARED ONCE — and the SET is generated, only the prose is written.
+// WHAT EACH ENUM VALUE MEANS, DECLARED ONCE, ON THE VALUE.
 //
-// This replaces record.EnumValue, whose whole point was that a set rendered as six bare words
-// leaves a seat guessing which situation warrants which. That prose is not decoration: it is
-// generated into the CLI's --help AND into the refusal a seat reads when it gets one wrong, and
-// enums.go was explicit that the help must not be allowed to drift from the check because it is
-// BUILT from it. Proto enums carry no descriptions, so the prose lives here.
+// A set rendered as six bare words leaves a seat guessing which situation warrants which. The
+// prose is not decoration: it is generated into the CLI's --help, into the refusal a seat reads
+// when it gets one wrong, and into the record's vocabulary tables, so the help cannot drift from
+// the check — both are built from the value's own annotation.
 //
-// WHY THIS IS NOT THE HAND-KEPT ALLOWLIST facts-are-fields WARNS ABOUT. That rule's objection is
-// to a guard whose own list is maintained by hand — it reproduces the defect one level up. Here
-// the authoritative set is the generated descriptor; this map supplies only the sentence. An
-// exhaustiveness test walks the descriptor and fails when any value lacks prose, and fails again
-// when this map names a value that no longer exists. Neither direction can rot silently, which
-// is the property a bare list cannot offer.
-//
-// Rejected: custom proto options. They would put the prose in the .proto, which reads well, at
-// the price of descriptor plumbing and a protoc-gen-go extension to read it back — a build
-// dependency for a string table.
+// A value carries its meaning one of two ways, and exactly one. `(means)` is the sentence itself,
+// for a meaning that belongs to the enum. `(defined_term)` names an entry of the terms registry,
+// for a meaning that is a concept the registry already defines: the glossary every seat is handed
+// and the menu beside it then render one authored sentence, where two hand-kept glosses of one
+// concept drift apart.
 
 // THE EXEMPTION IS GONE, AND ITS PREMISE IS WHY.
 //
@@ -41,18 +38,49 @@ import (
 // `events.type` to reference, so it was bare TEXT — the only such column left once the arms were
 // repaired.
 
-// EnumValueDoc returns the prose for one enum value.
+// EnumValueDoc returns the prose for one enum value: its `(means)`, or the terms registry's
+// definition of the entry its `(defined_term)` names.
 //
-// The miss is LOUD. A silent "" would render an empty --help line, which reads as a value with
-// no meaning rather than a value whose meaning nobody wrote — and that is the failure this whole
-// table exists to prevent.
+// The miss is LOUD, every way it can miss. A silent "" would render an empty --help line, which
+// reads as a value with no meaning rather than a value whose meaning nobody wrote. A value that
+// carries both annotations has two authors for one sentence; one that names a term the registry
+// does not hold has none.
 func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
-	if m, _ := proto.GetExtension(v.Options(), E_Means).(string); m != "" {
-		return m, nil
+	means, _ := proto.GetExtension(v.Options(), E_Means).(string)
+	term, _ := proto.GetExtension(v.Options(), E_DefinedTerm).(string)
+	switch {
+	case means != "" && term != "":
+		return "", fmt.Errorf("recordpb: enum value %s carries both (means) and (defined_term) = %q — "+
+			"one meaning has one author: keep (defined_term) and edit the registry's definition, or "+
+			"keep (means)", v.FullName(), term)
+	case means != "":
+		return means, nil
+	case term != "":
+		return definedTerm(v, term)
 	}
 	return "", fmt.Errorf("recordpb: no meaning on enum value %s — put one on the value itself, "+
-		"`%s = N [(means) = \"…\"]`; a set rendered as bare words leaves a seat guessing which "+
+		"`%s = N [(means) = \"…\"]`, or name the terms-registry entry that defines it, "+
+		"`[(defined_term) = \"…\"]`; a set rendered as bare words leaves a seat guessing which "+
 		"situation warrants which", v.FullName(), v.Name())
+}
+
+// registry is the terms registry, parsed once, on the first value that names a defined term.
+var registry = sync.OnceValues(terms.Load)
+
+// definedTerm resolves a `(defined_term)` to the registry's definition of it.
+func definedTerm(v protoreflect.EnumValueDescriptor, term string) (string, error) {
+	reg, err := registry()
+	if err != nil {
+		return "", fmt.Errorf("recordpb: enum value %s names the defined term %q and the terms registry does not load: %w", v.FullName(), term, err)
+	}
+	for _, e := range reg.Entries {
+		if e.Term == term {
+			return e.Definition, nil
+		}
+	}
+	return "", fmt.Errorf("recordpb: enum value %s names the defined term %q, which the terms registry "+
+		"(internal/terms/terms.json) does not define — name an entry's `term`, or give the value a (means)",
+		v.FullName(), term)
 }
 
 // Spelling is the word a seat types: the enum value's name with its type prefix removed and

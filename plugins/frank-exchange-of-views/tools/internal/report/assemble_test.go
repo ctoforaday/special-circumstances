@@ -666,7 +666,7 @@ func TestLogSectionRendered(t *testing.T) {
 		"Log (what the run told the operator",
 		"**red-chair** (defect): the --cx flag is missing",
 		"**blue-respond** (defect): manifest cap fights",
-		"Seats that reported nothing blocked them",
+		"Seats that sat and filed nothing",
 		"**judge**",
 	} {
 		if !strings.Contains(f, want) {

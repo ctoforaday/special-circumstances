@@ -446,7 +446,7 @@ func newAppeal(subject string) *cobra.Command {
 
 // refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the
 // avenue's; saying "the motion id" there would send a seat looking for an M-number that does not
-// exist, and a seat that cannot find the id it was told to pass logs friction and works around the
+// exist, and a seat that cannot find the id it was told to pass logs it and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
 // refHelp is the --id line, and it carries the REQUIRED marker because the flag is.
 //

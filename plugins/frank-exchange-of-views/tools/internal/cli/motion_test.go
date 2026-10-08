@@ -62,7 +62,7 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 // THE RULER IS PART OF THE MECHANISM, and the refusal NAMES who holds the gavel.
 //
 // Under a scoped surface "not yours" would otherwise read as "does not exist" — the measured
-// failure where a seat handed an unavailable verb logs friction and works around it, losing the
+// failure where a seat handed an unavailable verb logs a request and works around it, losing the
 // capability for the run.
 func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	runDir := seatRun(t)

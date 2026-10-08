@@ -29,7 +29,7 @@ import (
 // it, the record shows exactly what the report references.
 //
 // A source that cannot be loaded is an UNUSABLE citation: the cite is REJECTED and the
-// failure is auto-logged as friction (a bare `fetch` miss is only an error — but the
+// failure is logged by the tool as a defect (a bare `fetch` miss is only an error — but the
 // DECISION to cite an unreachable source is a protocol event worth surfacing).
 //
 // Crash-safety is the append-only record's: the cite event IS the anchor (it carries the quote,
@@ -120,7 +120,7 @@ func newCite() *cobra.Command {
 		}
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
-		// citation: reject AND auto-emit a friction event (unlike a bare `fetch` miss).
+		// citation: reject AND log a defect (unlike a bare `fetch` miss).
 		entry, _, _, err := fetchcache.Resolve(run, url, fetchcache.Default)
 		if err != nil {
 			msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)

@@ -1482,7 +1482,7 @@ func debate(fam record.Family) string {
 
 // logSection surfaces what the seats told the operator — log events, recorded through the log
 // verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A missing
-// capability the run hit is a finding about the tooling; surfacing it is how it reaches the human
+// capability the run hit is a fact about the tooling; surfacing it is how it reaches the operator
 // who can retool the seat, instead of dying on an unread channel.
 func logSection(fam record.Family) string {
 	var rows, attested []string
@@ -1519,15 +1519,15 @@ func logSection(fam record.Family) string {
 	if len(rows) > 0 {
 		out += strings.Join(rows, "\n") + "\n"
 	} else {
-		out += "No capability gap was reported.\n"
+		out += "No log entry was filed.\n"
 	}
-	// THE CLEAN SEATS BELONG BESIDE THE COMPLAINTS, and that is why the count is still here.
-	// "No friction this run" is worth nothing alone: it reads identically whether the seats looked
+	// THE CLEAN SEATS BELONG BESIDE THE ENTRIES, and that is why the count is still here.
+	// "No log entry this run" is worth nothing alone: it reads identically whether the seats looked
 	// and found none or never used the channel. The seats are now NAMED FROM THEIR SITTINGS rather
 	// than from an entry each had to file — the harness brackets every dispatch, so a seat that sat
 	// and said nothing is a seat that looked and found nothing.
 	if len(attested) > 0 {
-		out += "\n### Seats that reported nothing blocked them\n\n" + strings.Join(attested, "\n") + "\n"
+		out += "\n### Seats that sat and filed nothing\n\n" + strings.Join(attested, "\n") + "\n"
 	} else if len(rows) > 0 {
 		out += "\nNo seat sat without filing, so the list above is every seat that spoke.\n"
 	}

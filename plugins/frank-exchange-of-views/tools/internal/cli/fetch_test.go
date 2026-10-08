@@ -201,7 +201,7 @@ func TestAnEmptyExtractionWritesNoFileAndStatesWhy(t *testing.T) {
 	}
 }
 
-func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
+func TestFetchFailureIsANonZeroErrorNotALogEntry(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	withFetcher(t, &fakeFetcher{err: errors.New("host unreachable")})
 
@@ -212,7 +212,7 @@ func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
 	if !strings.Contains(err.Error(), "fetch:") {
 		t.Errorf("error = %v, want a fetch-prefixed message", err)
 	}
-	// fetch takes no seat and writes no event — so nothing (least of all a friction) is
+	// fetch takes no seat and writes no event — so nothing (least of all a log entry) is
 	// on the record. The records dir is never even created by a bare read.
 	if _, statErr := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://gone"); statErr == nil {
 		t.Error("a repeated failed fetch unexpectedly succeeded")

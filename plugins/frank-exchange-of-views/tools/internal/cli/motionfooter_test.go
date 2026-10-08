@@ -58,18 +58,18 @@ func TestEveryMotionSubjectCarriesAVerb(t *testing.T) {
 	}
 }
 
-// NO SEAT'S ROOT IS MISSING THE FRICTION FOOTER.
+// NO SEAT'S ROOT IS MISSING THE LOG FOOTER.
 //
 // This was about role GROUPS and the drift a hand-applied footer invites. The groups are gone and
 // the drift risk moved with the footer: it now hangs on the seat's root, applied in one place in
 // NewRootFor. A role added later that missed it would be a seat never told that a capability it
-// cannot find is a finding about the tooling rather than something to work around — which is the
+// cannot find is a fact about the tooling rather than something to work around — which is the
 // regression this caught when the groups were deleted.
-func TestNoSeatsRootIsMissingTheFrictionFooter(t *testing.T) {
+func TestNoSeatsRootIsMissingTheLogFooter(t *testing.T) {
 	for _, role := range []string{"blue", "lens", "chair", "bench"} {
 		root := NewRootFor(record.SampleSeatOf(role))
 		if !strings.Contains(root.Long, "it does not exist for you") {
-			t.Errorf("the %s seat's root help is missing the friction footer", role)
+			t.Errorf("the %s seat's root help is missing the log footer", role)
 		}
 		if !strings.Contains(root.Long, "with 'log', as a request") {
 			t.Errorf("the %s seat's root help does not name the log as where a request goes", role)

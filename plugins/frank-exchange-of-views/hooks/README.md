@@ -20,7 +20,7 @@ call. The shape was widened three times, each after a run had already paid (a he
 seat its bibliography, command substitution cost another its identity, and `RB="…/feov-record"; $RB
 …` — a seat aliasing the long path, which no command-text matcher can see — cost 21 of 65 registers
 across six runs their agent_id). The harm the matcher claimed to prevent cannot occur: injection
-PREPENDS, so a documentation write or a friction message carrying the token is byte-identical either
+PREPENDS, so a documentation write or a log entry carrying the token is byte-identical either
 way. A needless `export` on a command that does not use the tool is inert; a missing one destroys a
 seat's work. THE TYPE IS A DIFFERENT FACT FROM THE HANDLE and refuses a different thing: agent_id
 says WHICH agent, agent_type says which CONFIGURATION it was dispatched as, so `register` can reject

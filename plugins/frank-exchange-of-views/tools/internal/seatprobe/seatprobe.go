@@ -204,9 +204,9 @@ type Choices struct {
 	Used map[string]int
 	// Unused are verbs its role offered that it never touched, sorted.
 	Unused []string
-	// Friction is what the seat said it could not do — the channel that has surfaced every
-	// capability gap this project has found by probing.
-	Friction []string
+	// Log is the text of each log entry the seat filed — where every missing capability this
+	// project has found by probing surfaced.
+	Log []string
 }
 
 // Read replays a run and reports one seat's choices.
@@ -216,7 +216,7 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		return nil, err
 	}
 	c := &Choices{SeatID: seatID, Used: map[string]int{}}
-	// FRICTION IS READ FROM THE ACTS THAT STAND. A log entry the seat corrected in its sitting
+	// THE LOG IS READ FROM THE ACTS THAT STAND. A log entry the seat corrected in its sitting
 	// would otherwise be listed twice, the struck wording beside the one it meant.
 	live := map[*record.Event]bool{}
 	for _, e := range record.Live(m.Events) {
@@ -253,14 +253,14 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 			verb = "motion " + subject + strings.TrimPrefix(verb, "motion")
 		}
 		c.Used[verb]++
-		// THE BODY IS THE TYPE, so asking for a Friction body asks the same question
-		// `e.Type == "friction"` did. The clean case is no longer a different MESSAGE and is no
+		// THE BODY IS THE TYPE, so asking for a Log body asks the same question
+		// `e.Type == "log"` does. The clean case is no longer a different MESSAGE and is no
 		// longer an entry at all: `nominal` was retired and clean is derived from having sat and
 		// filed nothing, so what lands here is exactly the exceptions, distinguished by type.
 		// `text` is the field the schema gives the seat's own sentence; `reason` was the payload
 		// key that carried it.
 		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok && live[e] {
-			c.Friction = append(c.Friction, f.GetText())
+			c.Log = append(c.Log, f.GetText())
 		}
 	}
 	if c.Role == "" {
@@ -398,13 +398,13 @@ func Report(sf Surface, run record.Run, seats []string, expect []Expectation, at
 			}
 		}
 		fmt.Fprintf(&b, "- NEVER REACHED: %s\n", strings.Join(never, ", "))
-		if len(c.Friction) > 0 {
-			fmt.Fprintf(&b, "- friction (%d): %s\n", len(c.Friction), strings.Join(c.Friction, " · "))
+		if len(c.Log) > 0 {
+			fmt.Fprintf(&b, "- log (%d): %s\n", len(c.Log), strings.Join(c.Log, " · "))
 		} else {
-			// An empty friction log is NOT a clean board. It is equally consistent with a seat
+			// An empty log is NOT a clean board. It is equally consistent with a seat
 			// that hit no obstacle and one that hit several and did not use the channel — and
 			// distinguishing those is the whole point of this package.
-			b.WriteString("- friction: NONE RECORDED — which does not mean none was met\n")
+			b.WriteString("- log: NO ENTRY RECORDED — which does not mean nothing cost the seat a call\n")
 		}
 		b.WriteString("\n")
 	}

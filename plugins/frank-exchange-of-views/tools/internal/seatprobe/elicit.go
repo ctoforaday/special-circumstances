@@ -19,7 +19,7 @@ import "fmt"
 //
 // So: same boards, same constitutions, same injected identity — and the seat is asked to
 // ENUMERATE and ASSESS rather than act. What it lists is what it perceives. What it argues
-// against is what it has weighed. What it says it wanted and could not do is friction it did not
+// against is what it has weighed. What it says it wanted and could not do is a request it did not
 // know how to file.
 //
 // # The prompt names no verb, and that is the whole method

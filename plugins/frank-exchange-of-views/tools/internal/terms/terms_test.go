@@ -164,3 +164,48 @@ func TestForSeatDeliversOnlyThatSeatsEntries(t *testing.T) {
 		t.Errorf("Seats() = %q", got)
 	}
 }
+
+// definitionHits runs every GATED ban over every definition in the registry. Masks apply — they
+// are part of what a ban means — and allows do not, because a definition has no path.
+func definitionHits(r *Registry) []string {
+	var out []string
+	for _, e := range r.Entries {
+		for _, h := range r.Scan("", e.Definition, nil) {
+			out = append(out, strconv.Quote(e.Term)+" is defined with "+strconv.Quote(h.Match)+
+				", the banned variant "+strconv.Quote(h.Variant)+" of "+strconv.Quote(h.Term))
+		}
+	}
+	return out
+}
+
+// NO DEFINITION USES A VARIANT THE REGISTRY BANS. A definition is delivered to every seat it names
+// and rendered into the vocabulary document, so a retired gloss left in one is handed out under the
+// registry's own authority while the gate fails the same words everywhere else.
+//
+// This runs as a test and not inside Parse: recordpb resolves a value's `(defined_term)` through
+// Load, so every record-tool process that renders the log types loads the registry, and scanning
+// each definition against each ban there costs every one of them the scan.
+func TestNoDefinitionUsesABannedVariant(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hits := definitionHits(r); len(hits) > 0 {
+		t.Errorf("%d definition(s) use a banned variant — reword the definition; it has no path to allow:\n  %s",
+			len(hits), strings.Join(hits, "\n  "))
+	}
+
+	// The check itself, on the two glosses it exists to keep out and on a masked neighbour.
+	planted, err := Parse([]byte(`{"entries":[
+		{"term":"friction","definition":"Friction is one type of log entry: the work was impeded and the seat is noting it.","seats":["blue"],"bans":[{"variant":"impeded","kind":"GATED","pattern":"\\bimped(e|ed|es|ing|iment|iments)\\b"}],"collisions":[]},
+		{"term":"the log","definition":"The log holds a defect in the tooling, or an impediment.","seats":["blue"],"bans":[],"collisions":[]},
+		{"term":"exchange","definition":"An exchange is one round-trip between the parties.","seats":["blue"],"bans":[{"variant":"round","kind":"GATED","pattern":"\\bround\\b","masks":[{"phrase":"round-trip","reason":"a round-trip is a call and its answer"}]}],"collisions":[]}
+	]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := definitionHits(planted); len(got) != 2 {
+		t.Errorf("the planted registry has two definitions using a banned variant and one masked neighbour; the check reported %d:\n  %s",
+			len(got), strings.Join(got, "\n  "))
+	}
+}

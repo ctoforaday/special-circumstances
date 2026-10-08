@@ -127,7 +127,7 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 			"--seat-id %q disagrees with the seat this agent registered as (%q). "+
 				"Your identity is bound at `register` and read back from the record; you do not retype it. "+
 				"If the flag is a typo, drop it — omitting --seat-id is correct and always right once you "+
-				"have registered. If you believe the bound value is wrong, record it with the friction verb "+
+				"have registered. If you believe the bound value is wrong, record it in the log, as a defect, "+
 				"rather than working around it",
 			flagSeatID, env)
 	}

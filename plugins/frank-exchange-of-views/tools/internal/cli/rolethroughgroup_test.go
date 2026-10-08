@@ -16,7 +16,7 @@ import (
 // `blue show work list` reported its role as "show" from the day `show` became a group, because
 // roleOf took the immediate parent. record.SittingOf switches on that role, a switch that matches
 // nothing falls through in silence, and the result was that every seat's duty list lost every
-// role-specific line — leaving only the friction duty, which sits above the switch.
+// role-specific line — leaving only the log duty, which sits above the switch.
 //
 // This asserts the two halves separately, because they fail for different reasons: the role that
 // reaches the projection, and the duties that depend on it. A test for only the first would pass a

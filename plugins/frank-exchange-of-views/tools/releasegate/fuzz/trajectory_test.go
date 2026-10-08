@@ -182,7 +182,7 @@ func commandPathOf(args []string) string {
 	}
 	// THE ROLE IS PUT BACK ON, FROM THE SEAT ID. A seat no longer TYPES its role — the tree is
 	// scoped to the injected identity — but cli.CommandPaths still keys a command by (role, verb),
-	// because `closing`, `position`, `friction`, `register` and `show` each exist under several
+	// because `closing`, `position`, `log`, `register` and `show` each exist under several
 	// roles with different contracts. Comparing role-less argv against role-keyed paths reported
 	// every seat verb as never invoked: the plausible-zero shape this tally exists to catch,
 	// arriving in the tally.
