@@ -1882,10 +1882,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2))).
 				run()
 		})
-		// READ-ONLY, PROMPT-CALLED, AND PREVIOUSLY UNFUZZED. claim-index records nothing, so the
-		// event-type coverage gate cannot see it — yet blue's response prompt tells blue to call
-		// it when propagating a correction to every site of a claim. A crash here costs a real
-		// round; no gate would have noticed.
 		// #277: settle a claim by COMPUTING it. The script is written into the run dir and the
 		// tool runs it twice — so this drives the real interpreter, the cache, the anchor
 		// splice and the reproducible/observed grading, not a stub.
@@ -1910,7 +1906,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			pv.run()
 		})
-		r.maybe(35, func() { r.readOnly("claim-index", seatID) })
 		r.maybe(40, func() { r.do("revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a

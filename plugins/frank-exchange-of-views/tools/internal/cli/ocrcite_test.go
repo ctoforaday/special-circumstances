@@ -341,7 +341,9 @@ func TestACorrectedOCRCiteKeepsItsPages(t *testing.T) {
 	runDir, _ := ocrRun(t, threePages)
 	k := correctionKeyOf(t, runDir, citeSeat, []string{"cite", "--quote", ocrClaim, "--url", ocrURL,
 		"--title", "IEEE 1012, as read in this run", "--source-text", "leaf", "--ocr-quote", "Annexes A through J"})
-	must(t, runDir, "cite", "--seat-id", citeSeat, "--title", "IEEE 1012",
+	// Every flag is repeated: left out, --ocr-quote and --source-text would each be a change.
+	must(t, runDir, "cite", "--seat-id", citeSeat, "--quote", ocrClaim, "--url", ocrURL, "--title", "IEEE 1012",
+		"--source-text", "leaf", "--ocr-quote", "Annexes A through J",
 		"--corrects", k, "--correction-why", "the title narrated the run")
 	srcs, err := record.CitedSources(runtest.Open(t, runDir))
 	if err != nil {
@@ -353,9 +355,11 @@ func TestACorrectedOCRCiteKeepsItsPages(t *testing.T) {
 
 	k2 := correctionKeyOf(t, runDir, citeSeat, []string{"cite", "--quote", ocrClaim, "--url", ocrURL,
 		"--title", "Again", "--ocr-quote", "integrity levels"})
-	_, err = run(t, "cite", "--run", runDir, "--seat-id", citeSeat, "--title", "Again",
-		"--ocr-quote", "The integrity levels are four.", "--corrects", k2, "--correction-why", "wrong span")
-	if err == nil || !strings.Contains(err.Error(), "may change only the seat's own wording") {
-		t.Fatalf("a correction moving the OCR quote was not refused as a frozen field: %v", err)
+	for _, span := range [][]string{{"--ocr-quote", "The integrity levels are four."}, nil} {
+		_, err = run(t, append([]string{"cite", "--run", runDir, "--seat-id", citeSeat, "--quote", ocrClaim, "--url", ocrURL, "--title", "Again",
+			"--corrects", k2, "--correction-why", "wrong span"}, span...)...)
+		if err == nil || !strings.Contains(err.Error(), "this one changes --ocr-quote,") {
+			t.Fatalf("a correction with the span %q was not refused as a change to --ocr-quote: %v", span, err)
+		}
 	}
 }

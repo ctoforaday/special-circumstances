@@ -3,13 +3,13 @@
 > **Purpose.** When blue corrects a claim, the correction must reach *every* site that states the
 > same claim, or the report ships an internal contradiction. Incomplete propagation was run 3's
 > dominant blue failure class (5 regressions in 5 rounds). This note is the durable model for how
-> the engine tracks a claim across a mutating report — the design that governs the (c) worklist /
-> claim-index work and everything after it. It describes a **destination and the gated path to it**;
+> the engine tracks a claim across a mutating report — the design that governs the (c) worklist
+> work and everything after it. It describes a **destination and the gated path to it**;
 > the Status section says what is built versus proposed.
 
 ## The reframe: this is a DRY problem, not a search problem
 
-The instinct is to make blue *search* the report better — a claim-index, a report-wide grep. But
+The instinct is to make blue *search* the report better — a per-claim index, a report-wide grep. But
 search only exists because the same claim is **copied as prose to N sites with no link between the
 copies**. The report violates DRY, and every propagation sweep is the cost of that violation. The
 real lever is not a faster search over duplicates; it is to **give the copies a shared identity, or
@@ -26,7 +26,7 @@ A correction has to propagate across three kinds of duplicate, and they do not c
 | tier | the duplicate | what catches it | cost |
 |---|---|---|---|
 | **T1** | the same figure/string repeated verbatim | a `grep` for the value | deterministic, ~free |
-| **T2** | a footnoted claim asserted at several marker sites | the claim-index (enumerate the marker) | deterministic, cheap |
+| **T2** | a cited claim asserted at several marker sites | a `grep` of the report for the citation's anchor — `show evidence` lists each citation with its anchor; no call lists every site of one anchor | deterministic, cheap |
 | **T3** | the claim **restated in different words**, unfootnoted | only a mind reading the report | the real cost |
 
 T3 is the irreducible core. No marker index and no string sweep can see a claim paraphrased at a
@@ -107,7 +107,7 @@ Propagation is a repair *loop*, not a per-correction sweep:
    - *Deterministic:* `grep` for the **stale** string (the old value/phrase just replaced) → zero
      hits proves T1 propagation. Grepping for the value being *eliminated* is a stronger check than
      grepping for the new one — it proves absence of the thing you are removing. Plus the
-     claim-index / marker grep for T2.
+     marker grep for T2.
    - *Comprehending:* blue re-reads for T3 — the paraphrased sites no scan can see. This is the only
      step that needs a mind, and it is where the budget should go.
 4. Loop until blue's own review is clean.
@@ -145,7 +145,7 @@ Each promotion is gated by **measurement** (the cheaper tier proved insufficient
 **render-shadow test** (the new state stays a projection of the record):
 
 1. **Now — stateless.** A SET of independent, separately-shippable slices, none needing a process or
-   forking the source of truth: (1a) the confirmation loop + recompute-on-read claim-index; (1b)
+   forking the source of truth: (1a) the confirmation loop; (1b)
    cite-markers; (1c) shared labels; (1d) value-transclusion. They land incrementally — **(1a) is the
    first**, and the (c) spec ships exactly that one. The rest are still stage-1 (stateless), not a
    later tier; deferring them is a sequencing choice, not a promotion.
@@ -161,8 +161,7 @@ Do not cache until the derivation is proven expensive. That is the render-shadow
 
 - **Built:** none of the anchoring model yet. Prerequisites landed — board de-dup (#225), retire
   detector (#226), undisposed metric (#227 — retired with observe/dispose in #327; the honest successor is uncredited_findings).
-- **Specced (the (c) work):** the worklist view, `merge near-match`, the claim-index (recompute-on-
-  read, footnote-marker enumeration reconciled with `claimcount.Count`), `mint --check-kind`. The (c)
+- **Specced (the (c) work):** the worklist view, `merge near-match`, `mint --check-kind`. The (c)
   spec's Phase 3 is **slice (1a)** — the confirmation loop with the retained report-wide stale-string
   sweep as the T3 backstop. It is the FIRST slice of the stateless stage, not the whole stage.
 - **Proposed, not specced:** the rest of the stateless stage — cite-markers (1b), shared-label

@@ -97,7 +97,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded.
+only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+wording too: a correction that leaves out a flag the act holds is refused.
 
 §6 (on 6 pages):
 what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
@@ -445,7 +446,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says.
+anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
+refused.
 
 Usage:
   feov-record log [flags]
@@ -720,7 +722,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about.
+anything the act says except --id, which names what it is about. Repeat your wording too: a
+correction that leaves out a flag the act holds is refused.
 
 Usage:
   feov-record regrade [flags]

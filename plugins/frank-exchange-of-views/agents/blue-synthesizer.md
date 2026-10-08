@@ -178,13 +178,15 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§4 (on 4 pages):
+§4 (on 2 pages):
 CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded.
+only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+wording too: a correction that leaves out a flag the act holds is refused. Only --reason may be
+dropped, by passing it empty (--reason "").
 
 §5 (on 11 pages):
 what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
@@ -192,7 +194,7 @@ what was wrong with the act you are correcting, in one sentence; a reader sees i
 §6 (on 11 pages):
 the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
 
-§7 (on 22 pages):
+§7 (on 21 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -208,7 +210,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about.
+anything the act says except --id, which names what it is about. Repeat your wording too: a
+correction that leaves out a flag the act holds is refused.
 
 §10 (on 2 pages):
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`.
@@ -225,7 +228,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says.
+anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
+refused.
 
 §14 (on 2 pages):
 TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
@@ -233,13 +237,22 @@ TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the ch
 §15 (on 2 pages):
 A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
 
-§16 (on 3 pages):
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
+§16 (on 2 pages):
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+wording too: a correction that leaves out a flag the act holds is refused.
 
 §17 (on 3 pages):
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
+
+§18 (on 3 pages):
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 
-§18 (on 7 pages):
+§19 (on 7 pages):
 Global Flags:
       --id gap-id        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)
       --json             emit a structured JSON result (and structured errors) instead of human text
@@ -247,13 +260,13 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-§19 (on 4 pages):
+§20 (on 4 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
 
-§20 (on 2 pages):
+§21 (on 2 pages):
 select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§21 (on 2 pages):
+§22 (on 2 pages):
 select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ==============================================================================
@@ -268,7 +281,6 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      your closing argument on one docketed gap, when the bench is about to rule on it
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   edit         change the report — the only path into report.md, and how every repair lands
@@ -358,7 +370,8 @@ printed as [key …]) and --correction-why <what was wrong>. The record keeps th
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
 only your wording (--hypothesis, --method, --reason); every other flag must repeat what the act
-recorded.
+recorded. Repeat your wording too: a correction that leaves out a flag the act holds is refused.
+Only --hypothesis, --method may be dropped, each by passing it empty (--hypothesis "").
 
 Usage:
   feov-record avenue propose [flags]
@@ -397,7 +410,9 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason, --title); every other flag must repeat what the act recorded.
+only your wording (--reason, --title); every other flag must repeat what the act recorded. Repeat
+your wording too: a correction that leaves out a flag the act holds is refused. Only --reason may be
+dropped, by passing it empty (--reason "").
 
 Usage:
   feov-record cite [flags]
@@ -419,17 +434,6 @@ Enumerated values:
     unread        the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says
     summary_only  read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source
     leaf          the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS
-
-(Global Flags:) → SHARED §7
-==============================================================================
-$ feov-record claim-index --help
-claim-index prints, per footnote label, every site that claim appears in the report on the record: {claims:[{label, occurrences:[{heading, line}]}]} — line is where the claim's sentence starts. Use it when a correction must reach ALL of a claim's sites — query the label instead of re-reading the whole report. It does NOT replace the report-wide sweep: an unfootnoted restatement (a bare corrected FIGURE) is invisible to a footnote index, so still search `show report` for the corrected strings. It records nothing. JSON only.
-
-Usage:
-  feov-record claim-index [flags]
-
-Flags:
-  -h, --help   help for claim-index
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -639,7 +643,7 @@ press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §16
 
 Usage:
   feov-record motion avenue appeal [flags]
@@ -656,11 +660,11 @@ Flags:
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §16
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §17
 
 It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself.
 
-(Any seat may file; exactly one r…) → SHARED §17
+(Any seat may file; exactly one r…) → SHARED §18
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -687,7 +691,7 @@ press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, 
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §16
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -704,11 +708,11 @@ Flags:
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §16
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §17
 
 It disputes a gap's grade.
 
-(Any seat may file; exactly one r…) → SHARED §17
+(Any seat may file; exactly one r…) → SHARED §18
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -736,11 +740,11 @@ Enumerated values:
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §16
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §17
 
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
-(Any seat may file; exactly one r…) → SHARED §17
+(Any seat may file; exactly one r…) → SHARED §18
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -946,12 +950,12 @@ Flags:
       --match regex   select only the avenues matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the avenues containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show board --help
 THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §19
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §20
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
@@ -965,10 +969,10 @@ Usage:
 Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
   -h, --help            help for board
-      --match regex     → SHARED §20
-      --quote text      → SHARED §21
+      --match regex     → SHARED §21
+      --quote text      → SHARED §22
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show changes --help
 every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`
@@ -987,12 +991,12 @@ Flags:
       --match regex   select only the edits matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the edits containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:f-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §19
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §20
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
@@ -1008,12 +1012,12 @@ Flags:
       --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show findings --help
 Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §19
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §20
 
 OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],text,minted_as:[string]}],counts:{total}}
 
@@ -1029,7 +1033,7 @@ Flags:
       --match regex   select only the findings matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the findings containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`, and `show board` resolves `<!--gap:G…-->`. Written by the opening synthesis and blue's `edit`
@@ -1048,7 +1052,7 @@ Flags:
       --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
       --window int    with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show work --help
 **YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
@@ -1063,7 +1067,7 @@ FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it —
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §19
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §20
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,minted_by,yours_to_close,check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
@@ -1076,9 +1080,9 @@ Usage:
 
 Flags:
   -h, --help          help for work
-      --match regex   → SHARED §20
-      --quote text    → SHARED §21
+      --match regex   → SHARED §21
+      --quote text    → SHARED §22
 
-(Global Flags:) → SHARED §18
+(Global Flags:) → SHARED §19
 
 <!-- END GENERATED SURFACE -->

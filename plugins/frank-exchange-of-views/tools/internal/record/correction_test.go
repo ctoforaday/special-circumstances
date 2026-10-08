@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -475,4 +476,49 @@ func TestCorrectionConcurrentNeverCommitsAfterAForeignAct(t *testing.T) {
 		}
 	}
 	t.Logf("%d committed, %d refused", committed, refused)
+}
+
+// WORDING THE ACT HOLDS IS REPEATED OR CLEARED, NEVER LEFT OUT. A prose field may change, so the
+// frozen compare admits a replacement without it; what tells "dropped on purpose" from "not
+// re-typed" is whether the seat passed the flag, and the command layer says which flags it did not.
+// With no command line at all — migrate replaying an act the record already accepted — there is
+// nothing to ask, and the replacement stands as it did when it was written.
+func TestACorrectionLeavingOutHeldWordingIsRefused(t *testing.T) {
+	avenue := func(line, hypothesis string) *recordpb.Avenue {
+		return &recordpb.Avenue{AvenueId: proto.String("A1"), Line: proto.String(line), Hypothesis: proto.String(hypothesis),
+			Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()}
+	}
+	typ := recordpb.EventType_EVENT_TYPE_AVENUE
+	for _, tc := range []struct {
+		name     string
+		unpassed []string
+		refused  bool
+	}{
+		{"left out", []string{"--method", "--hypothesis"}, true},
+		{"passed empty", []string{"--method"}, false},
+		{"every flag passed", []string{}, false},
+		{"no command line", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := corrRun(t)
+			blue := sit(t, run, "blue-respond")
+			act := mustAppend(t, blue, avenue("try the recorded method", "it settles the count"))
+			if got := HeldProseFlags(avenue("try the recorded method", "it settles the count")); strings.Join(got, " ") != "--hypothesis --reason" {
+				t.Fatalf("the act holds %v, want --hypothesis and --reason", got)
+			}
+			id := correcting(blue, typ, act.GetKey(), "a word was lost")
+			id.Correct.Unpassed = tc.unpassed
+			_, err := Append(id, avenue("try the recorded method, whole", ""))
+			if !tc.refused {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			mustRefuse(t, err, "omits --hypothesis, which the act you are correcting holds", "a correction repeats every flag", `pass --hypothesis "" to clear it`)
+			if feov.CodeOf(err) != string(feov.MissingField) {
+				t.Errorf("the refusal is coded %q, want %q", feov.CodeOf(err), feov.MissingField)
+			}
+		})
+	}
 }

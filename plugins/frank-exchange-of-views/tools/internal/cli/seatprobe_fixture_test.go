@@ -205,10 +205,9 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		//
 		// The first draft logged it and carried on, and the `sources` and `lens-audit` boards
 		// built with ZERO cited claims — which is precisely the state their expectations are
-		// about. `lens verify` has nothing to verify and `blue claim-index` has nothing to
-		// index, so both would have reported UNMET against a seat that had no way to meet them,
-		// and the report would have read as a finding about the seat rather than about the
-		// fixture. A builder that degrades quietly produces exactly the plausible zero the rest
+		// about. `lens verify` has nothing to verify, so it would have reported UNMET against a
+		// seat that had no way to meet it, and the report would have read as a finding about
+		// the seat rather than about the fixture. A builder that degrades quietly produces exactly the plausible zero the rest
 		// of this suite exists to remove.
 		//
 		// The url is a real, reachable one because `cite` FETCHES and caches: an unreachable

@@ -23,6 +23,12 @@ func TestCount(t *testing.T) {
 			2,
 		},
 		{
+			// Distinct labels only: the same anchor twice in one sentence is one claim.
+			"an anchor repeated in one sentence counts once",
+			"Repeating the same anchor<!--cite:c-a--> twice<!--cite:c-a--> in one sentence.\n",
+			1,
+		},
+		{
 			"a finding anchor is not a claim and never counts",
 			"A finding sits here<!--fx:f-a--> but nothing cites it.",
 			0,

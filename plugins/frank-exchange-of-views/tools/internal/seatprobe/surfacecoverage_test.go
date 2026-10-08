@@ -219,7 +219,6 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
-		"claim-index": {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
 		"verify":      {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
 		"render-page": {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
 		"retire":      {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},

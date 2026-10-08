@@ -4080,8 +4080,10 @@ type Cite struct {
 	Title      *string `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	Location   *string `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	AccessDate *string `protobuf:"bytes,6,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
-	CiteKey    *string `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
-	Text       *string `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	// cite_key and source_text_read are typed --key and --source-text: the flag word is declared so
+	// a refusal names what a seat can type.
+	CiteKey *string `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
+	Text    *string `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
 	// claim costs a seat nothing and only a stronger one is asserted.
 	SourceTextRead *SourceTextRead `protobuf:"varint,10,opt,name=source_text_read,json=sourceTextRead,proto3,enum=feov.record.v1.SourceTextRead,oneof" json:"source_text_read,omitempty"`
@@ -4444,10 +4446,11 @@ func (x *Verify) GetSourceCompleteness() SourceCompleteness {
 // `drift` records that the two runs disagreed, which makes it a measurement of a moving system
 // rather than a proof.
 type Proof struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	ProofId  *string                `protobuf:"bytes,1,opt,name=proof_id,json=proofId,proto3,oneof" json:"proof_id,omitempty"`
-	ProofKey *string                `protobuf:"bytes,2,opt,name=proof_key,json=proofKey,proto3,oneof" json:"proof_key,omitempty"`
-	ProofSha *string                `protobuf:"bytes,3,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	ProofId *string                `protobuf:"bytes,1,opt,name=proof_id,json=proofId,proto3,oneof" json:"proof_id,omitempty"`
+	// proof_key is typed --key: the flag word is declared so a refusal names what a seat can type.
+	ProofKey *string `protobuf:"bytes,2,opt,name=proof_key,json=proofKey,proto3,oneof" json:"proof_key,omitempty"`
+	ProofSha *string `protobuf:"bytes,3,opt,name=proof_sha,json=proofSha,proto3,oneof" json:"proof_sha,omitempty"`
 	// proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
 	// census for the same reason as Outcome's three.
 	ProofBasis *string `protobuf:"bytes,8,opt,name=proof_basis,json=proofBasis,proto3,oneof" json:"proof_basis,omitempty"`
@@ -7577,7 +7580,7 @@ const file_record_proto_rawDesc = "" +
 	"\v_finding_idB\x0e\n" +
 	"\f_finding_keyB\b\n" +
 	"\x06_labelB\a\n" +
-	"\x05_text\"\xef\a\n" +
+	"\x05_text\"\x8d\b\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -7585,11 +7588,11 @@ const file_record_proto_rawDesc = "" +
 	"\x05title\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x05title\x88\x01\x01\x120\n" +
 	"\blocation\x18\x05 \x01(\tB\x0f\x82\xb5\x18\a\x12\x05quote\xc0\xb5\x18\x00H\x04R\blocation\x88\x01\x01\x12$\n" +
 	"\vaccess_date\x18\x06 \x01(\tH\x05R\n" +
-	"accessDate\x88\x01\x01\x12\x1e\n" +
-	"\bcite_key\x18\a \x01(\tH\x06R\aciteKey\x88\x01\x01\x12)\n" +
-	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12M\n" +
+	"accessDate\x88\x01\x01\x12)\n" +
+	"\bcite_key\x18\a \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x06R\aciteKey\x88\x01\x01\x12)\n" +
+	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12`\n" +
 	"\x10source_text_read\x18\n" +
-	" \x01(\x0e2\x1e.feov.record.v1.SourceTextReadH\bR\x0esourceTextRead\x88\x01\x01\x12Y\n" +
+	" \x01(\x0e2\x1e.feov.record.v1.SourceTextReadB\x11\x82\xb5\x18\r\x12\vsource-textH\bR\x0esourceTextRead\x88\x01\x01\x12Y\n" +
 	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\tR\x10sourceTextOrigin\x88\x01\x01\x12&\n" +
 	"\tocr_quote\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\n" +
 	"R\bocrQuote\x88\x01\x01\x12\x1a\n" +
@@ -7654,10 +7657,10 @@ const file_record_proto_rawDesc = "" +
 	"\x10_page_render_shaB\x15\n" +
 	"\x13_reading_render_shaB\x0e\n" +
 	"\f_work_statusB\x16\n" +
-	"\x14_source_completenessJ\x04\b\x02\x10\x03R\treference\"\xfc\x03\n" +
+	"\x14_source_completenessJ\x04\b\x02\x10\x03R\treference\"\x87\x04\n" +
 	"\x05Proof\x12\x1e\n" +
-	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12 \n" +
-	"\tproof_key\x18\x02 \x01(\tH\x01R\bproofKey\x88\x01\x01\x12 \n" +
+	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12+\n" +
+	"\tproof_key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\bproofKey\x88\x01\x01\x12 \n" +
 	"\tproof_sha\x18\x03 \x01(\tH\x02R\bproofSha\x88\x01\x01\x12$\n" +
 	"\vproof_basis\x18\b \x01(\tH\x03R\n" +
 	"proofBasis\x88\x01\x01\x12\x1d\n" +

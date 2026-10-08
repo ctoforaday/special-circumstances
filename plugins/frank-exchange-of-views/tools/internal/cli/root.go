@@ -563,7 +563,7 @@ func ExecuteRoot(root *cobra.Command) error {
 	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
 		return err
 	}
-	return seat.RefuseAndTeach(cmd, translateUnknownFlag(cmd, err.Error()))
+	return seat.RefuseAndTeach(cmd, seat.CorrectionOmitsRequired(cmd, err, translateUnknownFlag(cmd, err.Error())))
 }
 
 // EmitTopLevelError renders an error that never reached seat.Emit, and reports whether it did.

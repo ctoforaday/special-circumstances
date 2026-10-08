@@ -87,7 +87,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says.
+anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
+refused.
 
 §5 (on 10 pages):
 what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
@@ -105,28 +106,29 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-§9 (on 5 pages):
+§9 (on 2 pages):
+select only the entries matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
+
+§10 (on 2 pages):
+select only the entries containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
+
+§11 (on 6 pages):
+THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+
+§12 (on 2 pages):
+TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
+
+§13 (on 2 pages):
+A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
+
+§14 (on 4 pages):
 CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded.
-
-§10 (on 2 pages):
-select only the entries matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-
-§11 (on 2 pages):
-select only the entries containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
-
-§12 (on 6 pages):
-THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
-
-§13 (on 2 pages):
-TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or too_thin, and it is filed whether or not blue also pursues the avenue — separating the argument from the act is the whole point of the verb.
-
-§14 (on 2 pages):
-A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather than an omission: the bench is the last forum, so there is nothing to escalate to.
+only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+wording too: a correction that leaves out a flag the act holds is refused.
 
 §15 (on 2 pages):
 EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
@@ -229,7 +231,14 @@ Closing on verification done THIS sitting is the originating lens's `close`, not
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §9
+CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
+wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
+printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
+struck beside its replacement. You may correct only your own act, only in the sitting that recorded
+it, and only until another seat has acted; after that, say it in a new act. A correction may change
+only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+wording too: a correction that leaves out a flag the act holds is refused. Only --reason may be
+dropped, by passing it empty (--reason "").
 
 Usage:
   feov-record carry [flags]
@@ -274,7 +283,8 @@ wrong figure — run it again with what you meant, adding --corrects <key> (the 
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
 it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about.
+anything the act says except --id, which names what it is about. Repeat your wording too: a
+correction that leaves out a flag the act holds is refused.
 
 Usage:
   feov-record closing [flags]
@@ -359,15 +369,15 @@ Usage:
 
 Flags:
   -h, --help          help for debate
-      --match regex   → SHARED §10
-      --quote text    → SHARED §11
+      --match regex   → SHARED §9
+      --quote text    → SHARED §10
 
 (Global Flags:) → SHARED §8
 ==============================================================================
 $ feov-record inquest motions --help
 Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSON): {motions:[{id,subject,filer,epoch,basis,relief,ruled,ruling,ruling_by,ruling_epoch,opinion,appealed,appeal_reason,fields:{<key>:string},gap_id}],counts:{total,ruled,outstanding}}
 
@@ -388,7 +398,7 @@ Flags:
 $ feov-record inquest telemetry --help
 JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 
@@ -401,8 +411,8 @@ Usage:
 
 Flags:
   -h, --help          help for telemetry
-      --match regex   → SHARED §10
-      --quote text    → SHARED §11
+      --match regex   → SHARED §9
+      --quote text    → SHARED §10
 
 (Global Flags:) → SHARED §8
 ==============================================================================
@@ -450,15 +460,15 @@ Enumerated values:
 $ feov-record motion avenue appeal --help
 press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §13
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §12
 
-(A BENCH-RULED MOTION (petition, …) → SHARED §14
+(A BENCH-RULED MOTION (petition, …) → SHARED §13
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §9
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
 Usage:
   feov-record motion avenue appeal [flags]
@@ -481,7 +491,7 @@ rule on an avenue motion — this verb is the chair seat's, and it appears only 
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §9
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
 Usage:
   feov-record motion avenue rule [flags]
@@ -528,15 +538,15 @@ Flags:
 $ feov-record motion grade appeal --help
 press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, so the losing side may answer it on the record.
 
-(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §13
+(TWO SUBJECTS TAKE AN APPEAL. `mo…) → SHARED §12
 
-(A BENCH-RULED MOTION (petition, …) → SHARED §14
+(A BENCH-RULED MOTION (petition, …) → SHARED §13
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §9
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -591,7 +601,7 @@ rule on a grade motion — this verb is the chair seat's, and it appears only on
 
 (X=$(cat <<'EOF') → SHARED §3
 
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §9
+(CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
 Usage:
   feov-record motion grade rule [flags]
@@ -735,7 +745,7 @@ Flags:
 $ feov-record show board --help
 THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,seat_id,key,kind,label,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
@@ -776,7 +786,7 @@ Flags:
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:f-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
@@ -797,7 +807,7 @@ Flags:
 $ feov-record show findings --help
 Every lens finding on the record (label, seat, epoch, role, grades, location, text) — the minting lens coalesces these into gaps
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSON): {findings:[{label,anchor,seat_id,epoch,role,severity,likelihood,impact,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],text,minted_as:[string]}],counts:{total}}
 
@@ -847,7 +857,7 @@ FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it —
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §12
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,minted_by,yours_to_close,check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading}}
 
