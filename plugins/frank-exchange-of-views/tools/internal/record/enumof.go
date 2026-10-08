@@ -121,7 +121,7 @@ func ClassMaterialOf(word string) (recordpb.ClassMaterial, bool) {
 
 // SeatLogTypeEnum is the `log --type` set narrowed to what a seat may file, so the generated help
 // and the write path cannot disagree about the surface. The narrowing reads EnumValue.ToolOnly,
-// which init derives from the schema facet — there is no second list.
+// which evsOf reads off the schema facet — there is no second list.
 func SeatLogTypeEnum() EnumField {
 	e := MustEnum("log", "type")
 	e.Values = SeatFilable(e.Values)

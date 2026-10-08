@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -90,9 +88,6 @@ var ClosureClasses = dispositionsWhere(func(closes bool) bool { return closes })
 // vocabulary replaced.
 var DeferringDispositions = dispositionsWhere(func(closes bool) bool { return !closes })
 
-// closureClassNames is the bare vocabulary, for the readers that only need the words.
-func closureClassNames() []string { return Names(ClosureClasses) }
-
 // dispositionsWhere reads the vocabulary out of the descriptor.
 //
 // A value that never declared `closes` PANICS at init rather than defaulting to false. That is
@@ -167,25 +162,27 @@ const (
 	// collapse into "no defect" — an unasked question and an answered one are not the same.
 	ArtifactUnexamined ArtifactState = "unexamined"
 	// ArtifactUnknown: the class is not a word this vocabulary carries. NO RECORD CAN PRODUCE
-	// IT — the schema's CHECK is generated from the same enum this map is checked against, and
-	// TestArtifactStateCoversEveryDisposition fails the moment the map falls behind that enum.
+	// IT — the schema's CHECK admits only Disposition words, and
+	// TestArtifactStateSeparatesTheDisputeFromTheDefect fails the moment a closing class
+	// (ClosureClasses) has no row in artifactByClass.
 	// It survives for input that reached here without passing the schema, where reporting the
 	// miss as itself beats folding it into a healthy value.
 	ArtifactUnknown ArtifactState = "unknown"
 )
 
-// artifactByClass is the total part of the mapping. `amends_prior` is absent on purpose: it
-// inherits from the ruling it amends and needs a lookup, not a table row.
+// artifactByClass is the total part of the mapping. Its domain is the classes that close a gap
+// (ClosureClasses): ArtifactStateOf is asked only a closed gap's fate (EstoppedJSON, in
+// viewjson.go). `amends_prior` is absent on purpose: it inherits from the ruling it amends and
+// needs a lookup, not a table row.
 var artifactByClass = map[string]ArtifactState{
 	"repaired":                 ArtifactRepaired,
 	"repaired_with_regression": ArtifactDefectLive, // repaired here, and a live successor carries the remainder
 	"not_a_defect":             ArtifactNoDefect,
 	"defect_accepted":          ArtifactDefectLive,
 	"defect_owed_elsewhere":    ArtifactDefectLive,
-	DispositionRemanded:        ArtifactUnexamined, // still live; the question is open, not answered
 	// MOOT CLOSES THE GAP AND LEAVES THE MERITS UNANSWERED, which is why it is unexamined
-	// alongside `remanded` despite ending the gap rather than deferring it. Closure and artifact
-	// state are orthogonal here and this is the pair that shows it.
+	// although it ends the gap. Closure and artifact state are orthogonal here and this is the
+	// class that shows it.
 	//
 	// It is not `repaired` — nobody verified a fix. It is not `no_defect` — that asserts red was
 	// WRONG, and a mooted finding may have been entirely right about text that has since gone. It
@@ -262,7 +259,7 @@ var EnumFields = map[string][]EnumField{
 	// mandated ceremony, and nothing on the entry said which was which.
 	//
 	// EVERY LogType VALUE, FROM THE DESCRIPTOR. The three the tool alone writes are listed too:
-	// the init in enumvalue.go marks them ToolOnly off the `seat_may_file` facet and SeatFilable
+	// evsOf marks them ToolOnly off the `seat_may_file` facet and SeatFilable
 	// drops them from a seat's help and refusal, so the one row serves both surfaces.
 	"log": {{
 		Key: "type", Flag: flags.Type, Values: evsOf(recordpb.LogType(0).Descriptor()),
@@ -346,26 +343,8 @@ var EnumFields = map[string][]EnumField{
 	}},
 }
 
-// Usage renders the flag's help from the set itself, so the contract a seat reads is the
-// contract the write path enforces.
-func (e EnumField) Usage(what string) string {
-	return strings.Join(Names(e.Values), " | ") + " — " + what
-}
-
 // Spelling is the set as a verb summary writes it: PASS|FAIL, no spaces.
 func (e EnumField) Spelling() string { return strings.Join(Names(e.Values), "|") }
-
-// allows reports whether v is in the set. Exact and case-sensitive by construction: the
-// gates downstream compare literally, so anything looser here would re-open the hole one
-// layer down.
-func (e EnumField) allows(v string) bool {
-	for _, want := range e.Values {
-		if v == want.Name {
-			return true
-		}
-	}
-	return false
-}
 
 // enum returns one declared set by (event type, payload key), for the CLI's help.
 func enum(typ, key string) (EnumField, bool) {
@@ -386,75 +365,4 @@ func MustEnum(typ, key string) EnumField {
 		panic("record: no declared enum for " + typ + "." + key)
 	}
 	return e
-}
-
-// sameWord reports whether two spellings differ only in case or in their separators —
-// the typo class, and nothing wider. `closed-with-regression` and `Closed_With_Regression`
-// are the same word; `closed` and `repaired_with_regression` are not.
-func sameWord(a, b string) bool {
-	strip := func(s string) string {
-		return strings.ToLower(strings.NewReplacer("_", "", "-", "", " ", "").Replace(s))
-	}
-	return strip(a) == strip(b)
-}
-
-// checkOpenSets refuses a value outside the ONE set the schema cannot close.
-//
-// MOST OF WHAT checkEnum POLICED IS NOW UNREPRESENTABLE. verdict, outcome's verdict, avenue
-// status, closure_class, check_kind, soundness, verify's outcome and confidence are closed proto
-// enums: a value outside the set cannot be built, let alone written, so a runtime check for it
-// would be dead code asserting the type system works.
-//
-// `Opinion.disposition` WAS THE SECOND, AND THE REASON GIVEN FOR IT DID NOT SURVIVE READING.
-//
-// It was listed here as "kept open on the operator's decision (plan §II.3): closing it means a
-// legitimate bench ruling fails HARD mid-run, and a bench that cannot rule is worse than a
-// vocabulary that drifts." Two things were wrong with that. The cited section is in no plan in
-// `plans/`. And the behaviour it described as the cost of closing the set was what this function
-// ALREADY DID: the arm below refused any word outside `benchDispositions`, from record.go:1131, on
-// the write path a bench actually uses. The set was closed. Only its DECLARATION was loose, one
-// file from the field, where the schema could not read it — so the DDL could not build a foreign
-// key, the vocabulary table had no row for `remanded`, and "does this word close the gap" had to be
-// answered by a hand-written predicate that guessed.
-//
-// The drift it was meant to tolerate happened anyway, and could not be seen: the engine and the
-// bench's own constitution instructed three dispositions this arm refused.
-//
-// So one set remains, and it is genuinely open:
-//
-//   - `Outcome.ended` — how the sitting ended.
-//
-// The near-miss is called out BY NAME when the value differs only in case, because that is the
-// failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL" alone does not
-// tell a seat that its lowercase spelling was the whole problem.
-func checkOpenSets(body proto.Message) error {
-	// No open set remains: Outcome.ended, the one string field validated against a declared word
-	// list, was retired with the roundless record — how a run ended is the verdict's to say. The
-	// hook stays so the next open set lands here rather than in a verb.
-	_ = body
-	return nil
-}
-
-// checkWord is the refusal itself: the value, the set that would have worked, and the consequence.
-func checkWord(key, flag, got string, allowed []EnumValue) error {
-	for _, want := range allowed {
-		if got == want.Name {
-			return nil
-		}
-	}
-	detail := ""
-	for _, want := range allowed {
-		if strings.EqualFold(got, want.Name) {
-			detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
-		}
-	}
-	if got == "" {
-		detail = "nothing was passed, and "
-	}
-	names := make([]string, 0, len(allowed))
-	for _, want := range allowed {
-		names = append(names, want.Name)
-	}
-	return fmt.Errorf("record: --%s must be one of %s (got %s) — %sthe word is what every later reader switches on",
-		flag, strings.Join(names, "|"), jsonish(got), detail)
 }

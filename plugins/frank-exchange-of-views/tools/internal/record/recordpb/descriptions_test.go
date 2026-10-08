@@ -71,25 +71,6 @@ func TestEveryEnumValueHasADescription(t *testing.T) {
 // happen. The test is recorded here as removed for that reason rather than deleted quietly: a gate
 // that disappears in a refactor looks identical to one somebody dropped.
 
-// Usage renders from the set itself, so the help a seat reads cannot drift from the check the
-// write path runs. This is the property enums.go named and the reason its table could not simply
-// be dropped.
-func TestUsageRendersEveryValue(t *testing.T) {
-	e := (Verdict_VERDICT_PASS).Descriptor()
-	got, err := Usage(e)
-	if err != nil {
-		t.Fatalf("Usage: %v", err)
-	}
-	for _, want := range []string{"pass", "fail", "CHECKED against the board"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("Usage output missing %q:\n%s", want, got)
-		}
-	}
-	if strings.Contains(got, "unspecified") {
-		t.Error("Usage rendered the UNSPECIFIED zero — it names no seat-facing choice")
-	}
-}
-
 // Spelling turns CLOSURE_CLASS_DEFECT_ACCEPTED into `defect_accepted` — the word a seat types. The
 // prefix derivation is mechanical, so it is checked against the awkward cases rather than the
 // easy ones.
@@ -110,22 +91,20 @@ func TestSpellingStripsTheGeneratedPrefix(t *testing.T) {
 	}
 }
 
-// The near-miss is the failure that was actually MEASURED (`--as pass` recording a PASS that
-// skipped the gate), so the refusal names what would have worked rather than only listing the set.
-func TestNearMissFindsTheTypoClassAndNothingWider(t *testing.T) {
-	e := Disposition_DISPOSITION_REPAIRED.Descriptor()
-	for _, typo := range []string{"repaired-with-regression", "Repaired_With_Regression", "REPAIRED_WITH_REGRESSION"} {
-		got, ok := NearMiss(e, typo)
-		if !ok || got != "repaired_with_regression" {
-			t.Errorf("NearMiss(%q) = %q,%v — want repaired_with_regression,true", typo, got, ok)
+// SameWord is the typo class the enum refusal names and migrate's respelling accepts. It must catch
+// case and separator differences and NOTHING wider — a wider match would name or resolve a word
+// somebody did not mean.
+func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
+	same := []string{"repaired-with-regression", "Repaired_With_Regression", "REPAIREDWITHREGRESSION", "repaired with regression"}
+	for _, s := range same {
+		if !SameWord(s, "repaired_with_regression") {
+			t.Errorf("SameWord(%q) missed a typo", s)
 		}
 	}
-	// A different word is NOT a near miss. Matching more widely would refuse a class somebody meant.
-	if got, ok := NearMiss(e, "not_a_defect"); ok {
-		t.Errorf("NearMiss(\"not_a_defect\") matched %q — it is a real value, not a typo", got)
-	}
-	if _, ok := NearMiss(e, "banana"); ok {
-		t.Error("NearMiss matched an unrelated word — the typo class is case and separators, nothing wider")
+	for _, s := range []string{"repaired", "repaired_with_regressions", "evidence-rebutted", "", "regression"} {
+		if SameWord(s, "repaired_with_regression") {
+			t.Errorf("SameWord(%q) matched something that is a different word", s)
+		}
 	}
 }
 

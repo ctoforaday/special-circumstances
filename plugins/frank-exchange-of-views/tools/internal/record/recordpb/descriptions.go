@@ -55,41 +55,11 @@ func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
 		"situation warrants which", v.FullName(), v.Name())
 }
 
-// Usage renders a flag's help from the enum itself, so the contract a seat reads is the contract
-// the write path enforces. One declaration, two readers — which is the rule the old EnumFields
-// table existed to keep and the reason it could not simply be deleted.
-func Usage(e protoreflect.EnumDescriptor) (string, error) {
-	var b strings.Builder
-	for i := 0; i < e.Values().Len(); i++ {
-		v := e.Values().Get(i)
-		if isZeroValue(v) {
-			continue
-		}
-		doc, err := EnumValueDoc(v)
-		if err != nil {
-			return "", err
-		}
-		fmt.Fprintf(&b, "\n  %s — %s", Spelling(v), doc)
-	}
-	return b.String(), nil
-}
-
 // Spelling is the word a seat types: the enum value's name with its type prefix removed and
 // lowercased, so CLOSURE_CLASS_DEFECT_ACCEPTED reads as `defect_accepted`.
 func Spelling(v protoreflect.EnumValueDescriptor) string {
 	prefix := enumPrefix(v.Parent().(protoreflect.EnumDescriptor))
 	return strings.ToLower(strings.TrimPrefix(string(v.Name()), prefix))
-}
-
-// Names is the bare vocabulary, in declaration order, for the readers that only need the words.
-func Names(e protoreflect.EnumDescriptor) []string {
-	var out []string
-	for i := 0; i < e.Values().Len(); i++ {
-		if v := e.Values().Get(i); !isZeroValue(v) {
-			out = append(out, Spelling(v))
-		}
-	}
-	return out
 }
 
 // BySpelling resolves a seat's word back to its value, exactly and case-sensitively: the gates
@@ -106,24 +76,14 @@ func BySpelling(e protoreflect.EnumDescriptor, word string) (protoreflect.EnumVa
 
 // SameWord reports whether two spellings differ only in case or separators — the typo class, and
 // nothing wider. `closed-with-regression` and `Closed_With_Regression` are the same word;
-// `closed` and `repaired_with_regression` are not. Carried over from enums.go, where it exists
-// because closure_class gates an invariant and a near-miss silently took the other branch.
+// `closed` and `repaired_with_regression` are not. Two readers: the enum refusal names a near miss
+// with it (record/enumvalue.go), and migrate resolves an era's respelling with it
+// (migrate/registry.go). A near miss nobody names is a refusal that hides that the word was right.
 func SameWord(a, b string) bool {
 	strip := func(s string) string {
 		return strings.ToLower(strings.NewReplacer("_", "", "-", "", " ", "").Replace(s))
 	}
 	return strip(a) == strip(b)
-}
-
-// NearMiss finds a declared value that differs from the seat's word only by the typo class, so a
-// refusal can name what would have worked instead of only listing the set.
-func NearMiss(e protoreflect.EnumDescriptor, word string) (string, bool) {
-	for _, n := range Names(e) {
-		if n != word && SameWord(n, word) {
-			return n, true
-		}
-	}
-	return "", false
 }
 
 // enumPrefix derives the SCREAMING_SNAKE prefix protoc-gen-go gives an enum's values.

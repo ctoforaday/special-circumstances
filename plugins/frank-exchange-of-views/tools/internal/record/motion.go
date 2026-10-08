@@ -43,19 +43,11 @@ var MotionSubjects = []string{"grade", "petition", "avenue", "docket"}
 // `ruling`/`ruling`/`response` as the structural defect, and a collapse that kept three
 // spellings would have reproduced it inside the new group.
 var MotionVerdicts = map[string][]EnumValue{
-	"grade": {
-		ev("accepted", "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"),
-		ev("rejected", "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"),
-	},
-	"petition": {
-		ev("granted", "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"),
-		ev("denied", "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"),
-	},
-	"avenue": {
-		ev("endorsed", "worth this run's time — blue should take it up"),
-		ev("out_of_scope", "a real question, but not THIS question"),
-		ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
-	},
+	// FROM THE SCHEMA, not typed here: each ruling word and its sentence is the `(means)` on the
+	// subject's ruling enum, in declaration order.
+	"grade":    evsOf(recordpb.GradeRuling(0).Descriptor()),
+	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
+	"avenue":   evsOf(recordpb.AvenueRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
 	// the same words `merge close` uses, which is what "one vocabulary, whichever verb closed it"
 	// means. Copying the words here would be the second list that drifts, and an August draft of

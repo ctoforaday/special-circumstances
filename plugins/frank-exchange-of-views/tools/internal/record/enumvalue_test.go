@@ -1,6 +1,7 @@
 package record
 
 import (
+	"sort"
 	"strings"
 	"testing"
 )
@@ -72,4 +73,17 @@ func TestParserCompletionAndHelpAgree(t *testing.T) {
 			t.Errorf("the help menu omits %q or its meaning", v.Name)
 		}
 	}
+}
+
+// undescribed lists values with no stated meaning, sorted. The gate that consumes it is
+// TestEveryEnumValueSaysWhatItIsFor, above.
+func undescribed(vs []EnumValue) []string {
+	var out []string
+	for _, v := range vs {
+		if strings.TrimSpace(v.Means) == "" {
+			out = append(out, v.Name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

@@ -11,16 +11,13 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// Usage/Spelling are what the CLI puts in --help. The help IS the contract a seat is told
+// Spelling is what the CLI puts in --help. The help IS the contract a seat is told
 // to read, so it has to be generated from the set rather than restated beside it: the
 // restated version is what was wrong for every one of these flags.
 func TestHelpIsGeneratedFromTheSet(t *testing.T) {
 	e := MustEnum("verdict", "verdict")
 	if got, want := e.Spelling(), "PASS|FAIL"; got != want {
 		t.Errorf("Spelling() = %q, want %q", got, want)
-	}
-	if got, want := e.Usage("the seat's terminal act"), "PASS | FAIL — the seat's terminal act"; got != want {
-		t.Errorf("Usage() = %q, want %q", got, want)
 	}
 }
 
@@ -106,23 +103,6 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}
 }
 
-// sameWord is the typo detector behind the closure-class near-miss guard. It must catch
-// case and separator differences and NOTHING wider — a wider match would refuse a closure
-// class somebody meant, in an enum that is deliberately open.
-func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
-	same := []string{"repaired-with-regression", "Repaired_With_Regression", "REPAIREDWITHREGRESSION", "repaired with regression"}
-	for _, s := range same {
-		if !sameWord(s, "repaired_with_regression") {
-			t.Errorf("sameWord(%q) missed a typo", s)
-		}
-	}
-	for _, s := range []string{"repaired", "repaired_with_regressions", "evidence-rebutted", "", "regression"} {
-		if sameWord(s, "repaired_with_regression") {
-			t.Errorf("sameWord(%q) matched something that is a different word", s)
-		}
-	}
-}
-
 // THE TWO CLOSURE SETS ARE CLOSED NOW (#342), and this test is the inverse of the one it
 // replaces. That test asserted `opinion` and `close` must have NO closed set, on the reasoning
 // that "closing it means a legitimate act failing hard mid-round" — sound while the candidate
@@ -169,9 +149,9 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 			t.Errorf("red may close with %q but the bench cannot rule it — one outcome, two vocabularies again", v.Name)
 		}
 	}
-	// `carried` is the ONE word that defers instead of closing, and only the bench has it.
+	// `remanded` is the ONE word that defers instead of closing, and only the bench has it.
 	if closes[DispositionRemanded] {
-		t.Error("`carried` is not a closure — red must not be able to close a gap with it")
+		t.Error("`remanded` is not a closure — red must not be able to close a gap with it")
 	}
 }
 
@@ -209,14 +189,15 @@ func TestEveryDeclaredValueIsAWordTheSchemaCarries(t *testing.T) {
 					t.Errorf("%s.%s declares an empty set — it would render as no choices at all", typ, ef.Key)
 				}
 				ed := schemaEnumFor(t, typ, ef.Key)
+				if ed == nil {
+					t.Errorf("%s.%s is not an enum field — a closed set the schema cannot carry is a set nothing but this table closes", typ, ef.Key)
+					return
+				}
 				for _, v := range ef.Values {
 					checked++
 					if v.Means == "" {
 						t.Errorf("%s.%s value %q carries no meaning; a set rendered as bare words leaves a "+
 							"seat to guess which situation warrants which", typ, ef.Key, v.Name)
-					}
-					if ed == nil {
-						continue // the one open set: its vocabulary is enforced by checkOpenSets, not by a type
 					}
 					vd, ok := schemaValue(ed, v.Name)
 					if !ok {
@@ -237,9 +218,6 @@ func TestEveryDeclaredValueIsAWordTheSchemaCarries(t *testing.T) {
 							"reads no longer says what the schema says\n  table:  %q\n  schema: %q",
 							typ, ef.Key, v.Name, v.Means, want)
 					}
-				}
-				if ed == nil {
-					return
 				}
 				// EVERY VALUE THE SCHEMA CARRIES IS ON THE TABLE. A tool-only word is listed too — it
 				// carries ToolOnly off its facet and SeatFilable drops it from a seat's surface — so the
@@ -282,14 +260,16 @@ func TestEveryMotionVerdictCarriesTheSchemasMeaning(t *testing.T) {
 	for i := 0; i < od.Fields().Len(); i++ {
 		fd := od.Fields().Get(i)
 		subject := string(fd.Name())
+		// EVERY ARM HAS A SET, the docket's included: the write's refusal of an unrecognized ruling
+		// offers MotionVerdicts[subject] back, and a subject with no set there offers an empty list.
+		vs, ok := MotionVerdicts[subject]
+		if !ok || len(vs) == 0 {
+			t.Errorf("MotionRule rules on %q and MotionVerdicts carries no set for it", subject)
+			continue
+		}
 		if fd.Kind() != protoreflect.EnumKind {
 			// `docket` is a message, and its disposition is the shared Disposition set, which
 			// TestBothClosureSetsShareOneVocabulary already holds to the descriptor.
-			continue
-		}
-		vs, ok := MotionVerdicts[subject]
-		if !ok {
-			t.Errorf("MotionRule rules on %q and MotionVerdicts carries no set for it", subject)
 			continue
 		}
 		ed := fd.Enum()
@@ -349,7 +329,8 @@ func tableCarries(vs []EnumValue, vd protoreflect.EnumValueDescriptor) bool {
 }
 
 // schemaEnumFor resolves (event type, payload key) to the enum the record holds there, by asking
-// the DESCRIPTOR rather than a list beside it. nil is the one open set, whose field is a string.
+// the DESCRIPTOR rather than a list beside it. nil when the field is not an enum, which
+// TestEveryDeclaredValueIsAWordTheSchemaCarries refuses.
 func schemaEnumFor(t *testing.T, typ, key string) protoreflect.EnumDescriptor {
 	t.Helper()
 	md, ok := bodyDescriptorFor(typ)
@@ -414,7 +395,6 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		{"defect_accepted", ArtifactDefectLive},
 		{"defect_owed_elsewhere", ArtifactDefectLive},
 		{"repaired_with_regression", ArtifactDefectLive},
-		{DispositionRemanded, ArtifactUnexamined},
 	} {
 		got, ok := ArtifactStateOf(c.class)
 		if !ok {
@@ -443,7 +423,8 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 	}
 
 	// A WORD OUTSIDE THE VOCABULARY REPORTS ITSELF. No record can carry one — the schema's CHECK
-	// is generated from the same enum artifactByClass is checked against below — so this pins the
+	// admits only Disposition words, and every closing one is checked against artifactByClass
+	// below — so this pins the
 	// behaviour for input that reached the function without passing the schema.
 	//
 	// THE EXAMPLE USED TO BE `moot`, which the engine offered and the record refused. It is a
@@ -457,7 +438,7 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 
 	// EVERY class in the live vocabulary is covered, so adding one without deciding its artifact
 	// meaning fails here rather than defaulting to unknown in a projection nobody re-reads.
-	for _, name := range closureClassNames() {
+	for _, name := range Names(ClosureClasses) {
 		if name == "amends_prior" {
 			continue
 		}
@@ -516,7 +497,7 @@ func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
 	}
 
 	// 2. THE SEAT'S SURFACE OMITS EVERY TOOL-ONLY WORD and carries every seat-filable one, in
-	// schema order — the one derivation (SeatLogTypeEnum, through the ToolOnly facet init stamps)
+	// schema order — the one derivation (SeatLogTypeEnum, through the ToolOnly evsOf reads off the facet)
 	// agrees with the facet read directly.
 	if help := Names(SeatLogTypeEnum().Values); !slices.Equal(help, seatWords) {
 		t.Errorf("the seat's log surface disagrees with the seat_may_file facet: help=%v facet=%v", help, seatWords)
