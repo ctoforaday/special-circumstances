@@ -54,18 +54,6 @@ import (
 // here wearing the clothes of a finding. So the count is printed with the result, and the tests
 // refuse a redaction that removed nothing from an input that named something.
 
-// Constitution is the seat's system prompt: THE SHIPPED BYTES, unmodified.
-//
-// It used to assemble one of three arms — withhold the verb names, name a handful, name them all
-// — plus a fourth axis that added or removed the surface-discovery directive. Those are gone. The
-// question they answered is settled: the constitutions name no verb and carry the directive, and
-// keeping the alternatives dispatchable made the probe an instrument for re-litigating a decision
-// instead of one for measuring what ships.
-//
-// The shipped file is never modified, and that still matters: an experiment that edits the
-// artifact it is measuring cannot be run twice.
-func Constitution(src []byte) []byte { return src }
-
 // NamesSurviving counts the role verbs a constitution NAMES, and it is the gate behind the claim
 // that they name none.
 //

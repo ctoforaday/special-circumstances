@@ -10,7 +10,7 @@
 //
 // Run from the tools module:
 //
-//	go run ./internal/tessocr/testdata/corpusadd \
+//	go run ./devcmd/corpusadd \
 //	  -file ~/dl/sp602.pdf -url https://… -page 44 -slug nbs602-dashed-matrix \
 //	  -publisher "National Bureau of Standards" -date 1981-04 \
 //	  -rights us-government-work -rights-evidence "https://…" \

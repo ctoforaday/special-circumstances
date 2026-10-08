@@ -52,7 +52,7 @@ var roleSeats = map[string][]string{
 	"lens":       {"red-lens-"},
 	// The seat is `red-chair-r<n>`; `red-merge-r<n>` is what archived runs hold, and migrate
 	// maps it. The role and the seat share the word: the scorecard is named for itself
-	// (ScorecardOf, `--card`), so "chair" means the seat and its role and nothing else, and
+	// (`--card`), so "chair" means the seat and its role and nothing else, and
 	// "merge" means only blue's union of the lane drafts.
 	"chair": {"red-chair"},
 	"blue":  {"blue-", "frontier"},
@@ -62,33 +62,6 @@ var roleSeats = map[string][]string{
 	// `--seat-id assemble-anything` still selected the whole bench tree — and `halt`, the safety
 	// stop capture relays verbatim to a human, recorded under an identity no dispatch can create.
 	benchRole: {"judge"},
-}
-
-// scorecardOfRole maps a seat's ROLE to the CARD — the scorecard — that measures it.
-//
-// A card is one of three scorecards, red, blue or bench; a role is a seat's verb set. They are
-// not the same axis — `lens` and `chair` are two roles measured on ONE card, because a scorecard
-// grades how RED is doing on this question, not how one of red's two seats is. Only `operator`
-// has no card: it is not a party to the debate, which is why the operator command prints every
-// card (or one, with --card) and a seat's own read takes nothing at all.
-//
-// ONE COPY. The engine does not keep a second: whether a seat gets the scorecard clause has one
-// answer, since every role but operator has a card, and the seat asks the tool which card is its.
-var scorecardOfRole = map[string]string{
-	"lens":  "red",
-	"chair": "red",
-	"blue":  "blue",
-	"bench": "bench",
-}
-
-// ScorecardOf reports the card a role is measured on, and whether it has one at all.
-//
-// The two answers are kept apart rather than collapsed to "": operator having NO card is a fact
-// about the run's structure, and a caller that cannot tell it from an unrecognised role would
-// print an empty scorecard for both.
-func ScorecardOf(role string) (card string, ok bool) {
-	c, ok := scorecardOfRole[role]
-	return c, ok
 }
 
 // gavelSeatOf resolves a motion's `ruled_by` role to the one seat that holds the gavel, through

@@ -738,14 +738,16 @@ func hasEvents(db *sql.DB) (bool, error) {
 	return n > 0, nil
 }
 
-// applySchema creates the whole record in ONE transaction.
+// applySchemaTx is the apply itself, on a transaction the CALLER owns — because the existence
+// check and the apply have to be one atomic act (#557), and a function that opens its own
+// transaction cannot be part of someone else's decision.
 //
-// IT WAS 171 STATEMENTS, EACH ITS OWN IMPLICIT TRANSACTION. SQLite autocommits any statement not
-// already inside one, and every commit is an fsync — so creating a run directory paid 171 disk
+// THE WHOLE RECORD IS CREATED IN ONE TRANSACTION. SQLite autocommits any statement not already
+// inside one, and every commit is an fsync — so 171 statements applied one by one pay 171 disk
 // syncs to write a schema that is DERIVED and could be regenerated for free. Measured here:
-// 499ms per fresh database, against 39ms for the same DDL in one transaction. Thirteen times, and
-// the cost is paid by every test that opens a run (208 of them in internal/cli alone) as well as
-// by every real run.
+// 499ms per fresh database that way, against 39ms for the same DDL in one transaction. Thirteen
+// times, and the cost is paid by every test that opens a run (208 of them in internal/cli alone)
+// as well as by every real run.
 //
 // NOTHING IS TRADED FOR IT. The obvious alternatives all weaken durability — `synchronous=off`
 // measured 46ms and risks corruption, `synchronous=normal` 67ms and can drop recent commits — and
@@ -754,18 +756,6 @@ func hasEvents(db *sql.DB) (bool, error) {
 //
 // SQLite's own forum states the mechanism: an autocommitted statement fsyncs on its own, so
 // batching replaces one-fsync-per-statement with one fsync at COMMIT.
-func applySchema(db *sql.DB) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }() // no-op after a successful Commit
-	return applySchemaTx(tx)
-}
-
-// applySchemaTx is the apply itself, on a transaction the CALLER owns — because the existence
-// check and the apply have to be one atomic act (#557), and a function that opens its own
-// transaction cannot be part of someone else's decision.
 func applySchemaTx(tx *sql.Tx) error {
 	schema, err := Schema()
 	if err != nil {

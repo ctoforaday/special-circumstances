@@ -190,7 +190,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 		// A REGRADE AND A CLOSE OF AN UNKNOWN GAP USED TO BE SEEDED HERE, and the assertion was
 		// that the replay IGNORED them rather than failing. Both are foreign keys onto the mint
 		// now, so neither row can be written — the state is unrepresentable, and the replay's arm
-		// for it is a hard error rather than a skip (see missingGap). Seeding them would fail the
+		// for it is a hard error rather than a skip. Seeding them would fail the
 		// fixture, not the assertion.
 	})
 	b, err := FamilyOf(mustRun(t, runDir))

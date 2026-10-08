@@ -114,26 +114,6 @@ func num(v any) (float64, bool) {
 	return 0, false
 }
 
-// truthy mirrors JS truthiness for a filter predicate (`t.flag`): a present non-zero number,
-// non-empty string, true, or any non-null object/array is truthy.
-func truthy(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return x
-	case json.Number:
-		f, _ := x.Float64()
-		return f != 0
-	case float64:
-		return x != 0
-	case string:
-		return x != ""
-	default:
-		return true
-	}
-}
-
 // decodeJSONL decodes newline-delimited JSON objects, UseNumber to preserve numeric text, and
 // skips non-JSON lines (a run killed mid-append leaves a half-written final line).
 func decodeJSONL(body []byte) []map[string]any {

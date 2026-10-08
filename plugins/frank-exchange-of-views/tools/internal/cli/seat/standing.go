@@ -107,7 +107,7 @@ func standingAfter(cmd *cobra.Command) *StandingJSON {
 	role := roleOf(cmd)
 	seatID := Of(cmd).SeatID
 	// THE OPERATOR HOLDS NO POSITION IN THE DEBATE, and that is a fact about the run's structure
-	// rather than an empty list — the same distinction record.ScorecardOf draws for the card.
+	// rather than an empty list.
 	// Attaching a standing here would invent a position for an identity that has none, and the
 	// operator's verbs (setup, capture) are not a seat's acts.
 	if seatID == "" || role == record.OperatorRole {

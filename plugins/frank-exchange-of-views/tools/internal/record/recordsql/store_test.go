@@ -613,7 +613,7 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 //
 // That constraint broke five fixtures in this file when it landed, and each break was the same
 // admission: they closed, ruled on and filed motions against gaps that had never been minted. The
-// file-backed record met that case with a `missingGap` ANOMALY — a defect found on read, per
+// file-backed record met that case with an ANOMALY — a defect found on read, per
 // reader, after the fact, which is how a whole run's bench closures once vanished into a list
 // nobody displayed. The fixtures could be written that way because nothing refused them.
 func mintGap(t *testing.T, db *sql.DB, seq int32, gapID string) {
@@ -633,7 +633,7 @@ func mintGap(t *testing.T, db *sql.DB, seq int32, gapID string) {
 
 // A GAP THAT WAS NEVER MINTED CANNOT BE CLOSED, RULED ON, OR CONTESTED.
 //
-// The file-backed record met this case with a `missingGap` ANOMALY: the write succeeded, and the
+// The file-backed record met this case with an ANOMALY: the write succeeded, and the
 // dangling reference was discovered later, by whichever reader happened to look, if any did. That
 // is how a whole sitting's bench closures once vanished — the events were recorded correctly, the
 // replay dropped them, and every projection downstream reported a board that had never existed.

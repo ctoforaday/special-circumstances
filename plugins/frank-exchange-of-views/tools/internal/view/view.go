@@ -1,6 +1,6 @@
 // Package view is the shared just-in-time projection library: every view is
 // generated on read from the append-only event log, never materialized to disk
-// and never re-parsed from markdown. It replays through record.BoardState and
+// and never re-parsed from markdown. It reads the record through package record and
 // formats; the four telemetry consumers (dashboard, scorecard, cost, capture)
 // and the markdown `show` views all read through here, so the computation lives
 // once. view depends on record; record never depends on view.
@@ -107,23 +107,6 @@ func massSum(gaps []*record.Gap) float64 {
 		s += record.GapMass(record.GradeStr(g.Likelihood), record.GradeStr(g.Impact))
 	}
 	return s
-}
-
-// Counts returns the board's open/closed/anomaly tallies — the values the old
-// RenderResult carried, for verdict and any counts-only caller.
-// Counts is the board in two numbers.
-//
-// THE THIRD RETURN IS GONE. It was `len(b.Anomalies)`, and the board no longer has anomalies: the
-// replay-time producers were shard failures (a torn line, an undecodable row) and mutations naming
-// a gap that did not exist. A transaction commits or does not, and a dangling gap_id is refused by
-// a foreign key, so there is nothing left to count. Returning a constant 0 in its place would be
-// the worse outcome — every caller reading "0 anomalies" as a clean board, in the same words it
-// used when the number meant something.
-func Counts(run record.Run) (open, closed int, err error) {
-	// The board_counts view, not a fold: this loop was the site plans/record-sqlite.md names as
-	// the headline count that moves to a query, and the view's idea of "closed" is read off the
-	// disposition vocabulary rather than re-decided here.
-	return record.BoardCounts(run)
 }
 
 // Telemetry returns the per-epoch board-telemetry series, computed from the record — the single

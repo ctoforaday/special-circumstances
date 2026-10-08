@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -159,35 +158,6 @@ func MirrorLaw(repoLawDir string, run record.Run) MirrorResult {
 		files++
 	}
 	return MirrorResult{Written: files > 0, Files: files}
-}
-
-// ---- rendered-row parser (shared markdown contract with scorecards.mjs) ----
-
-// RenderedRow is one parsed scorecard row; Value nil == "_not computed_".
-type RenderedRow struct {
-	Metric string
-	Cls    string
-	Clause string
-	Value  *string
-}
-
-// parseRenderedRowsRe was ported verbatim from the now-deleted scorecards.mjs parseRenderedRows
-// (its behaviour is canonical in scorecard.ParseRenderedRows): a lazy clause (.+?) terminates at
-// the first colon actually followed by a value, so a clause that itself contains a colon
-// ("LOSS: additive violations") is read whole.
-var parseRenderedRowsRe = regexp.MustCompile("`([a-z_]+)`\\s*\\[(benchmark|detector|diagnostic|measure)\\]\\s*—\\s*(.+?):\\s*(?:\\*\\*([^*]+)\\*\\*|_not computed_)")
-
-func ParseRenderedRows(section string) []RenderedRow {
-	var out []RenderedRow
-	for _, m := range parseRenderedRowsRe.FindAllStringSubmatch(section, -1) {
-		row := RenderedRow{Metric: m[1], Cls: m[2], Clause: m[3]}
-		if m[4] != "" {
-			v := m[4]
-			row.Value = &v
-		}
-		out = append(out, row)
-	}
-	return out
 }
 
 // ---- pin validation ----
@@ -370,17 +340,7 @@ func PreflightRecordBinary(expectSchema int, bin string, run ExecFunc) Preflight
 	return Preflight{OK: true, Version: strconv.Itoa(got)}
 }
 
-func (r ExecResult) errored() bool { return r.Err != nil || r.Status != 0 }
-
 // ---- small helpers ----
-
-func lastField(s string) string {
-	fields := strings.Fields(s)
-	if len(fields) == 0 {
-		return ""
-	}
-	return fields[len(fields)-1]
-}
 
 // mdFiles lists *.md files in dir, SORTED (deterministic — the JS used readdir order),
 // excluding the names in skip.

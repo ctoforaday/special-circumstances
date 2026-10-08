@@ -273,23 +273,6 @@ func gradeVal(g recordpb.Grade) any {
 	return nil
 }
 
-// closureBody is the gap's closing event, whichever verb wrote it.
-//
-// `merge close` and the bench's docket ruling are different acts with different evidence bars and they write
-// different messages, but a seat AUDITING a closure asks one question — how did this gap end — and
-// the board has always answered it in one field. The two-field split lives in replay.go so the
-// typed readers cannot conflate them; this is the one place that deliberately re-joins them, and it
-// is a function rather than an inline `if` so no caller can add a third reader that checks only one.
-func closureBody(g *Gap) proto.Message {
-	switch {
-	case g.Closure != nil:
-		return g.Closure
-	case g.BenchClosure != nil:
-		return g.BenchClosure
-	}
-	return nil
-}
-
 // BoardJSONBytes renders the board as indented JSON. Indented because a seat reads this in
 // a terminal transcript and a single 40KB line is unreadable to the thing consuming it.
 //
@@ -427,8 +410,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		}
 		if c := closures[id]; c != nil && c.hasClosed {
 			gj.ClosedEpoch, gj.ClosedByBench = c.closedEpoch, c.closedByBench
-			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred — closureBody's rule, applied
-			// to the same pair the fold carried.
+			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred, from the same pair the fold
+			// carried.
 			body := proto.Message(c.lastClose)
 			if c.lastClose == nil {
 				body = c.lastBenchClosure
@@ -491,7 +474,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 
 // closeState is the fold's closure pair for one gap, derived from the close/docket-ruling stream:
 // attribution follows the LAST closing event, whichever arm wrote it, while both bodies stay
-// addressable (closureBody's precedence needs the red close even when the bench closed last).
+// addressable (the embedded body prefers the red close even when the bench closed last).
 type closeState struct {
 	lastClose        *recordpb.Close        // the fold's Closure: last red close
 	lastBenchClosure *recordpb.DocketRuling // the fold's BenchClosure: last CLOSING docket ruling

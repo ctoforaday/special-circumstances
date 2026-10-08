@@ -97,9 +97,6 @@ func motionRow(m *record.Motion, unruled *int, struckRulings, struckAppeals []st
 	if m.Appealed {
 		fmt.Fprintf(&b, "\n  - **appealed** — the filer pressed on after the ruling: %s", m.AppealReason)
 	}
-	if m.Fields["legacy"] == "true" {
-		b.WriteString("\n  - _(id assigned at read time: this run predates the motion collapse, and its exchanges carried no identity of their own)_")
-	}
 	return b.String()
 }
 

@@ -137,17 +137,6 @@ func LaneSeatsOf(run Run) []string {
 	return out
 }
 
-// laneSeatsOfEvents is LaneSeatsOf read off a stream already in hand.
-func laneSeatsOfEvents(evs []*Event) []string {
-	var out []string
-	for _, e := range evs {
-		if c, ok := recordpb.BodyAs[*recordpb.Cast](e); ok {
-			out = append([]string{}, c.GetLaneSeatIds()...)
-		}
-	}
-	return out
-}
-
 // IsLaneSeat reports whether seatID is one of the lane seats a run with this many lanes seats.
 func IsLaneSeat(seatID string, lanes int) bool {
 	for _, id := range LaneSeatIDs(lanes) {

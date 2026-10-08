@@ -37,7 +37,7 @@ Every failing image is an opportunity: the net widens each round, and `STATUS.md
 Download the source yourself, then:
 
 ```
-go run ./internal/tessocr/testdata/corpusadd -file <the file> -url <where it came from> \
+go run ./devcmd/corpusadd -file <the file> -url <where it came from> \
   -page <n> -slug <name> -publisher … -date … -rights … -rights-evidence … -defect … -why …
 ```
 

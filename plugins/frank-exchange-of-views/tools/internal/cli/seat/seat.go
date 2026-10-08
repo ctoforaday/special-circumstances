@@ -212,13 +212,6 @@ func (c Context) RefusalSeat() (record.Run, string, error) {
 	return r, c.SeatID, nil
 }
 
-// RunDirRaw is the unresolved string, for the two callers that legitimately have no run yet.
-//
-// `register` binds a seat before the seat has resolved anything, and the dispatcher's own
-// diagnostics report what was SUPPLIED rather than what resolved. Both want the argument, not
-// a handle. Named so that reaching for it is a decision: anything acting ON a run wants Run().
-func (c Context) RunDirRaw() string { return c.runDir }
-
 // handle resolves this context's run WITHOUT the existence check, for the internal best-effort
 // reads that must work on a context whose run may not be on disk. Anything acting on the run
 // wants Run(), which refuses. Unexported for exactly that reason.
@@ -1041,8 +1034,7 @@ func Reason(cmd *cobra.Command) (string, error) {
 
 // Str reads a string flag.
 func Str(cmd *cobra.Command, name string) string {
-	// ONE IMPLEMENTATION, in flags.Value. This used to hand-roll the same fallback and
-	// flags.Set hand-rolled the broken version, which is how the identical defect shipped twice.
+	// ONE IMPLEMENTATION, in flags.Value.
 	return flags.Value(cmd, name)
 }
 

@@ -897,10 +897,6 @@ func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 	return out
 }
 
-func join(names []string) string {
-	return strings.Join(names, ", ")
-}
-
 // registerResult and closingResult are the shared-verb results: these verbs are built by
 // seat for every role, so their result types live beside them.
 // registerResult reports WHICH DISPATCH this is, not an opaque sitting id.

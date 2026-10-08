@@ -218,14 +218,6 @@ func knownPaths() map[string]bool {
 	return knownCache
 }
 
-func isRole(s string) bool {
-	switch s {
-	case "lens", "chair", "blue", "bench":
-		return true
-	}
-	return false
-}
-
 // tracked wraps a direct binary call so the oracles' invocations are tallied too.
 func tracked(bin string, args ...string) ([]byte, error) {
 	out, err := exec.Command(bin, args...).CombinedOutput()

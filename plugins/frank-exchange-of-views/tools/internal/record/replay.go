@@ -303,28 +303,6 @@ func benchClosesGap(d recordpb.Disposition) bool {
 	return recordpb.Closes(d)
 }
 
-// missingGap is a mutation that referenced a gap the record does not hold, AND IT IS NOW AN ERROR
-// RATHER THAN A NOTE.
-//
-// It has been all three states, and the sequence is the point. It was a bare `continue`, and that
-// silence let the bench's closures vanish for an entire run: the events were recorded correctly,
-// the replay dropped them, every projection downstream reported a board that had never existed. It
-// became an anomaly, rendered into the artifact a human reads — better, and still a report about
-// something that had already happened.
-//
-// It cannot happen now. Every gap_id is a FOREIGN KEY onto `mint.gap_id`, so the row is refused at
-// the write. Reaching this point means the record contradicts its own schema, and a board built by
-// skipping the contradiction would be exactly the board that had never existed. So the read fails.
-//
-// The gap id is a PARAMETER rather than read off the event, because seven different body messages
-// carry a gap_id and the caller is already holding the typed one.
-func missingGap(verb string, e *Event, gapID string) error {
-	return fmt.Errorf("record: %s by %s references gap %s, which the record does not hold (event %s) — "+
-		"every gap_id is a foreign key onto the mint, so this state cannot be written; the record and its "+
-		"own schema disagree, and a board built by skipping the row would be a board that never existed",
-		verb, e.GetSeatId(), gapID, e.GetKey())
-}
-
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
 //
 // THE TWO VOCABULARIES HAVE CONVERGED, AND THIS COMMENT USED TO DENY IT. It read: "the hyphen is
