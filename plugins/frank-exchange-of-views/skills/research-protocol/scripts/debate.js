@@ -1248,13 +1248,18 @@ THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If 
 
 THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the avenues, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. sitting_record_unresolved — the seats that did not attest what their sitting put on the record, after one re-prompt: ${JSON.stringify(sittingRecordUnresolved)}.${holdingsClause()}${lawClause}${logClause('judge', 'bench')}${speedClause}${recordClause('judge', ASSEMBLE_OCCASION)} Return your envelope: a 5-line synopsis and open_gaps from the board.`,
   { ...judgment, label: `judge · ${ASSEMBLE_OCCASION} · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
+// AN ASSEMBLY SITTING THAT RETURNS NOTHING STOPS THE RUN, as a null from any other seat does. The
+// assembly seat is the one that records the outcome and writes the documents; an envelope returned
+// without its word states a verdict nobody confirmed is on the record, with `gaps_outstanding`
+// null beside it — VERIFIED over a record that may hold no outcome row.
+if (!assembleEnv) throw new Error(`the assembly sitting returned null — it records the run's outcome and assembles the report, and neither is confirmed; the debate had ended ${verdict} (${terminationWhy})`)
 return {
   runDir,
   verdict,
   epochs: epoch,
   lanes,
   termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress } : null,
-  gaps_outstanding: assembleEnv && Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
+  gaps_outstanding: Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
   blue_claims: blueEnv2 ? blueEnv2.claim_count : (blueEnv ? blueEnv.claim_count : null),
   infra_debts: infraDebts,
   petitions: petitionLog,

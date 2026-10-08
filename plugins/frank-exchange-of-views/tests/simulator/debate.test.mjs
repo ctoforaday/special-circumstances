@@ -977,3 +977,11 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
   // Both arms ran: a sweep in which the schema refused everything, or nothing, measured no agreement.
   assert.ok(accepted > 50 && refused > 50, `the sweep must exercise both arms; it accepted ${accepted} and refused ${refused}`)
 })
+
+// ── a run the engine stops ──────────────────────────────────────────────────────────────────
+
+test('an assembly sitting that returns nothing stops the run: no envelope states a verdict the seat that records it never confirmed', async () => {
+  const seats = makeResponder()
+  const world = makeWorld((p, o) => (/^judge · assemble/.test(o.label) ? null : seats(p, o)))
+  await assert.rejects(world.run(script, ARGS), (e) => /^the assembly sitting returned null/.test(e.message) && /the debate had ended VERIFIED/.test(e.message))
+})
