@@ -56,6 +56,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
+  - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
+  - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.

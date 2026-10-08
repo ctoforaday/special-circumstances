@@ -438,11 +438,12 @@ func requireNoBlockers(run Run, verdict recordpb.Verdict, blockers []Blocker) er
 }
 
 // requireBenchMotionsRuled refuses the run's outcome while a motion whose gavel is the bench's
-// stands unruled. The terminal bench sitting exists to rule them, and it fires on a count the chair
-// reports, which nothing audits: an under-report skipped the one sitting that could answer the
-// motion, and the outcome recorded over it in silence (#1202). Refused here, the miss is loud at
-// the one write path, and the bench recording the outcome holds the gavel, so it rules the motion
-// and records the outcome after.
+// stands unruled. The terminal bench sitting exists to rule them, and it fires on the bench-owned
+// blockers of the chair's last plan, which the record computes and capture holds to the record. A
+// motion filed after that plan is on no plan, so the terminal sitting does not convene for it: this
+// refusal is its backstop (#1202). Refused here, such a motion is loud at the one write path, and
+// the bench recording the outcome holds the gavel, so it rules the motion and records the outcome
+// after.
 //
 // A HALT IS EXEMPT. It is the bench's own decision to end the run, taken with the record in view;
 // refusing it would force rulings after the bench has already stopped the run.

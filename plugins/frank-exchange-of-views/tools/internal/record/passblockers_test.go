@@ -357,9 +357,10 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 }
 
 // THE OUTCOME IS REFUSED WHILE A MOTION WHOSE GAVEL IS THE BENCH'S STANDS UNRULED (#1202). The
-// terminal bench sitting fires on a count the chair reports, and an under-report skipped it: the
-// outcome then recorded over a petition nobody answered. A motion the chair rules does not hold
-// it, a halt is exempt, and a ruling clears it.
+// terminal bench sitting fires on the bench-owned blockers of the chair's last plan, and a motion
+// filed after that plan convenes no sitting: this refusal is what stops the outcome recording over
+// a petition nobody answered. A motion the chair rules does not hold it, a halt is exempt, and a
+// ruling clears it.
 func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 	outcome := func() *recordpb.Outcome {
 		return &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("ended")}

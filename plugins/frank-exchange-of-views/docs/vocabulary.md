@@ -38,6 +38,8 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [finding](#finding) | lens, chair, blue, bench, operator |
 | [gap](#gap) | lens, chair, blue, bench, operator |
 | [material](#material) | lens, chair, blue, bench, operator |
+| [blocker](#blocker) | lens, chair, bench |
+| [contradiction](#contradiction) | lens, chair |
 | [retire](#retire) | lens, chair, blue, bench, operator |
 | [lens retirement](#lens-retirement) | lens, chair, operator |
 | [stale area](#stale-area) | chair, operator |
@@ -407,6 +409,26 @@ A gap is material when its class is always material, or when its class goes by g
 **Collisions:**
 
 - **material** — material as content, or as bearing on the reader's question, is ordinary English; a gap is material only by its class and grade
+
+## blocker
+
+A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
+
+**Delivered to:** lens, chair, bench
+
+**Collisions:**
+
+- **blocking (a work item)** — `show work` marks an item blocking when the seat's sitting is not complete while it is open, and such an item is a blocker only when the verdict gate's list carries it
+
+## contradiction
+
+A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
+
+**Delivered to:** lens, chair
+
+**Collisions:**
+
+- **contradiction (ordinary English)** — a report that contradicts itself, and the plain statement that a source's silence does not refute a claim, keep the ordinary word; the record's contradiction is the reading red recorded, whether its outcome is `refutes` or `absent`
 
 ## retire
 
