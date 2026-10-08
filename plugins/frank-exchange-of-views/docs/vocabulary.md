@@ -428,7 +428,7 @@ A contradiction is a source red read that refutes, or is silent on, a claim of t
 
 **Collisions:**
 
-- **contradiction (ordinary English)** — a report that contradicts itself, and the plain statement that a source's silence does not refute a claim, keep the ordinary word; the record's contradiction is the reading red recorded, whether its outcome is `refutes` or `absent`
+- **contradiction (ordinary English)** — a text at odds with itself, such as a report contradicting itself or a stamp that says the opposite of the board, keeps the ordinary word; the record's contradiction is the reading red recorded, whether its outcome is `refutes` or `absent`
 
 ## retire
 

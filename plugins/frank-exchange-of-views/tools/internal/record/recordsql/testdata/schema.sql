@@ -308,7 +308,7 @@ CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was');
+INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('absent', 'you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('refutes', 'you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports', 'you read the source and it says what the claim says. Where the run''s copy of it is only the work''s abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows');
 INSERT INTO "enum_source_outcome" ("value", "means") VALUES ('supports_with_bridge', 'it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement');

@@ -122,7 +122,7 @@ Enumerated values:
     supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
+    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was
     unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
 
 §13 (on 2 pages):
