@@ -1,6 +1,7 @@
 package record
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -85,66 +86,214 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 		}
 	})
 
-	t.Run("grade accepted and never moved", func(t *testing.T) {
-		b := loadedFamilyT(t, nil, []*Event{
+	// THE DEBT IS THE REGRADE AFTER THE RULING, whatever the gap's history before it. Read through
+	// the production work list on a seeded run: the item is listed only on an open gap, and a
+	// fixture with no gap table would pass or fail for a reason that is not the predicate's.
+	for _, history := range []struct {
+		name   string
+		before []*Event
+	}{
+		{"never regraded", []*Event{registers(t, regradeLens)}},
+		{"regraded before the ruling, in an earlier sitting", []*Event{
+			registers(t, regradeLens),
+			recordtest.Event(t, regradeLens, &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")}),
+			registers(t, regradeLens),
+		}},
+	} {
+		t.Run("grade accepted and not moved since the ruling/"+history.name, func(t *testing.T) {
+			dir := newRun(t)
 			// THE ORIGINATOR'S ACT, SO THE ORIGINATOR'S LIST. requireOriginator refuses a regrade
 			// from any other seat, so the line belongs to the lens that minted G1 and to nobody else.
-			recordtest.Event(t, "red-lens-evidence", corrMint("G1")),
-			// THE FIXTURE IS NOW A REAL EXCHANGE, because the join demands one. The gap id lives
-			// on the FILING and the verdict on the RULING, in different shards, and Motions()
-			// pairs them on the motion id — so a lone motion-rule carrying a gap_id, which is what
-			// this fixture used to be, describes a state the record cannot hold.
-			recordtest.Event(t, "blue-respond", &recordpb.Motion{
-				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
-			}),
-			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
-				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-				Opinion:  proto.String("ruled"),
-				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
-			}),
-		})
-		got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "lens", "red-lens-evidence")
-		if !mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
-			t.Fatalf("an accepted grade motion with no regrade afforded nothing to the lens that minted it: %v", hows(got))
-		}
-		for _, other := range []struct{ role, seat string }{{"chair", "red-chair"}, {"lens", "red-lens-logic"}} {
-			if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), other.role, other.seat); mentions(got, "no regrade followed it") {
-				t.Errorf("%s was offered a regrade its write path refuses — G1 is red-lens-evidence's: %v", other.seat, hows(got))
+			recordtest.Seed(t, dir, mintsGap(t, regradeLens, "G1"))
+			recordtest.Seed(t, dir, history.before...)
+			// A REAL EXCHANGE, because the join demands one: the gap id lives on the FILING and the
+			// verdict on the RULING, and MotionsOf pairs them on the motion id.
+			recordtest.Seed(t, dir, gradeMotionFiled(t, "M1", "G1"), gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
+			run := mustRun(t, dir)
+			if got := sittingOfRunT(t, run, "lens", regradeLens).Open; !mentions(got, regradeOwed) {
+				t.Fatalf("an accepted grade motion with no regrade after its ruling afforded nothing to the lens that minted it: %v", hows(got))
 			}
-		}
-		b = loadedFamilyT(t, nil, append(b.Events, recordtest.Event(t, "red-lens-evidence", &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")})))
-		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
-			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
-		}
-	})
+			for _, other := range []struct{ role, seat string }{{"chair", "red-chair"}, {"lens", "red-lens-logic"}} {
+				if got := sittingOfRunT(t, run, other.role, other.seat).Open; mentions(got, "no regrade followed it") {
+					t.Errorf("%s was offered a regrade its write path refuses — G1 is %s's: %v", other.seat, regradeLens, hows(got))
+				}
+			}
+			recordtest.Seed(t, dir, recordtest.Event(t, regradeLens, &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")}))
+			if got := sittingOfRunT(t, run, "lens", regradeLens).Open; mentions(got, regradeOwed) {
+				t.Errorf("the regrade affordance survived the regrade that followed the ruling: %v", hows(got))
+			}
+		})
+	}
 
 	// A REJECTED motion owes no regrade, and saying it does would be the unmeetable expectation
-	// this package's own coverage gate exists to refuse.
+	// this package's own coverage gate exists to refuse. The gap is open and its minter's, so the
+	// ruling is the only thing keeping the item off the list.
 	t.Run("a rejected motion affords no regrade", func(t *testing.T) {
-		b := loadedFamilyT(t, nil, []*Event{
-			recordtest.Event(t, "red-lens-evidence", corrMint("G1")),
-			// THE FIXTURE IS NOW A REAL EXCHANGE, because the join demands one. The gap id lives
-			// on the FILING and the verdict on the RULING, in different shards, and Motions()
-			// pairs them on the motion id — so a lone motion-rule carrying a gap_id, which is what
-			// this fixture used to be, describes a state the record cannot hold.
-			recordtest.Event(t, "blue-respond", &recordpb.Motion{
-				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
-			}),
-			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
-				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-				Opinion:  proto.String("ruled"),
-				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
-			}),
-		})
-		if got := availableOf(b.Events, b.At, workStatesOfFamilyT(b), "lens", "red-lens-evidence"); mentions(got, "no regrade followed it") {
+		dir := newRun(t)
+		recordtest.Seed(t, dir,
+			mintsGap(t, regradeLens, "G1"), registers(t, regradeLens),
+			gradeMotionFiled(t, "M1", "G1"), gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_REJECTED))
+		if got := sittingOfRunT(t, mustRun(t, dir), "lens", regradeLens).Open; mentions(got, "no regrade followed it") {
 			t.Errorf("a REJECTED grade motion afforded a regrade: %v", hows(got))
 		}
+	})
+}
+
+const (
+	regradeLens = "red-lens-evidence"
+	regradeOwed = "gap G1 had a grade motion ACCEPTED and no regrade followed it"
+)
+
+func gradeMotionFiled(t *testing.T, id, gap string) *Event {
+	t.Helper()
+	return recordtest.Event(t, "blue-respond", &recordpb.Motion{
+		MotionId: proto.String(id),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
+	})
+}
+
+func gradeMotionRuled(t *testing.T, id string, ruling recordpb.GradeRuling) *Event {
+	t.Helper()
+	return recordtest.Event(t, "red-chair", &recordpb.MotionRule{
+		MotionId: proto.String(id),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+		Opinion:  proto.String("ruled"),
+		Ruling:   &recordpb.MotionRule_Grade{Grade: ruling},
+	})
+}
+
+// A REGRADE ON THE LIST IS ONE THE WRITE PATH ADMITS, AND ONE OFF IT IS ONE THE WRITE PATH REFUSES.
+//
+// The oracle is record.Append as the seat calls it — validate and insertNumbered together — so the
+// list and the write path are held to each other by the write itself, and a refusal added to either
+// turns a row red. Each row that lists nothing names the refusal it exists to pin, so no row passes
+// because its fixture never reached the state.
+func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
+	accepted := func(t *testing.T, id string) []*Event {
+		return []*Event{gradeMotionFiled(t, id, "G1"), gradeMotionRuled(t, id, recordpb.GradeRuling_GRADE_RULING_ACCEPTED)}
+	}
+	regrade := func() *recordpb.Regrade {
+		return &recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("b")}
+	}
+	// listed reads the predicate off the work list's own inputs, and holds the rendered list to it.
+	listed := func(t *testing.T, run Run) bool {
+		t.Helper()
+		r, err := workView(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gaps, err := workGapStatesOf(run, r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		on := slices.Contains(regradesAfforded(r.evs, r.win, gaps, mintedBy(r.evs), regradeLens), "G1")
+		if got := sittingOfRunT(t, run, "lens", regradeLens).Open; mentions(got, regradeOwed) != on {
+			t.Fatalf("regradesAfforded lists G1 = %v and the work list disagrees: %v", on, hows(got))
+		}
+		return on
+	}
+	// admitted is the listing rows' close: listed, written through Append, and gone.
+	admitted := func(t *testing.T, run Run, id Identity, wantKey string) {
+		t.Helper()
+		if !listed(t, run) {
+			t.Errorf("the owed regrade is not on the list, and the write path admits it")
+		}
+		ev, err := Append(id, regrade())
+		if err != nil {
+			t.Fatalf("the list offers a regrade the write path refuses: %v", err)
+		}
+		if ev.GetKey() != wantKey {
+			t.Errorf("the regrade is keyed %q, want %q", ev.GetKey(), wantKey)
+		}
+		if listed(t, run) {
+			t.Errorf("the item survived the regrade that discharges it")
+		}
+	}
+	// refused is the other rows' close: not listed, and refused in the row's own words.
+	refused := func(t *testing.T, run Run, id Identity, refusal string) {
+		t.Helper()
+		if listed(t, run) {
+			t.Errorf("the list offers a regrade the write path refuses (%s)", refusal)
+		}
+		_, err := Append(id, regrade())
+		mustRefuse(t, err, refusal)
+	}
+	// start is the common prefix: G1 minted, and the reading lens in its first sitting, so every
+	// sitting a row counts is one the fixture states.
+	start := func(t *testing.T, minter string) (string, Run, Identity) {
+		t.Helper()
+		dir := newRun(t)
+		recordtest.Seed(t, dir, mintsGap(t, minter, "G1"), registers(t, regradeLens))
+		run := mustRun(t, dir)
+		return dir, run, Identity{Run: run, SeatID: regradeLens}
+	}
+	const firstKey, secondKey = regradeLens + ":regrade:#1:G1", regradeLens + ":regrade:#2:G1"
+
+	t.Run("never regraded", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		admitted(t, run, id, firstKey)
+	})
+
+	t.Run("regraded before the ruling, in an earlier sitting", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		mustAppend(t, id, regrade())
+		recordtest.Seed(t, dir, registers(t, regradeLens))
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		admitted(t, run, id, secondKey)
+	})
+
+	// THE SAME-SITTING HOLD. The earlier regrade is written through Append, so it carries the key
+	// a second regrade this sitting would derive; its correction is refused because the ruling is
+	// another seat's act after it. The item waits for the sitting that can record the regrade.
+	t.Run("regraded before the ruling, in the current sitting", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		first := mustAppend(t, id, regrade())
+		if first.GetKey() != firstKey {
+			t.Fatalf("the pre-ruling regrade is keyed %q, want %q", first.GetKey(), firstKey)
+		}
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		refused(t, run, id, `has already recorded a regrade on "G1" this sitting`)
+		_, err := Append(correcting(id, recordpb.EventType_EVENT_TYPE_REGRADE, firstKey, "w"),
+			&recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("the ruling's basis")})
+		mustRefuse(t, err, "another seat has acted since this regrade")
+
+		recordtest.Seed(t, dir, registers(t, regradeLens))
+		admitted(t, run, id, secondKey)
+	})
+
+	t.Run("accepted, then closed", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		recordtest.Seed(t, dir, closeGap(t, regradeLens, "G1"))
+		refused(t, run, id, "already CLOSED")
+	})
+
+	// Only the FILING requires an open gap, so a gap can close between its filing and its ruling.
+	t.Run("filed, closed, then accepted", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		recordtest.Seed(t, dir,
+			gradeMotionFiled(t, "M1", "G1"), closeGap(t, regradeLens, "G1"),
+			gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
+		refused(t, run, id, "already CLOSED")
+	})
+
+	t.Run("another lens's gap", func(t *testing.T) {
+		dir, run, id := start(t, "red-lens-logic")
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		refused(t, run, id, "was minted by")
+	})
+
+	// EACH ACCEPTED MOTION ASKS FOR ITS OWN REGRADE. The regrade that answered M1 precedes M2's
+	// ruling, so a discharged first motion does not stand in for the second.
+	t.Run("two accepted motions with a regrade between the rulings", func(t *testing.T) {
+		dir, run, id := start(t, regradeLens)
+		recordtest.Seed(t, dir, accepted(t, "M1")...)
+		admitted(t, run, id, firstKey)
+		recordtest.Seed(t, dir, registers(t, regradeLens))
+		recordtest.Seed(t, dir, accepted(t, "M2")...)
+		admitted(t, run, id, secondKey)
 	})
 }
 
