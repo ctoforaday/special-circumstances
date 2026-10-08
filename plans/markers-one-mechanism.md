@@ -1050,19 +1050,21 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
 
 **Value.** `report_op` drops from four insert arms to one; every marker is placed by an `Anchor`
 event, so "where is X placed" has one table. About +35 lines (−14 arms, +15 appends with retry,
-+4 consistency, +30 translation). **Measured +49** (+165 −116), against the estimate's +35: the
-arms went as priced (−15 in `views.go`) and the translation came in under (+16 in `gapplace.go`:
-one `owed` arm for the three acts, on the placement check Part 4 already ran); the appends with
-retry cost +42 against +15 — each verb's retry returns the verb's own placement refusal, so
-`cite` and `corroborate` lift theirs out of the first-call path into a function (+12, +17),
-`prove`'s key lookup returns the proof id its retry places (+8), the stored-location query reads
-five tables (+3), and `PlaceOwed` moves from `lens` to `seat` for the blue verbs (+2); the
-consistency walk +7; comments −1. Tests +223 −38. Over the 16
++4 consistency, +30 translation). **Measured +32** (+192 −160), against the estimate's +35: the
+arms went as priced (−15 in `views.go`, −1 in `render.go`); the appends with retry cost +17 against
++15 — the five placers share `seat.Places` (the write-time check), `seat.AppendPlaced` (the act,
+then its `Anchor`) and `seat.PlaceOwed` (the retry), +40 in `seat`, which takes −37 out of
+`finding` and `mint` and leaves `cite` +4, `prove` +2 and `corroborate` +7 for the refusal each
+lifts out of its first-call path so its retry returns it, and the stored-location query reads five
+tables (+3, with −2 in `prove`'s key lookup, which returns the proof id its retry places); the
+consistency walk +7; the translation +24 against +30 (`gapplace.go` +23: one `owed` arm for the
+three acts, on the placement check Part 4 already ran, and the correction rule below; `replay.go`
++1). Tests +233 −38. Over the 16
 archived runs: 0 refusals, 182 citation, 99 proof and 11 corroboration Anchors added,
 `archived_renders.golden` byte-identical (raw, normalized, skeleton, every count); over the 28
-runs: 233, 131 and 12 added, the same refusals event for event, and the 21 renderable reports
-byte-identical. After Parts 1–5 the running S6 total is +260, so the ≥ 320 target needs about
-−580 from Part 6.
+runs: 233, 131 and 12 added, the same refusals event for event, the 21 renderable reports
+byte-identical, and a second migration of each writes the same record. After Parts 1–5 the running
+S6 total is +243, so the ≥ 320 target needs about −563 from Part 6.
 
 - [MODIFY] `cite`, `prove` and verify's corroboration append `Anchor{id, location}` after their
   event, as `finding` and `mint` do; a retry under the same key completes a missing `Anchor` by the
@@ -1077,11 +1079,13 @@ byte-identical. After Parts 1–5 the running S6 total is +260, so the ≥ 320 t
 - **Translation 21 → 22**, in Part 4's placement step: after each archived `Cite`/`Proof` with
   location and id, and each labelled `Verify` with a claim, it emits `Anchor{id, location}` — one
   per placement event, for an id the source stream never anchored; a correction's replacement
-  re-carries its id and adds none. Every insert arm is one `insertMut` (`render.go:116-128`), which
+  re-carries its id and adds none while its act's marker stands in the migrated render. Every insert arm is one `insertMut` (`render.go:116-128`), which
   skips while the token stands in the text, so the `anchor` arm renders each emitted `Anchor`
   exactly as the old arm rendered its event. Report-op order is event order, so every placement
   keeps its stream position. A second placement event for one id (a crash retry, or an id placed
-  again after a retire) would emit a second `Anchor`, which UNIQUE refuses loudly; the 28 corpus
+  again after a retire — a correction's replacement among them) would emit a second `Anchor`, which
+  the record refuses loudly — UNIQUE, or the event key where one seat placed both in one sitting —
+  while the act itself lands and what follows still pairs with it; the 28 corpus
   records hold none (0 repeated `cite.label`, `proof.proof_id`, `verify.label` or `anchor.id`;
   N11, §II), and `TestEveryArchivedRunMigrates` reports one if a run brings it.
 
