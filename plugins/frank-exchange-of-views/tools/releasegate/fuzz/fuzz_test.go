@@ -244,6 +244,10 @@ type runner struct {
 	// PASS the plan permitted. It fails the run: read as "no other seat's blocker" it would pass the
 	// oracle it disabled.
 	passBlockersErr string
+	// avenueRulingErr is the drive's first failure to read an avenue's ruling. It fails the run:
+	// read as "not ruled" it would have red rule a settled line again, or blue leave a ruled one
+	// unanswered, and the avenue oracle would then find nothing to check.
+	avenueRulingErr string
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
@@ -2861,6 +2865,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
 		return res
 	}
+	if r.avenueRulingErr != "" {
+		res.err = "avenue drive: an avenue's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.avenueRulingErr
+		return res
+	}
 	if r.passOverAnotherSeat != "" {
 		res.err = "pass_permitted oracle: the plan permitted a PASS while " + r.passOverAnotherSeat + " stood, and the gate refused it: " + r.lastPassRefusal
 		return res
@@ -3130,7 +3138,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// IGNORE is the sharpest: if --answers stopped recording provenance, an ignored gap and a
 	// repaired one would look identical — and that join is what #267's whole measurement axis
 	// is built on.
-	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
+	// ONE READ OF THE RECORD SERVES EVERY ORACLE BELOW, AND A READ THAT FAILS FAILS THE RUN. Nothing
+	// from here on writes, so the board each oracle judges is the same board. An oracle that runs
+	// only when its own read succeeds reports a record it cannot read as a record with nothing
+	// wrong in it.
+	oracleRun := runtest.Open(t, runDir)
+	board, berr := record.FamilyOf(oracleRun)
+	if berr != nil {
+		res.err = "board: the oracles could not read the record: " + berr.Error()
+		return res
+	}
+	{
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
 		// a field, so binding the message and the type in one step removes the pair that could
@@ -3218,52 +3236,16 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// count silently (measured on a real run; see #344). It is `motion direction appeal` now: its
 	// own event, with its own reason, filed against the ruling and independent of what the line's
 	// status does next.
-	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
-		contests := map[string]string{}
-		// THE PRE-#344 ARM IS GONE. It read a `avenue` event carrying `contests_ruling`,
-		// kept because "a stored record carries it and the oracle runs against replayed records as
-		// well as fresh ones". No stored record carries it: the event type does not exist in the
-		// schema, so nothing can hold that shape and the arm could only ever be dead.
-		for _, e := range board.Events {
-			a, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e)
-			if ok && a.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-				contests[a.GetMotionId()] = "appealed"
-			}
-		}
-		for _, a := range record.AvenuesOf(board.Events, board.At) {
-			ruling := record.AvenueRuling(runtest.Open(t, runDir), a.ID)
-			if ruling == "" || a.Status == "proposed" {
-				continue // never ruled, or blue has not answered yet
-			}
-			switch {
-			case strings.HasPrefix(a.Line, avContest):
-				if a.Status != "pursued" {
-					res.err = "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
-					return res
-				}
-				if contests[a.ID] == "" {
-					res.err = "avenue " + a.ID + " was pursued AGAINST a " + ruling + " ruling and the record does not say so — the disagreement is invisible, which is the state this join exists to end"
-					return res
-				}
-			case ruling == "endorsed":
-				if a.Status != "pursued" {
-					res.err = "avenue " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
-					return res
-				}
-			default:
-				if a.Status == "pursued" && contests[a.ID] == "" {
-					res.err = "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway with nothing recording the contest"
-					return res
-				}
-			}
-		}
+	if msg := avenueRulingOracle(oracleRun, board); msg != "" {
+		res.err = msg
+		return res
 	}
 
 	// EVERY RETIREMENT IS EVIDENCED. The fake retires only text a recorded edit removed, so an
 	// `asserted` retire means either the fake regressed to phantom retirements or the
 	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
 	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
-	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
+	{
 		for _, e := range board.Events {
 			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 			if ok && r.GetRemovalBasis() != record.RemovalVerified {
@@ -3286,7 +3268,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// THIS USED TO TURN ON `ended: deadlock`, the bench's run-level judgement; deadlock is per
 	// gap under the roundless record and the field is retired, so the sanctioned case is the
 	// verdict word itself.
-	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
+	{
 		for _, e := range board.Events {
 			o, ok := recordpb.BodyAs[*recordpb.Outcome](e)
 			if !ok {
@@ -3314,7 +3296,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// board with open gaps and nothing anywhere would notice. The assembler is now told the
 	// verdict the way a real seat is (debate.js states it in the prompt), which makes the
 	// agreement between outcome and board checkable for the first time.
-	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
+	{
 		openCount := 0
 		for _, gOrd := range board.Gaps {
 			id := gOrd.ID
@@ -3326,10 +3308,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// graded below medium — does not hold the gate, so "any open gap" is the wrong count — the record's own dispatch
 		// plan says whether the board permitted the PASS, and that is the oracle: a VERIFIED the
 		// board does not permit means the refusal in `verdict` stopped firing.
-		permitted := true
-		if plan, err := record.PlanDispatch(runtest.Open(t, runDir)); err == nil {
-			permitted = plan.PassPermitted
+		plan, perr := record.PlanDispatch(oracleRun)
+		if perr != nil {
+			res.err = "verdict oracle: the dispatch plan could not be read, so whether the board permits a PASS is unknown: " + perr.Error()
+			return res
 		}
+		permitted := plan.PassPermitted
 		recorded := ""
 		for _, e := range board.Events {
 			if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
@@ -3371,12 +3355,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// Oracle 2: every dialectic event's prose must actually RENDER in the report — the A1-A3
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
-	// One replay of the record serves both remaining oracles (prose + coverage tally).
-	board, berr := record.FamilyOf(runtest.Open(t, runDir))
-	if berr != nil {
-		res.err = "board: " + berr.Error()
-		return res
-	}
 	if m := proseRenders(t, board, runDir); m != "" {
 		res.err = m
 	}
@@ -3389,11 +3367,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
 	// anchored leaves BOTH; a cite event alone leaves neither. The report is the record projection
 	// now (#709), so the anchors are counted in the render, not a file.
-	if run, rerr := record.NewRun(runDir); rerr == nil {
-		if md, mErr := reportproj.RenderFromRecord(run); mErr == nil {
-			res.citeAnchors = strings.Count(md, "<!--cite:")
-		}
+	md, mErr := reportproj.RenderFromRecord(oracleRun)
+	if mErr != nil && res.err == "" {
+		res.err = "citation axis: the report could not be rendered, so its cite anchors are uncounted: " + mErr.Error()
 	}
+	res.citeAnchors = strings.Count(md, "<!--cite:")
 	for _, e := range board.Events {
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -3427,14 +3405,62 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
-	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
-		for _, e := range ents {
-			if !e.IsDir() && e.Name() != "index" {
-				res.cacheFiles++
-			}
+	// A run that fetched nothing has no cache directory, and that is the honest zero. Any other
+	// failure to list it is not.
+	ents, cerr := os.ReadDir(filepath.Join(runDir, "cache"))
+	if cerr != nil && !os.IsNotExist(cerr) && res.err == "" {
+		res.err = "citation axis: the source cache could not be listed, so its files are uncounted: " + cerr.Error()
+	}
+	for _, e := range ents {
+		if !e.IsDir() && e.Name() != "index" {
+			res.cacheFiles++
 		}
 	}
 	return res
+}
+
+// avenueRulingOracle holds every ruled avenue to its consequence, and returns the first breach
+// or "". It joins two independent reads: the Go fold's avenues (status, line) and the record's
+// own avenue_state view (the ruling), through record.AvenueRuling.
+//
+// A RULING IT CANNOT READ IS A BREACH, NOT AN UNRULED AVENUE. "" from AvenueRuling means red has
+// not ruled, and that avenue has nothing to check; an error means the check did not happen, and
+// passing over it would report an unaudited avenue as a clean one.
+func avenueRulingOracle(run record.Run, board record.Family) string {
+	contests := map[string]string{}
+	for _, e := range board.Events {
+		a, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e)
+		if ok && a.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
+			contests[a.GetMotionId()] = "appealed"
+		}
+	}
+	for _, a := range record.AvenuesOf(board.Events, board.At) {
+		ruling, err := record.AvenueRuling(run, a.ID)
+		if err != nil {
+			return "avenue " + a.ID + ": its ruling could not be read, so whether the ruling had its consequence is unchecked: " + err.Error()
+		}
+		if ruling == "" || a.Status == "proposed" {
+			continue // never ruled, or blue has not answered yet
+		}
+		switch {
+		case strings.HasPrefix(a.Line, avContest):
+			if a.Status != "pursued" {
+				return "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
+			}
+			if contests[a.ID] == "" {
+				return "avenue " + a.ID + " was pursued AGAINST a " + ruling + " ruling and the record does not say so — the disagreement is invisible, which is the state this join exists to end"
+			}
+		case ruling == "endorsed":
+			if a.Status != "pursued" {
+				return "avenue " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
+			}
+		default:
+			if a.Status == "pursued" && contests[a.ID] == "" {
+				return "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway with nothing recording the contest"
+			}
+		}
+	}
+	return ""
 }
 
 // #111: debate.js must REFUSE to dispatch when either model tier is unset — the engine never
@@ -4475,15 +4501,10 @@ var avenueFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
 
 // rulingFor maps a proposed line to the ruling red should give it.
 //
-// UNDERSCORES, because that is what the tool accepts. These were `out-of-scope` and `too-thin`,
-// and AvenueRuling spells `out_of_scope` / `too_thin` — so 17 of 27 rulings across 60 runs were
-// refused, and everything below a ruling starved with them: a contested line can only be appealed
-// after it is ruled, which is why `motion avenue appeal` reported as an unreached path.
-//
-// Same family as `--as supports-with-bridge` advertised in help and refused by the write path: one
-// value spelled two ways across a boundary, with only one side moved. The refusals were discarded
-// by the drive, so the only thing that noticed was a coverage gate reporting a MISSING drive for a
-// path whose drive was fine.
+// UNDERSCORES: these are the schema's words, the ones `motion avenue rule --as` accepts and
+// record.AvenueRuling answers with. A hyphenated word is refused at the write, the drive discards
+// the refusal, and everything below a ruling starves with it — a contested line can only be
+// appealed after it is ruled.
 func rulingFor(line string) string {
 	switch {
 	case strings.HasPrefix(line, avEndorse):
@@ -4505,7 +4526,10 @@ func (r *runner) ruleOpenAvenues(seatID string) {
 		return
 	}
 	for _, a := range record.AvenuesOf(b.Events, b.At) {
-		if rulingFor(a.Line) == "" || directionRuling(b, r.run(), a.ID) != "" {
+		if rulingFor(a.Line) == "" {
+			continue
+		}
+		if ruling, ok := r.avenueRuling(a.ID); !ok || ruling != "" {
 			continue
 		}
 		_, _ = r.exec("motion", "avenue", "rule", "--seat-id", seatID, "--id", a.ID,
@@ -4513,22 +4537,20 @@ func (r *runner) ruleOpenAvenues(seatID string) {
 	}
 }
 
-// directionRuling reports an avenue's ruling under EITHER vocabulary.
-//
-// Asking only record.AvenueRuling would have seen the legacy events alone, so every
-// motion-ruled avenue would read as unruled and be ruled again each round — the drive would
-// have looked correct and measured nothing, because a second ruling on a settled line is not a
-// path the run takes.
-func directionRuling(b record.Family, run record.Run, avenueID string) string {
-	if v := record.AvenueRuling(run, avenueID); v != "" {
-		return v
-	}
-	for _, m := range record.MotionsOf(b.Events, b.At) {
-		if m.Subject == "avenue" && m.Fields["avenue_id"] == avenueID && m.Ruled() {
-			return m.Ruling
+// avenueRuling is the drive's read of red's ruling on an avenue: record.AvenueRuling, with a read
+// that fails kept on the runner so runOne fails the run on it. ok is false for that read, and the
+// caller leaves the avenue alone — it knows neither that the line is ruled nor that it is not.
+func (r *runner) avenueRuling(avenueID string) (ruling string, ok bool) {
+	ruling, err := record.AvenueRuling(r.run(), avenueID)
+	if err != nil {
+		r.mu.Lock()
+		if r.avenueRulingErr == "" {
+			r.avenueRulingErr = err.Error()
 		}
+		r.mu.Unlock()
+		return "", false
 	}
-	return ""
+	return ruling, true
 }
 
 // answerAvenueRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
@@ -4539,8 +4561,8 @@ func (r *runner) answerAvenueRulings(seatID string) {
 		return
 	}
 	for _, a := range record.AvenuesOf(b.Events, b.At) {
-		ruling := directionRuling(b, r.run(), a.ID)
-		if ruling == "" || a.Status != "proposed" {
+		ruling, ok := r.avenueRuling(a.ID)
+		if !ok || ruling == "" || a.Status != "proposed" {
 			continue
 		}
 		switch {

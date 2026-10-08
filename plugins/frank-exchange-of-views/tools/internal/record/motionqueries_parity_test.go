@@ -10,11 +10,13 @@ import (
 )
 
 // avenueRulingFold is the fold AvenueRuling replaced, kept HERE as the parity oracle: the
-// query and the fold read the same record, and this test refuses to let them disagree.
-func avenueRulingFold(run Run, avenueID string) string {
+// query and the fold read the same record, and this test refuses to let them disagree. A record
+// the fold cannot read fails the test: "" is the fold's answer for an avenue red has not ruled.
+func avenueRulingFold(t *testing.T, run Run, avenueID string) string {
+	t.Helper()
 	b, err := FamilyOf(run)
 	if err != nil {
-		return ""
+		t.Fatalf("the fold's own read of the record: %v", err)
 	}
 	ruling := ""
 	for _, e := range b.Events {
@@ -24,7 +26,7 @@ func avenueRulingFold(run Run, avenueID string) string {
 		}
 		ruling = ""
 		if d, isAvenue := mr.GetRuling().(*recordpb.MotionRule_Avenue); isAvenue {
-			ruling = strings.ReplaceAll(recordpb.Word(d.Avenue), "_", "-")
+			ruling = recordpb.Word(d.Avenue)
 		}
 	}
 	return ruling
@@ -139,8 +141,8 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_AVENUE, "Z9"); err == nil {
 		t.Error("RequireMotionSubjectRef accepted an id that names no avenue")
 	}
-	if got, want := AvenueRuling(run, "Q1"), avenueRulingFold(run, "Q1"); got != want || got != "" {
-		t.Errorf("AvenueRuling before any ruling = %q, fold says %q", got, want)
+	if got, err := AvenueRuling(run, "Q1"); err != nil || got != avenueRulingFold(t, run, "Q1") || got != "" {
+		t.Errorf("AvenueRuling before any ruling = (%q, %v), fold says %q", got, err, avenueRulingFold(t, run, "Q1"))
 	}
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
@@ -150,7 +152,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := AvenueRuling(run, "Q1"), avenueRulingFold(run, "Q1"); got != want || got != "out-of-scope" {
-		t.Errorf("AvenueRuling = %q, fold says %q, want the hyphen join of the schema's word", got, want)
+	if got, err := AvenueRuling(run, "Q1"); err != nil || got != avenueRulingFold(t, run, "Q1") || got != "out_of_scope" {
+		t.Errorf("AvenueRuling = (%q, %v), fold says %q, want the schema's word out_of_scope", got, err, avenueRulingFold(t, run, "Q1"))
 	}
 }
