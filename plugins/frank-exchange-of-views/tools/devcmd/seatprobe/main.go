@@ -54,7 +54,7 @@
 // # It reports; it does not gate
 //
 // Agent behaviour is not deterministic and a flaky gate is one the next person turns off. The
-// output is a choice report and a friction corpus addressed to a human (#363). What IS a gate
+// output is a choice report and a corpus of log entries addressed to a human (#363). What IS a gate
 // lives in internal/seatprobe's tests: that every verb has a board demanding it, and that every
 // board carries the state its expectations need.
 //
@@ -344,7 +344,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 		// records/*.jsonl directly, so "used 5 of 18 verbs" was uninterpretable: it could mean the
 		// surface failed to teach, or that the seat found a shortcut and never needed teaching.
 		// Those want opposite fixes. With the record elsewhere, a seat that cannot find a verb has
-		// two exits — find it, or file friction — and both of those are signal.
+		// two exits — find it, or file a request — and both of those are signal.
 		//
 		// A TEMP ROOT, NOT A SIBLING OF THE RUN. `ls ..` is one keystroke.
 		if !recordsInRun {
@@ -354,7 +354,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debatePat
 			}
 			recordRoot = r
 			// THE RECORD ROOT IS NOT DELETED. It was, and the first separated run paid for it:
-			// every post-hoc question ("did any seat file friction?") hit the resolver's own
+			// every post-hoc question ("did any seat file a log entry?") hit the resolver's own
 			// dangling-pointer refusal, because the evidence had been removed while the pointer
 			// binding the run to it survived. An instrument that destroys its own measurement on
 			// the way out is one you can only ever read once. Nothing reclaims it either: it is a
@@ -559,7 +559,7 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debate
 	//
 	// What stood here was a paraphrase written in this file: ~950 characters against production's
 	// 12,800–24,000. It said the same THINGS in different words, which is the worst case — the
-	// probe reported help-reading counts, verb-reach counts and a friction rate for a seat that
+	// probe reported help-reading counts, verb-reach counts and a log-entry rate for a seat that
 	// was never given production's instructions, and every one of those numbers was published as
 	// a finding about seats. There is no fallback and no substitute: a board whose seat debate.js
 	// does not dispatch fails here rather than being handed something written locally.

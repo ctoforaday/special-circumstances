@@ -142,10 +142,8 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		walk(r)
 	}
 
-	// AN EVENT TYPE IS NOT ALWAYS A VERB. `friction_none` is what `friction --none` records, so it
-	// has required fields and no command of its own — its flags live on `friction`.
+	// AN EVENT TYPE IS NOT ALWAYS A VERB.
 	noVerbOfItsOwn := map[string]string{
-		"friction_none": "recorded by `friction --none`; its flags are on that verb",
 		// A correction is written BESIDE the replacement by the corrected act's own verb, run with
 		// --corrects; its one flag-filled field, why, is --correction-why on each of those verbs.
 		"correction": "recorded by any correctable verb run with --corrects; its flags are on that verb",

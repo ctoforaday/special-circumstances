@@ -179,7 +179,7 @@ func TestAMovedMarkerIsRefusedAndNotBlamedOnTheSeat(t *testing.T) {
 	if via != RunUnresolved {
 		t.Errorf("a refused resolve reports source %q, want %q", via, RunUnresolved)
 	}
-	for _, want := range []string{"/runs/other", "/runs/mine", "You did not cause this", "friction"} {
+	for _, want := range []string{"/runs/other", "/runs/mine", "You did not cause this", "record it in the log, as a defect"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not carry %q: %v", want, err)
 		}

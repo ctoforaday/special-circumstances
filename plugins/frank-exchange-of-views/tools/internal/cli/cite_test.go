@@ -19,7 +19,7 @@ import (
 // blue cite is blue's ONLY citation mechanism: it fetches a source through the run cache
 // and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor at the quoted sentence. These
 // drive the real command tree so the fetch-once cache, the invisible anchor, the reject
-// paths, and the auto-friction on an unreachable source are pinned where they are enforced.
+// paths, and the defect the tool logs on an unreachable source are pinned where they are enforced.
 
 const citeSeat = blueSeat
 
@@ -120,7 +120,7 @@ func TestBlueCiteInFenceRejected(t *testing.T) {
 	}
 }
 
-func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
+func TestBlueCiteFetchFailureRejectsAndLogsADefect(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe claim holds under load.\n")
 	registerBlue(t, runDir)
@@ -138,9 +138,9 @@ func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 0 {
 		t.Errorf("an unusable cite recorded %d cite events, want 0", n)
 	}
-	// But the DECISION to cite an unreachable source IS surfaced as friction.
+	// But the DECISION to cite an unreachable source IS surfaced in the log.
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 1 {
-		t.Errorf("an unusable cite recorded %d friction events, want 1", n)
+		t.Errorf("an unusable cite recorded %d log entries, want 1", n)
 	}
 }
 

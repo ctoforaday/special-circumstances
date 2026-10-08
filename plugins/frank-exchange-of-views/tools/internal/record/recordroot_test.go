@@ -283,7 +283,7 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 		t.Fatalf("merge: %v", err)
 	}
 	if len(m.Events) != 2 {
-		t.Fatalf("merged %d events from the separated root, want 2 (register + friction)", len(m.Events))
+		t.Fatalf("merged %d events from the separated root, want 2 (register + log)", len(m.Events))
 	}
 }
 

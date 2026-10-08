@@ -23,9 +23,9 @@ import (
 func newShowLog() *cobra.Command {
 	return &cobra.Command{
 		Use:   "log",
-		Short: "read the run's log (operator; every missing capability a seat reported, and every seat that reported none)",
-		Long: "ops log prints the entries seats filed in the log — missing capabilities, defects in the tooling, " +
-			"impediments and requests — and, separately, the seats that SAT AND FILED NOTHING, read off the harness " +
+		Short: "read the run's log (operator; every entry a seat filed, and every seat that sat and filed none)",
+		Long: "ops log prints the entries seats filed in the log — missing capabilities, defects in the tooling " +
+			"and friction — and, separately, the seats that SAT AND FILED NOTHING, read off the harness " +
 			"brackets rather than asserted by the seat. The two counts are not interchangeable: no entries and no " +
 			"seated-and-silent is a run nobody sat in.\n\n" +
 			"Seats WRITE the log with their own `log --type <type> --reason \"...\"`, under their own --seat-id; " +

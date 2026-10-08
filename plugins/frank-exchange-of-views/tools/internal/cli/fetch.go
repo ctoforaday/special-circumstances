@@ -28,7 +28,7 @@ import (
 // cited.
 //
 // A fetch FAILURE is a plain non-zero error: a bare read may legitimately miss and the
-// caller just picks another source. It does NOT itself write a friction event — only the
+// caller just picks another source. It does NOT itself write a log entry — only the
 // DECISION to cite an unreachable source does (blue cite), because that is the act that
 // records an unusable citation.
 func newFetch() *cobra.Command {
@@ -43,7 +43,7 @@ func newFetch() *cobra.Command {
 		// what a seat does, so the page carries only the instruction each one produced.
 		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.\n\n" +
 			"A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells is rebuilt from the rules themselves: the lattice says where the cells are, each cell holds the words inside it, and the rows keep their binding. Where the rules bind no usable grid — a figure, a box, a table of marks the reading lost — the page falls back to plain text WITH the reason and the measurement on the record. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.\n\n" +
-			"Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.\n\n" +
+			"Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.\n\n" +
 			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -116,7 +116,7 @@ func newFetch() *cobra.Command {
 			entry, body, hit, err := fetchcache.Resolve(run, url, fetchcache.Default)
 			if err != nil {
 				// A bare read failure is operational, not a seat-input fault — no existing
-				// coded category fits, and it is NOT a friction (only the DECISION to cite an
+				// coded category fits, and it is NOT a log entry (only the DECISION to cite an
 				// unreachable source is). CodeOf renders a plain error as "error" in --json.
 				return fmt.Errorf("fetch: %v", err)
 			}

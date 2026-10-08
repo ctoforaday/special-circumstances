@@ -214,8 +214,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
   - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
   - The operator is the person running the research, and the seat id their own commands run under.
-  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or an impediment, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
-  - Friction is one type of log entry: the work was impeded and the seat is noting it.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
+  - Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
   - OCR-derived text is a machine's reading of a scanned document's page images: deterministic, and able to misread, so a citation quoting it records the PDF page its quote sits on and is checked against that page's image.
@@ -238,7 +238,8 @@ SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
 
 §2 (on 23 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -601,7 +602,7 @@ fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SU
 
 A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells is rebuilt from the rules themselves: the lattice says where the cells are, each cell holds the words inside it, and the rows keep their binding. Where the rules bind no usable grid — a figure, a box, a table of marks the reading lost — the page falls back to plain text WITH the reason and the measurement on the record. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.
 
-Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source) and logs no friction itself.
+Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.
 
 AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.
 
@@ -645,7 +646,7 @@ an entry for the operator who can retool you — what it asserts, said in the po
 
 An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
 
-SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading. An impediment you are merely NOTING has its own word, and is not a request for change.
+SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading.
 
 EVERY REFUSAL YOU GET, AND EVERY CALL OF YOURS THAT FAILS, IS ALREADY HERE: the tool records each refusal it gives you, with the flags you typed and never their values, and each tool call of yours that fails — a jq, a Read, a script — with what it was aimed at. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours: something taught you to expect it, and that is what the operator retools. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
 
@@ -653,7 +654,7 @@ THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
-A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where the sitting DID things and might have hit walls. One with no acts is not: the harness brackets it with your identity, so that you ran is on the record. Deriving the clean case from the emptiness beats asserting it. Your work list says which case you are in, by not asking.
+A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where the sitting DID things. One with no acts is not: the harness brackets it with your identity, so that you ran is on the record. Deriving the clean case from the emptiness beats asserting it. Your work list says which case you are in, by not asking.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -677,7 +678,7 @@ Enumerated values:
   --type
     defect    something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair
-    friction  something cost you a call, a guess or an act — a refusal, a name you guessed, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect. An act that no surface offers at all is a request, not this
+    friction  Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
 
 (Global Flags:) → SHARED §7
 ==============================================================================

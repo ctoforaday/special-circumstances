@@ -20,7 +20,7 @@ import (
 // record tool's own refusals are logged where it refuses them; this is everything else.
 //
 // NOT A SEAT, NOT A RUN, OR AN INTERRUPT: nothing. The main session's failures are the operator's,
-// and a user pressing stop is not friction.
+// and a user pressing stop is not a failed call.
 func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error {
 	var in struct {
 		ToolName    string          `json:"tool_name"`

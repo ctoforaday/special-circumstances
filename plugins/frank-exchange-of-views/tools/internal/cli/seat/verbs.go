@@ -23,8 +23,8 @@ import (
 
 // The verbs every role shares, defined once.
 //
-// register, friction, position and closing are the SAME contract
-// wherever they appear — a friction entry from a lens and one from the bench are
+// register, log, position and closing are the SAME contract
+// wherever they appear — a log entry from a lens and one from the bench are
 // the same event with the same payload. Restating them per role would be four
 // copies to drift apart, and the drift would be silent because each copy would
 // still pass its own tests.
@@ -123,7 +123,7 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 }
 
 // Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, or
-// an impediment worth noting. It is not material for the debate.
+// friction. It is not material for the debate.
 //
 // WHY THE CLEAN CASE IS NOT AN ENTRY. "Nothing on the record" was once equally consistent with a
 // clean sitting and with a seat that hit walls and never used the channel — the same bytes, which
@@ -657,10 +657,9 @@ func renderView(cmd *cobra.Command, want string) error {
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), string(b))
 			return nil
-		// `friction` WAS NAMED HERE AND IS NOT A PROJECTION. `show friction` is refused —
-		// the friction reader is the OPERATOR command (cli/friction.go), never a seat view — so
-		// this case could not fire and the default's message below advertised it to seats by
-		// name. A seat that read it learned a projection it cannot open.
+		// THE LOG IS NOT A PROJECTION A SEAT OPENS. Its reader is the OPERATOR's `ops log`
+		// (cli/log.go), never a seat view, so no case here names it and the default's message
+		// below does not advertise it.
 		// THE SET COMES FROM THE TABLE. It was six names written here by hand, and the
 		// contract test's own comment records a stale name surviving in a list like this
 		// while the assertion read as coverage.
@@ -931,7 +930,7 @@ type registerResult struct {
 }
 
 // hookAbsentSource names the carrier that stood in for the hook, so the operator reading a
-// friction event knows which of the two shapes this run was in — a wrapper doing its job, or
+// log entry knows which of the two shapes this run was in — a wrapper doing its job, or
 // nothing but the marker and a lucky cwd.
 func (r registerResult) hookAbsentSource() string {
 	if r.RunVia == string(seatenv.RunFromWrapper) {

@@ -72,6 +72,16 @@ extend google.protobuf.FieldOptions {
 extend google.protobuf.EnumValueOptions {
   optional string means = 50001;
 
+  // defined_term IS `means` FOR A VALUE WHOSE MEANING IS A CONCEPT THE TERMS REGISTRY DEFINES. The
+  // value names the registry entry (its `term` key in internal/terms/terms.json) and carries no
+  // prose of its own: `--help`, the refusal a seat reads and the vocabulary table render the
+  // registry's definition, so the glossary a seat is handed and the menu beside it are one
+  // sentence with one author. A value declares exactly one of `means` and `defined_term`.
+  //
+  // The name says "defined term" because a bare "term" is already what a run is held to — its
+  // epoch limit, its per-sitting tool-call limit.
+  optional string defined_term = 50009;
+
   // closes is WHETHER THIS WORD ENDS THE GAP, and it is on the value because that is the only
   // place a new value cannot be added without answering the question.
   //
@@ -189,7 +199,7 @@ message Sql {
   // allow_empty says a required STRING field may be present and EMPTY.
   //
   // `required` means the seat SAID something, and for prose that means it said something with
-  // content: an acceptance check of "" is a contract that demands nothing, and a friction entry of
+  // content: an acceptance check of "" is a contract that demands nothing, and a log entry of
   // "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
   // to `complete: true` while the channel reported one entry saying nothing.
   //
@@ -245,7 +255,7 @@ enum EventType {
   EVENT_TYPE_CLOSING = 9 [(correct) = CORRECTION_TIER_FULL, (means) = "a seat's closing statement on a gap: the argument, not the disposition"];
   EVENT_TYPE_DECLARE = 10 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(correct) = CORRECTION_TIER_NONE, (means) = "something red found, graded but not yet minted as a gap"];
-  EVENT_TYPE_LOG = 12 [(correct) = CORRECTION_TIER_FULL, (means) = "an entry addressed to the operator who can retool the seat: a defect, a request or an impediment — never a clean sitting, which is derived from having sat and filed nothing"];
+  EVENT_TYPE_LOG = 12 [(correct) = CORRECTION_TIER_FULL, (means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing"];
   EVENT_TYPE_HALT = 14 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   EVENT_TYPE_MANIFEST_ROW = 15 [(correct) = CORRECTION_TIER_FULL, (means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(correct) = CORRECTION_TIER_NONE, (means) = "a gap put on the board — the act that creates the entity every other act refers to"];
@@ -1457,7 +1467,7 @@ enum LogType {
   reserved "LOG_TYPE_NOMINAL";
   LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
   LOG_TYPE_REQUEST = 3 [(seat_may_file) = true, (means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
-  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "something cost you a call, a guess or an act — a refusal, a name you guessed, a shape you misread, a workaround — and you are noting it with what you expected and why; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect. An act that no surface offers at all is a request, not this"];
+  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (defined_term) = "friction"];
   // REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
   // On universe-m13 seats met a dozen refusals — a flag guessed from another verb, a field name
   // typed as a flag, a mint refused at its budget — and filed none: each was classed as the seat's

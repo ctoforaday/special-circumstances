@@ -4,8 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/terms"
 )
 
 // allEnums walks the registry for every enum this schema declares, so the census is DERIVED and
@@ -59,6 +62,54 @@ func TestEveryEnumValueHasADescription(t *testing.T) {
 	t.Logf("checked %d values across %d enums", checked, len(enums))
 	if checked == 0 {
 		t.Fatal("checked zero values — the walk found nothing, which must fail rather than pass")
+	}
+}
+
+// A DEFINED TERM RENDERS THE REGISTRY'S SENTENCE, BYTE FOR BYTE. `log --type friction` and the
+// glossary entry "friction" are one concept; the value names the entry and the menu prints the
+// entry's definition, so an edit to the registry moves both. The count is asserted because a walk
+// that met no `(defined_term)` would compare nothing and pass.
+func TestADefinedTermRendersTheRegistryDefinition(t *testing.T) {
+	reg, err := terms.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defs := map[string]string{}
+	for _, e := range reg.Entries {
+		defs[e.Term] = e.Definition
+	}
+	bound := 0
+	for _, e := range allEnums(t) {
+		for i := 0; i < e.Values().Len(); i++ {
+			v := e.Values().Get(i)
+			if isZeroValue(v) {
+				continue
+			}
+			term, _ := proto.GetExtension(v.Options(), E_DefinedTerm).(string)
+			means, _ := proto.GetExtension(v.Options(), E_Means).(string)
+			if (term == "") == (means == "") {
+				t.Errorf("%s carries (means) %q and (defined_term) %q — a value carries exactly one", v.FullName(), means, term)
+			}
+			if term == "" {
+				continue
+			}
+			bound++
+			want, ok := defs[term]
+			if !ok {
+				t.Errorf("%s names the defined term %q, which the terms registry does not define", v.FullName(), term)
+				continue
+			}
+			if got, err := EnumValueDoc(v); err != nil || got != want {
+				t.Errorf("EnumValueDoc(%s) = %q, %v — want the registry's definition of %q: %q", v.FullName(), got, err, term, want)
+			}
+		}
+	}
+	if bound == 0 {
+		t.Fatal("no enum value names a defined term — the binding this test holds is not exercised")
+	}
+	friction := LogType_LOG_TYPE_FRICTION.Descriptor().Values().ByNumber(LogType_LOG_TYPE_FRICTION.Number())
+	if term, _ := proto.GetExtension(friction.Options(), E_DefinedTerm).(string); term != "friction" {
+		t.Errorf("LOG_TYPE_FRICTION names the defined term %q; friction's meaning is the registry entry \"friction\"", term)
 	}
 }
 

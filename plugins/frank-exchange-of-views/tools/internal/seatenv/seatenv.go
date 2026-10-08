@@ -136,7 +136,7 @@ func ResolveWithSource(flagRun string, infer func() string) (string, RunSource, 
 			"the run directory injected into this call (%q) disagrees with the run this seat was "+
 				"dispatched into (%q). You did not cause this and cannot fix it by changing your command: "+
 				"the engine's live-run marker has moved since this run started, which means another run "+
-				"claimed it. STOP and record it with the friction verb — continuing would file this seat's "+
+				"claimed it. STOP and record it in the log, as a defect — continuing would file this seat's "+
 				"work against the wrong run",
 			env, wrapper)
 	}
@@ -155,7 +155,7 @@ func ResolveWithSource(flagRun string, infer func() string) (string, RunSource, 
 			"--run %q disagrees with the run this seat was dispatched into (%q). "+
 				"The engine supplies the run directory; you do not type it. If the flag is a typo, drop it — "+
 				"omitting --run is correct and always right. If you believe the dispatched value is wrong, "+
-				"record it with the friction verb rather than working around it",
+				"record it in the log, as a defect, rather than working around it",
 			flagRun, dispatched)
 	}
 	if dispatched != "" {

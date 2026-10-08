@@ -17,7 +17,7 @@ import (
 // round trip is tested from the writer's side (internal/cli) against real output.
 //
 // THE MANUAL IS LEAN, AND THE LEANNESS IS REVERSIBLE BY CONSTRUCTION. A block that repeats word for
-// word on several pages — the Global Flags, the friction footer, a flag line several verbs share —
+// word on several pages — the Global Flags, the log footer, a flag line several verbs share —
 // is printed ONCE in a SHARED section and replaced on each page by a marker line naming it.
 // ExpandManual puts every marker back, so "each page is that command's own help" stays a checkable
 // statement rather than a claim about a summary.

@@ -24,7 +24,7 @@ import (
 // record, proceeds, and writes NOTHING — so a capability the surface failed to teach is
 // indistinguishable from one no seat ever wanted. That is this repo's recurring defect shape:
 // the miss and the honest zero are the same bytes. Move the record and a stuck seat has exactly
-// two exits, find the verb or file friction, and both of those are signal.
+// two exits, find the verb or file a request, and both of those are signal.
 //
 // THIS IS NOT A SANDBOX AND MUST NOT BE DESCRIBED AS ONE. `--add-dir` governs Read/Grep/Glob;
 // Bash reaches any path the operating system allows, and this package is open source, so a seat

@@ -334,7 +334,7 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	//
 	// The substitution is now a fact on the record whether or not the seat honours the refusal, so
 	// `verify` and `capture` can hold the run to it even if this seat works around the error the
-	// way the friction footer teaches. Refusing BEFORE the write would leave the one piece of
+	// way the log footer teaches. Refusing BEFORE the write would leave the one piece of
 	// evidence unrecorded in exactly the case it matters.
 
 	// WHAT THE TWO RETURNS ARE NOW. The first was a NONCE, an opaque sitting id a seat could do

@@ -7,7 +7,7 @@ package fuzz
 // finding (in debate.js, the tool, or verify), reproducible from its seed.
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
-// not a happy path: lens (cite/finding/avenue/friction), merge (position/closing/
+// not a happy path: lens (cite/finding/avenue/log), merge (position/closing/
 // mint/close incl. repaired_with_regression/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
@@ -17,7 +17,7 @@ package fuzz
 // (maybePetition/rulePetitions), so debate.js's routing runs too.
 //
 // ORACLES per run: (1) verify passes — whatever path the debate took, the record satisfies every
-// invariant; (2) the JSON views (findings/friction/debate) exit 0 and parse; (2c) the six markdown
+// invariant; (2) the JSON views (findings/log/debate) exit 0 and parse; (2c) the six markdown
 // views (ledger/archive/debate/changelog/citation-ledger/avenues) render in-memory via
 // view.Markdown and exit 0; (3) every dialectic prose renders in the report (the A1-A3
 // write-here/read-there class); (4) #111 tier — every seat dispatched on the configured tier.
@@ -1663,9 +1663,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 	case "request":
 		r.do("log", seatID).set("--type", "request").set("--reason", "fuzz: "+seatID+" wanted an act that is on no surface").run()
 	case "friction":
-		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: the work was impeded for "+seatID+", noted without a claim that it is actionable").run()
+		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").run()
 	default:
-		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: the work was impeded for "+seatID+", noted without a claim that it is actionable").run()
+		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").run()
 	}
 	// avenue carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: an avenue now has an id and a LIFECYCLE. Propose, then sometimes move it — the
@@ -1709,7 +1709,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 	switch role {
 	case "lens":
 		// NO avenue DRIVE HERE: the lens role has no avenue verb (register/finding/
-		// cite/friction/show). This called it 183 times per sweep, every one refused, while
+		// cite/log/show). This called it 183 times per sweep, every one refused, while
 		// the verb gate stayed green on blue's avenue events — a dead drive that read as
 		// coverage. Found by the execution tally (lens avenue: 183 of 183 refused).
 	case "chair":
@@ -1834,7 +1834,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			cite.run()
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
-		// auto-logged as friction. Driving it here proves the reject path never wedges the run.
+		// logged by the tool as a defect. Driving it here proves the reject path never wedges the run.
 		r.maybe(15, func() {
 			r.do("cite", seatID).
 				set("--quote", "§ fuzz sentence").
@@ -2899,7 +2899,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	// Oracle 1b: the JSON views the operator side reads in json-mode must exit 0 and parse.
-	// `board` is already exercised above; `findings`/`friction` are JSON by name; `debate --json`
+	// `board` is already exercised above; `findings` and the operator's log read are JSON by name; `debate --json`
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
 	ids := mintedGapIDs(stageRun)
@@ -3706,11 +3706,9 @@ var dialecticProseKey = map[string]string{
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// Run-level voices.
-	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement", "declare": "holding",
-	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
-	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
-	// whether the seats looked and said so, or never used the channel. Those were the same
-	// bytes for eighteen recorded sittings, and this event is what separates them.
+	"revision": "text", "halt": "opinion", "certify": "statement", "declare": "holding",
+	// The log: what a seat told the operator. It renders in run.md, beside the seats that sat
+	// and filed nothing.
 	"log": "text",
 	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
@@ -3829,7 +3827,7 @@ func gapIsOpen(board record.Family, id string) bool {
 // assembledSet is EVERY document the assembler wrote, concatenated.
 //
 // The deliverable is a set, and "did this prose reach the reader" is a question about the set:
-// a friction line lands in run.md, a motion in judgments.md, a withdrawn claim in CHANGELOG.md.
+// a log entry lands in run.md, a motion in judgments.md, a withdrawn claim in CHANGELOG.md.
 // An oracle that reads report.md alone measures one document of the artifact and reports the
 // others as clean — which is the exact failure shape these gates exist to catch, one level up.
 func assembledSet(runDir string) (string, error) {

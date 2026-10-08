@@ -139,7 +139,7 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 }
 
 // EventsOf reads back only the named event families, in record order — the read for a
-// projection that renders one kind of act (findings, friction, the debate prose) and has no
+// projection that renders one kind of act (findings, the log, the debate prose) and has no
 // business hauling the whole record through the loader to get it — with each event's stored window
 // (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
 // the acts that opened them. A run with no record yet holds none of anything.

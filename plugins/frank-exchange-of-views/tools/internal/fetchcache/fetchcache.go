@@ -498,7 +498,7 @@ func appendIndexIfAbsent(run record.Run, e Entry) error {
 // returns the stored entry untouched; a miss fetches ONCE via f, extracts, caches both
 // artifacts, and returns. hit reports which path was taken (so `fetch` can show a second read
 // was served from cache). A fetch error is returned verbatim — the CALLER decides whether that
-// is a friction (an unusable CITED source) or a bare miss (a read that may legitimately fail).
+// is a defect for the log (an unusable CITED source) or a bare miss (a read that may legitimately fail).
 //
 // EXTRACTION HAPPENS HERE, not in `fetch`, because `blue cite` resolves through this same door
 // and cite is the act that records what backs a claim. Putting it one level up would give the

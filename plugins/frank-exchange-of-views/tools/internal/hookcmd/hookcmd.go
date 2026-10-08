@@ -335,8 +335,8 @@ func emitPreRewrite(stdout io.Writer, toolInput json.RawMessage, command string)
 // the model, so the agent sees the actual error and can correct or escalate instead of being
 // silently allowed or silently blocked.
 //
-// This is the SYNCHRONOUS half of the answer; a friction event of kind FRICTION_KIND_TOOL_ERROR
-// is the durable half. The reason string reaches the agent NOW; the friction event is what a
+// This is the SYNCHRONOUS half of the answer; a log entry of type LOG_TYPE_FAILURE
+// is the durable half. The reason string reaches the agent NOW; the log entry is what a
 // later reader finds. Neither replaces the other.
 func emitPreAsk(stdout io.Writer, reason string) {
 	emit(stdout, map[string]any{

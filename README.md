@@ -141,7 +141,7 @@ Run `/frank-exchange-of-views:research <topic>` (or `/frank-exchange-of-views:re
 2. **Red audits at the leaf.** Red opens each citation at its source, grades trust and risk, and files every defect as a gap. Red owns the verdict.
 3. **Blue repairs, epoch by epoch.** Gaps come back as obligations; blue revises; red re-audits the changed text. Repeat until red passes or the run deadlocks.
 4. **The bench rules** on whatever is still contested, in writing, and assembles the final report from the audited sources.
-5. **The record captures all of it** — findings, gaps, opinions, closures, disputes, friction — as validated events in an append-only log.
+5. **The record captures all of it** — findings, gaps, opinions, closures, disputes, log entries — as validated events in an append-only log.
 
 The run lands in `research/<date>_<slug>/`:
 
@@ -218,7 +218,7 @@ An agent asked to read a transcript and report what it sees is a summarizer — 
 - **Four verbs seats asked for by hitting their absence:** amending a mint, amending a prior closure from a seat that did not enter it, withdrawing an entry written in error, and closing with a named residue.
 - **Scorecard metric fixes** — several telemetry metrics still parse hand-written prose while the data lives in events.
 
-**Later — new capability.** The rest of gray-area's mining: friction claims adjudicated against the trajectory that refutes them, act-versus-claim discrepancy, stall forensics from the timing.
+**Later — new capability.** The rest of gray-area's mining: a seat's log entries adjudicated against the trajectory that refutes them, act-versus-claim discrepancy, stall forensics from the timing.
 
 <!-- TODO (microsite): expand each roadmap item into a page; add a "what a run costs" section grounded in the evidence run; link the plans/ documents as the authoritative design record. -->
 <!-- TODO: write the TestSeatNeverNeedsAPath validation loop first and let it fail; re-measure the archive byte-parity gap on the first post-timestamp run (the 34,086-vs-7,527 figure is contaminated by legacy event ordering). -->

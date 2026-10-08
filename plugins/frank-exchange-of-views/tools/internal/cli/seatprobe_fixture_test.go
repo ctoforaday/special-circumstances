@@ -27,13 +27,13 @@ import (
 //
 // Nothing in the suite can answer that. The fuzz IS a driver — it calls the verb by construction,
 // so it measures the tool and says nothing about whether a real seat would find it. The measured
-// shape is in the friction logs of real runs: a seat that cannot find the verb it wants "logs
-// friction and works around it, losing the capability for the run", and a seat that finds prose
+// shape is in the logs of real runs: a seat that cannot find the verb it wants logs a request
+// and works around it, losing the capability for the run, and a seat that finds prose
 // easier than a flag does the same thing without even noticing.
 //
 // So: build a board a seat would actually MEET, hand it to a weak model under its real
 // constitution, and read back which verbs it used and which it talked its way around. The output
-// is not pass/fail — it is a friction corpus and a list of verbs nobody chose. That belongs to
+// is not pass/fail — it is a corpus of log entries and a list of verbs nobody chose. That belongs to
 // the operator, not to CI (#363).
 //
 // # Why a weak model
@@ -211,7 +211,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// of this suite exists to remove.
 		//
 		// The url is a real, reachable one because `cite` FETCHES and caches: an unreachable
-		// source is refused and logged as friction, which is correct behaviour and useless
+		// source is refused and logged as a defect, which is correct behaviour and useless
 		// here. It is served on LOOPBACK for the same reason seatprobe.Build serves its own
 		// (see serveSource there): a fixture that depends on a third party being up is a
 		// fixture that goes red for reasons about the internet.

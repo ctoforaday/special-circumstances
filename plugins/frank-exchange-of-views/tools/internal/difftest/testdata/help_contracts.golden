@@ -71,7 +71,8 @@ feov-record — red lens seats — findings, source verification and corroborati
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
 
 Usage:
   feov-record [flags]
@@ -116,7 +117,8 @@ feov-record — the red chair — runs the debate: dispatches, judges the board,
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
 
 Usage:
   feov-record [flags]
@@ -159,7 +161,8 @@ feov-record — blue seats — revisions, manifest rows, directions. No board ve
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
 
 Usage:
   feov-record [flags]
@@ -204,7 +207,8 @@ feov-record — the bench — rulings, halt, certification. Never originates.
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.
 
 Usage:
   feov-record [flags]

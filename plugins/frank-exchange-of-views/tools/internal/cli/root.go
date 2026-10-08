@@ -101,7 +101,7 @@ func RoleOfSeat(seatID string) string {
 // THIS IS THE COST OF SCOPING THE TREE, PAID RATHER THAN HIDDEN. A seat verb is now absent from a
 // process with no identity, so "mint" answers "no such command" where it used to answer "--seat-id
 // is required". Under a scoped surface "not yours" reads as "does not exist", and a seat handed an
-// unavailable verb logs friction and works around it, losing the capability for the run. The
+// unavailable verb logs it as a request and works around it, losing the capability for the run. The
 // surface cannot carry the verb (it does not know
 // which seat's), so the REFUSAL has to carry the reason.
 func noSeatNote(seatID string) string {
@@ -202,10 +202,10 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 	// A SEAT IS NOT AN OPERATOR, and the two sets are disjoint by construction rather than by
 	// anyone remembering. Promoting the seat's verbs to the root put them beside the operator
-	// commands, and two names collide outright: `friction` is a seat's write verb AND the
-	// operator's read of the channel; `verify` is a lens's citation adjudication AND the
+	// commands, and a name collides outright: `verify` is a lens's citation adjudication AND the
 	// operator's whole-record cross-check. One tree cannot hold both meanings, and picking a
-	// winner would hand some seat a verb that does the other thing.
+	// winner would hand some seat a verb that does the other thing. The operator's read of the
+	// log is `ops log` for the same reason: `log` only ever writes.
 	//
 	// So the split is total. `fetch` and `count-claims` cross it because seats genuinely run them
 	// — a lens reads blue's cached source bytes, and blue's claim_count is defined as what
@@ -229,11 +229,11 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		verbs, short := seatVerbs(role)
 		seat.SetRole(root, role, seatID)
 		root.Short = short
-		// THE FRICTION FOOTER MOVED WITH THE VERBS, not away with the group. It hung on the role
+		// THE LOG FOOTER MOVED WITH THE VERBS, not away with the group. It hung on the role
 		// group's Long, and deleting the group would have dropped it silently — a seat would stop
-		// being told that a capability it cannot find is a finding about the tooling rather than
-		// something to work around. Caught by TestRoleHelpCarriesTheFrictionFooter.
-		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
+		// being told that a capability it cannot find is a fact about the tooling rather than
+		// something to work around. Caught by TestRoleHelpCarriesTheLogFooter.
+		root.Long = InvokedAs() + " — " + short + "\n" + seat.LogFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
 		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache

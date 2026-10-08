@@ -499,7 +499,7 @@ func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
 }
 
 // THE GUARD. A fresh gap located in text red prescribed and blue applied verbatim is
-// refused, and the refusal is LOGGED AS FRICTION so the pathology is countable rather than
+// refused, and the refusal is LOGGED, AS AN ESTOPPEL, so the pathology is countable rather than
 // silently prevented.
 func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	runDir := newRun(t)
@@ -523,7 +523,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	}
 	// A guard that silently blocks is invisible.
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
-		t.Error("the estoppel rejection logged no friction — the block is unmeasurable, which is how a dead guard survives")
+		t.Error("the estoppel rejection wrote no log entry — the block is unmeasurable, which is how a dead guard survives")
 	}
 }
 

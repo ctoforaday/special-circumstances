@@ -207,7 +207,7 @@ func newMint() *cobra.Command {
 		// the lineage is explicit. What it may not do is open a clean slate against its own
 		// words.
 		//
-		// THE REJECTION IS LOGGED AS FRICTION, not merely refused. A guard that silently
+		// THE REJECTION IS LOGGED, AS AN ESTOPPEL, not merely refused. A guard that silently
 		// blocks is invisible: this makes "how often does red relitigate its own
 		// prescriptions" a per-run number on the record, which is the measurement of the
 		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
@@ -220,11 +220,6 @@ func newMint() *cobra.Command {
 				// The KIND is a field, not something a reader infers from the wording. The
 				// prose above is aimed at a seat and must stay editable; the count an
 				// operator reads must not move when it is edited (#283).
-				// THE KEY IS `reason`, which is what the friction projection reads and what
-				// the friction verb writes. This set `text`, so every estoppel block
-				// recorded an entry that rendered with EMPTY TEXT in the operator's
-				// friction read: the block was logged and its explanation was not, which
-				// is the same blank entry an empty discharge produces.
 				// THE TYPE IS A VALUE NOW, not a key/word pair. `text` is the field the log
 				// projection reads, and the old payload set the wrong key — every estoppel
 				// block recorded an entry that rendered with EMPTY TEXT, so the block was

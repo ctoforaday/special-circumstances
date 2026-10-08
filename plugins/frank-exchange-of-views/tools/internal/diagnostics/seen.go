@@ -85,7 +85,7 @@ func helpBlocks(text string) [][]string {
 //
 // COUNTED PER BLOCK, NEVER PER LINE, and that is the difference between a measurement and a
 // flattering one. The probe stages ROOT help into a board as setup material, and the root listing
-// contains `friction` and `count-claims` — names that are also role verbs. A line-level match
+// contains `verify` and `count-claims` — names that are also role verbs. A line-level match
 // credits every seat with those before it acts, and flatters exactly the arms that open help
 // LEAST, which is the direction the whole experiment is testing. A block counts only when every
 // name in it belongs to this role.

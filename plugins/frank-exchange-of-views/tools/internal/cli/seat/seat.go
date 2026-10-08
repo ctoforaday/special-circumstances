@@ -38,15 +38,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
-// FrictionFooter closes the loop the help opens. A seat that needs something the
-// contract does not offer must not improvise around it — the gap in the tooling
-// is itself a finding, and `log` is the channel that carries it to the human
-// who can retool the seat.
-const FrictionFooter = `
+// LogFooter closes the loop the help opens. A seat that needs something the
+// contract does not offer must not improvise around it — the missing capability
+// is itself a fact for the log, and `log` carries it to the operator who can
+// retool the seat.
+const LogFooter = `
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.`
+capability is a fact about the tooling, and the log is how it reaches the operator
+who can retool you.`
 
 // RoleKey carries the seat's ROLE on the root command.
 //
@@ -594,7 +595,7 @@ func markTree(c *cobra.Command) {
 // Exported because the gates that check the CLI against the record's tables have to spell a verb
 // the same way the record does, and a verb name stopped being that spelling twice over: when the
 // two-contract verbs were split (two verbs, one event type), and at the root, where the operator
-// commands `verify` and `friction` share a word with seat verbs and write nothing at all. Only a
+// command `verify` shares a word with a seat verb and writes nothing at all. Only a
 // command built by New carries the annotation, so the empty string is a fact, not a miss.
 func RecordType(c *cobra.Command) string { return c.Annotations[recordsKey] }
 
@@ -920,7 +921,7 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 	c := &cobra.Command{
 		Use:          name,
 		Short:        d.menu,
-		Long:         d.menu + "\n\n" + d.detail + "\n" + FrictionFooter,
+		Long:         d.menu + "\n\n" + d.detail + "\n" + LogFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Annotations:  map[string]string{recordsKey: name},
@@ -936,8 +937,8 @@ func NewKeyed(name, key string, run Handler) *cobra.Command {
 	// The universal --comment field is GONE too (2026-07-20). It was the pressure valve for
 	// "what this verb has no field for", but a comment was never surfaced in any report, so
 	// prose put there was lost to the reader — a junk drawer that taught seats to record
-	// substance where nothing could read it. A missing field is now a friction entry (a
-	// finding about the tooling) rather than text dropped into an unqueryable channel.
+	// substance where nothing could read it. A missing field is now a log entry, filed as a
+	// request, rather than text dropped into an unqueryable channel.
 
 	return c
 }

@@ -409,14 +409,14 @@ func TestASeatWithNoVerbIsAnError(t *testing.T) {
 	}
 }
 
-// The friction footer closes the loop the help opens: a missing capability is a
-// finding about the tooling, not something to improvise around.
-func TestRoleHelpCarriesTheFrictionFooter(t *testing.T) {
+// The log footer closes the loop the help opens: a missing capability is a
+// fact about the tooling, not something to improvise around.
+func TestRoleHelpCarriesTheLogFooter(t *testing.T) {
 	for _, role := range []string{"lens", "chair", "blue", "bench"} {
 		t.Run(role, func(t *testing.T) {
 			out := help(t, "--help", "--seat-id", record.SampleSeatOf(role))
 			if !strings.Contains(out, "it does not exist for you") {
-				t.Errorf("%s help lacks the friction footer:\n%s", role, out)
+				t.Errorf("%s help lacks the log footer:\n%s", role, out)
 			}
 			if !strings.Contains(out, "with 'log', as a request") {
 				t.Errorf("%s help does not name the log as where a request goes:\n%s", role, out)
@@ -1308,7 +1308,7 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	}
 }
 
-// The shared verbs are ONE contract wherever they appear: a friction entry from a
+// The shared verbs are ONE contract wherever they appear: a log entry from a
 // lens and one from the bench are the same event with the same payload.
 func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 	cases := []struct{ role, seatID string }{

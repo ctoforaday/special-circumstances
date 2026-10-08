@@ -273,7 +273,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 
 	if len(b.Claims) > 0 {
 		// A REACHABLE url, because `cite` FETCHES and caches. An unreachable one is refused and
-		// logged as friction, which is correct behaviour and useless here.
+		// logged as a defect, which is correct behaviour and useless here.
 		//
 		// SO THE BOARD SERVES ITS OWN SOURCE. This was https://example.com/, which made every
 		// probe run — and the CI gate that builds these boards — depend on a third party being
