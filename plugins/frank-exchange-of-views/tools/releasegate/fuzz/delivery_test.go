@@ -47,14 +47,14 @@ var deliveryExpectations = map[string]string{
 	"judge.holdings":                "the envelope's own comment says a holding reaches other seats ONLY if it travels here, because debate.js reads no record (#503)",
 	"judge.dispositions.settled":    "the barred proposition — red's estoppel line is built from it (#517) and blue's duty is statable only through it (#524)",
 	"judge.dispositions.reopens_on": "the other assertable answer to what would reopen a ruling; a seat that cannot see it cannot honour or contest the bar",
-	"red.friction":                  "friction is a seat's report of what the tooling cost it; it must reach assembly or the run cannot say what got in the way",
-	"blue.friction":                 "as above, from the other party",
 }
 
 // deliveryNotForwarded are marked fields that legitimately reach no prompt, each with its
 // reason. Being on this list is a DECISION — it says somebody looked — which is the whole
 // difference between a reasoned absence and an unnoticed one.
 var deliveryNotForwarded = map[string]string{
+	"red.log":                      "deliberate — a seat's log entries are on the record and no envelope schema declares `log`; a seat that returns one anyway is read by nobody, and a prompt carrying it is the envelope channel back (#1267)",
+	"blue.log":                     "as above, from the other party",
 	"judge.dispositions.rationale": "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
 	"red.notes":                    "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
 }
@@ -73,8 +73,8 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	reopens := mark("judge.dispositions.reopens_on")
 	rationale := mark("judge.dispositions.rationale")
 	redNotes := mark("red.notes")
-	redFriction := mark("red.friction")
-	blueFriction := mark("blue.friction")
+	redLog := mark("red.log")
+	blueLog := mark("blue.log")
 
 	gaps := []any{
 		map[string]any{"id": "G1", "severity": "major", "likelihood": "medium", "impact": "medium", "complexity_cost": "low", "supersedes": []any{}},
@@ -83,7 +83,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "delivery graph", "verdict": "FAIL", "citations_checked": 0,
-			"gaps": []any{}, "log": []any{}, "rulings": []any{},
+			"gaps": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"dispositions": []any{}, "grade_motions": []any{}, "holdings": []any{},
 			"manifest": []any{"G1", "G2"}, "claim_count": 3,
@@ -94,9 +94,9 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			relayScriptedPlan(e, label, benchThenBlue)
 			e["gaps"] = gaps
 			e["notes"] = redNotes
-			e["log"] = []any{redFriction}
+			e["log"] = []any{redLog}
 		case strings.HasPrefix(seatID, "blue-respond"):
-			e["log"] = []any{blueFriction}
+			e["log"] = []any{blueLog}
 		case strings.HasPrefix(seatID, "judge"):
 			e["holdings"] = []any{holding}
 			e["dispositions"] = []any{map[string]any{

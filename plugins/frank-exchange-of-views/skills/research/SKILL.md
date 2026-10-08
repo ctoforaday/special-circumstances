@@ -37,14 +37,14 @@ is two script invocations.
 5. **Capture the run record** (mechanics — journal copy, transcript tarball, cost.md with the
    telemetry join, the mechanized post-hoc audits, and `.run-live` marker removal):
    `<path to the feov-record executable> capture <run directory> <transcript dir> --seat-id operator`
-   There is no `--bin`: the three record-backed audits (telemetry, record-parity,
-   log-parity) read the record IN-PROCESS, because `capture` IS the record binary. There is
+   There is no `--bin`: the record-backed audits (telemetry, record-parity) read the
+   record IN-PROCESS, because `capture` IS the record binary. There is
    no Go analogue and passing it is an error.
    Relay `run-record-audit.md`'s verdict lines verbatim. A FAIL there is a run-record integrity
-   finding (missing telemetry line, shard self-report diverging from disk, envelope log entries
-   that never reached the record) — report it like an UNVERIFIED: plainly, never smoothed over.
-   Your judgment half: read the envelope's log entries against the log record (`show
-   log`) and dedupe attributed near-duplicates the parity check can't (same
-   complaint, different wording).
+   finding (missing telemetry line, shard self-report diverging from disk) — report it like an
+   UNVERIFIED: plainly, never smoothed over.
+   Your judgment half: read the log record (`show log`) and dedupe attributed
+   near-duplicates (same complaint, different wording). The seats' log entries are on the
+   record alone — no envelope carries one and no audit reconciles a second copy.
 
 **Monitoring a live run** (start this as a BACKGROUND task right after the Workflow launches — the watcher keys its lifetime to the .run-live marker and exits on its own when run-capture lifts it): `<path to the feov-record executable> dashboard <run directory> <transcript dir> --watch --seat-id operator` writes `<run directory>/dashboard.html` (auto-refreshing) — board mass trend, open gaps by severity, live seats, cost-so-far, run-directory growth. The dashboard IS the record tool, so it reads the record in-process (no `--bin`); before the first seat registers, the record tiles read "unavailable". The Workflow panel shows the phase; the dashboard shows the debate.

@@ -138,9 +138,6 @@ func summarizeResult(raw any) string {
 		}
 		bits = append(bits, itoa(len(r))+" ruling"+plural)
 	}
-	if fr, ok := j["log"].([]any); ok && len(fr) > 0 {
-		bits = append(bits, itoa(len(fr))+" friction")
-	}
 	if len(bits) == 0 {
 		return sliceStr(s, 110)
 	}
@@ -341,7 +338,7 @@ func RenderHTML(m Model) string {
 		verdict = "—"
 	}
 	tile(esc(verdict), verdictLabel)
-	tile(frictionCount(m.Friction), "friction entries")
+	tile(logTileCount(m.Log), "log entries")
 	if etaRunning {
 		tile(fmt.Sprintf("%d–%dm", m.Eta.LowMin, m.Eta.HighMin), "projected remaining")
 	}
@@ -432,17 +429,17 @@ func RenderHTML(m Model) string {
 		w(`<p class="muted">no judge sittings, grade motions or gaps on the record yet</p>`)
 	}
 
-	// Friction.
-	w("\n<h2>Friction — logged pain points</h2>\n")
+	// The log, off the record: every entry of every type.
+	w("\n<h2>Log</h2>\n")
 	switch {
-	case m.Friction.Count < 0:
+	case m.Log.Count < 0:
 		w(`<p class="muted">unavailable — the record does not exist yet</p>`)
-	case m.Friction.Count > 0:
-		plural := "s"
-		if m.Friction.Count == 1 {
-			plural = ""
+	case m.Log.Count > 0:
+		noun := "entries"
+		if m.Log.Count == 1 {
+			noun = "entry"
 		}
-		w(fmt.Sprintf(`<p>%d friction event%s on the record · latest: <span class="muted">%s</span></p>`, m.Friction.Count, plural, esc(sliceStr(m.Friction.Last, 160))))
+		w(fmt.Sprintf(`<p>%d log %s on the record · latest: <span class="muted">%s</span></p>`, m.Log.Count, noun, esc(sliceStr(m.Log.Last, 160))))
 	default:
 		w(`<p class="muted">none on the record</p>`)
 	}
@@ -623,7 +620,7 @@ func intUnavail(n int) string {
 	return itoa(n)
 }
 
-func frictionCount(f Friction) string {
+func logTileCount(f LogTile) string {
 	if f.Count < 0 {
 		return "—"
 	}

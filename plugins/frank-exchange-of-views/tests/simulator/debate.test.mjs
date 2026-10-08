@@ -63,7 +63,7 @@ test('null chair, blue synthesis, blue response and bench abort cleanly, each na
 })
 
 test('a chair envelope without a plan aborts: the plan is the verb\'s JSON, relayed verbatim', async () => {
-  const world = makeWorld(makeResponder({ chair: [{ log: [] }] }))
+  const world = makeWorld(makeResponder({ chair: [{}] }))
   await assert.rejects(world.run(script, ARGS), /relayed no plan/)
 })
 
@@ -577,7 +577,8 @@ test('every seat prompt carries the log clause, the speed clause and the record 
   for (const seat of ['blue-synthesize', 'red-chair', 'red-lens-evidence', 'blue-respond', 'judge #', 'judge · terminal', 'judge · assemble']) {
     const c = labelsOf(world, seat)[0]
     assert.ok(c, `${seat} sat`)
-    assert.ok(c.prompt.includes("envelope's log field") && /AUDIENCE IS THE OPERATOR/.test(c.prompt) && /LOG \([^)]*\), on the record/.test(c.prompt) && /what you expected and why/.test(c.prompt) && /disputes with another seat's gap are findings/.test(c.prompt), `${seat} lost the operator channel`)
+    assert.ok(!/envelope's log/.test(c.prompt) && !/says so in the envelope/.test(c.prompt), `${seat} is told to log in its envelope — the record is the one channel`)
+    assert.ok(/AUDIENCE IS THE OPERATOR/.test(c.prompt) && /LOG \([^)]*\), on the record/.test(c.prompt) && /what you expected and why/.test(c.prompt) && /disputes with another seat's gap are findings/.test(c.prompt), `${seat} lost the operator channel`)
     // THE RETIRED SHAPES, in both directions. The first four told a seat the log was owed whatever
     // happened, and seats padded it; the last two narrowed it to what BLOCKED a seat, and on
     // universe-m13 every seat classed its refusals and guesses as its own mistakes and filed nothing.
@@ -688,21 +689,26 @@ test('integrity inspection arms only with transcriptDir, on the bench, and binds
   assert.ok(!unarmed.calls.some((c) => /INTEGRITY INSPECTION/.test(c.prompt)))
 })
 
-test('the sitting record (W1.7): blue is re-prompted once, continues with friction, and a recovered attestation logs none', async () => {
+test('the sitting record (W1.7): blue is re-prompted once, continues named in sitting_record_unresolved, and a recovered attestation names none', async () => {
   const chair = [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()]
   const unresolved = makeWorld(makeResponder({ chair, blueRespond: [blueEnv({ sitting_record_appended: false })] }))
   const out = await unresolved.run(script, ARGS)
   assert.ok(unresolved.calls.some((c) => c.opts.label.startsWith('blue-respond-sitting-record')), 'the seat was re-prompted for its sitting record')
-  assert.ok(out.friction.some((f) => /attestation UNRESOLVED/.test(f)))
+  assert.ok(out.sitting_record_unresolved.some((f) => /^blue-respond: attestation UNRESOLVED/.test(f)))
+  assert.ok(!('friction' in out), 'the workflow returns its notes under one name')
+  // THE LIST REACHES ASSEMBLY UNDER ITS NAME, WITH ITS CONTENT. The prompt golden pins the clause;
+  // only this pins that the list handed over is the one the engine filled.
+  assert.match(firstPrompt(unresolved, 'judge · assemble'), /sitting_record_unresolved[^\[]*\["blue-respond: attestation UNRESOLVED/)
   const synth = makeWorld(makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] }))
   const out2 = await synth.run(script, ARGS)
-  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.friction.some((f) => /attestation UNRESOLVED/.test(f)))
+  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.sitting_record_unresolved.some((f) => /^blue-synthesize: attestation UNRESOLVED/.test(f)))
   const recovered = makeWorld((p, o) => {
     if (o.label.startsWith('blue-synthesize-sitting-record')) return { sitting_record_appended: true }
     return makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] })(p, o)
   })
   const out3 = await recovered.run(script, ARGS)
-  assert.ok(!out3.friction.some((f) => /attestation UNRESOLVED/.test(f)), 'a recovered attestation logs no friction')
+  assert.deepEqual(out3.sitting_record_unresolved, [], 'a recovered attestation is named nowhere')
+  assert.match(firstPrompt(recovered, 'judge · assemble'), /sitting_record_unresolved[^\[]*\[\]/)
 })
 
 // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged
@@ -732,15 +738,22 @@ test('W2b: partial coverage is logged, never fatal; a found_closed id blue was n
   assert.ok(!partial.logs.some((l) => l.includes('G9')), 'a claimed closure outside the engagement excuses nothing')
 })
 
-test('the log aggregates from every seat with attribution, and assembly receives it', async () => {
+test('a log a seat returns in its envelope reaches nothing: not the workflow return, not assembly', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]), log: ['no PDF extraction'] }), passChair()],
     blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],
     blueSynth: [blueEnv({ log: ['write-block on blue/report.md'] })],
   }))
   const out = await world.run(script, ARGS)
-  assert.ok(out.friction.includes('red-chair: no PDF extraction') && out.friction.includes('blue-respond: rate-limited on WebFetch') && out.friction.includes('blue-synthesize: write-block on blue/report.md'))
-  assert.ok(firstPrompt(world, 'judge · assemble').includes('no PDF extraction'))
+  // THE NEGATIVE CONTROL. A seat's log entries are on the record; an envelope copy is read by
+  // nobody, so three seats returning one leave no trace in what the engine returns or hands on.
+  const returned = JSON.stringify(out)
+  const handed = world.calls.map((c) => c.prompt).join('\n')
+  for (const text of ['no PDF extraction', 'rate-limited on WebFetch', 'write-block on blue/report.md']) {
+    assert.ok(!returned.includes(text), `the workflow returned a seat's envelope log: ${text}`)
+    assert.ok(!handed.includes(text), `a prompt carries a seat's envelope log: ${text}`)
+  }
+  assert.deepEqual(out.sitting_record_unresolved, [])
 })
 
 test('per-role models: bulk seats get `model`, judgment seats get `judgmentModel`; unset either throws; binDir is required', async () => {

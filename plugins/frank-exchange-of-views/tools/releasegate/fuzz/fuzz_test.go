@@ -639,7 +639,7 @@ func (r *runner) filePetition(seatID string) {
 // halt-path test; the random path rules granted/denied and the run continues.
 func (r *runner) rulePetitions(seatID string) map[string]any {
 	rulings := r.rulePending(seatID, "petition")
-	env := map[string]any{"rulings": rulings, "log": arr()}
+	env := map[string]any{"rulings": rulings}
 	if r.forceHalt {
 		// `bench halt` writes the record; the envelope's halt object is only what stops the
 		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
@@ -805,7 +805,7 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 	// the sitting off the relayed plan — capture holds the last one to the record there. Asked
 	// again with nothing changed, the verb records nothing new.
 	r.planThisSitting = r.dispatchNext(seatID)
-	e := map[string]any{"plan": r.planThisSitting, "log": arr()}
+	e := map[string]any{"plan": r.planThisSitting}
 	if verdict != "" {
 		e["verdict"] = verdict
 	}
@@ -1980,7 +1980,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("blue", seatID)
 		r.extras("blue", seatID, nil)
 		r.maybePetition(seatID)
-		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "log": arr()}
+		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10}
 
 	case strings.HasPrefix(seatID, "red-chair"):
 		r.sit("chair", seatID)
@@ -2100,7 +2100,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// that repairs a sitting — is driven. Its revision is filed only some of the time (extras), so
 		// the repair is admitted where the sitting owes one and refused where it owes nothing.
 		r.maybePetition(seatID)
-		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes, "log": arr()}
+		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes}
 
 	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, so `seatID` no longer discriminates its sittings:
 	// every bench prompt renders `SEAT_ID: judge`. Routing on the id sent the petition sitting and
@@ -2124,7 +2124,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// is not re-readied, and the terminal sitting — convened by the plan's bench-owned
 		// blocker — is what rules it.
 		if r.forceUnverified {
-			return map[string]any{"rulings": arr(), "log": arr()}
+			return map[string]any{"rulings": arr()}
 		}
 		return r.rulePetitions(seatID) // rule every pending petition (petition-rule events + envelope rulings)
 
@@ -2168,7 +2168,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			res = append(res, row)
 		}
-		return map[string]any{"dispositions": res, "log": arr()}
+		return map[string]any{"dispositions": res}
 
 	case debatejs.OccasionOf(prompt) == "assemble":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
@@ -2207,7 +2207,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// every fuzzed run failed on the missing assembly.
 		_, _ = r.exec("assemble", "--seat-id", "judge")
 		open := len(r.openGaps())
-		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "log": arr()}
+		return map[string]any{"synopsis": "fuzz", "open_gaps": open}
 
 	case strings.HasPrefix(seatID, "red-lens"):
 		// A LENS FINDS AND MINTS; THE ORIGINATOR CLOSES (plans/roundless.md §III.B.3). The plan
@@ -2410,7 +2410,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		} else {
 			r.maybePetition(seatID)
 		}
-		return map[string]any{"synopsis": "fuzz", "log": arr(), "rulings": arr()}
+		return map[string]any{"synopsis": "fuzz", "rulings": arr()}
 	}
 }
 

@@ -48,7 +48,7 @@ func baseModel(t *testing.T, runDir string) Model {
 	return Model{
 		Run: runtest.Open(t, runDir), Telemetry: tel, Latest: tel[len(tel)-1],
 		Cost: 12.34, APIRounds: 20, Agents: 5,
-		Friction:   Friction{Count: 2, Last: "red-chair: needed a PDF extractor"},
+		Log:        LogTile{Count: 2, Last: "red-chair: needed a PDF extractor"},
 		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Findings: 9, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
 		BlueClaims: ip(15),
 		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"epoch 1", "todo"}, {"assembly", "todo"}},
@@ -77,7 +77,7 @@ func fixtureRunDir(t *testing.T) string {
 // TERMINAL fixture: report.md present → verdict-terminal, no live ETA; a superseded live seat
 // (label matches a done one) and a never-finished one drive both terminal-label branches. The
 // golden pins the WHOLE page (title, the 11 tiles, mass SVG, open/close rates, red's board,
-// judiciary, friction, both seat-label branches, the record-sourced scorecard section, recent
+// judiciary, the log, both seat-label branches, the record-sourced scorecard section, recent
 // completions) — the .golden file is the review surface. The one invariant kept explicit is
 // negative: a complete run must NOT show the projected-remaining tile, and a golden regen must
 // not silently accept its return.
@@ -126,8 +126,8 @@ func TestRenderHTMLLive(t *testing.T) {
 
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{`{"verdict":"FAIL","claim_count":15,"dispositions":[1],"log":["x"]}`,
-			"verdict FAIL · 15 claims · 1 ruling · 1 friction"},
+		{`{"verdict":"FAIL","claim_count":15,"dispositions":[1]}`,
+			"verdict FAIL · 15 claims · 1 ruling"},
 		{`{"dispositions":[1,2]}`, "2 rulings"},
 		{`not json`, "not json"},
 		{`{}`, "{}"},
@@ -181,8 +181,8 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	if m.Shards.LedgerExists {
 		t.Error("no record → shards unavailable")
 	}
-	if m.Friction.Count != -1 {
-		t.Errorf("no record → friction unavailable (-1), got %d", m.Friction.Count)
+	if m.Log.Count != -1 {
+		t.Errorf("no record → the log tile unavailable (-1), got %d", m.Log.Count)
 	}
 	if m.Generated != "2025-01-16T04:00:00.000Z" {
 		t.Errorf("generated should reflect injected --now, got %q", m.Generated)

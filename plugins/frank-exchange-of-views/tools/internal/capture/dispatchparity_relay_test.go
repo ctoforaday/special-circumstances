@@ -104,8 +104,7 @@ func journalOf(t *testing.T, results ...map[string]any) []map[string]any {
 	if err := os.WriteFile(filepath.Join(dir, "journal.jsonl"), []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got, _ := ReadJournal(dir)
-	return got
+	return ReadJournal(dir)
 }
 
 // The fixture's two chair sittings: the lenses on nothing, then blue on G1, every row at head 2.
@@ -183,7 +182,7 @@ func TestRelayComparedAgainstLastRowOfDuplicatedGroup(t *testing.T) {
 // sitting's empty plan — pair with nothing.
 func TestFaithfulRelayFieldsPass(t *testing.T) {
 	run := relayRecord(t, lensesRows, blueRows)
-	lens := map[string]any{"findings": []any{}, "log": []any{}}
+	lens := map[string]any{"findings": []any{}}
 	js := journalOf(t, chairResult(2, lensesRows...), lens, chairResult(2, blueRows...), chairResult(2))
 	a := DispatchParityAudit(run, js, true)
 	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) matched their dispatch rows on parties, gap_ids, occasions and head") {
