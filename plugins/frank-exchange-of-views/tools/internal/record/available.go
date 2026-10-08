@@ -154,15 +154,12 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 	case "lens":
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
 		//
-		// ON THE ORIGINATOR'S LIST, because the regrade is the originator's act and nobody else's:
-		// requireOriginator refuses it from any other seat. This line sat on the chair's list,
-		// which offered the chair an act its own write path refuses and left the one seat that
-		// could perform it with nothing on its list at all.
+		// ON THE ORIGINATOR'S LIST, AND ONLY WHERE THE WRITE PATH ADMITS THE REGRADE: requireOriginator
+		// refuses it from any other seat, requireOpenGap refuses it on a closed gap, and
+		// insertNumbered refuses a second regrade of one gap in one sitting. regradesAfforded holds
+		// all three, so no line here offers a seat an act its own write path refuses.
 		minted := mintedBy(evs)
-		for _, id := range gapsWithAcceptedMotionAndNoRegrade(evs, win) {
-			if minted[id] != seatID {
-				continue
-			}
+		for _, id := range regradesAfforded(evs, win, gaps, minted, seatID) {
 			add("gap " + id + " had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
 		for _, key := range citedClaimsWithoutVerify(evs) {
@@ -291,48 +288,67 @@ func anyClosedGap(gaps []WorkGapState) bool {
 	return false
 }
 
-// gapsWithAcceptedMotionAndNoRegrade finds grades argued down and never actually moved.
+// regradesAfforded is each gap whose accepted grade motion still waits for its regrade, and whose
+// regrade record.Append admits from seatID now.
 //
-// THE RULING AND THE GAP ARE ON TWO DIFFERENT EVENTS, AND THIS FUNCTION USED TO READ BOTH OFF ONE.
-// It is the same defect citedClaimsWithoutVerify documents below — a join key that is not on the
-// event — and it had never fired once, on any vocabulary, in this function's entire lifetime.
+// THE DEBT IS THE REGRADE AFTER THE RULING. An accepted grade motion asks the minting lens to move
+// the grade, and a regrade recorded before the ruling answers nothing the ruling said. Any regrade
+// of the gap after the ruling discharges it, whichever way it moves the grade: the item does not
+// block, and a lens that regrades and keeps the grade has answered the ruling on the record, in
+// its basis.
 //
-// What it read, against what a `motion-rule` event has ever carried:
+// IT IS LISTED ONLY WHERE THE WRITE PATH ADMITS IT. Append is validate, then insertNumbered, and
+// each refusal a regrade can meet on that path has its filter here:
 //
-//   - `as` and `verdict` for the ruling. The sole writer (cli/motion/verbs.go) has written the key
-//     `ruling` since the commit that introduced THIS FILE (487efa2, 2026-08-15) — `as` is the
-//     FLAG word, `--as`, which is a different vocabulary from the payload it lands in. Neither
-//     `as` nor `verdict` was ever a pre-collapse spelling of a ruling either: the retired
-//     grade exchange was `dispute`/`dispute-respond` keyed `response`. So both arms of that
-//     condition matched nothing, always.
-//   - `gap_id` for the identity. A ruling names the MOTION (`motion_id`); the gap is on the
-//     FILING, where `motion grade file --id` lands it (cli/motion/verbs.go payloadKey). No
-//     motion-rule event has ever carried a gap_id, so even a corrected ruling check would have
-//     produced an empty id and skipped.
+//   - requireOriginator (the gap is another seat's)    → minted[gap] == seatID
+//   - requireGap (no such gap)                         → the gap is a row of gaps
+//   - requireOpenGap (the gap is CLOSED)               → that row's Open
+//   - insertNumbered's duplicate key (the seat's       → the seat's current sitting holds no
+//     current sitting already holds a regrade of it)     regrade of the gap
 //
-// The affordance is wanted — MotionVerdicts["grade"] tells the ruler "accepting without regrading
-// is a channel with no consequence", and this is the only thing that checks it — so the answer is
-// the join the record actually supports, not deletion. MotionRule carries no `gap_id` field and no
-// `as` field, so the schema now refuses the old shape outright.
+// The once-per-sitting duty does not reach a regrade (it is no singleton), and the required-field
+// walk refuses the seat's own input, never a state of the gap.
+// TestARegradeOnTheListIsOneTheWritePathAdmits holds the list to Append itself, row by row.
 //
-// THE JOIN IS Motions(), NOT A SECOND COPY OF IT. Filing and ruling live in different shards and
-// replay interleaves, so a ruling can arrive before the motion it answers; motion.go carries the
-// two-pass projection that survives that, and its header records shipping the single-pass bug
-// once already. A private join here would re-earn it.
-func gapsWithAcceptedMotionAndNoRegrade(evs []*Event, win WindowIndex) []string {
-	regraded := map[string]bool{}
-	for i := range evs {
-		body, ok := recordpb.Body(evs[i])
-		if !ok {
-			continue
-		}
-		// The `id` fallback that sat beside this is gone for the same reason as the manifest
-		// one: `merge regrade --id` writes `gap_id` (cli/merge/regrade.go:23) and Regrade
-		// carries no other identifier, so the second arm never matched.
-		if r, isRegrade := body.(*recordpb.Regrade); isRegrade {
-			if id := r.GetGapId(); id != "" {
-				regraded[id] = true
+// THE SAME-SITTING HOLD IS EXACT. A regrade's key carries the count of its seat's sittings
+// (deriveKey) and its stored sitting is the seat's newest at the write; both read the `sittings`
+// view. So an earlier regrade's key is the one a regrade now would derive exactly when its stored
+// sitting is still the seat's latest. The correction the duplicate-key refusal points to cannot
+// stand in: the ruling is another seat's act after the regrade, and a correction is refused once
+// another seat has acted. The item appears at the seat's next sitting, which is the first that can
+// record the regrade. A struck regrade and its replacement are one gap in one sitting, so reading
+// the raw stream gives the same answer for both.
+//
+// POSITIONS IN evs ARE SOUND UNDER CORRECTIONS. evs is one read of the whole record in id order.
+// A ruling or a regrade is corrected only before another seat acts, and the ruler and the minter
+// are different seats, so no regrade falls between a ruling and its replacement and no pre-ruling
+// regrade is corrected after the ruling. A motion's ruling is placed at its LAST motion-rule event,
+// the one MotionsOf reads as standing. The reader is the work list's whole-record snapshot
+// (WorkOfSeat), so win knows every seat's latest sitting.
+//
+// THE JOIN IS MotionsOf, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
+// RULING, and motion.go's projection is the one that pairs them and reads a corrected ruling as
+// its replacement.
+func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []string {
+	latest := win.LatestSittingOf(seatID)
+	lastRegrade := map[string]int{}      // gap → position of its last regrade, by any seat
+	heldThisSitting := map[string]bool{} // gap → the seat's current sitting holds a regrade of it
+	lastRuling := map[string]int{}       // motion → position of its last ruling
+	for i, e := range evs {
+		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" {
+			lastRegrade[r.GetGapId()] = i
+			if e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
+				heldThisSitting[r.GetGapId()] = true
 			}
+		}
+		if mr := e.GetMotionRule(); mr != nil {
+			lastRuling[mr.GetMotionId()] = i
+		}
+	}
+	open := map[string]bool{}
+	for _, g := range gaps {
+		if g.Open {
+			open[g.ID] = true
 		}
 	}
 	var out []string
@@ -341,8 +357,12 @@ func gapsWithAcceptedMotionAndNoRegrade(evs []*Event, win WindowIndex) []string 
 		if m.Subject != "grade" || m.Ruling != "accepted" {
 			continue
 		}
-		id := m.Fields["gap_id"]
-		if id == "" || regraded[id] || seen[id] {
+		id := m.GapID
+		if id == "" || seen[id] || minted[id] != seatID || !open[id] || heldThisSitting[id] {
+			continue
+		}
+		ruled, isRuled := lastRuling[m.ID]
+		if at, regraded := lastRegrade[id]; !isRuled || (regraded && at > ruled) {
 			continue
 		}
 		seen[id] = true

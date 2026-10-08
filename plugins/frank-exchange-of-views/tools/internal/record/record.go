@@ -694,6 +694,11 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 		// learned that only one survived. Refusing is the better answer and it has to say what was
 		// refused. A SINGLETON NEVER ARRIVES HERE: equal keys mean equal turn counts, so no
 		// register at all stands between the two acts and the duty above has already refused it.
+		//
+		// regradesAfforded (available.go) holds back a regrade this branch would refuse (the seat's
+		// current sitting already holds one on that gap); a change to the label key's sitting scope
+		// (deriveKey) changes what it must hold back, and the current-sitting row of
+		// TestARegradeOnTheListIsOneTheWritePathAdmits is the one that notices.
 		if isDuplicateKey(err) {
 			// THE TAIL DEPENDS ON THE TIER. A correctable act gets the key of the act that stands
 			// and the invocation that corrects it — the act that "supersedes" a manifest row or a
@@ -1105,6 +1110,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
 	case *recordpb.Regrade:
+		// regradesAfforded (available.go) lists a regrade only where these three admit it and
+		// insertNumbered's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
+		// the two together through Append, and a precondition added here needs a row there.
 		if err := requireOriginator(run, b.GetGapId(), seatID, "regrade"); err != nil {
 			return err
 		}
