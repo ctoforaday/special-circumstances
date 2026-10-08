@@ -409,8 +409,7 @@ func openUncached(path string) (*sql.DB, error) {
 	// A DATABASE THIS BINARY DID NOT CREATE is held to this binary's columns before anything reads
 	// it. Its tables and views are the creating binary's (ensureSchema applies once), so a view
 	// read naming a column added since fails with SQLite's "no such column", which names neither
-	// the cause nor the way out. Refused here by CONTENT — what the database lacks — never by a
-	// recorded version.
+	// the cause nor the way out. Refused here by what the database lacks, and by the epoch it states.
 	if !created {
 		if err := requireDeclaredSchema(db); err != nil {
 			db.Close()
