@@ -3,8 +3,10 @@ package reportproj
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 )
@@ -58,8 +60,19 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 //
 // A trimmed result that still doubles a terminator is RETURNED, not refused: that judgement is the
 // caller's (blue refuses it; mint does not ask). Only a no-op is an error here, because a no-op is
-// wrong for every caller.
+// wrong for every caller — and an anchor the splice puts on a heading, which no placement may do.
 func PlanSplice(verb, report, old, new string) (next, applied string, exact bool, err error) {
+	// An anchor on a heading in next that was on none in report is one this splice carried into a
+	// heading or made a heading around. One already on a heading, an archived carry, is not this
+	// edit's doing and refuses nothing, its heading rewritten or not.
+	defer func() {
+		was := headingAnchors(report)
+		for _, id := range headingAnchors(next) {
+			if err == nil && !slices.Contains(was, id) {
+				next, applied, exact, err = "", "", false, fmt.Errorf("%s: this edit puts %s on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it", verb, anchor.Token(id))
+			}
+		}
+	}()
 	start, end, err := bluedoc.LocateUniqueReplacing(verb, report, old)
 	if err != nil {
 		return "", "", false, err
@@ -84,6 +97,16 @@ func PlanSplice(verb, report, old, new string) (next, applied string, exact bool
 		return "", "", false, &NoChangeError{Verb: verb, TrailingOnly: stripTail(old) == stripTail(new)}
 	}
 	return next, applied, false, nil
+}
+
+// headingAnchors is every anchor id on a heading line of s.
+func headingAnchors(s string) (ids []string) {
+	for _, b := range anchor.Blocks(s) {
+		if b.Kind == anchor.Heading {
+			ids = append(ids, anchor.IDs(s[b.Start:b.End])...)
+		}
+	}
+	return ids
 }
 
 // endsInTrimmedPunct says whether the ordinary locate dropped punctuation off the end of this quote —

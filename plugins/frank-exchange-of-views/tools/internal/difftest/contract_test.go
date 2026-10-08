@@ -190,6 +190,9 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 			"--quote", "Prices climbed<!--fx:f-0000beef-->", "--new", "Prices soared", "--reason", "r"}},
 		{"an edit leaving out an anchor whose sentence it repeats", []string{"edit", "--seat-id", "blue-respond",
 			"--quote", "Prices climbed<!--fx:f-0000beef-->", "--new", "Prices climbed. Prices climbed", "--reason", "r"}},
+		// An edit carries an anchor across, never onto a heading.
+		{"an edit carrying an anchor onto a heading", []string{"edit", "--seat-id", "blue-respond",
+			"--quote", "Prices climbed<!--fx:f-0000beef-->", "--new", "## Prices climbed<!--fx:f-0000beef-->", "--reason", "r"}},
 
 		// SAME-SITTING CORRECTION (plans/same-sitting-correction.md). Rows marked "target" record the
 		// act the refusals after them name; every other row refuses for the reason its name gives, in

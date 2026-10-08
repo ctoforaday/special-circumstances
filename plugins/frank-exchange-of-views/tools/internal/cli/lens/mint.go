@@ -168,9 +168,12 @@ func newMint() *cobra.Command {
 			// and still be a no-op once located — a repair confined to trailing punctuation the quote
 			// could not reach. Asked through the SAME planner `blue edit` records with, so a prescription
 			// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
-			// owns the splice and already imports bluedoc.
+			// owns the splice and already imports bluedoc. Past ValidateProposal, its one other refusal
+			// is an anchor the fix puts on a heading, which stands as it is.
 			if _, _, _, err := reportproj.PlanSplice("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
 				return nil, fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
+			} else if err != nil {
+				return nil, err
 			}
 			p.FixNew = proto.String(fixNew)
 			basis = "verified"

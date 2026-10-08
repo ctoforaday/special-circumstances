@@ -1818,6 +1818,10 @@ feov-record: blue: blue edit: your old span carries finding anchor FINDING001 (t
 exit 2
 feov-record: blue: blue edit: your old span carries finding anchor FINDING001 (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING001--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
 
+── an edit carrying an anchor onto a heading
+exit 2
+feov-record: blue: blue edit: this edit puts <!--fx:FINDING001--> on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it
+
 ── correction target: the lens regrades G1
 exit 0
 regraded G1 [key red-lens-evidence:regrade:#1:G1]
@@ -1833,7 +1837,7 @@ feov-record: lens: --correction-why says what was wrong with the act --corrects 
 
 ── correction that changes nothing
 exit 2
-feov-record: lens: record: this correction changes nothing — the replacement equals event 29; correct it with the text you meant
+feov-record: lens: record: this correction changes nothing — the replacement equals event 30; correct it with the text you meant
 
 ── correction of another seat's act
 exit 2
@@ -1955,7 +1959,7 @@ TWO CONSEQUENCES:
 
 ── correction after another seat has acted
 exit 2
-feov-record: lens: record: another seat has acted since this regrade (event 36, a register by red-chair); what you would correct is now on the record they read — say it in a new act
+feov-record: lens: record: another seat has acted since this regrade (event 37, a register by red-chair); what you would correct is now on the record they read — say it in a new act
 
 ── frozen field target: the lens closes G1
 exit 0
@@ -1964,7 +1968,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a PROSE correction moving a frozen field
 exit 2
-feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 38 recorded it. What the act decided is not restated by a correction — say it in a new act
+feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 39 recorded it. What the act decided is not restated by a correction — say it in a new act
 
 ── earlier sitting target: the lens sits again
 exit 0

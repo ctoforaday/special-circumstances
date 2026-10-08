@@ -193,6 +193,60 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 	}
 }
 
+// NO EDIT PUTS AN ANCHOR ON A HEADING. An edit or a prescription that carries an anchor into a
+// heading line, or makes a heading of the line an anchor stands on, is refused and records nothing;
+// an anchor already on a heading — an archived carry — refuses no edit, its own heading's included.
+func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
+	const report = "# Title\n\n## Method<!--fx:f-0000aaaa-->\n\nThe sieve runs once<!--fx:f-0000bbbb-->.\n"
+	for _, c := range []struct{ name, quote, new string }{
+		{"carried into a heading", "The sieve runs once<!--fx:f-0000bbbb-->", "## The sieve runs once<!--fx:f-0000bbbb-->"},
+		{"made a heading around it", "The sieve", "## The sieve"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir := newRun(t)
+			writeReport(t, runDir, report)
+			registerBlue(t, runDir)
+			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1", "--quote", c.quote, "--new", c.new, "--reason", "r")
+			if want := "blue edit: this edit puts <!--fx:f-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
+				t.Fatalf("refusal = %v, want %q", err, want)
+			}
+			if !strings.Contains(err.Error(), "keep the anchor on its sentence in the section's text") {
+				t.Errorf("refusal does not say where the anchor stays: %v", err)
+			}
+			if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
+				t.Errorf("a refused edit appended %d blue_edit event(s)", n)
+			}
+		})
+	}
+	t.Run("a prescription", func(t *testing.T) {
+		runDir := newRun(t)
+		writeReport(t, runDir, report)
+		_, err := mintQuote(t, runDir, "G", "The sieve", "--new", "## The sieve")
+		if err == nil || !strings.Contains(err.Error(), "lens mint: this edit puts <!--fx:f-0000bbbb--> on a section heading") {
+			t.Fatalf("refusal = %v, want lens mint to refuse the heading", err)
+		}
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
+			t.Errorf("a refused mint appended %d mint event(s)", n)
+		}
+	})
+	for _, c := range []struct{ name, quote, new, want string }{
+		{"an archived anchor on a heading, another edit", "sieve runs", "sieve ran", "## Method<!--fx:f-0000aaaa-->\n\nThe sieve ran once"},
+		{"an archived anchor on a heading, its heading", "## Method<!--fx:f-0000aaaa-->", "## Methods<!--fx:f-0000aaaa-->", "## Methods<!--fx:f-0000aaaa-->\n"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir := newRun(t)
+			writeReport(t, runDir, report)
+			registerBlue(t, runDir)
+			if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1", "--quote", c.quote, "--new", c.new, "--reason", "r"); err != nil {
+				t.Fatalf("an edit that puts no anchor on a heading is refused: %v", err)
+			}
+			if rep := readReport(t, runDir); !strings.Contains(rep, c.want) {
+				t.Errorf("report after the edit lacks %q:\n%s", c.want, rep)
+			}
+		})
+	}
+}
+
 // A RETRY ANCHORS THE STORED LOCATION. An act appended without its Anchor — the crash window between
 // the two appends — is finished by a retry under its key at the location the act stored, never at
 // the retry's own --quote; where the report has since come to hold that location twice, the retry

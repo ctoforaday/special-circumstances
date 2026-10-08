@@ -620,22 +620,23 @@ The `error_catalogue` golden moves.
 **Value.** About −170 production lines (−267 replay, −85 retire hold, +20 location state, +120
 placement step, +10 `Attach` and its texts, +10 mint placement, +12 proposal run and the compare
 reading it, +5 retries) and ≈ −245 test lines. S5, S7, S12, S13. Depends on Parts 1, 2 and 3.
-Ids stay `G<n>` until Part 6. **Measured +34** (+728 −694), against the estimate's −170: the replay
+Ids stay `G<n>` until Part 6. **Measured +60** (+756 −696), against the estimate's −170: the replay
 and the hold went as priced (`gapedit.go` −200, the hold −84, `extractQuote` −20), and three pieces
 cost more than priced — the migration step +244 (`gapplace.go` 226: shape (a), the four carry arms,
 the reopened union, the placement and exact-span refusals and the manifest census that names
 never-placed and fallback gaps), the location states +33 in `viewjson.go` (the three constants and
 their teaching, the reopening edits off the change view), and the shared placement refusals and
 stored-location retries in `lens` +46; one `renderProjection` replaced four render paths (−8 in
-`mintbudget.go`). The heading refusal costs +13 (gblock, 2026-10-08); deleting the literal-span and
-quote rewrites, which ran 0 times on the archive, saves 34. Tests +1480 −542. Over the 16 archived
+`mintbudget.go`). The heading refusal costs +39 (gblock, 2026-10-08): +13 in `Attach` and its
+texts, +26 in the splice planner and mint; deleting the literal-span and
+quote rewrites, which ran 0 times on the archive, saves 34. Tests +1537 −542. Over the 16 archived
 runs: 0 refusals, every skeleton digest unchanged, 0 gaps never placed, 13 placed by the fallback,
 15 abutting rewrites, 0 archived mints on a heading; over the 28 runs (S7), universe-m8 newly refuses
 its anchor event 110 (A-5), 3 never placed (m8 G9, m9 G7, m13 G4), 0 gap anchors on a heading
 (3 on a paragraph that is one bold line: m8 G4 and G5, m9 G4, A-4), widening 0, blind spot 0, and
 10 of 82 finding pairs drifted — 8 fallback placements and universe2 G15/G16 beside f-36e5440b,
-Part 3's moved-marker residue. After Parts 1–4 the running S6 total is +185, so the ≥ 320 target
-needs about −505 from Parts 5–6.
+Part 3's moved-marker residue. After Parts 1–4 the running S6 total is +211, so the ≥ 320 target
+needs about −531 from Parts 5–6.
 
 **Placement.**
 - [MODIFY] kinds table: the `gap` row (`G<n>`, `<!--gap:ID-->`, "gap anchor", strip, no claim, does
@@ -648,7 +649,12 @@ needs about −505 from Parts 5–6.
   everything `LocateUnique` refuses**, plus a quote that crosses a blank line or ends in a fence or
   a heading block, as `anchor.Blocks` reads one: **no anchor of any kind sits on a heading**
   (gblock, 2026-10-08), and a gap about a whole section names it with `--about-kind section`.
-  `AutoPlace` puts no anchor back where the replacement makes its place a heading. `InsertAnchor`
+  `AutoPlace` puts no anchor back where the replacement makes its place a heading, and
+  `PlanSplice` — the one plan behind `blue edit`, its `--accept`, and the check of a mint's
+  prescription — refuses a splice that puts an anchor on a heading line: one it carries into a
+  heading, or one whose line it makes a heading. An anchor already on a heading (universe-m11's
+  archived f-0de89acd) refuses no edit, its own heading's included: the edit did not put it there.
+  Migration never plans a splice, so the check needs no `Migrating` exemption. `InsertAnchor`
   (replay) checks no heading: it reproduces what the write allowed. `extractQuote` is deleted
   (A-5): a migrated placement that needed it is refused.
 - [NEW] **Placement refusal texts**, one per new sentinel, shared by finding, cite, prove, verify
@@ -845,6 +851,13 @@ text; Append's checks stay on; an exemption that turns out to be needed sits bes
   in `Attach` fails every verb's row; deleting it in `placementRefusal` fails mint's and finding's.
   `TestAutoPlace`'s "onto a heading" row fails without `AutoPlace`'s heading check. The error
   catalogue holds the mint's refusal.
+- [NEW] `TestNoEditPutsAnAnchorOnAHeading` (`cli`): an edit carrying an anchor into a heading line,
+  an edit making a heading of an anchored line, and a mint prescribing either are refused — "this
+  edit puts <token> on a section heading, and an anchor sits on prose, never on a heading: keep the
+  anchor on its sentence in the section's text and write the heading without it" — with nothing
+  appended; with an anchor already on a heading, an edit elsewhere and an edit of that heading both
+  record. Deleting the check fails the three refusals and the catalogue's edit row; dropping the
+  already-on-a-heading scope fails the two passes; deleting mint's call fails the prescription.
 - [NEW] `TestGapTranslationRefusesWhatItDoesNotRewrite` (`migrate`): an exact-span edit across a
   gap token, and a finding anchor whose location names its section (`§ H: "…"`), each refuse the
   run by that one event, in words saying the migration rewrites no exact span or stored location.
