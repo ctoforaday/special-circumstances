@@ -134,6 +134,36 @@ func stripGapTokens(s string) string {
 	})
 }
 
+// MIGRATION REWRITES NOTHING ELSE. An exact-span edit a gap anchor now stands inside, and a
+// placement whose stored location does not place, refuse the run by event and say why.
+func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
+	const base = "# H\n\nCosts rose sharply in Q1.\n\n(They stand on their own.).\n"
+	for _, c := range []struct {
+		name, word, says string
+		build            func(s *shapeSource)
+	}{
+		{"an exact-span edit across a gap anchor", "blue_edit", "migration rewrites no exact span", func(s *shapeSource) {
+			s.mint("G1", "They stand on their own")
+			s.edit("on their own.). ", "on their own.)", true)
+		}},
+		{"a placement whose location names its section", "anchor", "migration rewrites no stored location", func(s *shapeSource) {
+			s.finding("f-0000aaa1", `§ H: "Costs rose sharply in Q1."`)
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			src := newShapeSource(t, base)
+			c.build(src)
+			m, err := migrate.Migrate(src.dir, recordtest.TmpRun(t), migrate.Entries(), migrate.Options{})
+			if m == nil || err == nil {
+				t.Fatalf("migrate = %v, want a manifest and a refusal", err)
+			}
+			if len(m.Refusals) != 1 || m.Refusals[0].Word != c.word || !strings.Contains(m.Refusals[0].Err, c.says) {
+				t.Errorf("refusals = %+v, want one %s saying %q", m.Refusals, c.word, c.says)
+			}
+		})
+	}
+}
+
 // THE TRANSLATION REWRITES EVERY SHAPE (F-c). One source stream per shape, each in the archived form:
 // mints that anchored nothing and edits written against a report that held no gap anchor. Brought
 // forward, each renders, each gap anchor lands where the rule puts it, and with gap anchors removed
@@ -156,11 +186,6 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.mint("G1", "Costs rose sharply in Q1.")
 			s.edit("Costs rose sharply in Q1<!--fx:f-0000aaa1-->.", "Costs rose modestly in Q1<!--fx:f-0000aaa1-->.", false)
 		}, "Costs rose modestly in Q1<!--gap:G1--><!--fx:f-0000aaa1-->. Volume fell.", "abutting"},
-		{"(b) an exact-span edit across the anchor", func(s *shapeSource) {
-			s.mint("G1", "They stand on their own")
-			s.edit("on their own.). ", "on their own.)", true)
-			// The edit's sentence is not the anchor's word for word, so the fallback takes its end.
-		}, "(They stand on their own.)<!--gap:G1-->", "literal"},
 		{"(c) a drop inside the span, its sentence kept", func(s *shapeSource) {
 			s.mint("G1", "rose sharply")
 			s.edit("Costs rose sharply in Q1.", "Costs rose sharply in Q1. Analysts disagree.", false)

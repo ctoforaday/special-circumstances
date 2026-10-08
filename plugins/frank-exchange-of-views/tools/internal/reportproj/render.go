@@ -130,6 +130,12 @@ func (m insertMut) apply(text string) (string, error) {
 
 func (m insertMut) describe() string { return fmt.Sprintf("insert %s at %q", m.marker, m.location) }
 
+// Place is replay's placement of id's marker at location in text: text unchanged where the marker
+// already stands, else InsertAnchor's.
+func Place(text, location, id string) (string, error) {
+	return insertMut{location: location, marker: anchor.Token(id)}.apply(text)
+}
+
 // removeMut takes out an anchor a retire named — the one way an anchor leaves the report.
 //
 // An edit may carry an anchor but never drop one, so a claim edited away leaves its anchor BARE;

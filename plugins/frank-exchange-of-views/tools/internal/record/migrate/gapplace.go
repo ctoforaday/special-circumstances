@@ -28,9 +28,9 @@ type GapPlacement struct {
 
 // placer runs in Replay after remap.apply and before Append, on bodies already in the destination's
 // spelling, adding only what the source lacks: a gap's Anchor where the source never anchored it,
-// gap anchors into an edit's old and new where they now stand, and a placement's quote where only
-// its quoted span locates. With gap anchors removed, every rewritten old and new is the archived
-// bytes, so the render's prose is the archived render's.
+// and gap anchors into an edit's old and new where they now stand. With gap anchors removed, every
+// rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
+// rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
 type placer struct {
 	dst      record.Run
 	anchored map[string]bool // ids the source stream anchors itself
@@ -72,17 +72,31 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 			return nil, p.edit(b)
 		}
 	case *recordpb.Cite:
-		b.Location = p.quote(b.Location)
+		return nil, p.places(b.GetLabel(), b.GetLocation())
 	case *recordpb.Proof:
-		b.Location = p.quote(b.Location)
+		return nil, p.places(b.GetProofId(), b.GetLocation())
 	case *recordpb.Anchor:
-		b.Location = p.quote(b.Location)
+		return nil, p.places(b.GetId(), b.GetLocation())
 	case *recordpb.Verify:
-		if b.GetLabel() != "" {
-			b.Claim = p.quote(b.Claim)
-		}
+		return nil, p.places(b.GetLabel(), b.GetClaim())
 	}
 	return nil, nil
+}
+
+// places refuses a placement replay cannot place in the report as it now renders; a run with no
+// render yet has nothing to place against.
+func (p *placer) places(id, loc string) error {
+	if id == "" || loc == "" {
+		return nil
+	}
+	text, err := reportproj.RenderFromRecord(p.dst)
+	if err != nil {
+		return nil
+	}
+	if _, err := reportproj.Place(text, loc, id); err != nil {
+		return fmt.Errorf("migrate: this placement does not place in the report as the migrated run renders it (%v), and migration rewrites no stored location: %q", err, loc)
+	}
+	return nil
 }
 
 // edit gives an archived edit every gap anchor that now stands in or against its span, so it
@@ -94,19 +108,18 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	}
 	old := b.GetOld()
 	start, end, ok := locate(text, old, b.GetExactSpan())
+	if !ok && b.GetExactSpan() {
+		return fmt.Errorf("migrate: this exact-span edit's old text no longer occurs in the report once the gaps' anchors stand in it, and migration rewrites no exact span: %q", old)
+	}
 	if !ok {
-		if old, ok = rewriteOld(text, old, b.GetExactSpan()); ok {
-			start, end, ok = locate(text, old, b.GetExactSpan())
+		if old, ok = rewriteOld(text, old); ok {
+			start, end, ok = locate(text, old, false)
 		}
 		if !ok {
 			return fmt.Errorf("migrate: this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
 		}
 		b.Old = proto.String(old)
-		shape := "abutting" // (a): old given the anchor run that now abuts its span
-		if b.GetExactSpan() {
-			shape = "literal" // (b): old given the gap anchors now inside it
-		}
-		p.census.Shapes[shape]++
+		p.census.Shapes["abutting"]++ // old given the anchor run that now abuts its span
 	}
 	b.New = proto.String(p.carry(text[start:end], b.GetNew()))
 	after := reportproj.ApplySplice(text, start, end, b.GetNew())
@@ -129,34 +142,9 @@ func locate(text, old string, exact bool) (int, int, bool) {
 	return s, e, err == nil
 }
 
-// rewriteOld is old as replay can locate it now that gap anchors stand in the report: an exact
-// span's bytes over the one place it occurs with gap anchors skipped (b); otherwise the anchor run
-// abutting its span, put in place of old's own run after its last content character (a).
-func rewriteOld(text, old string, exact bool) (string, bool) {
-	if exact {
-		gaps := map[int]int{} // each gap anchor's start in text, to its end
-		anchor.Each(text, func(s, e int, id string) {
-			if isGap(id) {
-				gaps[s] = e
-			}
-		})
-		var kept []byte
-		var at []int
-		for i := 0; i < len(text); {
-			if e, ok := gaps[i]; ok {
-				i = e
-				continue
-			}
-			kept, at = append(kept, text[i]), append(at, i)
-			i++
-		}
-		lit := strings.TrimSpace(old)
-		if lit == "" || strings.Count(string(kept), lit) != 1 {
-			return "", false
-		}
-		k, i := strings.Index(string(kept), lit), strings.Index(old, lit)
-		return old[:i] + text[at[k]:at[k+len(lit)-1]+1] + old[i+len(lit):], true
-	}
+// rewriteOld is old as replay can locate it now that gap anchors stand in the report: the anchor run
+// abutting its span, put in place of old's own run after its last content character.
+func rewriteOld(text, old string) (string, bool) {
 	_, end, err := bluedoc.LocateUnique("render", text, old)
 	if err != nil {
 		return "", false
@@ -225,34 +213,6 @@ func proseEnd(new string) int {
 		}
 	}
 	return -1
-}
-
-// quote is a placement's location as replay can locate it: unchanged where it locates as written,
-// else the text between its first two double quotes where that does — how a placement written
-// before every quote was matched as written named its sentence (`§ Foundations: "…"`).
-func (p *placer) quote(loc *string) *string {
-	if loc == nil {
-		return loc
-	}
-	l := strings.TrimSpace(*loc)
-	i := strings.Index(l, `"`)
-	j := strings.Index(l[i+1:], `"`)
-	if i < 0 || j < 0 {
-		return loc
-	}
-	q := strings.TrimSpace(l[i+1 : i+1+j])
-	text, err := reportproj.RenderFromRecord(p.dst)
-	if err != nil || q == "" {
-		return loc
-	}
-	if s, _ := anchortext.LocateSpan(text, l); s >= 0 {
-		return loc
-	}
-	if s, _ := anchortext.LocateSpan(text, q); s < 0 {
-		return loc
-	}
-	p.census.Shapes["quote"]++
-	return proto.String(q)
 }
 
 func isGap(id string) bool { return anchor.Kind(id) == "gap" }
