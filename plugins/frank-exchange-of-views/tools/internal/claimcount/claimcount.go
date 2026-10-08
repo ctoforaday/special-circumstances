@@ -1,5 +1,4 @@
-// Package claimcount computes a blue report's claim_count deterministically AND
-// enumerates where each footnoted claim appears (the claim-index).
+// Package claimcount computes a blue report's claim_count deterministically.
 //
 // THE PROBLEM THIS SOLVES. claim_count — "the number of FOOTNOTED declarative
 // claims" — sizes red's per-sitting citation dispatch (the first sitting ceil(claims/40),
@@ -48,54 +47,40 @@
 // invisible anchors; the visible [^N] footnotes exist only after assembly weaves
 // them, and nothing counts the assembled report.
 //
-// ONE SCANNER, TWO READINGS. Scan walks the report once and yields the KEPT
-// segments (exclusions applied) with their position, heading context, and the
-// distinct footnote labels each carries. Count and Index both build on Scan, so
-// their exclusion set cannot drift. Count = the number of attached labels across
-// segments; Index groups the same labels into per-label occurrences (the claim-index,
-// used by blue to locate every site of a claim it is correcting without re-reading the
-// whole report). The two reconcile exactly: sum(occurrences) == Count.
+// ONE SCANNER. Scan walks the report once and yields the KEPT segments (exclusions
+// applied), each with its text and the distinct citation labels it carries. Count and
+// BareAnchorIDs both build on Scan, so their exclusion set cannot drift. Count = the
+// number of attached labels across segments; BareAnchorIDs = the anchors no segment
+// attaches to prose.
 package claimcount
 
 import (
-	"strings"
 	"unicode"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // Segment is one kept sentence of the report — one that survived the exclusions — with the
-// position and heading context a reader needs to locate it, and the DISTINCT citation labels it
-// carries.
+// DISTINCT citation labels it carries.
 type Segment struct {
-	Text    string   // the sentence's raw text, which may span lines
-	Line    int      // 1-based line number in the original report where the sentence starts
-	Heading string   // nearest preceding markdown heading (stripped of leading # and space)
-	Labels  []string // distinct citation labels (c-<hex>) ATTACHED in this sentence — after some prose — first-seen order
+	Text   string   // the sentence's raw text, which may span lines
+	Labels []string // distinct citation labels (c-<hex>) ATTACHED in this sentence — after some prose — first-seen order
 }
 
 // Scan walks report markdown once and returns the kept sentences in reading order. Fenced
 // code, footnote definitions (the bibliography) and headings are excluded from the claim
-// stream — headings still update the heading context for the sentences that follow. This is
-// the single source of the exclusion rule; Count and Index both consume it so they cannot
-// disagree about what is a claim.
+// stream. This is the single source of the exclusion rule; Count and BareAnchorIDs both
+// consume it so they cannot disagree about what is a claim.
 func Scan(md string) []Segment {
 	var segs []Segment
-	heading := ""
-	line, at := 1, 0
 	for _, b := range anchor.Blocks(md) {
 		switch b.Kind {
-		case anchor.Fence, anchor.FootnoteDef:
-			continue
-		case anchor.Heading: // not a claim, but it sets context
-			heading = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(md[b.Body:b.End]), "#"))
+		case anchor.Fence, anchor.FootnoteDef, anchor.Heading:
 			continue
 		}
 		for _, sp := range b.Sentences {
-			line += strings.Count(md[at:sp[0]], "\n")
-			at = sp[0]
 			text := md[sp[0]:sp[1]]
-			segs = append(segs, Segment{Text: text, Line: line, Heading: heading, Labels: segmentLabels(text)})
+			segs = append(segs, Segment{Text: text, Labels: segmentLabels(text)})
 		}
 	}
 	return segs
@@ -103,8 +88,7 @@ func Scan(md string) []Segment {
 
 // Count returns the number of cited claims in a blue report's markdown: the citation
 // anchors attached to prose. Reproducible and monotonic over perfect — see the package
-// doc. It is exactly the total of every Scan segment's Labels, which is also the total
-// of Index's occurrences.
+// doc. It is exactly the total of every Scan segment's Labels.
 func Count(md string) int {
 	n := 0
 	for _, s := range Scan(md) {
@@ -171,56 +155,12 @@ func BareAnchorIDs(md string) []string {
 	return out
 }
 
-// Occurrence is one site a footnoted claim appears: its section, and the line its sentence
-// starts on — the convenience pointer; the anchor itself is the durable locator.
-type Occurrence struct {
-	Heading string `json:"heading"`
-	Line    int    `json:"line"`
-}
-
-// NO `sentence_hash`. It was an FNV-1a of the normalized sentence, emitted here and described as
-// "a locator stable under line-number shift, so blue can match an occurrence after edits move
-// it" — and nothing could use it for that. Its only reader was its own test; no production code,
-// no prompt, no document referenced the field. An AGENT was the intended consumer, and an agent
-// cannot compute FNV-1a by hand to compare one, so the durable locator was durable and unusable.
-// Anchors are the locator, and they are visible in the text precisely so a seat can carry them.
-
-// LabelOccurrences is one footnoted claim (by its label) and every site it appears.
-type LabelOccurrences struct {
-	Label       string       `json:"label"`
-	Occurrences []Occurrence `json:"occurrences"`
-}
-
-// Index enumerates, per footnote label, every site the claim appears — the
-// claim-index. Blue queries it to propagate a correction to ALL sites of a claim
-// without re-reading the whole report. A claim at N sites resolves to N occurrences;
-// labels appear in first-seen order, occurrences in reading order.
-func Index(md string) []LabelOccurrences {
-	order := []string{}
-	byLabel := map[string][]Occurrence{}
-	for _, s := range Scan(md) {
-		for _, label := range s.Labels {
-			if _, seen := byLabel[label]; !seen {
-				order = append(order, label)
-			}
-			byLabel[label] = append(byLabel[label], Occurrence{
-				Heading: s.Heading, Line: s.Line,
-			})
-		}
-	}
-	out := make([]LabelOccurrences, 0, len(order))
-	for _, label := range order {
-		out = append(out, LabelOccurrences{Label: label, Occurrences: byLabel[label]})
-	}
-	return out
-}
-
 // segmentLabels returns the DISTINCT citation labels anchored inline in a sentence, in
 // first-seen order. A claim is a sentence carrying a tool-inserted anchor of a kind that counts
 // as a claim — a citation (the citation axis replaced the hand-typed "[^label]" footnote as the
 // claim unit — citations are tool-managed, so what a report cites is exactly what it anchors).
-// The label is the token's id as anchor.Each reads it, so Index yields the real ids. A label
-// repeated in one sentence is one site. A BARE label — no prose before it in the sentence — backs
+// The label is the token's id as anchor.Each reads it. A label repeated in one sentence is one
+// claim. A BARE label — no prose before it in the sentence — backs
 // nothing and is not returned.
 func segmentLabels(text string) []string {
 	seen := map[string]bool{}

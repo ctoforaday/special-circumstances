@@ -266,7 +266,7 @@ what was wrong with the act you are correcting, in one sentence; a reader sees i
 §6 (on 11 pages):
 the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
 
-§7 (on 22 pages):
+§7 (on 21 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -342,7 +342,6 @@ Usage:
 
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index  locate every site of each FOOTNOTED claim in your report (read-only)
   closing      your closing argument on one docketed gap, when the bench is about to rule on it
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   edit         change the report — the only path into report.md, and how every repair lands
@@ -493,17 +492,6 @@ Enumerated values:
     unread        the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says
     summary_only  read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source
     leaf          the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS
-
-(Global Flags:) → SHARED §7
-==============================================================================
-$ feov-record claim-index --help
-claim-index prints, per footnote label, every site that claim appears in the report on the record: {claims:[{label, occurrences:[{heading, line}]}]} — line is where the claim's sentence starts. Use it when a correction must reach ALL of a claim's sites — query the label instead of re-reading the whole report. It does NOT replace the report-wide sweep: an unfootnoted restatement (a bare corrected FIGURE) is invisible to a footnote index, so still search `show report` for the corrected strings. It records nothing. JSON only.
-
-Usage:
-  feov-record claim-index [flags]
-
-Flags:
-  -h, --help   help for claim-index
 
 (Global Flags:) → SHARED §7
 ==============================================================================

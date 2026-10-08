@@ -572,8 +572,8 @@ func renderView(cmd *cobra.Command, want string) error {
 	// RESOLVED, NOT READ OFF THE FLAG. The engine injects FEOV_RUN and every WRITE verb
 	// honours it through Begin/Of — reads did not, so a seat that correctly omitted --run
 	// could record all sitting and then be told its board did not exist. Measured with the
-	// identity injected: register, friction and revision all succeeded; `show` and
-	// `claim-index` demanded the flag.
+	// identity injected: register, friction and revision all succeeded; `show`
+	// demanded the flag.
 	run, rerr := Of(cmd).RequireRun(role)
 	if rerr != nil {
 		return rerr

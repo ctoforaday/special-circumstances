@@ -52,10 +52,3 @@ func TestABareAnchorIsNotAClaim(t *testing.T) {
 		})
 	}
 }
-
-// Index agrees with Count: a bare anchor is not a claim site.
-func TestIndexOmitsABareAnchor(t *testing.T) {
-	if got := Index("<!--cite:c-1--> Grass is green.\n"); len(got) != 0 {
-		t.Errorf("Index listed a bare anchor as a claim site: %+v", got)
-	}
-}

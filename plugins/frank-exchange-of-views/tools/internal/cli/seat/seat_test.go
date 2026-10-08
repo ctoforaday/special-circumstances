@@ -19,7 +19,7 @@ import (
 // THE ENGINE INJECTS THE RUN AND THE IDENTITY; NO VERB MAY MAKE A SEAT TYPE THEM.
 //
 // It was half true. Every WRITE verb honoured FEOV_RUN through Begin/Of, and the reads —
-// `show`, `claim-index`, `count-claims`, `graph`, `scorecard`, `verify`, `assemble` — read the
+// `show`, `count-claims`, `graph`, `scorecard`, `verify`, `assemble` — read the
 // raw flag. Measured with the identity injected: register, friction and revision all recorded
 // happily, then `show --view board` answered "--run <runDir> is required".
 //

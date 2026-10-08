@@ -304,23 +304,10 @@ Each claim below rests on a cited source.
 					"compares the claim-count fall against the retire events and an unaccounted drop is a " +
 					"detector hit against blue.",
 			},
-			{
-				Key: "propagate", Class: "incomplete-repair-propagation",
-				Location: `The standard mandates a 30-day retention floor for every record class, and forbids deletion`,
-				Problem:  "The same figure is stated in two places and a correction to one would leave the other.",
-				Fix:      "Correct every site that states the figure, not only the flagged one.",
-				Check:    "No site states a figure the others contradict.", CheckKind: "document",
-				Severity: "high", Likelihood: "high", Impact: "high", Complexity: "low",
-				Baits: "claim-index",
-				Why: "The claim index lists every site of each cited claim. Finding the second site by " +
-					"re-reading the whole report is the expensive path a seat takes when it does not know " +
-					"the index exists — and incomplete propagation was one run's dominant blue failure class.",
-			},
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "cite", Because: "A source-kind check is settled by verifying an external source, and the cite verb is the only path that caches it and splices the anchor. Hand-typing a footnote is both refused and pointless."},
 			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. Deleting the sentence with an edit drops the claim count with no retire event behind it, which capture scores as an unaccounted drop."},
-			{Seat: "blue-respond", Verb: "claim-index", Because: "Two sites state the same figure. The index is what makes finding the second one cheap; without it the seat either re-reads everything or propagates incompletely."},
 			{Seat: "blue-respond", Verb: "revision", Because: "The sitting's edits are logged as a revision so the transcript and the report agree. A sitting whose repairs are real and whose revision is missing is the desync that once blinded a judge."},
 		},
 	}

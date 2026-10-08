@@ -39,7 +39,7 @@ invisible*, below). They are two axes with two forms:
   a marker token is ever lost.
 - The detector's PRESENT set is the finding ids grepped from the `<!--fx:…-->` tokens in the current
   report; EXPECTED is the `anchor` events. (A finding's markers are its sites, so the same tokens also
-  support propagation — but as a grep over the comment layer, not via the `[^label]` claim-index.)
+  support propagation — as a grep over the comment layer.)
 
 ## Why invisible (the live-run lesson)
 

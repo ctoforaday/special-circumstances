@@ -29,9 +29,9 @@ import (
 //
 // EVERY FAILURE IS FATAL, and that is not fastidiousness. The first draft logged a failed `cite`
 // and carried on, and two boards built with ZERO cited claims — which is precisely the state their
-// expectations are about. `lens verify` had nothing to verify and `blue claim-index` had nothing
-// to index, so both would have reported UNMET against a seat with no way to meet them, and the
-// report would have read as a finding about the SEAT rather than about the fixture.
+// expectations are about. `lens verify` had nothing to verify, so it would have reported UNMET
+// against a seat with no way to meet it, and the report would have read as a finding about the
+// SEAT rather than about the fixture.
 
 // Exec runs one tool invocation and returns its stdout.
 type Exec func(args ...string) (string, error)

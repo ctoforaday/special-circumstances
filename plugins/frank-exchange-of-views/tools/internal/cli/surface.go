@@ -13,7 +13,7 @@ import (
 )
 
 // CommandPaths returns every invocable command path in the real tree — "verify",
-// "lens mint", "blue claim-index" — sorted, with cobra's own scaffolding removed.
+// "lens mint", "blue cite" — sorted, with cobra's own scaffolding removed.
 //
 // WHY IT IS EXPORTED. The fuzz harness asserts that it drives the whole surface, and the
 // only honest source for "the whole surface" is the tree itself. A hand-maintained list of
