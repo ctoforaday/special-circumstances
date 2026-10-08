@@ -958,8 +958,8 @@ func (MotionSubject) EnumDescriptor() ([]byte, []int) {
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
 //
 // Each `(means)` is the sentence the ruler reads in `motion <subject> rule --as`: MotionVerdicts
-// in record/motion.go carries the same words, and TestEveryMotionVerdictCarriesTheSchemasMeaning
-// holds the two equal, so an edit here is the edit the chair and the bench see.
+// in record/motion.go is built from these values (evsOf), so an edit here is the edit the chair
+// and the bench see.
 type GradeRuling int32
 
 const (

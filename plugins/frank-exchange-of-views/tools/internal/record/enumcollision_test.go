@@ -1,6 +1,7 @@
 package record
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -101,14 +102,14 @@ func TestTheVerdictCollisionIsStillDisjoint(t *testing.T) {
 		t.Fatal("the verdict/outcome collision is classified but one side no longer declares the key")
 	}
 	for _, v := range verdict.Values {
-		if outcome.allows(v.Name) {
+		if slices.Contains(Names(outcome.Values), v.Name) {
 			t.Errorf("`verdict` and `outcome` now share the value %q. They were disjoint, which "+
 				"is what made a cross-type read silent; if they overlap, the failure mode has "+
 				"CHANGED and every reader of this key needs re-reading.", v.Name)
 		}
 	}
 	// And the specific word the #67 gate switches on must belong to exactly one of them.
-	if outcome.allows("PASS") || !verdict.allows("PASS") {
+	if slices.Contains(Names(outcome.Values), "PASS") || !slices.Contains(Names(verdict.Values), "PASS") {
 		t.Errorf("PASS must be a `verdict` word and not an `outcome` word; that asymmetry is the " +
 			"whole content of #410")
 	}

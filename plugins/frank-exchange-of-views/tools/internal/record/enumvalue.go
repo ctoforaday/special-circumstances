@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/thediveo/enumflag/v2"
@@ -124,30 +123,6 @@ func CompletionHelp(vs []EnumValue) enumflag.Help[string] {
 	return h
 }
 
-// allows reports whether a value is in the set.
-func allows(vs []EnumValue, want string) bool {
-	for _, v := range vs {
-		if v.Name == want {
-			return true
-		}
-	}
-	return false
-}
-
-// undescribed lists values with no stated meaning, sorted. The gate that consumes it is the whole
-// point of this file: a value nobody described is one a seat has to guess at, and guessing is what
-// produced the measured failure this design answers.
-func undescribed(vs []EnumValue) []string {
-	var out []string
-	for _, v := range vs {
-		if strings.TrimSpace(v.Means) == "" {
-			out = append(out, v.Name)
-		}
-	}
-	sort.Strings(out)
-	return out
-}
-
 // Refuse builds the message a seat gets for a value outside the set.
 //
 // IT IS NOT enumflag's, AND THAT MATTERS. enumflag says `must be 'FAIL', 'PASS'`, which is
@@ -171,7 +146,7 @@ func Refuse(flag, got string, vs []EnumValue, why string) error {
 		// refusal had nothing to say about.
 		//
 		// recordpb.SameWord already decides exactly this class (case and separators, nothing
-		// wider) and is what NearMiss uses. The machinery to say it was here; the sentence was not.
+		// wider). The machinery to say it was here; the sentence was not.
 		for _, want := range vs {
 			switch {
 			case strings.EqualFold(got, want.Name):
@@ -208,6 +183,9 @@ func Refuse(flag, got string, vs []EnumValue, why string) error {
 //
 // UNSPECIFIED IS SKIPPED: it is the absence of a choice, not one of them, and offering it in help
 // invites a seat to pass the zero value.
+//
+// It stamps ToolOnly off the value's `seat_may_file` facet, so a tool-only word is never typed
+// beside its value. A value that declares no such facet is a seat's to file.
 func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 	vals := ed.Values()
 	out := make([]EnumValue, 0, vals.Len())
@@ -222,7 +200,11 @@ func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 			// meaning, which reads as a value nobody documented rather than one nobody decided.
 			means = "UNDOCUMENTED — " + err.Error()
 		}
-		out = append(out, ev(recordpb.Spelling(v), means))
+		may, declared, err := recordpb.Facet(v, "seat_may_file")
+		if err != nil {
+			panic("record: " + err.Error())
+		}
+		out = append(out, EnumValue{Name: recordpb.Spelling(v), Means: means, ToolOnly: declared && !may})
 	}
 	return out
 }
@@ -238,42 +220,4 @@ func loud(vs []EnumValue) []EnumValue {
 		out[i] = v
 	}
 	return out
-}
-
-// facetedEnums maps a declared set to the schema enum that carries its facets, so a fact
-// annotated on a proto value reaches the Go table that builds the help.
-//
-// ONE ENTRY TODAY, and the map rather than a special case because the next tool-written word
-// will be in some other vocabulary and the shape should already be there. A set absent from
-// here simply carries no facets — it is not an error, because most vocabularies have none.
-var facetedEnums = map[[2]string]protoreflect.EnumDescriptor{
-	{"log", "type"}: recordpb.LogType(0).Descriptor(),
-}
-
-// init stamps the facets onto the declared sets. DERIVED, NEVER TYPED: marking `estoppel`
-// tool-only by hand in the table beside a `(seat_may_file) = false` on the value would be two
-// copies of one fact, which is the defect this whole change removes rather than relocates.
-//
-// It PANICS on a set whose word the schema cannot resolve, for the reason MustEnum panics: this
-// runs at package init, so a table that has drifted from its enum fails at startup rather than
-// at the moment a seat reads the help and is told a word its write path refuses.
-func init() {
-	for key, ed := range facetedEnums {
-		field, ok := enum(key[0], key[1])
-		if !ok {
-			panic("record: facetedEnums names " + key[0] + "." + key[1] + ", which declares no set")
-		}
-		for i := range field.Values {
-			vd, ok := recordpb.BySpelling(ed, field.Values[i].Name)
-			if !ok {
-				panic("record: " + key[0] + "." + key[1] + " offers " + field.Values[i].Name +
-					", which " + string(ed.FullName()) + " cannot resolve")
-			}
-			may, declared, err := recordpb.Facet(vd, "seat_may_file")
-			if err != nil {
-				panic("record: " + err.Error())
-			}
-			field.Values[i].ToolOnly = declared && !may
-		}
-	}
 }

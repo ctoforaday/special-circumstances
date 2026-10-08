@@ -444,8 +444,8 @@ enum MotionSubject {
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
 //
 // Each `(means)` is the sentence the ruler reads in `motion <subject> rule --as`: MotionVerdicts
-// in record/motion.go carries the same words, and TestEveryMotionVerdictCarriesTheSchemasMeaning
-// holds the two equal, so an edit here is the edit the chair and the bench see.
+// in record/motion.go is built from these values (evsOf), so an edit here is the edit the chair
+// and the bench see.
 enum GradeRuling {
   GRADE_RULING_UNSPECIFIED = 0;
   // ACCEPTING MOVES NOTHING. This value read "the proposed grade stands" while no code applied a

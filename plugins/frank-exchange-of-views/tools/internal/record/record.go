@@ -1008,8 +1008,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// that landed in the open part of a string-valued closure_class and skipped the successor
 		// check above, which is the opposite of "lineage never drops". `ClosureClass` is a closed
 		// enum now, so no near-miss can be REPRESENTED here — the refusal moves to wherever a
-		// seat's word is resolved to a value (recordpb.BySpelling / NearMiss, which exist for
-		// exactly this), and that resolution is the CLI's parse, not this write path.
+		// seat's word is resolved to a value (recordpb.BySpelling, and the enum refusal's near-miss
+		// sentence through recordpb.SameWord), and that resolution is the CLI's parse, not this
+		// write path.
 		// A closure is a claim, and the claim's substance is its argument: what was verified and
 		// why it holds. Checked after the verification triple so the more specific refusal (an
 		// unauditable closure) leads when both are absent, and EXEMPT for a carry — a carry
@@ -1252,12 +1253,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// refuse is the ruling that is absent or UNSPECIFIED — which is exactly the failure the
 		// old message names, because an unrecognized ruling reads as no ruling at all.
 		//
-		// The set offered back is the schema's, via recordpb.Names, rather than a hand-kept copy:
-		// MotionVerdicts held the same words in a second table, which is the pair this migration
-		// exists to collapse.
+		// The set offered back is MotionVerdicts[subject], the table the ruler's help renders
+		// (MotionVerdictEnum), which evsOf generates from the subject's ruling enum — so the
+		// refusal and the help offer one list.
 		if w := rulingWord(b); w == "" || rulingSubject(b) != b.GetSubject() {
 			return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
-				w, recordpb.Word(b.GetSubject()), strings.Join(rulingNames(b.GetSubject()), " | "))
+				w, recordpb.Word(b.GetSubject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.GetSubject())]), " | "))
 		}
 	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
 	//
@@ -1393,13 +1394,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 		// A declined or abandoned avenue with no reason is the decoration this verb
 		// exists to prevent: the road not taken is worthless without why.
-		// Guarded by the DECLARED set so an unknown status falls through to checkEnum at the
-		// end of validate, which names the set and the near-miss. Without the guard the
-		// reason rule fires first and a typo'd status is reported as a missing reason.
-		// The old guard was `declared.Allows(st)`, which let an UNDECLARED status fall through to
-		// checkEnum so the near-miss was named rather than reported as a missing reason. Every
-		// AvenueStatus is declared now, so the surviving distinction is the schema's own: the
-		// zero, which is the absence the old empty string was.
+		// The guard excludes the zero, so the reason rule never reports a missing status as a
+		// missing reason. An unset status is refused before this arm by the required-field walk
+		// (recordpb.CheckRequired at the top of validate), which names `--as` because `status` is
+		// `required`. An explicit zero is refused at the insert by the `status` column's foreign
+		// key into `enum_avenue_status`, which holds declared values only. Every other
+		// AvenueStatus is a declared value.
 		if st := b.GetStatus(); st != recordpb.AvenueStatus_AVENUE_STATUS_UNSPECIFIED &&
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PURSUED &&
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED && b.GetReason() == "" {
@@ -1503,25 +1503,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 	}
-	// The closed sets, checked from one declaration (enums.go) rather than five
-	// hand-written copies. LAST, so the more specific refusal leads when a body has
-	// several defects at once — the same ordering rule `close` states above, where the
-	// unauditable-closure message beats the missing-reason one. A seat fixing `dispose
-	// --observation N2` learns that N2 does not exist before it learns that --as was
-	// also blank; both refusals are reachable, in the order that gets it unstuck.
-	//
-	// MOST OF WHAT IT POLICED IS NOW THE SCHEMA'S: verdict, outcome's verdict, avenue status,
-	// closure_class, check_kind, soundness, verify's outcome and confidence are all closed enums,
-	// where a value outside the set cannot be represented at all. ONE is not — `Outcome.ended` is
-	// still an open string with a declared set — so the call stays, and it stays here, at the
-	// single write path.
-	//
-	// It said TWO, naming the bench's disposition as the second, and that stopped being true when
-	// the disposition became `DocketRuling.disposition`: a closed `Disposition` enum with a
-	// foreign key onto `enum_disposition`. `EnumFields["opinion"]` went with it. The comment
-	// survived the deletion because nothing reads a comment — checkOpenSets has exactly one arm
-	// and a reader trusting this line would have gone looking for the arm that polices dispositions.
-	return checkOpenSets(body)
+	return nil
 }
 
 // filingSubject is the subject a Motion's filing BELONGS to, read off the oneof case rather than
@@ -1581,39 +1563,6 @@ func rulingWord(r *recordpb.MotionRule) string {
 		return recordpb.Word(v.Docket.GetDisposition())
 	}
 	return ""
-}
-
-// rulingNames is the vocabulary legal on one subject, taken from the schema's own enum so the
-// refusal cannot offer a word the write path would then reject.
-func rulingNames(s recordpb.MotionSubject) []string {
-	switch s {
-	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
-		return recordpb.Names(recordpb.GradeRuling(0).Descriptor())
-	case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
-		return recordpb.Names(recordpb.PetitionRuling(0).Descriptor())
-	case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
-		return recordpb.Names(recordpb.AvenueRuling(0).Descriptor())
-	case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-		// The shared Disposition set (#342), not a docket-specific enum: the bench's vocabulary
-		// is the one `merge close` uses, which is what "one vocabulary, whichever verb closed
-		// it" means. A subject missing here returns nil, and the refusal then fires while
-		// offering an EMPTY list of legal words — technically correct and unactionable.
-		return recordpb.Names(recordpb.Disposition(0).Descriptor())
-	}
-	return nil
-}
-
-// jsonish renders a value the way JSON.stringify would inside the oracle's error
-// message (strings quoted, booleans bare).
-func jsonish(v any) string {
-	switch t := v.(type) {
-	case string:
-		return strconv.Quote(t)
-	case bool:
-		return strconv.FormatBool(t)
-	default:
-		return fmt.Sprintf("%v", t)
-	}
 }
 
 // verbOf names the act in the words a seat types it, for a refusal it can act on. The schema spells

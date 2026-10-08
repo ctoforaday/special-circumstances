@@ -1,7 +1,6 @@
 package record
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -847,28 +846,6 @@ func TestTheSameLabelInALaterSittingIsRefusedAndTheNextLands(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("%d findings on the record, want 2 (F1 once, F2 once)", n)
-	}
-}
-
-func TestJsonish(t *testing.T) {
-	cases := []struct {
-		in   any
-		want string
-	}{
-		{"plain", `"plain"`},
-		{"with \"quotes\"", `"with \"quotes\""`},
-		{true, "true"},
-		{false, "false"},
-		{3, "3"},
-		{nil, "<nil>"},
-		{json.Number("2.5"), "2.5"},
-	}
-	for _, tc := range cases {
-		t.Run(fmt.Sprint(tc.in), func(t *testing.T) {
-			if got := jsonish(tc.in); got != tc.want {
-				t.Errorf("jsonish(%v) = %q, want %q", tc.in, got, tc.want)
-			}
-		})
 	}
 }
 

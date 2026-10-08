@@ -14,8 +14,8 @@ import (
 //
 // Case was already detected and said so. The separator half was not: a seat got the bare legal set
 // with no hint that its WORD was right and only its punctuation wrong — the one fact that turns a
-// refusal into a correction. recordpb.SameWord already decides exactly this class and is what
-// NearMiss uses, so the machinery was present and only the sentence was missing.
+// refusal into a correction. recordpb.SameWord already decides exactly this class, so
+// the machinery was present and only the sentence was missing.
 //
 // The tool is the instruction: a refusal that can name the right word and does not is a turn spent
 // re-reading a command that was almost correct.
