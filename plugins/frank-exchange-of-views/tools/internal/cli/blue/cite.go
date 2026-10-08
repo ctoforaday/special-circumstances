@@ -32,9 +32,9 @@ import (
 // failure is logged by the tool as a defect (a bare `fetch` miss is only an error — but the
 // DECISION to cite an unreachable source is a protocol event worth surfacing).
 //
-// Crash-safety is the append-only record's: the cite event IS the anchor (it carries the quote,
-// and the report is replayed from the record), so there is no separate marker write to tear from
-// the event — a crash before the append leaves nothing, and a --key retry is idempotent.
+// Crash-safety is the append-only record's: the cite and the Anchor that places its marker are two
+// appends, and the report is replayed from the record — a crash before them leaves nothing, and a
+// --key retry is idempotent and places the Anchor a crash between them left owed.
 func newCite() *cobra.Command {
 	c := seat.Prose(seat.New("cite", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -83,8 +83,8 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 
-		// The replacement's marker is the original's: same label, same quote, and the render skips a
-		// marker the text already holds, so the report carries one anchor wherever edits moved it.
+		// The replacement's marker is the original's: it re-carries the label and appends no Anchor,
+		// so the report carries the one anchor the original placed, wherever edits moved it.
 		if correcting {
 			body := &recordpb.Cite{
 				Label:              held(prior.Label),
@@ -111,11 +111,15 @@ func newCite() *cobra.Command {
 		}
 
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
-		// second fetch AND no second anchor (BEFORE any effect).
+		// second fetch AND no second anchor (BEFORE any effect). The cite and its anchor are two
+		// appends; a retry finishes the pair at the location the cite stored.
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
+			if err := seat.PlaceOwed(s, run, prior, citeRefusal); err != nil {
+				return nil, err
+			}
 			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
 		}
 
@@ -148,29 +152,22 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 
-		// THE CITE EVENT IS THE ANCHOR. It carries the quote in Location, and reportproj.Render
-		// re-places the invisible <!--cite:c-…--> marker at that quote on every read. There is no
-		// file to splice, so there is no torn-splice window: the marker cannot exist without the
-		// event that names it, and a crash before the append leaves nothing to adopt. Mint the label
-		// (it forms the marker) and VALIDATE the placement against the current render — a mis-quote
-		// or in-fence quote is refused now with the same message, and the validated bytes discarded.
+		// THE ANCHOR EVENT BELOW IS THE MARKER: it carries the quote, and reportproj.Render re-places
+		// the invisible citation anchor at that quote on every read. There is no file to splice, so
+		// a crash before the appends leaves nothing to adopt. Mint the label (it forms the marker)
+		// and VALIDATE the placement against the current render — a mis-quote or in-fence quote is
+		// refused now, and the validated bytes discarded.
 		label := record.NewCitationID()
 		current, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, err
 		}
 		if _, aerr := anchortext.Attach(current, label, quote); aerr != nil {
-			switch {
-			case errors.Is(aerr, anchortext.ErrMisQuote):
-				return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
-			case errors.Is(aerr, anchortext.ErrInFence):
-				return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
-			}
-			return nil, anchortext.Refusal("blue cite", aerr)
+			return nil, citeRefusal(aerr)
 		}
 
-		// The anchor is recorded as the cite event. access_date is engine-supplied
-		// from the record clock (pinned under the golden harness), not typed by the seat.
+		// access_date is engine-supplied from the record clock (pinned under the golden harness),
+		// not typed by the seat.
 		body := &recordpb.Cite{
 			Label:      proto.String(label),
 			Sha256:     proto.String(entry.Sha),
@@ -196,6 +193,9 @@ func newCite() *cobra.Command {
 		}
 		citeFields(cmd, body, read, why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(label), Location: proto.String(quote)}); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: ocr.pages(), VoiceTells: tells}, nil
@@ -244,6 +244,18 @@ func citeFields(cmd *cobra.Command, body *recordpb.Cite, read recordpb.SourceTex
 	if seat.Given(cmd, flags.Reason) {
 		body.Text = proto.String(why)
 	}
+}
+
+// citeRefusal is the refusal `cite` gives for a quote Attach will not place, on a first call and on
+// the retry that places the anchor a first call left owed.
+func citeRefusal(err error) error {
+	switch {
+	case errors.Is(err, anchortext.ErrMisQuote):
+		return fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
+	case errors.Is(err, anchortext.ErrInFence):
+		return fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
+	}
+	return anchortext.Refusal("blue cite", err)
 }
 
 type ocrCite struct {

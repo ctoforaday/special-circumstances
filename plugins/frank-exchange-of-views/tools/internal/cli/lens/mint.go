@@ -49,7 +49,7 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			// The mint and its anchor are two appends; a retry finishes the pair at the location the
 			// mint stored.
-			if err := placeOwed(s, run, prior, mintPlacementRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, prior, mintPlacementRefusal); err != nil {
 				return nil, err
 			}
 			return mintResult{GapID: prior, Idempotent: true}, nil

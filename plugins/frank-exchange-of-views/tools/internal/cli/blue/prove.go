@@ -99,7 +99,7 @@ func newProve() *cobra.Command {
 		}
 
 		// The script's own sha settles it, and costs a file read rather than an execution.
-		if prior, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+		if prior, priorID, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
 			return nil, err
 		} else if prior != "" {
 			now, serr := proof.ScriptSha(run.Dir(), script)
@@ -111,6 +111,11 @@ func newProve() *cobra.Command {
 					"a key is one program's name, not a slot to reuse. This is not a retry: recording nothing here would "+
 					"leave you citing a proof of something else. Give this program its own --key",
 					seat.Str(cmd, flags.Key), prior[:12], script, now[:12])
+			}
+			// The proof and its anchor are two appends; a retry finishes the pair at the location
+			// the proof stored.
+			if err := seat.PlaceOwed(s, run, priorID, proveRefusal); err != nil {
+				return nil, err
 			}
 			return proveResult{SHA: prior, Idempotent: true, VoiceTells: tells}, nil
 		}
@@ -139,17 +144,17 @@ func newProve() *cobra.Command {
 				script, res.Exit, res.Failed, run.Dir())
 		}
 
-		// THE PROOF EVENT IS THE ANCHOR: it carries the quote in Location, and reportproj.Render
-		// re-places the <!--proof:p-…--> marker at replay. No file is spliced, so there is no
-		// torn-splice window; a --key retry is idempotent (handled above). Mint the id and VALIDATE
-		// the placement against the current render — a mis-quote or in-fence quote is refused now.
+		// THE ANCHOR EVENT BELOW IS THE MARKER: it carries the quote, and reportproj.Render re-places
+		// the proof anchor at replay. No file is spliced; a --key retry is idempotent (handled
+		// above). Mint the id and VALIDATE the placement against the current render — a mis-quote or
+		// in-fence quote is refused now.
 		label := record.NewProofID()
 		current, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, err
 		}
 		if _, aerr := anchortext.Attach(current, label, location); aerr != nil {
-			return nil, anchortext.Refusal("blue prove", aerr)
+			return nil, proveRefusal(aerr)
 		}
 
 		// `output` does not survive onto the event, and that is not a silent drop: it stays in the
@@ -169,6 +174,9 @@ func newProve() *cobra.Command {
 		}
 		proofFields(cmd, body, why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(label), Location: proto.String(location)}); err != nil {
 			return nil, err
 		}
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
@@ -206,6 +214,8 @@ func held[T any](p *T) *T {
 	v := *p
 	return &v
 }
+
+func proveRefusal(err error) error { return anchortext.Refusal("blue prove", err) }
 
 type proveResult struct {
 	Label      string `json:"proof_id,omitempty"`

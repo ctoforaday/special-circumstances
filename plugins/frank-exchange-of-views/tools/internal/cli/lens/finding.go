@@ -76,7 +76,7 @@ func newFinding() *cobra.Command {
 			// THE PAIR MAY BE HALF-APPENDED: the finding and its anchor are two appends, so a crash
 			// between them leaves the finding recorded and its anchor out of the report. The retry
 			// finishes the pair at the location the finding stored.
-			if err := placeOwed(s, run, priorID, func(err error) error { return placementRefusal("lens finding", "finding", err) }); err != nil {
+			if err := seat.PlaceOwed(s, run, priorID, func(err error) error { return placementRefusal("lens finding", "finding", err) }); err != nil {
 				return nil, err
 			}
 			return findingResult{Label: prior, Idempotent: true}, nil
@@ -164,25 +164,6 @@ func placementRefusal(verb, noun string, err error) error {
 		return fmt.Errorf("%w; for a %s about the whole section, name the section with --about-kind section", anchortext.Refusal(verb, err), noun)
 	}
 	return anchortext.Refusal(verb, err)
-}
-
-// placeOwed appends the Anchor a retried act owes, at the location its first call stored, once
-// Attach accepts that location against the report as it stands; otherwise it returns Attach's
-// refusal through refuse and the act stays unplaced.
-func placeOwed(s seat.Context, run record.Run, id string, refuse func(error) error) error {
-	loc, err := record.UnplacedLocation(run, id)
-	if err != nil || loc == "" {
-		return err
-	}
-	current, err := reportproj.RenderFromRecord(run)
-	if err != nil {
-		return err
-	}
-	if _, err := anchortext.Attach(current, id, loc); err != nil {
-		return refuse(err)
-	}
-	_, err = record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)})
-	return err
 }
 
 type findingResult struct {

@@ -1003,14 +1003,13 @@ message Observe {
 }
 
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
-// quote `location`. Keyed on `id`, so a retry writes one event rather than a second marker.
+// quote `location`. It is the one event that places a marker, of any kind, so an id is placed once
+// on a run: a second Anchor for it would be a second marker for one act.
 message Anchor {
-  optional string id = 1;
+  optional string id = 1 [(sql) = {unique: true}];
   optional string location = 2;
-  optional string finding_id = 3;
-  optional string finding_key = 4;
-  optional string label = 5;
-  optional string text = 6;
+  reserved 3 to 6;
+  reserved "finding_id", "finding_key", "label", "text";
 }
 
 // Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
@@ -1240,12 +1239,10 @@ message Proof {
   optional string script = 9;
   optional int32 exit = 10;
 
-  // location is the anchoring quote the proof marker was spliced after — the same `--quote` cite
-  // and finding record. prove.go used to DROP it, because the only reader that needed the site
-  // was the marker already in report.md. Under report-as-record (#709) there is no file: the
-  // report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
-  // by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
-  // could not state; this field is that fact, held where a writer can refuse a wrong value.
+  // location is the anchoring quote this proof backs — the same `--quote` cite and finding record.
+  // The Anchor appended after the proof carries it and places the marker; held here as well, it is
+  // the proof's own statement of its site, which a retry places an owed Anchor at and every reader
+  // of the proof reads without a join.
   optional string location = 11 [(prose) = false, (sql) = { flag: "quote" }];
 }
 

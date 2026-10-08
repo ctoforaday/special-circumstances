@@ -273,20 +273,18 @@ func NewProofID() string {
 // ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
 // after the event landed re-runs the same key and gets the recorded sha back rather than
 // executing the script a second time and splicing a second anchor.
-func ExistingProofByKey(run Run, seatID, key string) (string, error) {
+func ExistingProofByKey(run Run, seatID, key string) (sha, id string, err error) {
 	if key == "" {
-		return "", nil
+		return "", "", nil
 	}
 	// The schema carries the one fact once, on Proof.proof_sha; reproduce writes the same value
 	// and every joiner reads it back under this name.
-	var sha sql.NullString
-	if _, err := queryRow(run, []any{&sha},
-		`SELECT p."proof_sha" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+	var s, i sql.NullString
+	_, err = queryRow(run, []any{&s, &i},
+		`SELECT p."proof_sha", p."proof_id" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
 		  WHERE e."seat_id" = ? AND p."proof_key" = ? ORDER BY p."event_id" LIMIT 1`,
-		seatID, key); err != nil {
-		return "", err
-	}
-	return sha.String, nil
+		seatID, key)
+	return s.String, i.String, err
 }
 
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input

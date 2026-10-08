@@ -421,8 +421,8 @@ var defines = map[recordpb.EventType]bool{
 // verify verbs stopped writing it, so re-verifying one source counted as two.
 //
 // It is matched against the BODY'S OWN FIELD NAMES rather than against a per-type switch, so the
-// list stays the single statement of the rule: `Anchor` carries both `label` and `id` and takes
-// `label` because it is earlier here, exactly as `p.Str` walked them before. A name the schema no
+// list stays the single statement of the rule: a body carrying two of these names takes the one
+// earlier here. A name the schema no
 // longer has is skipped — which is the same silent staleness the paragraph above warns about, and
 // the reason a name is only ever REMOVED from this list deliberately.
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}

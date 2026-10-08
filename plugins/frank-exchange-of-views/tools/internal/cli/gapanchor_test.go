@@ -12,6 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -247,48 +248,113 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 	}
 }
 
-// A RETRY ANCHORS THE STORED LOCATION. An act appended without its Anchor — the crash window between
-// the two appends — is finished by a retry under its key at the location the act stored, never at
-// the retry's own --quote; where the report has since come to hold that location twice, the retry
-// refuses and appends nothing.
+// EVERY PLACING ACT IS FOLLOWED BY ITS ANCHOR. A citation, a proof and a corroboration each append
+// their own event and then one Anchor carrying the act's id and its quote, from the same seat; the
+// report holds the marker because of that Anchor, so an act with none places nothing.
+func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
+	const quote = "Costs rose sharply."
+	for _, c := range []struct {
+		seat string
+		args []string
+		id   func(*record.Event) string
+	}{
+		{blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},
+			func(e *record.Event) string { return e.GetCite().GetLabel() }},
+		{blueSeat, []string{"prove", "--script", "p.js", "--reason", "r"},
+			func(e *record.Event) string { return e.GetProof().GetProofId() }},
+		{lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
+			func(e *record.Event) string { return e.GetVerify().GetLabel() }},
+	} {
+		t.Run(c.args[0], func(t *testing.T) {
+			runDir := newRun(t)
+			writeReport(t, runDir, "# H\n\n"+quote+"\n")
+			registerLensOnce(t, runDir)
+			registerBlue(t, runDir)
+			script(t, runDir, "p.js", "console.log(1)")
+			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://example.org/s": []byte("<html>a source</html>")}})
+			if _, err := run(t, append([]string{c.args[0], "--run", runDir, "--seat-id", c.seat, "--quote", quote}, c.args[1:]...)...); err != nil {
+				t.Fatal(err)
+			}
+			m, err := record.MergedEvents(runtest.Open(t, runDir))
+			if err != nil || len(m.Events) < 2 {
+				t.Fatal(err)
+			}
+			act, placed := m.Events[len(m.Events)-2], m.Events[len(m.Events)-1].GetAnchor()
+			if id := c.id(act); id == "" || placed.GetId() != id || placed.GetLocation() != quote || m.Events[len(m.Events)-1].GetSeatId() != c.seat {
+				t.Fatalf("the act %s is followed by anchor {%q %q}, want its own id at %q from %s", id, placed.GetId(), placed.GetLocation(), quote, c.seat)
+			}
+			if !strings.Contains(readReport(t, runDir), "Costs rose sharply"+anchor.Token(placed.GetId())+".") {
+				t.Errorf("the report does not hold the anchor:\n%s", readReport(t, runDir))
+			}
+			assertNoAnchorViolations(t, runDir)
+		})
+	}
+}
+
+// A RETRY ANCHORS THE STORED LOCATION, for every act that places an anchor. An act appended without
+// its Anchor — the crash window between the two appends — is named by the consistency check and
+// finished by a retry under its key at the location the act stored, never at the retry's own
+// --quote; where the report has since come to hold that location twice, the retry refuses and
+// appends nothing. A corroboration's key is its source and claim, so its retry quotes the claim.
 func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 	const stored, other = "Costs rose sharply.", "Volume grew."
-	for _, kind := range []string{"finding", "gap"} {
-		t.Run(kind, func(t *testing.T) {
+	for _, c := range []struct {
+		kind, id, seat string
+		body           func(runDir string) proto.Message
+		retry          []string
+	}{
+		{"finding", "f-0badf00d", lensSeat, func(string) proto.Message {
+			return &recordpb.Finding{Label: proto.String("evidence-F1"), FindingId: proto.String("f-0badf00d"),
+				FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
+		}, []string{"finding", "--key", "K1", "--quote", other, "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
+		{"gap", "G1", lensSeat, func(string) proto.Message {
+			return &recordpb.Mint{GapId: proto.String("G1"), MintKey: proto.String("K1"), Class: proto.String("overclaim"),
+				Location: proto.String(stored), Problem: proto.String("p"), RequiredFix: proto.String("f"),
+				AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+				Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+				Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
+		}, nil},
+		{"citation", "c-0badf00d", blueSeat, func(string) proto.Message {
+			return &recordpb.Cite{Label: proto.String("c-0badf00d"), CiteKey: proto.String("K1"), Location: proto.String(stored),
+				Url: proto.String("https://example.org/s"), Title: proto.String("S")}
+		}, []string{"cite", "--key", "K1", "--quote", other, "--url", "https://example.org/s", "--title", "S"}},
+		{"proof", "p-0badf00d", blueSeat, func(runDir string) proto.Message {
+			sha, err := proof.ScriptSha(runDir, script(t, runDir, "p.js", "console.log(1)"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return &recordpb.Proof{ProofId: proto.String("p-0badf00d"), ProofKey: proto.String("K1"), ProofSha: proto.String(sha),
+				Location: proto.String(stored), Script: proto.String("p.js")}
+		}, []string{"prove", "--key", "K1", "--quote", other, "--script", "p.js", "--reason", "r"}},
+		{"citation", "c-0badf00e", lensSeat, func(string) proto.Message {
+			return &recordpb.Verify{Label: proto.String("c-0badf00e"), Url: proto.String("https://example.org/r"), Claim: proto.String(stored),
+				Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("r")}
+		}, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--quote", stored, "--as", "supports", "--confidence", "high", "--reason", "r"}},
+	} {
+		t.Run(c.kind+" "+c.id, func(t *testing.T) {
 			for _, twice := range []bool{false, true} {
 				runDir := newRun(t)
 				writeReport(t, runDir, "# H\n\n"+stored+"\n\n"+other+"\n")
 				registerChairOnce(t, runDir)
 				registerLensOnce(t, runDir)
-				id := "f-0badf00d"
-				var body proto.Message = &recordpb.Finding{Label: proto.String("evidence-F1"), FindingId: proto.String(id),
-					FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
-				if kind == "gap" {
-					id = "G1"
-					body = &recordpb.Mint{GapId: proto.String(id), MintKey: proto.String("K1"), Class: proto.String("overclaim"),
-						Location: proto.String(stored), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-						AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-						Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-						Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
-				}
-				recordtest.Seed(t, runDir, recordtest.At(t, lensSeat, lensSeat+":seeded:"+id, body))
+				registerBlue(t, runDir)
+				id := c.id
+				recordtest.Seed(t, runDir, recordtest.At(t, c.seat, c.seat+":seeded:"+id, c.body(runDir)))
 				if twice {
-					registerBlue(t, runDir)
 					if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1",
 						"--quote", other, "--new", stored, "--reason", "the same sentence again"); err != nil {
 						t.Fatalf("doubling the stored sentence: %v", err)
 					}
 				}
 				before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR)
-				if v, err := consistency.Check(runtest.Open(t, runDir)); err != nil || !slices.Contains(v, "anchor-record: "+anchor.Kind(id)+" "+id+" has no anchor event") {
-					t.Errorf("the consistency check does not name the half-appended %s %s: %v %v", kind, id, v, err)
+				if v, err := consistency.Check(runtest.Open(t, runDir)); err != nil || !slices.Contains(v, "anchor-record: "+c.kind+" "+id+" has no anchor event") {
+					t.Errorf("the consistency check does not name the half-appended %s %s: %v %v", c.kind, id, v, err)
 				}
 				var err error
-				if kind == "gap" {
+				if c.retry == nil {
 					_, err = mintQuote(t, runDir, "K1", other)
 				} else {
-					_, err = run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "K1", "--quote", other,
-						"--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low")
+					_, err = run(t, append([]string{c.retry[0], "--run", runDir, "--seat-id", c.seat}, c.retry[1:]...)...)
 				}
 				got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR) - before
 				if twice {
