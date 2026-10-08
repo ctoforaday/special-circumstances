@@ -97,9 +97,10 @@ Reach and MET are proxies. A seat reaching for more verbs has not thereby done b
 
 `SittingOf` has no `lens` arm. A lens seat's blocking duties are the two held above the switch for
 every seat they apply to: the log channel, and the sitting it was dispatched for — a seat a dispatch
-names that has not registered since has not sat. The second is enforced by dispatch, which readies
-an unregistered seat again on the same predicate (`sittingFor`), so it meets this file's governing
-rule: every duty is enforced at a write path or by dispatch, or scored at capture. Nothing refuses a
+names that has opened no sitting since, by its bracket or its register, has not sat. The second is
+enforced by dispatch, which readies such a seat again on the same predicate (`sittingFor`), so it
+meets this file's governing rule: every duty is enforced at a write path or by dispatch, or scored
+at capture. Nothing refuses a
 sitting over any other missing lens act, and the scorecard scores no lens parity duty, so a lens arm
 would be an invented obligation, and `complete: false` on a seat no gate would hold is precisely the
 disagreement that teaches a seat to trust neither surface.

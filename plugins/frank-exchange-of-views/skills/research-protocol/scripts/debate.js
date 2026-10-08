@@ -728,12 +728,12 @@ const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log
 // aborts. #251 dissolves this entirely by making a revision a recorded op rather than an
 // attestation; until then this is the recovery, not a second rule.
 //
-// THE REPAIR REGISTERS AS A REPAIR (#1002). The re-prompt is a new agent handed a prompt, so it is a
-// sitting and gets its own budget; what it must not do is take the acts. Registering plainly, the
-// position and revision it files would be its own — and under this engine the first agent's stop has
-// already closed the sitting they belong to, so they belonged to no sitting at all and record-parity
-// could fail the sitting they completed. The prompt names the act; the register records which sitting
-// it repairs as a field, and refuses a repair the record does not bear out.
+// THE REPAIR REGISTERS AS A REPAIR (#1002). The re-prompt is a new agent handed a prompt, so it
+// gets its own call budget; what it must not do is take the acts. Registering plainly, the position
+// and revision it files would be its own — they would land in a sitting of its own, not the one
+// they complete, and record-parity could fail the sitting they completed. The prompt names the act;
+// the register records which sitting it repairs as a field, and refuses a repair the record does
+// not bear out.
 // THE RE-PROMPT BRANCHES ON A SENTENCE THE TOOL PLACES, NOT ON EACH REFUSAL'S OWN WORDS (#1026).
 // The repair CHECK produces two outcomes: the sitting owes a repair nothing, or the record does not
 // bear the claim out. This is record.RepairNothingToFile verbatim — the tool ends every refusal of
@@ -871,9 +871,8 @@ let haltOpinion = null
 // refusal anywhere that turns on which of them is being asked. A petition names who filed on the
 // petition itself, which is where it belongs — not in the identity of the seat ruling it.
 //
-// WHICH occasion a sitting was is the sitting ordinal the record computes from the registers
-// (plans/roundless.md §III.A.0) — the same answer every other seat gets, and nothing a regex has
-// to recover from a name.
+// WHICH occasion a sitting was is the occasion its register states — a field the record refuses a
+// wrong value for (checkOccasion), and nothing a regex has to recover from a name.
 //
 // THE SEAT ID IS WRITTEN OUT AT EVERY SITE, never lifted to a constant. The roster bind
 // (TestTheRosterMatchesWhatTheEngineActuallyDispatches) reads this file as SOURCE and reduces each
@@ -982,8 +981,8 @@ await ensureSittingRecord(blueEnv, 'blue-synthesize', `your sitting's revision e
 // IDENTICAL MEANS THE WHOLE PLAN, reasons included, not only the head and the parties. A gap marching
 // to impasse keeps its head and its parties while the exchange count in its reason advances — that
 // march is progress the run's terms (k, k-max) bound, and a valve blind to the reasons would cut it
-// short under any k of 3 or more, or a lens regrading without an edit. A seat that sits and never
-// registers moves no count, so its plan repeats exactly: the loop this valve exists for.
+// short under any k of 3 or more, or a lens regrading without an edit. A seat that is dispatched and
+// opens no sitting moves no count, so its plan repeats exactly: the loop this valve exists for.
 const NO_PROGRESS_EPOCHS = 3
 const partyList = (ps) => ps.map((p) => `${p.seat_id}${p.gap_ids && p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')
 const sortedStrings = (xs) => (Array.isArray(xs) ? xs : []).map(String).sort()

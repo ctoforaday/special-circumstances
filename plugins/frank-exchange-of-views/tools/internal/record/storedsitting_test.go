@@ -561,3 +561,42 @@ func findingsJSONT(t *testing.T, evs []*Event) FindingsJSON {
 	m := loadedT(t, evs...)
 	return FindingsJSONOf(m.Events, m.At)
 }
+
+// THE BENCH'S SITTING IS PLACED AT ITS STORED OPENING, NOT AT THE REGISTER THAT STATES ITS OCCASION.
+// A bracketed bench states the occasion at a register that JOINED the bracket's sitting, so the
+// occasion is read off the register and the place off the sitting it is stored in (benchRegisters).
+// Placed at the register, one sitting would have two starts, and the later one would answer a
+// dispatch row written after the sitting had already opened.
+//
+// Both orders are seeded so the absent answer cannot come from the fixture: the same bracket,
+// register and row with the row FIRST is a bench that sat for it.
+func TestTheBenchSittingIsItsStoredOpeningNotItsRegister(t *testing.T) {
+	docket := recordpb.Occasion_OCCASION_DOCKET
+	benchSat := func(t *testing.T, build func(b *stage) *stage) bool {
+		t.Helper()
+		b := build(newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").register(evLens).mint(evLens, "G1", "high"))
+		m, err := MergedEvents(b.seed())
+		if err != nil {
+			t.Fatal(err)
+		}
+		gs := DispatchGroups(m.Events, m.At)
+		if len(gs) != 1 {
+			t.Fatalf("groups = %+v, want the one bench dispatch", gs)
+		}
+		_, sat := gs[0].Sat[benchSeat]
+		return sat
+	}
+	joins := &recordpb.Register{AgentId: proto.String("bench-a"), Occasion: docket.Enum()}
+
+	if benchSat(t, func(b *stage) *stage {
+		return b.bracket(benchSeat, "bench-a").benchDispatch(2, []string{"G1"}, docket).add(benchSeat, joins)
+	}) {
+		t.Error("a bench sitting the hook opened BEFORE the dispatch row answers it — the sitting was placed at the register that joined it, not at its stored opening")
+	}
+	if !benchSat(t, func(b *stage) *stage {
+		return b.benchDispatch(2, []string{"G1"}, docket).bracket(benchSeat, "bench-a").add(benchSeat, joins)
+	}) {
+		t.Error("a bench sitting the hook opened AFTER the dispatch row does not answer it")
+	}
+}

@@ -26,10 +26,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
-// chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an
-// event (events_w), so a fixture that means "in epoch N" must seat the chair N times. The
-// seat id used to carry the number (red-chair-r2); it carries nothing now, and a seat that does
-// not register is in epoch 0 whatever it is called.
+// chairRegister opens an epoch: the epoch is the count of red-chair sittings at or before an event
+// (events_w), so a fixture that means "in epoch N" must seat the chair N times. The seat id carries
+// no number, and a chair that has not sat leaves every event in epoch 0 whatever it is called.
 func chairRegister(t *testing.T, sitting int) *recordpb.Event {
 	t.Helper()
 	return recordtest.At(t, "red-chair", "red-chair:register:#"+itoa(sitting),
@@ -490,10 +489,11 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 }
 
 // THE SHIPPED ENGINE'S REPAIR PASSES PARITY (#1002, ruling 2). Blue's agent sat on G1, edited, and
-// returned with no position or revision, and its stop closed the sitting. The engine's re-prompt is a
-// new agent: registered as the repair of that sitting, it files both and returns. Parity holds the
-// sitting to what it and its repair filed. The same acts after a register that repairs nothing
-// belong to no sitting, and the sitting fails — which is what the field is for.
+// returned with no position or revision, and its stop closed the sitting. The engine's re-prompt is
+// a new agent: registered as the repair of that sitting, it files both and returns. Parity holds
+// the sitting to what it and its repair filed. The same acts after a register that repairs nothing
+// land in a sitting of their own, and the dispatched sitting fails — which is what the field is
+// for.
 func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
 	seed := func(t *testing.T, repair *recordpb.Register) record.Run {
 		n := 0
@@ -531,7 +531,7 @@ func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
 	}
 	plain := seed(t, &recordpb.Register{AgentId: proto.String("blue-b")})
 	if a := RecordParityAudit(plain); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "filed no position and no revision") {
-		t.Errorf("the same acts after a register that repairs nothing are no sitting's: want FAIL, got %s (%s)", a.Verdict, a.Detail)
+		t.Errorf("the same acts after a register that repairs nothing are a sitting of their own: want FAIL, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 

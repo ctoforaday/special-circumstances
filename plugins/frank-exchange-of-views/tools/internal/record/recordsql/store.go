@@ -822,7 +822,7 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 // max() and the insert.
 //
 // A NON-OPENING JOINS THE SEAT'S LATEST SITTING, or none. "Latest" is by id, which is append order;
-// a seat that has never opened one — the harness's own bookkeeping, a verb run before `register` —
+// a seat that has never opened one — the harness's own bookkeeping, a verb run before the seat's first opening —
 // gets NULL, and every reader that counts sittings then counts none rather than inventing one.
 func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error) {
 	if err := tx.QueryRow(`SELECT COALESCE(max("id"), 0) + 1 FROM "events"`).Scan(&id); err != nil {

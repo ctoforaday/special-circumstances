@@ -118,16 +118,9 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
-// register and stamped on every event forever (epoch.go, deleted). It is now the EPOCH at the
-// the record itself — events_w."epoch", counted over the chair's stored sittings — and a seat id carries no epoch at all.
-//
-// What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
-// the repository ever set, so in production the regex was not a fallback but the only path, and
-// `judge-terminal` stamped round 0 on every append (#396). round.go answers the question the regex
-// structurally cannot: a terminal seat's epoch is derived from the RECORD (the highest epoch any
-// seat stamped), and "this name says nothing about an epoch" is a second return value rather than a
-// zero indistinguishable from round 0.
+// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It is the record's — events_w."epoch", the count of the
+// chair's stored sittings at or before a row — and a seat id carries no epoch at all. A terminal
+// seat's epoch is read the same way, so it acts in the epoch the chair has reached.
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
 
@@ -147,10 +140,8 @@ type Event = recordpb.Event
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
-// Epoch is CARRIED, never re-derived by regex over the seat id: the caller has already resolved
-// it as a field on seat.Context, and re-deriving would return 0 on a miss — indistinguishable
-// from round 0. Carrying it puts the fact ON THE SEAM, so a dispatcher-injected round arrives
-// once here rather than at 32 call sites.
+// An Identity carries no epoch: the epoch is the record's (events_w."epoch", the chair's stored
+// sittings at or before the row), so no caller supplies it.
 //
 // ROLE IS DELIBERATELY NOT A FIELD HERE. See the note on Event.Role: the role stamped on an event
 // is the PARTY, derived from the seat id, and seat.Context.Role answers a different question —
@@ -272,11 +263,9 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 		return 0, "", "", err
 	}
 
-	// THERE IS NO POINTER FILE AND NO LOCK. Which sitting is live was a fact held in
-	// `.active-<seat>`, written under a per-seat lock because two registers race — a record
-	// standing outside the record, holding one fact the register events already carried. It is a
-	// query now (activeNonce), and the race it needed a lock for is the ordering SQLite already
-	// gives: the latest register row IS the answer.
+	// THERE IS NO POINTER FILE AND NO LOCK. Which sitting is live is a query (recordsql's
+	// sittingOf, inside the inserting transaction), and the ordering SQLite gives settles two
+	// registers racing: the seat's latest stored sitting IS the answer.
 	ev := &Event{}
 	// agent_id and run_via are ENGINE-OBSERVED, never typed by the seat. Both are set only when
 	// actually observed: an absent field says "not measured", which is the honest answer for a run
@@ -392,14 +381,13 @@ func envelope(ev *Event, ts, seatID string, key string) {
 // singleton verbs key on seat+verb+SITTING; multi-instance verbs on their stable labels; the rest on
 // a per-seat ordinal.
 //
-// SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. A seat id used to name one sitting
-// — `red-chair-r2` could record one position, and the key `red-chair-r2:position` held that.
-// Roundless there is one chair sitting many times (plans/roundless.md §III.A.1), so
-// `red-chair:position` would have made a position once per RUN. The ordinal below is the count of
-// this seat's registers on the record, the same count events_w exposes, taken inside the writing
-// transaction — a TURN identifier, so a repair's acts do not collide with the keys of the sitting it
-// repairs. The duty itself is asked of the ATTRIBUTED sitting, in requireOncePerSitting
-// (oncepersitting.go), which is what makes the refusal's "this sitting" true.
+// SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. One chair sits many times
+// (plans/roundless.md §III.A.1), so a key of `red-chair:position` would make a position once per
+// RUN. The ordinal below is the count of this seat's stored sittings (the `sittings` view), the
+// rank events_w exposes as "sitting", taken inside the writing transaction; a repair opens no
+// sitting, so its acts carry the ordinal of the sitting it repairs. The duty itself is asked of the
+// ATTRIBUTED sitting, in requireOncePerSitting (oncepersitting.go), which is what makes the
+// refusal's "this sitting" true.
 //
 // REGISTER IS NOT ONE, and it never really was. It sat here and then had its key overridden in
 // RegisterSeat to carry the nonce, precisely because two registers for one seat are a legitimate
@@ -674,10 +662,11 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	if err != nil {
 		return err
 	}
-	// THE ONCE-PER-SITTING DUTY IS ASKED HERE, NOT LEFT TO THE KEY. The key counts TURNS, so a
-	// repair's second position lands on a free ordinal; this asks which SITTING the act is
-	// attributed to (oncepersitting.go). It runs before the insert and inside the same
-	// transaction, which holds the write lock from its BEGIN.
+	// THE ONCE-PER-SITTING DUTY IS ASKED HERE, NOT LEFT TO THE KEY. The key carries the seat's
+	// stored sitting count, so a repair's act shares the ordinal of the sitting it repairs and
+	// would collide only as a raw key error; this asks which SITTING the act is attributed to
+	// (oncepersitting.go). It runs before the insert and inside the same transaction, which holds
+	// the write lock from its BEGIN.
 	if err := requireOncePerSitting(tx, seatID, typ, body); err != nil {
 		return err
 	}
@@ -692,8 +681,9 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 		// nothing about that. The shard record met this by DEDUPING — two events with one key, one
 		// of them silently discarded on read — so a seat that filed the same row twice never
 		// learned that only one survived. Refusing is the better answer and it has to say what was
-		// refused. A SINGLETON NEVER ARRIVES HERE: equal keys mean equal turn counts, so no
-		// register at all stands between the two acts and the duty above has already refused it.
+		// refused. A SINGLETON NEVER ARRIVES HERE: equal keys mean one stored-sitting count, so
+		// both acts are attributed to one sitting and the duty above has already refused the
+		// second.
 		//
 		// regradesAfforded (available.go) holds back a regrade this branch would refuse (the seat's
 		// current sitting already holds one on that gap); a change to the label key's sitting scope
@@ -718,8 +708,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	return tx.Commit()
 }
 
-// insertEvent writes an event whose envelope is already stamped — the register, which opens the
-// sitting and so has nothing to count against.
+// insertEvent writes an event whose envelope is already stamped.
 func insertEvent(db *sql.DB, ev *Event) error {
 	_, err := recordsql.Insert(db, ev)
 	return err

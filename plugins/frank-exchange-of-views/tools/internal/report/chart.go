@@ -18,10 +18,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// boardChart renders the trajectory figure, or "" when there is nothing worth drawing — no
-// board, no gaps, or fewer than two chair sittings, whose "trajectory" is one dot pretending to
-// be a line. The x-axis is the EPOCH (plans/roundless.md §III.A.0) — a count of the chair's
-// registers, never a number a seat stamped.
+// boardChart renders the trajectory figure, or "" when there is nothing worth drawing — no board,
+// no gaps, or fewer than two chair sittings, whose "trajectory" is one dot pretending to be a line.
+// The x-axis is the EPOCH (plans/roundless.md §III.A.0) — the number of the chair's stored sittings
+// at or before each act, never a number a seat stamped.
 // Absence is fine: the chart is a reading aid, and the same numbers stay in the table below
 // it and in the record itself.
 func boardChart(fam record.Family) string {

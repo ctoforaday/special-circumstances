@@ -360,9 +360,9 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	}
 	sort.Strings(files)
 	// THE EPOCH IS THE RECORD'S TO SAY. A transcript knows its spend and, from its prompt head, its
-	// seat; which dispatch cycle it sat in is a count over the chair's registers, which only the
-	// record holds. Without a record every row is epoch 0 and the table shows a dash, which is the
-	// honest answer rather than a number scraped from a heading.
+	// seat; which dispatch cycle it sat in is the count of the chair's stored sittings at its
+	// binding act, which only the record holds. Without a record every row is epoch 0 and the table
+	// shows a dash, which is the honest answer rather than a number scraped from a heading.
 	var bindings map[string]SeatBinding
 	if run.Dir() != "" {
 		bindings, _ = SeatBindings(run)

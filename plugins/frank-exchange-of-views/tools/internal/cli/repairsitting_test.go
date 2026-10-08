@@ -32,7 +32,7 @@ func TestRegisterWithRepairSittingNamesTheSittingItRepairs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register --repair-sitting: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, `as the repair of the sitting blue-respond:register:#1 opened`) {
+	if !strings.Contains(out, `as the repair of the sitting that holds blue-respond:register:#1`) {
 		t.Errorf("the verb does not say which sitting it repairs:\n%s", out)
 	}
 	if r := lastBody(t, runDir, &recordpb.Register{}); r.GetRepairsSitting() != "blue-respond:register:#1" {

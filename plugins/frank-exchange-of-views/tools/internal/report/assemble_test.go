@@ -258,8 +258,8 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
-		// Two chair sittings put the move in epoch 2 — the epoch is counted from the chair's
-		// registers, not read off the seat id.
+		// Two chair sittings put the move in epoch 2 — the epoch is the number of the chair's
+		// stored sittings at or before the row, not read off the seat id.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "blue-r2", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
@@ -451,8 +451,8 @@ func TestRemovalBasisReachesTheReader(t *testing.T) {
 	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
 		t.Errorf("a verified removal must say the record can show it:\n%s", v)
 	}
-	// The seat is named beside the row, so its SITTING rides with it — the seat's own register
-	// count, not a number the seat stamped.
+	// The seat is named beside the row, so its SITTING rides with it — the rank of the seat's
+	// stored sitting the row is in, not a number the seat stamped.
 	if !strings.Contains(v, "(blue-r2 #1)") {
 		t.Errorf("the retiring seat's sitting must render beside its name:\n%s", v)
 	}

@@ -91,9 +91,10 @@ func (b *stage) seed() Run {
 const evLens = "red-lens-evidence"
 
 // One exchange is a red-party sitting engaged on G followed by a blue-party sitting engaged on G,
-// both complete — each closed by THAT SEAT's next register. Movement in it resets the stall; a null
-// turn — blue sat and recorded nothing on G — counts as an exchange and stalls it. The sittings of
-// the last epoch are still open: they are not counted, and they are not zero either.
+// both complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it
+// resets the stall; a null turn — blue sat and recorded nothing on G — counts as an exchange and
+// stalls it. The sittings of the last epoch are still open: they are not counted, and they are not
+// zero either.
 func TestAGapsExchangesAndStallsAreCountedFromTheRecord(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).mint(evLens, "G1", "high").                 // epoch 1: the lens mints
@@ -434,7 +435,7 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 }
 
 // PASS waits for every cast lens to stop being ready — each retired with no re-arm owed, or retired
-// for good. A lens engaged that never registered has not sat, so it is still active.
+// for good. A lens engaged that has opened no sitting since has not sat, so it is still active.
 func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	logic := "red-lens-logic"
 	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}

@@ -148,7 +148,7 @@ func TestTheSQLAndGoReadingsOfWhatOpensASittingAgree(t *testing.T) {
 	if forgeErr == nil {
 		t.Fatal("a register with no sitting went onto the record — the envelope CHECK is what makes the two readings one")
 	}
-	// A real second sitting, opened the way every seat opens one.
+	// A real second sitting, opened by a register that repairs nothing.
 	opening2 := recordtest.Stamped(recordtest.At(t, "blue-respond", forgedKey,
 		&recordpb.Register{AgentId: proto.String("blue-c")}), stamp(5))
 	if _, err := recordsql.Insert(db, opening2); err != nil {

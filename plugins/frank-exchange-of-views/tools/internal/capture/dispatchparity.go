@@ -40,7 +40,7 @@ import (
 // workflow convenes the terminal bench sitting off the last relayed plan's blockers the bench owns,
 // and no row records a blocker. So the relayed set is held to the record's own unruled bench-gavel
 // motions as they stood when the chair's last sitting ended — its last act, before the next seat's
-// register. A blocker dropped or altered in the relay, or a motion filed after the plan was asked
+// opening. A blocker dropped or altered in the relay, or a motion filed after the plan was asked
 // for, departs here: the plan the chair relays is the one it asked for last.
 //
 // THE JOURNAL HOLDS ONE CHAIR RESULT PER CHAIR SITTING — the stated assumption the pairing rests on.
@@ -48,11 +48,11 @@ import (
 // loudly. With no journal there is nothing to compare, and the detail says the relayed fields were
 // NOT compared: an absent journal never reads as a faithful relay.
 //
-// A CHAIR SITTING'S DISPATCH IS record.DispatchGroups', NOT THE CLOCK'S CHAIR-SITTING COUNT. This
-// audit grouped by the count, and a warm chair registers once per run: B3–B6 each read as a single
-// chair sitting whose last dispatch was the run's last, so every register before it was discarded
-// and every party of "dispatch 1" read as never registered — the same FAIL on every warm run,
-// whether or not the parties sat.
+// A CHAIR SITTING'S DISPATCH IS record.DispatchGroups', NOT THE EPOCH. A warm chair resuming its
+// session opens no stored sitting until it registers, and on B3–B6 it registered once per run:
+// grouped by epoch, each run is one chair sitting whose last dispatch is the run's last, every
+// party sitting before it is discarded, and every party of "dispatch 1" reads as never having sat —
+// the same FAIL on every warm run, whether or not the parties sat.
 //
 // The verb records the truth; this catches a relay that departed from it. A mismatch is a FAIL.
 func DispatchParityAudit(run record.Run, results []map[string]any, journalPresent bool) Audit {
@@ -158,7 +158,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			// A BENCH DISPATCHED FOR AN OCCASION MUST HAVE SAT FOR *THAT*, and the occasion is
 			// what makes the question answerable.
 			//
-			// `Sat` is the party's first register after the dispatch. In the FINAL group the
+			// `Sat` is the party's first sitting opened after the dispatch. In the FINAL group the
 			// bench's closing sittings — the terminal disposition and the assembly — register in
 			// that same window, and once the bench collapsed to one seat they were no longer
 			// separable from a docket ruling by id. So a bench dispatched onto a gap and never
@@ -192,7 +192,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 				continue
 			}
 			if at, sat := g.Sat[p]; !sat || at >= end {
-				absent = append(absent, fmt.Sprintf("%s was named in dispatch %d and never registered before the next", p, k+1))
+				absent = append(absent, fmt.Sprintf("%s was named in dispatch %d and sat no sitting before the next", p, k+1))
 			}
 		}
 	}
@@ -220,7 +220,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 		}
 	}
 	if len(findings) == 0 {
-		return Audit{Check: "dispatch-parity", Verdict: "PASS", Detail: fmt.Sprintf("%d dispatch(es); every register between them was a named party or the chair, and every party registered", len(groups)) + compared + notCompared}
+		return Audit{Check: "dispatch-parity", Verdict: "PASS", Detail: fmt.Sprintf("%d dispatch(es); every register between them was a named party or the chair, and every party sat", len(groups)) + compared + notCompared}
 	}
 	return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: strings.Join(findings, "; ") + notCompared}
 }

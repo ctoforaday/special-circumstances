@@ -29,7 +29,8 @@ func newDispatch() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// A SITTING IS OPENED BY A REGISTER, the chair's included: refused before anything is
+		// THE CHAIR REGISTERS FOR EVERY SITTING, a resumed one included: a resumed dispatch carries
+		// no bracket, so its register is what opens the sitting. Refused before anything is
 		// computed or written, so the register lands ahead of every act of the sitting.
 		if err := record.RequireChairSittingOpened(run); err != nil {
 			return nil, err

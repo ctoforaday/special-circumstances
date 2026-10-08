@@ -50,10 +50,10 @@ func b5Shape(t *testing.T) *stage {
 												register("red-chair").dispatch(7, voiceLens).logEntry(voiceLens) // and again, unregistered
 }
 
-// THE WORK LIST TELLS THE TRUTH THE DISPATCH ACTS ON. A lens dispatched and not registered since
-// has not sat: dispatch readies it again, and its own work list says the sitting is owed and that
-// the sitting may not close — where it used to say `complete: true` to a seat dispatch was about to
-// re-ready, which is the loop B5 ran eleven times at one head.
+// THE WORK LIST TELLS THE TRUTH THE DISPATCH ACTS ON. A lens dispatched with no sitting opened
+// since — no hook bracket, no register — has not sat: dispatch readies it again, and its own work
+// list says the sitting is owed and that the sitting may not close — a `complete: true` there goes
+// to a seat dispatch is about to re-ready, which is the loop B5 ran eleven times at one head.
 func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 	run := b5Shape(t).seed()
 	s := sittingOfRunT(t, run, "lens", voiceLens)

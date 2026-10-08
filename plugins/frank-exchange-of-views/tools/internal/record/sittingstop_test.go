@@ -156,7 +156,7 @@ func TestAStopClosesTheSittingBeforeTheSeatSitsAgain(t *testing.T) {
 	}
 }
 
-// A STOP THAT JOINS NO SITTING'S REGISTER CLOSES NOTHING. The hook records every typed subagent in
+// A STOP THAT JOINS NO SITTING'S OPENING CLOSES NOTHING. The hook records every typed subagent in
 // a project whose run marker is live — a developer's own general-purpose and plan-auditor agents
 // included — and a register with no agent_id has nothing to join. Neither may close a party's
 // sitting, and nor may another seat's agent returning.

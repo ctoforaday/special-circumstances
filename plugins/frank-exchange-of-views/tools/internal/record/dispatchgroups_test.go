@@ -13,8 +13,9 @@ func warmChair(t *testing.T) *stage {
 											register(evLens).mint(evLens, "G1", "high")
 }
 
-// One chair sitting's dispatch is the rows with no register between them: the repeated plan is
-// one group, a party's register ends it, and each party's sitting is the register sittingFor finds.
+// One chair sitting's dispatch is the rows with no sitting opened between them: the repeated plan
+// is one group, a party's opening ends it, and each party's sitting is the opening sittingFor
+// finds.
 func TestDispatchGroupsSplitWhereSomebodySat(t *testing.T) {
 	b := warmChair(t).dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register("blue-respond")
 	run := b.seed()

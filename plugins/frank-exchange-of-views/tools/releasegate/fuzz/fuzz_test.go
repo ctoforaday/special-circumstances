@@ -222,9 +222,10 @@ type runner struct {
 	runHandle  record.Run
 	rng        *lockedRand
 	registered map[string]bool
-	// chairRegisters is how many times red-chair has registered — the EPOCH the record will
-	// stamp on the next write, kept here so the driver can name a prior epoch to --carried-from
-	// without reading it back out of a seat id, which no longer carries one.
+	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
+	// driver each register opens a chair sitting, so it is the epoch the record derives for the
+	// next write — kept here so the driver can name a prior epoch to --carried-from without reading
+	// it back out of a seat id, which carries none.
 	chairRegisters int
 	// minter: gap id -> the LENS seat whose mint created it. THE ORIGINATOR CLOSES (roundless
 	// §III.B.3): the record refuses a `close` (without --carried-from) or a `regrade` on a gap
@@ -822,12 +823,12 @@ func (r *runner) exec(args ...string) (string, error) {
 }
 
 // sit is the register a DISPATCH makes: every time debate.js hands a seat a prompt, that seat sits
-// again, and a sitting is a register (plans/roundless.md §III.A.0 — the sitting ordinal and the
-// chair's epoch are COUNTS of registers). `register` below is once-per-run, which was right when
-// every round dispatched a fresh seat id (`red-chair-r3`) and is wrong now that the id is stable:
-// a chair that registered once sat forty times at sitting #1, every singleton act after the first
-// was refused as a duplicate, the epoch never advanced, `dispatch next` never saw a lens sit
-// against a moved head, and the loop ran until the ten-minute budget killed it — 29 of 40 runs.
+// again, and with no hook bracket in this driver its register opens that sitting
+// (plans/roundless.md §III.A.0 — the sitting ordinal and the chair's epoch rank those stored
+// sittings). `register` below is once-per-run, and the seat id is stable: a chair that registered
+// once would sit forty times at sitting #1, every singleton act after the first would be refused as
+// a duplicate, the epoch would never advance, `dispatch next` would never see a lens sit against a
+// moved head, and the loop would run until the ten-minute budget killed it.
 // sit registers a seat for a sitting. occasion is the BENCH's — what this sitting was convened to
 // do — and is variadic because only the bench has one; every other caller passes nothing.
 func (r *runner) sit(role, seatID string, occasion ...string) {
@@ -3744,7 +3745,7 @@ var reportExemptions = map[string]string{
 	// reach the reader through what the dispatched seats then record — never as entries of
 	// their own; capture's dispatch-parity audit is their reader.
 	"cast":     "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
-	"dispatch": "who the chair relayed for one epoch — routing, audited by capture against the registers, never rendered",
+	"dispatch": "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",

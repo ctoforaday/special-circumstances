@@ -104,8 +104,8 @@ func TestRouteTableHasNoObviouslyDeadEntries(t *testing.T) {
 // config and minted gaps" — and reports instead of failing. That was the blind spot, written down.
 func TestEveryCostSectionIsRoutedOnARunThatMintedAGap(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	// One chair register, then a mint under it: the epoch is counted from the chair's registers,
-	// so this is the smallest record that produces a telemetry line.
+	// One chair register, then a mint under it: the epoch is the count of the chair's sittings, so
+	// this is the smallest record that produces a telemetry line.
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "red-chair", "red-chair:register:1", &recordpb.Register{}),
 		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{

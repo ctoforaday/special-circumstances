@@ -1,7 +1,7 @@
 // Package sittingcap counts a seat's tool calls within ONE SITTING, so the PreToolUse hook can stop
 // a seat that has made more than the run's limit of them.
 //
-// # The sitting is the register
+// # The count starts at the register
 //
 // The record stores a seat's sittings (events.sitting_id, ranked by events_w): the hook's bracket
 // opens one and the seat's register under the same agent joins it. This counts from the register,
@@ -9,10 +9,12 @@
 // seat and sitting number, and every call after it is counted against that sitting until the next
 // register replaces the header.
 //
-// SubagentStart and the sitting_open span were the other candidates, and both mark a DISPATCH
-// rather than a sitting. A warm session resumed for a second sitting fires neither, and a seat
-// that is the main session of a headless `claude -p` process never fires SubagentStart at all.
-// Every sitting under either engine begins with a register.
+// SubagentStart and the sitting_open span are the other candidates, and neither fires on every
+// sitting that writes. A warm session resumed for a second sitting fires neither, and a seat that
+// is the main session of a headless `claude -p` process never fires SubagentStart at all. Every
+// sitting that writes holds a register under either engine: where the hook's bracket names the
+// seat, the bracket opens the sitting and the register joins it; otherwise — a configuration that
+// seats several, a resumed dispatch, a headless main session — the register opens it.
 //
 // WHAT MAKES THAT LAST SENTENCE TRUE IS A GATE, NOT A CONVENTION, and it is worth naming here
 // because this package's whole window depends on it. seat.requireBound refuses a write by an agent
@@ -66,8 +68,9 @@ const ConfigKey = "maxSittingCalls"
 // Dir is the counters' directory under the run directory.
 const Dir = ".sitting-calls"
 
-// Header is what register writes: which seat the agent sits as and which of that seat's sittings
-// is open. The sitting number is the record's own (the seat's sitting count).
+// Header is what register writes: which seat the agent sits as and which of that seat's sittings is
+// open. The sitting number is the seat's register count (register's dispatch ordinal), which keys
+// this counter; it is not the stored sitting ordinal events_w ranks.
 type Header struct {
 	SeatID  string `json:"seatId"`
 	Sitting int    `json:"sitting"`

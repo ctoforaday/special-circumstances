@@ -516,8 +516,9 @@ message Event {
   // failed: events.key`. A re-dispatched seat could not record at all.
   //
   // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
-  // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
-  // of that seat's register events at or before the row, which is what events_w."sitting" is.
+  // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the rank of
+  // the row's stored sitting among that seat's stored sittings, which is what events_w."sitting"
+  // is.
   //
   // `round` WAS FIELD 5 AND IS GONE (plans/roundless.md §III.A.2). It was the third stamped
   // derivation on this envelope, and the last: first recovered from the seat id by regex, then
@@ -1904,7 +1905,7 @@ message Register {
   // and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
   optional string agent_type = 6;
 
-  // THE SITTING THIS REGISTER REPAIRS: the key of the register that opened it.
+  // THE SITTING THIS REGISTER REPAIRS: the key of the seat's register in it.
   //
   // The engine re-prompts a seat whose sitting did not put its record on the record (the
   // sitting-record repair). The re-prompted agent registers again, and a register opens a sitting —
@@ -2096,8 +2097,8 @@ message Dispatch {
   // occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
   // petitions no petition sitting has heard). The bench's one seat id cannot say which question it
   // is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
-  // that copy to this one, and the bench's sitting for each is its register of the same occasion.
-  // Required on a bench row and refused on any other seat's, at the write.
+  // that copy to this one, and the bench's sitting for each is the one whose register states the
+  // same occasion. Required on a bench row and refused on any other seat's, at the write.
   repeated Occasion occasions = 4;
 }
 

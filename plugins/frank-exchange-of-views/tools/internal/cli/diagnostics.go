@@ -203,7 +203,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	}
 	if !slices.Contains(registered, seatID) {
 		return out, feov.Errorf(feov.NotFound,
-			"ops diagnostics: %q never registered in this run, so there is no sitting to report on", seatID)
+			"ops diagnostics: %q has no register in this run, and this report reads registered seats only", seatID)
 	}
 
 	for _, id := range ids {

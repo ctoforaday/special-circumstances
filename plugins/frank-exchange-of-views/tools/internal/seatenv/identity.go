@@ -36,11 +36,10 @@ import (
 // key. session_id and prompt_id are IDENTICAL across the main session and every concurrent
 // subagent, so agent_id is the ONLY field that discriminates one seat from another.
 //
-// AND THE PART THAT WAS NOT TRUE, which this file's presence made easy to misread: nothing set
-// FEOV_SEAT or FEOV_ROUND anywhere in this repository. Both had readers and no writer, so both
-// branches were scenery — and both are now gone. The seat is bound at `register` and read from the
-// record; the epoch is derived from a seat id whose shape the roster gate validates, and it answers
-// NOT-KNOWN rather than 0 where the name carries no round (#327/#396).
+// THE SEAT AND THE EPOCH ARE THE RECORD'S, NOT THE ENVIRONMENT'S. The seat is bound by the record —
+// the agent's latest register, or its latest hook bracket where that bracket names a seat — and
+// read back from it; the epoch is derived by the record at each read (events_w."epoch"), never from
+// a seat id.
 //
 // WHAT THIS DELIBERATELY DOES NOT TOUCH. The seat id remains the SHARD KEY and the concurrency
 // namespace. A lens index recovered from a seat name turned out to be exactly what made a

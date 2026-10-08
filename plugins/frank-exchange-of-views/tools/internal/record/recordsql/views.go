@@ -74,8 +74,9 @@ WHERE e."sitting_id" = e."id";
 --
 -- A row with no sitting — the harness's own bookkeeping, a cast, anything written before its seat
 -- opened one — has sitting 0. The harness observes; it does not sit.
--- BOTH NUMBERS ARE COMPUTED ONCE FOR THE WHOLE QUERY, NOT ONCE PER ROW, and that is what the two
--- MATERIALIZED CTEs are for rather than a style preference.
+-- THE SITTING RANKS ARE COMPUTED ONCE FOR THE WHOLE QUERY, NOT ONCE PER ROW, and that is what the
+-- two MATERIALIZED CTEs are for rather than a style preference. The epoch then takes ONE correlated
+-- lookup per row against chair_sitting, whose per-row cost grows with the chair's sittings.
 --
 -- This read as two correlated scalar subqueries over the "sittings" view: for every event, count that
 -- seat's sittings up to it, and count the chair's. Each subquery re-derived "sittings" from a full
@@ -262,11 +263,11 @@ GROUP BY "agent_id", "bucket";
 
 -- THE CHANGE LOG, AS A VIEW: every recorded edit to the report with the text on both sides.
 --
--- The seat-facing changes read folded the WHOLE event stream in Go to project ONE event family, which
--- is the most expensive way to ask this question: MergedEvents loads every row AND every row's clock,
--- and the clock is derived per row by events_w, whose two correlated subqueries make that derivation
--- quadratic. So the cost of reading the edits scaled with the size of the RECORD, not with the number
--- of edits.
+-- Folding the WHOLE event stream in Go to project ONE event family is the most expensive way to ask
+-- this question: MergedEvents loads every row AND every row's clock, and the clock is derived per
+-- row by events_w, which numbers the stored sittings once and then looks each row's epoch up in
+-- chair_sitting, a per-row cost that grows with the chair's sittings. So the cost of reading the
+-- edits that way scales with the size of the RECORD, not with the number of edits.
 --
 -- MEASURED, and the honest numbers are these. On the m10 smoke (291 events, 10 edits) the fold and
 -- this view are indistinguishable: 41 ms against 40 ms over twelve interleaved pairs, on a ~40 ms

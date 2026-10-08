@@ -68,9 +68,9 @@ func LaneCoverageAudit(run record.Run) Audit {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record could not be read, so none of them could be confirmed — NOT a run whose lanes all registered", want)}
 	}
-	// A LANE THAT WAS BRACKETED BUT NEVER REGISTERED STILL SAT. Since #1089 a seat woken with
-	// nothing to do need not register, so an audit that counted registers would report a lane that
-	// worked as absent. The stored sitting (fam.At) is the one answer to what opened a sitting.
+	// A LANE SITS BY ITS REGISTER: blue-researcher's configuration seats several seats, so a lane's
+	// bracket names none and opens nothing. The stored sitting (fam.At) is the one answer to what
+	// opened a sitting, and for a lane that is its register.
 	// THE CAST NAMES THE LANES; run-config says how many were ASKED FOR. Both are read, because the
 	// two disagreeing is exactly what this audit exists to report.
 	lanes := record.LaneSeatsOf(run)

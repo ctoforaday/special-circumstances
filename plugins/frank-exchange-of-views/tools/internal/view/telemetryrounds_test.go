@@ -23,8 +23,9 @@ import (
 func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	// The epoch is COUNTED from the chair's registers (plans/roundless.md §III.A.0): the mint
-	// is in epoch 1 because one chair register precedes it, the close in epoch 2 because two do.
+	// The epoch is the number of chair sittings opened at or before the row (plans/roundless.md
+	// §III.A.0): the mint is in epoch 1 because one chair sitting opens before it, the close in
+	// epoch 2 because two do.
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "red-chair", "red-chair:register:1", &recordpb.Register{}),
 		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{

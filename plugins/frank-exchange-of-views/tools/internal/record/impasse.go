@@ -67,14 +67,15 @@ func (x *GapExchanges) Counted() string {
 	}
 }
 
-// partySitting is one seat's sitting engaged on a gap by a dispatch: when it began (the seat's
-// register after the dispatch, sittingFor), the window its acts fall in, whether the record can
-// say it ENDED (sittingCloser, the one rule every sitting-bounding read shares), and its side.
+// partySitting is one seat's sitting engaged on a gap by a dispatch: when it began (the first
+// sitting the seat opened after the dispatch, by a hook's bracket or a register — sittingFor), the
+// window its acts fall in, whether the record can say it ENDED (sittingCloser, the one rule every
+// sitting-bounding read shares), and its side.
 //
-// The register alone closed a sitting only when the seat sat AGAIN, which put every exchange —
-// and so every impasse — one epoch behind the sittings that made it; under an epoch limit landing
-// on that epoch, the run ended at its ceiling with a material gap the bench was never asked to
-// rule. The agent's stop closes it when it ends.
+// A sitting closed by the seat's next opening alone would close only when the seat sat AGAIN,
+// putting every exchange — and so every impasse — one epoch behind the sittings that made it; under
+// an epoch limit landing on that epoch, the run would end at its ceiling with a material gap the
+// bench was never asked to rule. The agent's stop closes it when it ends.
 //
 // AN UNRESOLVED SITTING IS NOT COUNTED AND NOT ZERO. Counting it would let an in-flight sitting be
 // scored as a null turn and stall a gap that is still being answered; reporting it as zero would
@@ -88,8 +89,9 @@ type partySitting struct {
 }
 
 // Exchanges folds the record into per-gap exchange counts under the run's terms. It reads the
-// dispatch events for who was engaged on what, the registers for when each party actually sat,
-// and the acts for movement — nothing is asserted by a seat; the counts are the record's.
+// dispatch events for who was engaged on what, the sittings each party opened (a hook's bracket or
+// a register) for when it actually sat, and the acts for movement — nothing is asserted by a seat;
+// the counts are the record's.
 //
 // The stream and the remands are read on one snapshot (readSnapshot) and folded after it closes: a
 // remand ruled between two reads would count against a stream that does not hold its ruling.
