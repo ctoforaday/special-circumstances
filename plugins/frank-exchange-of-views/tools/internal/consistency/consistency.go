@@ -546,10 +546,6 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	// (The epoch-attribution cross-check that lived here — "the seat id says epoch N, the event
-	// says M" — is gone with the round in the id, #676. There is no second opinion left to
-	// disagree: the epoch is computed at the write from the record itself.)
-
 	sort.Strings(v)
 	return v, nil
 }

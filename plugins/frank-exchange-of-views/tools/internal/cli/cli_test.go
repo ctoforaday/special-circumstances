@@ -633,7 +633,7 @@ func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	runDir := newRun(t)
 	seatID := lensSeat
-	registerChairOnce(t, runDir) // the chair sits first: the epoch is its register count
+	registerChairOnce(t, runDir) // the chair sits first: the epoch is its sitting count
 	registerLensOnce(t, runDir)  // and the lens mints
 	mint := func(extra ...string) string {
 		t.Helper()

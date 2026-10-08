@@ -27,13 +27,13 @@ import (
 //
 // # Only duties that are enforced or recorded somewhere else
 //
-// Nothing here invents an obligation. Each one is refused at a write path (open material gaps and unruled
-// motions block `verdict`; a computation gap cannot be closed on prose), is a stated epoch-record
-// requirement (W1.7's revision, the bench's terminal outcome), or is enforced by dispatch (a seat
-// that has not registered for the sitting it was dispatched for is readied again; a chair that has
-// not registered for its sitting is refused `dispatch next`). Inventing a
-// duty here would make this view disagree with the gates, and a seat told it was finished by one
-// surface and refused by another learns to trust neither.
+// Nothing here invents an obligation. Each one is refused at a write path (open material gaps and
+// unruled motions block `verdict`; a computation gap cannot be closed on prose), is a stated
+// epoch-record requirement (W1.7's revision, the bench's terminal outcome), or is enforced by
+// dispatch (a seat whose sitting has not opened since the dispatch named it — no hook bracket and
+// no register — is readied again; a chair that has not registered for its sitting is refused
+// `dispatch next`). Inventing a duty here would make this view disagree with the gates, and a seat
+// told it was finished by one surface and refused by another learns to trust neither.
 
 // Duty is one outstanding obligation. It says WHAT is owed, and nothing about how.
 //
@@ -181,11 +181,11 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	}
 
 	// EVERY DISPATCHED SEAT OWES THE SITTING IT WAS DISPATCHED FOR, and this list says so by the
-	// predicate dispatch reads (sittingFor): a seat a dispatch names that has not registered since
-	// has not sat. Dispatch enforces it — the lens's sitting is not counted, the bench has not sat for
-	// the docketing, no exchange is counted for blue or the minting lens — so the seat is readied
-	// again, epoch after epoch, until it registers. That covers every seat a dispatch names: the
-	// lenses, blue-respond and the bench.
+	// predicate dispatch reads (sittingFor): a seat a dispatch names whose sitting has not opened
+	// since — no hook bracket, no register — has not sat. Dispatch enforces it — the lens's sitting
+	// is not counted, the bench has not sat for the docketing, no exchange is counted for blue or
+	// the minting lens — so the seat is readied again, epoch after epoch, until its sitting opens.
+	// That covers every seat a dispatch names: the lenses, blue-respond and the bench.
 	if d, owed := owedSitting(evs, win, seatID); owed {
 		add(fmt.Sprintf("you were dispatched against report head %d and have not registered since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
 	}
@@ -337,7 +337,7 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 
 // revisionOwed says whether this blue sitting owes a revision. Every blue sitting does, except a
 // blue-respond sitting that found every gap it was dispatched on closed before it sat: it has
-// nothing to answer, and the sitting the harness bracketed is the whole record of it (gblock's
+// nothing to answer, and the sitting its register opened is the whole record of it (gblock's
 // ruling). The sitting is record.BlueSittings' — the reading capture's record-parity audit
 // holds it to — so the work list and the audit cannot disagree about it.
 //
@@ -361,7 +361,7 @@ func revisionOwed(evs []*Event, win WindowIndex, seatID string) bool {
 // the write path stored them in count (thisSitting). seatDid reads the whole record,
 // so the first sitting's act discharged every later one: in B9 blue sat in epoch 5 with G4 open,
 // filed no revision, and read `complete` because its epoch-4 revision was on the record. A seat that
-// has not registered has no earlier sitting to borrow from, so the whole record is its sitting.
+// has never sat has no earlier sitting to borrow from, so the whole record is its sitting.
 //
 // IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
 // act belong to", so it reads the stored sitting, the one definition every attribution reader

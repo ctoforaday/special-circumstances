@@ -14,7 +14,7 @@ import (
 )
 
 // The relay is audited: every register between two dispatches is a named party or the chair, and
-// every named party registered. A stray seat and an absent party each FAIL, by name.
+// every named party sat. A stray seat and an absent party each FAIL, by name.
 func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
@@ -56,7 +56,7 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 	absent := append(append([]*record.Event{}, head...), reg("red-chair")) // blue never sat for dispatch 2
 	dir3 := t.TempDir()
 	recordtest.Seed(t, dir3, absent...)
-	if a := DispatchParityAudit(runtest.Open(t, dir3), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue-respond was named in dispatch 2 and never registered") {
+	if a := DispatchParityAudit(runtest.Open(t, dir3), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue-respond was named in dispatch 2 and sat no sitting") {
 		t.Fatalf("an absent party went unnoticed: %s: %s", a.Verdict, a.Detail)
 	}
 
@@ -67,9 +67,9 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 
 // THE WARM RUN, as the B6 record holds it: the chair registered ONCE and sat four times, and ran
 // `dispatch next` twice in its first sitting (prose, then --json), writing the plan twice with
-// nobody sitting between. Every party sat for every dispatch. Grouped by the clock's chair-sitting
-// count the whole run was "dispatch 1" and every party of it read as never registered; grouped by
-// who sat, it is four dispatches and a faithful relay.
+// nobody sitting between. Every party sat for every dispatch. Grouped by epoch (the chair's stored
+// sittings) the whole run is "dispatch 1" and every party of it reads as never having sat; grouped
+// by who sat, it is four dispatches and a faithful relay.
 func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	n := 300
 	at := func(seat string, body proto.Message) *record.Event {
@@ -127,7 +127,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	n = 400
 	dir2 := t.TempDir()
 	recordtest.Seed(t, dir2, warm(false, false)...)
-	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || !strings.HasPrefix(a.Detail, "red-lens-voice was named in dispatch 2 and never registered before the next") {
+	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || !strings.HasPrefix(a.Detail, "red-lens-voice was named in dispatch 2 and sat no sitting before the next") {
 		t.Fatalf("a warm run whose voice lens never sat for dispatch 2 = %s: %s", a.Verdict, a.Detail)
 	}
 
@@ -137,7 +137,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	dir3 := t.TempDir()
 	recordtest.Seed(t, dir3, warm(false, true)...)
 	a := DispatchParityAudit(runtest.Open(t, dir3), nil, false)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice was named in dispatch 2 and never registered before the next") ||
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice was named in dispatch 2 and sat no sitting before the next") ||
 		!strings.Contains(a.Detail, "red-lens-voice registered after dispatch 3 and was not a party to it") {
 		t.Fatalf("a party that sat only after the next dispatch = %s: %s", a.Verdict, a.Detail)
 	}
@@ -146,12 +146,11 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 // THE BENCH'S OWN SITTING IS MEASURABLE NOW, AND THIS IS THE TEST THAT SAYS SO.
 //
 // The case: the chair dispatches the bench onto a gap, and the bench never rules it — it only sits
-// for its two closing sittings, the terminal disposition and the assembly, which the ENGINE convenes
-// and which register in the same window. Before the register carried an occasion, those bookends
-// satisfied the dispatch: `Sat` is the party's first register after it, the bench is one seat id, and
-// nothing separated a docket ruling from a bookend. The audit reported that case NOT MEASURED rather
-// than passing it — an honest refusal, and a permanent blind spot on any run whose last dispatching
-// chair sitting engaged the bench.
+// for its two closing sittings, the terminal disposition and the assembly, which the ENGINE
+// convenes and which register in the same window. Without the register's occasion, those bookends
+// would satisfy the dispatch: `Sat` is the party's first sitting opened after it, the bench is one
+// seat id, and nothing would separate a docket ruling from a bookend. Where the bench's registers
+// state no occasion, the audit reports the case NOT MEASURED rather than passing it.
 //
 // This is the acceptance check for the field. A dispatched bench that never rules must FAIL, and its
 // own closing sittings must not rescue it.

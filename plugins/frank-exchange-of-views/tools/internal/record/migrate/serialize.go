@@ -12,10 +12,10 @@ import (
 // instances in one epoch — `red-lens-r3-L1` and `red-lens-r3-L2`, dividing the report between
 // them — and their events interleave almost completely (the quadratic run: L1 at rows 466-510,
 // L2 at 467-509). The roundless record has no concurrent instances of one seat: both are
-// `red-lens-evidence`, and a seat's acts belong to its SITTING, which is the count of its
-// registers so far (events_w). Replayed in the archived order, L1's verify would land in sitting
-// 2 (L2 had registered by then) and collide with L2's on the once-per-sitting key — 53 refusals
-// on the quadratic run, and a wrong attribution for every act that was not refused.
+// `red-lens-evidence`, and a seat's acts belong to its SITTING, the rank of its stored opening
+// among that seat's sittings (events_w). Replayed in the archived order, L1's verify would land in
+// sitting 2 (L2 had registered by then) and collide with L2's on the once-per-sitting key — 53
+// refusals on the quadratic run, and a wrong attribution for every act that was not refused.
 //
 // So within each epoch, instance 2's events (then 3's, 4's) are moved to just after instance 1's
 // last event. Nothing else moves: the chair, blue and the other lenses keep their places, and

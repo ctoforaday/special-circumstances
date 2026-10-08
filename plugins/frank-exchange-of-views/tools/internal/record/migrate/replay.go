@@ -175,8 +175,8 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			id.Correct = &record.Correct{Type: typ, Key: target, Why: why}
 		}
 		for _, body := range bodies {
-			// NO EPOCH IS CARRIED. The old row's epoch was recovered from its seat id by regex at
-			// the time; the re-driven write computes the EPOCH from the chair registers already
+			// NO EPOCH IS CARRIED. The archived row's epoch was recovered from its seat id by regex
+			// when it was written; the re-driven row's EPOCH comes from the chair sittings already
 			// replayed (events_w."epoch"), which is the same fact from the record rather than from
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.

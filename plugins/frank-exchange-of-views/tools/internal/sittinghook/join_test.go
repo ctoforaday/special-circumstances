@@ -21,12 +21,13 @@ import (
 
 // THE STOP JOINS THE SITTING IT ENDS, THROUGH THE WRITERS THAT PRODUCE BOTH. The exchange fold
 // closes a party's sitting at its agent's stop, and the only thing binding a stop to a seat is the
-// agent_id the register carries. Neither end names a seat for the other: the register's agent_id is
-// whatever the PreToolUse hook exported into the seat's shell, and the stop's is whatever the
-// SubagentStop payload named. This drives both from one harness agent_id — the rewrite executed
-// in a shell as the seat's command would be, `register` on the record, the stop hook handing to the
-// writer — and reads the fold back: the parties' sittings end at their stops, with neither seat
-// having sat again.
+// agent_id on the act that opened the sitting — the hook's bracket, or a register no bracket
+// preceded. Neither end names a seat for the other: the register's agent_id is whatever the
+// PreToolUse hook exported into the seat's shell, and the stop's is whatever the SubagentStop
+// payload named. This drives both from one harness agent_id — the rewrite executed in a shell as
+// the seat's command would be, `register` on the record, the stop hook handing to the writer — and
+// reads the fold back: the parties' sittings end at their stops, with neither seat having sat
+// again.
 func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the rewrite is a POSIX shell prefix; the join it carries is platform-independent")

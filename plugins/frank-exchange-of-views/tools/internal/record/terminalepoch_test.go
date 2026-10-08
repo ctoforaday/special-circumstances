@@ -43,7 +43,7 @@ func TestATerminalSeatActsInTheEpochTheChairHasReached(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := lastWindow(t, runDir).Epoch; got != 3 {
-		t.Errorf("terminal act is in epoch %d, want 3 — the chair has registered three times", got)
+		t.Errorf("terminal act is in epoch %d, want 3 — the chair has sat three times", got)
 	}
 }
 

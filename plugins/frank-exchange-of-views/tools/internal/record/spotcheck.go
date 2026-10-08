@@ -65,19 +65,12 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	}
 	// The archive at the START of epoch R: every gap closed in an epoch strictly before R.
 	// Replayed state, not a reported count.
-	// A CLOSURE WITH NO EPOCH IS NOT AN EARLY CLOSURE. ClosedEpoch is derived from the closing
-	// seat's ID, and the terminal seats carry no epoch in their name — `judge-terminal` yields 0.
-	// Synthesis is synthesis, when no gap exists to close, so 0 here means UNKNOWN, not FIRST.
+	// A CLOSURE IN EPOCH 0 IS NOT COUNTED AS AN EARLY CLOSURE. ClosedEpoch is the epoch of the
+	// gap's last closing event; 0 is a closure before the chair's first sitting, and the floor
+	// counts it in no epoch's archive.
 	//
-	// Reading it as "before everything" put a phantom closure in the archive at the start of
-	// round 1 and demanded samples for rounds that could not have taken them — the bench's
-	// terminal opinion happens after the last epoch ends. Measured at 1 seed in 60 by the sweep,
-	// which is the only reason it was seen at all: a live run would have failed verify with a
-	// message naming epochs whose seats had done nothing wrong.
-	//
-	// This is the string-derived-fact hazard in miniature (facts-are-fields): the epoch is
-	// recovered from a seat-id by shape, and the miss returns a plausible number rather than an
-	// error.
+	// The epoch is the closing event's, derived by the record from the chair's stored sittings
+	// (events_w), so no seat-id shape stands between a closure and its epoch.
 	archivedBefore := func(epoch int) int {
 		n := 0
 		for _, g := range f.Gaps {

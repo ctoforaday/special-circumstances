@@ -51,8 +51,9 @@ func TestScanTranscript(t *testing.T) {
 	if r.Seat != "red-chair" || r.Turns != 1 || r.Inp != 1000000 || r.Cost != 2 {
 		t.Errorf("scan = %+v (want red-chair, 1 turn, 1M inp, $2 sonnet)", r)
 	}
-	// THE HEADING'S "round 2" IS NOT READ. The epoch is a count over the chair's registers on the
-	// record, and a transcript alone cannot know it; the scan leaves it 0 for the record to bind.
+	// THE HEADING'S "round 2" IS NOT READ. The epoch is the count of the chair's stored sittings on
+	// the record, and a transcript alone cannot know it; the scan leaves it 0 for the record to
+	// bind.
 	if r.Epoch != 0 {
 		t.Errorf("epoch = %d from a bare transcript, want 0 — the scan must not scrape it from the prompt head", r.Epoch)
 	}

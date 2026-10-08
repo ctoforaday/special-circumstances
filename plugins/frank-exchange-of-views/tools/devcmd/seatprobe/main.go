@@ -531,12 +531,9 @@ func seatEnv(runDir, agentID string) []string {
 		// another module's internal tree; contracted_test.go holds this literal against the
 		// documentation so the two cannot drift.
 		finalMessageContracted+"=1",
-	// THE EPOCH IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
-	// carries its round (see seatprobe.Seats — three sit round 1, and the bench sits round 2,
-	// which is the first epoch a judge can sit at all), so the derivation answers it. FEOV_ROUND
-	// existed because the old derivation could not tell "round 0" from "no round in this name";
-	// it can now, and the variable is gone rather than left set to a value the tool would
-	// compute anyway.
+	// THE EPOCH IS NOT INJECTED: the record derives it as the count of red-chair's stored sittings
+	// at or before each event, and Build registers the chair, so a variable could only restate what
+	// the record answers.
 	)
 }
 

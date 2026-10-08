@@ -185,10 +185,11 @@ func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testi
 
 // A REPAIR DOES NOT RE-OPEN WHAT THE SITTING IT REPAIRS ALREADY DID (#1026). seatDidThisSitting is
 // a reader that ATTRIBUTES — it answers "did this sitting file its log", not "has this turn" — so
-// its window opens at the register that OPENED the sitting, never at a repair's own. Starting it at
-// the seat's latest register of any kind told a re-prompted seat that the log channel was open for a
-// sitting that had already filed there: the prompt says "put it on the record NOW — nothing else"
-// and the work list then named something the sitting had done.
+// its window is the sitting the record stored the acts in, from its OPENING (a hook's bracket or a
+// register), never a repair's own register. Starting it at the seat's latest register of any kind
+// would tell a re-prompted seat that the log channel is open for a sitting that has already filed
+// there: the prompt says "put it on the record NOW — nothing else" and the work list would then
+// name something the sitting has done.
 //
 // THE REVISION IS STILL OWED, which is the half that must not move with it: the repair exists
 // because that duty is outstanding, and a window that swallowed it would report the sitting complete.

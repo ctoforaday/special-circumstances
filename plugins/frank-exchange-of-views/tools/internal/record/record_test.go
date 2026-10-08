@@ -150,13 +150,11 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 	}
 }
 
-// THE ROUND IS DERIVED AT THE WRITE, FROM THE RECORD — the inverse of what this test used to guard.
+// THE EPOCH IS THE RECORD'S, READ BACK FROM events_w.
 //
-// #396 made the caller carry the round to Append because Append had been recovering it from the seat
-// id by regex. Both were wrong in the same way: the fact came from a NAME. Now the write computes
-// the epoch from the chair registers already on the record (events_w."epoch"), the seat id carries nothing,
-// and there is no round for a caller to hand in. `judge-terminal` is still the right probe: its
-// name never carried a round, so whatever the event shows can only have come from the record.
+// The epoch is events_w."epoch", the chair's sittings already on the record; the seat id carries
+// nothing, and there is no round for a caller to hand in. `judge` is the probe: its name carries no
+// round, so whatever the event shows can only have come from the record.
 func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
@@ -176,7 +174,7 @@ func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 	}
 	_ = ev
 	if got := lastWindow(t, dir).Epoch; got != 2 {
-		t.Errorf("epoch = %d, want 2 — two chair registers precede this write, and nothing else could have said so", got)
+		t.Errorf("epoch = %d, want 2 — two chair sittings precede this write, and nothing else could have said so", got)
 	}
 }
 

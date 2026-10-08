@@ -11,9 +11,9 @@ import (
 )
 
 // THE EARLIER OF TWO CLOSES A SITTING, AND A LATE STOP IS NOT IT (#1002, finding 5). A sitting ends
-// at whichever comes first after it began — the seat's next register, or the stop of the agent that
+// at whichever comes first after it began — the seat's next opening, or the stop of the agent that
 // sat it. The hook writes the stop when the agent RETURNS, and an agent that returns after the seat
-// has been dispatched again leaves its stop behind the register that already ended the sitting.
+// has been dispatched again leaves its stop behind the opening that already ended the sitting.
 // Taking the stop whenever there is one hands the first sitting every act of the second: its edits,
 // its receipts and the gaps it was engaged on all land in a sitting that was over.
 func TestAStopThatLandsAfterTheNextRegisterClosesNothing(t *testing.T) {

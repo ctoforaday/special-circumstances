@@ -73,12 +73,12 @@ func TestTheFirstWinsOfferSurvivesARepair(t *testing.T) {
 	}
 }
 
-// AN ACT FILED INSIDE THE REPAIR IS CORRECTED INSIDE IT TOO (#1026). Both arms of the shared SQL
-// constant have to skip the repair register, and only the SECOND was held: every test corrected an
-// act written BEFORE the repair, so the `before` subquery's filter could be dropped outright with
-// the suite green. Here the act is written inside the repair — `before` counts the registers ahead
-// of it, the repair's included — and an unfiltered count makes it sitting 2 against a current
-// sitting 1, refusing the correction of an act the seat wrote moments earlier.
+// AN ACT FILED INSIDE THE REPAIR IS CORRECTED INSIDE IT TOO (#1026). Both counts in the shared SQL
+// constant read the `sittings` view, where a repair opens none, and every other test corrects an
+// act written BEFORE the repair. Here the act is written inside the repair — `before` counts the
+// seat's stored sittings ahead of it — and a `before` that took the repair for a sitting would make
+// it sitting 2 against a current sitting 1, refusing the correction of an act the seat wrote
+// moments earlier.
 func TestAnActFiledInsideTheRepairIsCorrectedInsideIt(t *testing.T) {
 	runDir := corrFixture(t)
 	blueDispatchedOnG1(t, runDir)

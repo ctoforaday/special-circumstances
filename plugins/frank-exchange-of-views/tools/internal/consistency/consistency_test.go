@@ -80,9 +80,10 @@ func benchRule(t *testing.T, seat string, motionID string, d recordpb.Dispositio
 	})
 }
 
-// chairSits is the red-chair's Nth register — the event that OPENS epoch N. The record carries no
-// round, so a fixture that means "closed in epoch 2" seats the chair twice before the close; the
-// oracle's own register count and the board's ClosedEpoch then have something to disagree about.
+// chairSits is a red-chair register under no bracket — the event that OPENS the chair's Nth
+// sitting, epoch N. The record carries no round, so a fixture that means "closed in epoch 2" seats
+// the chair twice before the close; the oracle's own count of the chair's sittings and the board's
+// ClosedEpoch then have something to disagree about.
 func chairSits(t *testing.T, n int) *recordpb.Event {
 	t.Helper()
 	return recordtest.At(t, "red-chair", fmt.Sprintf("red-chair:register:%d", n), &recordpb.Register{})

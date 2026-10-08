@@ -218,8 +218,8 @@ func foldPlan(params Params, r planReads) Plan {
 	evs, win, fresh := r.evs, r.win, r.fresh
 
 	// Source 1: each cast lens by its retirement state (retirement.go) — the same fold the PASS
-	// gate refuses from. A lens engaged that never registered has not sat, so its state has not
-	// moved and it stays ready.
+	// gate refuses from. A lens engaged that has opened no sitting since has not sat, so its state
+	// has not moved and it stays ready.
 	ids := win.IDs(evs)
 	dispatches, registers := dispatchLedger(evs, ids, win)
 	benchOn := benchRegisters(evs, ids, win)
@@ -450,9 +450,9 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // readies the seat again, and it is why the seat's work list is not complete.
 //
 // A BENCH ROW IS SAT ONCE PER OCCASION, and benchRowSitting answers it. The bench is convened for a
-// petition and a docket on ONE row and sits twice, petition first; its first register after the row
-// is the petition sitting, and read here it would count as the docket's too — a docket the bench
-// never sat for would read as heard and never be readied again.
+// petition and a docket on ONE row and sits twice, petition first; the first sitting it opens after
+// the row is the petition sitting, and read here it would count as the docket's too — a docket the
+// bench never sat for would read as heard and never be readied again.
 func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(registers, d.at)
 }
@@ -491,10 +491,10 @@ func placesOf(evs []*Event, seq []int64, win WindowIndex) map[int64]int64 {
 	return out
 }
 
-// benchRowSitting is the bench's sitting for a row: its first register OF EACH OCCASION the row
-// convened it for, after the row. It has sat for the row once it has sat for every one of them, and
-// the place returned is the latest. A row with no occasion is not a bench row, and reads
-// sittingFor's way.
+// benchRowSitting is the bench's sitting for a row: the opening of its first sitting OF EACH
+// OCCASION the row convened it for (the occasion its register states), after the row. It has sat
+// for the row once it has sat for every one of them, and the place returned is the latest. A row
+// with no occasion is not a bench row, and reads sittingFor's way.
 func benchRowSitting(registers []int64, on map[recordpb.Occasion][]int64, d dispatchRow) (int64, bool) {
 	if len(d.occasions) == 0 {
 		return sittingFor(registers, d)
@@ -608,8 +608,8 @@ func sittingCloserOf(evs []*Event, seq []int64, win WindowIndex, registers map[s
 	return c
 }
 
-// span is one stretch of a sitting's acts: the places from its register up to, not including, the
-// act that closed it.
+// span is one stretch of a sitting's acts: the places from the event that opened it — or a repair's
+// register — up to, not including, the act that closed it.
 type span struct{ from, to int64 }
 
 // holds reports whether a place falls in any of the spans.
@@ -634,9 +634,10 @@ func (c sittingCloser) bounds(seat string, start int64) (spans []span, end int64
 	return spans, end, closed
 }
 
-// end is where the stretch a register at from opened ended — the place of the act that closed it,
-// which is outside it. With nothing about this seat past it, end is the end of the record, and
-// closed is false while the run is read as running and true after it.
+// end is where the stretch that began at from — the seat's opening of the sitting, or a repair's
+// register — ended: the place of the act that closed it, which is outside it. With nothing about
+// this seat past it, end is the end of the record, and closed is false while the run is read as
+// running and true after it.
 func (c sittingCloser) end(seat string, from int64) (int64, bool) {
 	end, closed := firstAfter(c.registers[seat], from)
 	if agent := c.agentOf[from]; agent != "" {
@@ -651,10 +652,10 @@ func (c sittingCloser) end(seat string, from int64) (int64, bool) {
 }
 
 // DispatchGroup is one chair sitting's dispatch as the record delimits it: the dispatch rows
-// written with NO REGISTER BETWEEN THEM, by any seat. Somebody registering is somebody sitting —
-// the chair opening a sitting, or a party sitting for what the chair dispatched — and the workflow
-// sequences the two, so a dispatch row after a register belongs to a later chair sitting, and one
-// before any register belongs to the same.
+// written with NO SITTING OPENED BETWEEN THEM, by any seat. Somebody opening a sitting is somebody
+// sitting — the chair opening a sitting, or a party sitting for what the chair dispatched — and the
+// workflow sequences the two, so a dispatch row after an opening belongs to a later chair sitting,
+// and one before any opening belongs to the same.
 //
 // NOT THE EPOCH, and the difference is measured. The epoch counts the chair's stored sittings, and
 // a warm chair — a later sitting resuming the same session — opens none: it registered ONCE per run
@@ -666,9 +667,9 @@ type DispatchGroup struct {
 	First, Last int      // stream positions of the group's first and last dispatch row
 	Parties     []string // each seat the group names, in the order first named
 	// Sat is each party's sitting for the group, off the last row naming it: the stream position of
-	// its first register after that row (sittingFor) — for the bench, of its register for each
-	// occasion the row convened it for, the latest of them (benchRowSitting). A party absent here
-	// has not sat.
+	// the first sitting it opened after that row (sittingFor) — for the bench, of the opening of
+	// its sitting for each occasion the row convened it for, the latest of them (benchRowSitting).
+	// A party absent here has not sat.
 	Sat map[string]int
 	// PartyRows is each party's LAST row in the group — the row Sat reads, and the one a relayed
 	// plan is compared against: a plan that files a docket, or one that changed since the chair
@@ -729,7 +730,7 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 	return groups
 }
 
-// registeredBetween reports whether any of the ascending registers falls strictly between a and b.
+// registeredBetween reports whether any of the ascending openings falls strictly between a and b.
 func registeredBetween(registers []int64, a, b int64) bool {
 	r, ok := firstAfter(registers, a)
 	return ok && r < b
@@ -745,17 +746,16 @@ const benchSeat = "judge"
 // blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
 const blueRespondSeat = "blue-respond"
 
-// unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor)
-// and the chair has not registered since recording it. The workflow comes back to the chair only
-// after the parties sit, so that is a new chair sitting no register opened: unless the hook
-// bracketed it, the record holds its acts in the previous epoch, and the dispatch groups would have
-// only the parties' registers to split on. Every seat's sitting opens with a register; this is the chair's owed one.
+// unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor) and
+// the chair has not registered since recording it. The workflow comes back to the chair only after
+// the parties sit, so that is a new chair sitting no register opened: unless the hook bracketed it,
+// the record holds its acts in the previous epoch, and the dispatch groups would have only the
+// parties' sittings to split on. A resumed sitting carries no bracket and opens by its register;
+// this is the chair's owed one.
 //
-// THE EXCHANGE COUNT NO LONGER DEPENDS ON IT. exchangesOf closed a party's sitting at the chair's
-// next register, so a chair that skipped this register silently zeroed the fold; it now closes a
-// sitting at the sitting seat's OWN next register or its own agent's stop, whichever is first
-// (#1002). This item stands on its own ground —
-// the epoch and the groups — and the fold stands on the parties'.
+// THE EXCHANGE COUNT DOES NOT DEPEND ON IT. exchangesOf closes a party's sitting at that seat's OWN
+// next opening or its own agent's stop, whichever is first (#1002). This item stands on its own
+// ground — the epoch and the groups — and the fold stands on the parties'.
 func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 	groups := DispatchGroups(evs, win)
 	if len(groups) == 0 {
@@ -814,7 +814,7 @@ func chairRegisterOwed(g DispatchGroup) string {
 		sat = append(sat, p)
 	}
 	sort.Strings(sat)
-	return fmt.Sprintf("%s sat for the dispatch you recorded against report head %d, and you have not registered since. The workflow came back to you, so this is a new sitting, and a sitting is opened by a register — even one that resumes your earlier session. Register for this sitting, then ask again",
+	return fmt.Sprintf("%s sat for the dispatch you recorded against report head %d, and you have not registered since. The workflow came back to you, so this is a new sitting, and your register is owed in it — a resumed session's sitting is opened by that register alone. Register for this sitting, then ask again",
 		strings.Join(sat, ", "), g.rows[0].pin)
 }
 
@@ -907,10 +907,10 @@ var benchSittingFor = map[recordpb.MotionSubject]recordpb.Occasion{
 // benchReadiness readies the bench for one unruled motion whose gavel is the bench's and that no
 // open gap's docket has already readied it for, and returns the plan's reason.
 //
-// A PETITION IS HEARD AT A PETITION SITTING, AND ONLY ONE COUNTS. The guard is the bench's register
-// with occasion `petition` after the filing — not any bench register: a docket sitting that sat
-// after the filing was convened for something else, and counting it would leave the petition
-// unheard while the plan said it had been.
+// A PETITION IS HEARD AT A PETITION SITTING, AND ONLY ONE COUNTS. The guard is a bench sitting
+// opened after the filing whose register states occasion `petition` — not any bench sitting: a
+// docket sitting that sat after the filing was convened for something else, and counting it would
+// leave the petition unheard while the plan said it had been.
 func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasion][]int64, engage func(seat, occasion string, gaps ...string)) string {
 	subj, _ := MotionSubjectEnum(b.motionSubject)
 	switch occ, routed := benchSittingFor[subj]; {
@@ -994,12 +994,12 @@ func benchSatOnOccasionSince(on map[recordpb.Occasion][]int64, occ recordpb.Occa
 
 // benchSatFor reports whether the bench has had its sitting for EVERY docket motion standing
 // unruled on gapID — one bench sitting per docketing. A sitting counts for a docketing when the
-// bench registered AFTER BOTH a dispatch engaging it on the gap and the filing: a dispatch naming
-// gapID whose sitting register (sittingFor) follows unruledFiled, the events.id of the newest
-// unruled docket motion on the gap (the gap view's `unruled_docket_filed`, off openGaps). The newest
-// unruled filing is the key because a sitting that follows it follows every older one too. A bench
-// that sat for a docket and ruled nothing is not re-readied for it; a filing the bench has not sat
-// since is a new docketing.
+// bench OPENED it AFTER BOTH a dispatch engaging it on the gap and the filing: for a dispatch
+// naming gapID, the first docket sitting opened after it opens after unruledFiled, the events.id of
+// the newest unruled docket motion on the gap (the gap view's `unruled_docket_filed`, off
+// openGaps). The newest unruled filing is the key because a sitting that follows it follows every
+// older one too. A bench that sat for a docket and ruled nothing is not re-readied for it; a filing
+// the bench has not sat since is a new docketing.
 //
 // BOTH ORDERINGS, NOT THE DISPATCH'S ALONE. Keyed on the latest dispatch naming the gap, the
 // bench that sat for G1's first docket and ruled M1 read as having sat for M2 too: blue filed M2

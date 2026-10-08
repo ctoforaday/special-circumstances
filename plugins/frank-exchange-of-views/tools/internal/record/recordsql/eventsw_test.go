@@ -9,13 +9,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// THE SITTING ORDINAL IS REGISTER-INCLUSIVE AND PER SEAT.
+// THE SITTING ORDINAL IS OPENING-INCLUSIVE AND PER SEAT.
 //
 // A seat that registers, acts, registers again and acts again has two sittings, and the second
-// register IS the second sitting — not the act after it. A different seat registering in between
-// moves nothing: the window is partitioned by seat. This is the property that lets a seat id drop
-// `-r<N>` — the record answers "which sitting" from the registers themselves, and nothing the seat
-// types can put it on the wrong one.
+// register opens the second sitting — its own row is in it, not only the act after it. A different
+// seat registering in between moves nothing: the window is partitioned by seat. This is the
+// property that lets a seat id drop `-r<N>` — the record answers "which sitting" from its stored
+// sittings, and nothing the seat types can put it on the wrong one.
 func TestTheSittingOrdinalIsRegisterInclusiveAndPerSeat(t *testing.T) {
 	dir := t.TempDir()
 	reg := &recordpb.Register{}
@@ -68,7 +68,7 @@ func TestTheSittingOrdinalIsRegisterInclusiveAndPerSeat(t *testing.T) {
 	}
 }
 
-// THE EPOCH COUNTS CHAIR REGISTERS FOR EVERY ROW, WHOEVER WROTE IT.
+// THE EPOCH COUNTS CHAIR SITTINGS FOR EVERY ROW, WHOEVER WROTE IT.
 //
 // A lane's draft before the chair has ever sat is epoch 0. A lens act after the chair's first
 // register is epoch 1 even though the lens never registered as the chair. The bench's act after the

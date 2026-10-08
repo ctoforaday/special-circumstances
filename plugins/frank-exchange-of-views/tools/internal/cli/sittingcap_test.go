@@ -27,8 +27,9 @@ func header(t *testing.T, runDir, agent string) (sittingcap.Header, bool) {
 	return h, true
 }
 
-// REGISTER OPENS THE SITTING'S COUNT, numbered as the record numbers the sitting. Each register
-// opens the next one — which is what resets the count for a warm session's second sitting.
+// REGISTER OPENS THE SITTING'S CALL COUNT, numbered by the seat's registers — the record's sitting
+// number here, where no bracket or repair sits between them. Each register opens the next count —
+// which is what resets it for a warm session's second sitting.
 func TestRegisterOpensEachSittingsCount(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.Var, runDir) // what the hook injects

@@ -50,8 +50,8 @@ func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested 
 // SeatModels returns one row per seat that registered, in first-register order.
 //
 // THE LAST REGISTER WINS, matching SeatOfAgent: a re-dispatched seat writes a fresh register, and
-// the latest one is the sitting that actually ran. A seat re-dispatched into a substituted
-// environment must not be masked by its first, clean dispatch.
+// the latest one names the agent of the seat's latest sitting that registered. A seat re-dispatched
+// into a substituted environment must not be masked by its first, clean dispatch.
 // SUBSTITUTION IS DETECTED HERE, NOT AT REGISTER. `run` supplies the configured tier per class;
 // pass an empty Run to skip the comparison and report only what answered.
 func SeatModels(run Run, f Family) []SeatModel {

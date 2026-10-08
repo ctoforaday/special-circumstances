@@ -81,9 +81,9 @@ func TestAnInFlightRepairLeavesTheSittingUnresolvedUntilTheRunEnds(t *testing.T)
 }
 
 // THE WRITER NAMES THE SITTING, AND REFUSES A REPAIR THE RECORD DOES NOT BEAR OUT. The register
-// writes the key of the seat's latest opening register, and checkRepair refuses a sitting that is
-// not this seat's, not its latest, dispatched past, or owing nothing — so no seat can claim a
-// repair it is not doing.
+// writes the key of the seat's register in its latest sitting, and checkRepair refuses a sitting
+// that is not this seat's, not its latest, dispatched past, or owing nothing — so no seat can claim
+// a repair it is not doing.
 func TestARegisterClaimingARepairIsRefusedUnlessTheRecordBearsItOut(t *testing.T) {
 	owing := func(t *testing.T) (*stage, string) {
 		b := newStage(t).cast("red-chair", "blue-respond", "blue-synthesize", evLens).ingest().

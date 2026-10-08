@@ -37,7 +37,8 @@ func registerFor(t *testing.T, seat, agent string, occ recordpb.Occasion) *recor
 
 // THE EPOCH AND THE SITTING ARE THE ONES THE RECORD STORES EACH REGISTER IN, NOT STAMPED. A lens
 // that sits before the chair has ever sat is in epoch 0; the chair's own register opens the epoch
-// it is in; a seat's second register is its sitting 2 whatever epoch it lands in.
+// it is in; a seat's second sitting — here its second register — is its sitting 2 whatever epoch it
+// lands in.
 func TestSeatBindingsReadTheStoredWindowOfEachRegister(t *testing.T) {
 	fam := runtest.Family(t, nil,
 		register(t, "red-lens-evidence", "L1"), // epoch 0, sitting 1

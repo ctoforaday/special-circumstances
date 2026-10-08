@@ -6107,7 +6107,7 @@ type Register struct {
 	// ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
 	// and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
 	AgentType *string `protobuf:"bytes,6,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
-	// THE SITTING THIS REGISTER REPAIRS: the key of the register that opened it.
+	// THE SITTING THIS REGISTER REPAIRS: the key of the seat's register in it.
 	//
 	// The engine re-prompts a seat whose sitting did not put its record on the record (the
 	// sitting-record repair). The re-prompted agent registers again, and a register opens a sitting —
@@ -6618,8 +6618,8 @@ type Dispatch struct {
 	// occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
 	// petitions no petition sitting has heard). The bench's one seat id cannot say which question it
 	// is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
-	// that copy to this one, and the bench's sitting for each is its register of the same occasion.
-	// Required on a bench row and refused on any other seat's, at the write.
+	// that copy to this one, and the bench's sitting for each is the one whose register states the
+	// same occasion. Required on a bench row and refused on any other seat's, at the write.
 	Occasions     []Occasion `protobuf:"varint,4,rep,packed,name=occasions,proto3,enum=feov.record.v1.Occasion" json:"occasions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

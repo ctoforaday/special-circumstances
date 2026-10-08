@@ -71,7 +71,7 @@ CREATE TABLE "events" (
   -- THE SITTING IS A FIELD, NOT A NUMBER EACH READER RECOUNTS (#1151). It is the id of the event
   -- that OPENED the sitting this act belongs to; an opening event's own id, for itself. NULL is
   -- the honest answer for a row with no sitting open for its seat — the harness's own bookkeeping,
-  -- and anything a seat writes before it has registered.
+  -- and anything a seat writes before it has opened a sitting.
   --
   -- It is stamped by recordpb.SeatOpeningSitting at the write, inside the inserting transaction,
   -- and no reader re-derives it. Five readers used to recount openings for themselves and two of
@@ -84,10 +84,11 @@ CREATE TABLE "events" (
   -- and the only thing a seat can do to move it is open a sitting.
   "sitting_id" INTEGER REFERENCES "events" ("id"),
   -- A REGISTER WITHOUT A SITTING IS UNREPRESENTABLE, and that is what retires the degradation rule
-  -- this column replaces. A register either opens a sitting (its own id) or repairs one (the id it
-  -- repairs), so NULL here means the row went in without the write path deciding — a forged event,
-  -- which the readers used to have to agree about in six places and disagreed about in three. It is
-  -- refused instead: the forger holds the file, but it does not hold the trigger.
+  -- this column replaces. A register opens a sitting (its own id), joins the one its agent's
+  -- bracket opened (the bracket's id), or repairs one (the sitting it repairs), so NULL here means
+  -- the row went in without the write path deciding — a forged event, which the readers used to
+  -- have to agree about in six places and disagreed about in three. It is refused instead: the
+  -- forger holds the file, but it does not hold the trigger.
   CHECK ("type" <> 'register' OR "sitting_id" IS NOT NULL)
 ) STRICT;
 

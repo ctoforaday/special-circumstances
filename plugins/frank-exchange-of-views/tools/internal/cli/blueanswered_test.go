@@ -168,9 +168,10 @@ func editAnswering(t *testing.T, runDir, gapID string) {
 
 // closeBlueSitting closes blue's sitting the way the record allows a test to: blue's NEXT register.
 // Named for what it DOES, not for the hook it stands in for.
-// sittingCloser ends a sitting at whichever comes first, the seat's next register or its agent's
-// stop, and the register is blue's own act — the stop is the SubagentStop hook's, and seeding one
-// with a matching agent id would be asserting the hook's join rather than this projection's.
+// sittingCloser ends a sitting at whichever comes first, the opening of the seat's next sitting or
+// its agent's stop, and here that opening is blue's own register — the stop is the SubagentStop
+// hook's, and seeding one with a matching agent id would be asserting the hook's join rather than
+// this projection's.
 func closeBlueSitting(t *testing.T, runDir string) {
 	t.Helper()
 	registerBlue(t, runDir)

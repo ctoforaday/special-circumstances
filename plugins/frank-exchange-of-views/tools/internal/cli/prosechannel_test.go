@@ -86,10 +86,10 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 	if err := seatprobe.Build(runtest.Open(t, runDir), seatprobe.Boards()["docket"], exec); err != nil {
 		t.Fatalf("stage the board: %v", err)
 	}
-	// THE SEAT SITS BEFORE IT ACTS. The staged docket board already seated red-chair and recorded its
-	// position, and a position is once per SITTING — so this register is what makes the act legal:
-	// a new register is a new sitting, which is exactly what a re-dispatched seat does. (It used to
-	// dodge the collision by acting as red-chair-r2, a second seat; there is one chair now.)
+	// THE SEAT SITS BEFORE IT ACTS. The staged docket board already seated red-chair and recorded
+	// its position, and a position is once per SITTING — so this register is what makes the act
+	// legal: under no bracket, it opens a new sitting of the seat, which is what a re-dispatched
+	// seat has.
 	regArgs := []string{"register", "--run", runDir, "--seat-id", seatID}
 	if record.SeatOwesOccasion(seatID) { // the bench alone owes one; nobody else may pass one
 		regArgs = append(regArgs, "--occasion", "docket")

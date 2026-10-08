@@ -16,9 +16,10 @@ import (
 // times at head 144. A lens now retires when it stops finding material, and a head move re-arms it
 // once. The cost is bounded: at most two barren sittings per active spell, plus one per retirement.
 //
-//   - A SITTING is a register following a dispatch naming the lens (sittingFor), including the
-//     sittings it is engaged for on its own gaps.
-//   - A mint belongs to the sitting whose register most recently precedes it.
+//   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
+//     bracket, or a register no bracket preceded — including the sittings it is engaged for on its
+//     own gaps.
+//   - A mint belongs to the sitting whose opening most recently precedes it.
 //   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
 //   - ACTIVE: fewer than two trailing barren sittings. A productive sitting returns a lens here,
 //     with its re-arm unspent. RETIRED: two barren sittings, re-arm unspent. RETIRED FOR GOOD: its
@@ -104,7 +105,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			if !ok || !fresh[m.GetGapId()] {
 				continue
 			}
-			// the sitting whose register most recently precedes the mint
+			// the sitting whose opening most recently precedes the mint
 			k := sort.Search(len(sittings), func(j int) bool { return sittings[j] >= ids[i] }) - 1
 			if k >= 0 {
 				productive[sittings[k]] = true
@@ -298,11 +299,12 @@ type LastSittingJSON struct {
 	Head int64  `json:"head"`
 }
 
-// lastSittingBefore is NOT the latest dispatch's own sitting. The lens reads its work view after
-// registering, and sittingFor counts that register as having sat — so the sitting for the latest
-// dispatch is the current one, and every lens would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for,
-// or owes); a prior sitting is a dispatch d before D whose sitting register is also before D, so an
-// unsat earlier dispatch cannot borrow the current register.
+// lastSittingBefore is NOT the latest dispatch's own sitting. The lens reads its work view once its
+// sitting has opened — at the hook's bracket or at its register — and sittingFor counts that
+// opening as having sat, so the sitting for the latest dispatch is the current one, and every lens
+// would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for, or owes);
+// a prior sitting is a dispatch d before D whose sitting opened before D, so an unsat earlier
+// dispatch cannot borrow the current opening.
 func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastSittingJSON {
 	ds, registers := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow

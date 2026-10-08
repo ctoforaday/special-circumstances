@@ -73,7 +73,8 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	}
 	var cycles []*record.Event
 	// Three party sittings for the two stalled exchanges K = 2 needs: a sitting is closed by that
-	// seat's next register, so the epoch that makes the second exchange countable is the third.
+	// seat's next opening — here its next register — so the epoch that makes the second exchange
+	// countable is the third.
 	for i := 0; i < 3; i++ {
 		cycles = append(cycles,
 			at("red-chair", &recordpb.Register{}),

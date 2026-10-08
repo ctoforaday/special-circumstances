@@ -28,8 +28,8 @@ func seedChanges(t *testing.T, runDir string) {
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
 	})
-	// Blue sits before it edits: the sitting ordinal the headings carry is COUNTED from this
-	// register, never read off the edit.
+	// Blue sits before it edits: the sitting ordinal the headings carry is the rank of the sitting
+	// this register opens, never read off the edit.
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, "blue-respond", "blue-respond:register:1", &recordpb.Register{}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{

@@ -77,9 +77,10 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 		return nil, err
 	}
 	r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia), RepairsSitting: repairs}
-	// THE SITTING'S TOOL-CALL COUNT STARTS HERE. The dispatch number is the seat's register
-	// count, which is the record's own sitting number, so the hook counts in the record's
-	// window. An operator is never limited; an agent with no id cannot be counted.
+	// THE SITTING'S TOOL-CALL COUNT STARTS HERE. The count is keyed by the dispatch number — this
+	// seat's count of registers, which is not the record's sitting ordinal (a bracket-only sitting
+	// or a repair moves one and not the other) — so each register starts a fresh count. An operator
+	// is never limited; an agent with no id cannot be counted.
 	if agent := seatenv.AgentID(); agent != "" && s.SeatID != record.OperatorRole {
 		if err := sittingcap.Open(s.Identity().Run.Dir(), agent,
 			sittingcap.Header{SeatID: s.SeatID, Sitting: dispatch}); err != nil {
@@ -913,7 +914,7 @@ func join(names []string) string {
 type registerResult struct {
 	SeatID   string `json:"seat_id"`
 	Dispatch int    `json:"dispatch"`
-	// RepairsSitting is the key of the register that opened the sitting this one repairs, when the
+	// RepairsSitting is the key of the seat's register in the sitting this one repairs, when the
 	// register was a repair; absent for a register that opens a sitting of its own.
 	RepairsSitting string `json:"repairs_sitting,omitempty"`
 	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
@@ -943,7 +944,7 @@ func (r registerResult) Human() string {
 	out := "registered " + r.SeatID
 	switch {
 	case r.RepairsSitting != "":
-		out = fmt.Sprintf("registered %s as the repair of the sitting %s opened — what you put on the record now counts as that sitting's", r.SeatID, r.RepairsSitting)
+		out = fmt.Sprintf("registered %s as the repair of the sitting that holds %s — what you put on the record now counts as that sitting's", r.SeatID, r.RepairsSitting)
 	case r.Dispatch > 1:
 		out = fmt.Sprintf("registered %s (dispatch %d — a previous dispatch of this seat is on the record)", r.SeatID, r.Dispatch)
 	}
