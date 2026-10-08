@@ -490,11 +490,8 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	return taught
 }
 
-// Execute runs the CLI. Abort-safety is armed first: a seat killed mid-command
-// must lose an event, never leave a torn one or a stuck lock.
+// Execute runs the CLI.
 func Execute() {
-	defer record.InstallSignalGuard()()
-
 	root := newRoot()
 	if err := refuseUnknownCommandNoted(root, os.Args, dispatchedSeat()); err != nil {
 		// THROUGH THE SAME EMITTER AS EVERY OTHER TOP-LEVEL REFUSAL. This branch printed a bare
