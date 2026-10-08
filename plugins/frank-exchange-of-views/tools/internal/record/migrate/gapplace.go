@@ -87,10 +87,17 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 // owed is the Anchor an archived citation, proof or corroboration placed by being recorded: the
 // report read its marker off the event itself, so the Anchor appended right after it holds the same
 // place in the stream and replay inserts it where it always did. An act that named no id or no
-// quote placed nothing; a second act carrying an id owes a second Anchor, which the record refuses.
+// quote placed nothing, and a correction's replacement placed nothing while its act's marker stood.
+// Any other act carrying an id already placed — the replacement of an act whose marker a retire
+// took out among them — owes a second Anchor, which the record refuses.
 func (p *placer) owed(shape, id, loc string, correcting bool) (proto.Message, error) {
-	if id == "" || loc == "" || correcting || p.anchored[id] {
+	if id == "" || loc == "" || p.anchored[id] {
 		return nil, nil
+	}
+	if correcting {
+		if text, err := reportproj.RenderFromRecord(p.dst); err != nil || strings.Contains(text, anchor.Token(id)) {
+			return nil, nil
+		}
 	}
 	if err := p.places(id, loc); err != nil {
 		return nil, err

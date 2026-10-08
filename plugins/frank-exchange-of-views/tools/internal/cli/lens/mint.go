@@ -129,12 +129,8 @@ func newMint() *cobra.Command {
 		// once within one paragraph of the report as it stands. A gap is one sentence (R-4), and the
 		// board reads its location from where its anchor stands.
 		if strings.TrimSpace(loc) != "" {
-			report, err := reportproj.RenderFromRecord(run)
-			if err != nil {
+			if err := seat.Places(run, gapID, loc, mintPlacementRefusal); err != nil {
 				return nil, err
-			}
-			if _, aerr := anchortext.Attach(report, gapID, loc); aerr != nil {
-				return nil, mintPlacementRefusal(aerr)
 			}
 		}
 		p.Location = proto.String(loc)
@@ -245,13 +241,8 @@ func newMint() *cobra.Command {
 			}
 		}
 
-		if _, err := record.Append(s.Identity(), p); err != nil {
+		if err := seat.AppendPlaced(s, p, gapID, loc); err != nil {
 			return nil, err
-		}
-		if strings.TrimSpace(loc) != "" {
-			if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(gapID), Location: proto.String(loc)}); err != nil {
-				return nil, err
-			}
 		}
 		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
 		// already refused the unambiguous ones (record.refuseMintReportVoice), so what remains is the

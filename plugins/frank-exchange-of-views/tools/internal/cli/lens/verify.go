@@ -18,7 +18,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
@@ -350,12 +349,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// label); reportproj.Render re-places it on read. No file is spliced. VALIDATE the placement
 		// against the current render — a mis-quote or in-fence claim is refused now and no event is
 		// recorded.
-		current, err := reportproj.RenderFromRecord(run)
-		if err != nil {
+		if err := seat.Places(run, label, body.GetClaim(), corroborateRefusal); err != nil {
 			return nil, err
-		}
-		if _, aerr := anchortext.Attach(current, label, body.GetClaim()); aerr != nil {
-			return nil, corroborateRefusal(aerr)
 		}
 		body.Label = proto.String(label)
 	}
@@ -371,13 +366,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		body.SourceCompleteness = completeness.Enum()
 	}
 
-	if _, err := record.Append(s.Identity(), body); err != nil {
+	if err := seat.AppendPlaced(s, body, body.GetLabel(), body.GetClaim()); err != nil {
 		return nil, err
-	}
-	if body.GetLabel() != "" {
-		if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: body.Label, Location: body.Claim}); err != nil {
-			return nil, err
-		}
 	}
 	return verifyResult{
 		Anchor:     body.GetAnchor(),

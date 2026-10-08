@@ -13,7 +13,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
@@ -149,12 +148,8 @@ func newProve() *cobra.Command {
 		// above). Mint the id and VALIDATE the placement against the current render — a mis-quote or
 		// in-fence quote is refused now.
 		label := record.NewProofID()
-		current, err := reportproj.RenderFromRecord(run)
-		if err != nil {
+		if err := seat.Places(run, label, location, proveRefusal); err != nil {
 			return nil, err
-		}
-		if _, aerr := anchortext.Attach(current, label, location); aerr != nil {
-			return nil, proveRefusal(aerr)
 		}
 
 		// `output` does not survive onto the event, and that is not a silent drop: it stays in the
@@ -173,10 +168,7 @@ func newProve() *cobra.Command {
 			body.Drift = proto.String(res.Drift)
 		}
 		proofFields(cmd, body, why)
-		if _, err := record.Append(s.Identity(), body); err != nil {
-			return nil, err
-		}
-		if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(label), Location: proto.String(location)}); err != nil {
+		if err := seat.AppendPlaced(s, body, label, location); err != nil {
 			return nil, err
 		}
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil

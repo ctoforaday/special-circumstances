@@ -181,6 +181,16 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 			s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 			s.corroboration("c-0000aaa1", "Costs rose sharply in Q1.")
 		}},
+		{"a correction placing again what a retire took out", "cite", `has already recorded a anchor on "c-0000aaa1"`, func(s *shapeSource) {
+			cited := s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
+			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Costs rose sharply in Q1."), Reason: proto.String("refuted"), Anchors: []string{"c-0000aaa1"}})
+			fixed := proto.Clone(cited.GetCite()).(*recordpb.Cite)
+			fixed.Title = proto.String("S, section 2")
+			if _, err := record.Append(record.Identity{Run: s.run, SeatID: shapeBlue,
+				Correct: &record.Correct{Type: recordpb.EventType_EVENT_TYPE_CITE, Key: cited.GetKey(), Why: "the title was wrong"}}, fixed); err != nil {
+				s.t.Fatalf("seeding the correction: %v", err)
+			}
+		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			src := newShapeSource(t, base)

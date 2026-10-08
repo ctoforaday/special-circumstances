@@ -14,7 +14,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // finding: a lens's graded observation, for the chair to dispose.
@@ -76,7 +75,7 @@ func newFinding() *cobra.Command {
 			// THE PAIR MAY BE HALF-APPENDED: the finding and its anchor are two appends, so a crash
 			// between them leaves the finding recorded and its anchor out of the report. The retry
 			// finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, run, priorID, func(err error) error { return placementRefusal("lens finding", "finding", err) }); err != nil {
+			if err := seat.PlaceOwed(s, run, priorID, findingRefusal); err != nil {
 				return nil, err
 			}
 			return findingResult{Label: prior, Idempotent: true}, nil
@@ -100,12 +99,8 @@ func newFinding() *cobra.Command {
 		// borrow a live sentence as a handle: the only way past this check was to name text that
 		// exists, whatever the finding was actually about.
 		if !aboutSet {
-			current, rerr := reportproj.RenderFromRecord(run)
-			if rerr != nil {
-				return nil, rerr
-			}
-			if _, aerr := anchortext.Attach(current, findingID, location); aerr != nil {
-				return nil, placementRefusal("lens finding", "finding", aerr)
+			if err := seat.Places(run, findingID, location, findingRefusal); err != nil {
+				return nil, err
 			}
 		}
 
@@ -121,17 +116,11 @@ func newFinding() *cobra.Command {
 			Likelihood: seat.GradeOrNil(&likelihood),
 			Impact:     seat.GradeOrNil(&impact),
 		}
-		if _, err := record.Append(s.Identity(), body); err != nil {
-			return nil, err
-		}
 		// NO ANCHOR FOR AN ABSENCE, and that is the point rather than an omission: a finding about
 		// something NOT in the report has no location to mark, and placing one would put an anchor on
 		// the innocent prose this change exists to stop borrowing.
-		if !aboutSet {
-			ap := &recordpb.Anchor{Id: proto.String(findingID), Location: proto.String(location)}
-			if _, err := record.Append(s.Identity(), ap); err != nil {
-				return nil, err
-			}
+		if err := seat.AppendPlaced(s, body, findingID, location); err != nil {
+			return nil, err
 		}
 		// The LABEL leads: it is the run-unique identity a gap's found_by names.
 		return findingResult{Label: label, FindingID: findingID}, nil
@@ -150,6 +139,8 @@ func newFinding() *cobra.Command {
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }
+
+func findingRefusal(err error) error { return placementRefusal("lens finding", "finding", err) }
 
 // placementRefusal is the refusal `finding` and `mint` give for a quote Attach will not place; noun
 // is what the quote anchors. Both verbs name a section by --about-kind, so a quote on a heading is

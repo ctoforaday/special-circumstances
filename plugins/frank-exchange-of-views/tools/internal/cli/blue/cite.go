@@ -15,7 +15,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
@@ -158,12 +157,8 @@ func newCite() *cobra.Command {
 		// and VALIDATE the placement against the current render — a mis-quote or in-fence quote is
 		// refused now, and the validated bytes discarded.
 		label := record.NewCitationID()
-		current, err := reportproj.RenderFromRecord(run)
-		if err != nil {
+		if err := seat.Places(run, label, quote, citeRefusal); err != nil {
 			return nil, err
-		}
-		if _, aerr := anchortext.Attach(current, label, quote); aerr != nil {
-			return nil, citeRefusal(aerr)
 		}
 
 		// access_date is engine-supplied from the record clock (pinned under the golden harness),
@@ -192,10 +187,7 @@ func newCite() *cobra.Command {
 			body.OcrTextSha = proto.String(ocr.loc.TextSha)
 		}
 		citeFields(cmd, body, read, why)
-		if _, err := record.Append(s.Identity(), body); err != nil {
-			return nil, err
-		}
-		if _, err := record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(label), Location: proto.String(quote)}); err != nil {
+		if err := seat.AppendPlaced(s, body, label, quote); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: ocr.pages(), VoiceTells: tells}, nil
