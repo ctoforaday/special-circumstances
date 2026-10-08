@@ -11,7 +11,11 @@ human reading afterward, never the channel. This diagram is kept current with th
 Append-only holds for a correction too. A seat whose act came out wrong re-runs the act's own verb with
 what it meant and `--corrects <key>` (the key its success line printed); the tool writes the
 replacement and a `correction` event in one transaction, and only while the act is the seat's own,
-from this sitting, and no other seat has acted since. Nothing is edited: every view reads the acts
+from this sitting, and no other seat has acted since. The re-run repeats every flag, as a new act
+takes them: a flag the verb requires is refused if left out, a flag whose recorded value the
+correction may not move is refused as a change, and wording the act holds is refused if left out —
+it is dropped only by passing its flag empty, where the verb takes it empty. Only what the tool
+assigned or computed (an id, a hash, a re-run's outputs) is taken from the corrected act. Nothing is edited: every view reads the acts
 that stand (`live_event` in SQL, `Live` in Go), and every listing shows the first act struck
 beside its replacement (`struck`, `Listing`).
 

@@ -123,7 +123,8 @@ func corrRows() map[string]corrRow {
 				return nil
 			},
 			act: func(_ corrVars, text string) []string {
-				return []string{"cite", "--quote", "§2 the finding prose lands in a quoted sentence.", "--url", "https://src/corr", "--title", text}
+				return []string{"cite", "--quote", "§2 the finding prose lands in a quoted sentence.", "--url", "https://src/corr", "--title", text,
+					"--reason", "it states the finding"}
 			}},
 		// A corrected proof does not run again; only its note moves.
 		"blue prove": {seat: "blue-respond",
@@ -135,7 +136,7 @@ func corrRows() map[string]corrRow {
 			}},
 		// F13: the correction keeps the line's id instead of minting a new one.
 		"blue avenue propose": {seat: "blue-respond", act: func(_ corrVars, text string) []string {
-			return []string{"avenue", "propose", "--reason", text, "--hypothesis", "it would settle something"}
+			return []string{"avenue", "propose", "--reason", text, "--hypothesis", "it would settle something", "--method", "a source class"}
 		}},
 		"blue avenue move": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) corrVars { proposeQ1(t, runDir); return nil },

@@ -42,9 +42,11 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 		// A CORRECTION RE-STATES THE CITE; it does not fetch again or mint a new label. The label,
-		// url, hash, anchoring quote and access date are the corrected act's, and only the title and
-		// the argument — the seat's own wording — may change. A flag left out is the act's own value;
-		// one given that differs is refused by the correction as a change to a frozen field.
+		// the hash, the access date, the text origin, the pages and what the fetch learned about the
+		// work are the corrected act's, because the tool assigned or computed them. Everything the
+		// seat types comes from this command line exactly as a new cite takes it (citeFields): a
+		// flag left out is left out, and the correction refuses it as a change wherever the act
+		// recorded a value. Only the title and the argument — the seat's own wording — may differ.
 		target, err := s.CorrectionTarget()
 		if err != nil {
 			return nil, err
@@ -52,20 +54,6 @@ func newCite() *cobra.Command {
 		prior, correcting := target.(*recordpb.Cite)
 		quote, url, title := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
 		ocrQuote := seat.Str(cmd, flags.OCRQuote)
-		if correcting {
-			if !seat.Given(cmd, flags.OCRQuote) {
-				ocrQuote = prior.GetOcrQuote()
-			}
-			if !seat.Given(cmd, flags.Quote) {
-				quote = prior.GetLocation()
-			}
-			if !seat.Given(cmd, flags.URL) {
-				url = prior.GetUrl()
-			}
-			if !seat.Given(cmd, flags.Title) {
-				title = prior.GetTitle()
-			}
-		}
 		if strings.TrimSpace(quote) == "" {
 			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
 		}
@@ -90,18 +78,31 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 
+		read, err := sourceTextRead(cmd)
+		if err != nil {
+			return nil, err
+		}
+
 		// The replacement's marker is the original's: same label, same quote, and the render skips a
 		// marker the text already holds, so the report carries one anchor wherever edits moved it.
 		if correcting {
-			body := proto.Clone(prior).(*recordpb.Cite)
-			body.Location, body.Url, body.Title = proto.String(quote), proto.String(url), proto.String(title)
-			// The pages stay the corrected act's: a correction never re-locates. A differing
-			// --ocr-quote is set so the correction refuses it as a change to a frozen field.
+			body := &recordpb.Cite{
+				Label:              held(prior.Label),
+				Sha256:             held(prior.Sha256),
+				AccessDate:         held(prior.AccessDate),
+				SourceTextOrigin:   held(prior.SourceTextOrigin),
+				Pages:              append([]int32(nil), prior.GetPages()...),
+				OcrEngine:          held(prior.OcrEngine),
+				OcrTextSha:         held(prior.OcrTextSha),
+				WorkStatus:         held(prior.WorkStatus),
+				SourceCompleteness: held(prior.SourceCompleteness),
+			}
+			citeFields(cmd, body, read, why)
+			// The pages stay the corrected act's: a correction never re-locates. The span is the
+			// seat's, so it is set exactly when it is given — left out against an act that holds
+			// one, or given against an act that holds none, it is a change the correction refuses.
 			if seat.Given(cmd, flags.OCRQuote) {
 				body.OcrQuote = proto.String(ocrQuote)
-			}
-			if seat.Given(cmd, flags.Reason) {
-				body.Text = proto.String(why)
 			}
 			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
@@ -129,14 +130,6 @@ func newCite() *cobra.Command {
 			return nil, record.ToolLogged(errors.New(msg))
 		}
 
-		read := recordpb.SourceTextRead_SOURCE_TEXT_READ_UNREAD
-		if w := seat.Str(cmd, flags.SourceText); w != "" {
-			v, known := record.SourceTextReadOf(w)
-			if !known || v == recordpb.SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED {
-				return nil, fmt.Errorf("blue cite: %q is not a reading this record can carry (leaf | summary_only | unread)", w)
-			}
-			read = v
-		}
 		// A LEAF READING OF AN ABSTRACT IS A CLAIM TO HAVE READ THE STUDY. The fetch has already
 		// looked for a copy carrying the body; where the copy it kept is known not to be one, the
 		// reading the record can carry is `summary_only` — which the vocabulary defines to include
@@ -180,12 +173,8 @@ func newCite() *cobra.Command {
 		// from the record clock (pinned under the golden harness), not typed by the seat.
 		body := &recordpb.Cite{
 			Label:      proto.String(label),
-			Url:        proto.String(url),
 			Sha256:     proto.String(entry.Sha),
-			Title:      proto.String(title),
-			Location:   proto.String(quote),
 			AccessDate: proto.String(record.Now().Format("2006-01-02")),
-			CiteKey:    proto.String(seat.Str(cmd, flags.Key)),
 
 			SourceTextOrigin: ocr.origin.Enum(),
 			Pages:            ocr.pages(),
@@ -205,18 +194,7 @@ func newCite() *cobra.Command {
 			body.OcrEngine = proto.String(ocr.loc.Engine)
 			body.OcrTextSha = proto.String(ocr.loc.TextSha)
 		}
-		// THE DEFAULT IS THE WEAK CLAIM. A citation nobody has asserted a reading for is UNREAD:
-		// the honest state costs the seat nothing, and only a stronger one is stated on purpose.
-		body.SourceTextRead = &read
-		// THE ARGUMENT FOR THE CITATION goes on the record, in Cite.text — why this source backs
-		// this sentence. It is not printed in the report (the note and the Bibliography print the title, and a
-		// seat's argument there is exactly the run-voice the report refuses); the `evidence` view
-		// shows it beside the source, where red decides what to verify. This flag was registered
-		// and never read: a seat's reason was accepted and recorded nowhere. Set only when given,
-		// so "no argument offered" stays distinct from an empty one.
-		if seat.Given(cmd, flags.Reason) {
-			body.Text = proto.String(why)
-		}
+		citeFields(cmd, body, read, why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -225,12 +203,47 @@ func newCite() *cobra.Command {
 
 	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
 		"how much of the source you actually READ; omitted records `unread`. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work")
-	flags.Text(c, flags.Quote, "REQUIRED — "+flags.DescQuote+". A mis-quote is rejected rather than guessed at")
-	c.Flags().String(flags.URL, "", "REQUIRED — "+flags.DescURL)
-	flags.Text(c, flags.Title, "REQUIRED — "+flags.DescTitle)
+	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
+	c.Flags().String(flags.URL, "", flags.DescURL)
+	flags.Text(c, flags.Title, flags.DescTitle)
+	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.OCRQuote, "for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
 	return seat.Correctable(c)
+}
+
+// sourceTextRead is the reading the seat asserts for the source. THE DEFAULT IS THE WEAK CLAIM: a
+// citation nobody has asserted a reading for is UNREAD — the honest state costs the seat nothing,
+// and only a stronger one is stated on purpose.
+func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
+	w := seat.Str(cmd, flags.SourceText)
+	if w == "" {
+		return recordpb.SourceTextRead_SOURCE_TEXT_READ_UNREAD, nil
+	}
+	v, known := record.SourceTextReadOf(w)
+	if !known || v == recordpb.SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED {
+		return v, fmt.Errorf("blue cite: %q is not a reading this record can carry (leaf | summary_only | unread)", w)
+	}
+	return v, nil
+}
+
+// citeFields sets every field of a cite that the SEAT types, for a new cite and for its correction
+// alike — one builder, so a correction re-states the act with the presence the act itself has.
+//
+// THE ARGUMENT FOR THE CITATION goes on the record, in Cite.text — why this source backs this
+// sentence. It is not printed in the report (the note and the Bibliography print the title, and a
+// seat's argument there is exactly the run-voice the report refuses); the `evidence` view shows it
+// beside the source, where red decides what to verify. Set only when given, so "no argument
+// offered" stays distinct from an empty one.
+func citeFields(cmd *cobra.Command, body *recordpb.Cite, read recordpb.SourceTextRead, why string) {
+	body.Location = proto.String(seat.Str(cmd, flags.Quote))
+	body.Url = proto.String(seat.Str(cmd, flags.URL))
+	body.Title = proto.String(seat.Str(cmd, flags.Title))
+	body.CiteKey = proto.String(seat.Str(cmd, flags.Key))
+	body.SourceTextRead = read.Enum()
+	if seat.Given(cmd, flags.Reason) {
+		body.Text = proto.String(why)
+	}
 }
 
 type ocrCite struct {

@@ -586,6 +586,7 @@ func markTree(c *cobra.Command) {
 	if t := RecordType(c); t != "" {
 		markRequired(c, t)
 	}
+	teachCorrection(c)
 }
 
 // RecordType is the event type a verb writes, or "" for a command that writes no record.

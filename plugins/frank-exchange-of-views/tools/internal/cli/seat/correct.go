@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -68,8 +69,11 @@ func eventTypeOf(word string) (recordpb.EventType, bool) {
 
 // Correctable gives a recording verb the same-sitting correction: --corrects and --correction-why,
 // the paragraph that says how in its help, and the write log that lets its success line show the key
-// a correction names. Call it LAST in the verb's constructor — after Records and after every flag,
-// because the help paragraph names the verb's own flags.
+// a correction names. Call it LAST in the verb's constructor — after Records and after every flag.
+//
+// THE PARAGRAPH IS WRITTEN BY THE MARKING PASS (markTree → teachCorrection), not here: it names
+// the wording a correction may pass empty, which is the wording the verb does not mark REQUIRED,
+// and the markers derived from the schema are written only when the verb is mounted.
 //
 // It panics when the verb records no correctable type: a correction offered on an act the record
 // refuses to correct is a flag that can only ever fail.
@@ -83,7 +87,6 @@ func Correctable(c *cobra.Command) *cobra.Command {
 	_ = c.Flags().SetAnnotation(flags.Corrects, CorrectionFlagAnnotation, []string{"true"})
 	flags.Text(c, flags.CorrectionWhy, flags.DescCorrectionWhy)
 	_ = c.Flags().SetAnnotation(flags.CorrectionWhy, CorrectionFlagAnnotation, []string{"true"})
-	c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + correctionHelp(c, typ) + "\n"
 	annotate(c, correctableKey, recordpb.Word(typ))
 
 	inner := c.RunE
@@ -116,11 +119,38 @@ func beginInvocation(cmd *cobra.Command, typ recordpb.EventType) error {
 		if strings.TrimSpace(why) == "" {
 			return feov.Errorf(feov.MissingField, "a correction requires --correction-why — what was wrong with the act; a reader sees it beside the struck text")
 		}
-		inv.correct = &record.Correct{Type: typ, Key: key, Why: why}
+		inv.correct = &record.Correct{Type: typ, Key: key, Why: why, Unpassed: unpassed(cmd)}
 	case Given(cmd, flags.CorrectionWhy):
 		return feov.Errorf(feov.Validation, "--correction-why says what was wrong with the act --corrects names, and --corrects is not given — pass both to correct an act, or neither to record a new one")
 	}
 	return nil
+}
+
+// unpassed names, as "--flag", every flag the command registers that the seat did not pass. Never
+// nil: record.Correct reads nil as "no command line".
+func unpassed(cmd *cobra.Command) []string {
+	out := []string{}
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if !f.Changed {
+			out = append(out, "--"+f.Name)
+		}
+	})
+	return out
+}
+
+// CorrectionOmitsRequired completes the parser's refusal of a missing required flag when the
+// invocation is a CORRECTION: the seat left the flag out because the act already holds it, and
+// "required flag(s) not set" alone does not say that a correction repeats it. Any other refusal,
+// and any invocation that corrects nothing, is returned as it came.
+func CorrectionOmitsRequired(cmd *cobra.Command, err error, diagnosis string) string {
+	if !IsCorrectable(cmd) || !Given(cmd, flags.Corrects) {
+		return diagnosis
+	}
+	// The producer is asked, not the text matched: the same check on the same flags.
+	if rerr := cmd.ValidateRequiredFlags(); rerr == nil || rerr.Error() != err.Error() {
+		return diagnosis
+	}
+	return diagnosis + " — a correction repeats every flag: pass each again as the act you are correcting recorded it"
 }
 
 // CorrectionTarget is the body of the act this invocation corrects, or nil when it corrects nothing.
@@ -165,6 +195,20 @@ func writtenKey(cmd *cobra.Command) (key string, correcting, tracked bool) {
 	return "", inv.correct != nil, true
 }
 
+// correctionTaughtKey annotates a command whose help already carries the correction paragraph.
+const correctionTaughtKey = "feov.correction_taught"
+
+// teachCorrection appends the correction paragraph to a correctable command's help, once, after
+// its required markers are written.
+func teachCorrection(c *cobra.Command) {
+	typ, ok := eventTypeOf(c.Annotations[correctableKey])
+	if !ok || c.Annotations[correctionTaughtKey] != "" {
+		return
+	}
+	c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + correctionHelp(c, typ) + "\n"
+	annotate(c, correctionTaughtKey, "true")
+}
+
 // correctionHelp is the paragraph a correctable verb's help carries: how, who, when, and what may
 // change — the last computed from the type's tier and this verb's own flags.
 func correctionHelp(c *cobra.Command, typ recordpb.EventType) string {
@@ -174,15 +218,7 @@ func correctionHelp(c *cobra.Command, typ recordpb.EventType) string {
 		"[key …]) and --correction-why <what was wrong>. The record keeps the first act, shown struck beside its " +
 		"replacement. You may correct only your own act, only in the sitting that recorded it, and only until " +
 		"another seat has acted; after that, say it in a new act.")
-	own := func(fs []string) []string {
-		var out []string
-		for _, f := range fs {
-			if c.Flags().Lookup(strings.TrimPrefix(f, "--")) != nil {
-				out = append(out, f)
-			}
-		}
-		return out
-	}
+	own := func(fs []string) []string { return ownFlags(c, fs) }
 	switch recordpb.Tier(typ) {
 	case recordpb.CorrectionTier_CORRECTION_TIER_FULL:
 		if l := own([]string{record.LabelFlag(typ)}); len(l) == 1 {
@@ -197,7 +233,65 @@ func correctionHelp(c *cobra.Command, typ recordpb.EventType) string {
 			b.WriteString(" A correction may change only your wording; every other flag must repeat what the act recorded.")
 		}
 	}
+	if len(own(record.ProseFlags(typ))) > 0 {
+		b.WriteString(" Repeat your wording too: a correction that leaves out a flag the act holds is refused.")
+		switch cs := ClearableProse(c); len(cs) {
+		case 0:
+		case 1:
+			fmt.Fprintf(&b, " Only %[1]s may be dropped, by passing it empty (%[1]s \"\").", cs[0])
+		default:
+			fmt.Fprintf(&b, " Only %s may be dropped, each by passing it empty (%s \"\").", strings.Join(cs, ", "), cs[0])
+		}
+	}
 	return wrapHelp(b.String(), 100)
+}
+
+// ownFlags keeps, of the flags named as "--flag", the ones this command registers.
+func ownFlags(c *cobra.Command, fs []string) []string {
+	var out []string
+	for _, f := range fs {
+		if c.Flags().Lookup(strings.TrimPrefix(f, "--")) != nil {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// mustRepeatAnnotation marks wording a correction can never drop by passing its flag empty.
+const mustRepeatAnnotation = "feov_must_repeat"
+
+// MustRepeat declares that a correction on this verb can never clear these flags by passing them
+// empty, though the verb does not mark them REQUIRED — a flag another flag answers for, where the
+// write wants exactly one of the two. Call it before Correctable, whose paragraph reads it.
+func MustRepeat(c *cobra.Command, names ...string) *cobra.Command {
+	for _, n := range names {
+		if c.Flags().Lookup(n) == nil {
+			panic("seat.MustRepeat: `" + c.Name() + "` has no flag --" + n)
+		}
+		_ = c.Flags().SetAnnotation(n, mustRepeatAnnotation, []string{"true"})
+	}
+	return c
+}
+
+// ClearableProse names, as "--flag", the wording a correction on this command may CLEAR by passing
+// the flag empty: the verb's own prose flags that it neither marks REQUIRED nor declares MustRepeat.
+// A marked flag is one whose omission the verb refuses, and an empty value is refused with it, so
+// the help offers the clear only where the write admits it —
+// TestACorrectionClearsExactlyWhatItsHelpOffers drives every flag named here. Nil for a command
+// that takes no correction.
+func ClearableProse(c *cobra.Command) []string {
+	typ, ok := eventTypeOf(RecordType(c))
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, name := range ownFlags(c, record.ProseFlags(typ)) {
+		f := c.Flags().Lookup(strings.TrimPrefix(name, "--"))
+		if !IsMarked(f.Usage) && f.Annotations[mustRepeatAnnotation] == nil {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 // wrapHelp breaks a paragraph at word boundaries so no line runs past width.

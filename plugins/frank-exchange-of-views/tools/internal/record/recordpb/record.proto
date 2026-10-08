@@ -1082,12 +1082,14 @@ message Cite {
   optional string title = 4 [(prose) = true];
   optional string location = 5 [(prose) = false, (sql) = { flag: "quote" }];
   optional string access_date = 6;
-  optional string cite_key = 7;
+  // cite_key and source_text_read are typed --key and --source-text: the flag word is declared so
+  // a refusal names what a seat can type.
+  optional string cite_key = 7 [(sql) = { flag: "key" }];
   optional string text = 9 [(prose) = true, (sql) = { flag: "reason" }];
 
   // HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
   // claim costs a seat nothing and only a stronger one is asserted.
-  optional SourceTextRead source_text_read = 10;
+  optional SourceTextRead source_text_read = 10 [(sql) = { flag: "source-text" }];
 
   // WHERE THE QUOTE SITS, stamped by the tool; a same-sitting correction carries all five
   // unchanged. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
@@ -1199,7 +1201,8 @@ message Verify {
 // rather than a proof.
 message Proof {
   optional string proof_id = 1;
-  optional string proof_key = 2;
+  // proof_key is typed --key: the flag word is declared so a refusal names what a seat can type.
+  optional string proof_key = 2 [(sql) = { flag: "key" }];
   optional string proof_sha = 3;
   // proof_basis is written by blue/prove.go and read at eight sites; found by the frozen key
   // census for the same reason as Outcome's three.

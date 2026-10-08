@@ -28,6 +28,13 @@ type Correct struct {
 	Key  string             // the key of the act being corrected
 	Why  string             // what was wrong with it, in the seat's words
 
+	// Unpassed names, as "--flag", every flag the correcting verb registers that the seat did not
+	// pass. A correction repeats every flag, so wording the act holds whose flag is here was left
+	// out rather than cleared, and the correction is refused (requireHeldProseRepeated). nil means
+	// there is no command line to read — migrate replaying an act the record already accepted —
+	// and the check does not run; a seat's invocation always carries a non-nil list.
+	Unpassed []string
+
 	// written is set once the replacement is on the record: a second body of Type in one
 	// correcting invocation would be a second act with no key to name it by.
 	written bool
@@ -207,6 +214,69 @@ func frozenDiff(a, b proto.Message) []string {
 	return out
 }
 
+// requireHeldProseRepeated refuses a correction that LEAVES OUT wording the act holds.
+//
+// A prose field may change, so the frozen compare admits a replacement without it — and a seat
+// that corrected a title and did not re-type its argument would have dropped the argument from the
+// record without having said so. Leaving a flag out is not a statement; passing it empty is.
+//
+// IT RUNS AFTER THE WRITE'S OWN REQUIREMENTS (validateAgainst), so a flag the act cannot stand
+// without is refused there, as on any other write, and what reaches here is wording the act MAY
+// stand without: the offer to clear it is one the write admits.
+func requireHeldProseRepeated(c *Correct, t *correctionTarget) error {
+	if c.Unpassed == nil {
+		return nil
+	}
+	unpassed := map[string]bool{}
+	for _, f := range c.Unpassed {
+		unpassed[f] = true
+	}
+	var omitted []string
+	for _, f := range HeldProseFlags(t.Body) {
+		if unpassed[f] {
+			omitted = append(omitted, f)
+		}
+	}
+	switch len(omitted) {
+	case 0:
+		return nil
+	case 1:
+		return feov.Errorf(feov.MissingField,
+			"record: this correction omits %[1]s, which the act you are correcting holds — a correction repeats every flag: pass it again, or pass %[1]s \"\" to clear it",
+			omitted[0])
+	}
+	return feov.Errorf(feov.MissingField,
+		"record: this correction omits %s, which the act you are correcting holds — a correction repeats every flag: pass each again, or pass one empty (%s \"\") to clear it",
+		strings.Join(omitted, ", "), omitted[0])
+}
+
+// HeldProseFlags names, as "--flag", the flags of the prose fields a body HOLDS — set and not
+// blank — recursing into message fields and oneof arms like frozenDiff.
+func HeldProseFlags(body proto.Message) []string {
+	seen := map[string]bool{}
+	var out []string
+	var walk func(m protoreflect.Message)
+	walk = func(m protoreflect.Message) {
+		m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+			switch {
+			case fd.Message() != nil && !fd.IsList() && !fd.IsMap():
+				walk(v.Message())
+			case fd.Kind() == protoreflect.StringKind && !fd.IsList():
+				if p, _ := recordpb.IsProse(fd); p && strings.TrimSpace(v.String()) != "" {
+					if f := "--" + flagOf(fd); !seen[f] {
+						seen[f] = true
+						out = append(out, f)
+					}
+				}
+			}
+			return true
+		})
+	}
+	walk(body.ProtoReflect())
+	sort.Strings(out)
+	return out
+}
+
 // proseFlags names the flags that fill a body's prose fields, recursively.
 func proseFlags(md protoreflect.MessageDescriptor) []string {
 	seen := map[string]bool{}
@@ -332,6 +402,9 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		return nil, err
 	}
 	if err := validateAgainst(run, seatID, typ, body, target); err != nil {
+		return nil, err
+	}
+	if err := requireHeldProseRepeated(c, target); err != nil {
 		return nil, err
 	}
 

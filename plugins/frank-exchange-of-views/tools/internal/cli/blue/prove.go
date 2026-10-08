@@ -44,24 +44,18 @@ func newProve() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// A CORRECTION RE-STATES THE PROOF; it does not run the script again or mint a new id. What
-		// ran, its hash, exit and anchoring quote are the corrected act's, and only the note — the
-		// seat's own wording — may change. A flag left out is the act's own value; one given that
-		// differs is refused by the correction as a change to a frozen field.
+		// A CORRECTION RE-STATES THE PROOF; it does not run the script again or mint a new id. The
+		// id, the hash, the basis, the exit and the drift are the corrected act's, because the tool
+		// assigned or computed them. Everything the seat types comes from this command line exactly
+		// as a new proof takes it (proofFields): a flag left out is left out, and the correction
+		// refuses it as a change wherever the act recorded a value. Only the note — the seat's own
+		// wording — may differ.
 		target, err := s.CorrectionTarget()
 		if err != nil {
 			return nil, err
 		}
 		prior, correcting := target.(*recordpb.Proof)
 		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
-		if correcting {
-			if !seat.Given(cmd, flags.Quote) {
-				location = prior.GetLocation()
-			}
-			if !seat.Given(cmd, flags.Script) {
-				script = prior.GetScript()
-			}
-		}
 		if strings.TrimSpace(location) == "" {
 			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
 		}
@@ -89,8 +83,14 @@ func newProve() *cobra.Command {
 		tells := spanVoiceTells(why)
 
 		if correcting {
-			body := proto.Clone(prior).(*recordpb.Proof)
-			body.Location, body.Script, body.Text = proto.String(location), proto.String(script), proto.String(why)
+			body := &recordpb.Proof{
+				ProofId:    held(prior.ProofId),
+				ProofSha:   held(prior.ProofSha),
+				ProofBasis: held(prior.ProofBasis),
+				Exit:       held(prior.Exit),
+				Drift:      held(prior.Drift),
+			}
+			proofFields(cmd, body, why)
 			if _, err := record.Append(s.Identity(), body); err != nil {
 				return nil, err
 			}
@@ -162,17 +162,12 @@ func newProve() *cobra.Command {
 			ProofId:    proto.String(label),
 			ProofSha:   proto.String(res.SHA),
 			ProofBasis: proto.String(res.Basis),
-			Script:     proto.String(res.Script),
 			Exit:       proto.Int32(int32(res.Exit)),
-			ProofKey:   proto.String(seat.Str(cmd, flags.Key)),
-			Answers:    proto.String(seat.Str(cmd, flags.Answers)),
-			Cites:      proto.String(seat.Str(cmd, flags.Cites)),
-			Location:   proto.String(location),
 		}
 		if res.Drift != "" {
 			body.Drift = proto.String(res.Drift)
 		}
-		body.Text = proto.String(why)
+		proofFields(cmd, body, why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -188,6 +183,28 @@ func newProve() *cobra.Command {
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles (G4) — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
 	seat.Records(c, "proof")
 	return seat.Correctable(c)
+}
+
+// proofFields sets every field of a proof that the SEAT types, for a new proof and for its
+// correction alike — one builder, so a correction re-states the act with the presence the act
+// itself has. `script` is the flag's own value: proof.Run records the path it was handed.
+func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
+	body.Location = proto.String(seat.Str(cmd, flags.Quote))
+	body.Script = proto.String(seat.Str(cmd, flags.Script))
+	body.ProofKey = proto.String(seat.Str(cmd, flags.Key))
+	body.Answers = proto.String(seat.Str(cmd, flags.Answers))
+	body.Cites = proto.String(seat.Str(cmd, flags.Cites))
+	body.Text = proto.String(why)
+}
+
+// held copies a field the corrected act holds, keeping its presence: an unset field stays unset,
+// so the replacement differs from its act only where the command line does.
+func held[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
 }
 
 type proveResult struct {
