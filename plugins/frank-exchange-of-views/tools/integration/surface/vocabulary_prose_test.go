@@ -98,7 +98,7 @@ func TestVocabularyProseMutations(t *testing.T) {
 		{f + "agents/red-chair.md", "CLOSE THE OPERATOR CHANNEL EVERY SITTING."},
 		{f + "tools/internal/cli/seat/help/edit.md", "an edit changes the living report."},
 		{f + "tools/internal/cli/seat/verbs.go", "read how YOUR CHAIR is doing"},
-		{f + "skills/research-protocol/SKILL.md", "## The run directory (the blackboard)"},
+		{f + "skills/research-protocol/references/run-directory.md", "## The run directory (the blackboard)"},
 		{f + "agents/lead-judge.md", "The judge rules on the closings."},
 		{"README.md", "records/*.jsonl is the event log."},
 		// #1209: each passed the gate on main, in the file named, because the gate matched one

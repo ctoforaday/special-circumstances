@@ -102,7 +102,10 @@ const (
 // Every seat's dispatch prompt already says every read is a projection of the record and the .md
 // files under the run are for a HUMAN — and on universe-m12 seven different seats (four lenses, the
 // chair, the judge) called Read on report.md anyway. The one interviewed said what drew it: the
-// research-protocol skill's map of the run directory lists `report.md  # THE RESEARCH` at the root.
+// map of the run directory, which every seat's preloaded research-protocol skill carried on that
+// run, lists `report.md  # THE RESEARCH` at the root. The map is the operator's and lives in
+// skills/research-protocol/references/run-directory.md, which no seat preloads; this refusal stays
+// because the prompt's sentence alone did not hold.
 // The instruction was present and read; something closer to the act overrode it. The file does not
 // exist during a run — it is assembled at the end for the human reader — so the Read failed, and
 // the seat then spent further calls searching for it before reaching the tool.
