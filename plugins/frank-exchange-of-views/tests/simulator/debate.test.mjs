@@ -980,8 +980,59 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
 
 // ── a run the engine stops ──────────────────────────────────────────────────────────────────
 
+// AN ENGINE STOP RECORDS NO OUTCOME, AND THE RUN STAYS OPEN. Only the bench's assembly sitting writes
+// an outcome, and an outcome closes the record to every seat — so a stop that convened it would
+// finish a run an operator can still resume. The workflow rejects with the error and that is all it
+// does: the stop itself reaches the record from the lead, which holds the error.
+const strayPlan = () => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1'), party('frontier')], { blockers: [blocker('M1', 'judge')] }) })
+test('an engine stop convenes nobody: no party of the plan it stopped on, no terminal sitting, and no assembly sitting to record an outcome', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv(), strayPlan(), passChair()] }))
+  await assert.rejects(world.run(script, ARGS), /epoch 2: the plan names frontier/)
+  assert.equal(world.calls[world.calls.length - 1].opts.label, 'red-chair #2 · test', 'the sitting the engine stopped on is the last one dispatched')
+  assert.equal(labelsOf(world, 'judge · terminal').length, 0, 'the plan the engine stopped on convenes no terminal sitting, whatever blockers it lists')
+  assert.equal(labelsOf(world, 'judge · assemble').length, 0, 'the assembly sitting records the outcome, and a stopped run has none')
+})
+
 test('an assembly sitting that returns nothing stops the run: no envelope states a verdict the seat that records it never confirmed', async () => {
   const seats = makeResponder()
   const world = makeWorld((p, o) => (/^judge · assemble/.test(o.label) ? null : seats(p, o)))
   await assert.rejects(world.run(script, ARGS), (e) => /^the assembly sitting returned null/.test(e.message) && /the debate had ended VERIFIED/.test(e.message))
+})
+
+// A RESUME REPLAYS THE SITTINGS THAT COMPLETED AND RUNS THE REST. The Workflow tool's resume hands a
+// completed sitting its cached result when the script asks for it again; the stand-in here is a
+// cache keyed by the dispatch's label and prompt, so a replayed sitting hits only if the script
+// asks for it in the same words. What the tool itself keys on is not measured here.
+const cachingWorld = (cache, fresh) => {
+  const tally = { hits: 0, ran: [] }
+  const world = makeWorld((p, o) => {
+    const key = `${o.label}\n${p}`
+    if (cache.has(key)) { tally.hits++; return cache.get(key) }
+    const out = fresh(p, o)
+    cache.set(key, out)
+    tally.ran.push(o.label)
+    return out
+  })
+  return { world, tally }
+}
+test('a stopped run resumes: every completed sitting replays under the prompt it first had, an unchanged resume stops at the same sitting, and one that sits it again reaches the outcome', async () => {
+  const cache = new Map()
+  const first = cachingWorld(cache, makeResponder({ chair: [chairEnv(), strayPlan()] }))
+  await assert.rejects(first.world.run(script, ARGS), /the plan names frontier/)
+  const sat = first.tally.ran.length
+  assert.ok(sat > 5 && first.tally.hits === 0, `the first run sits every seat fresh; it sat ${sat} and replayed ${first.tally.hits}`)
+
+  // Nothing changed: the stop replays from the cache, and no seat sits again.
+  const same = cachingWorld(cache, () => { throw new Error('a replay with nothing changed dispatched a seat') })
+  await assert.rejects(same.world.run(script, ARGS), /the plan names frontier/)
+  assert.equal(same.tally.hits, sat, 'every sitting of the stopped run is asked for again in the same words')
+
+  // The sitting the engine stopped on sits again: everything before it replays, and the run goes on.
+  for (const k of [...cache.keys()]) if (k.startsWith('red-chair #2')) cache.delete(k)
+  const resumed = cachingWorld(cache, makeResponder({ chair: [passChair()] }))
+  const out = await resumed.world.run(script, ARGS)
+  assert.equal(resumed.tally.hits, sat - 1, 'every sitting but the one that stopped the run replays')
+  assert.deepEqual(resumed.tally.ran, ['red-chair #2 · test', 'judge · assemble · test'], 'only the stopped sitting and what follows it run')
+  assert.equal(out.verdict, 'VERIFIED')
+  assert.equal(out.gaps_outstanding, 0)
 })

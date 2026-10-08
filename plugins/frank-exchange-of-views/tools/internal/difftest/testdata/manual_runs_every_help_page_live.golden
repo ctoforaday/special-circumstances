@@ -1790,7 +1790,7 @@ Flags:
 $ manual --seat-id operator
 exit 0
 stdout:
-feov-record manual — the operator surface, seat operator: 16 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
+feov-record manual — the operator surface, seat operator: 17 commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
@@ -1831,12 +1831,24 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
-§1 (on 16 pages):
+§1 (on 17 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+
+§2 (on 2 pages):
+FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
+your text, and records whatever the command printed — or nothing — in its place. Pass every
+free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+
+§3 (on 2 pages):
+  X=$(cat <<'EOF'
+  your text — backticks, apostrophes and $ signs are all literal here
+  EOF
+  )
+  … "$X"
 
 ==============================================================================
 $ feov-record --help
@@ -1850,19 +1862,20 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help         Help about any command
-  manual       render a surface's commands, each with its own help, run live — for generating a seat's constitution
-  migrate      replay an old record through this binary's write path into a fresh run (the source is never modified)
-  ocr          render a scanned document's pages and read them with the local OCR engine
-  ops          ask an operator question about a run — how the seats behaved, what they reported, what answered them (read-only)
-  scorecard    print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS; no seat surface carries a scorecard view
-  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
-  verify       cross-check a run's record against its invariants, and tally it (read-only)
+  capture        run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
+  count-claims   count the FOOTNOTED declarative claims in blue's report (read-only)
+  dashboard      render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
+  engine-stopped record that the engine stopped the run on an error (operator; writes the error to the log and NO outcome, so the run stays open to resume)
+  fetch          cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  graph          render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
+  help           Help about any command
+  manual         render a surface's commands, each with its own help, run live — for generating a seat's constitution
+  migrate        replay an old record through this binary's write path into a fresh run (the source is never modified)
+  ocr            render a scanned document's pages and read them with the local OCR engine
+  ops            ask an operator question about a run — how the seats behaved, what they reported, what answered them (read-only)
+  scorecard      print this run's scorecards — red, blue and bench, or one with --card. OPERATOR ANALYTICS ACROSS CARDS; no seat surface carries a scorecard view
+  setup          build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
+  verify         cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
   -h, --help             help for feov-record
@@ -1910,6 +1923,28 @@ Flags:
       --now int                 inject the clock in unix-ms (default: real time) — for deterministic tests
       --serve int               host the dashboard over HTTPS on this port instead of writing a file — bound to 0.0.0.0 so it is reachable across the local network, gated by a per-run secret URL (self-signed cert, rendered fresh per request, self-tears-down when the run ends)
       --watch                   regenerate every 15s until the run-live marker is removed
+
+(Global Flags:) → SHARED §1
+==============================================================================
+$ feov-record engine-stopped --help
+engine-stopped --reason "<the error>" writes the error the engine stopped on to the run's log, as the tool's own `failure` entry under `harness`.
+
+Run it when the Workflow tool reports that the debate FAILED after seats sat. Give the error verbatim: it is the only account of why the run stopped, and with it on the record a run the engine stopped reads differently from one that was cut off.
+
+IT RECORDS NO OUTCOME. An outcome closes the record to every seat; this leaves it open, so the same workflow run resumes against it. The answer says which the record holds: no outcome (resumable), or the outcome a sitting recorded before the stop (finished).
+
+`ops log` reads the entry back, beside what the seats filed.
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
+
+(X=$(cat <<'EOF') → SHARED §3
+
+Usage:
+  feov-record engine-stopped [flags]
+
+Flags:
+  -h, --help            help for engine-stopped
+      --reason string   the error the engine stopped on, verbatim
 
 (Global Flags:) → SHARED §1
 ==============================================================================
@@ -2100,15 +2135,9 @@ Flags:
 $ feov-record setup --help
 setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors the law memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.
 
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
+(X=$(cat <<'EOF') → SHARED §3
 
 Usage:
   feov-record setup <runDir> [flags]

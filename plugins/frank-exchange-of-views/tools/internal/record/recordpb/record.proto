@@ -1476,7 +1476,9 @@ enum LogType {
   // FAILURE IS WHAT A REFUSAL CANNOT SEE: a seat's tool call that failed outside the record tool — a
   // jq that misread a shape, a Read of a path that is not there, a script that exited non-zero. On
   // universe-m13 and m14 every one of these went unlogged by the seats that hit them.
-  LOG_TYPE_FAILURE = 7 [(seat_may_file) = false, (means) = "a seat's tool call FAILED and the harness saw it: the tool, what it was aimed at, and the error's first line. Recorded by the tool, not filed by the seat; a refusal the record tool gave is `refusal`, not this"];
+  // THE ENGINE'S OWN STOP IS ONE TOO, under the harness seat: the engine threw, and the lead wrote
+  // the error with the operator's `engine-stopped`. No outcome goes with it, so the run stays open.
+  LOG_TYPE_FAILURE = 7 [(seat_may_file) = false, (means) = "a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this"];
   LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
 }
 
