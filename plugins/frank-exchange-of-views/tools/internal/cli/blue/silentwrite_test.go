@@ -133,3 +133,45 @@ func TestAnOrdinaryEditIsNotRefused(t *testing.T) {
 		t.Errorf("the replacement did not land on the ordinary span: %q exact=%v", got, exact)
 	}
 }
+
+// THE SAME REFUSAL WITH THE SENTENCE'S ANCHORS BETWEEN THE TWO MARKS, REPRODUCED FROM A RUN.
+//
+// universe m16, blue-respond: the sentence's four anchors stood before its period, the edit quoted
+// the sentence with them and ended --new in a colon before them, and the report read
+// "91:<!--gap:…-->…<!--gap:…-->." — to a reader, "91:.". An anchor between two marks is not content
+// between them, so the edit is refused as its bare twin is.
+func TestAnEditThatWouldDoubleATerminatorAcrossAnchorsIsRefused(t *testing.T) {
+	const run = "<!--gap:G-0000000c--><!--fx:F-f8f18cf1--><!--fx:F-63bb2a68--><!--gap:G-00000004-->"
+	const lead = "Each of the five methods confirms it. "
+	const old, new = "The disconfirming evidence strategy was applied: for each method, we searched for cases where it *fails* or is *limited*", "The following findings examine each method's performance on 91:"
+	for _, tc := range []struct{ name, run string }{{"control: no anchor", ""}, {"a run of anchors", run}} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, _, err := validateEdit(lead+old+tc.run+".\n\n**Trial division findings:** None.\n", old+tc.run, new+tc.run)
+			if err == nil || !strings.Contains(err.Error(), `":."`) {
+				t.Fatalf("an edit leaving \":.\" in the report was not refused for that run: %v", err)
+			}
+		})
+	}
+}
+
+// A DOUBLED MARK ACROSS THE ANCHORS --new CARRIES TIDIES, AND A CHANGED ONE TAKES THE LITERAL SPAN,
+// each as its bare twin does.
+func TestATerminatorBeforeCarriedAnchorsLandsOnce(t *testing.T) {
+	const a = "<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->"
+	for _, tc := range []struct {
+		name, report, old, new, want string
+		exact                        bool
+	}{
+		{"control: a doubled period tidies", "Intro.\n\nIt holds. Next.\n", "It holds", "It works.", "Intro.\n\nIt works. Next.\n", false},
+		{"a doubled period across the run tidies", "Intro.\n\nIt holds" + a + ". Next.\n", "It holds" + a, "It works." + a, "Intro.\n\nIt works" + a + ". Next.\n", false},
+		{"control: a changed terminator takes the literal span", "Intro.\n\nIt works.\n", "It works.", "It works!", "Intro.\n\nIt works!\n", true},
+		{"a changed terminator across the run takes the literal span", "Intro.\n\nIt works" + a + ".\n", "It works" + a + ".", "It works!" + a, "Intro.\n\nIt works!" + a + "\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, _, exact, err := validateEdit(tc.report, tc.old, tc.new)
+			if err != nil || got != tc.want || exact != tc.exact {
+				t.Errorf("got %q exact=%v err=%v\nwant %q exact=%v", got, exact, err, tc.want, tc.exact)
+			}
+		})
+	}
+}
