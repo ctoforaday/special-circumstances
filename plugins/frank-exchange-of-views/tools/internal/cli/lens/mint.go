@@ -110,7 +110,7 @@ func newMint() *cobra.Command {
 		if aerr != nil {
 			return nil, aerr
 		}
-		loc := seat.Str(cmd, flags.Quote)
+		loc := seat.Location(cmd)
 		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
 		// is not changed here — but a gap that claims both is claiming two.
 		if strings.TrimSpace(loc) != "" && about != nil {

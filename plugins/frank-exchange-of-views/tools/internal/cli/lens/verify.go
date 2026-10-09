@@ -253,7 +253,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	if err != nil {
 		return nil, err
 	}
-	body.Claim = proto.String(seat.Str(cmd, flags.Quote))
+	body.Claim = proto.String(seat.Location(cmd))
 	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
 	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
 	// same defect that made `merge close` write `successor = ''` and fail every closure once the

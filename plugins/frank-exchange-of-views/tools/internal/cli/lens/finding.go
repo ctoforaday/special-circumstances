@@ -43,7 +43,7 @@ func newFinding() *cobra.Command {
 		if strings.TrimSpace(text) == "" {
 			return nil, fmt.Errorf("lens finding requires --reason: the explanation red re-audits the repair against")
 		}
-		location := seat.Str(cmd, flags.Quote)
+		location := seat.Location(cmd)
 		aboutKind, aboutRef := seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)
 		about, aboutRefP, aerr := record.ResolveAbout("lens finding", run, aboutKind, aboutRef)
 		aboutSet := about != nil
@@ -103,7 +103,7 @@ func newFinding() *cobra.Command {
 		body := &recordpb.Finding{
 			Id:         proto.String(findingID),
 			FindingKey: proto.String(seat.Str(cmd, flags.Key)),
-			Location:   proto.String(seat.Str(cmd, flags.Quote)),
+			Location:   proto.String(location),
 			Text:       proto.String(text),
 			AboutKind:  about,
 			AboutRef:   aboutRefP,

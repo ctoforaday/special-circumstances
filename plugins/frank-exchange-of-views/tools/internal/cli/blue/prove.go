@@ -54,7 +54,7 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 		prior, correcting := target.(*recordpb.Proof)
-		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
+		location, script := seat.Location(cmd), seat.Str(cmd, flags.Script)
 		if strings.TrimSpace(location) == "" {
 			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
 		}
@@ -189,7 +189,7 @@ func newProve() *cobra.Command {
 // correction alike — one builder, so a correction re-states the act with the presence the act
 // itself has. `script` is the flag's own value: proof.Run records the path it was handed.
 func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
-	body.Location = proto.String(seat.Str(cmd, flags.Quote))
+	body.Location = proto.String(seat.Location(cmd))
 	body.Script = proto.String(seat.Str(cmd, flags.Script))
 	body.ProofKey = proto.String(seat.Str(cmd, flags.Key))
 	body.Answers = proto.String(seat.Str(cmd, flags.Answers))

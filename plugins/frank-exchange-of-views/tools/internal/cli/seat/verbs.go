@@ -1019,6 +1019,14 @@ func inquestGroup() *cobra.Command {
 	return c
 }
 
+// Location is the location a placing verb stores for its --quote: the quote's visible text, every
+// anchor token out. A seat quotes a sentence as `show report` prints it, anchors included; a quote is
+// located with anchors skipped, so the stored text places the anchor where the typed quote does, and
+// no reader of a location is handed a token as part of the sentence.
+func Location(cmd *cobra.Command) string {
+	return anchor.Replace(Str(cmd, flags.Quote), func(string, string) string { return "" })
+}
+
 // Places is the refusal a placing verb gives where Attach will not place id's anchor at loc in the
 // report as it stands, worded by refuse. The verb checks before it records anything.
 func Places(run record.Run, id, loc string, refuse func(error) error) error {
