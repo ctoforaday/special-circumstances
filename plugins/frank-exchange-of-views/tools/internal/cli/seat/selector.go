@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // ONE SELECTOR VOCABULARY ACROSS THE THREE KITCHEN SINKS (gblock's ruling).
@@ -166,29 +167,54 @@ func SelectorOf(c *cobra.Command) (Selector, error) {
 // total, which is the seat's signal to narrow; a capped list would read as a narrow pattern that
 // found little. See the header of this file.
 func selectReportLines(body string, sel Selector) (string, int) {
-	lines := strings.Split(body, "\n")
-	heading, hits := "", 0
+	lines := record.ReportLines(body)
+	hits := hitLines(lines, sel)
 	var b strings.Builder
-	for i, ln := range lines {
-		if strings.HasPrefix(strings.TrimSpace(ln), "#") {
-			heading = strings.TrimSpace(ln)
-		}
-		if !sel.Hits(ln) || strings.TrimSpace(ln) == "" {
-			continue
-		}
-		hits++
-		if heading != "" {
-			fmt.Fprintf(&b, "%s\n", heading)
+	for _, ln := range hits {
+		if ln.Heading != "" {
+			fmt.Fprintf(&b, "%s\n", ln.Heading)
 		} else {
 			fmt.Fprintf(&b, "(before the first heading)\n")
 		}
-		fmt.Fprintf(&b, "  %d: %s\n\n", i+1, strings.TrimRight(ln, " "))
+		fmt.Fprintf(&b, "  %d: %s\n\n", ln.Line, strings.TrimRight(ln.Text, " "))
 	}
-	if hits > 0 {
+	if len(hits) > 0 {
 		fmt.Fprintf(&b, "_%d line(s) match %s, of %d in the report. Every match is above; nothing is ranked or cut._\n",
-			hits, sel.Describe(), len(lines))
+			len(hits), sel.Describe(), len(lines))
 	}
-	return b.String(), hits
+	return b.String(), len(hits)
+}
+
+// hitLines is the report lines the selector hits, blank lines out — the one selection both forms of
+// `show report` print.
+func hitLines(lines []record.ReportLineJSON, sel Selector) []record.ReportLineJSON {
+	hits := []record.ReportLineJSON{}
+	for _, ln := range lines {
+		if sel.Hits(ln.Text) && strings.TrimSpace(ln.Text) != "" {
+			hits = append(hits, ln)
+		}
+	}
+	return hits
+}
+
+// selectionBlock is the `selection` key a selected JSON read carries: what was asked, what it kept
+// and of how many, and that nothing was cut.
+func selectionBlock(sel Selector, kept, of int) map[string]any {
+	return map[string]any{"criterion": sel.Describe(), "matched": kept, "of": of, "complete": true}
+}
+
+// reportJSON is `show report --json`: lines at head, with the selection block when a selector chose
+// them.
+func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]any) ([]byte, error) {
+	doc := struct {
+		record.ReportJSON
+		Selection map[string]any `json:"selection,omitempty"`
+	}{record.ReportJSON{Head: head, Lines: lines}, selection}
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(b, '\n'), nil
 }
 
 // selectJSONArrays keeps only the entries of EVERY top-level array whose JSON text the selector hits,
@@ -235,8 +261,7 @@ func selectJSONArrays(body []byte, sel Selector) (out []byte, kept, of int) {
 	}
 	// `selection` appears ONLY when a selector was passed, and says what was kept of what there was.
 	// Without it a reader cannot tell a narrow pattern from a narrow board.
-	if sb, err := json.Marshal(map[string]any{"criterion": sel.Describe(), "matched": kept, "of": of,
-		"complete": true}); err == nil {
+	if sb, err := json.Marshal(selectionBlock(sel, kept, of)); err == nil {
 		doc["selection"] = sb
 	}
 	b, err := json.MarshalIndent(doc, "", "  ")

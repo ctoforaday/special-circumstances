@@ -797,7 +797,11 @@ Flags:
 (Global Flags:) → SHARED §17
 ==============================================================================
 $ feov-record show report --help
-THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. Written by the opening synthesis and blue's `edit`
+THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. Written by the opening synthesis and blue's `edit`.
+
+--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -1809,7 +1813,11 @@ Flags:
 (Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show report --help
-THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. Written by the opening synthesis and blue's `edit`
+THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. Written by the opening synthesis and blue's `edit`.
+
+--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
