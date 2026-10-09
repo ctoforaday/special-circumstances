@@ -362,19 +362,25 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
-test('blue is engaged on named gaps, told the board is authoritative, and files closings only when the plan docketed', async () => {
+test('blue is engaged on named gaps, works from the report and its work list, and files closings only when the plan docketed', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001', 'G-00000002')], { docket: ['G-00000002'] }) }), chairEnv({ plan: plan([party('blue-respond', 'G-00000003')]) }), passChair()],
   }))
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G-00000001, G-00000002/.test(first))
-  for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'lossy summary', "bench's latest dispositions",
+  for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
+    'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
+  }
+  // BLUE'S WORKING SET IS THE REPORT AND ITS WORK ITEMS (gblock's ruling, 2026-10-09): no sentence sends
+  // it to the board, and none to red's argument for a gap — the lens's reason and the basis of a regrade.
+  for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
+    assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
   assert.ok(/CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G-00000002/.test(first) && /argue in ~120 words/.test(first))
   assert.ok(!/CLOSING ARGUMENTS/.test(second), 'no docket this sitting, no closing demanded')

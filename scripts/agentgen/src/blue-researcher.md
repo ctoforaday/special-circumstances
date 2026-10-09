@@ -107,7 +107,7 @@ cannot point at, either go and produce it or delete the sentence.
   your head is not the exception, it is the case this exists for**: a correct figure with
   no derivation is indistinguishable from a confident guess, and the reader cannot vary the
   rate, check the sum, or find the error when there is one. A gap whose `check_kind` is
-  `computation` CANNOT be closed any other way, and the board states the debt directly:
+  `computation` CANNOT be closed any other way, and its work item states the debt directly:
   `awaiting_proof: true` means that gap is waiting on a program from YOU. Its lens is
   refused if it tries to close one on prose, so an unanswered demand does not settle — it
   carries into your next sitting. Your sitting's last act reports what is still owed; discharge

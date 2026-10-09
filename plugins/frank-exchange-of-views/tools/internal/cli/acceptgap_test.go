@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -224,5 +225,50 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// BLUE'S WORK ITEM CARRIES THE PAIR THE BOARD SERVES — the pair `--accept` sends — read by `show work`
+// as blue-respond over the real render, so blue acts on a proposed fix without a board read. A gap
+// whose lens proposed no text says `proposed` and has no pair.
+func TestShowWorkCarriesTheBoardsFixPairForBlue(t *testing.T) {
+	runDir := acceptRunOf(t, "# Method\n\nThe procedure is proven correct. A second claim stands here.\n")
+	quoted, err := mintQuote(t, runDir, "G", "The procedure is proven correct.", "--new", "The procedure is tested, not proven.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prose, err := mintQuote(t, runDir, "H", "A second claim stands here.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := run(t, "show", "work", "--run", runDir, "--seat-id", blueSeat)
+	if err != nil {
+		t.Fatalf("show work: %v", err)
+	}
+	var w struct {
+		Open []map[string]any `json:"open"`
+	}
+	if err := json.Unmarshal([]byte(out), &w); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out)
+	}
+	items := map[string]map[string]any{}
+	for _, g := range w.Open {
+		items[g["id"].(string)] = g
+	}
+	old, new := boardPair(t, runDir, quoted)
+	if !strings.Contains(old, anchor.Token(quoted)) {
+		t.Fatalf("the board's fix_old does not run through the gap's anchor: %q", old)
+	}
+	if g := items[quoted]; g["fix_basis"] != "verified" || g["fix_old"] != old || g["fix_new"] != new {
+		t.Errorf("work item %s fix = (%v, %q, %q), want the board's (verified, %q, %q)", quoted, g["fix_basis"], g["fix_old"], g["fix_new"], old, new)
+	}
+	g := items[prose]
+	if g["fix_basis"] != "proposed" {
+		t.Errorf("work item %s fix_basis = %v, want proposed", prose, g["fix_basis"])
+	}
+	for _, k := range []string{"fix_old", "fix_new"} {
+		if v, has := g[k]; has {
+			t.Errorf("work item %s has %s = %v; its lens proposed no text", prose, k, v)
+		}
 	}
 }
