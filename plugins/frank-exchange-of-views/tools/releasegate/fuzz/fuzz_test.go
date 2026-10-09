@@ -2502,6 +2502,9 @@ type outcome struct {
 	// mint verb gate is satisfied by any mint, so a proposal path that stopped validating
 	// would pass it while the axis quietly went all-prose.
 	verifiedBasis int
+	// Mints the record accepted WITH a found_by. The unreached-flags gate counts --found-by when the
+	// mint carrying it is refused, so only the event shows a finding was ever credited.
+	creditedMints int
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
@@ -3453,6 +3456,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			if t.GetFixBasis() == "verified" {
 				res.verifiedBasis++
 			}
+			if len(t.GetFoundBy()) > 0 {
+				res.creditedMints++
+			}
 		case *recordpb.Log:
 			// SOURCE IS CHECKED, NOT JUST TYPE. An estoppel entry a SEAT filed is a seat claiming
 			// the tool refused it; only the tool's own is evidence the guard ran.
@@ -4082,6 +4088,7 @@ func TestFuzzDebate(t *testing.T) {
 	forcedVerdict, forcedWhy := "", ""     // what the FORCED-UNVERIFIED seed actually ended as
 	verifiedVerdict, verifiedWhy := "", "" // and the FORCED-VERIFIED seed
 	verifiedBasis := 0                     // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	creditedMints := 0                     // mints accepted with a found_by naming a recorded finding
 	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
@@ -4144,6 +4151,7 @@ func TestFuzzDebate(t *testing.T) {
 			cacheFiles += o.cacheFiles
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
+			creditedMints += o.creditedMints
 			verbatimApplied += o.verbatimApplied
 			typedVerbatim += o.typedVerbatim
 			estoppels += o.estoppels
@@ -4255,6 +4263,9 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if verifiedBasis == 0 {
 			t.Errorf("fuzz minted ZERO gaps with fix_basis=verified across %d runs — no concrete proposal ever validated, so the whole stage-3 path is unexercised (false green)", completed)
+		}
+		if creditedMints == 0 {
+			t.Errorf("fuzz minted ZERO gaps crediting a finding across %d runs — no accepted mint carried --found-by, so the id a finding is credited by is unexercised (false green)", completed)
 		}
 		if repairs == 0 {
 			t.Errorf("fuzz recorded ZERO registers naming a repaired sitting across %d runs — the engine's sitting-record re-prompt never registered as a repair, so the repair path is unexercised (false green)", completed)
