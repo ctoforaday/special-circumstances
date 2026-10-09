@@ -116,7 +116,7 @@ func newCite() *cobra.Command {
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			if err := seat.PlaceOwed(s, run, prior, citeRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "blue cite", prior, key); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil

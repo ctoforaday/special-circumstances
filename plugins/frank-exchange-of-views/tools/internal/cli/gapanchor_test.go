@@ -414,7 +414,17 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR) - before
 				if twice {
 					if err == nil || got != 0 {
-						t.Errorf("with the stored location twice in the report the retry gave %v and appended %d anchor(s)", err, got)
+						t.Fatalf("with the stored location twice in the report the retry gave %v and appended %d anchor(s)", err, got)
+					}
+					// THE REFUSAL IS THE RETRY'S OWN. The verb's first-call wording teaches a seat to
+					// fix --quote, which a retry does not read.
+					for _, want := range []string{"is on the record without its anchor", "now holds it more than once", stored, "does not read --quote", "record a new act"} {
+						if !strings.Contains(err.Error(), want) {
+							t.Errorf("the retry's refusal lacks %q:\n%v", want, err)
+						}
+					}
+					if keyed := c.kind != "citation" || c.seat == blueSeat; keyed != strings.Contains(err.Error(), `under a --key other than "K1"`) {
+						t.Errorf("the retry's refusal names a new key exactly where the act is keyed (keyed=%v):\n%v", keyed, err)
 					}
 					continue
 				}

@@ -339,7 +339,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		} else if prior != "" {
 			// The corroboration and its anchor are two appends; a retry finishes the pair at the
 			// claim the corroboration stored.
-			if err := seat.PlaceOwed(s, run, prior, corroborateRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "lens corroborate", prior, ""); err != nil {
 				return nil, err
 			}
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil

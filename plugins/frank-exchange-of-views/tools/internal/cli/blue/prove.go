@@ -113,7 +113,7 @@ func newProve() *cobra.Command {
 			}
 			// The proof and its anchor are two appends; a retry finishes the pair at the location
 			// the proof stored.
-			if err := seat.PlaceOwed(s, run, priorID, proveRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "blue prove", priorID, seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return proveResult{SHA: prior, Idempotent: true, VoiceTells: tells}, nil

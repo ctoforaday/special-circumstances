@@ -1712,6 +1712,10 @@ feov-record: lens: lens mint: the quote ends in a section heading, and an anchor
 exit 2
 feov-record: lens: lens finding: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
 
+── a retry whose stored location the report no longer holds
+exit 2
+feov-record: lens: lens finding: the finding this call repeats is on the record without its anchor, and the location it stored, "A sentence the report held.", does not place: the report no longer holds it where an anchor can stand. A call under --key "F-owed" repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote, under a --key other than "F-owed"
+
 ── an edit leaving out an anchor whose sentence it rewrites
 exit 2
 feov-record: blue: blue edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
@@ -1739,7 +1743,7 @@ feov-record: lens: --correction-why says what was wrong with the act --corrects 
 
 ── correction that changes nothing
 exit 2
-feov-record: lens: record: this correction changes nothing — the replacement equals event 31; correct it with the text you meant
+feov-record: lens: record: this correction changes nothing — the replacement equals event 33; correct it with the text you meant
 
 ── correction of another seat's act
 exit 2
@@ -1862,7 +1866,7 @@ TWO CONSEQUENCES:
 
 ── correction after another seat has acted
 exit 2
-feov-record: lens: record: another seat has acted since this regrade (event 38, a register by red-chair); what you would correct is now on the record they read — say it in a new act
+feov-record: lens: record: another seat has acted since this regrade (event 40, a register by red-chair); what you would correct is now on the record they read — say it in a new act
 
 ── frozen field target: the lens closes GAP001
 exit 0
@@ -1871,7 +1875,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a PROSE correction moving a frozen field
 exit 2
-feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 40 recorded it. What the act decided is not restated by a correction — say it in a new act
+feov-record: lens: record: a close correction may change only the seat's own wording (--reason); this one changes --verified-with, which must stay as event 42 recorded it. What the act decided is not restated by a correction — say it in a new act
 
 ── earlier sitting target: the lens sits again
 exit 0
