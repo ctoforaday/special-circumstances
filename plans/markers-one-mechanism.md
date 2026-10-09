@@ -1114,7 +1114,7 @@ lists are 35 lines, and the token pass and the word-bounded argument pass are ne
 costs the estimate did not price: `anchor.go` +28 (the avenue and motion letters, `ID`, and
 `IDPattern` by kind), `seatprobe` +41 (a board names its gaps by position, so the builder stages
 through the ids the tool reports and the prompt capture reads the minted ids), and the replay's
-id pre-pass with the placer's keying, +13. Tests +2580 −1489. Over the 16 archived runs: 0
+id pre-pass with the placer's keying, +13. Tests +2585 −1489. Over the 16 archived runs: 0
 refusals; 1,132 ids and labels remapped (C 198, F 392, G 123, M 57, P 127, Q 235); 3,158 id
 fields, 2,080 seat-argument fields and 293 source-data fields (tokens only) rewritten; 6 id-shaped
 words left in seat-argument fields, none an id its run minted; `archived_renders.golden` raw
