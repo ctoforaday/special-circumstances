@@ -43,6 +43,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 
 	"google.golang.org/protobuf/proto"
@@ -760,8 +761,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	case *recordpb.Anchor:
 		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
 		// deriveKey, so a retry writes one event rather than a second marker.
-		if b.GetId() == "" {
-			return fmt.Errorf("record: anchor requires id (the id of the act whose marker this places)")
+		// An id no anchor kind claims spells no token a reader recognises, so its gap would read `gone`
+		// beside a stray comment in the report: the empty id and every such id are refused here.
+		if anchor.Kind(b.GetId()) == "" {
+			return fmt.Errorf("record: anchor requires id — the id of the finding, citation, proof or gap whose marker this places; %q is none of them", b.GetId())
 		}
 		if b.GetLocation() == "" {
 			return fmt.Errorf("record: anchor requires location (the quote the marker sits at the end of)")

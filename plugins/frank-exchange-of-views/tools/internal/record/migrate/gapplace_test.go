@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -82,7 +83,15 @@ func (s *shapeSource) finding(id, quote string) {
 	s.t.Helper()
 	s.add(shapeLens, &recordpb.Finding{Id: proto.String(id),
 		Location: proto.String(quote), Text: proto.String("t")})
-	s.add(shapeLens, &recordpb.Anchor{Id: proto.String(id), Location: proto.String(quote)})
+	s.anchor(shapeLens, id, quote)
+}
+
+// anchor seeds an Anchor the source placed itself, past the live write: the archive spells an id as
+// its era did, and the live write refuses an anchor for an id no anchor kind claims.
+func (s *shapeSource) anchor(seat, id, quote string) {
+	s.t.Helper()
+	recordtest.Seed(s.t, s.dir, recordtest.Stamped(recordtest.Event(s.t, seat, &recordpb.Anchor{Id: proto.String(id), Location: proto.String(quote)}),
+		time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z")))
 }
 
 // cite, proof and corroboration are the acts as the archive holds them: recorded, and anchored by
@@ -362,13 +371,13 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			src := newShapeSource(t, base)
 			gapToken := "<!--gap:" + ids[3] + "-->"
 			src.cite(ids[0], "Volume fell.")
-			src.add(shapeBlue, &recordpb.Anchor{Id: proto.String(ids[0]), Location: proto.String("Volume fell.")})
+			src.anchor(shapeBlue, ids[0], "Volume fell.")
 			src.proof(ids[1], "Water is wet.")
-			src.add(shapeBlue, &recordpb.Anchor{Id: proto.String(ids[1]), Location: proto.String("Water is wet.")})
+			src.anchor(shapeBlue, ids[1], "Water is wet.")
 			src.corroboration(ids[2], "Fire is hot.")
-			src.add(shapeLens, &recordpb.Anchor{Id: proto.String(ids[2]), Location: proto.String("Fire is hot.")})
+			src.anchor(shapeLens, ids[2], "Fire is hot.")
 			src.mint(ids[3], "Costs rose sharply in Q1.")
-			src.add(shapeLens, &recordpb.Anchor{Id: proto.String(ids[3]), Location: proto.String("Costs rose sharply in Q1.")})
+			src.anchor(shapeLens, ids[3], "Costs rose sharply in Q1.")
 			src.add(shapeBlue, &recordpb.BlueEdit{Old: proto.String("Costs rose sharply in Q1" + gapToken + "."), New: proto.String("Costs rose only modestly in Q1" + gapToken + "."),
 				Text: proto.String("accept"), Answers: proto.String(ids[3]), Accepted: proto.Bool(true), AppliedVerbatim: proto.Bool(true), Reopened: []string{ids[3]}})
 			m, md, _, _ := src.migrated()
