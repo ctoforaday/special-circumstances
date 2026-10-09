@@ -566,9 +566,11 @@ func viewGroup(inquest bool) *cobra.Command {
 				"with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted)")
 		}
 		// ONE ENTRY, BY THE TOKEN THE SEAT IS HOLDING. The same flag `report` takes for the same
-		// id: there it reads the text around the anchor, here it reads what the anchor points at.
+		// id — one declaration (flags.AnchorID), so both refuse a malformed id in the same words
+		// and both take a token pasted whole: there it reads the text around the anchor, here it
+		// reads what the anchor points at.
 		if v.name == "evidence" {
-			sub.Flags().String(flags.Anchor, "",
+			sub.Flags().Var(flags.AnchorID(), flags.Anchor,
 				"read the ONE entry at this anchor `id` rather than the table — a proof's (P-…) with its script and recorded output, or a source's (C-…)")
 		}
 		c.AddCommand(sub)
@@ -849,7 +851,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
 	// and a markdown rendering of it would be a table to parse rather than a field to read.
 	if want == "evidence" {
-		if a, _ := cmd.Flags().GetString(flags.Anchor); a != "" {
+		if a := Str(cmd, flags.Anchor); a != "" {
 			// ONE ENTRY IS NOT A SET TO SELECT FROM. The selector filters a projection's arrays and
 			// this read has none, so the pair would be accepted and do nothing.
 			if sel, serr := SelectorOf(cmd); serr != nil {
@@ -857,7 +859,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			} else if sel.Active() {
 				return feov.Errorf(feov.Validation, "show evidence: --anchor reads the one entry at an anchor, and --match/--quote select entries from the table — pass one or the other")
 			}
-			b, err := evidenceAt(run, strings.TrimSpace(a))
+			b, err := evidenceAt(run, a)
 			if err != nil {
 				return err
 			}
