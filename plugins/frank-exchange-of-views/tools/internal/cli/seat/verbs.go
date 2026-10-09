@@ -558,7 +558,7 @@ func viewGroup(inquest bool) *cobra.Command {
 		// no better word, rather than a name invented per view in a list that would go stale.
 		AddSelectorFlags(sub, selectorNoun(v.name))
 		if v.name == "report" {
-			sub.Flags().String(flags.Anchor, "",
+			sub.Flags().Var(flags.AnchorID(), flags.Anchor,
 				"read the report AT one anchor `id` (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back")
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted)")
@@ -756,7 +756,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		if err != nil {
 			return err
 		}
-		if a, _ := cmd.Flags().GetString(flags.Anchor); a != "" {
+		if a := Str(cmd, flags.Anchor); a != "" {
 			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `retire` takes a bare anchor out
 			// of the report on the record; saying "stale reference or another run" of it would send
 			// the reader hunting for an error that is really a recorded exit.

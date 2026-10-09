@@ -135,3 +135,16 @@ func TestEveryRoleCanReadAtAnAnchor(t *testing.T) {
 		}
 	}
 }
+
+// AN ID NO ANCHOR KIND CLAIMS IS REFUSED BY SHAPE. It names no token, so reading the report at it
+// would report a stale reference to a token with an empty tag.
+func TestShowReportRefusesAnAnchorOfNoKindByShape(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, windowReport)
+	for _, id := range []string{"Q-00a1b2c3", "f-00a1b2c3", "F-00a1b2c"} {
+		_, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", id)
+		if err == nil || !strings.Contains(err.Error(), "an anchor is a") || strings.Contains(err.Error(), "<!--:") {
+			t.Errorf("--anchor %s = %v, want the shape refusal naming what an anchor is", id, err)
+		}
+	}
+}
