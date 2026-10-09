@@ -611,15 +611,86 @@ func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	if r.EnvelopeClaimed != 2 {
 		t.Errorf("the envelopes' claim is a field, not a sentence: want 2, got %d", r.EnvelopeClaimed)
 	}
-	if !strings.Contains(r.Reason, "envelopes claim 2") {
-		t.Errorf("the divergence must be stated, not folded into the zero: %q", r.Reason)
+	if line := precedentLine(r); !strings.Contains(line, "holds 0 docket and petition ruling(s) and the envelopes claim 2") {
+		t.Errorf("the divergence must be stated, not folded into the zero: %q", line)
 	}
 
 	// The honest quiet run: no record rulings AND no envelope claims. Silent, as it should be.
 	quiet := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(t.TempDir(), "law"), nil)
-	if quiet.Reason != "" || quiet.EnvelopeClaimed != 0 {
-		t.Errorf("a genuinely quiet run must not be reported as a divergence: %+v", quiet)
+	if quiet.Reason != "" || quiet.EnvelopeClaimed != 0 || precedentLine(quiet) != "precedent harvest: no rulings this run" {
+		t.Errorf("a genuinely quiet run must not be reported as a divergence: %+v — %q", quiet, precedentLine(quiet))
 	}
+}
+
+// docketRuled is one docketed gap and the bench's ruling on it: the two events a disposition takes.
+func docketRuled(t *testing.T, motion, gap string) []*record.Event {
+	t.Helper()
+	return []*record.Event{
+		recordtest.Event(t, "red-chair", &recordpb.Motion{
+			MotionId: proto.String(motion),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Basis:    proto.String("at impasse on " + gap),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+		}),
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
+			MotionId: proto.String(motion),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Opinion:  proto.String("remanded: two cross-references are unrepaired"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
+				ReopensOn:   proto.String("the two sentences rewritten"),
+			}},
+		}),
+	}
+}
+
+// A BENCH THAT RULED AND DECLARED NOTHING HAS RULINGS ON THE RECORD, AND THE HARVEST SAYS SO.
+//
+// universe m18: one docket ruling (event 460), no declaration, and the judge's envelope listing the
+// one disposition. Capture printed "the record holds NO rulings while the envelopes claim 1": the
+// harvest files declarations alone, and it held the envelopes' count of dispositions and petition
+// rulings against the count of DECLARATIONS. The envelopes are held to the rulings they describe.
+func TestTheHarvestHoldsTheEnvelopesToTheRulingsTheyDescribe(t *testing.T) {
+	law := filepath.Join(t.TempDir(), "law")
+	run := runtest.New(t, filepath.Join(t.TempDir(), "2026-10-09_ruled-not-declared"))
+	oneDisposition := []map[string]any{
+		{"dispositions": []any{map[string]any{"gap_id": "G-8deb05ed", "disposition": "remanded", "reason": "unrepaired"}}},
+	}
+	ruled := docketRuled(t, "M-2623785c", "G-8deb05ed")
+
+	t.Run("the envelopes agree with the record: no divergence, and the ruling is named", func(t *testing.T) {
+		r := HarvestPrecedents(run, oneDisposition, law, ruled)
+		if r.Written || r.Count != 0 || r.Rulings != 1 || r.EnvelopeClaimed != 1 {
+			t.Fatalf("want nothing filed, 1 ruling on the record and 1 claimed: %+v", r)
+		}
+		line := precedentLine(r)
+		if !strings.Contains(line, "no declaration this run") || !strings.Contains(line, "holds 1 docket and petition ruling(s)") {
+			t.Errorf("the line does not say a ruling is on the record and none is a declaration: %q", line)
+		}
+		if strings.Contains(line, "envelopes") || strings.Contains(line, "NO rulings") || strings.Contains(line, "no rulings") {
+			t.Errorf("agreement is reported as a divergence, or the ruling as absent: %q", line)
+		}
+	})
+	t.Run("a ruling the envelopes do not list is the divergence", func(t *testing.T) {
+		line := precedentLine(HarvestPrecedents(run, nil, law, ruled))
+		if !strings.Contains(line, "holds 1 docket and petition ruling(s) and the envelopes claim 0") {
+			t.Errorf("an unlisted ruling is not stated: %q", line)
+		}
+	})
+	t.Run("a declaration is filed and is not a ruling the envelopes owe", func(t *testing.T) {
+		if err := os.MkdirAll(law, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		evs := append(append([]*record.Event{}, ruled...),
+			recordtest.Event(t, "judge", &recordpb.Declare{Holding: proto.String("verified means an act of looking")}))
+		r := HarvestPrecedents(run, oneDisposition, law, evs)
+		if !r.Written || r.Count != 1 || r.Rulings != 1 {
+			t.Fatalf("want the declaration filed beside 1 ruling: %+v", r)
+		}
+		if line := precedentLine(r); !strings.Contains(line, "1 declaration(s) -> ") || strings.Contains(line, "envelopes") {
+			t.Errorf("a filed declaration reads as a divergence: %q", line)
+		}
+	})
 }
 
 // A nil board is the harvest having no record to read at all. It must not panic and must not
