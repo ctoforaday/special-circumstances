@@ -257,7 +257,9 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 		refused(t, run, id, `has already recorded a regrade on "G1" this sitting`)
 		_, err := Append(correcting(id, recordpb.EventType_EVENT_TYPE_REGRADE, firstKey, "w"),
 			&recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("the ruling's basis")})
-		mustRefuse(t, err, "another seat has acted since this regrade")
+		// The refusal names the sitting that admits it: a second regrade now is the refusal above.
+		mustRefuse(t, err, "another seat has acted since this regrade",
+			"say it in a new regrade at your next sitting (a sitting holds one per --id, and this sitting's stands)")
 
 		recordtest.Seed(t, dir, registers(t, regradeLens))
 		admitted(t, run, id, secondKey)

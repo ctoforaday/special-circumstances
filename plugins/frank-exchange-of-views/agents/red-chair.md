@@ -87,9 +87,10 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
-refused.
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says. Repeat your wording too: a correction that leaves out a flag the act
+holds is refused.
 
 §5 (on 10 pages):
 what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
@@ -127,8 +128,9 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused.
 
 §15 (on 2 pages):
@@ -208,6 +210,8 @@ Presence is not the question — the avenues are generated from the record. The 
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new review of the avenues.
+
 Usage:
   feov-record avenue review [flags]
 
@@ -236,10 +240,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused. Only --reason may be
 dropped, by passing it empty (--reason "").
+
+ONCE THAT WINDOW HAS CLOSED, say it in a motion on the gap.
 
 Usage:
   feov-record carry [flags]
@@ -283,9 +290,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about. Repeat your wording too: a
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says except --id, which names what it is about. Repeat your wording too: a
 correction that leaves out a flag the act holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new closing on the gap at your next sitting (a sitting
+holds one per --id, and this sitting's stands).
 
 Usage:
   feov-record closing [flags]
@@ -442,6 +453,8 @@ A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where t
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new log entry.
+
 Usage:
   feov-record log [flags]
 
@@ -473,6 +486,8 @@ press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
+
 Usage:
   feov-record motion avenue appeal [flags]
 
@@ -495,6 +510,8 @@ rule on an avenue motion — this verb is the chair seat's, and it appears only 
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
+
+ONCE THAT WINDOW HAS CLOSED, say it in an appeal, or a new motion.
 
 Usage:
   feov-record motion avenue rule [flags]
@@ -551,6 +568,8 @@ press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, 
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
+
 Usage:
   feov-record motion grade appeal [flags]
 
@@ -605,6 +624,8 @@ rule on a grade motion — this verb is the chair seat's, and it appears only on
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
+
+ONCE THAT WINDOW HAS CLOSED, say it in an appeal, or a new motion.
 
 Usage:
   feov-record motion grade rule [flags]
@@ -667,6 +688,9 @@ It renders as this sitting's ### RED section. It is prose on the record, not a s
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new position at your next sitting (a sitting holds one, and
+this sitting's stands).
 
 Usage:
   feov-record position [flags]
@@ -894,6 +918,9 @@ BEFORE A PASS, NAME THE STALE AREAS. The plan's `stale_areas` lists each lens re
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new spot-check at your next sitting (a sitting holds one,
+and this sitting's stands).
 
 Usage:
   feov-record spot-check [flags]

@@ -95,8 +95,9 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused.
 
 §6 (on 6 pages):
@@ -293,6 +294,8 @@ A closure the record already holds — work an earlier sitting did — is the ch
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
 
+ONCE THAT WINDOW HAS CLOSED, say it in a motion on the gap.
+
 Usage:
   feov-record close [flags]
 
@@ -444,9 +447,12 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
-refused.
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says. Repeat your wording too: a correction that leaves out a flag the act
+holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new log entry.
 
 Usage:
   feov-record log [flags]
@@ -533,6 +539,8 @@ press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
+
 Usage:
   feov-record motion avenue appeal [flags]
 
@@ -580,6 +588,8 @@ press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, 
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -720,9 +730,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about. Repeat your wording too: a
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says except --id, which names what it is about. Repeat your wording too: a
 correction that leaves out a flag the act holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new regrade at your next sitting (a sitting holds one per
+--id, and this sitting's stands).
 
 Usage:
   feov-record regrade [flags]
@@ -768,6 +782,8 @@ THIS COMMAND RE-RUNS THE SCRIPT ITSELF. You do not run it first: name the proof 
 
 What the tool CANNOT answer is whether the script establishes the claim it is anchored to — so it records whether it REPRODUCED, and you judge whether it PROVES. Those are two questions and only the first is mechanical: `print("7 is prime")` reproduces perfectly forever. That is why the soundness verdict is yours to give and why you must READ the script to give it.
 
+READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. The script is a file in the proof store — `proofs/<sha256>/script.<ext>` under the run directory, beside `output`, the output blue recorded, where <sha256> is the proof's own. The record holds the proof's sha256 and not its script, so no projection shows it: this is the one read that is a file. Read it, decide what it computes and whether that is the claim at its anchor, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -775,6 +791,9 @@ What the tool CANNOT answer is whether the script establishes the claim it is an
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new re-run of the proof, whose reason says which earlier
+re-run it replaces.
 
 Usage:
   feov-record reproduce [flags]

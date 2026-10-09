@@ -186,8 +186,9 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused.
 
 §6 (on 9 pages):
@@ -298,6 +299,8 @@ Not a ruling, and it moves no gap: it is the bench's own voice, and it lands in 
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new certification.
+
 Usage:
   feov-record certify [flags]
 
@@ -334,6 +337,8 @@ Do not bury a holding in a ruling's opinion text, the channel least likely to be
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new declaration.
 
 Usage:
   feov-record declare [flags]
@@ -381,6 +386,8 @@ A boundary is not a defect, however severe: a bench that disposes of such a gap 
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new halt.
 
 Usage:
   feov-record halt [flags]
@@ -479,9 +486,12 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
-refused.
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says. Repeat your wording too: a correction that leaves out a flag the act
+holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new log entry.
 
 Usage:
   feov-record log [flags]
@@ -513,6 +523,8 @@ press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
 
 Usage:
   feov-record motion avenue appeal [flags]
@@ -562,10 +574,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--principle, --reason, --reopens-on, --review-flag, --settled, --tension); every
-other flag must repeat what the act recorded. Repeat your wording too: a correction that leaves out
-a flag the act holds is refused.
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--principle, --reason, --reopens-on, --review-flag, --settled, --tension);
+every other flag must repeat what the act recorded. Repeat your wording too: a correction that
+leaves out a flag the act holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in an appeal, or a new motion.
 
 Usage:
   feov-record motion docket rule [flags]
@@ -609,6 +624,8 @@ press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, 
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -665,6 +682,8 @@ rule on a petition motion — this verb is the bench seat's, and it appears only
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
 
+ONCE THAT WINDOW HAS CLOSED, say it in an appeal, or a new motion.
+
 Usage:
   feov-record motion petition rule [flags]
 
@@ -703,6 +722,8 @@ It is refused while a motion whose gavel is the bench's stands unruled, unless t
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new outcome.
 
 Usage:
   feov-record outcome [flags]

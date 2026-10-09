@@ -209,7 +209,8 @@ func correctionHelp(c *cobra.Command, typ recordpb.EventType) string {
 		"figure — run it again with what you meant, adding --corrects <key> (the key its success line printed as " +
 		"[key …]) and --correction-why <what was wrong>. The record keeps the first act, shown struck beside its " +
 		"replacement. You may correct only your own act, only in the sitting that recorded it, and only until " +
-		"another seat has acted; after that, say it in a new act.")
+		"any other seat registers or acts. Where seats sit in parallel that is seconds, so record an act when " +
+		"you are sure of it, never as a placeholder to correct later.")
 	own := func(fs []string) []string { return ownFlags(c, fs) }
 	switch recordpb.Tier(typ) {
 	case recordpb.CorrectionTier_CORRECTION_TIER_FULL:
@@ -235,7 +236,11 @@ func correctionHelp(c *cobra.Command, typ recordpb.EventType) string {
 			fmt.Fprintf(&b, " Only %s may be dropped, each by passing it empty (%s \"\").", strings.Join(cs, ", "), cs[0])
 		}
 	}
-	return wrapHelp(b.String(), 100)
+	// THE ACT THAT ANSWERS A CLOSED WINDOW IS ITS OWN PARAGRAPH. It is the one sentence here that
+	// differs by type, and the manual prints a block once only where it repeats word for word:
+	// inside the paragraph above it made that paragraph unique to nearly every page.
+	return wrapHelp(b.String(), 100) + "\n\n" +
+		wrapHelp("ONCE THAT WINDOW HAS CLOSED, say it in "+record.SupersedingActThisSitting(typ)+".", 100)
 }
 
 // ownFlags keeps, of the flags named as "--flag", the ones this command registers.
