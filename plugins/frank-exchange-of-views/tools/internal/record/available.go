@@ -171,9 +171,14 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// spent 22 proof-file reads and 14 filesystem hunts between them doing exactly that, for 12
 		// re-runs. The record carries both ids on the same event; only one was passed on.
 		for _, pr := range proofsWithoutReproduce(evs) {
-			item := "proof " + pr.Anchor + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it"
+			//
+			// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
+			// RE-RUNNING it, not by reading it" and handed over the re-run's id — so the first thing
+			// a lens could do with the item was record a verdict on a script it had not read (wave A,
+			// 2026-10-09: three placeholder verdicts, then a refused correction).
+			item := "proof " + pr.Anchor + " is recorded and nobody has re-run it — a proof is audited by READING its script and then RE-RUNNING it, never by reading alone: `show evidence --anchor " + pr.Anchor + "` prints the script and its recorded output"
 			if pr.Sha != "" {
-				item += ", and `reproduce` does the re-running: --id " + pr.Sha
+				item += ", and `reproduce` then re-runs it and records your verdict in one act: --id " + pr.Sha
 			}
 			add(item)
 		}

@@ -290,6 +290,53 @@ func store(runDir string, r *Result, body []byte) error {
 	return os.WriteFile(filepath.Join(dir, "output"), []byte(r.Output), 0o644)
 }
 
+// Stored reads a recorded proof's artifact: the script as `Reproduce` will execute it, the name
+// it is stored under (its extension is what picks the interpreter), and the output blue's run
+// recorded.
+//
+// A MISSING HALF IS AN ERROR, NEVER AN EMPTY STRING. The caller is a seat about to judge whether
+// the script establishes a claim, and "" reads as a script that computes nothing — a fault in the
+// store, recorded as a verdict on the computation. The error names the directory because this is
+// the store's failure and not the seat's mistake: the sha came off the record, so the one who can
+// act on it is whoever holds the run directory.
+func Stored(runDir, sha string) (file string, script, output []byte, err error) {
+	dir := filepath.Join(runDir, "proofs", sha)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", nil, nil, missing(sha, "script", dir)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "script") {
+			file = e.Name()
+		}
+	}
+	if file == "" {
+		return "", nil, nil, missing(sha, "script", dir)
+	}
+	if script, err = os.ReadFile(filepath.Join(dir, file)); err != nil {
+		return "", nil, nil, missing(sha, "script", filepath.Join(dir, file))
+	}
+	if output, err = os.ReadFile(filepath.Join(dir, "output")); err != nil {
+		return "", nil, nil, missing(sha, "recorded output", filepath.Join(dir, "output"))
+	}
+	return file, script, output, nil
+}
+
+// missing is the one refusal for an artifact the record names and the store does not hold.
+func missing(sha, what, at string) error {
+	return fmt.Errorf("proof %s is on the record and its %s is not in the proof store: %s not found at %s. "+
+		"That is a fault in the run, not in the proof — it cannot be read, and a judgement of it would be a judgement of nothing. Report it with `log` as a defect",
+		short(sha), what, what, at)
+}
+
+// short is the sha's leading twelve characters, the form every message about a proof prints.
+func short(sha string) string {
+	if len(sha) > 12 {
+		return sha[:12]
+	}
+	return sha
+}
+
 // Reproduce re-runs a recorded proof and reports whether it still says the same thing.
 //
 // THIS IS RED'S AUDIT, and it is strictly stronger than any citation check: a cited source is
