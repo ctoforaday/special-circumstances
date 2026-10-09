@@ -1,4 +1,4 @@
-prompt sha256: ec07e0d0c60139d54a555a82ac244010a971f53ce5ed538a6319ac50aaecf36b
+prompt sha256: 80524dda99680b4cfd298c8d97779172f804f7cf4f036323fdd62ea46466f6d3
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -49,7 +49,7 @@ The chair carries archived closures and dispatches you when your gap needs actin
 GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: [{"gap_id":"G-00000001","disposition":"remanded","epoch":1}].
 A closing ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading.
 A REMANDED gap was never closed: it is back in the debate, and the direction its row carries is what this exchange owes, not a condition for reopening.
-THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.
+RELY ON EACH RULING AS ITS ROW STATES IT — the fate, the proposition it settles, what reopens it, and for a remand the direction: that statement is what you honour and what you invoke, and a fate you rely on or work around is the one its row gives.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.

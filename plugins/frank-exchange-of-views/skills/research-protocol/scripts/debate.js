@@ -818,7 +818,8 @@ const holdingsInEffect = []
 // does: what it may now ASSERT. Two of these fates are blue WINS, and under a bare subtraction
 // they look exactly like the ones that are not: the gap simply stops being dispatched. Keyed on
 // the disposition so a new one cannot quietly inherit another's instruction; an unmapped one
-// falls through to a LOUD default rather than an empty string.
+// falls through to a LOUD default rather than an empty string — one that sends blue to its log, a
+// channel it holds, and not to the opinion, which it cannot read.
 const BLUE_DUTY_BY_DISPOSITION = {
   not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
   defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a sitting fixing what the bench agreed may stand.',
@@ -831,7 +832,8 @@ const BLUE_DUTY_BY_DISPOSITION = {
 }
 // rulingsInEffect holds the bench's latest ruling per gap — settled, reopens_on, final and the
 // fate; a remand's direction joins it from the plan — and travels to BOTH parties, because debate.js reads no record: a ruling reaches a seat's
-// prompt here or not at all (#517, #524). The reasoning stays on the record, deliberately.
+// prompt here or not at all (#517, #524). The bench's opinion stays on the record, on the bench's and
+// the chair's read group; a party relies on the ruling as its row states it (gblock's ruling).
 const rulingsInEffect = new Map()
 // A REMAND'S DUTY LASTS AS LONG AS ITS EXCHANGE IS OWED. The ruling stays in effect after the
 // exchange is had, or after the gap is remanded at impasse again, and BLUE_DUTY_BY_DISPOSITION's
@@ -843,7 +845,7 @@ const BLUE_REMAND_NOT_OWED = 'The bench remanded this gap, and the one more exch
 const remandOwed = (gap) => (lastPlan ? lastPlan.remand_owed.find((o) => o.gap_id === gap) : undefined)
 const blueDuty = (r) => {
   if (r.disposition === 'remanded' && !remandOwed(r.gap_id)) return BLUE_REMAND_NOT_OWED
-  return BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — read the opinion on the record before acting on it`
+  return BLUE_DUTY_BY_DISPOSITION[r.disposition] || `UNMAPPED DISPOSITION ${r.disposition} — this dispatch states no duty for it: act on the row as it is stated, and record the missing duty in your log as a defect`
 }
 const rulingsClause = (party) => {
   if (!rulingsInEffect.size) return ''
@@ -854,7 +856,7 @@ const rulingsClause = (party) => {
   const duty = party === 'blue'
     ? ' THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed.'
     : barred ? ' YOU ARE ESTOPPED on each settled proposition: do not re-raise it as a fresh gap or a successor; a defect that survives the ruling arrives as the reopens_on condition or not at all.' : ''
-  return ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(rows)}.${duty} A closing ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. A REMANDED gap was never closed: it is back in the debate, and the direction its row carries is what this exchange owes, not a condition for reopening. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.`
+  return ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(rows)}.${duty} A closing ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. A REMANDED gap was never closed: it is back in the debate, and the direction its row carries is what this exchange owes, not a condition for reopening. RELY ON EACH RULING AS ITS ROW STATES IT — the fate, the proposition it settles, what reopens it, and for a remand the direction: that statement is what you honour and what you invoke, and a fate you rely on or work around is the one its row gives.`
 }
 const reliefInEffect = []
 

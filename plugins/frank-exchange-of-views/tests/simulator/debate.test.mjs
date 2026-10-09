@@ -428,7 +428,7 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   }
 })
 
-test('the bench\'s rulings travel to both parties, with blue told its duty and red estopped, and the reasoning stays on the record', async () => {
+test('the bench\'s rulings travel to both parties, with blue told its duty and red estopped, each relying on the ruling as stated', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }),
       chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
@@ -442,7 +442,13 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
   }
   const lens = firstPrompt(world, 'red-lens-evidence')
   assert.ok(/YOU ARE ESTOPPED/.test(lens) && lens.includes('THE BARRED PROPOSITION') && lens.includes('A NEW SOURCE'), 'red is handed the bar and what reopens it')
-  assert.ok(!blue2.includes('THE OPINION') && !lens.includes('THE OPINION'), 'the reasoning is on the record, not in the prompt')
+  // A RULING IS RELIED ON AS ITS ROW STATES IT (gblock's ruling, 2026-10-09): the bench's opinion is on the
+  // bench's and the chair's read group, and this clause renders to a lens and to blue, who hold neither.
+  for (const [who, prompt] of [['blue', blue2], ['a lens', lens]]) {
+    assert.ok(prompt.includes('RELY ON EACH RULING AS ITS ROW STATES IT'), `${who} is not told to rely on the ruling as stated`)
+    assert.ok(!/read the bench's opinion|THE REASONING IS ON THE RECORD/.test(prompt), `${who} is sent to the bench's opinion`)
+  }
+  assert.ok(!blue2.includes('THE OPINION') && !lens.includes('THE OPINION'), 'the opinion is not in the prompt')
   assert.ok(!/your_duty/.test(lens), 'the duty table is blue\'s')
 })
 
