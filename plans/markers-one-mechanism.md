@@ -1114,12 +1114,12 @@ lists are 35 lines, and the token pass and the word-bounded argument pass are ne
 costs the estimate did not price: `anchor.go` +28 (the avenue and motion letters, `ID`, and
 `IDPattern` by kind), `seatprobe` +41 (a board names its gaps by position, so the builder stages
 through the ids the tool reports and the prompt capture reads the minted ids), and the replay's
-id pre-pass with the placer's keying, +13. Tests +2585 −1489. Over the 16 archived runs: 0
-refusals; 1,132 ids and labels remapped (C 198, F 392, G 123, M 57, P 127, Q 235); 3,158 id
-fields, 2,080 seat-argument fields and 293 source-data fields (tokens only) rewritten; 6 id-shaped
+id pre-pass with the placer's keying, +13. Tests +2585 −1489. Over the 17 archived runs: 0
+refusals; 1,227 ids and labels remapped (C 202, F 460, G 131, M 57, P 134, Q 243); 3,424 id
+fields, 2,171 seat-argument fields and 325 source-data fields (tokens only) rewritten; 6 id-shaped
 words left in seat-argument fields, none an id its run minted; `archived_renders.golden` raw
-digests move on 9 runs and normalized, skeleton and every count on none; 253 finding ids print
-with their area and 505 as a seat wrote them (S9). Over the 28 runs: the same refusals event for
+digests move on 10 runs and normalized, skeleton and every count on none; 318 finding ids print
+with their area and 548 as a seat wrote them (S9). Over the 28 runs: the same refusals event for
 event, the 21 renderable reports equal but for id spelling, no archived token left. S4 1, S10 0,
 S11 0. After Parts 1–6 the running S6 total is **+165**: the ≥ 320 reduction S6 targets is not
 met, by 485 lines.
