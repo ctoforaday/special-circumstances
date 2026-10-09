@@ -44,6 +44,8 @@ func TestSkipRunReadsTheKindsTable(t *testing.T) {
 		"<!--cite:F-00abc123-->", // the id's prefix is not the tag's kind
 		"<!--note:F-00abc123-->", // not a tag in the table
 		"<!--fx:F--->",           // empty id
+		"<!--fx:F-00abc12-->",    // seven hex: an id is exactly eight, as IDPattern reads it
+		"<!--gap:G-00abc1234-->", // nine hex
 		"<!-- fx:F-00abc123 -->", // spaced: not the minted spelling
 	} {
 		if got := SkipRun(tok, 0); got != 0 {

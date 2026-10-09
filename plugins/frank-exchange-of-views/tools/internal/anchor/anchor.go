@@ -245,8 +245,8 @@ func SkipRun(s string, i int) int {
 }
 
 // tokenLenAt is the length of the anchor token beginning at i, or 0. It recognises a token of a
-// kind in the table whose id carries that kind's prefix and then hex, and nothing else: a stray
-// HTML comment is not an anchor.
+// kind in the table whose id carries that kind's prefix and then exactly eight hex, as IDPattern
+// does, and nothing else: a stray HTML comment is not an anchor.
 func tokenLenAt(s string, i int) int {
 	if i < 0 || i >= len(s) {
 		return 0
@@ -271,7 +271,7 @@ func tokenLenAt(s string, i int) int {
 		return 0
 	}
 	end := strings.Index(id, tokenClose)
-	if end <= 0 {
+	if end != idHex {
 		return 0
 	}
 	for i := 0; i < end; i++ {
