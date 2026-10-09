@@ -80,7 +80,10 @@ func (o ManifestOwing) NotMeasured() string {
 type BlueSitting struct {
 	Engaged []string // the gaps the dispatch named
 	Open    []string // of those, the ones no close preceded blue's register — what the sitting owed an answer on
-	Acts    []*Event // blue-respond's standing events in the sitting, its register first, then any repair of it
+	// FoundClosed is the rest of Engaged, in its order: for each gap a close preceded blue's register
+	// on, that close — the latest one, whose seat and class are what blue found when it sat.
+	FoundClosed []*Event
+	Acts        []*Event // blue-respond's standing events in the sitting, its register first, then any repair of it
 	// Unresolved is a sitting the record cannot close while the run is running: neither blue's next
 	// register nor its agent's stop is on the record since it began. Acts then runs to the end of the
 	// record — a floor, not the sitting — so a missing act in it is not a finding and a present one
@@ -149,14 +152,16 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 			continue // not sat, or not this sitting's dispatch: a later row before the register is
 		}
 		s := BlueSitting{Engaged: d.gaps, opened: start}
-		closedFirst := map[string]bool{}
+		closedFirst := map[string]*Event{}
 		for _, e := range evs[d.at+1 : start] {
 			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
-				closedFirst[c.GetGapId()] = true
+				closedFirst[c.GetGapId()] = e
 			}
 		}
 		for _, g := range d.gaps {
-			if !closedFirst[g] {
+			if c := closedFirst[g]; c != nil {
+				s.FoundClosed = append(s.FoundClosed, c)
+			} else {
 				s.Open = append(s.Open, g)
 			}
 		}

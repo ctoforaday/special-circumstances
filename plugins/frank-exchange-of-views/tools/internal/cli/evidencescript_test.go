@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -133,22 +135,41 @@ func TestAProofWhoseArtifactIsMissingIsRefusedNotShownEmpty(t *testing.T) {
 // AN ANCHOR NOTHING IS AT IS A REFUSAL TOO, for the reason `--id` on a view that cannot scope is:
 // answering it with the whole table hands back a different question's answer.
 func TestEvidenceAtAnAnchorNothingIsAtIsRefused(t *testing.T) {
-	runDir, anchor, sha := provenRun(t, "console.log('no divisors in 2..6');")
+	runDir, _, _ := provenRun(t, "console.log('no divisors in 2..6');")
 
 	if out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", "P-0000dead"); err == nil {
 		t.Errorf("an anchor on no entry was answered:\n%s", out)
 	} else if !strings.Contains(err.Error(), "P-0000dead") {
 		t.Errorf("the refusal does not name the anchor it was given: %v", err)
 	}
+}
 
-	// THE SHA IS WHAT `reproduce` TAKES AND NOT WHAT THIS TAKES. A seat holding it is one lookup
-	// from the anchor, and the refusal is that lookup.
-	_, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", sha)
-	if err == nil {
-		t.Fatal("a sha256 was accepted as a document anchor — two names for one read")
+// ONE ANCHOR FLAG, ON BOTH READS THAT TAKE AN ANCHOR. The report read and the evidence read take the
+// same id, so an id of the wrong shape — an old-case prefix, a proof's sha256, a word — is refused by
+// the one declaration in the same words on each, and a token pasted whole from the report is the id
+// inside it on each.
+func TestBothAnchorReadsRefuseAMalformedIDInTheSameWords(t *testing.T) {
+	runDir, id, sha := provenRun(t, "console.log('no divisors in 2..6');")
+	for _, bad := range []string{"p-0000dead", sha, "the-proof"} {
+		shared := flags.AnchorID().Set(bad)
+		if shared == nil {
+			t.Fatalf("the fixture id %q is a well-formed anchor", bad)
+		}
+		for _, view := range []string{"report", "evidence"} {
+			out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", view, "--anchor", bad)
+			if err == nil {
+				t.Errorf("show %s --anchor %s was answered:\n%s", view, bad, out)
+			} else if !strings.Contains(err.Error(), shared.Error()) {
+				t.Errorf("show %s --anchor %s is not refused in the shared flag's words\n got: %v\nwant: %v", view, bad, err, shared)
+			}
+		}
 	}
-	if !strings.Contains(err.Error(), anchor) {
-		t.Errorf("the refusal for a proof's sha256 does not name that proof's anchor %s: %v", anchor, err)
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", anchor.Token(id))
+	if err != nil {
+		t.Fatalf("the proof's token, pasted whole, is refused: %v", err)
+	}
+	if !strings.Contains(out, `"anchor": "`+id+`"`) {
+		t.Errorf("the token did not read the entry at %s:\n%s", id, out)
 	}
 }
 

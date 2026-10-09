@@ -347,14 +347,59 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 // this list is read: an in-flight sitting still owes what it found open. Whether the owed revision
 // was FILED is seatDidThisSitting's question, read off blue's latest sitting.
 func revisionOwed(evs []*Event, win WindowIndex, seatID string) bool {
+	s, sat := sittingOfBlueRespond(evs, win, seatID)
+	return !sat || len(s.Open) > 0
+}
+
+// sittingOfBlueRespond is the sitting blue-respond's work list is read in: the latest of
+// record.BlueSittings, read while the run is running. sat is false for every other seat, and for a
+// blue-respond the record holds no dispatched sitting of. The revision duty (revisionOwed) and the
+// gaps the list names as found closed (engagedOf) are both read off it, so the list cannot excuse a
+// revision over one set of gaps and name another.
+func sittingOfBlueRespond(evs []*Event, win WindowIndex, seatID string) (BlueSitting, bool) {
 	if seatID != blueRespondSeat {
-		return true
+		return BlueSitting{}, false
 	}
 	ss := BlueSittings(evs, win, WhileRunning) // the work list is read while blue sits
 	if len(ss) == 0 {
-		return true
+		return BlueSitting{}, false
 	}
-	return len(ss[len(ss)-1].Open) > 0
+	return ss[len(ss)-1], true
+}
+
+// EngagedJSON is what blue-respond's dispatch engaged it on, as its sitting found it — the work
+// list's `engaged` (WorkJSON.Engaged).
+type EngagedJSON struct {
+	// GapIDs are the gaps the dispatch named, in its order.
+	GapIDs []string `json:"gap_ids"`
+	// FoundClosed is each of those a close preceded this sitting's register on — its lens sat first
+	// and closed it. It is what the sitting's envelope names as found closed, and when it holds
+	// every gap of GapIDs the sitting owes no position and no revision. Never omitted: an empty list
+	// is "every engaged gap was open when you sat".
+	FoundClosed []FoundClosedJSON `json:"found_closed"`
+}
+
+// FoundClosedJSON is one engaged gap blue found closed: the seat whose close it was, and the fate
+// that close gave it (the Disposition vocabulary, as `estopped` carries it).
+type FoundClosedJSON struct {
+	ID           string `json:"id"`
+	ClosedBySeat string `json:"closed_by_seat"`
+	Fate         string `json:"fate"`
+}
+
+// engagedOf is the engaged block of blue-respond's sitting, or nil where sittingOfBlueRespond finds
+// none.
+func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
+	s, sat := sittingOfBlueRespond(evs, win, seatID)
+	if !sat {
+		return nil
+	}
+	e := &EngagedJSON{GapIDs: strs(s.Engaged), FoundClosed: []FoundClosedJSON{}}
+	for _, ev := range s.FoundClosed {
+		c, _ := recordpb.BodyAs[*recordpb.Close](ev)
+		e.FoundClosed = append(e.FoundClosed, FoundClosedJSON{ID: c.GetGapId(), ClosedBySeat: ev.GetSeatId(), Fate: recordpb.Word(c.GetClosureClass())})
+	}
+	return e
 }
 
 // seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts in the sitting

@@ -387,14 +387,14 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
 			CheckKind: kind.String, AwaitingProof: awaiting,
-			FixBasis: basis.String, FixNew: fixNew.String,
 			Backing: []GapBackingJSON{},
 		}
-		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String}
+		g := WorkGapState{ID: id, Location: loc.String, AboutRef: aboutRef.String, FixBasis: basis.String, FixNew: fixNew.String}
 		locateGap(report, renderErr, &g)
 		gj.LocationState, gj.Location, gj.Passage = g.LocationState, g.Location, g.Passage
-		// THE BOARD SERVES THE PAIR `--accept` SENDS: one function reads both over one render.
-		gj.FixOld, gj.FixNew = proposalOver(report, id, loc.String, fixNew.String)
+		// THE BOARD SERVES THE PAIR `--accept` SENDS, AND THE WORK ITEM SERVES THE BOARD'S: locateGap
+		// reads it for both over the one render.
+		gj.FixBasis, gj.FixOld, gj.FixNew = g.FixBasis, g.FixOld, g.FixNew
 		if g.LocationState == LocationUnrendered && !unrendered {
 			unrendered = true
 			out.Anomalies = append(out.Anomalies, fmt.Sprintf("the report does not render (%v) — every quote gap reads `unrendered`, its location the text as minted", renderErr))
@@ -596,6 +596,12 @@ type WorkJSON struct {
 	// Counterparty answers "has the other side acted, and on what" — a question the record could
 	// always answer and no view would.
 	Counterparty CounterpartyJSON `json:"counterparty"`
+	// Engaged is the dispatch blue-respond is sitting for and which of its gaps the sitting found
+	// already closed. An object for blue-respond once its dispatched sitting is on the record, its
+	// found_closed list explicit even when empty; null for every other seat — none is dispatched to
+	// answer a gap another seat can close first. The key is never omitted: the help's field tree
+	// names it, and a top-level key a reader was told of and cannot find reads as a failed read.
+	Engaged *EngagedJSON `json:"engaged"`
 }
 
 // GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
@@ -725,6 +731,18 @@ type WorkGapJSON struct {
 	// list's own items tell a seat to act against.
 	RequiredFix     string `json:"required_fix"`
 	AcceptanceCheck string `json:"acceptance_check"`
+	// THE FIX AS A QUOTED SPAN, where the lens prescribed one — the board's own pair (GapJSON), read
+	// by the one function over the one render (locateGap), so the item a seat acts on and the pair
+	// an accepted edit sends cannot differ. FixBasis is the mint's word for what the fix rests on
+	// (see GapJSON) and is never omitted: `proposed` is the answer "the lens prescribed no exact
+	// text". FixOld and FixNew are present together, and only where the mint prescribed text — a
+	// pair with no new half is the location again, which the item already carries.
+	//
+	// THE LENS'S ARGUMENT STAYS ON THE BOARD (gblock's ruling): mint_reason and each regrade's basis
+	// are why the gap stands, not what answering it takes.
+	FixBasis string `json:"fix_basis"`
+	FixOld   string `json:"fix_old,omitempty"`
+	FixNew   string `json:"fix_new,omitempty"`
 	// MintedBy is the seat that minted this gap, AS A SEAT ID. FoundBy below carries finding
 	// ids, which name the lens that FOUND a defect and not the seat that minted the gap, so ownership
 	// needed a second lookup and the rule that only the originator may close, at the moment of acting.
@@ -852,6 +870,10 @@ type WorkGapState struct {
 	// RequiredFix, AcceptanceCheck and MintedBy come off the gap view's own columns. The work list
 	// withheld all three, and in universe-m10 a board read was how a seat went to fetch one.
 	RequiredFix, AcceptanceCheck, MintedBy string
+	// FixBasis is the mint's own word for what its fix rests on, and FixOld/FixNew the pair it
+	// prescribes as an edit of the report applies it. FixNew comes off the gap view as recorded and
+	// locateGap reads the pair over the render — for the board and the work item alike.
+	FixBasis, FixOld, FixNew string
 	// Passage is the report section the gap's anchor sits in — see GapJSON.Passage. It rides the
 	// WORK list as well as the board because the work list is the read a seat does first: measured
 	// across the empty sittings of eight runs, `show work` was called 19 times against `show
@@ -941,7 +963,8 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
-	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL
+	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL,
+	    "fix_basis", "fix_new"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("record: asking the record for its work list: %w", err)
@@ -950,7 +973,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	for rows.Next() {
 		var g WorkGapState
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, classMaterial, supersededBy sql.NullString
-		var requiredFix, acceptanceCheck, mintedBy sql.NullString
+		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
 		// remanded/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
@@ -960,7 +983,8 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
-			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket); err != nil {
+			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket,
+			&fixBasis, &fixNew); err != nil {
 			return r, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
@@ -969,6 +993,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
 		g.RequiredFix, g.AcceptanceCheck, g.MintedBy = requiredFix.String, acceptanceCheck.String, mintedBy.String
+		g.FixBasis, g.FixNew = fixBasis.String, fixNew.String
 		r.gaps = append(r.gaps, workGapRow{WorkGapState: g, mintedEvent: mintedEvent})
 	}
 	if err := rows.Err(); err != nil {
@@ -1089,7 +1114,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}}
 	for _, g := range gaps {
 		if g.Open {
-			out.Open = append(out.Open, WorkGapJSON{
+			item := WorkGapJSON{
 				ID:       g.ID,
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
 				Class: g.Class, LocationState: g.LocationState, Location: g.Location, Passage: g.Passage,
@@ -1100,6 +1125,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				Problem:         g.Problem,
 				RequiredFix:     g.RequiredFix,
 				AcceptanceCheck: g.AcceptanceCheck,
+				FixBasis:        g.FixBasis,
 				MintedBy:        g.MintedBy,
 				// THE CONCLUSION, NOT THE PREMISES. requireOriginator refuses a close or regrade
 				// from any other seat; a reader deriving this from MintedBy is deriving a refusal
@@ -1109,7 +1135,11 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				Remanded: g.Remanded, DocketReopensOn: g.DocketReopensOn, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
-			})
+			}
+			if g.FixNew != "" {
+				item.FixOld, item.FixNew = g.FixOld, g.FixNew
+			}
+			out.Open = append(out.Open, item)
 			continue
 		}
 		// RED'S OWN CLOSURES ARE NOT A BAR, so they are not here. A seat may reopen what it closed;
@@ -1237,6 +1267,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
 	w.Sitting = SittingOf(evs, win.IDs(evs), win, gaps, role, seatID)
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
+	w.Engaged = engagedOf(evs, win, seatID)
 	return w, nil
 }
 
@@ -1744,7 +1775,12 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 // stands in report: `marked` at prose, `gone` bare (as the edit guard reads bare), retired or never
 // placed, `unrendered` when the report did not render (err). Location comes in as minted and stays so
 // unless marked.
+//
+// IT READS THE GAP'S PRESCRIBED PAIR FIRST, over the same report: FixNew comes in as recorded, and
+// the pair is located from the location AS MINTED, which the marking below replaces. The board and
+// the work item both take the pair from here, so neither can serve one the other does not.
 func locateGap(report string, err error, g *WorkGapState) {
+	g.FixOld, g.FixNew = proposalOver(report, g.ID, g.Location, g.FixNew)
 	if g.Location == "" {
 		return
 	}

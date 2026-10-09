@@ -362,19 +362,25 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'an unchanged sitting with nothing engaging it owes no log entry')
 })
 
-test('blue is engaged on named gaps, told the board is authoritative, and files closings only when the plan docketed', async () => {
+test('blue is engaged on named gaps, works from the report and its work list, and files closings only when the plan docketed', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001', 'G-00000002')], { docket: ['G-00000002'] }) }), chairEnv({ plan: plan([party('blue-respond', 'G-00000003')]) }), passChair()],
   }))
   await world.run(script, ARGS)
   const [first, second] = labelsOf(world, 'blue-respond').map((c) => c.prompt)
   assert.ok(/You are engaged on: G-00000001, G-00000002/.test(first))
-  for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'lossy summary', "bench's latest dispositions",
+  for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
+    'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
+  }
+  // BLUE'S WORKING SET IS THE REPORT AND ITS WORK ITEMS (gblock's ruling, 2026-10-09): no sentence sends
+  // it to the board, and none to red's argument for a gap — the lens's reason and the basis of a regrade.
+  for (const banned of [/READ THE BOARD/, /the board and work projections/, /the board shows/, /the board you read/, /red's argument for it/, /basis of each change of grade/]) {
+    assert.ok(!banned.test(first), `blue is sent to the board or to red's argument: ${banned}`)
   }
   assert.ok(/CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G-00000002/.test(first) && /argue in ~120 words/.test(first))
   assert.ok(!/CLOSING ARGUMENTS/.test(second), 'no docket this sitting, no closing demanded')
@@ -422,7 +428,7 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   }
 })
 
-test('the bench\'s rulings travel to both parties, with blue told its duty and red estopped, and the reasoning stays on the record', async () => {
+test('the bench\'s rulings travel to both parties, with blue told its duty and red estopped, each relying on the ruling as stated', async () => {
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }),
       chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001')]) }), passChair()],
@@ -436,7 +442,13 @@ test('the bench\'s rulings travel to both parties, with blue told its duty and r
   }
   const lens = firstPrompt(world, 'red-lens-evidence')
   assert.ok(/YOU ARE ESTOPPED/.test(lens) && lens.includes('THE BARRED PROPOSITION') && lens.includes('A NEW SOURCE'), 'red is handed the bar and what reopens it')
-  assert.ok(!blue2.includes('THE OPINION') && !lens.includes('THE OPINION'), 'the reasoning is on the record, not in the prompt')
+  // A RULING IS RELIED ON AS ITS ROW STATES IT (gblock's ruling, 2026-10-09): the bench's opinion is on the
+  // bench's and the chair's read group, and this clause renders to a lens and to blue, who hold neither.
+  for (const [who, prompt] of [['blue', blue2], ['a lens', lens]]) {
+    assert.ok(prompt.includes('RELY ON EACH RULING AS ITS ROW STATES IT'), `${who} is not told to rely on the ruling as stated`)
+    assert.ok(!/read the bench's opinion|THE REASONING IS ON THE RECORD/.test(prompt), `${who} is sent to the bench's opinion`)
+  }
+  assert.ok(!blue2.includes('THE OPINION') && !lens.includes('THE OPINION'), 'the opinion is not in the prompt')
   assert.ok(!/your_duty/.test(lens), 'the duty table is blue\'s')
 })
 
@@ -673,7 +685,13 @@ test('W2j: a bench holding binds every seat that follows it, across sittings', a
   }))
   await world.run(script, ARGS)
   for (const seat of ['red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {
-    assert.ok(labelsOf(world, seat)[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), `${seat} was not bound by the holding`)
+    const prompt = labelsOf(world, seat)[0].prompt
+    assert.ok(prompt.includes('BENCH HOLDINGS IN EFFECT'), `${seat} was not bound by the holding`)
+    // THE HOLDING AS STATED IS WHAT A SEAT RELIES ON (gblock's ruling, 2026-10-09): the bench's opinions
+    // are on the bench's and the chair's own read group, so a lens or blue sent to the reasoning is sent
+    // to a read it does not hold.
+    assert.ok(prompt.includes('rely on a holding, or work around it, as it is stated here'), `${seat} is not told to rely on the holding as stated`)
+    assert.ok(!/Read the bench's reasoning/.test(prompt), `${seat} is sent to the bench's reasoning for a holding`)
   }
   assert.ok(!labelsOf(world, 'red-chair #1')[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), 'nothing binds before it is held')
 })
