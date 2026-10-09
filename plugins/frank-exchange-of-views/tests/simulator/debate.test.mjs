@@ -679,7 +679,13 @@ test('W2j: a bench holding binds every seat that follows it, across sittings', a
   }))
   await world.run(script, ARGS)
   for (const seat of ['red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {
-    assert.ok(labelsOf(world, seat)[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), `${seat} was not bound by the holding`)
+    const prompt = labelsOf(world, seat)[0].prompt
+    assert.ok(prompt.includes('BENCH HOLDINGS IN EFFECT'), `${seat} was not bound by the holding`)
+    // THE HOLDING AS STATED IS WHAT A SEAT RELIES ON (gblock's ruling, 2026-10-09): the bench's opinions
+    // are on the bench's and the chair's own read group, so a lens or blue sent to the reasoning is sent
+    // to a read it does not hold.
+    assert.ok(prompt.includes('rely on a holding, or work around it, as it is stated here'), `${seat} is not told to rely on the holding as stated`)
+    assert.ok(!/Read the bench's reasoning/.test(prompt), `${seat} is sent to the bench's reasoning for a holding`)
   }
   assert.ok(!labelsOf(world, 'red-chair #1')[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), 'nothing binds before it is held')
 })

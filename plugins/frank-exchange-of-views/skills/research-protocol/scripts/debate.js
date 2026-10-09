@@ -871,11 +871,12 @@ const reliefInEffect = []
 // holdingsClause renders every holding in effect, for EVERY seat, as routing refs.
 //
 // The text is the bench's own words because a construction is operative — a seat cannot act on a
-// pointer to a construction it has not read — but the REASONING stays on the record, which is
-// where the seat is sent for it.
+// pointer to a construction it has not read. A seat relies on the holding AS STATED HERE (gblock's
+// ruling): the bench's opinions are on the bench's and the chair's read group alone, so a clause that
+// sends a lens or blue to the reasoning sends it to a read it does not hold.
 const holdingsClause = () => {
   if (!holdingsInEffect.length) return ''
-  return ` BENCH HOLDINGS IN EFFECT, BINDING ON EVERY SEAT FOR THE REST OF THE RUN: ${JSON.stringify(holdingsInEffect)}. A holding construes how the record is READ; it disposes of nothing and it does not expire with the sitting. Read the bench's reasoning for any holding you rely on or work around.`
+  return ` BENCH HOLDINGS IN EFFECT, BINDING ON EVERY SEAT FOR THE REST OF THE RUN: ${JSON.stringify(holdingsInEffect)}. A holding construes how the record is READ; it disposes of nothing and it does not expire with the sitting. Each is given here as the bench stated it, and that statement is the holding: rely on a holding, or work around it, as it is stated here.`
 }
 
 const reliefFor = (party) => {
