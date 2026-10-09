@@ -253,7 +253,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		}
 	})
 
-	changed, minted, strays := map[string]int{}, map[string]int{}, 0
+	changed, minted, strays, proofs := map[string]int{}, map[string]int{}, 0, 0
 	for _, name := range archivedRuns(t) {
 		runDir := recordtest.ExtractArchive(t, name)
 		evs, err := archivedSource(t, runDir).Events()
@@ -263,6 +263,17 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		hash, _ := hashEvents(evs)
 		evs, _ = serializeInstances(evs)
 		rm, reg := newRemap(hash), Entries()
+		// THE PROOF STORE STILL ANSWERS TO ITS SHA: a migrated proof names its script by the sha256 of
+		// the bytes the store holds under it.
+		stored := map[string]bool{}
+		scripts, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "script*"))
+		for _, script := range scripts {
+			body, err := os.ReadFile(script)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stored[fmt.Sprintf("%x", sha256.Sum256(body))] = true
+		}
 		for _, old := range evs { // the table is filled first, as Replay fills it
 			bodies, _ := reg.Translate(old, record.Run{})
 			for _, body := range bodies {
@@ -278,6 +289,12 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 				names, was := values(body)
 				rm.apply(body, old.Fields["label"])
 				_, now := values(body)
+				if p, ok := body.(*recordpb.Proof); ok {
+					proofs++
+					if !stored[p.GetProofSha()] {
+						t.Errorf("%s event %d: migrated proof %s names sha %s, and the store holds no script hashing to it", name, old.ID, p.GetProofId(), p.GetProofSha())
+					}
+				}
 				for i, field := range names {
 					class := "source-data"
 					switch {
@@ -298,21 +315,9 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 		for _, id := range rm.ids {
 			minted[id[:1]]++
 		}
-		// THE PROOF STORE STILL ANSWERS TO ITS SHA: a migrated proof names its script by the sha256 of
-		// the bytes the store holds under it.
-		scripts, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "script*"))
-		for _, script := range scripts {
-			body, err := os.ReadFile(script)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got, want := fmt.Sprintf("%x", sha256.Sum256(body)), filepath.Base(filepath.Dir(script)); got != want {
-				t.Errorf("%s: the stored script under proof sha %s hashes to %s", name, want, got)
-			}
-		}
 	}
-	if changed["id"] == 0 || changed["seat-argument"] == 0 || changed["source-data"] == 0 {
-		t.Errorf("fields rewritten per class = %v — the archive holds ids, ids in prose and anchor tokens, so a zero is a pass that did not run", changed)
+	if changed["id"] == 0 || changed["seat-argument"] == 0 || changed["source-data"] == 0 || proofs == 0 {
+		t.Errorf("fields rewritten per class = %v, proofs checked against the store = %d — the archive holds ids, ids in prose, anchor tokens and proofs, so a zero is a pass that did not run", changed, proofs)
 	}
 	t.Logf("census over the archive: archived ids and labels remapped per kind letter %v; fields rewritten per class %v; id-shaped words left in seat-argument fields (no id the run minted) %d", minted, changed, strays)
 }
