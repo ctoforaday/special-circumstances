@@ -1106,7 +1106,48 @@ a verb for `Anchor`).
 id-to-label join left with `FindingMarkerHold` in Part 4). About −135 production lines: −≈210
 deleted (`findingid.go` 46, `NextFindingLabel` + doc ≈22, `NewCitationID`/`NewProofID` ≈31,
 `record.go:617-629` 9, `shapes.go` ≈34, `FindingLabelAlt` 13, the three count queries ≈32 with
-docs, the `Kind` default), +≈15 `NewID` and `FindingRef`, +≈60 translation.
+docs, the `Kind` default), +≈15 `NewID` and `FindingRef`, +≈60 translation. **Measured −78**
+(+551 −629), 42% short of the estimate's −135: the deletions came to −327 against −≈210, and the
+additions to +249 against +≈75 — `record/id.go` +64 (`NewID` and `FindingRef` 17; `FindingByKey`
+and `UnplacedLocation` move in from the deleted files, 47), `remap.go` +100 against +60 (the three
+lists are 35 lines, and the token pass and the word-bounded argument pass are new), and three
+costs the estimate did not price: `anchor.go` +28 (the avenue and motion letters, `ID`, and
+`IDPattern` by kind), `seatprobe` +41 (a board names its gaps by position, so the builder stages
+through the ids the tool reports and the prompt capture reads the minted ids), and the replay's
+id pre-pass with the placer's keying, +13. Tests +2580 −1489. Over the 16 archived runs: 0
+refusals; 1,132 ids and labels remapped (C 198, F 392, G 123, M 57, P 127, Q 235); 3,158 id
+fields, 2,080 seat-argument fields and 293 source-data fields (tokens only) rewritten; 6 id-shaped
+words left in seat-argument fields, none an id its run minted; `archived_renders.golden` raw
+digests move on 9 runs and normalized, skeleton and every count on none; 253 finding ids print
+with their area and 505 as a seat wrote them (S9). Over the 28 runs: the same refusals event for
+event, the 21 renderable reports equal but for id spelling, no archived token left. S4 1, S10 0,
+S11 0. After Parts 1–6 the running S6 total is **+165**: the ≥ 320 reduction S6 targets is not
+met, by 485 lines.
+
+**As built** (each a deviation from the text below, or a decision it left open):
+- `anchor` holds the avenue and motion letters (`Q-`, `M-`) in a second table beside the kinds
+  table, so `anchor.ID` and `IDPattern(kinds…)` serve all six kinds; an id no kind claims has kind
+  "" (it read as a finding), and `tokenLenAt` reads exactly eight hex, as `IDPattern` does.
+- `finding.id` is NOT NULL UNIQUE (`required` on the field, so the write's own check goes and
+  `lens finding` declares the id supplied by the verb).
+- An `Anchor` for an id no anchor kind claims is refused at the write: its token is one no reader
+  recognises, and its gap would read `gone`.
+- `flags.SHA()` is KEPT, against the reader list's DELETE: `reproduce --id` takes the sha (R-10).
+  `show report --anchor` takes `flags.AnchorID()`.
+- `anchor.Label` names an anchor by its token, never its bare id, so the edit refusals meet S9
+  without the area: `bluedoc` reads report text and holds no record.
+- The replay translates the stream twice — once to fill the id table, because a seat's prose names
+  ids minted after it, then to write. `Correction.why` is respelled where the replay writes the
+  correction, outside any body. The archived-token reader matches `[fcp]-<hex>` and `G<n>` only,
+  so a token form a seat wrote with its id elided is left as written. A synthesized `M-mig-<n>`
+  motion id hashes like every archived id. The manifest's `gap_ids` and `labels` are one `ids`.
+- S11's pattern missed "`c-` plus 8 random hex digits" in `docs/citations-and-bibliography.md`;
+  it went with the sweep of "label" used for a finding or citation id in help, refusals and docs.
+- Tests: record-level fixtures that hand-set an opaque id (`GapId: "G1"`, 195 in 57 files) stay
+  where nothing reads its shape; CLI tests name ids by position (`cli/idhandles_test.go`) and
+  difftest by placeholder, one no output has printed reaching the tool as its kind's all-zero id.
+  The release fuzz gains two zero gates: an avenue moved by an id read from `avenue propose`, and
+  a mint accepted with a `found_by`.
 
 **Ids.**
 - [NEW] `record.NewID(kind)`: the kind's letter, `-`, 8 hex from `crypto/rand`. Every minting verb
