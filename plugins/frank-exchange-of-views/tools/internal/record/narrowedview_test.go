@@ -45,36 +45,34 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Register{ToolVersion: str("test")}),
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: str("blue-1"),
 			AgentType: str("frank-exchange-of-views:blue-researcher"), SeatId: str("blue-respond")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{FindingId: str("f-1"), Label: str("logic-F1"),
-			Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{FindingId: str("f-2"), Label: str("logic-F2"),
-			Text: str("uncredited")}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000002"), Text: str("uncredited")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G1"), Class: str("self-attestation"),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium,
-			FoundBy: []string{"logic-F1"}}),
+			FoundBy: []string{"F-00000001"}}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G2"), Class: str("self-attestation"),
 			Problem: str("p2"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		// An open gap standing on the anchor, so the board renders its backing.
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{GapId: str("G3"), Class: str("self-attestation"),
-			Problem: str("p3"), RequiredFix: str("f"), AcceptanceCheck: str("a"), Location: str("claim A <!--cite:c-0a0a0a0a-->"),
+			Problem: str("p3"), RequiredFix: str("f"), AcceptanceCheck: str("a"), Location: str("claim A <!--cite:C-0a0a0a0a-->"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
-		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("c-0a0a0a0a"), Url: str("https://example.org"),
+		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-0a0a0a0a"), Url: str("https://example.org"),
 			Title: str("t"), CiteKey: str("k1"), Location: str("claim A")}),
 		// A contradiction the finding above answers, and one nothing answers.
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org"), Anchor: str("c-0a0a0a0a"),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org"), Anchor: str("C-0a0a0a0a"),
 			Claim: str("claim A"), Title: str("t"), Text: str("says otherwise"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org/b"),
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
-		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("p-1"), ProofSha: str("abc"), ProofBasis: str("basis")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("P-00000001"), ProofSha: str("abc"), ProofBasis: str("basis")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofSha: str("abc"), Reproduced: proto.Bool(true),
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: str("ran")}),
 		// An edit that reopened the anchor (its text leaves G3's location where it is).
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("elsewhere"), New: str("elsewhere, revised"),
-			Text: str("why"), Reopened: []string{"c-0a0a0a0a"}}),
+			Text: str("why"), Reopened: []string{"C-0a0a0a0a"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: str("red's position")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: str("blue's position")}),
@@ -105,8 +103,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:log:#9~1", &recordpb.Log{Text: str("the tool refused the cite"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		correctionOf(t, "red-chair", "red-chair:log:#9"),
-		recordtest.At(t, "blue-respond", "blue-respond:proof:#9", &recordpb.Proof{ProofId: str("p-2"), ProofSha: str("def"), ProofBasis: str("basis, misstated")}),
-		recordtest.At(t, "blue-respond", "blue-respond:proof:#9~1", &recordpb.Proof{ProofId: str("p-2"), ProofSha: str("def"), ProofBasis: str("basis, restated")}),
+		recordtest.At(t, "blue-respond", "blue-respond:proof:#9", &recordpb.Proof{ProofId: str("P-00000002"), ProofSha: str("def"), ProofBasis: str("basis, misstated")}),
+		recordtest.At(t, "blue-respond", "blue-respond:proof:#9~1", &recordpb.Proof{ProofId: str("P-00000002"), ProofSha: str("def"), ProofBasis: str("basis, restated")}),
 		correctionOf(t, "blue-respond", "blue-respond:proof:#9"),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
@@ -234,10 +232,9 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Url: str("https://example.org/b"),
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{FindingId: str("f-1"), Label: str("logic-F1"),
-			Location: str("claim A"), Text: str("the source refutes claim A")}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A")}),
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("x"), New: str("y"), Text: str("why"),
-			Reopened: []string{"c-1"}}),
+			Reopened: []string{"C-00000001"}}),
 	)
 	b, err := EvidenceJSONBytes(mustRun(t, dir))
 	if err != nil {
@@ -250,8 +247,8 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0] != "claim B" {
 		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding at it", ej.UnansweredContradictions)
 	}
-	if len(ej.Reopened) != 1 || ej.Reopened[0] != "c-1" {
-		t.Errorf("reopened = %q, want [c-1] — a recorded edit reopened it", ej.Reopened)
+	if len(ej.Reopened) != 1 || ej.Reopened[0] != "C-00000001" {
+		t.Errorf("reopened = %q, want [C-00000001] — a recorded edit reopened it", ej.Reopened)
 	}
 }
 

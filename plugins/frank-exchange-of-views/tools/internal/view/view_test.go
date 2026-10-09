@@ -318,12 +318,19 @@ func TestMarkdownSurfacesUncreditedFindings(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, lens, lens+":finding:F1", &recordpb.Finding{Text: proto.String(strings.Repeat("long prose ", 40))}),
-		recordtest.At(t, lens, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("short")}),
+		recordtest.At(t, lens, lens+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String(strings.Repeat("long prose ", 40))}),
+		recordtest.At(t, lens, lens+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("short")}),
 	})
 	ledger := md(t, runDir, "ledger")
 	if !strings.Contains(ledger, "## lens findings credited by no gap") {
 		t.Errorf("the undisposed footer is missing:\n%s", ledger)
+	}
+	// EACH LINE NAMES ITS FINDING BY ID AND AREA, exactly: the id alone does not say which lens's.
+	if want := "\n- red-lens-evidence F-f0000001 (evidence): short\n"; !strings.Contains(ledger, want) {
+		t.Errorf("the footer line is not %q:\n%s", want, ledger)
+	}
+	if want := "\n- red-lens-evidence F-f0000002 (evidence): long prose "; !strings.Contains(ledger, want) {
+		t.Errorf("the truncated finding's line does not begin %q:\n%s", want, ledger)
 	}
 	for _, line := range strings.Split(ledger, "\n") {
 		if strings.HasPrefix(line, "- "+lens+" F") {
@@ -332,6 +339,38 @@ func TestMarkdownSurfacesUncreditedFindings(t *testing.T) {
 				t.Errorf("uncredited-finding prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
 			}
 		}
+	}
+}
+
+// A GAP'S found_by NAMES EACH FINDING BY ID AND AREA, exactly, and a credited finding leaves the
+// footer. Two findings from two lenses: the area is each finding's own lens's, and never the minting
+// seat's.
+func TestTheBoardNamesAGapsFindingsByIDAndArea(t *testing.T) {
+	runDir := t.TempDir()
+	writeShard(t, runDir, []*record.Event{
+		chairSits(t, 1),
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:1", &recordpb.Finding{Id: proto.String("F-7cdcd115"), Text: proto.String("the bound is loose")}),
+		recordtest.At(t, "red-lens-dark-side", "red-lens-dark-side:finding:1", &recordpb.Finding{Id: proto.String("F-0badf00d"), Text: proto.String("the misuse is unaddressed")}),
+		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:1", &recordpb.Finding{Id: proto.String("F-0000aaa1"), Text: proto.String("nobody credited this")}),
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: proto.String("overclaim"),
+			AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"),
+			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
+			// The last credit names no finding on the record: it prints bare, never as nothing.
+			FoundBy: []string{"F-7cdcd115", "F-0badf00d", "F-0000dead"}}),
+	})
+	ledger := md(t, runDir, "ledger")
+	if want := " | found_by F-7cdcd115 (adversary),F-0badf00d (dark-side),F-0000dead\n"; !strings.Contains(ledger, want) {
+		t.Errorf("the gap's found_by is not %q:\n%s", want, ledger)
+	}
+	_, footer, ok := strings.Cut(ledger, "## lens findings credited by no gap")
+	if !ok {
+		t.Fatalf("the uncredited footer is missing:\n%s", ledger)
+	}
+	if want := "\n- red-lens-logic F-0000aaa1 (logic): nobody credited this\n"; !strings.Contains(footer, want) {
+		t.Errorf("the footer line is not %q:\n%s", want, footer)
+	}
+	if strings.Contains(footer, "F-7cdcd115") || strings.Contains(footer, "F-0badf00d") {
+		t.Errorf("a finding a gap credits is listed as credited by none:\n%s", footer)
 	}
 }
 
@@ -553,7 +592,7 @@ func TestMarkdownDebateAndAvenue(t *testing.T) {
 		}),
 	})
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, lens, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("c-abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),
+		recordtest.At(t, lens, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("C-00000abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),
 		recordtest.At(t, lens, lens+":verify:https://y", &recordpb.Verify{Claim: proto.String("a second claim"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_LOW), Text: proto.String("thin support")}),
 	})
 

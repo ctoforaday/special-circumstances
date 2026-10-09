@@ -15,7 +15,7 @@ import (
 func blueDispatchedOnG1(t *testing.T, runDir string) {
 	t.Helper()
 	recordtest.Seed(t, runDir, recordtest.Event(t, "red-chair",
-		&recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}))
+		&recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: []string{onlyID(t, runDir, "G")}}))
 }
 
 // A CORRECTION IN A REPAIR IS STILL THE SAME SITTING (#1002, gblock 2026-09-18). "While it is still
@@ -30,7 +30,7 @@ func TestACorrectionInARepairIsTheSameSitting(t *testing.T) {
 	k := correctionKeyOf(t, runDir, "blue-respond", []string{"manifest-row", "--id", "G1", "--reason", "recomputed the  figure"})
 
 	must(t, runDir, "register", "--seat-id", "blue-respond", "--repair-sitting")
-	if _, err := run(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
+	if _, err := runAt(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
 		"--reason", "recomputed the figure", "--corrects", k, "--correction-why", "the shell deleted a word"); err != nil {
 		t.Fatalf("a correction filed in the repair of the sitting that wrote the act was refused: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestACorrectionAcrossARealSecondSittingIsRefused(t *testing.T) {
 	k := correctionKeyOf(t, runDir, "blue-respond", []string{"manifest-row", "--id", "G1", "--reason", "recomputed the  figure"})
 
 	must(t, runDir, "register", "--seat-id", "blue-respond")
-	_, err := run(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
+	_, err := runAt(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
 		"--reason", "recomputed the figure", "--corrects", k, "--correction-why", "the shell deleted a word")
 	if err == nil || !strings.Contains(err.Error(), "was written in an earlier sitting of blue-respond") {
 		t.Fatalf("a correction across a real second sitting = %v, want the earlier-sitting refusal", err)
@@ -86,7 +86,7 @@ func TestAnActFiledInsideTheRepairIsCorrectedInsideIt(t *testing.T) {
 	must(t, runDir, "register", "--seat-id", "blue-respond", "--repair-sitting")
 
 	k := correctionKeyOf(t, runDir, "blue-respond", []string{"manifest-row", "--id", "G1", "--reason", "recomputed the  figure"})
-	if _, err := run(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
+	if _, err := runAt(t, "manifest-row", "--run", runDir, "--seat-id", "blue-respond", "--id", "G1",
 		"--reason", "recomputed the figure", "--corrects", k, "--correction-why", "the shell deleted a word"); err != nil {
 		t.Fatalf("an act filed inside the repair was refused its own correction: %v", err)
 	}

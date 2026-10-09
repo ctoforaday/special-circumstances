@@ -233,10 +233,8 @@ func walk(events []*record.Event) *groundTruth {
 			g.lastCloseEpoch = epoch
 		case *recordpb.Finding:
 			gt.observations++
-			if l := m.GetLabel(); l != "" {
-				gt.findingLabels[l] = true
-			}
-			if id := m.GetFindingId(); id != "" {
+			if id := m.GetId(); id != "" {
+				gt.findingLabels[id] = true
 				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
 				// it emits no anchor event and must not be required to have one. `--about-kind
 				// section|avenue|gap` (#742, shipped #787) is the anchor an ABSENCE gets — there
@@ -453,10 +451,10 @@ func Check(run record.Run) ([]string, error) {
 	fj := record.FindingsJSONOf(fam.Events, fam.At)
 	gotLabels := map[string]bool{}
 	for _, f := range fj.Findings {
-		gotLabels[f.Label] = true
+		gotLabels[f.ID] = true
 	}
 	if !sameSet(keys(gotLabels), keys(gt.findingLabels)) {
-		add("findings", "findings projection labels %v, record carries %v", keys(gotLabels), keys(gt.findingLabels))
+		add("findings", "findings projection ids %v, record carries %v", keys(gotLabels), keys(gt.findingLabels))
 	}
 
 	// ---- the markdown renders ----

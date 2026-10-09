@@ -86,7 +86,7 @@ func TestAMotionRefusalIsTheVerbEnvelope(t *testing.T) {
 	// the argument is read.
 	// --reason is passed so the refusal reached is the record's, and so the harness's unread-reason
 	// check cannot stand in for it.
-	out, err := run(t, "motion", "grade", "appeal", "--json", "--run", runDir, "--seat-id", "red-lens-evidence",
+	out, err := runAt(t, "motion", "grade", "appeal", "--json", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--id", "M9", "--reason", "the grade understates the gap")
 	if err == nil {
 		t.Fatalf("a --json refusal returned no error, so the call exits 0 and the refusal log never sees it:\n%s", out)

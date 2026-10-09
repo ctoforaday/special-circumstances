@@ -225,7 +225,7 @@ func foundByResolves(f record.Family) Check {
 	labels := map[string]bool{}
 	for _, e := range f.Events {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			if l := f.GetLabel(); l != "" {
+			if l := f.GetId(); l != "" {
 				labels[l] = true
 			}
 		}
@@ -525,7 +525,7 @@ func Compute(f record.Family) Stats {
 		}
 		switch f := body.(type) {
 		case *recordpb.Finding:
-			if l := f.GetLabel(); l != "" {
+			if l := f.GetId(); l != "" {
 				findingLabels[l] = true
 			}
 		case *recordpb.Closing:

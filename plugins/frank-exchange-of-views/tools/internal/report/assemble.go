@@ -859,32 +859,32 @@ func withdrawnClaims(fam record.Family) string {
 
 // provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.
 //
-// This was `surfaced by: L5-F1, L6-F2` — labels and nothing else. Nothing in the report defines
-// those labels: unmintedFindings renders a finding's text only when NO gap claims it, so the
+// This was `surfaced by:` and a list of finding names, nothing else. Nothing in the report defines
+// those names: unmintedFindings renders a finding's text only when NO gap claims it, so the
 // instant the chair acted on a finding, the leaf-level evidence that produced it left the
 // document and the citation dangled.
 //
 // It is the wrong half to drop. A gap's `problem` is the chair's RESTATEMENT; the finding is what
 // red actually observed at the leaf, and the two sitting together is what lets a reader see a
-// restatement drift from its evidence. Unresolvable labels are kept as bare labels rather than
+// restatement drift from its evidence. Unresolvable ids are kept as bare ids rather than
 // silently dropped — an unresolvable citation is itself worth seeing.
-func provenance(m *recordpb.Mint, findings map[string]*recordpb.Finding) string {
+func provenance(m *recordpb.Mint, findings map[string]*record.Event) string {
 	fb := m.GetFoundBy()
 	if len(fb) == 0 {
 		return ""
 	}
 	var lines []string
 	for _, lbl := range fb {
-		f := findings[lbl]
-		if f == nil {
-			lines = append(lines, "- "+lbl+": (no finding with this label is on the record)")
+		f, ok := recordpb.BodyAs[*recordpb.Finding](findings[lbl])
+		if !ok {
+			lines = append(lines, "- "+lbl+": (no finding with this id is on the record)")
 			continue
 		}
 		loc := f.GetLocation()
 		if loc != "" {
 			loc = " (" + loc + ")"
 		}
-		lines = append(lines, fmt.Sprintf("- %s%s: %s", lbl, loc, f.GetText()))
+		lines = append(lines, fmt.Sprintf("- %s%s: %s", record.FindingRef(lbl, record.AreaOf(findings[lbl].GetSeatId())), loc, f.GetText()))
 	}
 	return "\nsurfaced by:\n" + strings.Join(lines, "\n")
 }
@@ -899,11 +899,11 @@ func provenance(m *recordpb.Mint, findings map[string]*recordpb.Finding) string 
 // for one attributes the other two's output to that one — and here that is not cosmetic, because
 // the correctness manifest it carries is an accusation.
 func boardSection(fam record.Family) string {
-	// Label -> the finding it names, so a gap can quote the evidence it was minted from.
-	findings := map[string]*recordpb.Finding{}
+	// Id -> the finding event it names, so a gap can quote the evidence it was minted from.
+	findings := map[string]*record.Event{}
 	for _, e := range fam.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetLabel() != "" {
-			findings[f.GetLabel()] = f
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			findings[f.GetId()] = e
 		}
 	}
 	var open, closed []string
@@ -915,16 +915,16 @@ func boardSection(fam record.Family) string {
 			regraded := regradeHistory(g)
 			// Provenance: which lens findings surfaced this gap, IN THE FINDING'S OWN WORDS.
 			//
-			// This was `surfaced by: L2-F1, L5-F2` — labels and nothing else. Nothing in the
-			// report defines those labels: unmintedFindings renders a finding's text only when
+			// This was `surfaced by:` and a list of finding names, nothing else. Nothing in the
+			// report defines those names: unmintedFindings renders a finding's text only when
 			// NO gap claims it, so the moment the chair acts on a finding, the leaf-level
 			// evidence that produced it leaves the document and the citation dangles. The fuzz
 			// found runs where EVERY finding was minted and red's words appeared nowhere at all.
 			//
 			// It is the wrong half to drop. A gap's `problem` is the chair's RESTATEMENT; the
 			// finding is what red actually observed at the leaf, and the two sitting together is
-			// what lets a reader see a restatement drift from its evidence. Unresolvable labels
-			// (a found_by naming no finding on the record) are kept as bare labels rather than
+			// what lets a reader see a restatement drift from its evidence. Unresolvable ids
+			// (a found_by naming no finding on the record) are kept as bare ids rather than
 			// silently dropped — an unresolvable citation is itself worth seeing.
 			foundBy := provenance(g.Mint, findings)
 			// `class` is a registry SLUG, not a grade — it goes through `grade` only for that
@@ -992,7 +992,7 @@ func boardSection(fam record.Family) string {
 
 	// Lens findings the chair did NOT raise to a gap — red's leaf audit that fell short of a
 	// mint but still carries substance (a claimed failure mode shown inapplicable, a resilient
-	// result confirmed). A finding is "minted" when its label appears in some gap's found_by
+	// result confirmed). A finding is "minted" when its id appears in some gap's found_by
 	// credit chain; the rest are dropped on the floor by every report before this one. Surfaced
 	// here, subordinate to the gaps, so red's voice is not silently lost (#77).
 	if un := unmintedFindings(fam); un != "" {
@@ -1196,7 +1196,7 @@ func regradeHistory(g *record.Gap) string {
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
 
-// unmintedFindings renders the lens findings whose label is credited by NO gap's found_by, or
+// unmintedFindings renders the lens findings whose id is credited by NO gap's found_by, or
 // "" if every finding earned a gap. Ordered by the event log so the section is deterministic.
 func unmintedFindings(fam record.Family) string {
 	minted := map[string]bool{}
@@ -1214,19 +1214,15 @@ func unmintedFindings(fam record.Family) string {
 		if !ok {
 			continue
 		}
-		lbl := f.GetLabel()
-		if lbl != "" && minted[lbl] {
+		if minted[f.GetId()] {
 			continue
 		}
-		head := lbl
-		if head == "" {
-			head = f.GetFindingId()
-		}
+		head := record.FindingRef(f.GetId(), record.AreaOf(e.GetSeatId()))
 		loc := f.GetLocation()
 		if loc != "" {
 			loc = " — " + loc
 		}
-		// A finding is addressed by COALESCENCE and nothing else: its label named in some gap's
+		// A finding is addressed by COALESCENCE and nothing else: its id named in some gap's
 		// found_by. What a finding reaching this section means is therefore ONE fact — no gap
 		// credits it — and NOT the second fact this comment used to assert, that "the merge
 		// weighed it and did not mint it".

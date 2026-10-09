@@ -28,7 +28,7 @@ import (
 func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 	find := func(label string) *Event {
 		return recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
-			FindingId: proto.String("f-" + label), Label: proto.String(label),
+			Id:   proto.String(label),
 			Text: proto.String("a finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		})
 	}
@@ -47,7 +47,7 @@ func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 	}
 	by := map[string][]string{}
 	for _, f := range findingsJSONT(t, evs).Findings {
-		by[f.Label] = f.MintedAs
+		by[f.ID] = f.MintedAs
 	}
 
 	// THE FOLD IS VISIBLE FROM BOTH SIDES: two findings, one gap, each naming it.
@@ -76,7 +76,7 @@ func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 // alongside FINDING.
 func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 	finding := recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
-		FindingId: proto.String("f-1"), Label: proto.String("L5-F1"), Text: proto.String("x"),
+		Id: proto.String("L5-F1"), Text: proto.String("x"),
 	})
 	minted := recordtest.Event(t, "red-merge-r1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Class: proto.String("self-attestation"),
@@ -107,7 +107,7 @@ func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 func TestANarrowedReadCarriesTheStoredEpoch(t *testing.T) {
 	find := func(label string) *Event {
 		return recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
-			FindingId: proto.String("f-" + label), Label: proto.String(label), Text: proto.String("x"),
+			Id: proto.String(label), Text: proto.String("x"),
 		})
 	}
 	dir := newRun(t)
@@ -126,7 +126,7 @@ func TestANarrowedReadCarriesTheStoredEpoch(t *testing.T) {
 	}
 	got := map[string]int{}
 	for _, f := range FindingsJSONOf(evs, win).Findings {
-		got[f.Label] = f.Epoch
+		got[f.ID] = f.Epoch
 	}
 	if want := map[string]int{"A": 0, "B": 1, "C": 2}; !maps.Equal(got, want) {
 		t.Errorf("findings epochs off the narrowed read = %v, want %v (the chair sittings the record holds each in)", got, want)
@@ -140,8 +140,8 @@ func TestANarrowedReadCarriesTheStoredEpoch(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range fj.Findings {
-		if f.Epoch != got[f.Label] {
-			t.Errorf("show findings prints %s at epoch %d; the record holds it in %d", f.Label, f.Epoch, got[f.Label])
+		if f.Epoch != got[f.ID] {
+			t.Errorf("show findings prints %s at epoch %d; the record holds it in %d", f.ID, f.Epoch, got[f.ID])
 		}
 	}
 }

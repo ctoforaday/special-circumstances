@@ -228,7 +228,7 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 	var order []string
 	byEpoch := map[string]*bucket{}
 	for _, f := range findings {
-		m := lNum.FindStringSubmatch(f.Role)
+		m := lNum.FindStringSubmatch(f.Area)
 		if m == nil {
 			continue
 		}

@@ -17,7 +17,7 @@ func TestAHookRefusalIsLoggedUnderTheRefusedSeat(t *testing.T) {
 	if err := WriteToolEntry(runDir, Refusal, "agent-1", "refused a `Read` the run does not serve: the report is not a file a seat reads"); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist <!--fx:f-1234abcd-->"); err != nil {
+	if err := WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist <!--fx:F-1234abcd-->"); err != nil {
 		t.Fatal(err)
 	}
 	if err := WriteToolEntry(runDir, Refusal, "agent-nobody", "refused a `Read`"); err != nil {

@@ -179,21 +179,6 @@ func enumWord(v protoreflect.Enum) string {
 	return recordpb.Spelling(vd)
 }
 
-// MintMotionID assigns the next run-unique motion id (M1, M2 …).
-//
-// Run-unique rather than epoch-scoped, for the reason an avenue's is: a motion OUTLIVES the epoch
-// that filed it — a grade dispute rejected in round 2 is re-disputed in round 3 and appealed to
-// the bench in round 4 — so a round-scoped id would have to be re-minted to survive, and the
-// re-mint is where the thread breaks.
-func MintMotionID(run Run) (string, error) {
-	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "motion" WHERE COALESCE("motion_id", '') != ''`); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("M%d", n+1), nil
-}
-
 // Motion is one exchange after replay: what was asked, how it was ruled, and whether the filer
 // pressed it further.
 type Motion struct {

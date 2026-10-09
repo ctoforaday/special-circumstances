@@ -4,7 +4,7 @@ import "testing"
 
 // AN ANCHOR IS ACCEPTED AS THE REPORT WRITES IT, because that is where a seat gets one.
 //
-// MEASURED on universe-m12: a lens passed `<!--cite:c-db9ddfe6-->` to `--anchor` twice and was
+// MEASURED on universe-m12: a lens passed `<!--cite:C-db9ddfe6-->` to `--anchor` twice and was
 // refused both times, by a message that named the form it had just been handed. The id lives inside
 // a token in the report; copying the token is the obvious act and cost that lens two calls.
 //
@@ -19,15 +19,15 @@ func TestAnAnchorIsAcceptedInTheFormTheReportCarries(t *testing.T) {
 		refused bool
 		shape   func() *ShapedValue
 	}{
-		{"a citation token, as the report writes it", "<!--cite:c-db9ddfe6-->", "c-db9ddfe6", false, CitationAnchor},
-		{"the bare citation id", "c-db9ddfe6", "c-db9ddfe6", false, CitationAnchor},
-		{"a finding token on a citation flag", "<!--fx:f-8ac31d2e-->", "", true, CitationAnchor},
-		{"a proof token on a citation flag", "<!--proof:p-e0738d11-->", "", true, CitationAnchor},
-		{"a finding token on the general anchor flag", "<!--fx:f-8ac31d2e-->", "f-8ac31d2e", false, AnchorID},
-		{"a proof token on the general anchor flag", "<!--proof:p-e0738d11-->", "p-e0738d11", false, AnchorID},
+		{"a citation token, as the report writes it", "<!--cite:C-db9ddfe6-->", "C-db9ddfe6", false, CitationAnchor},
+		{"the bare citation id", "C-db9ddfe6", "C-db9ddfe6", false, CitationAnchor},
+		{"a finding token on a citation flag", "<!--fx:F-8ac31d2e-->", "", true, CitationAnchor},
+		{"a proof token on a citation flag", "<!--proof:P-e0738d11-->", "", true, CitationAnchor},
+		{"a finding token on the general anchor flag", "<!--fx:F-8ac31d2e-->", "F-8ac31d2e", false, AnchorID},
+		{"a proof token on the general anchor flag", "<!--proof:P-e0738d11-->", "P-e0738d11", false, AnchorID},
 		{"a token wrapping nothing shaped like an anchor", "<!--cite:nonsense-->", "", true, CitationAnchor},
-		{"an unterminated token", "<!--cite:c-db9ddfe6", "", true, CitationAnchor},
-		{"a token whose tag is not its id's kind, which the tool never writes", "<!--fx:c-db9ddfe6-->", "", true, CitationAnchor},
+		{"an unterminated token", "<!--cite:C-db9ddfe6", "", true, CitationAnchor},
+		{"a token whose tag is not its id's kind, which the tool never writes", "<!--fx:C-db9ddfe6-->", "", true, CitationAnchor},
 	} {
 		v := c.shape()
 		err := v.Set(c.value)

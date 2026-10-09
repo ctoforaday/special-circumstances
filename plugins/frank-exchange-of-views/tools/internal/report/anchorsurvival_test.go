@@ -20,9 +20,9 @@ import (
 // Each of the three anchor classes has a DEFINED FATE at assembly, and they are three different
 // fates decided in three different places:
 //
-//	<!--fx:f-…-->     STRIPPED           (anchor.StripAssembled, docs.go)
-//	<!--cite:c-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
-//	<!--proof:p-…--> -> [^PN] + definitions    (weaveProofRefs, proofs.go)
+//	<!--fx:F-…-->     STRIPPED           (anchor.StripAssembled, docs.go)
+//	<!--cite:C-…-->   -> [^N]  + bibliography   (weaveCitations, assemble.go)
+//	<!--proof:P-…--> -> [^PN] + definitions    (weaveProofRefs, proofs.go)
 //
 // What was tested was each fate ALONE: FuzzWeaveCitations drives weaveCitations over one string,
 // kinds_test drives anchor.StripAssembled over one string, and TestNoDocumentInTheSetShipsA
@@ -49,10 +49,10 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		"# Whether the eviction path is safe — research report",
 		"",
 		"## TL;DR",
-		"The eviction path is safe<!--cite:c-1-->, and the interleaving was model-checked<!--proof:p-1-->.",
+		"The eviction path is safe<!--cite:C-00000001-->, and the interleaving was model-checked<!--proof:P-00000001-->.",
 		"",
 		"## Analysis",
-		"Red's objection to the read lock was withdrawn<!--fx:f-L1-F1--> after the counter-example<!--cite:c-1-->.",
+		"Red's objection to the read lock was withdrawn<!--fx:F-0000a1f1--> after the counter-example<!--cite:C-00000001-->.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -84,12 +84,12 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-		Label: proto.String("c-1"), Url: proto.String("https://ex/eviction"),
+		Label: proto.String("C-00000001"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-09-05"),
 	})
 	add("blue-synthesize", &recordpb.Proof{
-		ProofId: proto.String("p-1"), ProofSha: proto.String(sha),
+		ProofId: proto.String("P-00000001"), ProofSha: proto.String(sha),
 		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
 		Text: proto.String("the model check settles the interleaving"),
 	})
@@ -98,11 +98,11 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// log rather than copied — a different code path to the same page, and the reason
 	// the strip runs over the FINAL output rather than over blue's content alone.
 	add("red-lens-evidence", &recordpb.Finding{
-		Label: proto.String("L1-F1"), Location: proto.String("§Analysis"),
-		Text: proto.String("the read lock is dropped before evict<!--cite:c-1-->"),
+		Id: proto.String("F-f0000001"), Location: proto.String("§Analysis"),
+		Text: proto.String("the read lock is dropped before evict<!--cite:C-00000001-->"),
 	})
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--fx:f-L1-F1-->"),
+		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--fx:F-0000a1f1-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
@@ -110,7 +110,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
 	add("blue-respond", &recordpb.Position{
-		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and G1 does not stand"),
+		Text: proto.String("the interleaving is model-checked<!--proof:P-00000001--> and G1 does not stand"),
 	})
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),

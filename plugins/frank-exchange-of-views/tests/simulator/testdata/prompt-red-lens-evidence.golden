@@ -1,4 +1,4 @@
-prompt sha256: 959caea0be5fad49a7c2acf16a72bb9a281fe60c97cfd39a0a62613ededf47fd
+prompt sha256: d38ebf5b46eb5142c023ce81ae1afce00e50ba62b15686b32b4650858d335e94
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -21,7 +21,7 @@ YOUR SITTING IS ON YOUR WORK LIST: read `sitting.last_sitting` first — its kin
 `undispatched`: the record holds no dispatch for you — log that and end the sitting.
 Whenever the kind is `behind` or `unchanged`, a FRESH gap on text you already read and passed at an earlier sitting states, in its mint reason, why you missed it then.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report as the record renders it is REJECTED.
-The labels on your findings are the tool's to assign, and so are the gap ids you mint.
+The ids of your findings and of the gaps you mint are the tool's to assign.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting.
 YOU MINT YOUR OWN GAPS.

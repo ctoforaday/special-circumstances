@@ -51,10 +51,7 @@ func newDispatch() *cobra.Command {
 			return dispatchResult{Plan: plan, standing: true}, nil
 		}
 		for _, g := range plan.ToFile {
-			id, err := record.MintMotionID(run)
-			if err != nil {
-				return nil, err
-			}
+			id := record.NewID("motion")
 			basis := fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", g)
 			if _, err := record.Append(s.Identity(), &recordpb.Motion{
 				MotionId: proto.String(id),

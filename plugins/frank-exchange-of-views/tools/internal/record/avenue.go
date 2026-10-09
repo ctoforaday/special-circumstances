@@ -40,29 +40,6 @@ var AvenueStatuses = evsOf(recordpb.AvenueStatus(0).Descriptor())
 // AvenueStatusNames is the bare vocabulary, for readers that only need the words.
 func AvenueStatusNames() []string { return Names(AvenueStatuses) }
 
-// MintAvenueID assigns the next run-unique avenue id (Q1, Q2 …).
-//
-// Run-unique rather than epoch-scoped, unlike a gap: an avenue OUTLIVES the epoch that
-// proposed it — that is the whole point of giving it a lifecycle — so an epoch-scoped id
-// would have to be re-minted to survive, which is the bug this replaces.
-func MintAvenueID(run Run) (string, error) {
-	// A PROPOSAL, NOT A MOVE. `supersedes_status` is PRESENT on a move and absent on a
-	// proposal — the schema says so in as many words — so the id counter reads presence (a
-	// NULL column), not the string. A move whose marker was written empty would still carry a
-	// non-NULL column and is not counted, exactly as the fold's pointer test had it.
-	//
-	// ONE QUERY, over the proposals that STAND. A read that fails is the caller's error: the open
-	// already held this record to the binary's schema, so the failure is a real one (busy, locked,
-	// malformed), and an id minted from any other count would be a plausible wrong number.
-	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "avenue" a JOIN "live_event" l ON l."event_id" = a."event_id"
-		  WHERE COALESCE(a."avenue_id", '') != '' AND a."supersedes_status" IS NULL`); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("Q%d", n+1), nil
-}
-
 // Avenue is one direction's state after replay: its latest status, with the history that
 // produced it. The history is kept because "chose to abandon this at round 2, having
 // pursued it at round 0" is the evidence of choosing, and only the sequence carries it.

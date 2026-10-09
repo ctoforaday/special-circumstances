@@ -111,7 +111,7 @@ func attempt(t *testing.T, runDir string, act probeAct) bool {
 	t.Helper()
 	for _, seat := range probeSeats {
 		args := append(withProbeReason(act.args), "--seat-id", seat, "--run", runDir)
-		if _, err := run(t, args...); err == nil {
+		if _, err := runAt(t, args...); err == nil {
 			return true
 		}
 	}
@@ -123,7 +123,7 @@ func build(t *testing.T, runDir string, act probeAct) bool {
 	t.Helper()
 	for _, seat := range probeSeats {
 		args := append(append([]string{}, act.args...), "--seat-id", seat, "--run", runDir)
-		if _, err := run(t, args...); err == nil {
+		if _, err := runAt(t, args...); err == nil {
 			return true
 		}
 	}
@@ -376,6 +376,7 @@ func grade(g recordpb.Grade) string {
 }
 
 func gapOf(t *testing.T, runDir, id string) *record.Gap {
+	id = handleText(t, runDir, id) // the probe names its entity by handle
 	t.Helper()
 	rn, err := record.OpenRun(runDir)
 	if err != nil {
@@ -461,6 +462,7 @@ func motionProbe(subject, id string, prelude, acts []probeAct, states []string, 
 }
 
 func motionOf(t *testing.T, runDir, id string) *record.Motion {
+	id = handleText(t, runDir, id) // the probe names its entity by handle
 	t.Helper()
 	rn, err := record.OpenRun(runDir)
 	if err != nil {
@@ -608,6 +610,7 @@ func avenueProbe() entityProbe {
 }
 
 func avenueOf(t *testing.T, runDir, id string) *record.Avenue {
+	id = handleText(t, runDir, id) // the probe names its entity by handle
 	t.Helper()
 	rn, err := record.OpenRun(runDir)
 	if err != nil {

@@ -35,8 +35,7 @@ type Result struct {
 	Refusals       []Refusal
 	AcceptedLosses map[string]string // word -> the entry's stated reason
 	SourceHash     string            // sha256 over the event stream AS READ — the logical record
-	GapIDs         map[string]string // archived gap id -> the id the migrated record carries (§III.A.5)
-	Labels         map[string]string // archived finding label -> the label the migrated record carries
+	IDs            map[string]string // archived id or finding label -> the id the migrated record carries
 	Serialized     map[string]int    // archived instance seat -> events moved after instance 1 (serializeInstances)
 	StatedFills    []StatedFill      // values supplied where the source predates the field
 	GapAnchors     GapPlacement      // what bringing the run's gaps onto anchors did (F-c)
@@ -88,7 +87,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 	defer func() { record.Migrating = false }()
 
 	evs, res.Serialized = serializeInstances(evs)
-	rm := newRemap()
+	rm := newRemap(res.SourceHash)
 	// THE CAST IS SYNTHESIZED FIRST (plans/roundless.md §III.A.5): an archived run had no cast
 	// event, and the live write path checks every register and dispatch against one. Its cast is
 	// the seats that registered, translated — a fact the record already holds, restated as the
@@ -121,7 +120,17 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			}
 		}
 	}
-	place := newPlacer(dst, evs)
+	// THE ID TABLE IS FILLED BEFORE ANYTHING IS WRITTEN. A seat's prose names ids minted after it —
+	// a lane's avenue argues against one a sibling lane proposed later in the stream — so the
+	// stream is translated once to learn every id it mints, and again, below, to write it. An id is
+	// a function of the source alone, so both passes spell it the same.
+	for _, old := range evs {
+		bodies, _ := reg.Translate(old, dst)
+		for _, body := range bodies {
+			rm.apply(body, old.Fields["label"])
+		}
+	}
+	place := newPlacer(dst, evs, rm.ids)
 	newKey := map[string]string{} // source key -> the key the migrated event carries
 	paired := map[int64]bool{}    // source corrections already written beside their replacement
 	for _, old := range evs {
@@ -172,7 +181,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 				return nil, err
 			}
 			why, _ := fix.Fields["why"].(string)
-			id.Correct = &record.Correct{Type: typ, Key: target, Why: why}
+			id.Correct = &record.Correct{Type: typ, Key: target, Why: rm.respell("Correction.why", why)}
 		}
 		for _, body := range bodies {
 			// NO EPOCH IS CARRIED. The archived row's epoch was recovered from its seat id by regex
@@ -180,7 +189,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			// replayed (events_w."epoch"), which is the same fact from the record rather than from
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
-			rm.apply(body, seatID)
+			rm.apply(body, old.Fields["label"])
 			// A BENCH ROW THAT PREDATES ITS OCCASIONS convened the bench for its docket: before
 			// epoch 19 the chair readied the bench only on a docketed gap, and a petition was heard
 			// off an envelope with no row. The write refuses a bench row naming no occasion, so the
@@ -229,7 +238,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			}
 		}
 	}
-	res.GapIDs, res.Labels, res.GapAnchors = rm.gaps, rm.labels, place.census
+	res.IDs, res.GapAnchors = rm.ids, place.census
 	return res, nil
 }
 

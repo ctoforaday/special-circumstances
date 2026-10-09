@@ -53,6 +53,7 @@ var notFields = map[string]string{
 	"contests_ruling": "the legacy spelling of an appeal — blue pursuing against a ruling. MotionAppeal replaces it, and it was the one legacy field with no counterpart at all (compat.go:105)",
 	"petitioner":      "legacy petition vocabulary; the filer is the seat id on the ENVELOPE, not a payload field",
 	"response":        "the legacy dispute-respond key; MotionRule's per-subject ruling oneof replaces it",
+	"finding_id":      "the finding's anchor id, beside the label a gap's found_by named — two names for one finding. Finding.id is the one name, and migrate carries finding_id onto it",
 
 	// COLLAPSED INTO A FIELD THAT ALREADY HELD THE SAME FACT. Each was a second name for
 	// something the schema carried once, and the flag audit that found the duplicate words found

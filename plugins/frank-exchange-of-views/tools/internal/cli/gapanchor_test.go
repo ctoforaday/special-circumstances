@@ -61,7 +61,7 @@ func TestGapAnchorSitsAtTheQuoteEnd(t *testing.T) {
 			t.Fatalf("mint --quote %q: %v", c.quote, err)
 		}
 		after := readReport(t, runDir)
-		if !strings.Contains(after, c.want) {
+		if !strings.Contains(after, handleText(t, runDir, c.want)) {
 			t.Errorf("mint --quote %q placed its anchor wrong:\n%s", c.quote, after)
 		}
 		if placed, err := anchortext.Attach(before, id, c.quote); err != nil || placed != after {
@@ -198,9 +198,9 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 // heading line, or makes a heading of the line an anchor stands on, is refused and records nothing;
 // an anchor already on a heading — an archived carry — refuses no edit, its own heading's included.
 func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
-	const report = "# Title\n\n## Method<!--fx:f-0000aaaa-->\n\nThe sieve runs once<!--fx:f-0000bbbb-->.\n"
+	const report = "# Title\n\n## Method<!--fx:F-0000aaaa-->\n\nThe sieve runs once<!--fx:F-0000bbbb-->.\n"
 	for _, c := range []struct{ name, quote, new string }{
-		{"carried into a heading", "The sieve runs once<!--fx:f-0000bbbb-->", "## The sieve runs once<!--fx:f-0000bbbb-->"},
+		{"carried into a heading", "The sieve runs once<!--fx:F-0000bbbb-->", "## The sieve runs once<!--fx:F-0000bbbb-->"},
 		{"made a heading around it", "The sieve", "## The sieve"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -208,7 +208,7 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 			writeReport(t, runDir, report)
 			registerBlue(t, runDir)
 			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1", "--quote", c.quote, "--new", c.new, "--reason", "r")
-			if want := "blue edit: this edit puts <!--fx:f-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
+			if want := "blue edit: this edit puts <!--fx:F-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
 				t.Fatalf("refusal = %v, want %q", err, want)
 			}
 			if !strings.Contains(err.Error(), "keep the anchor on its sentence in the section's text") {
@@ -223,7 +223,7 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 		runDir := newRun(t)
 		writeReport(t, runDir, report)
 		_, err := mintQuote(t, runDir, "G", "The sieve", "--new", "## The sieve")
-		if err == nil || !strings.Contains(err.Error(), "lens mint: this edit puts <!--fx:f-0000bbbb--> on a section heading") {
+		if err == nil || !strings.Contains(err.Error(), "lens mint: this edit puts <!--fx:F-0000bbbb--> on a section heading") {
 			t.Fatalf("refusal = %v, want lens mint to refuse the heading", err)
 		}
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
@@ -231,8 +231,8 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 		}
 	})
 	for _, c := range []struct{ name, quote, new, want string }{
-		{"an archived anchor on a heading, another edit", "sieve runs", "sieve ran", "## Method<!--fx:f-0000aaaa-->\n\nThe sieve ran once"},
-		{"an archived anchor on a heading, its heading", "## Method<!--fx:f-0000aaaa-->", "## Methods<!--fx:f-0000aaaa-->", "## Methods<!--fx:f-0000aaaa-->\n"},
+		{"an archived anchor on a heading, another edit", "sieve runs", "sieve ran", "## Method<!--fx:F-0000aaaa-->\n\nThe sieve ran once"},
+		{"an archived anchor on a heading, its heading", "## Method<!--fx:F-0000aaaa-->", "## Methods<!--fx:F-0000aaaa-->", "## Methods<!--fx:F-0000aaaa-->\n"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -303,31 +303,30 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 		body           func(runDir string) proto.Message
 		retry          []string
 	}{
-		{"finding", "f-0badf00d", lensSeat, func(string) proto.Message {
-			return &recordpb.Finding{Label: proto.String("evidence-F1"), FindingId: proto.String("f-0badf00d"),
-				FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
+		{"finding", "F-0badf00d", lensSeat, func(string) proto.Message {
+			return &recordpb.Finding{Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"), Location: proto.String(stored), Text: proto.String("t")}
 		}, []string{"finding", "--key", "K1", "--quote", other, "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"}},
-		{"gap", "G1", lensSeat, func(string) proto.Message {
-			return &recordpb.Mint{GapId: proto.String("G1"), MintKey: proto.String("K1"), Class: proto.String("overclaim"),
+		{"gap", "G-0badf00d", lensSeat, func(string) proto.Message {
+			return &recordpb.Mint{GapId: proto.String("G-0badf00d"), MintKey: proto.String("K1"), Class: proto.String("overclaim"),
 				Location: proto.String(stored), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 				AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 				Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 				Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 		}, nil},
-		{"citation", "c-0badf00d", blueSeat, func(string) proto.Message {
-			return &recordpb.Cite{Label: proto.String("c-0badf00d"), CiteKey: proto.String("K1"), Location: proto.String(stored),
+		{"citation", "C-0badf00d", blueSeat, func(string) proto.Message {
+			return &recordpb.Cite{Label: proto.String("C-0badf00d"), CiteKey: proto.String("K1"), Location: proto.String(stored),
 				Url: proto.String("https://example.org/s"), Title: proto.String("S")}
 		}, []string{"cite", "--key", "K1", "--quote", other, "--url", "https://example.org/s", "--title", "S"}},
-		{"proof", "p-0badf00d", blueSeat, func(runDir string) proto.Message {
+		{"proof", "P-0badf00d", blueSeat, func(runDir string) proto.Message {
 			sha, err := proof.ScriptSha(runDir, script(t, runDir, "p.js", "console.log(1)"))
 			if err != nil {
 				t.Fatal(err)
 			}
-			return &recordpb.Proof{ProofId: proto.String("p-0badf00d"), ProofKey: proto.String("K1"), ProofSha: proto.String(sha),
+			return &recordpb.Proof{ProofId: proto.String("P-0badf00d"), ProofKey: proto.String("K1"), ProofSha: proto.String(sha),
 				Location: proto.String(stored), Script: proto.String("p.js")}
 		}, []string{"prove", "--key", "K1", "--quote", other, "--script", "p.js", "--reason", "r"}},
-		{"citation", "c-0badf00e", lensSeat, func(string) proto.Message {
-			return &recordpb.Verify{Label: proto.String("c-0badf00e"), Url: proto.String("https://example.org/r"), Claim: proto.String(stored),
+		{"citation", "C-0badf00e", lensSeat, func(string) proto.Message {
+			return &recordpb.Verify{Label: proto.String("C-0badf00e"), Url: proto.String("https://example.org/r"), Claim: proto.String(stored),
 				Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH), Text: proto.String("r")}
 		}, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--quote", stored, "--as", "supports", "--confidence", "high", "--reason", "r"}},
 	} {

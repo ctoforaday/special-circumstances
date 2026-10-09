@@ -204,7 +204,7 @@ func newEdit() *cobra.Command {
 	// what the tool fills in.
 	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". An anchor of any kind typed into it is rejected")
 	flags.Text(c, flags.New, "the text that span should become")
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (G4) — the provenance join key; omit only for an edit that answers no gap")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)

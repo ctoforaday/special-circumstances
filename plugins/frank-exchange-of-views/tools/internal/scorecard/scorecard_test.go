@@ -35,10 +35,10 @@ func TestJsToFixed2Num(t *testing.T) {
 // is the whole byte-identity trap this port had to solve.
 func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
 	findings := []record.FindingJSON{
-		{Role: "L1", Epoch: 1, SeatID: "a"},
-		{Role: "L1", Epoch: 1, SeatID: "b"},
-		{Role: "L5", Epoch: 1, SeatID: "c"},
-		{Role: "L6", Epoch: 1, SeatID: "c"}, // darkside, 1 seat
+		{Area: "L1", Epoch: 1, SeatID: "a"},
+		{Area: "L1", Epoch: 1, SeatID: "b"},
+		{Area: "L5", Epoch: 1, SeatID: "c"},
+		{Area: "L6", Epoch: 1, SeatID: "c"}, // darkside, 1 seat
 	}
 	got, ok := BucketFindingsByRole(findings)
 	if !ok {
@@ -51,7 +51,7 @@ func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
 		t.Errorf("citation_yield JSON:\n got  %s\n want %s", got, want)
 	}
 	// A darkside-less epoch → per_seat.darkside is null (not 0), matching JS.
-	got2, _ := BucketFindingsByRole([]record.FindingJSON{{Role: "L1", Epoch: 2, SeatID: "a"}})
+	got2, _ := BucketFindingsByRole([]record.FindingJSON{{Area: "L1", Epoch: 2, SeatID: "a"}})
 	if !strings.Contains(string(got2), `"per_seat":{"citation":1,"logic":null,"darkside":null}`) {
 		t.Errorf("empty role must be per_seat null, got %s", got2)
 	}
@@ -172,18 +172,18 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		{"claim_count": float64(5)},
 	}
 	// Four retire events, THREE units credited: claim_count counts attached citation anchors, so
-	// each c- anchor a retire took out is one unit of the fall — the retire that took two cited
+	// each citation anchor a retire took out is one unit of the fall — the retire that took two cited
 	// sentences out at once credits two. A retire of uncited prose, or one taking out only a
-	// finding marker, removed nothing the count held — crediting it would cancel an unrelated
-	// real loss.
+	// finding, gap or proof anchor, removed nothing the count held — crediting it would cancel an
+	// unrelated real loss.
 	retire := func(anchors ...string) *record.Event {
 		return recordtest.Event(t, "", &recordpb.Retire{Claim: proto.String("the claim"), Reason: proto.String("refuted"), Anchors: anchors})
 	}
 	board := famSeededT(t, []*record.Event{
-		retire("f-1", "c-1"),
+		retire("F-00000001", "C-00000001"),
 		retire(),
-		retire("f-2"),
-		retire("c-2", "c-3"),
+		retire("F-00000002", "G-00000001", "P-00000001"),
+		retire("C-00000002", "C-00000003"),
 	})
 	r := rowByMetric(blueRows(record.Run{}, results, nil, board, record.WhileRunning), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {

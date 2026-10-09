@@ -108,7 +108,7 @@ func TestACorrectedProofRendersOnceWithItsNewNote(t *testing.T) {
 // it is the seat's own wording, which a correction would otherwise drop without saying so.
 func correctWith(t *testing.T, runDir, k string, args ...string) (string, error) {
 	t.Helper()
-	return run(t, append(args, "--run", runDir, "--seat-id", "blue-respond", "--corrects", k, "--correction-why", "the note narrated the run")...)
+	return runAt(t, append(args, "--run", runDir, "--seat-id", "blue-respond", "--corrects", k, "--correction-why", "the note narrated the run")...)
 }
 
 // actsRecorded counts the proofs, cites and corrections on the record — what a refused correction
@@ -170,7 +170,7 @@ func TestAProveCorrectionRepeatsEveryFlag(t *testing.T) {
 		t.Fatalf("a prove correction repeating every flag was refused: %v", err)
 	}
 	p := lastBody(t, runDir, &recordpb.Proof{})
-	if p.GetText() != "91 leaves remainder 0 on division by 7" || p.GetProofKey() != "P1" || p.GetAnswers() != "G1" || p.GetScript() != s {
+	if p.GetText() != "91 leaves remainder 0 on division by 7" || p.GetProofKey() != "P1" || p.GetAnswers() != handleText(t, runDir, "G1") || p.GetScript() != s {
 		t.Fatalf("the replacement proof = %v, want the new note with every other field as the act recorded it", p)
 	}
 }

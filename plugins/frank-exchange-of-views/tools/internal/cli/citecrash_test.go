@@ -25,12 +25,12 @@ import (
 // retry used to seal that state forever — it saw the finding, answered, and never looked.
 func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# Findings\n\nThe sky is blue and the grass is green<!--fx:f-0badf00d-->.\n")
+	writeReport(t, runDir, "# Findings\n\nThe sky is blue and the grass is green<!--fx:F-0badf00d-->.\n")
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:L1-F1", &recordpb.Finding{
-		Label: proto.String("L1-F1"), FindingId: proto.String("f-0badf00d"), FindingKey: proto.String("K1"),
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F-0badf00d", &recordpb.Finding{
+		Id: proto.String("F-0badf00d"), FindingKey: proto.String("K1"),
 		Location: proto.String("The sky is blue and the grass is green."), Text: proto.String("an unfounded leap"),
 	}))
 	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
@@ -40,10 +40,10 @@ func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the retry itself failed: %v", err)
 	}
-	if !strings.Contains(out, "L1-F1") {
+	if !strings.Contains(out, "F-0badf00d") {
 		t.Errorf("the retry did not answer idempotently with the prior label: %q", out)
 	}
-	owed, err := record.UnplacedLocation(runtest.Open(t, runDir), "f-0badf00d")
+	owed, err := record.UnplacedLocation(runtest.Open(t, runDir), "F-0badf00d")
 	if err != nil {
 		t.Fatal(err)
 	}

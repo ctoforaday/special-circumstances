@@ -102,7 +102,7 @@ func TestACorrectionClearsExactlyWhatItsHelpOffers(t *testing.T) {
 			return runDir, act, correctionKeyOf(t, runDir, row.seat, act)
 		}
 		correct := func(t *testing.T, runDir, k string, args []string) (string, error) {
-			return run(t, append(slices.Clone(args), "--run", runDir, "--seat-id", row.seat, "--corrects", k, "--correction-why", "a word was lost")...)
+			return runAt(t, append(slices.Clone(args), "--run", runDir, "--seat-id", row.seat, "--corrects", k, "--correction-why", "a word was lost")...)
 		}
 		t.Run(p, func(t *testing.T) {
 			runDir, _, _ := start(t)

@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -49,8 +50,8 @@ type Tell struct {
 	Class    Class
 	Pattern  *regexp.Regexp
 	Redirect string
-	// Refuse marks a tell that has NO READING AS SUBJECT PROSE: a seat or lens id, a finding label,
-	// a gap id joined to a process word, a lane tag. `lens mint` refuses these in the two fields the
+	// Refuse marks a tell that has NO READING AS SUBJECT PROSE: a seat or lens id, a finding or gap id,
+	// a lane tag. `lens mint` refuses these in the two fields the
 	// report's risk matrix prints (gblock's ruling, plans/feov-lens-bar.md §III.9). Every other
 	// tell has an innocent reading — "the red team exercise" is a security report's subject, "this
 	// report" may quote a source — so it stays advice for every writer.
@@ -76,18 +77,11 @@ var tells = []Tell{
 	// seatIDTell.
 	{ProcessVoice, seatIDPattern(),
 		"a seat id names who acted in the run; say what is wrong with the subject", true},
-	// FINDING LABELS: an area joined to F<n>, the tool's label shape.
-	{ProcessVoice, regexp.MustCompile(`\b[a-z-]+-F\d+\b`),
-		"a finding label is the record's handle; say what the finding found", true},
-	// GAP AND FINDING IDS JOINED TO A PROCESS WORD. A bare G<n> is not refused — "the G20 summit" is
-	// subject prose — so each pattern requires the id to sit beside a word that names it as a gap's.
-	// The id must carry its G: an unprefixed number beside "gap" ("a gap 2 metres wide") is prose.
-	{ProcessVoice, regexp.MustCompile(`\b(?i:gaps?|findings?) G\d+\b`),
-		"a gap id is the record's handle; say what is wrong with the subject", true},
-	{ProcessVoice, regexp.MustCompile(`\bG\d+['’]s (fix|repair|closure|mint)\b`),
-		"a gap id is the record's handle; say what must become true", true},
-	{ProcessVoice, regexp.MustCompile(`\b(minted|closed|regraded|superseded) (as )?G\d+\b`),
-		"what happened to a gap is the record's; say what is wrong with the subject", true},
+	// FINDING AND GAP IDS. The id shape is one no subject uses — "the G20 summit" is subject prose and
+	// is not it — so an id is the record's handle wherever it stands in prose. Find takes the anchors
+	// out first: their tokens carry ids by design.
+	{ProcessVoice, regexp.MustCompile(`\b` + anchor.IDPattern("finding", "gap") + `\b`),
+		"a finding or gap id is the record's handle; say what is wrong with the subject", true},
 	{LaneAttribution, regexp.MustCompile(`\[(minority|lane-\d)[^\]]*\]`),
 		"provenance is the record's; a claim in the report is the report's", true},
 	{LaneAttribution, regexp.MustCompile(`(?i)\bresearch lanes?\b`),
@@ -195,6 +189,7 @@ func Note(where string, tells []string) string {
 // way to reach the other five. Use FindAll when the input is a document (#873).
 func Find(s string) []Found {
 	var out []Found
+	s = anchor.Replace(s, func(_, _ string) string { return "" })
 	for _, t := range tells {
 		if m := t.Pattern.FindString(s); m != "" {
 			out = append(out, Found{Tell: t, Match: m})

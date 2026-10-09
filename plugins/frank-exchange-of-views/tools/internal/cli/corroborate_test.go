@@ -59,7 +59,7 @@ func TestASupportingCorroborationRendersAsAFootnote(t *testing.T) {
 	// The anchor is spliced into the report, invisibly, exactly as blue's cite and red's
 	// finding markers already are.
 	md := readReport(t, runDir)
-	if !strings.Contains(string(md), "<!--cite:c-") {
+	if !strings.Contains(string(md), "<!--cite:C-") {
 		t.Fatalf("no citation anchor was spliced at the corroborated sentence:\n%s", md)
 	}
 
@@ -87,7 +87,7 @@ func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 		t.Fatalf("a refuting corroboration was refused — it is red's strongest finding on this axis and must still record: %v", err)
 	}
 	md := readReport(t, runDir)
-	if strings.Contains(string(md), "<!--cite:c-") {
+	if strings.Contains(string(md), "<!--cite:C-") {
 		t.Errorf("a REFUTING source was spliced as a citation — the reader would meet it as a reference backing the sentence it contradicts:\n%s", md)
 	}
 	if strings.Contains(assembled(t, runDir), "example.org/contradicts") {

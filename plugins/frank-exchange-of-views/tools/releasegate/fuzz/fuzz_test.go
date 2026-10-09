@@ -249,6 +249,13 @@ type runner struct {
 	// read as "not ruled" it would have red rule a settled line again, or blue leave a ruled one
 	// unanswered, and the avenue oracle would then find nothing to check.
 	avenueRulingErr string
+	// avenueIDErr is the first `avenue propose` that SUCCEEDED and whose result carried no avenue
+	// id the harness could read. It fails the run: read as "nothing to move" it would leave the
+	// move and the avenue `--about` reference undriven behind a green sweep.
+	avenueIDErr string
+	// avenueMoves counts the moves the tool ACCEPTED on an id read from a propose result — the
+	// drive avenueIDOf feeds. The sweep gates it at zero.
+	avenueMoves int
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
@@ -260,7 +267,7 @@ type runner struct {
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
 	verbatimGaps map[string]string
 	// avenueIDs: the tool-assigned avenue ids this run has proposed. `--about-kind avenue`
-	// CHECKS its reference against the record, so a drive needs a real one — a composed "Q1"
+	// CHECKS its reference against the record, so a drive needs a real one — a composed id
 	// would drive the refusal and never the success.
 	avenueIDs []string
 	// classMu guards classMade and is HELD ACROSS THE COIN, the one lock here that spans a
@@ -370,17 +377,34 @@ func (r *runner) maybe(pct int, fn func()) {
 // about once — a per-run counter never reaches its second turn. See its use for the measurement.
 var applyTurn atomic.Int64
 
-// avenueIDOf pulls the tool-assigned avenue id out of a propose result.
-func avenueIDOf(out string) string {
-	m := avenueIDPat.FindStringSubmatch(out)
-	if m == nil {
-		return ""
-	}
-	return m[1]
-}
+// avenueIDOf pulls the tool-assigned avenue id out of a propose result, or "" when the result
+// names none.
+func avenueIDOf(out string) string { return avenueIDPat.FindString(out) }
 
-// The record mints Q1, Q2 … — the id comes back on stdout and is never recomposed here.
-var avenueIDPat = regexp.MustCompile(`\b(Q\d+)\b`)
+// THE SHAPE IS THE TABLE's. The record mints the id, it comes back on stdout and is never
+// recomposed here; the pattern that finds it there is anchor.IDPattern, the one id matcher, so a
+// change to the id shape moves this reader with it. A pattern kept by hand matches nothing after
+// such a change, and every drive fed from it — the move of a proposed line, the avenue `--about`
+// reference — silently stops: see runner.avenueIDErr and the avenue-move gate.
+var avenueIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("avenue") + `\b`)
+
+// gapIDPat folds a gap id out of a stated reason, so the reasons tally by what they say.
+var gapIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
+
+// unmintedFinding and unmintedGap are ids of the RIGHT SHAPE that no run mints (a mint is four
+// random bytes; these are one value in 2^32). The probes that pass them test the record's
+// refusal of a reference it does not hold — a value of the wrong shape is refused by the flag
+// before any view is asked, and would pass the probe without reaching what it probes.
+var (
+	unmintedFinding = anchor.ID("finding", [4]byte{0xff, 0xff, 0xff, 0xff})
+	unmintedGap     = anchor.ID("gap", [4]byte{0xff, 0xff, 0xff, 0xff})
+)
+
+// refusedByShape reports whether out is a flag's SHAPE refusal of id (flags.ShapedValue.Set)
+// rather than the record's refusal of a reference it does not hold.
+func refusedByShape(out []byte, id string) bool {
+	return strings.Contains(string(out), strconv.Quote(id)+" is not ")
+}
 
 // cmd is a small fluent builder for a seat verb — `<role> <verb> --seat-id <seatID> …` (exec
 // appends --run). It collapses the conditional-flag arg-slice boilerplate: set() always adds a
@@ -412,6 +436,22 @@ func (r *runner) noteAvenue(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.avenueIDs = append(r.avenueIDs, id)
+}
+
+// noteAvenueIDErr keeps the first propose result no avenue id could be read from.
+func (r *runner) noteAvenueIDErr(msg string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.avenueIDErr == "" {
+		r.avenueIDErr = msg
+	}
+}
+
+// noteAvenueMove counts a move the tool accepted on an id read from a propose result.
+func (r *runner) noteAvenueMove() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.avenueMoves++
 }
 
 // aboutAnchor picks one --about-kind/--about pair, or ("","") when nothing on the record can be
@@ -1011,7 +1051,7 @@ var verifyOutcomes = []string{"supports", "supports_with_bridge", "weak", "refut
 var verifyConfidence = []string{"high", "medium", "low"}
 
 // someCitation returns a citation anchor on the record, or "" if blue has cited nothing yet —
-// a REAL tool-assigned c-<hex>, the same discipline someFinding uses. `lens verify --anchor`
+// a REAL tool-assigned citation id, the same discipline someFinding uses. `lens verify --anchor`
 // refuses an id that names no citation, so a fabricated one would drive only the reject path.
 func (r *runner) someCitation() string {
 	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
@@ -1027,7 +1067,7 @@ func (r *runner) someCitation() string {
 	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
-// mint records a gap as LENS seatID and returns the tool-assigned id (G<n>). The first mint of a
+// mint records a gap as LENS seatID and returns the tool-assigned id. The first mint of a
 // run introduces the class; the rest reuse it. seatID is the lens that is sitting: the chair
 // has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
 // may later close or regrade the gap, which is why every landed mint is noted on r.minter.
@@ -1175,7 +1215,7 @@ func (r *runner) mint(seatID string) string {
 		args = append(args, "--complexity", r.g())
 	}
 	if fl := r.someFinding(); fl != "" && r.coin(50) {
-		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned label)
+		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned id)
 	}
 	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
 		args = append(args, "--supersedes", open[r.rng.Intn(len(open))]) // lineage: this gap replaces an ancestor
@@ -1309,8 +1349,8 @@ func (r *runner) mintEstopped(seatID string) {
 	_ = err
 }
 
-// someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
-// --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
+// someFinding returns the id of a random lens finding on the record, or "" if none — feeds mint's
+// --found-by with a real TOOL-assigned id rather than a fabricated one.
 func (r *runner) someFinding() string {
 	// THE FINDING FAMILY, NOT THE WHOLE FOLD. `show findings` is FindingsJSONBytes now —
 	// EventsOf(run, FINDING) into FindingsJSONOf — so this reproduces the CLI's own path rather
@@ -1324,7 +1364,7 @@ func (r *runner) someFinding() string {
 	if len(findings) == 0 {
 		return ""
 	}
-	return findings[r.rng.Intn(len(findings))].Label
+	return findings[r.rng.Intn(len(findings))].ID
 }
 
 // board reads the record IN PROCESS, through the same builders the binary renders from.
@@ -1694,10 +1734,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// saying so rather than settling it — so the fate is drawn from the whole set, not from
 		// the set minus its default.
 		if err == nil {
-			if id := avenueIDOf(out); id != "" {
-				r.noteAvenue(id)
-				r.do("avenue move", seatID).set("--id", id).set("--as", st).
-					set("--reason", "fuzz: what changed this line's fate").run()
+			// A PROPOSAL THAT LANDED AND NAMED NO ID IS A FAILURE, NOT A SKIP. The tool minted an
+			// id and printed it; a reader that finds none there has stopped reading the tool.
+			id := avenueIDOf(out)
+			if id == "" {
+				r.noteAvenueIDErr("`avenue propose` succeeded and its result names no avenue id matching " +
+					avenueIDPat.String() + ":\n" + truncate(out))
+				return
+			}
+			r.noteAvenue(id)
+			if _, merr := r.do("avenue move", seatID).set("--id", id).set("--as", st).
+				set("--reason", "fuzz: what changed this line's fate").run(); merr == nil {
+				r.noteAvenueMove()
 			}
 		}
 	}
@@ -2470,6 +2518,11 @@ type outcome struct {
 	// blue had applied verbatim from red's prescription. Read off the record, never from the
 	// driver, so it distinguishes "the guard never fired" from "the guard is gone".
 	estoppels int
+	// avenueMoves is the moves the tool accepted on an id the harness read from a propose result
+	// (runner.avenueMoves). The `avenue` verb gate is satisfied by a proposal alone, and blue's
+	// answer to a ruling moves a line by an id read off the record, so neither notices the
+	// propose-result reader going blind.
+	avenueMoves int
 	// repairs is the registers on the record that name the sitting they repair (#1002). The
 	// register verb is gated as a type, which any register satisfies, so a repair path that stopped
 	// writing the field would pass it silently.
@@ -2860,6 +2913,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "avenue drive: an avenue's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.avenueRulingErr
 		return res
 	}
+	if r.avenueIDErr != "" {
+		res.err = "avenue drive: " + r.avenueIDErr
+		return res
+	}
 	if r.passOverAnotherSeat != "" {
 		res.err = "pass_permitted oracle: the plan permitted a PASS while " + r.passOverAnotherSeat + " stood, and the gate refused it: " + r.lastPassRefusal
 		return res
@@ -3011,8 +3068,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id G1`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
+	if out, err := drive(bin, "show", "report", "--anchor", unmintedFinding, "--run", runDir, "--seat-id", "blue-respond"); err == nil {
+		res.err = "show report --anchor " + unmintedFinding + " SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
+		return res
+	} else if refusedByShape(out, unmintedFinding) {
+		res.err = "show report --anchor " + unmintedFinding + " was refused for its SHAPE, so the refusal of an anchor nobody minted was never reached:\n" + truncate(string(out))
 		return res
 	}
 	// The OPERATOR's read of the log — seats write it, the human reads it back.
@@ -3106,8 +3166,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := drive(bin, "show", "changes", "--id", "G99999", "--run", runDir, "--seat-id", "red-chair"); err == nil {
-			res.err = "show changes --id G99999 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
+		if out, err := drive(bin, "show", "changes", "--id", unmintedGap, "--run", runDir, "--seat-id", "red-chair"); err == nil {
+			res.err = "show changes --id " + unmintedGap + " SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
+			return res
+		} else if refusedByShape(out, unmintedGap) {
+			res.err = "show changes --id " + unmintedGap + " was refused for its SHAPE, so the refusal of a gap nobody minted was never reached:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -3363,6 +3426,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "citation axis: the report could not be rendered, so its cite anchors are uncounted: " + mErr.Error()
 	}
 	res.citeAnchors = strings.Count(md, "<!--cite:")
+	r.mu.Lock()
+	res.avenueMoves = r.avenueMoves
+	r.mu.Unlock()
 	for _, e := range board.Events {
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -4019,6 +4085,7 @@ func TestFuzzDebate(t *testing.T) {
 	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
+	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
 	repairs := 0                           // registers naming the sitting they repair (the engine's re-prompt)
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
@@ -4068,7 +4135,7 @@ func TestFuzzDebate(t *testing.T) {
 			}
 			epochHist[o.epochs]++
 			if o.why != "" {
-				whyHist[o.verdict+" ← "+regexp.MustCompile(`G\d+`).ReplaceAllString(o.why, "G<n>")]++
+				whyHist[o.verdict+" ← "+gapIDPat.ReplaceAllString(o.why, "G-<id>")]++
 			}
 			for k, v := range o.dialectic {
 				dcov[k] += v
@@ -4080,6 +4147,7 @@ func TestFuzzDebate(t *testing.T) {
 			verbatimApplied += o.verbatimApplied
 			typedVerbatim += o.typedVerbatim
 			estoppels += o.estoppels
+			avenueMoves += o.avenueMoves
 			repairs += o.repairs
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
@@ -4112,6 +4180,7 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s\n  sitting-record repairs: %d registers named the sitting they repaired",
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses, repairs)
+	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", avenueMoves, dcov["avenue"])
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -4132,7 +4201,7 @@ func TestFuzzDebate(t *testing.T) {
 	measured := completed >= surfaceQuorum
 	if !measured {
 		t.Logf("NOT MEASURED: %d runs is under the surface quorum of %d, so these gates did NOT run: "+
-			"the per-verb event gate, the citation/provenance floors, the full-surface command gate, "+
+			"the per-verb event gate, the citation/provenance floors, the avenue-move floor, the full-surface command gate, "+
 			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/finding "+
 			"floor below was checked. Run the default sweep to assert the surface.", completed, surfaceQuorum)
 	}
@@ -4169,6 +4238,14 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if cacheFiles == 0 {
 			t.Errorf("fuzz cached ZERO sources across %d runs — `fetch`/`blue cite` never populated <run>/cache (false green); the fetch path is unexercised", completed)
+		}
+		// THE AVENUE-MOVE GATE. A proposed line is moved by the id its propose result printed, and
+		// the reader of that result is a pattern: one that matches nothing leaves every proposal
+		// unmoved and every avenue `--about` reference unpassed, with the `avenue` verb gate
+		// above still green on the proposals themselves.
+		if avenueMoves == 0 {
+			t.Errorf("fuzz moved ZERO avenues by an id read from `avenue propose` across %d runs (with %d avenue events) — "+
+				"the propose result named no id the harness reads, or the tool refused every move; the avenue lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["avenue"])
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267

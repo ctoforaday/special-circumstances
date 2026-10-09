@@ -1,10 +1,10 @@
 package record
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -107,40 +107,59 @@ func TestGapMassAndGradeStr(t *testing.T) {
 	}
 }
 
-// Ids are minted tool-side and sequentially OVER THE RUN: one counter, one namespace. The
-// collision class that produced four different ids for one gap cannot recur, and the chair
-// sitting again does NOT restart the counter — there is no round left for it to restart in
-// (plans/roundless.md §III.A.3).
+// A gap id names ONE gap over the run: one namespace, minted tool-side with no count of what the
+// record holds. The collision class that produced four different ids for one gap cannot recur, and
+// the chair sitting again opens no fresh namespace — there is no round left for one to belong to
+// (plans/roundless.md §III.A.3). `mint.gap_id` is UNIQUE, so an id recorded twice is a refused
+// write, before the chair re-sits and after.
 func TestGapIdsAreRunGlobalAndNeverRoundShaped(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-chair"
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	for i := 1; i <= 3; i++ {
-		got, err := MintGapID(mustRun(t, runDir))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := fmt.Sprintf("G%d", i); got != want {
-			t.Fatalf("MintGapID = %q, want %q", got, want)
-		}
-		// The MINTED id, not a fixed one: each pass records the gap it just reserved, which is
-		// what makes the ids sequential rather than one gap minted three times.
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(got), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
-			t.Fatal(err)
-		}
+	mint := func(id string) error {
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")})
+		return err
 	}
-	// The chair sits again. The counter continues; a fresh epoch is not a fresh namespace.
+	shape := flags.GapID().Shape()
+	var ids []string
+	for i := 1; i <= 3; i++ {
+		got := NewID("gap")
+		if !shape.MatchString(got) {
+			t.Fatalf("NewID(gap) = %q, which the gap-id shape %s refuses", got, shape)
+		}
+		if slices.Contains(ids, got) {
+			t.Fatalf("NewID(gap) = %q a second time", got)
+		}
+		// The MINTED id, not a fixed one: each pass records the gap it just reserved.
+		if err := mint(got); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, got)
+	}
+	if err := mint(ids[0]); err == nil {
+		t.Errorf("%s was minted twice in one sitting — one id, two gaps", ids[0])
+	}
+	// The chair sits again. A fresh epoch is not a fresh namespace: an id spent before is still spent.
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	got, err := MintGapID(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
+	if err := mint(ids[1]); err == nil {
+		t.Errorf("%s was minted again after the chair re-sat — the namespace is run-global", ids[1])
 	}
-	if got != "G4" {
-		t.Errorf("first mint after the chair re-sat = %q, want G4 — the counter is run-global", got)
+	got := NewID("gap")
+	if err := mint(got); err != nil {
+		t.Fatalf("a fresh id after the chair re-sat was refused: %v", err)
+	}
+	have, err := allGapIDs(mustRun(t, runDir))
+	if err != nil || len(have) != 4 {
+		t.Fatalf("allGapIDs = (%v, %v), want the four minted", have, err)
+	}
+	for _, id := range append(ids, got) {
+		if !have[id] {
+			t.Errorf("%s is not on the record", id)
+		}
 	}
 }
 
@@ -240,8 +259,8 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := newRun(t)
 	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, lens, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
-		recordtest.At(t, lens, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
+		recordtest.At(t, lens, lens+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("first")}),
+		recordtest.At(t, lens, lens+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("second")}),
 	})
 	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
@@ -251,15 +270,15 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	if len(obs) != 2 {
 		t.Fatalf("both findings must replay onto the board, got %d", len(obs))
 	}
-	for _, want := range []string{"F1", "F2"} {
+	for _, want := range []string{"F-f0000001", "F-f0000002"} {
 		found := false
 		for _, o := range obs {
-			if o.Finding.GetLabel() == want {
+			if o.Finding.GetId() == want {
 				found = true
 			}
 		}
 		if !found {
-			t.Errorf("finding %s lost its label in replay — found_by credit is keyed on it", want)
+			t.Errorf("finding %s lost its id in replay — found_by credit is keyed on it", want)
 		}
 	}
 }
@@ -371,10 +390,7 @@ func docketRunDir(t *testing.T) string {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	id, err := MintGapID(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := NewID("gap")
 	redID := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
 	if _, err := Append(redID, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
@@ -775,9 +791,9 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 		want string
 	}{
 		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("G1")}, "G1"},
-		{"label when there is no gap_id", &recordpb.Finding{Label: proto.String("F1")}, "F1"},
+		{"a finding's id when there is no gap_id", &recordpb.Finding{Id: proto.String("F-f0000001")}, "F-f0000001"},
 		{"url is a label too", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Url: proto.String("https://x")}, "https://x"},
-		{"an empty label is not a label", &recordpb.Finding{Label: proto.String("")}, ""},
+		{"an empty label is not a label", &recordpb.Finding{Id: proto.String("")}, ""},
 		{"no label at all", &recordpb.Log{}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -809,30 +825,35 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 	}
 }
 
-// THE SAME LABEL IN A LATER SITTING IS A COLLISION, AND THAT IS CORRECT. This test used to assert
-// the opposite: `red-lens-r1-evidence` and `red-lens-r2-evidence` were two seats, so `F1` under each
-// was two keys. Roundless they are ONE seat sitting twice, and a lens's finding labels are
-// run-unique per lens — NextFindingLabel assigns them, and a seat re-using a label it already spent
-// is repeating an act, not filing a new finding. `events.key` is UNIQUE, so the repeat is a refused
-// act rather than a wrong string; the next label lands.
-func TestTheSameLabelInALaterSittingIsRefusedAndTheNextLands(t *testing.T) {
+// A FINDING ID NAMES ONE FINDING OVER THE WHOLE RUN. A seat sitting again that records under an id
+// it already spent is repeating an act, not filing a new finding, and another lens recording under
+// it would make one name two findings — every found_by credit on it a coin flip. `finding.id` is
+// UNIQUE, so either repeat is a refused write rather than a second row; a fresh id lands.
+func TestAFindingIDIsRefusedASecondTimeAndAFreshOneLands(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("x")}); err != nil {
+	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("x")}); err != nil {
 		t.Fatal(err)
 	}
 	// A second sitting of the same seat.
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("y")}); err == nil {
-		t.Fatal("F1 landed twice for one lens — a finding label is run-unique per lens, and the second is a repeated act")
+	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("y")}); err == nil {
+		t.Fatal("F-f0000001 landed twice for one lens — a finding id is run-unique, and the second is a repeated act")
 	}
-	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("y")}); err != nil {
-		t.Fatalf("the NEXT label was refused in the later sitting: %v", err)
+	other := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-logic"}
+	if _, _, err := RegisterSeat(other, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(other, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("z")}); err == nil {
+		t.Fatal("F-f0000001 landed for a second lens — one id now names two findings")
+	}
+	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("y")}); err != nil {
+		t.Fatalf("a fresh id was refused in the later sitting: %v", err)
 	}
 	m, err := MergedEvents(mustRun(t, runDir))
 	if err != nil {
@@ -845,7 +866,7 @@ func TestTheSameLabelInALaterSittingIsRefusedAndTheNextLands(t *testing.T) {
 		}
 	}
 	if n != 2 {
-		t.Errorf("%d findings on the record, want 2 (F1 once, F2 once)", n)
+		t.Errorf("%d findings on the record, want 2 (F-f0000001 once, F-f0000002 once)", n)
 	}
 }
 

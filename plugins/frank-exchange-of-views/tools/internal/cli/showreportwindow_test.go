@@ -26,7 +26,7 @@ two paragraphs up.
 
 a paragraph before the anchored one.
 
-the corpus holds 340 records.<!--fx:f-a1b2c3-->
+the corpus holds 340 records.<!--fx:F-00a1b2c3-->
 
 a paragraph after it.
 
@@ -43,7 +43,7 @@ func TestShowReportAtAnAnchorReadsTheLiveTextAndSaysWhereItIs(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
-	out, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "f-a1b2c3")
+	out, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "F-00a1b2c3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,14 +70,14 @@ func TestTheWindowSizeChangesWhatComesBack(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
-	narrow, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "f-a1b2c3", "--window", "0")
+	narrow, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "F-00a1b2c3", "--window", "0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(narrow, "a paragraph before the anchored one.") {
 		t.Errorf("--window 0 returned neighbours; the size is not reaching the reader:\n%s", narrow)
 	}
-	wide, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "f-a1b2c3")
+	wide, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "F-00a1b2c3")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestShowReportRefusesAnAnchorThatIsNotThere(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, windowReport)
 
-	out, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "f-deadbeef")
+	out, err := run(t, "show", "report", "--seat-id", "blue-respond", "--run", runDir, "--anchor", "F-deadbeef")
 	if err == nil {
 		t.Fatalf("a stale anchor produced output rather than a refusal:\n%s", out)
 	}
@@ -125,7 +125,7 @@ func TestEveryRoleCanReadAtAnAnchor(t *testing.T) {
 	writeReport(t, runDir, windowReport)
 
 	for _, role := range []string{"blue", "lens", "chair", "bench"} {
-		out, err := run(t, "show", "report", "--run", runDir, "--anchor", "f-a1b2c3", "--seat-id", record.SampleSeatOf(role))
+		out, err := run(t, "show", "report", "--run", runDir, "--anchor", "F-00a1b2c3", "--seat-id", record.SampleSeatOf(role))
 		if err != nil {
 			t.Errorf("%s cannot read at an anchor: %v", role, err)
 			continue

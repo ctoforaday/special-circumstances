@@ -30,7 +30,7 @@ import (
 // anchored is the same sentence as the report stores it once a finding has been minted against it.
 const (
 	plainSentence    = "Eight authoritative mathematical sources were consulted:"
-	anchoredSentence = "Eight authoritative mathematical sources were consulted<!--fx:f-dbd94684-->:"
+	anchoredSentence = "Eight authoritative mathematical sources were consulted<!--fx:F-dbd94684-->:"
 	otherSentence    = "Trial division identified 7 as a divisor."
 )
 
@@ -124,7 +124,7 @@ func TestEstoppelSurvivesTheAnchorOnItsOwnPrescription(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The lens comes back and quotes the sentence AS THE REPORT NOW HOLDS IT.
-	anchored := "Six authoritative mathematical sources were consulted<!--fx:f-dbd94684-->:"
+	anchored := "Six authoritative mathematical sources were consulted<!--fx:F-dbd94684-->:"
 	if id, _ := EstoppelConflict(fam, anchored); id == "" {
 		t.Errorf("estoppel did not fire on a quote of red's own applied prescription.\n"+
 			"prescribed: %q\nquoted    : %q\nThey differ only by the anchor the report carries, so the one rule that stops a lens\n"+

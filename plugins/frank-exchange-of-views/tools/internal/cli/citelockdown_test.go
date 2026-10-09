@@ -20,7 +20,7 @@ import (
 func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 	runDir := newRun(t)
 	// A citation anchor sits between "value" and "is".
-	writeReport(t, runDir, "# H\n\nThe value<!--cite:c-abc123--> is stable over time.\n")
+	writeReport(t, runDir, "# H\n\nThe value<!--cite:C-00abc123--> is stable over time.\n")
 	registerBlue(t, runDir)
 
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -32,7 +32,7 @@ func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 		t.Errorf("rejection message = %q, want it to name the citation anchor", err.Error())
 	}
 	// The report is unchanged — the anchor and its prose both survive.
-	if got := readReport(t, runDir); !strings.Contains(got, "value<!--cite:c-abc123--> is stable over time") {
+	if got := readReport(t, runDir); !strings.Contains(got, "value<!--cite:C-00abc123--> is stable over time") {
 		t.Errorf("a rejected edit changed the report:\n%s", got)
 	}
 }
@@ -112,9 +112,9 @@ func sameSet(a, b []string) bool {
 // point silently addresses two places.
 func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 	for _, c := range []struct{ name, anchor, want string }{
-		{"finding anchor", "<!--fx:f-abc123-->", "finding anchor"},
-		{"gap anchor", "<!--gap:G7-->", "gap anchor"},
-		{"citation anchor", "<!--cite:c-abc123-->", "citation anchor"},
+		{"finding anchor", "<!--fx:F-00abc123-->", "finding anchor"},
+		{"gap anchor", "<!--gap:G-00000007-->", "gap anchor"},
+		{"citation anchor", "<!--cite:C-00abc123-->", "citation anchor"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := newRun(t)

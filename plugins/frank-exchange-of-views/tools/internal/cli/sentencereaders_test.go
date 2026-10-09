@@ -110,7 +110,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	})
 	t.Run("the risk matrix cell is the whole first sentence", func(t *testing.T) {
 		registerLensOnce(t, runDir)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", "G1", "--class", "scope-creep", "--about-kind", "section", "--about", "Findings",
 			"--problem", "The committee chair said “Stop.” Then everyone left the room.",
 			"--check-kind", "document", "--check", "the report says who left",

@@ -299,7 +299,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 					args[i] = recordtest.TmpRun(t)
 				}
 			}
-			_, err := run(t, args...)
+			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatal("the verb ran without its preconditions")
 			}
@@ -509,13 +509,14 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	}
 	// The ID leads the message now: it is what the chair will name, and a seat told only
 	// "recorded" has to invent a way to refer to this later.
-	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "evidence-F1") {
-		t.Errorf("finding said %q", out)
-	}
-
 	ev := lastBody(t, runDir, &recordpb.Finding{})
-	if got := ev.GetLabel(); got != "evidence-F1" {
-		t.Errorf("label = %q", got)
+	if got := ev.GetId(); !regexp.MustCompile(`^F-[0-9a-f]{8}$`).MatchString(got) {
+		t.Errorf("id = %q, want F-<8 hex>", got)
+	}
+	// The id is printed WITH the area that raised it: a random id says nothing about whose
+	// finding it is, so the line carries both, exactly.
+	if want := "finding recorded: " + ev.GetId() + " (evidence) "; !strings.HasPrefix(out, want) {
+		t.Errorf("finding said %q, want it to open %q", out, want)
 	}
 	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_HIGH {
 		t.Errorf("severity = %q", recordpb.Word(got))
@@ -533,7 +534,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	} else if got := m.At.CurrentEpoch(m.Events); got != 0 {
 		t.Errorf("epoch = %d, want 0 — no chair has registered in this run", got)
 	}
-	if env.GetKey() != seatID+":finding:evidence-F1" {
+	if env.GetKey() != seatID+":finding:"+ev.GetId() {
 		t.Errorf("key = %q", env.GetKey())
 	}
 }
@@ -553,7 +554,7 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	// `reason` is the FLAG; the field it lands in is `text`. setFields reads the schema, so it
 	// reports what the record holds rather than what the seat typed.
 	keys := setFields(lastBody(t, runDir, &recordpb.Finding{}))
-	if !keys["label"] || !keys["severity"] || !keys["text"] {
+	if !keys["id"] || !keys["severity"] || !keys["text"] {
 		t.Errorf("a passed flag is missing from the body: %v", keys)
 	}
 	for _, absent := range []string{"likelihood", "impact"} {
@@ -628,9 +629,9 @@ func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 	}
 }
 
-// Ids are TOOL-assigned and sequential per round; --key makes a crash retry
+// Ids are TOOL-assigned, one per gap and no two alike; --key makes a crash retry
 // idempotent rather than double-minting.
-func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
+func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 	runDir := newRun(t)
 	seatID := lensSeat
 	registerChairOnce(t, runDir) // the chair sits first: the epoch is its sitting count
@@ -650,16 +651,16 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	// id — so a corrupted contract was invisible until someone read the board (measured,
 	// red-chair, 2026-09-02_quadratic-formula).
 	firstLine := func(s string) string { return strings.SplitN(s, "\n", 2)[0] }
-	if got := firstLine(mint()); got != "minted G1" {
+	if got := firstLine(mint()); got != handleText(t, runDir, "minted G1") {
 		t.Errorf("first mint said %q", got)
 	}
-	if got := firstLine(mint("--key", "L1-F3")); got != "minted G2" {
+	if got := firstLine(mint("--key", "L1-F3")); got != handleText(t, runDir, "minted G2") {
 		t.Errorf("second mint said %q", got)
 	}
 	// The retry: same command, same key, and the EXISTING id comes back.
 	// FIRST LINE, because every write now also prints where the seat stands (seat/standing.go) and
 	// the subject here is what the verb said about the act.
-	if got := firstLine(mint("--key", "L1-F3")); got != "minted G2 (idempotent retry — existing id returned)" {
+	if got := firstLine(mint("--key", "L1-F3")); got != handleText(t, runDir, "minted G2 (idempotent retry — existing id returned)") {
 		t.Errorf("the retry said %q, want the existing id", got)
 	}
 	mints := 0
@@ -680,7 +681,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "minted G3") {
+	if !strings.Contains(out, handleText(t, runDir, "minted G3")) {
 		t.Errorf("epoch 2's first mint said %q, want G3", out)
 	}
 }
@@ -706,7 +707,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 		t.Fatalf("mint --json is not valid JSON (%v): %s", e, out)
 	}
 	result, _ := ok["result"].(map[string]any)
-	if ok["verb"] != "mint" || ok["ok"] != true || result["gap_id"] != "G1" {
+	if ok["verb"] != "mint" || ok["ok"] != true || result["gap_id"] != handleText(t, runDir, "G1") {
 		t.Errorf("mint --json = %v, want {verb:mint, ok:true, result:{gap_id:G1}}", ok)
 	}
 
@@ -715,7 +716,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.SplitN(strings.TrimSpace(plain), "\n", 2)[0]; got != "minted G2" {
+	if got := strings.SplitN(strings.TrimSpace(plain), "\n", 2)[0]; got != handleText(t, runDir, "minted G2") {
 		t.Errorf("default mint = %q, want unchanged prose 'minted G2' on the first line", got)
 	}
 
@@ -887,7 +888,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 
 	// --reason is supplied so the refusal under test is the ANCHOR one: cobra refuses a missing
 	// required flag at parse, before the handler that checks the anchor ever runs.
-	_, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
+	_, err := runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
 		"--reason", "closed after verification")
 	if err == nil {
 		t.Fatal("an unanchored closure was accepted")
@@ -897,20 +898,20 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	}
 
 	// A partial verification is not a verification, and cobra says so at parse.
-	_, err = run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
+	_, err = runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
 		"--reason", "closed after verification", "--verified-by", "L1")
 	if err == nil {
 		t.Fatal("a partial verification was accepted")
 	}
 
 	// The full triple closes it.
-	out, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
+	out, err := runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:f",
 		"--reason", "verified against the ref")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "closed G1 (repaired)") {
+	if !strings.Contains(out, handleText(t, runDir, "closed G1 (repaired)")) {
 		t.Errorf("close said %q", out)
 	}
 	ev := lastBody(t, runDir, &recordpb.Close{})
@@ -919,7 +920,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	}
 
 	// Closing an unknown gap is refused before anything is written.
-	_, err = run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G2",
+	_, err = runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G2",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 		"--reason", "supplied so the refusal under test is the reference one")
 	if err == nil {
@@ -929,7 +930,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	// seat.Begin resolves it before the handler runs and the message is the reference one. That
 	// is the point of moving the check to the flag: the seat is told the id names nothing,
 	// rather than being told about an anchor for a gap that does not exist.
-	if !strings.Contains(err.Error(), "names gap G2") {
+	if !strings.Contains(err.Error(), handleText(t, runDir, "names gap G2")) {
 		t.Errorf("error = %q", err)
 	}
 }
@@ -951,17 +952,17 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	successor := regexp.MustCompile(`G\d+`).FindString(succOut)
+	successor := regexp.MustCompile(`G-[0-9a-f]{8}`).FindString(succOut)
 	if successor == "" {
 		t.Fatalf("could not read the successor id from %q", succOut)
 	}
 	base := []string{"close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 		"--reason", "verified", "--as", "repaired_with_regression"}
-	if _, err := run(t, base...); err == nil {
+	if _, err := runAt(t, base...); err == nil {
 		t.Fatal("repaired_with_regression was accepted without a successor — lineage dropped")
 	}
-	if _, err := run(t, append(base, "--superseded-by", successor)...); err != nil {
+	if _, err := runAt(t, append(base, "--superseded-by", successor)...); err != nil {
 		t.Fatalf("a successor'd regression close was refused: %v", err)
 	}
 }
@@ -976,7 +977,7 @@ func TestCloseRecordsItsProse(t *testing.T) {
 		"--class", "x", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
+	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason", "the whole closure record"); err != nil {
 		t.Fatal(err)
 	}
@@ -1018,7 +1019,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				t.Fatal(err)
 			}
 			args := append([]string{tc.args[0], tc.args[1], "--run", runDir, "--seat-id", seatID}, tc.args[2:]...)
-			_, err := run(t, args...)
+			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatal("the verb was accepted without its reason")
 			}
@@ -1097,7 +1098,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "G1", "--reason", "contested, and not mine to close"); err != nil {
 		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
@@ -1110,7 +1111,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// refused, and an empty one is an answer — TestBenchDocketRuleTakesAnHonestBlank holds that half.
 	full := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
-		"settled": "blue must repair c-65ca0a9e"}
+		"settled": "blue must repair C-65ca0a9e"}
 	// THE FOUR DocketRuling FIELDS ARE REFUSED BY THE RECORD WRITE, with the schema's own `why`,
 	// and as OMITTED — not as "said nothing", which is the refusal an omitted flag written as ""
 	// would get instead (#1234). The `why` is read off the field, so this asserts the refusal is
@@ -1132,7 +1133,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 					args = append(args, "--"+k, v)
 				}
 			}
-			_, err := run(t, args...)
+			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatalf("a docket ruling was accepted without --%s", missing)
 			}
@@ -1160,7 +1161,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 			args = append(args, "--"+k, v)
 		}
 		args = append(args, "--reopens-on", "a reproduction on a clean tree")
-		if _, err := run(t, args...); err == nil {
+		if _, err := runAt(t, args...); err == nil {
 			t.Fatal("a ruling with no reasoning was accepted — a verdict the losing party cannot answer")
 		} else if !strings.Contains(err.Error(), "reason") {
 			t.Errorf("the refusal does not name --reason: %v", err)
@@ -1172,11 +1173,11 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
-	out, err := run(t, args...)
+	out, err := runAt(t, args...)
 	if err != nil {
 		t.Fatalf("a complete docket ruling was refused: %v", err)
 	}
-	if !strings.Contains(out, "motion M1 ruled remanded") {
+	if !strings.Contains(out, handleText(t, runDir, "motion M1 ruled remanded")) {
 		t.Errorf("the docket ruling said %q", out)
 	}
 	// THE RULER'S ARGUMENT IS `MotionRule.opinion` — the prose channel every subject's ruling
@@ -1212,7 +1213,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		if final {
 			args = append(args, "--final")
 		}
-		_, err := run(t, args...)
+		_, err := runAt(t, args...)
 		return err
 	}
 	docket := func(t *testing.T) (string, string) {
@@ -1297,7 +1298,7 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 					args = append(args, "--"+k, v)
 				}
 			}
-			_, err := run(t, args...)
+			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatal("a docket ruling on a petition motion was accepted")
 			}
@@ -1384,7 +1385,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, id := range []string{"G1", "G2"} {
+	for _, id := range strings.Fields(handleText(t, runDir, "G1 G2")) {
 		if _, err := run(t, "closing", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--reason", "argued "+id); err != nil {
 			t.Fatal(err)
@@ -1465,13 +1466,13 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	if err == nil {
 		t.Fatal("PASS was recorded over 2 open gaps — the rubber-stamp the guard exists to stop")
 	}
-	for _, want := range []string{"G1", "G2", "PASS refused"} {
+	for _, want := range []string{handleText(t, runDir, "G1"), handleText(t, runDir, "G2"), "PASS refused"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name the open gaps, got: %v", err)
 		}
 	}
 	// The originator closes: the lens that minted the gaps is the seat that closes them.
-	for _, id := range []string{"G1", "G2"} {
+	for _, id := range strings.Fields(handleText(t, runDir, "G1 G2")) {
 		if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 			"--id", id, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
@@ -1535,7 +1536,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	}
 	// A PASS is refused over an open material gap, so close it first (the guard is exercised in its
 	// own test); this test is about render + checkpoint on a legitimate PASS.
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", seatID,
+	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", seatID,
 		"--id", "G1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 		t.Fatal(err)
@@ -1721,7 +1722,7 @@ func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--none", "--reason", "x", "--ids", "G1"); err == nil || !strings.Contains(err.Error(), "none") {
 		t.Fatalf("claiming both nothing-to-sample and a sample must be refused, got %v", err)
 	}
@@ -1775,7 +1776,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mint: %v", err)
 	}
-	id := regexp.MustCompile(`G\d+`).FindString(minted)
+	id := regexp.MustCompile(`G-[0-9a-f]{8}`).FindString(minted)
 	if id == "" {
 		t.Fatalf("could not read the minted id from %q", minted)
 	}
@@ -1796,7 +1797,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 
 // avenueIDOf pulls the tool-assigned avenue id out of a propose result.
 func avenueIDOf(out string) string {
-	m := regexp.MustCompile(`\b(Q\d+)\b`).FindStringSubmatch(out)
+	m := regexp.MustCompile(`\b(Q-[0-9a-f]{8})\b`).FindStringSubmatch(out)
 	if m == nil {
 		return ""
 	}

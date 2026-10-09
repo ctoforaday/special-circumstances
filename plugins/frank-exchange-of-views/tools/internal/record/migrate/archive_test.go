@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -91,8 +93,14 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 		t.Errorf("family holds %d events, want the %d migrated", len(fam.Events), outTotal)
 	}
 	assertRoundless(t, fam)
-	if len(res.GapIDs) != 26 || res.GapIDs["R1-1"] != "G1" || res.GapIDs["R2-1"] != "G10" {
-		t.Errorf("the manifest's gap-id table: %d entries, R1-1=%q R2-1=%q — want 26, G1, G10 (nine gaps minted in round 1)", len(res.GapIDs), res.GapIDs["R1-1"], res.GapIDs["R2-1"])
+	gapIDs := 0
+	for _, id := range res.IDs {
+		if strings.HasPrefix(id, "G-") {
+			gapIDs++
+		}
+	}
+	if gapIDs != 26 || res.IDs["R1-1"] != migratedID(res, "G", "R1-1") || fam.Gap(res.IDs["R2-1"]) == nil {
+		t.Errorf("the manifest's id table: %d gap ids, R1-1=%q R2-1=%q — want 26, each the hash of the source and its archived id, each on the board", gapIDs, res.IDs["R1-1"], res.IDs["R2-1"])
 	}
 	if res.Serialized["red-lens-r3-L2"] != 25 {
 		t.Errorf("serialized instances: %v — the round-3 second citation instance has 25 events", res.Serialized)
@@ -126,6 +134,13 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 			t.Fatalf("event %d differs between two migrations of one source", i)
 		}
 	}
+}
+
+// migratedID is the id a migration gives an archived id that kept no hex of its own: the kind's
+// letter, then the first eight hex of sha256(source hash ‖ archived id).
+func migratedID(res *migrate.Manifest, letter, archived string) string {
+	sum := sha256.Sum256([]byte(res.SourceHash + archived))
+	return fmt.Sprintf("%s-%x", letter, sum[:4])
 }
 
 func firstLine(s string) string {
@@ -296,7 +311,7 @@ func TestB8ArchiveMigratesWithNoRefusal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the migrated record does not read as a record: %v", err)
 	}
-	g4 := fam.Gap("G4")
+	g4 := fam.Gap(migratedID(res, "G", "G4"))
 	if g4 == nil || g4.Mint == nil {
 		t.Fatal("G4, the mint the screen refused, is not on the migrated board")
 	}

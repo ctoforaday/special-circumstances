@@ -4,6 +4,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -74,23 +75,28 @@ func transcriptWith(t *testing.T, commands ...string) (string, []string) {
 // A PRECISE PROSE TARGET IS NOT A VAGUE ONE. The seat did the work, anchored it to an exact line,
 // and named the id in the tool it ran. That must reconcile.
 func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
-	run := attestRun(t, "show report --anchor f-0dd40334", "report text at line 103")
-	tr, files := transcriptWith(t, `feov-record red-chair show report --anchor f-0dd40334`)
+	run := attestRun(t, "show report --anchor F-0dd40334", "report text at line 103")
+	tr, files := transcriptWith(t, `feov-record red-chair show report --anchor F-0dd40334`)
 	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict != "PASS" {
 		t.Errorf("a closure citing an id the transcript carries must reconcile.\ngot %s: %s", got.Verdict, got.Detail)
+	}
+	// RECONCILED, NOT UNMEASURED: an id the reader does not recognise falls through to the prose path,
+	// finds no fragment, and reports the same PASS with 0/1 behind it.
+	if !strings.HasPrefix(got.Detail, "1/1 anchored closure(s) sampled and reconciled") || strings.Contains(got.Detail, "NOT BE MEASURED") {
+		t.Errorf("the closure must reconcile BY ITS ID, not go unmeasured:\n%s", got.Detail)
 	}
 }
 
 // AND THE DISHONEST CASE STILL FAILS, which is the half that makes the fix worth having.
 func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
-	run := attestRun(t, "show report --anchor f-0dd40334", "report text at line 103")
+	run := attestRun(t, "show report --anchor F-0dd40334", "report text at line 103")
 	tr, files := transcriptWith(t, `feov-record red-chair show board`)
 	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an id in no tool call must be a finding; got %s: %s", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "f-0dd40334") {
+	if !strings.Contains(got.Detail, "F-0dd40334") {
 		t.Errorf("the refusal must name the id it could not find:\n%s", got.Detail)
 	}
 }
@@ -131,9 +137,26 @@ func TestTheProseFloorStillRefusesAWordThatWouldMatchEverything(t *testing.T) {
 }
 
 func TestNeedlesForPrefersTheRecordsOwnIdentifiers(t *testing.T) {
-	ns, byID := needlesFor(Claim{Tool: "show evidence; show report --anchor c-5058e9f8", Target: "evidence projection"})
-	if !byID || len(ns) != 1 || ns[0] != "c-5058e9f8" {
+	ns, byID := needlesFor(Claim{Tool: "show evidence; show report --anchor C-5058e9f8", Target: "evidence projection"})
+	if !byID || len(ns) != 1 || ns[0] != "C-5058e9f8" {
 		t.Errorf("an id in the tool must win over prose in the target; got %v byID=%v", ns, byID)
+	}
+	// EVERY ANCHOR KIND IS A NEEDLE, a gap id with them, and every id in the tool is one.
+	for tool, want := range map[string][]string{
+		"show report --anchor F-0dd40334":                      {"F-0dd40334"},
+		"show report --anchor G-5e10a3c2":                      {"G-5e10a3c2"},
+		"show report --anchor P-abd56845":                      {"P-abd56845"},
+		"show report --anchor F-0dd40334; show gap G-5e10a3c2": {"F-0dd40334", "G-5e10a3c2"},
+	} {
+		if ns, byID := needlesFor(Claim{Tool: tool, Target: "evidence projection"}); !byID || !slices.Equal(ns, want) {
+			t.Errorf("needlesFor(%q) = %v byID=%v, want %v by id", tool, ns, byID, want)
+		}
+	}
+	// AN ID IS EXACTLY THE SHAPE: a longer hex run or another letter is prose, and falls to the target.
+	for _, tool := range []string{"show report --anchor F-0dd403345", "show report --anchor X-0dd40334", "show report --anchor f-0dd40334"} {
+		if ns, byID := needlesFor(Claim{Tool: tool, Target: "evidence projection"}); byID || !slices.Equal(ns, []string{"projection"}) {
+			t.Errorf("needlesFor(%q) = %v byID=%v; it carries no id and must fall back to prose", tool, ns, byID)
+		}
 	}
 	ns, byID = needlesFor(Claim{Tool: "show report", Target: "evidence projection"})
 	if byID || len(ns) != 1 || ns[0] != "projection" {

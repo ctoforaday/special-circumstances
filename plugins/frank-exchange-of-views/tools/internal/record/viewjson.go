@@ -50,7 +50,7 @@ type CountsJSON struct {
 	Open          int `json:"open"`
 	Closed        int `json:"closed"`
 	ClosedByBench int `json:"closed_by_bench"`
-	// UncreditedFindings counts lens findings whose label is named in NO gap's found_by.
+	// UncreditedFindings counts lens findings whose id is named in NO gap's found_by.
 	//
 	// A finding's fate is COALESCENCE, so the honest question is whether it was ever credited.
 	// Counting an explicit disposal instead would be permanently zero — the plausible zero this
@@ -169,17 +169,16 @@ type GapJSON struct {
 }
 
 type ObservationJSON struct {
-	// ID is the tool-assigned, unguessable identity. It leads the struct because it is the
-	// field the chair acts on; the label below is description, and two lenses may both
-	// use "F1" without either being wrong.
+	// ID is the finding's tool-minted id. It leads the struct because it is the field the chair
+	// acts on; Area is the lens that filed it, which the id does not say.
 	ID     string `json:"id"`
+	Area   string `json:"area"`
 	SeatID string `json:"seat_id"`
 	Key    string `json:"key"`
 	Kind   string `json:"kind"`
-	Label  string `json:"label"`
 	Text   string `json:"text"`
 
-	// Credited says the finding's label is named in some gap's found_by — the ONLY way a
+	// Credited says the finding's id is named in some gap's found_by — the ONLY way a
 	// finding is addressed. It is explicit rather than left for the consumer to re-derive by
 	// scanning every gap, because that re-derivation is a second definition free to disagree
 	// with this one.
@@ -449,8 +448,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	for _, e := range findings {
 		f, _ := recordpb.BodyAs[*recordpb.Finding](e)
 		oj := ObservationJSON{SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()),
-			ID: f.GetFindingId(), Label: f.GetLabel(), Text: f.GetText()}
-		oj.Credited = oj.Label != "" && credited[oj.Label]
+			ID: f.GetId(), Area: AreaOf(e.GetSeatId()), Text: f.GetText()}
+		oj.Credited = credited[oj.ID]
 		if !oj.Credited {
 			out.Counts.UncreditedFindings++
 		}
@@ -727,8 +726,8 @@ type WorkGapJSON struct {
 	RequiredFix     string `json:"required_fix"`
 	AcceptanceCheck string `json:"acceptance_check"`
 	// MintedBy is the seat that minted this gap, AS A SEAT ID. FoundBy below carries finding
-	// labels (`computation-F1`), so ownership was recoverable only by decoding a prefix and then
-	// recalling that only the originator may close — two inferences at the moment of acting.
+	// ids, which name the lens that FOUND a defect and not the seat that minted the gap, so ownership
+	// needed a second lookup and the rule that only the originator may close, at the moment of acting.
 	// Measured on universe-m10: every one of the run's 8 refusals was a seat acting on another
 	// seat's gap, and the information was present in `found_by` the whole time.
 	MintedBy string `json:"minted_by"`
@@ -1259,23 +1258,12 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 // attribute per role/epoch from. It replaces the red/candidates/*.md file the chair used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.
 type FindingJSON struct {
-	Label string `json:"label"`
-	// Anchor is the finding_id inside this finding's `<!--fx:f-…-->` token — the join key
-	// between the marker in the report and the finding that placed it.
-	//
-	// IT WAS MISSING, and `show report`'s own description had been telling seats that this
-	// view resolved the token. It did not: a seat holding `<!--fx:f-0b03fbfd-->` got back
-	// `L1-F1`, `L5-F1`, … and nothing that connected the two, so the only way to learn what a
-	// marker in the report meant was to not have that question. The record has carried
-	// finding_id since the marker existed; the projection dropped it, which is the join key
-	// living where nothing can reach it rather than where it was written.
-	//
-	// Found 2026-08-17 by `show report --anchor` — the first surface that required a seat to
-	// SUPPLY an anchor id, which is what made the missing lookup observable at all.
-	Anchor     string `json:"anchor"`
+	// ID is the finding's one name: what a gap's found_by credits, and the id inside its anchor in
+	// the report, so a seat holding either resolves it here. Area is the lens that filed it.
+	ID         string `json:"id"`
+	Area       string `json:"area"`
 	SeatID     string `json:"seat_id"`
 	Epoch      int    `json:"epoch"`
-	Role       string `json:"role"`
 	Severity   any    `json:"severity"`
 	Likelihood any    `json:"likelihood"`
 	Impact     any    `json:"impact"`
@@ -1323,7 +1311,7 @@ type FindingJSON struct {
 }
 
 // FindingsJSON is the seat-facing findings view: every lens finding on the record, in
-// event order. The chair reads it to coalesce findings into gaps (naming labels in
+// event order. The chair reads it to coalesce findings into gaps (naming their ids in
 // found_by); scorecards counts it per role/epoch for citation-yield.
 type FindingsJSON struct {
 	Findings []FindingJSON `json:"findings"`
@@ -1345,8 +1333,8 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 	mintedBy := map[string][]string{}
 	for _, e := range evs {
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
-			for _, label := range m.GetFoundBy() {
-				mintedBy[label] = append(mintedBy[label], m.GetGapId())
+			for _, id := range m.GetFoundBy() {
+				mintedBy[id] = append(mintedBy[id], m.GetGapId())
 			}
 		}
 	}
@@ -1358,11 +1346,10 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 			continue
 		}
 		fj := FindingJSON{
-			Label:  f.GetLabel(),
-			Anchor: f.GetFindingId(),
+			ID:     f.GetId(),
+			Area:   AreaOf(e.GetSeatId()),
 			SeatID: e.GetSeatId(),
 			Epoch:  win.Of(e).Epoch,
-			Role:   AreaOf(e.GetSeatId()),
 			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
 			// channel and this is it — there is no Finding.reason.
 			Location:  f.GetLocation(),
@@ -1373,7 +1360,7 @@ func FindingsJSONOf(evs []*Event, win WindowIndex) FindingsJSON {
 		// THE JOIN, FROM THE STREAM RATHER THAN A BOARD. mintedBy is built from the mint bodies
 		// in the same event slice, so this view still reads one family of acts plus one — it does
 		// not acquire the full fold the board-shaped signature was removed to avoid.
-		fj.MintedAs = mintedBy[f.GetLabel()]
+		fj.MintedAs = mintedBy[f.GetId()]
 		if fj.MintedAs == nil {
 			fj.MintedAs = []string{}
 		}

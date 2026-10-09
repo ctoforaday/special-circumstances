@@ -27,10 +27,8 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		}
 	}
 
-	app(lens, &recordpb.Finding{FindingId: proto.String("f-0a0a0a0a"), Label: proto.String("L1-F1"),
-		Location: proto.String("¶3"), Text: proto.String("overclaims"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)})
-	app(lens, &recordpb.Finding{FindingId: proto.String("f-0b0b0b0b"), Label: proto.String("L1-F2"),
-		Text: proto.String("uncredited")})
+	app(lens, &recordpb.Finding{Id: proto.String("F-0a0a0a0a"), Location: proto.String("¶3"), Text: proto.String("overclaims"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)})
+	app(lens, &recordpb.Finding{Id: proto.String("F-0b0b0b0b"), Text: proto.String("uncredited")})
 
 	mint := func(id string, extra func(m *recordpb.Mint)) {
 		m := &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: proto.String("self-attestation"),
@@ -47,7 +45,7 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		t.Fatal(err)
 	}
 	mint("G1", func(m *recordpb.Mint) {
-		m.FoundBy = []string{"L1-F1"}
+		m.FoundBy = []string{"F-0a0a0a0a"}
 		m.MintReason = proto.String("the argument")
 		m.Location = proto.String("the claimed span")
 		m.FixBasis = proto.String("proposed")

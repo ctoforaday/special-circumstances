@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -34,16 +35,19 @@ type GapPlacement struct {
 // rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
 type placer struct {
 	dst      record.Run
-	anchored map[string]bool // ids the source stream anchors itself
+	anchored map[string]bool // ids the source stream anchors itself, as the migrated record spells them
 	placed   bool
 	census   GapPlacement
 }
 
-func newPlacer(dst record.Run, evs []OldEvent) *placer {
+// newPlacer reads which ids the source stream anchors itself. The bodies step is asked about carry
+// migrated ids, so each is keyed on what migrated — the remap's table, filled by now — spells it:
+// keyed on the source's spelling, a run that anchored its own acts would gain a second Anchor each.
+func newPlacer(dst record.Run, evs []OldEvent, migrated map[string]string) *placer {
 	p := &placer{dst: dst, anchored: map[string]bool{}, census: GapPlacement{Shapes: map[string]int{}}}
 	for _, ev := range evs {
 		if id, _ := ev.Fields["id"].(string); ev.Word == "anchor" && id != "" {
-			p.anchored[id] = true
+			p.anchored[cmp.Or(migrated[id], id)] = true
 		}
 	}
 	return p

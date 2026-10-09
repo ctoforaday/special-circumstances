@@ -14,9 +14,9 @@ TWO CONSEQUENCES:
 $ motion petition file --run {RUN} --seat-id red-chair --class safety --reason the design erodes a consent gate --relief halt and escalate
 exit 0
 stdout:
-motion M1 filed (petition)
+motion MOTION001 filed (petition)
 2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · motion M1 (petition, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · motion MOTION001 (petition, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id judge --occasion docket
@@ -30,12 +30,12 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · motion M1 (petition, ruled by the bench seat) is unruled and the gavel is yours — the run cannot end in a verdict while it stands
+  · motion MOTION001 (petition, ruled by the bench seat) is unruled and the gavel is yours — the run cannot end in a verdict while it stands
 
-$ motion petition rule --run {RUN} --seat-id judge --id M1 --as granted --binds both --reason the relief binds the coming seats
+$ motion petition rule --run {RUN} --seat-id judge --id MOTION001 --as granted --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
-motion M1 ruled granted [key judge:motion_rule:#1]
+motion MOTION001 ruled granted [key judge:motion_rule:#1]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ halt --run {RUN} --seat-id judge --reason continuing would compromise the consent gate
@@ -48,9 +48,9 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-chair:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"MOTION001","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"judge:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"MOTION001","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
 {"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge:halt:#1","seat_id":"judge","ts":6,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══

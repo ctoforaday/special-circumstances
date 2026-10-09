@@ -50,7 +50,7 @@ func TestMigratingAdmitsArchivedPassOverNowAlwaysGap(t *testing.T) {
 	if passes != 1 {
 		t.Fatalf("the migrated record carries %d PASS gates, want the archive's one", passes)
 	}
-	g := fam.Gap("G3")
+	g := fam.Gap(migratedID(res, "G", "G3"))
 	if g == nil || !g.Open || !g.Material || g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS ||
 		recordpb.GradeMass(g.Severity) >= 2 {
 		t.Fatalf("fixture: G3 is not an open, low-graded gap of an always class on the migrated record: %+v", g)
@@ -59,9 +59,9 @@ func TestMigratingAdmitsArchivedPassOverNowAlwaysGap(t *testing.T) {
 
 // THE SAME BOARD, LIVE, IS REFUSED: the exemption is the migration's, not the gate's.
 func TestLivePassOverOpenAlwaysGapRefused(t *testing.T) {
-	_, dst := migrateArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
+	res, dst := migrateArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
 	_, err := record.Append(record.Identity{Run: dst, SeatID: "red-chair"}, &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})
-	if err == nil || !strings.Contains(err.Error(), "material gap(s) still OPEN") || !strings.Contains(err.Error(), "G3") {
+	if err == nil || !strings.Contains(err.Error(), "material gap(s) still OPEN") || !strings.Contains(err.Error(), migratedID(res, "G", "G3")) {
 		t.Fatalf("a live PASS over the open always-class G3 must be refused: %v", err)
 	}
 }
@@ -208,8 +208,8 @@ func thisBinaryRun(t *testing.T) string {
 	}{
 		{lens, &recordpb.ClassNew{Slug: proto.String("coined-here"), Definition: proto.String("d"), Neighbor: proto.String("g"),
 			Distinguisher: proto.String("x"), MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS.Enum()}},
-		{lens, mint("G1", "coined-here", recordpb.Grade_GRADE_LOW)},
-		{lens, mint("G2", "shapey", recordpb.Grade_GRADE_HIGH)},
+		{lens, mint("G-00000001", "coined-here", recordpb.Grade_GRADE_LOW)},
+		{lens, mint("G-00000002", "shapey", recordpb.Grade_GRADE_HIGH)},
 		{chair, &recordpb.SpotCheck{Areas: []string{lens}, Reason: proto.String("read the changes since the pin")}},
 	} {
 		if _, err := record.Append(record.Identity{Run: run, SeatID: act.seat}, act.body); err != nil {
@@ -286,7 +286,7 @@ func TestMigrateRunWrittenByThisBinaryKeepsNewFields(t *testing.T) {
 }
 
 // migratedPass is the one PASS gate on a migrated record, and the family it reads from.
-func migratedPass(t *testing.T, archive string) (record.Family, *recordpb.Gate, record.Run) {
+func migratedPass(t *testing.T, archive string) (*migrate.Manifest, record.Family, *recordpb.Gate, record.Run) {
 	t.Helper()
 	res, dst := migrateArchive(t, archive)
 	if len(res.Refusals) != 0 {
@@ -305,7 +305,7 @@ func migratedPass(t *testing.T, archive string) (record.Family, *recordpb.Gate, 
 	if len(passes) != 1 {
 		t.Fatalf("the migrated record carries %d PASS gates, want the archive's one", len(passes))
 	}
-	return fam, passes[0], dst
+	return res, fam, passes[0], dst
 }
 
 // THE ARCHIVED PASSES MIGRATION ADMITS CARRY THE FACT (fork (a), gblock 2026-09-15). b7's PASS stood
@@ -319,7 +319,8 @@ func TestMigrationRecordsAdmittedPassOnArchives(t *testing.T) {
 		{"2026-09-11_is-91-prime-b9.tar.gz", "G3"},
 	} {
 		t.Run(c.archive, func(t *testing.T) {
-			fam, pass, dst := migratedPass(t, c.archive)
+			res, fam, pass, dst := migratedPass(t, c.archive)
+			c.gap = migratedID(res, "G", c.gap)
 			if got := pass.GetMigrationAdmittedGapIds(); len(got) != 1 || got[0] != c.gap {
 				t.Fatalf("the migrated PASS carries migration_admitted_gap_ids %v, want [%s]", got, c.gap)
 			}
@@ -366,7 +367,7 @@ func TestMigrationRecordsAdmittedPassOnArchives(t *testing.T) {
 // open low_medium gaps of run-coined classes the table lacks, so both stay by_grade and neither is
 // material: the gate the migration is exempt from would not have refused, and nothing is admitted.
 func TestMigratedPassOverOnlyNonMaterialGapsCarriesNoAdmission(t *testing.T) {
-	fam, pass, _ := migratedPass(t, "2026-09-11_is-91-prime-b6.tar.gz")
+	_, fam, pass, _ := migratedPass(t, "2026-09-11_is-91-prime-b6.tar.gz")
 	open := 0
 	for _, g := range fam.Gaps {
 		if g != nil && g.Open {

@@ -37,7 +37,7 @@ flowchart TB
     L["lens finding --key F1<br/>lens cite --claim …"]
   end
   subgraph record["THE RECORD (event log — the only inter-agent channel)"]
-    FE["finding events<br/>(TOOL-assigned label L{role}-F{N})"]
+    FE["finding events<br/>(TOOL-minted id)"]
     CE["cite events"]
     ME["mint / close / regrade events"]
   end
@@ -57,7 +57,7 @@ flowchart TB
   CE --> CL
   ME --> BD
   FV -->|coalesce, do not transcribe| chair
-  chair -->|mint gap, found_by = finding LABELS| ME
+  chair -->|mint gap, found_by = finding IDS| ME
   FV -->|per-role/epoch yield| score
   BD --> bench
   ME --> DBT
@@ -70,10 +70,10 @@ flowchart TB
 ## Invariants the diagram encodes
 
 - **Findings are events, not files.** A lens records each finding through `feov-record
-  finding --key <local F1>`; the tool assigns the run-unique label `L{role}-F{N}` (role from
-  the seat id). `red/candidates/*.md` is retired — nothing writes or reads it.
+  finding --key <your handle>`; the tool mints the finding's id, and the lens's area prints
+  beside it wherever it is named. `red/candidates/*.md` is retired — nothing writes or reads it.
 - **The chair reads the findings VIEW**, structured JSON, and coalesces findings into gaps.
-  A gap's `found_by` names finding **labels** (`L1-F1`), which `verify.foundByResolves`
+  A gap's `found_by` names finding **ids**, which `verify.foundByResolves`
   checks against the recorded findings.
 - **Two readers of one replay never drift.** `viewjson.go` (the live JSON views) and
   `internal/view` (the markdown projections, rendered just-in-time on read) both derive from

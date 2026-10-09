@@ -45,7 +45,7 @@ func TestTidySeamLeavesContentAlone(t *testing.T) {
 		"an ellipsis... is content",
 		"emphasis!! stays",
 		"a question?? stays",
-		"an anchor<!--fx:f-abc--> is untouched",
+		"an anchor<!--fx:F-00000abc--> is untouched",
 		"no artifact here at all",
 	} {
 		for at := 1; at < len(s); at++ {

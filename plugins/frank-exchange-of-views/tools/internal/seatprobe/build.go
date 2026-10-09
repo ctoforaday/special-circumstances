@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -58,6 +59,22 @@ var Seats = []struct{ Role, ID string }{
 var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
 
 func Build(run record.Run, b Board, exec Exec) error {
+	// THE BOARD NAMES ITS GAPS AND MOTIONS BY POSITION — G1 is its first gap, M1 its first motion —
+	// and the record mints their ids. Every argument is staged through the ids the tool reported, so
+	// a board's references and its prose name what the record holds.
+	staged, tool := map[string]string{}, exec
+	exec = func(args ...string) (string, error) {
+		for i, a := range args {
+			args[i] = handle.ReplaceAllStringFunc(a, func(h string) string {
+				if id, ok := staged[h]; ok {
+					return id
+				}
+				return h
+			})
+		}
+		return tool(args...)
+	}
+	var gapIDs []string
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
 		return err
 	}
@@ -144,7 +161,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		minter := stagingLenses[i%len(stagingLenses)]
 		// A PROBE BOARD'S GAPS ARE DISTINCT BY CONSTRUCTION — each baits a different act — and the
 		// mint's duplicate screen reads two defects in one paragraph as near. The builder answers the
-		// screen with every gap it staged before this one, ids assigned in order on a fresh run.
+		// screen with every gap it staged before this one.
 		args := []string{"mint", "--run", run.Dir(), "--seat-id", minter,
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
@@ -153,21 +170,22 @@ func Build(run record.Run, b Board, exec Exec) error {
 			"--impact", g.Impact, "--complexity", g.Complexity,
 			"--reason", g.Problem + " (baits " + g.Baits + ": " + g.Why + ")"}
 		if i > 0 {
-			staged := make([]string, i)
-			for j := range staged {
-				staged[j] = fmt.Sprintf("G%d", j+1)
-			}
-			args = append(args, "--distinct-from", strings.Join(staged, ","))
+			args = append(args, "--distinct-from", strings.Join(gapIDs, ","))
 		}
-		if _, err := exec(args...); err != nil {
+		out, err := exec(args...)
+		if err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
 		}
+		gapID := minted("gap", out)
+		if gapID == "" {
+			return fmt.Errorf("mint %s: the tool did not report a minted id in %q", g.Key, out)
+		}
+		staged[fmt.Sprintf("G%d", i+1)], gapIDs = gapID, append(gapIDs, gapID)
 		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM. The bench's prompt states its ruling basis
 		// is "the two closings, the transcript, and the final state" and that both sides have
 		// already filed — so a bench board without them hands the seat a docket it cannot rule on
 		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
 		// naming the null closings, ruled on artifact state instead, and asked for a human check.
-		gapID := fmt.Sprintf("G%d", i+1)
 		for _, c := range []struct{ seat, text string }{
 			{"red-chair", g.RedClosing}, {"blue-respond", g.BlueClosing},
 		} {
@@ -218,7 +236,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if a.Ruled == "" {
 			continue
 		}
-		id := mintedAvenueID(out)
+		id := minted("avenue", out)
 		if id == "" {
 			return fmt.Errorf("avenue %d: the tool did not report a minted id in %q — the ruling "+
 				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
@@ -241,15 +259,17 @@ func Build(run record.Run, b Board, exec Exec) error {
 		case "petition":
 			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
-		if _, err := exec(args...); err != nil {
+		out, err := exec(args...)
+		if err != nil {
 			return fmt.Errorf("motion %d (%s): %w", i+1, m.Subject, err)
 		}
+		staged[fmt.Sprintf("M%d", i+1)] = minted("motion", out)
 		if m.Ruled == "" {
 			continue
 		}
 		ruler := map[string]string{"grade": "red-chair", "petition": "judge", "docket": "judge"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
-			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
+			"--id", staged[fmt.Sprintf("M%d", i+1)], "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
 		}
@@ -385,18 +405,14 @@ func rulingReason(why, verdict string) string {
 	return why
 }
 
-// mintedAvenueID reads the id out of the propose verb's own confirmation
-// ("avenue Q1 recorded (proposed): …"). It returns "" rather than guessing, so a
-// changed message surfaces as the explicit failure above instead of a wrong id reaching a ruling.
-func mintedAvenueID(out string) string {
-	m := mintedID.FindStringSubmatch(out)
-	if len(m) < 2 {
-		return ""
-	}
-	return m[1]
+// minted reads the id of a kind out of a minting verb's own confirmation, or "" rather than a
+// guess, so a changed message surfaces as the explicit failure above instead of a wrong id.
+func minted(kind, out string) string {
+	return regexp.MustCompile(`\b` + anchor.IDPattern(kind) + `\b`).FindString(out)
 }
 
-var mintedID = regexp.MustCompile(`\b(Q\d+)\b`)
+// handle is a board's positional name for a gap or a motion it stages.
+var handle = regexp.MustCompile(`\b[GM][0-9]+\b`)
 
 // BoardClasses is the gap-class vocabulary the staged boards mint under.
 //

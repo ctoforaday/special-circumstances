@@ -67,7 +67,7 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 }
 
 // renderToken is an anchor token of any kind a render can hold.
-var renderToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([a-z]-[0-9a-f]+|G[0-9]+)-->`)
+var renderToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([FCPG]-[0-9a-f]{8})-->`)
 
 var renderKinds = map[string]string{"fx": "finding", "cite": "citation", "proof": "proof", "gap": "gap"}
 
@@ -109,7 +109,7 @@ func skeleton(md string) string {
 	return strings.Join(strings.Fields(normalizeAnchors(strings.Join(kept, "\n"))), " ")
 }
 
-var gapToken = regexp.MustCompile(`<!--gap:G[0-9]+-->`)
+var gapToken = regexp.MustCompile(`<!--gap:G-[0-9a-f]{8}-->`)
 
 func markerCounts(md string) string {
 	n := map[string]int{}

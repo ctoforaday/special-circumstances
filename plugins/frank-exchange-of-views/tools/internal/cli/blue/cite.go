@@ -156,7 +156,7 @@ func newCite() *cobra.Command {
 		// a crash before the appends leaves nothing to adopt. Mint the label (it forms the marker)
 		// and VALIDATE the placement against the current render — a mis-quote or in-fence quote is
 		// refused now, and the validated bytes discarded.
-		label := record.NewCitationID()
+		label := record.NewID("citation")
 		if err := seat.Places(run, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func newCite() *cobra.Command {
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.OCRQuote, "for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id")
 	return seat.Correctable(c)
 }
 

@@ -89,8 +89,8 @@ type invocation struct {
 	code           int
 }
 
-func runGo(bin, runDir string, c cmd) invocation {
-	args := append([]string{c.verb}, substitute(c.args, runDir)...)
+func runGo(bin, runDir string, m *nonceMapper, c cmd) invocation {
+	args := append([]string{c.verb}, m.resolve(substitute(c.args, runDir))...)
 	return capture(exec.Command(bin, args...))
 }
 
@@ -137,13 +137,25 @@ var placeholderPathRe = regexp.MustCompile(`\{(?:RUN|MIRROR)\}[^\s"']*`)
 
 var mirrorRe = regexp.MustCompile(`\S*[\\/]run-mirror[\\/][0-9a-f]{12}`)
 
-// nonceMapper assigns canonical placeholders in shard DISCOVERY order.
+// nonceMapper is ONE SCENARIO'S NAMES for what the tool mints at random: shard nonces, in shard
+// DISCOVERY order, and record ids, in order of FIRST APPEARANCE across the scenario.
+//
+// An id is `<LETTER>-<8 hex>` and random, so a golden sees `GAP001` where the tool printed
+// `G-7cdcd115`, and a script names the gap by that same placeholder: `--id GAP001` is the line the
+// transcript printed, and resolve puts the real id back before the command runs. One mapping per
+// scenario, both directions, so the ordinal a script writes is the ordinal its golden shows.
 type nonceMapper struct {
 	seen map[string]string
 	n    int
+	// ids is real id → placeholder, real the reverse, count the ordinals issued per kind letter.
+	ids   map[string]string
+	real  map[string]string
+	count map[byte]int
 }
 
-func newMapper() *nonceMapper { return &nonceMapper{seen: map[string]string{}} }
+func newMapper() *nonceMapper {
+	return &nonceMapper{seen: map[string]string{}, ids: map[string]string{}, real: map[string]string{}, count: map[byte]int{}}
+}
 
 // observe scans for shards that appeared since the last call and numbers them.
 func (m *nonceMapper) observe(recordsDir string) {
@@ -168,60 +180,58 @@ func (m *nonceMapper) observe(recordsDir string) {
 	}
 }
 
+// idRe matches a record id of any of the six kinds. The letters are written here rather than read
+// from the tool: a kind this harness does not know stays raw in a transcript, and a raw random id
+// is a golden that differs on every run — the loud failure, not a silent one.
+var idRe = regexp.MustCompile(`\b[FCPGQM]-[0-9a-f]{8}\b`)
+
+var idKindNames = map[byte]string{'F': "FINDING", 'C': "CITATION", 'P': "PROOF", 'G': "GAP", 'Q': "AVENUE", 'M': "MOTION"}
+
+// placeholderRe matches what normalize writes, which is what a script writes to name an id.
+var placeholderRe = regexp.MustCompile(`\b(?:FINDING|CITATION|PROOF|GAP|AVENUE|MOTION)\d{3,}\b`)
+
+// normalize replaces every id in s with its placeholder, ASSIGNING one to an id it has not seen.
+// The order strings reach it in is therefore the numbering: each command's stdout, then its
+// stderr, and after the last command the events and the renders.
 func (m *nonceMapper) normalize(s string) string {
+	s = idRe.ReplaceAllStringFunc(s, func(id string) string {
+		if p, ok := m.ids[id]; ok {
+			return p
+		}
+		if id[1:] == noSuchGap[1:] {
+			return id // the id that names nothing is not minted: it prints as written and takes no ordinal
+		}
+		m.count[id[0]]++
+		p := fmt.Sprintf("%s%03d", idKindNames[id[0]], m.count[id[0]])
+		m.ids[id], m.real[p] = p, id
+		return p
+	})
 	for raw, placeholder := range m.seen {
 		s = strings.ReplaceAll(s, raw, placeholder)
 	}
-	return sortNonceLists(normalizeCitationIDs(normalizeProofIDs(normalizeFindingIDs(s))))
+	return sortNonceLists(s)
 }
 
-// proofIDRe matches the tool-assigned proof id, random for the same reason a finding id is. No
-// golden runs `prove`; the determinism fuzz does, for the proof a reproduce correction names.
-var proofIDRe = regexp.MustCompile(`p-[0-9a-f]{8}`)
-
-func normalizeProofIDs(s string) string {
-	seen := map[string]string{}
-	return proofIDRe.ReplaceAllStringFunc(s, func(id string) string {
-		if p, ok := seen[id]; ok {
+// resolve is the reverse, for a command's arguments: each placeholder the scenario has already
+// been shown becomes the id it stands for. One the mapping does not hold names nothing yet, and
+// becomes the id of its kind that names nothing — well-shaped, so the tool looks it up and refuses
+// it for not existing, which is the refusal a seat holding a stale id meets.
+func (m *nonceMapper) resolve(args []string) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		out[i] = placeholderRe.ReplaceAllStringFunc(a, func(p string) string {
+			if id, ok := m.real[p]; ok {
+				return id
+			}
+			for letter, name := range idKindNames {
+				if strings.HasPrefix(p, name) {
+					return string(letter) + noSuchGap[1:]
+				}
+			}
 			return p
-		}
-		p := fmt.Sprintf("PROOF%03d", len(seen)+1)
-		seen[id] = p
-		return p
-	})
-}
-
-// findingIDRe matches the tool-assigned finding id, which is RANDOM by design — an id a
-// seat cannot guess is one it has to look up. Random is also unreproducible, so goldens
-// see it in order of first appearance rather than raw, the same trade the nonces make.
-var findingIDRe = regexp.MustCompile(`f-[0-9a-f]{8}`)
-
-func normalizeFindingIDs(s string) string {
-	seen := map[string]string{}
-	return findingIDRe.ReplaceAllStringFunc(s, func(id string) string {
-		if p, ok := seen[id]; ok {
-			return p
-		}
-		p := fmt.Sprintf("FINDING%03d", len(seen)+1)
-		seen[id] = p
-		return p
-	})
-}
-
-// citationIDRe matches the tool-assigned citation label (record.NewCitationID), random for the
-// same reason a finding id is. The determinism fuzz cites, for the citation a cite correction names.
-var citationIDRe = regexp.MustCompile(`c-[0-9a-f]{8}`)
-
-func normalizeCitationIDs(s string) string {
-	seen := map[string]string{}
-	return citationIDRe.ReplaceAllStringFunc(s, func(id string) string {
-		if p, ok := seen[id]; ok {
-			return p
-		}
-		p := fmt.Sprintf("CITATION%03d", len(seen)+1)
-		seen[id] = p
-		return p
-	})
+		})
+	}
+	return out
 }
 
 // nonceListRe matches the anomaly footer's dispatch list: "(NONCE001, NONCE002)".

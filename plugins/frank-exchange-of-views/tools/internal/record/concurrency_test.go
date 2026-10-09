@@ -38,8 +38,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 			}
 			for i := 0; i < perSeat; i++ {
 				f := &recordpb.Finding{
-					Label:      proto.String(fmt.Sprintf("%s-F%d", area, i)),
-					Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+					Id: proto.String(fmt.Sprintf("%s-F%d", area, i)), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 					Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 					Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
 					Text:       proto.String(strings.Repeat("finding prose ", 20)),

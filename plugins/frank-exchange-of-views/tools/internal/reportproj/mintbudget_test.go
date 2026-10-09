@@ -24,13 +24,13 @@ func b4Report() string {
 	b.WriteString("# Is 91 prime?\n\n## Answer\n\n")
 	for i := 0; i < 29; i++ {
 		if i < 11 {
-			fmt.Fprintf(&b, "Paragraph %d states a sourced fact<!--cite:c-%x-->.\n\n", i, i)
+			fmt.Fprintf(&b, "Paragraph %d states a sourced fact<!--cite:C-%08x-->.\n\n", i, i)
 		} else {
 			fmt.Fprintf(&b, "Paragraph %d reasons about it.\n\n", i)
 		}
 		switch i {
 		case 5:
-			b.WriteString("## Method\n\n<!--fx:f-1-->\n\n")
+			b.WriteString("## Method\n\n<!--fx:F-00000001-->\n\n")
 		case 12:
 			b.WriteString("```\n7 * 13\n\n= 91\n```\n\n")
 		}
@@ -58,10 +58,10 @@ func TestTheB4MintBudgets(t *testing.T) {
 	}
 	evs := []*recordpb.Event{recordtest.At(t, "blue-synthesize", "base", &recordpb.BaseIngest{Text: proto.String(md)})}
 	for i := 0; i < 11; i++ {
-		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(fmt.Sprintf("c-%x", i))}))
+		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("cite:%d", i), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String(fmt.Sprintf("C-%08x", i))}))
 	}
 	for i := 0; i < 6; i++ {
-		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("proof:%d", i), &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("p-%x", i))}))
+		evs = append(evs, recordtest.At(t, "blue-synthesize", fmt.Sprintf("proof:%d", i), &recordpb.Proof{ProofId: proto.String(fmt.Sprintf("P-%08x", i))}))
 	}
 	recordtest.Seed(t, runDir, evs...)
 	run := runtest.Open(t, runDir)

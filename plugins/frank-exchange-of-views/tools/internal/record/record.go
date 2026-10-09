@@ -373,8 +373,8 @@ var singleton = map[recordpb.EventType]bool{
 }
 
 // defines is the label-keyed verbs whose label IS the identity the event brings into being — a
-// gap id, a finding label, a citation id, an anchor. Those are run-unique by construction (the
-// tool assigns them: MintGapID, NextFindingLabel, the content hash), so their key stays
+// gap id, a finding id, a citation id, an anchor. Those are run-unique by construction (the
+// tool mints them: NewID), so their key stays
 // `seat:verb:label` and a second event with the same label is the SAME act whichever sitting
 // records it. Every other label-keyed verb REFERENCES something that already exists — a verify
 // names a source, a regrade or a manifest row names a gap — and there the label alone would make
@@ -575,16 +575,6 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	db, err := openRun(run)
 	if err != nil {
 		return nil, err
-	}
-	// IDENTITY IS ASSIGNED HERE, not chosen by the seat. A finding gets an unguessable
-	// id the moment it is recorded, so the only way to refer to it later is to have read
-	// it back — see findingid.go for what a guessable one cost.
-	//
-	// THE TEST IS PRESENCE, NOT EMPTINESS. `GetFindingId() != ""` would ask a different question
-	// and would overwrite a deliberately-empty id, which is the exact conflation this migration
-	// exists to remove.
-	if f, ok := body.(*recordpb.Finding); ok && f.FindingId == nil {
-		f.FindingId = proto.String(NewFindingID())
 	}
 	// A CORRECTING INVOCATION'S ONE BODY OF THE CORRECTED TYPE is the replacement; every other body
 	// it writes (a tool log beside it) is an ordinary act.
@@ -1053,16 +1043,6 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	case *recordpb.Revision:
 		if b.GetText() == "" {
 			return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "revision", "revision")
-		}
-	case *recordpb.Finding:
-		// A finding/observation with no label CANNOT BE ADDRESSED, and every one must get
-		// a fate. Measured on the 2026-07-18 run: 8 finding/observe events carried no label
-		// at all, so the chair could not name them even to decline them — they sat in the
-		// undisposed set forever. The invariant holds regardless of WHO supplies the label:
-		// `observe` takes --label from the seat; a `finding` label is TOOL-assigned
-		// (L{role}-F{N}), so this refusal is an internal guard for it, not a seat message.
-		if b.GetLabel() == "" {
-			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and

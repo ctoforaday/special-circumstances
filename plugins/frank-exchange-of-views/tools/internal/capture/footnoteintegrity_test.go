@@ -61,7 +61,7 @@ func TestFootnoteIntegrityPassesAWellFormedReport(t *testing.T) {
 	run := writeReport(t, `Backed by a source[^1] and a computation[^P1].
 
 [^1]: Someone, A Paper (2024). http://example.invalid (accessed 2026-08-23)
-[^P1]: Proof `+"`p-abd56845`"+` — `+"`blue/candidates/lane3_buildstate.sh`"+`, exit 0.
+[^P1]: Proof `+"`P-abd56845`"+` — `+"`blue/candidates/lane3_buildstate.sh`"+`, exit 0.
 `)
 	a := FootnoteIntegrity(runtest.Open(t, run))
 	if a.Verdict != "PASS" {

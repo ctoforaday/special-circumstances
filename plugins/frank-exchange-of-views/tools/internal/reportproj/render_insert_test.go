@@ -41,7 +41,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append base: %v", err)
 	}
 
-	const citeID, proofID, findID = "c-cafef00d", "p-12345678", "f-deadbeef"
+	const citeID, proofID, findID = "C-cafef00d", "P-12345678", "F-deadbeef"
 	// cite anchors the first sentence, proof the first too (two markers, one sentence), finding
 	// the second. Recorded in this order; replay must honour it.
 	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
@@ -55,7 +55,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append proof: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Verify{
-		Label: proto.String("c-0badf00d"), Claim: proto.String("Demand grows steadily over the period"), Url: proto.String("https://example.org/r"),
+		Label: proto.String("C-0badf00d"), Claim: proto.String("Demand grows steadily over the period"), Url: proto.String("https://example.org/r"),
 		Title: proto.String("R"), Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
 		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf"),
 	}); err != nil {
@@ -73,7 +73,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	}
 	// Every placing act records BOTH events; only the Anchor carries the marker geometry.
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
-		Label: proto.String("L1-F1"), FindingId: proto.String(findID), Location: proto.String("Demand grows steadily over the period"),
+		Id: proto.String("F-f0000001"), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
 		t.Fatalf("append finding: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 		t.Fatalf("append base: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
-		Label: proto.String("L1-F1"), FindingId: proto.String("f-deadbeef"), Location: proto.String("Demand grows steadily over the period"),
+		Id: proto.String("F-deadbeef"), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
 		t.Fatalf("append finding: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 // but the skip is what makes replay robust when the pair nonetheless exists.
 func TestInsertMutSkipsAMarkerAlreadyPlaced(t *testing.T) {
 	const location = "Demand grows steadily over the period"
-	marker := anchor.Token("c-cafef00d")
+	marker := anchor.Token("C-cafef00d")
 	base := location + "."
 
 	once, err := (insertMut{location: location, marker: marker}).apply(base)

@@ -13,7 +13,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity low --likelihood low --impact low --quote A claim sits under S2. --reason older shard
 exit 0
 stdout:
-finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: FINDING001 (evidence) — the id a gap's found_by names
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-lens-evidence
@@ -31,18 +31,18 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ finding --run {RUN} --seat-id red-lens-evidence --key F2 --severity low --likelihood low --impact low --quote A claim sits under S2. --reason newer shard
 exit 0
 stdout:
-finding recorded: evidence-F2 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: FINDING002 (evidence) — the id a gap's found_by names
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"evidence-F1","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-evidence:finding:evidence-F1","seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
+{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-evidence:finding:FINDING001","seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F2","impact":"GRADE_LOW","label":"evidence-F2","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"newer shard"},"key":"red-lens-evidence:finding:evidence-F2","seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_key":"F2","id":"FINDING002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"newer shard"},"key":"red-lens-evidence:finding:FINDING002","seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING002","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING002","seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- avenues

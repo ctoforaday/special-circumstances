@@ -80,7 +80,7 @@ func TestAPunctuationOnlyRepairTakesTheLiteralSpan(t *testing.T) {
 		})
 	}
 	// The literal span puts back an anchor the repair left out, as the trimmed one does.
-	const fx = "<!--fx:f-aaaa1111-->"
+	const fx = "<!--fx:F-aaaa1111-->"
 	got, applied, exact, err := validateEdit("Intro.\n\nIt works"+fx+". Mostly..\n", "It works"+fx+". Mostly..", "It works. Mostly.")
 	if err != nil || got != "Intro.\n\nIt works"+fx+". Mostly.\n" || applied != "It works"+fx+". Mostly." || !exact {
 		t.Errorf("an anchored repair: got %q applied %q exact=%v err=%v", got, applied, exact, err)

@@ -418,21 +418,6 @@ func priorClosureEpochs(run Run, gapID string) ([]int, error) {
 	return out, rows.Err()
 }
 
-// MintGapID assigns ids tool-side, sequentially over the run — the collision class that once
-// made four different ids for one gap in one epoch simply cannot occur.
-func MintGapID(run Run) (string, error) {
-	// RUN-GLOBAL. The id used to be R<epoch>-<n>, a per-epoch counter, and the epoch in it was the
-	// last fact a public identifier recovered from a clock (plans/roundless.md §III.A.3). G<n> is
-	// the position in the run's mint order: one counter, one namespace, and `G` is the prefix
-	// letter nothing else mints. The two schemes cannot collide — one has a hyphen, the other
-	// does not — and archived R-ids are translated at migration, never read live.
-	var n int
-	if _, err := queryRow(run, []any{&n}, `SELECT count(*) FROM "mint"`); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("G%d", n+1), nil
-}
-
 // ExistingMintByKey gives crash-retry idempotency: a seat whose message died
 // after a successful mint retries the SAME command, and --key (its stable local
 // label) returns the EXISTING id instead of double-minting.

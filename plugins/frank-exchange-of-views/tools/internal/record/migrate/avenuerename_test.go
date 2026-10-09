@@ -66,7 +66,7 @@ func TestAnOldAvenueRulingMigratesUnderTheOneWord(t *testing.T) {
 	found := false
 	for _, e := range fam.Events {
 		r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || r.GetMotionId() != "Q1" {
+		if !ok || r.GetMotionId() != m.IDs["Q1"] {
 			continue
 		}
 		found = true

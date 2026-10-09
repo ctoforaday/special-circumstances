@@ -60,7 +60,7 @@ func (s *shapeSource) add(seat string, body proto.Message) {
 func (s *shapeSource) mint(id, quote string) {
 	s.t.Helper()
 	s.add(shapeLens, &recordpb.Mint{GapId: proto.String(id), Class: proto.String("overclaim"), Location: proto.String(quote),
-		Problem: proto.String("p " + id), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("c"),
+		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("c"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum(), DistinctFrom: s.open()})
 }
@@ -80,7 +80,7 @@ func (s *shapeSource) open() []string {
 
 func (s *shapeSource) finding(id, quote string) {
 	s.t.Helper()
-	s.add(shapeLens, &recordpb.Finding{Label: proto.String("evidence-F" + id[len(id)-1:]), FindingId: proto.String(id),
+	s.add(shapeLens, &recordpb.Finding{Id: proto.String(id),
 		Location: proto.String(quote), Text: proto.String("t")})
 	s.add(shapeLens, &recordpb.Anchor{Id: proto.String(id), Location: proto.String(quote)})
 }
@@ -117,6 +117,15 @@ func (s *shapeSource) edit(old, new string, exact bool) {
 		b.ExactSpan = proto.Bool(true)
 	}
 	s.add(shapeBlue, b)
+}
+
+// archived spells every id of a migrated text as the source spelled it, so a fixture written in the
+// archived spelling states what it expects in the spelling it was written in.
+func archived(m *migrate.Manifest, s string) string {
+	for old, id := range m.IDs {
+		s = strings.ReplaceAll(s, id, old)
+	}
+	return s
 }
 
 // migrated is the source brought forward, its render, and the edits it carries.
@@ -181,7 +190,7 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 			s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 			s.corroboration("c-0000aaa1", "Costs rose sharply in Q1.")
 		}},
-		{"a correction placing again what a retire took out", "cite", `has already recorded a anchor on "c-0000aaa1"`, func(s *shapeSource) {
+		{"a correction placing again what a retire took out", "cite", `has already recorded a anchor on "C-0000aaa1"`, func(s *shapeSource) {
 			cited := s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Costs rose sharply in Q1."), Reason: proto.String("refuted"), Anchors: []string{"c-0000aaa1"}})
 			fixed := proto.Clone(cited.GetCite()).(*recordpb.Cite)
@@ -227,7 +236,7 @@ func TestPlacementTranslationAnchorsEveryPlacer(t *testing.T) {
 
 	m, md, _, dst := src.migrated()
 	const want = "# H\n\nCosts rose modestly in Q1<!--cite:c-0000aaa1-->. Volume fell.\n\n- Water is wet<!--proof:p-0000aaa1-->.\n- Fire is hot<!--cite:c-0000aaa2-->.\n"
-	if md != want {
+	if md = archived(m, md); md != want {
 		t.Errorf("the migrated render:\n got  %q\n want %q", md, want)
 	}
 	if sh := m.GapAnchors.Shapes; m.Out["anchor"] != 3 || sh["cite"] != 1 || sh["proof"] != 1 || sh["verify"] != 1 {
@@ -247,7 +256,7 @@ func TestPlacementTranslationAnchorsEveryPlacer(t *testing.T) {
 			followed = append(followed, a.GetId())
 		}
 	}
-	if !slices.Equal(followed, []string{"c-0000aaa1", "p-0000aaa1", "c-0000aaa2"}) {
+	if !slices.Equal(followed, []string{"C-0000aaa1", "P-0000aaa1", "C-0000aaa2"}) {
 		t.Errorf("anchors in stream order = %v", followed)
 	}
 }
@@ -307,18 +316,18 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			c.build(src)
 			srcEdits := edits(t, src.run)
 			m, md, got, _ := src.migrated()
-			if !strings.Contains(md, c.render+"\n") {
+			if !strings.Contains(archived(m, md), c.render+"\n") {
 				t.Errorf("the render does not hold %q:\n%s", c.render, md)
 			}
 			if m.GapAnchors.Shapes[c.shape] == 0 {
 				t.Errorf("the %s shape did not run: %+v", c.shape, m.GapAnchors)
 			}
 			for i, e := range got {
-				if stripGapTokens(e.GetOld()) != srcEdits[i].GetOld() || stripGapTokens(e.GetNew()) != srcEdits[i].GetNew() {
+				if archived(m, stripGapTokens(e.GetOld())) != srcEdits[i].GetOld() || archived(m, stripGapTokens(e.GetNew())) != srcEdits[i].GetNew() {
 					t.Errorf("a rewrite inserted more than gap anchors:\n old %q -> %q\n new %q -> %q", srcEdits[i].GetOld(), e.GetOld(), srcEdits[i].GetNew(), e.GetNew())
 				}
 			}
-			if c.shape == "unplaced" && (strings.Contains(md, anchor.Token("G1")) || !slices.Contains(m.GapAnchors.NeverPlaced, "G1")) {
+			if c.shape == "unplaced" && (strings.Contains(md, anchor.Token(m.IDs["G1"])) || !slices.Contains(m.GapAnchors.NeverPlaced, m.IDs["G1"])) {
 				t.Errorf("a gap no prose sentence carries stands in the render or goes unnamed: %+v\n%s", m.GapAnchors, md)
 			}
 			if strings.HasPrefix(c.name, "(e)") {
@@ -340,33 +349,41 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 	// (f) A RUN WRITTEN BY THIS BINARY carries its own anchors: the Anchor after each mint, citation,
 	// proof and corroboration, and an edit that carried the gap's. It migrates with one Anchor per
 	// id, nothing added, and the same render.
-	t.Run("(f) a run written by this binary", func(t *testing.T) {
-		src := newShapeSource(t, base)
-		src.cite("c-0000aaa1", "Volume fell.")
-		src.add(shapeBlue, &recordpb.Anchor{Id: proto.String("c-0000aaa1"), Location: proto.String("Volume fell.")})
-		src.proof("p-0000aaa1", "Water is wet.")
-		src.add(shapeBlue, &recordpb.Anchor{Id: proto.String("p-0000aaa1"), Location: proto.String("Water is wet.")})
-		src.corroboration("c-0000aaa2", "Fire is hot.")
-		src.add(shapeLens, &recordpb.Anchor{Id: proto.String("c-0000aaa2"), Location: proto.String("Fire is hot.")})
-		src.mint("G1", "Costs rose sharply in Q1.")
-		src.add(shapeLens, &recordpb.Anchor{Id: proto.String("G1"), Location: proto.String("Costs rose sharply in Q1.")})
-		src.add(shapeBlue, &recordpb.BlueEdit{Old: proto.String("Costs rose sharply in Q1<!--gap:G1-->."), New: proto.String("Costs rose only modestly in Q1<!--gap:G1-->."),
-			Text: proto.String("accept"), Answers: proto.String("G1"), Accepted: proto.Bool(true), AppliedVerbatim: proto.Bool(true), Reopened: []string{"G1"}})
-		before, err := reportproj.RenderFromRecord(src.run)
-		if err != nil {
-			t.Fatal(err)
-		}
-		m, md, _, _ := src.migrated()
-		if md != before {
-			t.Errorf("the render moved:\n source %q\n migrated %q", before, md)
-		}
-		if n := m.Out["anchor"]; n != 4 || strings.Count(md, "<!--") != 4 {
-			t.Errorf("the migrated run holds %d anchor events for its four placed ids, want 4:\n%s", n, md)
-		}
-		if len(m.GapAnchors.Shapes) != 0 {
-			t.Errorf("a run carrying its own anchors was rewritten: %+v", m.GapAnchors)
-		}
-	})
+	//
+	// Its ids are in the one shape and stand. A run that anchored its own acts under the spelling
+	// before it migrates the same way: the source's Anchors name archived ids and the acts it is
+	// asked about carry migrated ones, and a placement step that compared the two spellings would
+	// add a second Anchor per id, which the record refuses.
+	for name, ids := range map[string][4]string{
+		"(f) a run written by this binary":               {"C-0000aaa1", "P-0000aaa1", "C-0000aaa2", "G-0000aaa1"},
+		"(f) a run that anchored its acts before one id": {"c-0000aaa1", "p-0000aaa1", "c-0000aaa2", "G1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			src := newShapeSource(t, base)
+			gapToken := "<!--gap:" + ids[3] + "-->"
+			src.cite(ids[0], "Volume fell.")
+			src.add(shapeBlue, &recordpb.Anchor{Id: proto.String(ids[0]), Location: proto.String("Volume fell.")})
+			src.proof(ids[1], "Water is wet.")
+			src.add(shapeBlue, &recordpb.Anchor{Id: proto.String(ids[1]), Location: proto.String("Water is wet.")})
+			src.corroboration(ids[2], "Fire is hot.")
+			src.add(shapeLens, &recordpb.Anchor{Id: proto.String(ids[2]), Location: proto.String("Fire is hot.")})
+			src.mint(ids[3], "Costs rose sharply in Q1.")
+			src.add(shapeLens, &recordpb.Anchor{Id: proto.String(ids[3]), Location: proto.String("Costs rose sharply in Q1.")})
+			src.add(shapeBlue, &recordpb.BlueEdit{Old: proto.String("Costs rose sharply in Q1" + gapToken + "."), New: proto.String("Costs rose only modestly in Q1" + gapToken + "."),
+				Text: proto.String("accept"), Answers: proto.String(ids[3]), Accepted: proto.Bool(true), AppliedVerbatim: proto.Bool(true), Reopened: []string{ids[3]}})
+			m, md, _, _ := src.migrated()
+			const want = "# H\n\nCosts rose only modestly in Q1<!--gap:%s-->. Volume fell<!--cite:%s-->.\n\n- Water is wet<!--proof:%s-->.\n- Fire is hot<!--cite:%s-->.\n\n(They stand on their own.).\n"
+			if got := archived(m, md); got != fmt.Sprintf(want, ids[3], ids[0], ids[1], ids[2]) {
+				t.Errorf("the render moved:\n%q", got)
+			}
+			if n := m.Out["anchor"]; n != 4 || strings.Count(md, "<!--") != 4 {
+				t.Errorf("the migrated run holds %d anchor events for its four placed ids, want 4:\n%s", n, md)
+			}
+			if len(m.GapAnchors.Shapes) != 0 {
+				t.Errorf("a run carrying its own anchors was rewritten: %+v", m.GapAnchors)
+			}
+		})
+	}
 
 	t.Run("archive", func(t *testing.T) {
 		var lines []string

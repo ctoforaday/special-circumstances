@@ -66,10 +66,6 @@ func newFile(subject string, required []string) *cobra.Command {
 		// as, an agent with no register is registered first or refused, and the refusal renders in
 		// the envelope every verb's does. The filer id is what found_by, estoppel and the bench read.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			run, err := s.Run()
-			if err != nil {
-				return nil, err
-			}
 			basis, err := prose(cmd, "file", "the ASK in your own words — a motion with no argument is a demand, and the ruler has nothing to rule on")
 			if err != nil {
 				return nil, err
@@ -81,10 +77,7 @@ func newFile(subject string, required []string) *cobra.Command {
 						subject, f, subject)
 				}
 			}
-			id, err := record.MintMotionID(run)
-			if err != nil {
-				return nil, err
-			}
+			id := record.NewID("motion")
 			// THE UNTYPED LOOP CANNOT SURVIVE A TYPED FILING, and that is the migration working
 			// rather than a cost of it. `for _, f := range required { p.Set(payloadKey(f), …) }`
 			// wrote whatever the flags happened to hold under whatever key payloadKey returned —
@@ -463,9 +456,9 @@ func newAppeal(subject string) *cobra.Command {
 // rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
 	if subject == "avenue" {
-		return "the AVENUE id (Q1, Q2 …): an avenue's filing is the proposal, so it joins on the avenue's own id, not an M-number"
+		return "the AVENUE id: an avenue's filing is the proposal, so it joins on the avenue's own id, not a motion's"
 	}
-	return "the motion id (M1, M2 …)"
+	return "the motion id"
 }
 
 type filed struct {
@@ -516,7 +509,7 @@ func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
 // newFile refuses, at construction, a required flag with no line here: its page would read a bare
 // "REQUIRED — " and nothing about what to supply.
 var fileFlagHelp = map[string]string{
-	flags.ID:        "the gap this motion is about (G4)",
+	flags.ID:        "the gap this motion is about",
 	flags.Dimension: "the grade axis you contest",
 	flags.Proposed:  "the grade you say it should be",
 	flags.Class:     "the class of objection",

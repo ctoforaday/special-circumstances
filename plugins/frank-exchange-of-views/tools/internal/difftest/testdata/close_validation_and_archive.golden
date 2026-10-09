@@ -26,12 +26,12 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ mint --run {RUN} --seat-id red-lens-evidence --class citation-drift --check-kind document --check refetch --severity high --likelihood high --impact high --complexity medium --problem source moved
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: refetch
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ close --run {RUN} --seat-id red-lens-evidence --id G1
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001
 exit 2
 stderr:
 feov-record: required flag(s) "reason", "verified-against", "verified-by", "verified-with" not set
@@ -97,7 +97,12 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-$ close --run {RUN} --seat-id red-lens-evidence --id G2 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-lens-evidence --id G-00000000 --verified-by L1 --verified-with git show --verified-against 7bc501e:x --reason checked
+exit 2
+stderr:
+feov-record: lens: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
+
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: required flag(s) "reason" not set
@@ -163,76 +168,10 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-$ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
-exit 2
-stderr:
-feov-record: required flag(s) "reason" not set
-
-close a gap with the verification you did THIS sitting, naming what you checked it against
-
-THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked THIS SITTING, by you — who verified it, with what, and against which exact file or ref.
-
-A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with 'log', as a request — a missing
-capability is a fact about the tooling, and the log is how it reaches the operator
-who can retool you.
-
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
-
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
-
-CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
-wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
-printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
-struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
-wording too: a correction that leaves out a flag the act holds is refused.
-
-Usage:
-  feov-record close [flags]
-
-Flags:
-      --as as-value               HOW the gap ended — the same words the bench's dispositions use
-      --correction-why string     what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
-      --corrects string           the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
-  -h, --help                      help for close
-      --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored proof, the cited bytes, the named path), never a stand-in
-      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
-      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
-
-Enumerated values:
-  --as
-    repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it
-    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    moot                      the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
-
-$ close --run {RUN} --seat-id red-lens-evidence --id G1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
 exit 0
 stdout:
-closed G1 (repaired) [key red-lens-evidence:close:#1:G1]
+closed GAP001 (repaired) [key red-lens-evidence:close:#1:GAP001]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
@@ -240,11 +179,11 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id: required flag(s) \"reason\", \"verified-against\", \"verified-by\", \"verified-with\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --verified-against --verified-by --verified-with: required flag(s) \"reason\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --reason --verified-against --verified-by --verified-with: lens: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --verified-against --verified-by --verified-with: required flag(s) \"reason\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
-{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:G1","seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_CLOSE"}
+{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══
 -- avenues

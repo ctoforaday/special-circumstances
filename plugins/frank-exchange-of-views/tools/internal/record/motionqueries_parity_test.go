@@ -56,9 +56,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if id, err := MintMotionID(run); err != nil || id != "M1" {
-		t.Errorf("MintMotionID on an unfiled record = (%q, %v)", id, err)
-	}
 	if _, err := Append(blue, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
@@ -70,9 +67,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		}},
 	}); err != nil {
 		t.Fatal(err)
-	}
-	if id, err := MintMotionID(run); err != nil || id != "M2" {
-		t.Errorf("MintMotionID after one filing = (%q, %v)", id, err)
 	}
 
 	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil || got != "grade" {

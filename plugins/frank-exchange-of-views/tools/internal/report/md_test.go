@@ -84,10 +84,10 @@ func TestMarkupInProseIsEscaped(t *testing.T) {
 // link to it. This is the join a seven-file markdown set cannot express.
 func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 	anchor := anchors{}
-	docket := mdToHTML("### G1 — the gap\n\nsomething\n", FileDocket, anchor)
-	report := mdToHTML("The board still carries G1 at close.\n", FileReport, anchor)
+	docket := mdToHTML("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor)
+	report := mdToHTML("The board still carries G-00000001 at close.\n", FileReport, anchor)
 
-	if anchor["G1"] == "" {
+	if anchor["G-00000001"] == "" {
 		t.Fatalf("the defining heading did not register an anchor: %v", anchor)
 	}
 	linkedReport := linkIDs(report, anchor, FileReport)
@@ -105,10 +105,15 @@ func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 // An id inside a code span or an existing link is left ALONE — a blind replace over rendered
 // HTML rewrites hrefs and produces a document that links every id to itself.
 func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
-	anchor := anchors{"G1": "docket.md#r1-1"}
-	got := linkIDs("<p><code>grep G1</code> and <a href=\"x\">G1</a></p>", anchor, FileReport)
+	anchor := anchors{"G-00000001": "docket.md#r1-1"}
+	got := linkIDs("<p><code>grep G-00000001</code> and <a href=\"x\">G-00000001</a></p>", anchor, FileReport)
 	if strings.Count(got, "idref") != 0 {
 		t.Errorf("an id was rewritten inside code or an existing link:\n%s", got)
+	}
+	// THE SAME ID IN PLAIN TEXT IS LINKED, so the zero above is the code span and the link holding
+	// it back and not an id the pattern does not read.
+	if got := linkIDs("<p>see G-00000001</p>", anchor, FileReport); strings.Count(got, "idref") != 1 {
+		t.Errorf("the id in plain text was not linked:\n%s", got)
 	}
 }
 
@@ -144,27 +149,41 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 	}
 }
 
-// A LENS FINDING'S LABEL IS AN ID, AND SINCE #791 IT IS NAMED FOR ITS AREA.
+// EVERY ID THE DOCUMENTS QUOTE LINKS TO ITS DEFINITION: a gap's, a motion's and a finding's.
 //
-// idToken matched `L\d+-F\d+` — a shape no lens has minted since the areas landed. The miss is
-// silent in exactly the way that matters: an unlinked id looks the same as an id nobody else
-// mentioned, so the report renders clean while every finding's join to the docket is gone. Both
-// halves are asserted because they fail separately — `define` must register the anchor, and
-// `linkText` must find it — and the hyphenated area is used deliberately: `dark-side-F1` is the
-// case a `[A-Za-z0-9]+` restatement of this shape still gets wrong.
-func TestALensFindingsAreaLabelLinksToItsDefinition(t *testing.T) {
-	for _, label := range []string{"evidence-F1", "dark-side-F2"} {
-		t.Run(label, func(t *testing.T) {
-			anchor := anchors{}
-			mdToHTML("### "+label+" — what the lens found\n\nsomething\n", FileDocket, anchor)
-			report := mdToHTML("Blue answered "+label+" in the same round.\n", FileReport, anchor)
+// An id idToken does not read is silent in exactly the way that matters: an unlinked id looks the
+// same as an id nobody else mentioned, so the report renders clean while every join to the docket is
+// gone. Both halves are asserted because they fail separately — `define` must register the anchor,
+// and `linkText` must find it — in a heading and in a list item, which define by separate paths.
+// The finding is defined as the documents print it, with its area after the id.
+func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
+	for _, tc := range []struct{ id, definedAs string }{
+		{"G-5e10a3c2", "G-5e10a3c2 — eviction races the reader"},
+		{"M-0000aaa1", "M-0000aaa1 — a petition to reopen"},
+		{"F-7cdcd115", "F-7cdcd115 (dark-side) — what the lens found"},
+	} {
+		for form, md := range map[string]string{"heading": "### " + tc.definedAs + "\n\nsomething\n", "list item": "- " + tc.definedAs + "\n"} {
+			t.Run(tc.id+" in a "+form, func(t *testing.T) {
+				anchor := anchors{}
+				mdToHTML(md, FileDocket, anchor)
+				report := mdToHTML("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor)
 
-			if anchor[label] == "" {
-				t.Fatalf("%s defined no anchor — the report will not link it anywhere: %v", label, anchor)
-			}
-			if got := linkIDs(report, anchor, FileReport); !strings.Contains(got, `data-doc="docket.md"`) {
-				t.Errorf("%s was not linked across documents:\n%s", label, got)
-			}
-		})
+				if !strings.HasPrefix(anchor[tc.id], FileDocket+"#") {
+					t.Fatalf("%s defined no anchor — the report will not link it anywhere: %v", tc.id, anchor)
+				}
+				if got := linkIDs(report, anchor, FileReport); !strings.Contains(got, `data-doc="docket.md">`+tc.id+`</a>`) {
+					t.Errorf("%s was not linked across documents:\n%s", tc.id, got)
+				}
+			})
+		}
+	}
+	// AN ID OF A KIND THE ASSEMBLY WEAVES, OR OF ANOTHER SHAPE, DEFINES NOTHING: a citation's id
+	// stands in an anchor, and a word that begins like an id is a word.
+	for _, text := range []string{"C-0000aaa1 — a source", "G20 — the summit", "G-5e10a3c — seven", "G-5e10a3c2f — nine"} {
+		anchor := anchors{}
+		mdToHTML("### "+text+"\n", FileDocket, anchor)
+		if len(anchor) != 0 {
+			t.Errorf("%q defined an anchor: %v", text, anchor)
+		}
 	}
 }

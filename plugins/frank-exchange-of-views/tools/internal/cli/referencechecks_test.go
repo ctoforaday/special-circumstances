@@ -65,7 +65,7 @@ var referenceChecks = []struct {
 		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",
+	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "F-0000f9f9",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// NEEDS A REGISTRY STAGED. `validateClass` is ADVISORY when none is present, so this case
 	// silently passed over an unchecked class until the fixture seeded one — which is how the
@@ -114,9 +114,9 @@ var referenceChecks = []struct {
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
 	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
-	{verb: []string{"prove"}, flag: "--cites", against: "the citations on the record", bogus: "c-deadbeef",
+	{verb: []string{"prove"}, flag: "--cites", against: "the citations on the record", bogus: "C-deadbeef",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
-	{verb: []string{"verify"}, flag: "--anchor", against: "the citations on the record", bogus: "c-deadbeef",
+	{verb: []string{"verify"}, flag: "--anchor", against: "the citations on the record", bogus: "C-deadbeef",
 		extra: []string{"--quote", "c", "--as", "supports", "--confidence", "high", "--reason", "r"}},
 	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
 	// gap references and needs its own fixture — which is the whole point of deriving this gate
@@ -256,14 +256,14 @@ func TestEveryDeclaredReferenceIsActuallyChecked(t *testing.T) {
 			argv = append(argv, c.flag, c.bogus)
 			argv = append(argv, c.extra...)
 
-			out, err := run(t, argv...)
+			out, err := runAt(t, argv...)
 			if err == nil {
 				t.Fatalf("%s accepted %q, which names nothing in %s — the record now carries a reference that resolves to nothing, and every reader downstream treats it as real.\nstdout: %s",
 					name, c.bogus, c.against, out)
 			}
 			// The refusal must NAME the value. A bare rejection sends a seat to re-read its own
 			// command rather than the read that would give it a real one.
-			if !strings.Contains(err.Error(), c.bogus) && !strings.Contains(err.Error(), strings.TrimPrefix(c.flag, "--")) {
+			if !strings.Contains(err.Error(), handleText(t, runDir, c.bogus)) && !strings.Contains(err.Error(), strings.TrimPrefix(c.flag, "--")) {
 				t.Errorf("%s refused, but the message names neither the value nor the flag — a seat cannot act on it: %v", name, err)
 			}
 			// AND IT NAMES THE FLAG THE SEAT TYPED, as a flag. One checker serves two verbs: the
