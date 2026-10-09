@@ -123,15 +123,10 @@ extend google.protobuf.EnumValueOptions {
   // mass IS WHAT A GRADE WEIGHS, and it is on the value because the weight is a property of the
   // word rather than of whoever is multiplying it.
   //
-  // It was a Go map (record.MASS) with a twin in debate.js, kept in step by a REGEX PARITY TEST
-  // that reads the JavaScript source — a guard built because the two had already drifted. The
-  // database knew neither, so "board mass" could be computed in Go and in JS but never asked of
-  // the record, and any view needing it would have had to hand-write the table a third time.
-  //
-  // As a facet the vocabulary table carries it: `enum_grade` grows a NOT NULL `mass` column, a
-  // grade added without a weight fails at schema build, and GapMass becomes what it always was
-  // conceptually — a join. MASS[likelihood] * MASS[impact] is two lookups against the same
-  // vocabulary every other reader already joins.
+  // As a facet the vocabulary table carries it: `enum_grade` holds a NOT NULL `mass` column, a
+  // grade added without a weight fails at schema build, and GapMass is a join —
+  // MASS[likelihood] * MASS[impact] is two lookups against the same vocabulary every other reader
+  // already joins. Go's record.MASS is read off this facet, and nothing else holds a weight.
   //
   // GRADE_REALIZED IS 0 DELIBERATELY, and the enum's own comment says why: mass forecasts what is
   // still to come, and a realized defect is measured by its damage instead. That zero is a real

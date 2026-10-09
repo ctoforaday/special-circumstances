@@ -58,42 +58,17 @@ import (
 // MassMappingVersion stamps every telemetry line (view.go) with WHICH mass mapping produced
 // its numbers. cost.go reads it back.
 //
-// IT DISAGREES WITH THE ENGINE, AND THE DISAGREEMENT IS ABOUT NOTHING. What stood here said
-// the gap was real semantics — "W2g shipped v2 in the engine: the oracle library still
-// carries v1, and the port is faithful to the oracle. Aligning the library to v2 is a
-// semantics change" — and deferred the alignment to a regeneration of oracle and
-// differential together, under plans/record-tool.md's ORACLE FREEZE.
-//
-// MEASURED 2026-08-16, by reading both tables instead of both stamps:
-//
-//	debate.js:262  { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
-//	MASS below     { trivial: 0.5, low: 1, "low_medium": 1.5, "medium": 2, "medium_high": 2.5, "high": 3, "certain": 3.5, "realized": 0 }
-//
-// Eight keys, eight values, identical — and GapMass matches gapMass on the missing-grade
-// rule too (absent multiplies as zero on both sides). The MAPPINGS agree. Only the STAMPS
-// differ, so a telemetry line says `v1` while the engine that drove the run calls that exact
-// mapping `v2`, and a reader joining runs by mapping_version splits one population in two.
-//
-// The freeze that justified holding it back does not exist (see this package's header), so the
-// alignment is TAKEN, on its own, as the whole of this change (plans/record-protobuf.md, PR0).
-//
-// IT CHANGES NO GAP'S MASS. There is no mass difference to change: GapMass reads MASS, and MASS
-// is the table above, which is unmoved. What changes is the LABEL on every telemetry line, from
-// a number that described no distinguishable mapping to the one the engine has used since W2g.
-//
-// Its only other carrier is view_test.go's key-order assertion. No golden holds the stamp —
-// `grep -rl mapping_version internal/*/testdata` returns nothing — which is why this lands
-// without a golden re-record, and why it is a separate commit from the protobuf migration that
-// re-records all 24 of them.
+// The engine names the same mapping to blue in its response prompt (`MASS_MAPPING_VERSION` in
+// debate.js), and massparity_test.go holds the two stamps equal: a reader joining runs by
+// mapping_version must find one population, not two. The stamp moves when the SEMANTICS of a
+// grade move, even where no weight does.
 const MassMappingVersion = "v2"
 
 // MASS IS DERIVED FROM THE VOCABULARY, not typed here.
 //
-// It was a hand-written map with a twin in debate.js, kept in step by a regex parity test that
-// reads the JavaScript source — a guard built because the two had already drifted. The weight is
-// now a facet on the Grade enum (`record.proto`), so this map is the SAME source the schema uses
-// to build `enum_grade.mass` and the same one a SQL view joins on. The JS copy still exists and
-// the parity test still guards it; what is gone is the third reading, where Go had its own.
+// A grade's weight is a facet on the Grade enum (`record.proto`), so this map is the SAME source
+// the schema uses to build `enum_grade.mass` and the same one a SQL view joins on. It is the only
+// table of weights there is: the engine scores nothing itself.
 var MASS = massFromVocabulary()
 
 func massFromVocabulary() map[string]float64 {
@@ -110,12 +85,8 @@ func massFromVocabulary() map[string]float64 {
 	return out
 }
 
-// isGrade validates against the single canonical grade set (flags.Grades) — record does not
-// keep its own copy. MASS's keys are held to that same set by a test (grade set never drifts).
-func isGrade(s string) bool { return flags.IsGrade(s) }
-
-// GapMass mirrors `(MASS[likelihood] ?? 0) * (MASS[impact] ?? 0)`: an unknown or
-// absent grade contributes zero rather than erroring.
+// GapMass is `MASS[likelihood] * MASS[impact]`: an unknown or absent grade contributes zero
+// rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
 // THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It is the record's — events_w."epoch", the count of the
