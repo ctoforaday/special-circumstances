@@ -17,6 +17,7 @@ type reportDoc struct {
 		Matched   int    `json:"matched"`
 		Of        int    `json:"of"`
 		Complete  bool   `json:"complete"`
+		Note      string `json:"note"`
 	} `json:"selection"`
 }
 

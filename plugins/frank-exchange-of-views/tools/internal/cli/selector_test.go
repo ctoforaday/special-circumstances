@@ -208,3 +208,68 @@ func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
 		})
 	}
 }
+
+// A PATTERN THAT NAMES AN ANCHOR FINDS NOTHING, AND THE EMPTY ANSWER SAYS WHERE AN ANCHOR IS READ.
+//
+// universe m18: the chair quoted `gap:G-b1643c6b` and the synthesizer matched `cite:|proof:`. Each
+// got the answer a pattern the report does not hold gets, while the token was on the page. The
+// selectors read the text with its anchors out — that is what lets `negligible.` cross two of them,
+// and what keeps a hunt for the WORD `proof` off every line that carries a proof anchor — so the
+// read is unchanged and its miss is told apart: it counts the lines that hold the match inside a
+// token and names --anchor. A pattern the report does not hold at all gets no such sentence.
+func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T) {
+	const body = "# Findings\n\nOverhead is negligible<!--fx:F-eee49716-->.\n\nThe proof is short<!--proof:P-0a0a0a0a-->.\n\nNo anchor here.\n"
+	runDir := seatRunReport(t, body)
+	show := func(t *testing.T, args ...string) string {
+		t.Helper()
+		out, err := run(t, append([]string{"show", "report", "--run", runDir, "--seat-id", lensSeat}, args...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	for _, tc := range []struct{ name, flag, value, count string }{
+		{"an anchor id as a quote", "--quote", "fx:F-eee49716", "1 line(s)"},
+		{"anchor kinds as an alternation", "--match", "fx:|proof:", "2 line(s)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := show(t, tc.flag, tc.value)
+			for _, want := range []string{"no line of the report matches", tc.count + " hold it INSIDE AN ANCHOR TOKEN only", "pass --anchor with its id"} {
+				if !strings.Contains(out, want) {
+					t.Errorf("the empty answer does not carry %q:\n%s", want, out)
+				}
+			}
+			var d reportDoc
+			if err := json.Unmarshal([]byte(show(t, tc.flag, tc.value, "--json")), &d); err != nil {
+				t.Fatal(err)
+			}
+			if len(d.Lines) != 0 || d.Selection == nil || !strings.Contains(d.Selection.Note, "pass --anchor with its id") {
+				t.Errorf("the JSON form's selection does not say so: %+v", d.Selection)
+			}
+		})
+	}
+	t.Run("a pattern the report does not hold gets no such sentence", func(t *testing.T) {
+		if out := show(t, "--match", "zebra"); !strings.Contains(out, "no line of the report matches") || strings.Contains(out, "ANCHOR TOKEN") {
+			t.Errorf("a plain miss is answered as an anchor:\n%s", out)
+		}
+		var d reportDoc
+		if err := json.Unmarshal([]byte(show(t, "--match", "zebra", "--json")), &d); err != nil {
+			t.Fatal(err)
+		}
+		if d.Selection == nil || d.Selection.Note != "" {
+			t.Errorf("a plain miss carries a note: %+v", d.Selection)
+		}
+	})
+	t.Run("the kind WORD still reads the text, not the tokens", func(t *testing.T) {
+		out := show(t, "--match", "proof")
+		if !strings.Contains(out, "The proof is short") || !strings.Contains(out, "_1 line(s) match") {
+			t.Errorf("a hunt for the word hit a line on its anchor's kind, or missed the sentence:\n%s", out)
+		}
+	})
+	t.Run("a quote copied as printed, anchor included, selects its line", func(t *testing.T) {
+		out := show(t, "--quote", "negligible<!--fx:F-eee49716-->.")
+		if !strings.Contains(out, "Overhead is negligible") || strings.Contains(out, "no line of the report matches") {
+			t.Errorf("the quote as the report prints it found nothing:\n%s", out)
+		}
+	})
+}
