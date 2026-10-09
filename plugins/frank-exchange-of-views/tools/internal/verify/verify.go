@@ -403,14 +403,23 @@ func passClosesAllGaps(f record.Family) Check {
 	return c
 }
 
-// registerBeforeAppend: a seat's FIRST event must be its register — an event from a seat that
-// never registered is an identity the record cannot vouch for.
+// registerBeforeAppend: the FIRST event a seat writes must be its register — an event from a seat
+// that never registered is an identity the record cannot vouch for.
+//
+// WHAT THE TOOL WRITES ABOUT A SEAT IS NOT WHAT THE SEAT WROTE. The harness brackets a dispatched
+// seat into a sitting before it has made a call, and a call the tool refuses in that sitting is
+// logged under the seat as the tool's own entry (source `tool`) — the refusal of a verb tried
+// before `register` first among them. That entry's author is the tool, so it neither stands as
+// the seat's first event nor excuses the one that follows it.
 func registerBeforeAppend(f record.Family) Check {
 	seen := map[string]bool{}
 	var bad []string
 	for _, e := range f.Events {
 		if seen[e.GetSeatId()] || e.GetSeatId() == record.HarnessSeat {
 			continue // the harness is not a seat: it writes the cast and the sitting span, and never registers
+		}
+		if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok && l.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL {
+			continue
 		}
 		seen[e.GetSeatId()] = true
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
