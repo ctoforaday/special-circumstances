@@ -93,8 +93,9 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused.
 
 §6 (on 6 pages):
@@ -291,6 +292,8 @@ A closure the record already holds — work an earlier sitting did — is the ch
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
 
+ONCE THAT WINDOW HAS CLOSED, say it in a motion on the gap.
+
 Usage:
   feov-record close [flags]
 
@@ -442,9 +445,12 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
-refused.
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says. Repeat your wording too: a correction that leaves out a flag the act
+holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new log entry.
 
 Usage:
   feov-record log [flags]
@@ -531,6 +537,8 @@ press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
+
 Usage:
   feov-record motion avenue appeal [flags]
 
@@ -578,6 +586,8 @@ press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, 
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
 
 Usage:
   feov-record motion grade appeal [flags]
@@ -718,9 +728,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about. Repeat your wording too: a
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says except --id, which names what it is about. Repeat your wording too: a
 correction that leaves out a flag the act holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new regrade at your next sitting (a sitting holds one per
+--id, and this sitting's stands).
 
 Usage:
   feov-record regrade [flags]
@@ -766,6 +780,8 @@ THIS COMMAND RE-RUNS THE SCRIPT ITSELF. You do not run it first: name the proof 
 
 What the tool CANNOT answer is whether the script establishes the claim it is anchored to — so it records whether it REPRODUCED, and you judge whether it PROVES. Those are two questions and only the first is mechanical: `print("7 is prime")` reproduces perfectly forever. That is why the soundness verdict is yours to give and why you must READ the script to give it.
 
+READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. `show evidence`, read AT THE PROOF'S OWN ANCHOR, prints the script this call executes and the output blue recorded — its page says how, and the proof's row in the bare `show evidence` carries that anchor beside the sha256 this call takes. Read it, decide what it computes and whether that is the claim at its anchor, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -773,6 +789,9 @@ What the tool CANNOT answer is whether the script establishes the claim it is an
 (X=$(cat <<'EOF') → SHARED §4
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §5
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new re-run of the proof, whose reason says which earlier
+re-run it replaces.
 
 Usage:
   feov-record reproduce [flags]
@@ -807,7 +826,7 @@ Available Commands:
   avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`
-  evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
+  evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch, and every act you record says where you then stand, so you rarely need to ask. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
@@ -881,11 +900,17 @@ Flags:
 (Global Flags:) → SHARED §21
 ==============================================================================
 $ feov-record show evidence --help
-WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
+WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.
+
+TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `<!--cite:C-…-->` id it is that source's one row.
+
+THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §22
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
+
+OUTPUT WITH --anchor (JSON — `source` or `proof`, whichever the anchor names): {anchor,source:{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]},proof:{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}],script_file,script,recorded_output}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -895,6 +920,7 @@ Usage:
   feov-record show evidence [flags]
 
 Flags:
+      --anchor id     read the ONE entry at this anchor id rather than the table — a proof's (P-…) with its script and recorded output, or a source's (C-…)
   -h, --help          help for evidence
       --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else

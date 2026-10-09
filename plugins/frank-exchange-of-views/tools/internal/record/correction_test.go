@@ -522,3 +522,65 @@ func TestACorrectionLeavingOutHeldWordingIsRefused(t *testing.T) {
 		})
 	}
 }
+
+// THE WAY OUT IS NAMED FOR EVERY CORRECTABLE TYPE. A correction refused for time sends the seat to
+// the act that supersedes the one it wrote, and a type with no row would be sent to "a new act" —
+// which names nothing. A type that joins a correction tier joins this table in the same change.
+func TestEveryCorrectableTypeNamesTheActThatSupersedesIt(t *testing.T) {
+	vs := recordpb.EventType(0).Descriptor().Values()
+	for i := 0; i < vs.Len(); i++ {
+		typ := recordpb.EventType(vs.Get(i).Number())
+		s, ok := superseders[typ]
+		correctable := recordpb.Tier(typ) != recordpb.CorrectionTier_CORRECTION_TIER_NONE
+		switch {
+		case correctable && !ok:
+			t.Errorf("%s can be corrected and names no superseding act — add its row to superseders", recordpb.Word(typ))
+		case correctable && strings.TrimSpace(s.act) == "":
+			t.Errorf("%s's superseding act is blank", recordpb.Word(typ))
+		case !correctable && ok:
+			t.Errorf("%s cannot be corrected, so no refusal reads its superseding act — drop the row", recordpb.Word(typ))
+		}
+	}
+}
+
+// A RE-RUN CORRECTED TOO LATE IS TOLD WHAT TO FILE INSTEAD, and the act it is told to file is one
+// the record admits: a lens that judged a proof, and found another seat had acted before it could
+// correct the judgement, files a new re-run in the same sitting.
+func TestAReproduceCorrectedTooLateIsToldTheActThatSupersedesIt(t *testing.T) {
+	rerun := func(note string) *recordpb.Reproduce {
+		return &recordpb.Reproduce{ProofSha: proto.String("abc"), Reproduced: proto.Bool(true),
+			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String(note)}
+	}
+	run := corrRun(t)
+	lens := sit(t, run, "red-lens-logic")
+	k := mustAppend(t, lens, rerun("x")).GetKey()
+	sit(t, run, "red-lens-voice")
+	_, err := Append(correcting(lens, recordpb.EventType_EVENT_TYPE_REPRODUCE, k, "filed before the script was read"), rerun("what the script computes"))
+	mustRefuse(t, err, "another seat has acted since this reproduce", "a register by red-lens-voice",
+		"say it in a new re-run of the proof")
+	if _, err := Append(lens, rerun("what the script computes")); err != nil {
+		t.Fatalf("the refusal sends the lens to a new re-run, and the record refused it: %v", err)
+	}
+}
+
+// BOTH TIME REFUSALS READ ONE TABLE: the earlier-sitting refusal and the relied-on refusal name the
+// same act for the same type.
+func TestBothTimeRefusalsNameTheSameSupersedingAct(t *testing.T) {
+	const want = "ay it in a new log entry"
+	t.Run("an earlier sitting", func(t *testing.T) {
+		run := corrRun(t)
+		blue := sit(t, run, "blue-respond")
+		k := mustAppend(t, blue, seatLog("first sitting")).GetKey()
+		sit(t, run, "blue-respond")
+		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("second sitting"))
+		mustRefuse(t, err, "earlier sitting", want)
+	})
+	t.Run("another seat acted", func(t *testing.T) {
+		run := corrRun(t)
+		blue := sit(t, run, "blue-respond")
+		k := mustAppend(t, blue, seatLog("read by red")).GetKey()
+		sit(t, run, "red-chair")
+		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("too late"))
+		mustRefuse(t, err, "another seat has acted since this log", want)
+	})
+}

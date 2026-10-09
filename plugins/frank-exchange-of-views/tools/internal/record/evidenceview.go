@@ -1,6 +1,8 @@
 package record
 
 import (
+	"fmt"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -131,7 +133,8 @@ type EvidenceProofJSON struct {
 	//   script, exit — the frozen key census rules both OFF the record: the script is a file in
 	//   the proof cache and the exit status belongs to proof.Result, the in-process execution
 	//   struct. Rendering `"exit": 0` from a field nothing can write would state success on
-	//   every proof ever recorded.
+	//   every proof ever recorded. The script's TEXT is read at the proof's anchor, from the
+	//   store: see EvidenceProofAtJSON.
 	//
 	//   location — `Proof` carries no span at all. A citation's anchor resolves to the sentence
 	//   it backs; a proof's no longer does, which is half of what this view was built for. It is
@@ -474,3 +477,72 @@ var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf)
 
 // EvidenceJSONBytes renders the evidence view as indented JSON.
 func EvidenceJSONBytes(run Run) ([]byte, error) { return evidenceView.jsonBytes(run) }
+
+// EvidenceAtJSON is the evidence view read AT ONE ANCHOR — the entry a seat holding that token is
+// asking about, and nothing else on the table.
+//
+// IT IS A SECOND SHAPE BECAUSE IT ANSWERS A SECOND QUESTION. The table says what backs the report
+// and what has been checked of it; this says what ONE anchor points at, in full. Narrowing the
+// table's own arrays to one row would leave its run-wide counts and its unanswered contradictions
+// beside a single entry, where "0 proofs unverified" reads as a fact about that entry.
+type EvidenceAtJSON struct {
+	Anchor string `json:"anchor"`
+	// Source is set when the anchor is a citation's (or a labelled corroboration's), Proof when
+	// it is a computation's. Exactly one is present.
+	Source *EvidenceSourceJSON  `json:"source,omitempty"`
+	Proof  *EvidenceProofAtJSON `json:"proof,omitempty"`
+}
+
+// EvidenceProofAtJSON is a proof's row WITH THE COMPUTATION ITSELF: the script the lens's
+// `reproduce` executes and the output blue's run recorded.
+//
+// THE RECORD HOLDS NEITHER, AND THIS DOES NOT CHANGE THAT. They are content, addressed by the
+// sha256 the `Proof` event carries and read from the proof store when a seat asks — the same join
+// the assembler makes for the human's evidence document. They are here and not on the table's
+// rows because every seat pulls the table, and a run's scripts in every context is a cost the
+// read at one anchor does not impose.
+//
+// PLAIN STRINGS, ALWAYS PRESENT. An artifact the store does not hold is refused before this type
+// is filled (proof.Stored), so "" here means the stored bytes are empty and never that nobody
+// could find them.
+type EvidenceProofAtJSON struct {
+	EvidenceProofJSON
+	// ScriptFile is the name the script is stored under; its extension is what picks the
+	// interpreter the re-run uses.
+	ScriptFile     string `json:"script_file"`
+	Script         string `json:"script"`
+	RecordedOutput string `json:"recorded_output"`
+}
+
+// EvidenceAt resolves one document anchor to the evidence entry it names. A proof comes back
+// without its script: the artifact is the caller's to read, because the store is not the record.
+//
+// A MISS IS AN ERROR. The table answers "nothing here" with an empty array, which is right for a
+// table and wrong for a lookup: a seat that asked what one anchor points at and received an empty
+// document would read it as an anchor that points at nothing.
+func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
+	ev, err := evidenceView.of(run)
+	if err != nil {
+		return EvidenceAtJSON{}, err
+	}
+	for i := range ev.Proofs {
+		if ev.Proofs[i].Anchor == id {
+			return EvidenceAtJSON{Anchor: id, Proof: &EvidenceProofAtJSON{EvidenceProofJSON: ev.Proofs[i]}}, nil
+		}
+	}
+	for i := range ev.Sources {
+		if ev.Sources[i].Anchor == id {
+			return EvidenceAtJSON{Anchor: id, Source: &ev.Sources[i]}, nil
+		}
+	}
+	// THE SHA IS THE OTHER NAME A SEAT HOLDS FOR A PROOF — it is what the re-run takes — so the
+	// refusal for one is the lookup it was reaching for.
+	for _, p := range ev.Proofs {
+		if p.Sha256 == id {
+			return EvidenceAtJSON{}, fmt.Errorf("show evidence: --anchor takes a document anchor, and %s is a proof's sha256 — that proof's anchor is %s, so ask with that", id, p.Anchor)
+		}
+	}
+	return EvidenceAtJSON{}, fmt.Errorf("show evidence: no source or proof is at anchor %q on this record (%d source(s), %d proof(s)). "+
+		"--anchor takes the id inside a citation or proof token in the report, exactly as it reads there; the bare projection lists every one with its anchor",
+		id, len(ev.Sources), len(ev.Proofs))
+}

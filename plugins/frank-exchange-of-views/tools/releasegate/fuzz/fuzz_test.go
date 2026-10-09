@@ -3068,6 +3068,35 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
+	// A PROOF READ AT ITS ANCHOR CARRIES THE STORED SCRIPT — the read a lens makes before it
+	// judges one. Every role, for the reason above: the projection is defined once. The script is
+	// compared to the proof store's own bytes, because an exit-0 read with an empty `script` is a
+	// lens judging a computation it was not shown.
+	if anchor, sha := someProof(stageRun); anchor != "" {
+		for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge"} {
+			args := []string{"show", "evidence", "--anchor", anchor, "--run", runDir, "--seat-id", sid}
+			out, err := drive(bin, args...)
+			if err != nil {
+				res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
+				return res
+			}
+			var at record.EvidenceAtJSON
+			if jerr := json.Unmarshal(out, &at); jerr != nil || at.Proof == nil {
+				res.err = strings.Join(args, " ") + " did not return the proof at its anchor:\n" + truncate(string(out))
+				return res
+			}
+			stored, rerr := os.ReadFile(filepath.Join(runDir, "proofs", sha, at.Proof.ScriptFile))
+			if rerr != nil || at.Proof.ScriptFile == "" || at.Proof.Script != string(stored) {
+				res.err = fmt.Sprintf("%s returned a script that is not the proof store's (%s, read error %v):\n%s",
+					strings.Join(args, " "), at.Proof.ScriptFile, rerr, truncate(string(out)))
+				return res
+			}
+		}
+		if out, err := drive(bin, "show", "evidence", "--anchor", "P-ffffffff", "--run", runDir, "--seat-id", "red-lens-evidence"); err == nil {
+			res.err = "show evidence --anchor P-ffffffff SUCCEEDED on an anchor nobody placed:\n" + truncate(string(out))
+			return res
+		}
+	}
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id G1`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
@@ -4480,6 +4509,20 @@ func someReportAnchor(run record.Run) string {
 		}
 	}
 	return ""
+}
+
+// someProof is one recorded proof's anchor and sha256, or "" when the run recorded none.
+func someProof(run record.Run) (anchor, sha string) {
+	b, err := record.FamilyOf(run)
+	if err != nil {
+		return "", ""
+	}
+	for _, e := range record.Live(b.Events) {
+		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetProofId() != "" && p.GetProofSha() != "" {
+			return p.GetProofId(), p.GetProofSha()
+		}
+	}
+	return "", ""
 }
 
 func mintedGapIDs(run record.Run) []string {

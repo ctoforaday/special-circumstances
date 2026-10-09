@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/jsonshape"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
@@ -282,7 +283,7 @@ var views = []struct {
 	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", "", true, record.MotionsJSON{}, true},
 	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`", "", false, record.DebateJSON{}, true},
 	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`", "every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`", "", false, record.ChangesJSON{}, false},
-	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `" + anchor.Token("C-…") + "` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `" + anchor.Token("P-…") + "` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
+	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `" + anchor.Token("C-…") + "` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `" + anchor.Token("P-…") + "` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `" + anchor.Token("P-…") + "` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
 	{"avenues", "WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "", false, record.AvenuesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
@@ -532,7 +533,7 @@ func viewGroup(inquest bool) *cobra.Command {
 			// which renders Short, and a projection whose writer is unnamed teaches a name that
 			// does not work.
 			Short:        v.short,
-			Long:         v.long + jsonByNameHelpSuffix(v.jsonByName) + shapeHelpSuffix(v.name, v.jsonByName, v.shape),
+			Long:         v.long + jsonByNameHelpSuffix(v.jsonByName) + shapeHelpSuffix(v.name, v.jsonByName, v.shape) + atAnchorShapeSuffix(v.name),
 			Args:         cobra.NoArgs,
 			SilenceUsage: true,
 			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
@@ -564,9 +565,50 @@ func viewGroup(inquest bool) *cobra.Command {
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted)")
 		}
+		// ONE ENTRY, BY THE TOKEN THE SEAT IS HOLDING. The same flag `report` takes for the same
+		// id: there it reads the text around the anchor, here it reads what the anchor points at.
+		if v.name == "evidence" {
+			sub.Flags().String(flags.Anchor, "",
+				"read the ONE entry at this anchor `id` rather than the table — a proof's (P-…) with its script and recorded output, or a source's (C-…)")
+		}
 		c.AddCommand(sub)
 	}
 	return c
+}
+
+// atAnchorShapeSuffix is the field tree of the evidence view's read at one anchor, generated from
+// the type it marshals for the reason shapeHelpSuffix gives: the key names are a fact about a Go
+// struct, and the page a seat opens before the read is where they cost nothing.
+func atAnchorShapeSuffix(name string) string {
+	if name != "evidence" {
+		return ""
+	}
+	return "\n\nOUTPUT WITH --anchor (JSON — `source` or `proof`, whichever the anchor names): " + jsonshape.Tree(record.EvidenceAtJSON{})
+}
+
+// evidenceAt reads the one evidence entry at an anchor, and for a proof joins the artifact the
+// record addresses by sha256: the script and the output, from the proof store.
+//
+// THE STORE IS READ HERE AND NOT IN THE RECORD PACKAGE. `EvidenceAt` answers from events; the
+// script is content the events point at, and a view of the record that opened files would make
+// every narrowed read of it depend on a directory.
+func evidenceAt(run record.Run, id string) ([]byte, error) {
+	at, err := record.EvidenceAt(run, id)
+	if err != nil {
+		return nil, err
+	}
+	if at.Proof != nil {
+		file, script, output, err := proof.Stored(run.Dir(), at.Proof.Sha256)
+		if err != nil {
+			return nil, fmt.Errorf("show evidence: %w", err)
+		}
+		at.Proof.ScriptFile, at.Proof.Script, at.Proof.RecordedOutput = file, string(script), string(output)
+	}
+	b, err := json.MarshalIndent(at, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(b, '\n'), nil
 }
 
 // renderView writes one projection. want == "" means this role's default.
@@ -807,6 +849,21 @@ func renderView(cmd *cobra.Command, want string) error {
 	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
 	// and a markdown rendering of it would be a table to parse rather than a field to read.
 	if want == "evidence" {
+		if a, _ := cmd.Flags().GetString(flags.Anchor); a != "" {
+			// ONE ENTRY IS NOT A SET TO SELECT FROM. The selector filters a projection's arrays and
+			// this read has none, so the pair would be accepted and do nothing.
+			if sel, serr := SelectorOf(cmd); serr != nil {
+				return serr
+			} else if sel.Active() {
+				return feov.Errorf(feov.Validation, "show evidence: --anchor reads the one entry at an anchor, and --match/--quote select entries from the table — pass one or the other")
+			}
+			b, err := evidenceAt(run, strings.TrimSpace(a))
+			if err != nil {
+				return err
+			}
+			_, werr := cmd.OutOrStdout().Write(b)
+			return werr
+		}
 		b, err := record.EvidenceJSONBytes(run)
 		if err != nil {
 			return err

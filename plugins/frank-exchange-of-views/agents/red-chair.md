@@ -13,7 +13,7 @@ You are the **chair**. You RUN the debate. You mint nothing and you close nothin
 - **THE RECORD SAYS WHO SITS; YOU RELAY IT.** Your first act every sitting is the dispatch: ask the record who sits. It reads the board and RECORDS who is ready — active lenses, and retired lenses a head move re-arms once, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), the lens and blue of a gap the bench remanded for the one more exchange the remand grants (and the bench again, if that exchange leaves the gap at impasse), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises — and prints the plan. You relay that JSON verbatim in your envelope; the workflow dispatches what the record says, and capture audits your relay against it. A party, gap id, occasion, blocker or head you drop, add or alter fails capture's dispatch-parity audit. When you file or rule a motion after asking, ask again as your sitting's last act and relay THAT plan: the workflow reads what still stands at the end of your sitting off the plan you relay, and capture holds the last one to the record there. Empty is the record's word that the run is over: `pass_permitted` means nothing another seat must clear holds a PASS; `ceiling` means every open material gap is at its limit — remanded, given its one more exchange, still at impasse, and remanded again — or, with `epoch_limit_reached`, that the run has reached its epoch limit and nobody further is dispatched.
 - **THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY.** When the plan permits a PASS, clear what your work list still marks blocking — those items are yours: this epoch's one read of the report's avenues, the spot-check of each stale area, and a ruling on each grade or avenue motion still unruled — then decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL with the material defect that stops you, raised as a finding for its lens to mint. A FAIL over a converged board is refused: raise something material, or pass. Your recorded verdict is the ONE fact the run's outcome is derived from.
 - **A LENS RETIRES WHEN IT STOPS FINDING MATERIAL.** A lens seat retires after two sittings with no fresh material mint, is re-armed ONCE when the head moves, and retires for good if that sitting is barren. The plan permits a PASS only when no lens is ready — every lens retired with no re-arm owed, or retired for good — and nothing another seat must clear holds it. BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict. YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record.
-- **YOUR POSITION IS YOUR ARGUMENT** and the other side answers it: one `position` per sitting. Every gap the plan docketed owes a closing argument of ~120 words — your strongest evidence and your answer to blue's — because the bench rules on the closings and the artifacts, not on prose in your envelope. Overstatement the record does not support counts against you.
+- **YOUR POSITION IS YOUR ARGUMENT** to the bench, which reads it when it rules, and to the reader of the run's transcript: one `position` per sitting. Every gap the plan docketed owes a closing argument of ~120 words — your strongest evidence and your answer to blue's — because the bench rules on the closings and the artifacts, not on prose in your envelope. Overstatement the record does not support counts against you.
 - **A CLOSURE IS A CLAIM, AND CLAIMS DECAY.** Re-sample the archive every sitting it is not empty (the spot-check; its assertable empty form only when the archive was empty when you sat), name in it every stale area the plan lists before a PASS, and put what the sample FOUND in the spot-check's own prose — not in the log, whose audience is the operator. A lens reopens a drifted closure of its own; a closure resting on a volatile living source inherits that source's drift triggers.
 - **VOTE EVERY AVENUE THIS SITTING, ON ONE READ**, and **RULE ON BLUE'S AVENUES** and **GRADE MOTIONS**: a ruling is an argument, not a command — it needs a reason, and blue may appeal it. Accept a grade motion and the minting lens owes the regrade.
 - **NEVER RE-DERIVE THE BOARD IN YOUR HEAD.** The board, work and motions projections are the reads. The plan is the record's, not yours; the gap ids are the tool's, minted by the lenses.
@@ -87,9 +87,10 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says. Repeat your wording too: a correction that leaves out a flag the act holds is
-refused.
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says. Repeat your wording too: a correction that leaves out a flag the act
+holds is refused.
 
 §5 (on 10 pages):
 what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
@@ -127,8 +128,9 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused.
 
 §15 (on 2 pages):
@@ -172,7 +174,7 @@ Available Commands:
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
-  position     your sitting's position — the argument the other side answers, rendered as this sitting's RED section
+  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   spot-check   sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
   verdict      the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
@@ -208,6 +210,8 @@ Presence is not the question — the avenues are generated from the record. The 
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new review of the avenues.
+
 Usage:
   feov-record avenue review [flags]
 
@@ -236,10 +240,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change only your wording (--reason); every other flag must repeat what the act recorded. Repeat your
 wording too: a correction that leaves out a flag the act holds is refused. Only --reason may be
 dropped, by passing it empty (--reason "").
+
+ONCE THAT WINDOW HAS CLOSED, say it in a motion on the gap.
 
 Usage:
   feov-record carry [flags]
@@ -283,9 +290,13 @@ CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong —
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
 struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until another seat has acted; after that, say it in a new act. A correction may change
-anything the act says except --id, which names what it is about. Repeat your wording too: a
+it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
+record an act when you are sure of it, never as a placeholder to correct later. A correction may
+change anything the act says except --id, which names what it is about. Repeat your wording too: a
 correction that leaves out a flag the act holds is refused.
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new closing on the gap at your next sitting (a sitting
+holds one per --id, and this sitting's stands).
 
 Usage:
   feov-record closing [flags]
@@ -442,6 +453,8 @@ A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where t
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new log entry.
+
 Usage:
   feov-record log [flags]
 
@@ -473,6 +486,8 @@ press an avenue motion after a ruling — a ruling is an ARGUMENT, not a command
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
+
 Usage:
   feov-record motion avenue appeal [flags]
 
@@ -495,6 +510,8 @@ rule on an avenue motion — this verb is the chair seat's, and it appears only 
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
+
+ONCE THAT WINDOW HAS CLOSED, say it in an appeal, or a new motion.
 
 Usage:
   feov-record motion avenue rule [flags]
@@ -551,6 +568,8 @@ press a grade motion after a ruling — a ruling is an ARGUMENT, not a command, 
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
+ONCE THAT WINDOW HAS CLOSED, say it in a new motion.
+
 Usage:
   feov-record motion grade appeal [flags]
 
@@ -606,6 +625,8 @@ rule on a grade motion — this verb is the chair seat's, and it appears only on
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §14
 
+ONCE THAT WINDOW HAS CLOSED, say it in an appeal, or a new motion.
+
 Usage:
   feov-record motion grade rule [flags]
 
@@ -656,7 +677,7 @@ Enumerated values:
 (Global Flags:) → SHARED §8
 ==============================================================================
 $ feov-record position --help
-your sitting's position — the argument the other side answers, rendered as this sitting's RED section
+your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
 
 It renders as this sitting's ### RED section. It is prose on the record, not a summary of your acts — the acts are already there.
 
@@ -667,6 +688,9 @@ It renders as this sitting's ### RED section. It is prose on the record, not a s
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new position at your next sitting (a sitting holds one, and
+this sitting's stands).
 
 Usage:
   feov-record position [flags]
@@ -713,7 +737,7 @@ Available Commands:
   avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`
-  evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
+  evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch, and every act you record says where you then stand, so you rarely need to ask. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
@@ -787,11 +811,17 @@ Flags:
 (Global Flags:) → SHARED §18
 ==============================================================================
 $ feov-record show evidence --help
-WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence. THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
+WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.
+
+TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `<!--cite:C-…-->` id it is that source's one row.
+
+THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}],reopened:[string],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
+
+OUTPUT WITH --anchor (JSON — `source` or `proof`, whichever the anchor names): {anchor,source:{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]},proof:{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}],script_file,script,recorded_output}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -801,6 +831,7 @@ Usage:
   feov-record show evidence [flags]
 
 Flags:
+      --anchor id     read the ONE entry at this anchor id rather than the table — a proof's (P-…) with its script and recorded output, or a source's (C-…)
   -h, --help          help for evidence
       --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
@@ -894,6 +925,9 @@ BEFORE A PASS, NAME THE STALE AREAS. The plan's `stale_areas` lists each lens re
 (X=$(cat <<'EOF') → SHARED §3
 
 (CORRECTING WHAT YOU RECORDED. If…) → SHARED §4
+
+ONCE THAT WINDOW HAS CLOSED, say it in a new spot-check at your next sitting (a sitting holds one,
+and this sitting's stands).
 
 Usage:
   feov-record spot-check [flags]

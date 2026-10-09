@@ -61,7 +61,7 @@ func newReproduce() *cobra.Command {
 			// beside the sentence it backs". It is not: the report carries an opaque
 			// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
 			// document had the token this verb does not take and no path to the one it does.
-			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet", anchor.Token("P-…"))
+			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, and whether anyone has re-run it yet, and `show evidence --anchor <that id>` prints its script", anchor.Token("P-…"))
 		}
 		// A CORRECTION RE-STATES THE REPRODUCTION; it does not re-run the proof. What the re-run
 		// showed is the corrected act's, and a corrected note must not hang on whether the proof's
@@ -80,7 +80,7 @@ func newReproduce() *cobra.Command {
 		}
 		soundness := seat.Str(cmd, flags.As)
 		if soundness == "" {
-			return nil, fmt.Errorf("lens reproduce requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. Read the script and say whether it computes what it is anchored to")
+			return nil, fmt.Errorf("lens reproduce requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once and say whether it computes what it is anchored to; nothing is recorded by this call")
 		}
 		snd, known := record.SoundnessOf(soundness)
 		if !known {
@@ -107,7 +107,7 @@ func newReproduce() *cobra.Command {
 		}
 		body.Note = proto.String(note)
 		if note == "" {
-			return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace")
+			return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace — this call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once with the verdict and what the reading showed; nothing is recorded by this call")
 		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err

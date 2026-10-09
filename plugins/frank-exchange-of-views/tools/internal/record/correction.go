@@ -351,20 +351,75 @@ func flagOf(fd protoreflect.FieldDescriptor) string {
 
 // supersedingAct is what a seat does instead when a correction is refused for time — the act that
 // answers an earlier one without restating it.
+//
+// ONE TABLE, THREE READERS: the earlier-sitting refusal, the relied-on refusal and the paragraph
+// every correctable verb's help carries. A seat told only "say it in a new act" is told nothing —
+// a lens whose three corrections were refused that way had to work out for itself that a re-run is
+// answered by another re-run, and left the first three standing with nothing pointing at them.
 func supersedingAct(typ recordpb.EventType) string {
-	switch typ {
-	case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
-		return "an appeal, or a new motion"
-	case recordpb.EventType_EVENT_TYPE_MOTION_APPEAL:
-		return "a new motion"
-	case recordpb.EventType_EVENT_TYPE_REGRADE:
-		return "a new regrade"
-	case recordpb.EventType_EVENT_TYPE_CLOSE:
-		return "a motion on the gap"
-	case recordpb.EventType_EVENT_TYPE_AVENUE:
-		return "a move of the avenue"
+	if s, ok := superseders[typ]; ok {
+		return s.act
 	}
 	return "a new act"
+}
+
+// superseder is one row: the act that answers an act whose correction is refused for time.
+type superseder struct {
+	// act completes "say it in …".
+	act string
+	// own marks an act that is the corrected act's OWN VERB, run again — the rows where the
+	// sitting's key decides whether it is admitted now (SupersedingActThisSitting).
+	own bool
+}
+
+// superseders holds a row for EVERY correctable type and for no other;
+// TestEveryCorrectableTypeNamesTheActThatSupersedesIt fails a type that joins a correction tier
+// without one.
+var superseders = map[recordpb.EventType]superseder{
+	recordpb.EventType_EVENT_TYPE_AVENUE:        {act: "a move of the avenue"},
+	recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW: {act: "a new review of the avenues", own: true},
+	recordpb.EventType_EVENT_TYPE_CERTIFY:       {act: "a new certification", own: true},
+	recordpb.EventType_EVENT_TYPE_CITE:          {act: "a new citation", own: true},
+	recordpb.EventType_EVENT_TYPE_CLOSE:         {act: "a motion on the gap"},
+	recordpb.EventType_EVENT_TYPE_CLOSING:       {act: "a new closing on the gap", own: true},
+	recordpb.EventType_EVENT_TYPE_DECLARE:       {act: "a new declaration", own: true},
+	recordpb.EventType_EVENT_TYPE_HALT:          {act: "a new halt", own: true},
+	recordpb.EventType_EVENT_TYPE_LOG:           {act: "a new log entry", own: true},
+	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:  {act: "a new manifest row for the gap", own: true},
+	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL: {act: "a new motion"},
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE:   {act: "an appeal, or a new motion"},
+	recordpb.EventType_EVENT_TYPE_OUTCOME:       {act: "a new outcome", own: true},
+	recordpb.EventType_EVENT_TYPE_POSITION:      {act: "a new position", own: true},
+	recordpb.EventType_EVENT_TYPE_PROOF:         {act: "a new proof", own: true},
+	recordpb.EventType_EVENT_TYPE_REGRADE:       {act: "a new regrade", own: true},
+	recordpb.EventType_EVENT_TYPE_REPRODUCE:     {act: "a new re-run of the proof, whose reason says which earlier re-run it replaces", own: true},
+	recordpb.EventType_EVENT_TYPE_REVISION:      {act: "a new revision", own: true},
+	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:    {act: "a new spot-check", own: true},
+}
+
+// SupersedingActThisSitting is supersedingAct for a seat still in the sitting that wrote the act —
+// the relied-on refusal and the help paragraph. Where the superseding act is the act's own verb and
+// a sitting holds only one of it, the act is admitted at the seat's NEXT sitting and the phrase
+// says so: sent to "a new regrade" now, the seat is refused a second regrade on the gap and pointed
+// back at the correction that was just refused.
+//
+// The one-a-sitting fact is read from what deriveKey keys on, never restated: a singleton, or a
+// label key that references something (a gap) rather than defining it.
+func SupersedingActThisSitting(typ recordpb.EventType) string {
+	s, ok := superseders[typ]
+	if !ok {
+		return supersedingAct(typ)
+	}
+	if !s.own {
+		return s.act
+	}
+	switch label := LabelFlag(typ); {
+	case singleton[typ]:
+		return s.act + " at your next sitting (a sitting holds one, and this sitting's stands)"
+	case label != "" && !defines[typ]:
+		return s.act + " at your next sitting (a sitting holds one per " + label + ", and this sitting's stands)"
+	}
+	return s.act
 }
 
 // appendCorrected writes a replacement and its Correction in ONE transaction.
@@ -453,8 +508,8 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		target.ID, seatID, HarnessSeat, recordpb.Word(recordpb.LogSource_LOG_SOURCE_TOOL)).Scan(&fid, &fseat, &ftype); {
 	case err == nil:
 		return nil, feov.Errorf(feov.Validation,
-			"record: another seat has acted since this %s (event %d, a %s by %s); what you would correct is now on the record they read — say it in a new act",
-			recordpb.Word(target.Type), fid, ftype, fseat)
+			"record: another seat has acted since this %s (event %d, a %s by %s); what you would correct is now on the record they read — say it in %s; the record keeps both",
+			recordpb.Word(target.Type), fid, ftype, fseat, SupersedingActThisSitting(target.Type))
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, fmt.Errorf("record: asking whether another seat has acted since %s: %w", target.Key, err)
 	}

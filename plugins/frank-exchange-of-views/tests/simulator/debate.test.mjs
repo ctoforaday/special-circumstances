@@ -335,7 +335,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
-    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "run it from the proof store; a clean exit or '0 failing' is not an output"]) {
+    "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the stored script is what the re-run executes; a clean exit or '0 failing' is not an output", "read at the computation's anchor, gives the script and the output blue recorded"]) {
     assert.ok(evidence.includes(want), `the lens prompt lost: ${want}`)
   }
   assert.ok(!/gap ids are the chair's/.test(evidence), 'the ids are the tool\'s, minted by the lens')
