@@ -294,7 +294,7 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
+  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's BLUE section
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -794,7 +794,7 @@ Enumerated values:
 (Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record position --help
-your sitting's position — the argument the other side answers, rendered as this sitting's BLUE section
+your sitting's position — the argument the bench reads when it rules, rendered as this sitting's BLUE section
 
 It renders as this sitting's ### BLUE section. It is prose on the record, not a summary of your acts — the acts are already there.
 

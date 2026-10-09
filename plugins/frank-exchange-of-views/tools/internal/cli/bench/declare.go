@@ -62,6 +62,6 @@ func newDeclare() *cobra.Command {
 		if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
 			return nil, err
 		}
-		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `inquest debate`, where both seats read it"}, nil
+		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `inquest debate`, where the chair and the bench read it"}, nil
 	})), flags.Reason))
 }
