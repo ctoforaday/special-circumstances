@@ -50,15 +50,15 @@ func corrFixture(t *testing.T) string {
 		}
 	}
 	seedBlueReport(t, runDir)
-	if g := mintGap(t, runDir, "corr-seed", "self-attestation"); g != "G1" {
-		t.Fatalf("the fixture's gap is %s, want G1", g)
+	if g := mintGap(t, runDir, "corr-seed", "self-attestation"); g != onlyID(t, runDir, "G") {
+		t.Fatalf("the fixture mints %s and the run holds another gap — every row names the one gap as G1", g)
 	}
 	return runDir
 }
 
 func must(t *testing.T, runDir string, args ...string) string {
 	t.Helper()
-	out, err := run(t, append(args, "--run", runDir)...)
+	out, err := runAt(t, append(args, "--run", runDir)...)
 	if err != nil {
 		t.Fatalf("%v: %v", args, err)
 	}
@@ -248,7 +248,7 @@ func corrRows() map[string]corrRow {
 // keyOf runs the act with --json and reads the key off the envelope's field.
 func correctionKeyOf(t *testing.T, runDir, seatID string, args []string) string {
 	t.Helper()
-	out, err := run(t, append(args, "--run", runDir, "--seat-id", seatID, "--json")...)
+	out, err := runAt(t, append(args, "--run", runDir, "--seat-id", seatID, "--json")...)
 	if err != nil {
 		t.Fatalf("the defective act was refused: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestCorrectionAcceptedPerCorrectablePath(t *testing.T) {
 			k := correctionKeyOf(t, runDir, row.seat, row.act(v, "the text the shell cut short:  and nothing"))
 			args := append(row.act(v, "the text as it was meant, whole"), "--run", runDir, "--seat-id", row.seat,
 				"--corrects", k, "--correction-why", "the shell deleted a word")
-			out, err := run(t, args...)
+			out, err := runAt(t, args...)
 			if err != nil {
 				t.Fatalf("the correction was refused: %v", err)
 			}
@@ -324,7 +324,7 @@ func TestCorrectingAProposalAfterItsMoveKeepsTheLine(t *testing.T) {
 		t.Fatalf("correcting a moved proposal was refused: %v", err)
 	}
 	a := lastBody(t, runDir, &recordpb.Avenue{})
-	if a.GetAvenueId() != "Q1" || a.GetLine() != "try the recorded method" {
+	if a.GetAvenueId() != handleText(t, runDir, "Q1") || a.GetLine() != "try the recorded method" {
 		t.Errorf("the replacement proposal is %s %q, want Q1 with the corrected line", a.GetAvenueId(), a.GetLine())
 	}
 }
@@ -341,7 +341,7 @@ func TestCorrectionFlagsAreRefusedAlone(t *testing.T) {
 		{[]string{"revision", "--reason", "second", "--corrects", k}, "requires --correction-why"},
 		{[]string{"log", "--type", "defect", "--reason", "x", "--corrects", k, "--correction-why", "w"}, "is a revision, and this command writes a log"},
 	} {
-		_, err := run(t, append(tc.args, "--run", runDir, "--seat-id", "blue-respond")...)
+		_, err := runAt(t, append(tc.args, "--run", runDir, "--seat-id", "blue-respond")...)
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%v: got %v, want a refusal saying %q", tc.args, err, tc.want)
 		}

@@ -34,7 +34,7 @@ func TestAvenueProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("propose: %v", err)
 	}
-	if !strings.Contains(out, "Q1") {
+	if !strings.Contains(out, handleText(t, runDir, "Q1")) {
 		t.Errorf("the tool must assign the id, not the seat: %q", out)
 	}
 	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_AVENUE)
@@ -56,7 +56,7 @@ func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
+	if _, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "every implementation agrees at n=7; the hypothesis is dead"); err != nil {
 		t.Fatalf("move: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Q1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "e1 proposed -> e1 abandoned"} {
+	for _, want := range []string{handleText(t, runDir, "Q1"), "survey primality libraries", "implementations disagree", "the hypothesis is dead", "e1 proposed -> e1 abandoned"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the projection lost %q — the PATH is the evidence of choosing:\n%s", want, out)
 		}
@@ -79,7 +79,7 @@ func TestAvenueMoveRequiresWhatChanged(t *testing.T) {
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
+	_, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
 	if err == nil {
 		t.Fatal("an avenue slid to abandoned with no stated reason")
 	}
@@ -92,12 +92,12 @@ func TestAvenueMoveRequiresWhatChanged(t *testing.T) {
 func TestAvenueMoveRefusesAnUnknownID(t *testing.T) {
 	runDir := newRun(t)
 	seat := avenueSeat(t, runDir)
-	_, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
+	_, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q9", "--as", "pursued", "--reason", "why")
 	if err == nil {
 		t.Fatal("a move against an avenue nobody proposed was accepted")
 	}
-	if !strings.Contains(err.Error(), "Q9") {
+	if !strings.Contains(err.Error(), handleText(t, runDir, "Q9")) {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
 }
@@ -108,7 +108,7 @@ func TestAvenueMoveRefusesAnUnknownID(t *testing.T) {
 func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 	runDir := newRun(t)
 	seat := avenueSeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
+	if _, err := runAt(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--reason", "a line"); err == nil {
 		t.Fatal("`propose --id` was accepted; the two contracts are still reachable through one shape")
 	}
@@ -125,7 +125,7 @@ func TestRedRulesOnAProposedAvenue(t *testing.T) {
 	}
 	// A direction motion joins on the LINE's own id: it has no `file` verb because the
 	// proposal IS the filing, which is why A1 works here and no M-number is minted.
-	if _, err := run(t, "motion", "avenue", "rule", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "motion", "avenue", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--as", "out_of_scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
@@ -146,7 +146,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "avenue-rule", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "avenue-rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--ruling", "too_thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
@@ -173,7 +173,7 @@ func TestOpenAvenuesAreSurfacedAsOwingADecision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "Awaiting a decision") || !strings.Contains(out, "Q1") {
+	if !strings.Contains(out, "Awaiting a decision") || !strings.Contains(out, handleText(t, runDir, "Q1")) {
 		t.Errorf("an undecided avenue was not surfaced as owing a decision:\n%s", out)
 	}
 }

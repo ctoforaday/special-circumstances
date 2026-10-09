@@ -62,7 +62,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := evidence().Reopened
-	if len(got) != 1 || !strings.HasPrefix(got[0], "c-") {
+	if len(got) != 1 || !strings.HasPrefix(got[0], "C-") {
 		t.Fatalf("reopened = %v, want the corroboration's citation — the footnote now backs a sentence nobody read", got)
 	}
 	// The anchor is still THERE: reopening is not losing, and the no-loss promise still holds.

@@ -84,7 +84,7 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 	// A sitting that ACTED is offered the log — its first sitting's entry does not close the channel —
 	// and is complete without an entry: a sitting that hit nothing has nothing to file.
 	acted := b5Shape(t).register(voiceLens).
-		add(voiceLens, &recordpb.Finding{Label: proto.String("voice-F9"), Text: proto.String("an act this sitting made")}).seed()
+		add(voiceLens, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("an act this sitting made")}).seed()
 	s = sittingOfRunT(t, acted, "lens", voiceLens)
 	if !listsItem(s, "the log is open") || !s.Complete {
 		t.Fatalf("a sitting that acted and filed no log is not offered it, or cannot finish: complete=%v open=%+v", s.Complete, s.Open)

@@ -43,7 +43,7 @@ backslash \ and \n literal
 
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
@@ -56,7 +56,7 @@ backslash \ and \n literal
 
 exit 0
 stdout:
-finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: FINDING001 (logic) — the id a gap's found_by names
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
@@ -65,8 +65,8 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"logic-F1","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-logic:finding:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══

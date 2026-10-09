@@ -209,39 +209,39 @@ func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 func TestFindingsAndCitations(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:L1-F1", &recordpb.Finding{
-			FindingId: proto.String("f-00000001"), Label: proto.String("L1-F1"), Text: proto.String("a finding"),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F-00000001", &recordpb.Finding{
+			Id: proto.String("F-00000001"), Text: proto.String("a finding"),
 		}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:L2-F1", &recordpb.Finding{
-			FindingId: proto.String("f-00000002"), Label: proto.String("L2-F1"), Text: proto.String("another"),
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:F-00000002", &recordpb.Finding{
+			Id: proto.String("F-00000002"), Text: proto.String("another"),
 		}),
 		// The anchor events: a finding and its anchor are appended as a pair, and the oracle's
 		// pair rule treats a missing anchor event as the crash window it is — this fixture
 		// claims to be a SETTLED record, so it carries both halves.
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:anchor:f-00000001", &recordpb.Anchor{
-			Id: proto.String("f-00000001"), Location: proto.String("a finding"),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:anchor:F-00000001", &recordpb.Anchor{
+			Id: proto.String("F-00000001"), Location: proto.String("a finding"),
 		}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:anchor:f-00000002", &recordpb.Anchor{
-			Id: proto.String("f-00000002"), Location: proto.String("another"),
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:anchor:F-00000002", &recordpb.Anchor{
+			Id: proto.String("F-00000002"), Location: proto.String("another"),
 		}),
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:cite:c-aa000001", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-			Label: proto.String("c-aa000001"), Url: proto.String("https://example.org/a"),
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:cite:C-aa000001", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
+			Label: proto.String("C-aa000001"), Url: proto.String("https://example.org/a"),
 			Title: proto.String("A"), Location: proto.String("the cited sentence"),
 		}),
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:anchor:c-aa000001", &recordpb.Anchor{
-			Id: proto.String("c-aa000001"), Location: proto.String("the cited sentence"),
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:anchor:C-aa000001", &recordpb.Anchor{
+			Id: proto.String("C-aa000001"), Location: proto.String("the cited sentence"),
 		}),
 		// Red's leaf reads are VERIFY events (a corroboration goes through the same verb); a
 		// red-authored Cite is unconstructible through the tool — only `blue cite` writes one.
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:c-aa000001", &recordpb.Verify{
-			Claim: proto.String("the cited sentence"), Label: proto.String("c-aa000001"),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:C-aa000001", &recordpb.Verify{
+			Claim: proto.String("the cited sentence"), Label: proto.String("C-aa000001"),
 			Url:        proto.String("https://example.org/a"),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 			Text:       proto.String("read at the leaf"),
 		}),
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:c-aa000001:#2", &recordpb.Verify{
-			Claim: proto.String("the cited sentence"), Label: proto.String("c-aa000001"),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:C-aa000001:#2", &recordpb.Verify{
+			Claim: proto.String("the cited sentence"), Label: proto.String("C-aa000001"),
 			Url:        proto.String("https://example.org/a"),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
@@ -305,7 +305,7 @@ func TestMarkdownInjectionInProblemText(t *testing.T) {
 func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 	finding := func(id string, about *recordpb.AboutKind, ref string) *recordpb.Event {
 		f := &recordpb.Finding{
-			FindingId: proto.String(id), Label: proto.String("L1-" + id),
+			Id:       proto.String(id),
 			Text:     proto.String("fuzz finding"),
 			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}
@@ -319,14 +319,14 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 
 	t.Run("a quote-anchored finding with no anchor event is still the crash window", func(t *testing.T) {
 		dir := recordtest.TmpRun(t)
-		recordtest.Seed(t, dir, finding("f-11111111", nil, ""))
+		recordtest.Seed(t, dir, finding("F-11111111", nil, ""))
 		violations, err := Check(runtest.Open(t, dir))
 		if err != nil {
 			t.Fatal(err)
 		}
 		found := false
 		for _, v := range violations {
-			if strings.Contains(v, "anchor-record") && strings.Contains(v, "f-11111111") {
+			if strings.Contains(v, "anchor-record") && strings.Contains(v, "finding F-11111111 has no anchor event") {
 				found = true
 			}
 		}
@@ -343,7 +343,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 			recordpb.AboutKind_ABOUT_KIND_GAP,
 		} {
 			dir := recordtest.TmpRun(t)
-			recordtest.Seed(t, dir, finding("f-22222222", &k, "G1"))
+			recordtest.Seed(t, dir, finding("F-22222222", &k, "G1"))
 			violations, err := Check(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)

@@ -44,7 +44,7 @@ func TestASingletonActIsRefusedASecondTimeInsideARepair(t *testing.T) {
 			runDir := blueSatOwing(t, c.act)
 			must(t, runDir, "register", "--seat-id", "blue-respond", "--repair-sitting")
 
-			_, err := run(t, append(append([]string{}, c.act...), "--run", runDir, "--seat-id", "blue-respond")...)
+			_, err := runAt(t, append(append([]string{}, c.act...), "--run", runDir, "--seat-id", "blue-respond")...)
 			if err == nil {
 				t.Fatalf("a second %s inside the repair was accepted — the sitting now carries two answers to a once-per-sitting question", c.word)
 			}

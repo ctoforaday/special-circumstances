@@ -283,13 +283,20 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 			if c == nil {
 				t.Fatalf("%v is not on %s's surface", path, p.seat)
 			}
-			invoke := func(args []string) error {
+			// THE ARGUMENTS ARE BUILT AGAINST THE RUN THEY ARE SENT TO. A fresh run mints fresh
+			// ids, so a set built from the first fixture's ids names nothing in the second and is
+			// refused for the dangling reference rather than for the flag left out.
+			invoke := func(omit *pflag.Flag) error {
 				fresh()
-				_, err := run(t, append(append([]string{}, args...), "--run", runDir, "--seat-id", p.seat)...)
+				args := p.args(vars)
+				if omit != nil {
+					args, _ = without(args, omit)
+				}
+				_, err := runAt(t, append(append([]string{}, args...), "--run", runDir, "--seat-id", p.seat)...)
 				dirty = err == nil
 				return err
 			}
-			fullErr := invoke(full)
+			fullErr := invoke(nil)
 			if (fullErr != nil) != p.fullIsRefused {
 				if fullErr != nil {
 					t.Fatalf("the complete set is refused, so this probe measures nothing: %v", fullErr)
@@ -304,8 +311,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				}
 				marked := seat.IsMarked(f.Usage)
 				checked++
-				omitted, present := without(full, f)
-				if !present {
+				if _, present := without(full, f); !present {
 					if marked && !p.fullIsRefused {
 						t.Errorf("`%s --%s` says REQUIRED and the verb ran clean without it.\n\nusage: %s\n\nA seat reading that supplies a value it did not have to choose.", verb, f.Name, f.Usage)
 					}
@@ -314,7 +320,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				if other := oneOfAnother[f.Name]; verbsWithAOneOf[verb] && other != "" && c.Flags().Lookup(other) != nil {
 					return // satisfied by --other, which the help states in prose
 				}
-				err := invoke(omitted)
+				err := invoke(f)
 				if p.fullIsRefused {
 					// The clean set is refused too, so a refusal is THIS flag's only when it is a
 					// different one that names the flag — cobra's "required flag(s) not set" against

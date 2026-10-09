@@ -147,7 +147,7 @@ func newProve() *cobra.Command {
 		// the proof anchor at replay. No file is spliced; a --key retry is idempotent (handled
 		// above). Mint the id and VALIDATE the placement against the current render — a mis-quote or
 		// in-fence quote is refused now.
-		label := record.NewProofID()
+		label := record.NewID("proof")
 		if err := seat.Places(run, label, location, proveRefusal); err != nil {
 			return nil, err
 		}
@@ -177,10 +177,10 @@ func newProve() *cobra.Command {
 	flags.Text(c, flags.Quote, flags.DescQuote)
 	c.Flags().String(flags.Script, "", "path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")
 	seat.Require(c, flags.Quote, flags.Script)
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles (G4) — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
 	seat.Records(c, "proof")
 	return seat.Correctable(c)
 }

@@ -550,12 +550,12 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	board := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"L5-F1", "L6-F2"}}},
+			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"F-f0000001", "F-f0000002"}}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
-			recordtest.Event(t, "red-lens-dark-side", &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted — omit")}),
+			recordtest.Event(t, "red-lens-dark-side", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("also minted — omit")}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000003"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
 	got := boardSection(board.famT(t))
@@ -572,8 +572,10 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 	if !strings.Contains(got, "is NOT recorded") {
 		t.Errorf("the section does not say that whether these were considered is unrecorded:\n%s", got)
 	}
-	if !strings.Contains(got, "L5-F3") || !strings.Contains(got, "un-minted red reasoning kept") {
-		t.Errorf("the un-minted finding's substance must be surfaced:\n%s", got)
+	// THE HEADING NAMES THE FINDING BY ITS ID AND ITS LENS'S AREA, exactly: an id alone does not say
+	// which lens filed it.
+	if !strings.Contains(got, "\n### F-f0000003 (logic) — §H1\n") || !strings.Contains(got, "un-minted red reasoning kept") {
+		t.Errorf("the un-minted finding's substance must be surfaced under `### F-f0000003 (logic) — §H1`:\n%s", got)
 	}
 	// A credited finding's text renders ONCE, under the gap that claimed it (surfaced by) —
 	// and never again in the credited-by-no-gap section. The fixture used to leave GapOrder
@@ -587,7 +589,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 
 // A MINTED FINDING'S EVIDENCE MUST BE REACHABLE FROM THE GAP THAT CLAIMED IT.
 //
-// The provenance line used to read `surfaced by: L5-F1, L6-F2` and nothing in the report defined
+// The provenance line used to read `surfaced by: F-f0000001, F-f0000002` and nothing in the report defined
 // those labels — unmintedFindings renders a finding only when NO gap claims it, so the instant
 // the chair acted on a finding its leaf-level evidence left the document and the citation
 // dangled. A fuzz run where every finding was minted put red's words nowhere at all.
@@ -604,29 +606,32 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			// nowhere at all. The fuzz found one.
 			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{
 				Problem: proto.String("the chair's restatement"),
-				FoundBy: []string{"L5-F1", "L9-F9"},
+				FoundBy: []string{"F-f0000001", "F-0000dead"},
 			}},
 		},
 		Events: []*record.Event{
 			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{
-				Label:    proto.String("L5-F1"),
-				Location: proto.String("§H2"),
-				Text:     proto.String("what red actually observed at the leaf"),
+				Id: proto.String("F-f0000001"), Location: proto.String("§H2"),
+				Text: proto.String("what red actually observed at the leaf"),
 			}),
 		},
 	}
 	got := boardSection(board.famT(t))
 	if !strings.Contains(got, "what red actually observed at the leaf") {
-		t.Errorf("the minted finding's own words are absent — the gap cites L5-F1 and nothing defines it:\n%s", got)
+		t.Errorf("the minted finding's own words are absent — the gap cites F-f0000001 and nothing defines it:\n%s", got)
 	}
 	if !strings.Contains(got, "§H2") {
 		t.Errorf("the finding's location is absent, so a reader cannot go and check it:\n%s", got)
 	}
+	// THE LINE NAMES THE FINDING BY ITS ID AND ITS LENS'S AREA, exactly.
+	if want := "\nsurfaced by:\n- F-f0000001 (logic) (§H2): what red actually observed at the leaf\n"; !strings.Contains(got, want) {
+		t.Errorf("the surfaced-by line is not %q:\n%s", want, got)
+	}
 	// AND AN UNRESOLVABLE CITATION IS ITSELF WORTH SEEING. A found_by naming no finding on the
 	// record must not vanish into a shorter list — that reads exactly like a gap with less
 	// provenance, which is the plausible-zero shape.
-	if !strings.Contains(got, "L9-F9") || !strings.Contains(got, "no finding with this label") {
-		t.Errorf("a found_by label with no finding behind it was dropped silently:\n%s", got)
+	if !strings.Contains(got, "\n- F-0000dead: (no finding with this id is on the record)") {
+		t.Errorf("a found_by id with no finding behind it was dropped silently:\n%s", got)
 	}
 	// It stays out of the un-minted section either way: the gap is where it is rendered.
 	if strings.Contains(got, "Lens findings not raised to a gap") {
@@ -640,7 +645,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{
 				Problem: proto.String("the chair's restatement"),
-				FoundBy: []string{"L5-F1"},
+				FoundBy: []string{"F-f0000001"},
 			}},
 		},
 		Events: board.Events,

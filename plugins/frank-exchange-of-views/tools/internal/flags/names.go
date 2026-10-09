@@ -491,7 +491,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 	DescQuoteAlone = "the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing"
 	DescQuote      = DescQuoteAlone + ". Name the section in --reason, where prose belongs"
 	DescAccept     = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text"
-	DescKey        = "your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice"
+	DescKey        = "your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice"
 	DescURL        = "the source's http/https URL — fetched once and cached, so both sides read the same bytes"
 	DescTitle      = "the source's name, as it appears in the composed bibliography"
 )

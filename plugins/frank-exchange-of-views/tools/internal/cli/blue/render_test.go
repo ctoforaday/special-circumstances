@@ -12,12 +12,12 @@ import (
 // Render against planEdit — the SAME transform blue edit writes to the file — op for op, replaying
 // the replacement blue edit records, which carries any anchor the tool put back.
 func TestRenderReproducesTheEditPathByteForByte(t *testing.T) {
-	base := "The cost is stable and the volume grows steadily. Prices hold<!--fx:f-abcdef01-->."
+	base := "The cost is stable and the volume grows steadily. Prices hold<!--fx:F-abcdef01-->."
 	steps := []reportproj.Op{
 		{Old: "stable", New: "steady."}, // ends in "." abutting nothing — exercises seam tidy
 		{Old: "the volume grows steadily.", New: "demand climbs."},
 		{Old: "cost", New: "price"},
-		{Old: "Prices hold<!--fx:f-abcdef01-->", New: "Wages rose. Prices hold"}, // the tool puts the anchor back
+		{Old: "Prices hold<!--fx:F-abcdef01-->", New: "Wages rose. Prices hold"}, // the tool puts the anchor back
 	}
 
 	// Apply the steps through blue edit's own pure core, accumulating the running report the way
@@ -41,7 +41,7 @@ func TestRenderReproducesTheEditPathByteForByte(t *testing.T) {
 }
 
 func TestRenderEmptyStackIsTheFrozenBase(t *testing.T) {
-	base := "An untouched base with a finding-marker.<!--fx:f-abcdef01-->"
+	base := "An untouched base with a finding-marker.<!--fx:F-abcdef01-->"
 	got, err := reportproj.Render(base, nil)
 	if err != nil {
 		t.Fatalf("Render: %v", err)

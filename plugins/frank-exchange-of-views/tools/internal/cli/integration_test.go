@@ -112,7 +112,7 @@ func runMint(t *testing.T, runDir string, args ...string) (string, error) {
 
 // gapID pulls the tool-assigned id out of a mint's output.
 func gapID(out string) string {
-	return regexp.MustCompile(`G\d+`).FindString(out)
+	return regexp.MustCompile(`G-[0-9a-f]{8}`).FindString(out)
 }
 
 // readProjection returns a markdown projection computed on read from the record via the
@@ -172,7 +172,7 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "accepted",
 		"--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)

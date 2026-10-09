@@ -37,7 +37,7 @@ func citeSentence(t *testing.T, runDir, sentence, url string) string {
 		"--quote", sentence, "--url", url, "--title", "Source "+url); err != nil {
 		t.Fatalf("cite %q: %v", sentence, err)
 	}
-	re := regexp.MustCompile(regexp.QuoteMeta(strings.TrimRight(sentence, ".")) + `<!--cite:(c-[0-9a-f]+)-->`)
+	re := regexp.MustCompile(regexp.QuoteMeta(strings.TrimRight(sentence, ".")) + `<!--cite:(C-[0-9a-f]{8})-->`)
 	m := re.FindStringSubmatch(readReport(t, runDir))
 	if m == nil {
 		t.Fatalf("no cite anchor after %q:\n%s", sentence, readReport(t, runDir))
@@ -145,8 +145,8 @@ func TestRetireTakesABareMarkerOfEveryKind(t *testing.T) {
 					t.Fatalf("finding: %v", err)
 				}
 				f := lastBody(t, runDir, &recordpb.Finding{})
-				id = f.GetFindingId()
-				gap = mint("--key", "credits", "--found-by", f.GetLabel())
+				id = f.GetId()
+				gap = mint("--key", "credits", "--found-by", id)
 			case "citation":
 				id = citeSentence(t, runDir, sentence, "https://water/1")
 			case "proof":
@@ -408,7 +408,7 @@ func TestACitedEmphasizedSentenceStaysACountedClaim(t *testing.T) {
 		t.Fatalf("cite: %v", err)
 	}
 	rep := readReport(t, runDir)
-	if !regexp.MustCompile(`\*\*Water is wet\.\*\*<!--cite:c-[0-9a-f]+-->`).MatchString(rep) {
+	if !regexp.MustCompile(`\*\*Water is wet\.\*\*<!--cite:C-[0-9a-f]{8}-->`).MatchString(rep) {
 		t.Fatalf("precondition: the anchor is not after the closing emphasis:\n%s", rep)
 	}
 	if got := claimcount.Count(rep); got != 1 {

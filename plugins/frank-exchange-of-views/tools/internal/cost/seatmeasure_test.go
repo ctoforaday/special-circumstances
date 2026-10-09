@@ -105,7 +105,7 @@ func TestTheMeasuredSectionSaysWhatTheSittingBoughtAndWhatItCost(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := record.Append(id, &recordpb.Finding{
-		Label: proto.String("evidence-F1"), Text: proto.String("an act this sitting made")}); err != nil {
+		Id: proto.String("F-f0000001"), Text: proto.String("an act this sitting made")}); err != nil {
 		t.Fatal(err)
 	}
 	idle := record.Identity{Run: run, SeatID: "red-lens-logic"}

@@ -17,8 +17,8 @@ import (
 //   - a `fix_new` prescription becomes the report's text when blue accepts it;
 //   - a labelled corroboration's `title` prints in the source's note and Bibliography entry.
 //
-// Only the UNAMBIGUOUS tells are refused — a seat or lens id, a finding label, a gap id joined to a
-// process word, a lane tag — because none of them has a reading as subject prose; the rest ("this
+// Only the UNAMBIGUOUS tells are refused — a seat or lens id, a finding or gap id,
+// a lane tag — because none of them has a reading as subject prose; the rest ("this
 // run", "the red team", "epoch 3") are advice, returned by the verb (gblock's fork ruling, D9; the
 // title and fix_new rulings, gblock 2026-09-15, plans/feov-lens-bar.md §III.9). Blue's edit advisory
 // on accepted text stays as a second net under fix_new: the refusal here is the first.

@@ -44,7 +44,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -75,7 +75,7 @@ Global Flags:
 $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --likelihood medium --impact high --quote A claim sits under S2. --reason citation does not support
 exit 0
 stdout:
-finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: FINDING001 (evidence) — the id a gap's found_by names
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-lens-logic
@@ -93,7 +93,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity high --likelihood high --impact high --quote A claim sits under S4. --reason a leap of faith
 exit 0
 stdout:
-finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: FINDING002 (logic) — the id a gap's found_by names
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id red-chair
@@ -109,10 +109,10 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by evidence-F1,logic-F1 --problem the cited source does not say this
+$ mint --run {RUN} --seat-id red-lens-evidence --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by FINDING001,FINDING002 --problem the cited source does not say this
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: refetch and diff
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
@@ -122,7 +122,7 @@ exit 0
 stdout:
 position recorded [key red-chair:position:#1]
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ verdict --run {RUN} --seat-id red-chair --as FAIL
@@ -130,21 +130,21 @@ exit 0
 stdout:
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_LOG"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"evidence-F1","likelihood":"GRADE_MEDIUM","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:evidence-F1","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_FINDING"}
+{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_HIGH","likelihood":"GRADE_MEDIUM","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"logic-F1","likelihood":"GRADE_HIGH","location":"A claim sits under S4.","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"A claim sits under S4."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":8,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_key":"F1","id":"FINDING002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S4.","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:FINDING002","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING002","location":"A claim sits under S4."},"key":"red-lens-logic:anchor:FINDING002","seat_id":"red-lens-logic","ts":8,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_MINT"}
-{"anchor":{"id":"G1","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:G1","seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["FINDING001","FINDING002"],"gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP001","seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 

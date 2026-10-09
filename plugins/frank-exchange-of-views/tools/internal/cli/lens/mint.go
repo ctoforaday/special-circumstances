@@ -54,16 +54,7 @@ func newMint() *cobra.Command {
 			}
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
-		// The gap id is G<n>, the position in the run's mint order, read by MintGapID from the
-		// record itself. It used to carry an epoch: handed in from the seat's context, and before
-		// that recovered from the seat id by regex (#348). A gap id is the run's primary public
-		// identifier, printed in the report and referenced by --supersedes, --id and found_by, so
-		// it is minted from a fact the record holds, never from the shape of a string a seat
-		// typed — and plans/roundless.md §III.A.3 took the clock out of it entirely.
-		gapID, err := record.MintGapID(run)
-		if err != nil {
-			return nil, err
-		}
+		gapID := record.NewID("gap")
 		problem := seat.Str(cmd, flags.Problem)
 		if problem == "" {
 			problem = text
@@ -149,7 +140,7 @@ func newMint() *cobra.Command {
 		//
 		// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
 		// flag. A seat asked to self-report "verified | proposed" reports the flattering
-		// one, and the field becomes decoration — the same reason the finding label and the
+		// one, and the field becomes decoration — the same reason the finding id and the
 		// gap id are tool-assigned rather than claimed.
 		basis := "proposed"
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
@@ -266,7 +257,7 @@ func newMint() *cobra.Command {
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified", bluedoc.MaxProposalGrowth))
@@ -277,14 +268,14 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
 	c.Flags().Var(&cx, flags.Complexity, flags.DescComplexity+", on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
-	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (evidence-F3,logic-F2)")
+	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
 	c.Flags().Var(&distinctFrom, flags.DistinctFrom, "comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
-	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially over the run — a seat that chose its own would collide with another seat's")
+	seat.Supplies(c, "gap_id", "the tool mints it (record.NewID), at random — an id a seat chose would name a gap the record does not hold")
 	seat.Supplies(c, "class_material", "stamped from the class registry at the write path")
 	return c
 }

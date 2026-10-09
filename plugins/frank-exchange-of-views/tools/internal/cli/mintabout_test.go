@@ -18,7 +18,7 @@ func TestAGapAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "scope-creep", "--about-kind", "section", "--about", "Risk matrix",
 		"--problem", "the template names a graded risk matrix and the report has no such section",
 		"--check-kind", "document", "--check", "the report carries a graded risk matrix",
@@ -40,7 +40,7 @@ func TestAGapCannotClaimBothAnchors(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G2", "--class", "scope-creep",
 		"--quote", "Seven is prime.", "--about-kind", "section", "--about", "Risk matrix",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
@@ -59,7 +59,7 @@ func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G3", "--class", "scope-creep", "--about-kind", "avenue", "--about", "Q99",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")

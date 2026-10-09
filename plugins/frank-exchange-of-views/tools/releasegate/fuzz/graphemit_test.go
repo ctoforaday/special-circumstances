@@ -66,7 +66,7 @@ func graphEdges() (seats int, edges int, reached map[string][]string, unreachedR
 // surface's shape that should be seen, not absorbed.
 var referenceKinds = map[string]string{
 	"gap-id":          "a board gap, checked with record.GapExists",
-	"citation-anchor": "a c-<hex> citation label, checked with record.CitationExists",
+	"citation-anchor": "a citation anchor id, checked with record.CitationExists",
 	"avenue-id":       "an avenue, checked with record.AvenueExists",
 }
 

@@ -13,65 +13,65 @@ func TestCount(t *testing.T) {
 		want int
 	}{
 		{"uncited prose counts zero", "The sky is blue. Water is wet.", 0},
-		{"one cited sentence", "The sky is blue<!--cite:c-a-->.", 1},
-		{"two cited sentences", "The sky is blue<!--cite:c-a-->. Water is wet<!--cite:c-b-->.", 2},
+		{"one cited sentence", "The sky is blue<!--cite:C-0000000a-->.", 1},
+		{"two cited sentences", "The sky is blue<!--cite:C-0000000a-->. Water is wet<!--cite:C-0000000b-->.", 2},
 		{
 			// Per citation: a merge of two cited sentences into one carries both anchors and
 			// must not read as a claim lost.
 			"a multi-anchor sentence counts each citation",
-			"Both hold<!--cite:c-a--><!--cite:c-b--> together.",
+			"Both hold<!--cite:C-0000000a--><!--cite:C-0000000b--> together.",
 			2,
 		},
 		{
 			// Distinct labels only: the same anchor twice in one sentence is one claim.
 			"an anchor repeated in one sentence counts once",
-			"Repeating the same anchor<!--cite:c-a--> twice<!--cite:c-a--> in one sentence.\n",
+			"Repeating the same anchor<!--cite:C-0000000a--> twice<!--cite:C-0000000a--> in one sentence.\n",
 			1,
 		},
 		{
 			"a finding anchor is not a claim and never counts",
-			"A finding sits here<!--fx:f-a--> but nothing cites it.",
+			"A finding sits here<!--fx:F-0000000a--> but nothing cites it.",
 			0,
 		},
 		{
 			"footnote-definition lines are not claims",
-			"Claim one<!--cite:c-a-->.\n\n[^a]: https://example.com\n[^b]: https://other.example",
+			"Claim one<!--cite:C-0000000a-->.\n\n[^a]: https://example.com\n[^b]: https://other.example",
 			1,
 		},
 		{
 			"headings are excluded even when they carry an anchor",
-			"# Title<!--cite:c-a-->\n\nBody claim<!--cite:c-b-->.",
+			"# Title<!--cite:C-0000000a-->\n\nBody claim<!--cite:C-0000000b-->.",
 			1,
 		},
 		{
 			"a cited list counts one per item",
-			"- first<!--cite:c-a-->\n- second<!--cite:c-b-->\n- third<!--cite:c-c-->",
+			"- first<!--cite:C-0000000a-->\n- second<!--cite:C-0000000b-->\n- third<!--cite:C-0000000c-->",
 			3,
 		},
 		{
 			"a claim spanning two lines counts once",
-			"This claim wraps across\ntwo physical lines<!--cite:c-a--> before it ends.",
+			"This claim wraps across\ntwo physical lines<!--cite:C-0000000a--> before it ends.",
 			1,
 		},
 		{
 			"anchors inside a code fence are literals, not claims",
-			"Real claim<!--cite:c-a-->.\n\n```\nexample<!--cite:c-b--> in code\nanother<!--cite:c-c-->\n```\n",
+			"Real claim<!--cite:C-0000000a-->.\n\n```\nexample<!--cite:C-0000000b--> in code\nanother<!--cite:C-0000000c-->\n```\n",
 			1,
 		},
 		{
 			"tilde fences are excluded too",
-			"Real claim<!--cite:c-a-->.\n\n~~~\nexample<!--cite:c-b-->\n~~~\n",
+			"Real claim<!--cite:C-0000000a-->.\n\n~~~\nexample<!--cite:C-0000000b-->\n~~~\n",
 			1,
 		},
 		{"empty input is zero", "", 0},
 		{
 			"a soft wrap joins one sentence, and each anchor after prose in it counts",
-			"first<!--cite:c-a-->\nsecond<!--cite:c-b-->",
+			"first<!--cite:C-0000000a-->\nsecond<!--cite:C-0000000b-->",
 			2,
 		},
 		{
 			"punctuation bounds two claims on one line",
-			"first<!--cite:c-a-->! second<!--cite:c-b-->?",
+			"first<!--cite:C-0000000a-->! second<!--cite:C-0000000b-->?",
 			2,
 		},
 	}
@@ -88,8 +88,8 @@ func TestCount(t *testing.T) {
 // unaccounted fall in claim_count as a dropped claim, so removing exactly one
 // cited claim must lower the count by exactly one — never zero, never two.
 func TestCountMonotonicOnClaimRemoval(t *testing.T) {
-	full := "Alpha<!--cite:c-a-->. Beta<!--cite:c-b-->. Gamma<!--cite:c-c-->."
-	minusOne := "Alpha<!--cite:c-a-->. Gamma<!--cite:c-c-->."
+	full := "Alpha<!--cite:C-0000000a-->. Beta<!--cite:C-0000000b-->. Gamma<!--cite:C-0000000c-->."
+	minusOne := "Alpha<!--cite:C-0000000a-->. Gamma<!--cite:C-0000000c-->."
 	if a, b := Count(full), Count(minusOne); a-b != 1 {
 		t.Fatalf("removing one cited claim changed the count by %d (%d -> %d), want exactly 1", a-b, a, b)
 	}

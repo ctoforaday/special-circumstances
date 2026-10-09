@@ -69,7 +69,7 @@ func TestTheLogIsOfferedEverySittingAndBlocksNone(t *testing.T) {
 	if listsItem(sittingOfRunT(t, first().seed(), "lens", evLens), "the log is open") {
 		t.Fatal("a lens that logged this sitting is told its log is open")
 	}
-	again := first().register("red-chair").dispatch(2, evLens).register(evLens).add(evLens, &recordpb.Finding{Label: proto.String("evidence-F9"), Text: proto.String("something this sitting actually did")})
+	again := first().register("red-chair").dispatch(2, evLens).register(evLens).add(evLens, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("something this sitting actually did")})
 	s := sittingOfRunT(t, again.seed(), "lens", evLens)
 	if !listsItem(s, "the log is open") {
 		t.Fatal("a lens in its second sitting, which acted and filed no log, is not told the log is open")

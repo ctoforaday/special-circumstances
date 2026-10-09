@@ -75,7 +75,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 			args := append(append([]string{}, c.args[:split]...), "--run", runDir)
 			args = append(args, c.args[split:]...)
 			args = append(args, "--reason", hostile)
-			if out, err := run(t, args...); err != nil {
+			if out, err := runAt(t, args...); err != nil {
 				t.Fatalf("%s via --reason: %v (%s)", c.name, err, out)
 			}
 			// THE FIELD, NOT THE FLAG. `--reason` is what a seat types; the field it lands in is

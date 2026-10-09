@@ -188,11 +188,9 @@ func frictionNoneEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // event becomes two, both stamped with the opinion's own ts and seat — the bench raised the
 // question and the bench answered it, which is what an opinion was.
 func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
-	// UNIQUE BY CONSTRUCTION, AND VISIBLY A MIGRATION. MintMotionID counts the motions
-	// already replayed, and the first drive of the real archive collided exactly there: a
-	// synthesized M6 met the old run's own M6 five events later. Old event ids are unique
-	// and the M-mig- spelling is disjoint from the native M%d family, so the pair's id says
-	// what its basis text says — this exchange was synthesized from an opinion.
+	// UNIQUE BY CONSTRUCTION. The pair is named for the opinion's own event id, which no other
+	// event shares and no motion the archive filed is spelled like; the remap then gives that
+	// name its id in the one shape, as it does every archived id.
 	id := fmt.Sprintf("M-mig-%d", old.ID)
 	docket := &recordpb.DocketMotion{}
 	motion := &recordpb.Motion{

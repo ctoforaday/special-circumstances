@@ -42,7 +42,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 	}
 	const url = "https://example.org/one-good-source"
 	for i, claim := range []string{"the first claim it bears on", "the second claim it bears on"} {
-		v := corroboration(NewCitationID(), url, claim, recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)
+		v := corroboration(NewID("citation"), url, claim, recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)
 		if _, err := Append(id, v); err != nil {
 			t.Fatalf("corroboration %d of the same source was refused: %v\n"+
 				"One source bearing on several claims is the ordinary case; keyed on the URL, only the first could ever record.", i+1, err)
@@ -75,7 +75,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	label := NewCitationID()
+	label := NewID("citation")
 	if _, err := Append(id, corroboration(label, "https://example.org/red-found-this", "blue's claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
@@ -163,8 +163,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	// A FINDING QUOTING THE SAME CLAIM CLEARS IT. Red grades its own finding; the tool only
 	// reports that one is owed.
 	if _, err := Append(lens, &recordpb.Finding{
-		Label:      proto.String("L1-F1"),
-		Location:   proto.String(claim),
+		Id: proto.String("F-f0000001"), Location: proto.String(claim),
 		Text:       proto.String("the source says the opposite at page 9"),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -178,7 +177,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 
 	// AND A SUPPORTING CORROBORATION NEVER BLOCKS. It is a reference backing the claim; there is
 	// nothing to raise.
-	if _, err := Append(lens, corroboration(NewCitationID(), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
+	if _, err := Append(lens, corroboration(NewID("citation"), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
 	if err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction); err != nil {
@@ -202,7 +201,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	label := NewCitationID()
+	label := NewID("citation")
 	if _, err := Append(id, corroboration(label, "https://example.org/red", "a claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +242,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	if _, err := Append(id, corroboration("", "https://example.org/says-no", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
 		t.Fatal(err)
 	}
-	label := NewCitationID()
+	label := NewID("citation")
 	if _, err := Append(id, corroboration(label, "https://example.org/agrees", "a supported claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +274,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 
 	// Raise it, and the array empties — an empty array, not a null.
 	if _, err := Append(id, &recordpb.Finding{
-		Label: proto.String("L1-F1"), Location: proto.String(claim), Text: proto.String("the source says otherwise"),
+		Id: proto.String("F-f0000001"), Location: proto.String(claim), Text: proto.String("the source says otherwise"),
 		Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}); err != nil {
@@ -298,7 +297,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 	if _, _, err := RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	label := NewCitationID()
+	label := NewID("citation")
 	if _, err := Append(id, corroboration(label, "https://example.org/s", "the claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}

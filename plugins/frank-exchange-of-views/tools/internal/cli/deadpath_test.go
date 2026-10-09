@@ -653,7 +653,7 @@ func TestARefusalASeatCannotObeyFailsTheGate(t *testing.T) {
 		{"another seat's path under a group the lens holds", "rule it with `motion docket rule --id G1`", true},
 		{"the lens's own verb with the chair's flag", "use `close --carried-from <epoch>` instead", true},
 		{"an attribution to a seat that does not hold the verb", "the lens's `carry --carried-from <epoch>`", true},
-		{"an attribution whose flag is not on the named seat's verb", "the chair's `carry --anchor c-1`", true},
+		{"an attribution whose flag is not on the named seat's verb", "the chair's `carry --anchor C-00000001`", true},
 		{"an attribution, capitalised, to the holder", "The Chair's `carry --carried-from <epoch>`", false},
 		{"a list continuing an attribution", "the bench's `motion docket rule` and `inquest debate`", false},
 		{"the lens's own verb, whole", "close it with `close --id G1 --as repaired`", false},

@@ -11,7 +11,7 @@ import (
 // the place the anchor held in it: mid-sentence, inside a run of anchors in the run's order, across
 // a re-wrapped line, never on a heading. Every other replacement comes back as it went in.
 func TestAutoPlace(t *testing.T) {
-	const a, b = "<!--fx:f-aaaa1111-->", "<!--cite:c-bbbb2222-->"
+	const a, b = "<!--fx:F-aaaa1111-->", "<!--cite:C-bbbb2222-->"
 	for _, c := range []struct{ name, span, new, want string }{
 		{"mid-sentence", "The sieve is fast" + a + " and simple", "It is old. The sieve is fast and simple", "It is old. The sieve is fast" + a + " and simple"},
 		{"after the anchors that preceded it", "Wet" + a + b, "Dry. Wet" + a, "Dry. Wet" + a + b},
@@ -32,18 +32,18 @@ func TestAutoPlace(t *testing.T) {
 
 // An anchor dropped with no prose around it is refused as bare, not "on the sentence """.
 func TestTheDropRefusalSaysWhenTheAnchorIsBare(t *testing.T) {
-	_, err := AnchorsTransitUnchanged("blue edit", "<!--fx:f-aaaa1111-->", "Gone.")
-	if err == nil || !strings.Contains(err.Error(), anchor.Label("f-aaaa1111")+" bare of any sentence") {
+	_, err := AnchorsTransitUnchanged("blue edit", "<!--fx:F-aaaa1111-->", "Gone.")
+	if err == nil || !strings.Contains(err.Error(), anchor.Label("F-aaaa1111")+" bare of any sentence") {
 		t.Errorf("refusal = %v, want it to say the anchor is bare", err)
 	}
 }
 
 // Of several anchors left out, the refusal names the first in the span, every time.
 func TestTheDropRefusalNamesTheFirstAnchorLeftOut(t *testing.T) {
-	span := "One<!--fx:f-aaaa0001-->. Two<!--fx:f-aaaa0002-->. Three<!--fx:f-aaaa0003-->. Four<!--fx:f-aaaa0004-->."
+	span := "One<!--fx:F-aaaa0001-->. Two<!--fx:F-aaaa0002-->. Three<!--fx:F-aaaa0003-->. Four<!--fx:F-aaaa0004-->."
 	for range 8 {
-		if _, err := AnchorsTransitUnchanged("blue edit", span, "Gone."); err == nil || !strings.Contains(err.Error(), anchor.Label("f-aaaa0001")+" on the sentence \"One.\"") {
-			t.Fatalf("refusal = %v, want it to name f-aaaa0001 on \"One.\"", err)
+		if _, err := AnchorsTransitUnchanged("blue edit", span, "Gone."); err == nil || !strings.Contains(err.Error(), anchor.Label("F-aaaa0001")+" on the sentence \"One.\"") {
+			t.Fatalf("refusal = %v, want it to name F-aaaa0001 on \"One.\"", err)
 		}
 	}
 }

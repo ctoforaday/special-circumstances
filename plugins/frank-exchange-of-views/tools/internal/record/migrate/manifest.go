@@ -50,8 +50,7 @@ type Manifest struct {
 	// as what the archive said.
 	StatedFills []StatedFill      `json:"stated_fills,omitempty"`
 	Accepted    map[string]string `json:"accepted_losses,omitempty"`
-	GapIDs      map[string]string `json:"gap_ids,omitempty"` // archived gap id -> migrated id (roundless §III.A.5)
-	Labels      map[string]string `json:"labels,omitempty"`  // archived finding label -> migrated label
+	IDs         map[string]string `json:"ids,omitempty"` // archived id or finding label -> migrated id
 	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
 	// gaps whose quote never placed (they read gone) and those placed by the fallback.
 	GapAnchors GapPlacement   `json:"gap_anchors"`
@@ -86,8 +85,7 @@ func NewManifest(sourcePath string, files []SourceFile, unclassified []string, r
 		Refusals:     res.Refusals,
 		StatedFills:  res.StatedFills,
 		Accepted:     res.AcceptedLosses,
-		GapIDs:       res.GapIDs,
-		Labels:       res.Labels,
+		IDs:          res.IDs,
 		Serialized:   res.Serialized,
 		GapAnchors:   res.GapAnchors,
 		Unclassified: unclassified,

@@ -61,7 +61,7 @@ func newReproduce() *cobra.Command {
 			// beside the sentence it backs". It is not: the report carries an opaque
 			// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
 			// document had the token this verb does not take and no path to the one it does.
-			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet", anchor.Token("p-…"))
+			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet", anchor.Token("P-…"))
 		}
 		// A CORRECTION RE-STATES THE REPRODUCTION; it does not re-run the proof. What the re-run
 		// showed is the corrected act's, and a corrected note must not hang on whether the proof's

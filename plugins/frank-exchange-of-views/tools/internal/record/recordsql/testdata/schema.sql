@@ -248,7 +248,7 @@ CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('avenue', 'an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('avenue', 'an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
@@ -622,9 +622,8 @@ CREATE TABLE "spot_check_areas" (
 
 CREATE TABLE "finding" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "finding_id" TEXT,
+  "id" TEXT NOT NULL UNIQUE,
   "finding_key" TEXT,
-  "label" TEXT,
   "location" TEXT,
   "text" TEXT,
   "severity" TEXT,

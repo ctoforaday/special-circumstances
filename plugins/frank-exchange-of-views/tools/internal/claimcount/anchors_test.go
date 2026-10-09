@@ -9,8 +9,8 @@ import (
 // affects the claim count (only citation anchors are claims). This pins that a report
 // peppered with finding markers counts only its cited claims.
 func TestFindingMarkersDoNotAffectCount(t *testing.T) {
-	base := "Water is wet<!--cite:c-1-->.\n\nThe sky is blue."
-	withMarker := "Water is wet<!--cite:c-1--><!--fx:f-abc-->.\n\nThe sky is blue.<!--fx:f-9f2-->"
+	base := "Water is wet<!--cite:C-00000001-->.\n\nThe sky is blue."
+	withMarker := "Water is wet<!--cite:C-00000001--><!--fx:F-00000abc-->.\n\nThe sky is blue.<!--fx:F-000009f2-->"
 	if got := Count(base); got != 1 {
 		t.Fatalf("base Count = %d, want 1 (the cited claim)", got)
 	}
@@ -27,9 +27,9 @@ func TestProtectedAnchorIDsWalksTheKindsTable(t *testing.T) {
 		name, md string
 		want     []string
 	}{
-		{"findings, distinct and first-seen", "One.<!--fx:f-a--> Two.<!--fx:f-b--> Three.<!--fx:f-a-->\n\nFour.[^L1]", []string{"f-a", "f-b"}},
-		{"citations, distinct and first-seen", "One.<!--cite:c-a--> Two.<!--cite:c-b--> Three.<!--cite:c-a-->", []string{"c-a", "c-b"}},
-		{"kinds in table order, not text order", "A.<!--proof:p-1--> B<!--cite:c-1--><!--fx:f-1-->.", []string{"f-1", "c-1", "p-1"}},
+		{"findings, distinct and first-seen", "One.<!--fx:F-0000000a--> Two.<!--fx:F-0000000b--> Three.<!--fx:F-0000000a-->\n\nFour.[^L1]", []string{"F-0000000a", "F-0000000b"}},
+		{"citations, distinct and first-seen", "One.<!--cite:C-0000000a--> Two.<!--cite:C-0000000b--> Three.<!--cite:C-0000000a-->", []string{"C-0000000a", "C-0000000b"}},
+		{"kinds in table order, not text order", "A.<!--proof:P-00000001--> B<!--cite:C-00000001--><!--fx:F-00000001-->.", []string{"F-00000001", "C-00000001", "P-00000001"}},
 		{"none", "no markers here.[^L1]", nil},
 	} {
 		if got := ProtectedAnchorIDs(c.md); !reflect.DeepEqual(got, c.want) {

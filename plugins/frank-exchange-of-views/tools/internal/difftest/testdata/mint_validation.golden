@@ -36,11 +36,11 @@ Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN
 
 THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
 
-FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented label fails here rather than resolving to nothing.
+FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented id fails here rather than resolving to nothing.
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -62,7 +62,7 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about string                             the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record
       --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
@@ -70,10 +70,10 @@ Flags:
       --complexity grade                         what fixing it costs, on the same scale
       --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
+      --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
   -h, --help                                     help for mint
       --impact grade                             REQUIRED — how bad the consequence is if it lands
-      --key string                               your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice
+      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
@@ -85,7 +85,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    avenue   an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
@@ -112,11 +112,11 @@ Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN
 
 THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
 
-FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented label fails here rather than resolving to nothing.
+FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented id fails here rather than resolving to nothing.
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -138,7 +138,7 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about string                             the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record
       --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
@@ -146,10 +146,10 @@ Flags:
       --complexity grade                         what fixing it costs, on the same scale
       --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
+      --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
   -h, --help                                     help for mint
       --impact grade                             REQUIRED — how bad the consequence is if it lands
-      --key string                               your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice
+      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
@@ -161,7 +161,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    avenue   an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
@@ -188,11 +188,11 @@ Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN
 
 THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
 
-FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented label fails here rather than resolving to nothing.
+FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented id fails here rather than resolving to nothing.
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -214,7 +214,7 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
+      --about string                             the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record
       --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
@@ -222,10 +222,10 @@ Flags:
       --complexity grade                         what fixing it costs, on the same scale
       --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
+      --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
   -h, --help                                     help for mint
       --impact grade                             REQUIRED — how bad the consequence is if it lands
-      --key string                               your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice
+      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
@@ -237,7 +237,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    avenue   an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
@@ -251,86 +251,15 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check run it --supersedes G1 --problem dangling lineage
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check run it --severity low --likelihood low --impact low --supersedes G-00000000 --problem dangling lineage
 exit 2
 stderr:
-feov-record: required flag(s) "impact", "likelihood", "severity" not set
-
-turn lens findings into a graded gap on the board, when a defect is real and belongs there
-
-The gap id is TOOL-assigned.
-
-Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
-
-THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
-
-FOUND_BY IS CHECKED AT THE WRITE: a label naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented label fails here rather than resolving to nothing.
-
-ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
-
-THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding label, a gap id beside a word like "gap", "fix" or "closed", and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with 'log', as a request — a missing
-capability is a fact about the tooling, and the log is how it reaches the operator
-who can retool you.
-
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
-
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
-
-Usage:
-  feov-record mint [flags]
-
-Flags:
-      --about string                             the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record
-      --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
-      --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
-      --check-kind document|computation|source   REQUIRED — what would SETTLE that check
-      --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
-      --complexity grade                         what fixing it costs, on the same scale
-      --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
-      --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list                            comma-separated lens findings that surfaced it (evidence-F3,logic-F2)
-  -h, --help                                     help for mint
-      --impact grade                             REQUIRED — how bad the consequence is if it lands
-      --key string                               your own stable handle (C1, F2, P3 …): a repeat under the same handle returns the first result instead of acting twice
-      --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
-      --problem string                           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
-      --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
-
-Enumerated values:
-  --about-kind
-    section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
-    gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
-
-  --check-kind
-    document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
-    computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation, among others: if a script could end the argument, this is the kind
-    source       verifying an external source settles it — the claim stands or falls on what the cited material actually says
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+feov-record: lens: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check grep the sites --severity high --likelihood high --impact medium --complexity low --problem a real one
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: grep the sites
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
@@ -343,8 +272,8 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --class --problem: required flag(s) \"check\", \"check-kind\", \"impact\", \"likelihood\", \"severity\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --problem: required flag(s) \"class\", \"impact\", \"likelihood\", \"severity\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class: invalid argument \"catastrophic\" for \"--severity\" flag: \"catastrophic\" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --problem --supersedes: required flag(s) \"impact\", \"likelihood\", \"severity\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity --supersedes: lens: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- avenues

@@ -42,7 +42,7 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 
 	t.Run("the error is the harness's failure entry, written by the tool, with the text it was given", func(t *testing.T) {
 		runDir := seatRun(t)
-		logStop(t, runDir, stop+" <!--fx:f-1234abcd-->")
+		logStop(t, runDir, stop+" <!--fx:F-1234abcd-->")
 		got := stops(t, runDir)
 		if len(got) != 1 {
 			t.Fatalf("want one entry under %s, got %d", record.HarnessSeat, len(got))

@@ -15,8 +15,8 @@ import (
 type Entry struct {
 	// Translate builds the new bodies for one old event, in append order — usually one, two
 	// for a concept that split (opinion → docket motion + ruling). dst is the DESTINATION
-	// run, holding only already-replayed events; it exists for id minting
-	// (record.MintMotionID), never for reading the old record.
+	// run, holding only already-replayed events, for a translation that must ask what the
+	// migrated record holds so far — never for reading the old record.
 	Translate func(old OldEvent, dst record.Run) ([]proto.Message, error)
 	// Loss marks the word untranslatable, and says why. A loss fails the migration unless
 	// the operator accepts it BY WORD (--accept-loss), and an accepted loss is recorded in

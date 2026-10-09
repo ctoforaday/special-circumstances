@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const report = "# H\n\nFive independent verification approaches agree that 7 is prime.\n\nThe sieve is fast<!--fx:f-abc123--> and simple.\n"
+const report = "# H\n\nFive independent verification approaches agree that 7 is prime.\n\nThe sieve is fast<!--fx:F-00abc123--> and simple.\n"
 
 // A concrete proposal states an exact, unique, applyable span. Stating one is the forced
 // re-read: it cannot be written from memory of what the report probably says.
@@ -66,7 +66,7 @@ func TestValidateProposalRefusesAQuoteThatIsNotThere(t *testing.T) {
 // anchor is a proposal blue could not legally apply.
 func TestValidateProposalRefusesAnAnchorDrop(t *testing.T) {
 	// Quoted ACROSS the anchor: matching skips annotations, so the located span CONTAINS
-	// f-abc123 even though the quote does not mention it. 71% of anchored quotes in the smoke
+	// F-00abc123 even though the quote does not mention it. 71% of anchored quotes in the smoke
 	// had their anchor mid-span, so this is the common shape.
 	if err := ValidateProposal("merge mint", report, "The sieve is fast and simple", "The sieve is quick and simple"); err == nil {
 		t.Fatal("a proposal that drops a finding-marker was accepted")
@@ -76,7 +76,7 @@ func TestValidateProposalRefusesAnAnchorDrop(t *testing.T) {
 // An anchor CARRIED across is legal, for red exactly as for blue — the invariant is "which
 // anchors exist", not "red may not touch one".
 func TestValidateProposalAllowsAnchorTransit(t *testing.T) {
-	if err := ValidateProposal("merge mint", report, "The sieve is fast and simple", "The sieve is quick<!--fx:f-abc123--> and simple"); err != nil {
+	if err := ValidateProposal("merge mint", report, "The sieve is fast and simple", "The sieve is quick<!--fx:F-00abc123--> and simple"); err != nil {
 		t.Fatalf("carrying an anchor across a proposal was refused: %v", err)
 	}
 }

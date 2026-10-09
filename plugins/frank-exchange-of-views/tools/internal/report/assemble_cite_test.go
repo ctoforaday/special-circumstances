@@ -16,14 +16,14 @@ import (
 // §V.4 — the citation weave: invisible anchors → visible [^N] + a composed ## Bibliography.
 
 func TestWeaveCitationsNumbersInOrderAndComposesBibliography(t *testing.T) {
-	md := "Alpha holds<!--cite:c-1-->. Beta holds<!--cite:c-2-->. Alpha again<!--cite:c-1-->."
+	md := "Alpha holds<!--cite:C-00000001-->. Beta holds<!--cite:C-00000002-->. Alpha again<!--cite:C-00000001-->."
 	sources := []record.Source{
-		{Label: "c-1", URL: "https://a", Title: "Source A", AccessDate: "2026-08-03"},
-		{Label: "c-2", URL: "https://b", Title: "Source B", AccessDate: "2026-08-03"},
+		{Label: "C-00000001", URL: "https://a", Title: "Source A", AccessDate: "2026-08-03"},
+		{Label: "C-00000002", URL: "https://b", Title: "Source B", AccessDate: "2026-08-03"},
 	}
 	got := weaveCitations(md, sources)
 
-	// First-appearance order: c-1 → [^1], c-2 → [^2]; the repeat of c-1 shares [^1].
+	// First-appearance order: C-00000001 → [^1], C-00000002 → [^2]; the repeat of C-00000001 shares [^1].
 	if !strings.Contains(got, "Alpha holds[^1]. Beta holds[^2]. Alpha again[^1].") {
 		t.Errorf("anchors not woven in first-appearance order:\n%s", got)
 	}
@@ -53,12 +53,12 @@ func TestWeaveCitationsNoCitationsIsUnchanged(t *testing.T) {
 // crash-window orphan; bijection-impossible under the lockdown) — is SURFACED as an
 // unresolved line, never dropped or crashed.
 func TestWeaveCitationsSurfacesDanglingAnchor(t *testing.T) {
-	md := "A claim with a stranded anchor<!--cite:c-dead-->."
+	md := "A claim with a stranded anchor<!--cite:C-0000dead-->."
 	got := weaveCitations(md, nil) // no sources
 	if !strings.Contains(got, "A claim with a stranded anchor[^1].") {
 		t.Errorf("dangling anchor not rewritten to a footnote ref:\n%s", got)
 	}
-	if !strings.Contains(got, "[^1]: _(unresolved citation c-dead — no source on the record)_") {
+	if !strings.Contains(got, "[^1]: _(unresolved citation C-0000dead — no source on the record)_") {
 		t.Errorf("dangling anchor not surfaced as unresolved:\n%s", got)
 	}
 }
@@ -72,7 +72,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		"## TL;DR",
 		// One finding marker (must be STRIPPED) and one citation anchor (must be RESOLVED),
 		// on the same sentence.
-		"The cache is coherent<!--fx:f-aaa--><!--cite:c-1-->.",
+		"The cache is coherent<!--fx:F-00000aaa--><!--cite:C-00000001-->.",
 		"",
 		// Blue also hand-authors a Footnotes section — it must be DROPPED (tool composes it).
 		"## Footnotes",
@@ -95,7 +95,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 	cite := &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-		Label:      proto.String("c-1"),
+		Label:      proto.String("C-00000001"),
 		Url:        proto.String("https://ex/coherence"),
 		Sha256:     proto.String("deadbeef"),
 		Title:      proto.String("Coherence Proof"),
@@ -134,14 +134,14 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 // report, and the visible [^N] the weave produces is never counted (nothing counts the
 // assembled report). This pins that the unit is the anchor, uniformly.
 func TestClaimCountIsAnchorBasedNotFootnoteBased(t *testing.T) {
-	pre := "One<!--cite:c-1-->. Two<!--cite:c-2-->."
+	pre := "One<!--cite:C-00000001-->. Two<!--cite:C-00000002-->."
 	if got := claimcount.Count(pre); got != 2 {
 		t.Fatalf("pre-assembly Count = %d, want 2", got)
 	}
 	// After the weave the anchors are [^1]/[^2] — and those are NOT counted (the migration
 	// dropped [^N] matching), so a post-assembly count would be zero. The system never counts
 	// the assembled report; this asserts the anchor is the sole claim unit.
-	post := weaveCitations(pre, []record.Source{{Label: "c-1", URL: "u1", Title: "t1"}, {Label: "c-2", URL: "u2", Title: "t2"}})
+	post := weaveCitations(pre, []record.Source{{Label: "C-00000001", URL: "u1", Title: "t1"}, {Label: "C-00000002", URL: "u2", Title: "t2"}})
 	if got := claimcount.Count(post); got != 0 {
 		t.Errorf("post-weave Count = %d, want 0 (footnote refs are not claims; only anchors are)", got)
 	}
@@ -154,12 +154,12 @@ func TestClaimCountIsAnchorBasedNotFootnoteBased(t *testing.T) {
 // never scroll to the Bibliography, and one scanning the Bibliography never sees the note.
 func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 	sources := []record.Source{
-		{Label: "c-1", URL: "https://ex/withdrawn", Title: "The Withdrawn Study", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/withdrawn", Title: "The Withdrawn Study", AccessDate: "2026-08-03",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
-		{Label: "c-2", URL: "https://ex/sound", Title: "A Sound Study", AccessDate: "2026-08-03",
+		{Label: "C-00000002", URL: "https://ex/sound", Title: "A Sound Study", AccessDate: "2026-08-03",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING},
 	}
-	got := weaveCitations("Claim one<!--cite:c-1-->. Claim two<!--cite:c-2-->.", sources)
+	got := weaveCitations("Claim one<!--cite:C-00000001-->. Claim two<!--cite:C-00000002-->.", sources)
 	for _, want := range []string{
 		"[^1]: The Withdrawn Study. https://ex/withdrawn (accessed 2026-08-03) **[RETRACTED]**",
 		"- The Withdrawn Study. https://ex/withdrawn (accessed 2026-08-03) **[RETRACTED]**",
@@ -183,13 +183,13 @@ func TestARetractedSourceIsMarkedInBothTheNoteAndTheBibliography(t *testing.T) {
 func TestARetractionOnAnyCitationOfAUrlReachesItsBibliographyLine(t *testing.T) {
 	sources := []record.Source{
 		// The blue cite wins the title and predates the stamp (an older run, migrated).
-		{Label: "c-1", URL: "https://ex/p", Title: "Blue's Title", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/p", Title: "Blue's Title", AccessDate: "2026-08-03",
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED},
 		// Red corroborated the same url later, and the index had the answer by then.
-		{Label: "c-2", URL: "https://ex/p", Title: "Red's Title", AccessDate: "2026-09-01",
+		{Label: "C-00000002", URL: "https://ex/p", Title: "Red's Title", AccessDate: "2026-09-01",
 			Corroborated: true, WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	}
-	got := weaveCitations("A claim<!--cite:c-1-->. The same source again<!--cite:c-2-->.", sources)
+	got := weaveCitations("A claim<!--cite:C-00000001-->. The same source again<!--cite:C-00000002-->.", sources)
 	if !strings.Contains(got, "- Blue's Title. https://ex/p (accessed 2026-08-03) **[RETRACTED]**") {
 		t.Errorf("the Bibliography line drops a retraction recorded on another citation of the same url:\n%s", got)
 	}
@@ -202,13 +202,13 @@ func TestAnAbstractOnlyCitationIsMarkedInBothTheNoteAndTheBibliography(t *testin
 	abs := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT
 	full := recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL
 	sources := []record.Source{
-		{Label: "c-1", URL: "https://ex/abs", Title: "Read As An Abstract", AccessDate: "2026-08-03", SourceCompleteness: abs},
-		{Label: "c-2", URL: "https://ex/full", Title: "Read In Full", AccessDate: "2026-08-03", SourceCompleteness: full},
+		{Label: "C-00000001", URL: "https://ex/abs", Title: "Read As An Abstract", AccessDate: "2026-08-03", SourceCompleteness: abs},
+		{Label: "C-00000002", URL: "https://ex/full", Title: "Read In Full", AccessDate: "2026-08-03", SourceCompleteness: full},
 		// A retracted work read only as its abstract carries both marks.
-		{Label: "c-3", URL: "https://ex/both", Title: "Withdrawn", AccessDate: "2026-08-03", SourceCompleteness: abs,
+		{Label: "C-00000003", URL: "https://ex/both", Title: "Withdrawn", AccessDate: "2026-08-03", SourceCompleteness: abs,
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	}
-	got := weaveCitations("One<!--cite:c-1-->. Two<!--cite:c-2-->. Three<!--cite:c-3-->.", sources)
+	got := weaveCitations("One<!--cite:C-00000001-->. Two<!--cite:C-00000002-->. Three<!--cite:C-00000003-->.", sources)
 	for _, want := range []string{
 		"[^1]: Read As An Abstract. https://ex/abs (accessed 2026-08-03) **[ABSTRACT ONLY]**",
 		"- Read As An Abstract. https://ex/abs (accessed 2026-08-03) **[ABSTRACT ONLY]**",
@@ -228,12 +228,12 @@ func TestAnAbstractOnlyCitationIsMarkedInBothTheNoteAndTheBibliography(t *testin
 // them rest on the abstract. Each footnote still speaks for its own copy.
 func TestTheBibliographyMarksAWorkOnlyWhenEveryCitationOfItIsTheAbstract(t *testing.T) {
 	sources := []record.Source{
-		{Label: "c-1", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-08-03",
+		{Label: "C-00000001", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-08-03",
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT},
-		{Label: "c-2", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-09-01", Corroborated: true,
+		{Label: "C-00000002", URL: "https://ex/p", Title: "The Study", AccessDate: "2026-09-01", Corroborated: true,
 			SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNVERIFIED},
 	}
-	got := weaveCitations("A claim<!--cite:c-1-->. Another<!--cite:c-2-->.", sources)
+	got := weaveCitations("A claim<!--cite:C-00000001-->. Another<!--cite:C-00000002-->.", sources)
 	if !strings.Contains(got, "[^1]: The Study. https://ex/p (accessed 2026-08-03) **[ABSTRACT ONLY]**") {
 		t.Errorf("the abstract citation's own note is not marked:\n%s", got)
 	}

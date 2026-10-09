@@ -52,7 +52,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", lensSeat,
 			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
-			"--impact", "medium", "--complexity", "low", "--found-by", "L9-F9"}},
+			"--impact", "medium", "--complexity", "low", "--found-by", "F-0000f9f9"}},
 		{"spot-check --ids", "no mint event created", []string{"spot-check", "--seat-id", "red-chair",
 			"--ids", "G99"}},
 		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference
@@ -69,7 +69,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			if !hasFlag(args, "--reason") {
 				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
 			}
-			_, err := run(t, args...)
+			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatalf("%s accepted a reference to something that does not exist — it would be dropped at replay, and the seat would never know", c.name)
 			}
@@ -99,7 +99,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 		// verb is one — so `--run` lands after the command and before its flags.
 		path := cmdPath(c)
 		args := append(append(append([]string{}, path...), "--run", runDir), c[len(path):]...)
-		if _, err := run(t, args...); err != nil {
+		if _, err := runAt(t, args...); err != nil {
 			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, strings.Join(path, " "))
 		}
 	}
@@ -151,7 +151,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			if !hasFlag(args, "--reason") {
 				args = append(args, "--reason", "supplied so the reference refusal is the one measured")
 			}
-			_, err := run(t, args...)
+			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatalf("%s was accepted", c.name)
 			}

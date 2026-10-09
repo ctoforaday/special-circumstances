@@ -7,16 +7,16 @@ reading this looking for research, you are in the test corpus.
 ## TL;DR
 
 Gallia est omnis divisa in partes tres[^1], quarum unam incolunt Belgae, aliam Aquitani, tertiam
-qui ipsorum lingua Celtae, nostra Galli appellantur.<!--cite:c-cafef00d-->
+qui ipsorum lingua Celtae, nostra Galli appellantur.<!--cite:C-cafef00d-->
 
 ## Analysis
 
-Hi omnes lingua, institutis, legibus inter se differunt<!--fx:f-deadbeef-->. Gallos ab Aquitanis
+Hi omnes lingua, institutis, legibus inter se differunt<!--fx:F-deadbeef-->. Gallos ab Aquitanis
 Garumna flumen, a Belgis Matrona et Sequana dividit[^2]. Horum omnium fortissimi sunt Belgae,
-propterea quod a cultu atque humanitate provinciae longissime absunt<!--cite:c-0badf00d-->,
+propterea quod a cultu atque humanitate provinciae longissime absunt<!--cite:C-0badf00d-->,
 minimeque ad eos mercatores saepe commeant atque ea quae ad effeminandos animos pertinent important.
 
-Apud Helvetios longe nobilissimus fuit et ditissimus Orgetorix<!--fx:f-01020304-->. Is coniuratione
+Apud Helvetios longe nobilissimus fuit et ditissimus Orgetorix<!--fx:F-01020304-->. Is coniuratione
 nobilitatis facta civitati persuasit ut de finibus suis cum omnibus copiis exirent[^3]: perfacile
 esse, cum virtute omnibus praestarent, totius Galliae imperio potiri.
 

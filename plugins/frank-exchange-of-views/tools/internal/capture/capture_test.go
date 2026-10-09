@@ -172,7 +172,7 @@ func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
 			if got.Verdict != "FAIL" {
 				t.Fatalf("verdict = %s, want FAIL — the report cites a source red found against (%s)", got.Verdict, got.Detail)
 			}
-			if !strings.Contains(got.Detail, "c-1") {
+			if !strings.Contains(got.Detail, "C-00000001") {
 				t.Errorf("the detail must name WHICH citation, or the operator cannot act on it: %s", got.Detail)
 			}
 		})
@@ -230,10 +230,10 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 		recordtest.Seed(t, dir, recordtest.Event(t, seat, body))
 	}
 	seed("blue-r1",
-		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
+		&recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(), Label: proto.String("C-00000001"), Url: proto.String(url), Title: proto.String("A Source")})
 	seed("red-lens-evidence",
 		&recordpb.Verify{
-			Anchor:     proto.String("c-1"),
+			Anchor:     proto.String("C-00000001"),
 			Claim:      proto.String("a claim"),
 			Outcome:    &outcome,
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
@@ -901,9 +901,7 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 			continue
 		}
 		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", fmt.Sprintf("red-lens-evidence:finding:k%d", i), &recordpb.Finding{
-			FindingId: proto.String(fmt.Sprintf("F%d", i)),
-			Label:     proto.String(fmt.Sprintf("L1-F%d", i)),
-			Text:      proto.String("a finding"),
+			Id: proto.String(fmt.Sprintf("F%d", i)), Text: proto.String("a finding"),
 		}), ts))
 	}
 	recordtest.Seed(t, dir, evs...)

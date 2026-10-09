@@ -64,7 +64,7 @@ import (
 // DISTINCT citation labels it carries.
 type Segment struct {
 	Text   string   // the sentence's raw text, which may span lines
-	Labels []string // distinct citation labels (c-<hex>) ATTACHED in this sentence — after some prose — first-seen order
+	Labels []string // distinct citation ids ATTACHED in this sentence — after some prose — first-seen order
 }
 
 // Scan walks report markdown once and returns the kept sentences in reading order. Fenced

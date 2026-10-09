@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -1007,7 +1008,7 @@ func ceilDiv(a, b int) int { return (a + b - 1) / b }
 
 var reNonToken = regexp.MustCompile(`[\s|]+`)
 
-// anchorID matches the record's OWN identifiers — a citation, finding, proof or anchor id, each
+// anchorID matches the record's OWN identifiers — the id of an anchor of any kind, each
 // unique by construction rather than assembled from words.
 //
 // MEASURED 2026-08-22, and it is the whole reason needlesFor exists. Two closures anchored
@@ -1019,10 +1020,10 @@ var reNonToken = regexp.MustCompile(`[\s|]+`)
 // `projection`. Honesty was being decided by word length.
 //
 // The record was carrying the answer the whole time: anchor_tool reads
-// `show report --anchor f-0dd40334`, and that id is exact. Prose is what a human reads; the id is
+// `show report --anchor` and an id, and that id is exact. Prose is what a human reads; the id is
 // what a machine joins on — see [[facts-are-fields]] clause 5, "never re-derive from the assembled
 // form what the record could simply carry".
-var anchorID = regexp.MustCompile(`\b[a-z]{1,2}-[0-9a-f]{8}\b`)
+var anchorID = regexp.MustCompile(`\b` + anchor.IDPattern() + `\b`)
 
 // needlesFor returns the tokens a claim can be reconciled by, and whether they came from the
 // record's identifiers or from prose.

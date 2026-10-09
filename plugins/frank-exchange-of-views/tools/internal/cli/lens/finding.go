@@ -18,12 +18,11 @@ import (
 
 // finding: a lens's graded observation, for the chair to dispose.
 //
-// The label is TOOL-assigned — L{role}-F{N}, run-unique per role, the role read
-// from the seat id. A lens no longer invents it: hand-numbered labels collided
-// (four L5-F1s in one round of run 3), and the label is now the identity a gap's
+// The id is TOOL-minted. A lens does not invent it: hand-numbered names collided
+// (four L5-F1s in one round of run 3), and the id is the identity a gap's
 // found_by names, so it must be unambiguous run-wide. The lens passes a stable
-// local --key (its own F1/F2) purely as a crash-retry handle; a retry returns the
-// existing label rather than minting a duplicate (the mint --key pattern).
+// local --key purely as a crash-retry handle; a retry returns the existing
+// finding rather than minting a duplicate (the mint --key pattern).
 func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
@@ -67,28 +66,25 @@ func newFinding() *cobra.Command {
 				"and the gap it becomes would inherit the ambiguity")
 		}
 		// Crash-retry idempotency: a prior finding under this --key returns its
-		// label, no second event AND no second marker (BEFORE any write).
+		// id, no second event AND no second marker (BEFORE any write).
 		key := seat.Str(cmd, flags.Key)
-		if prior, priorID, err := record.FindingByKey(run, s.SeatID, key); err != nil {
+		area := record.AreaOf(s.SeatID)
+		if prior, err := record.FindingByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
 			// THE PAIR MAY BE HALF-APPENDED: the finding and its anchor are two appends, so a crash
 			// between them leaves the finding recorded and its anchor out of the report. The retry
 			// finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, run, priorID, findingRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, prior, findingRefusal); err != nil {
 				return nil, err
 			}
-			return findingResult{Label: prior, Idempotent: true}, nil
-		}
-		label, err := record.NextFindingLabel(run, s.SeatID)
-		if err != nil {
-			return nil, err
+			return findingResult{ID: prior, Area: area, Idempotent: true}, nil
 		}
 		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
 		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
 		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
 		// reconciles a half-appended pair.
-		findingID := record.NewFindingID()
+		findingID := record.NewID("finding")
 
 		// VALIDATE the placement against the current render: NOT FOUND -> reject (a mis-quote),
 		// in-fence -> reject. Nothing is recorded on a refusal. On success the bytes are discarded —
@@ -105,8 +101,7 @@ func newFinding() *cobra.Command {
 		}
 
 		body := &recordpb.Finding{
-			Label:      proto.String(label),
-			FindingId:  proto.String(findingID),
+			Id:         proto.String(findingID),
 			FindingKey: proto.String(seat.Str(cmd, flags.Key)),
 			Location:   proto.String(seat.Str(cmd, flags.Quote)),
 			Text:       proto.String(text),
@@ -122,11 +117,11 @@ func newFinding() *cobra.Command {
 		if err := seat.AppendPlaced(s, body, findingID, location); err != nil {
 			return nil, err
 		}
-		// The LABEL leads: it is the run-unique identity a gap's found_by names.
-		return findingResult{Label: label, FindingID: findingID}, nil
+		return findingResult{ID: findingID, Area: area}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the run-unique label <area>-F<n> (evidence-F1)")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id")
+	seat.Supplies(c, "id", "the tool mints it (record.NewID), at random — an id a seat chose would name a finding the record does not hold")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
 	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
 	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
@@ -135,7 +130,7 @@ func newFinding() *cobra.Command {
 	flags.Text(c, flags.Quote, "REQUIRED unless --about-kind/--about name the subject — "+flags.DescQuote+". The finding anchor is placed there")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
 		"anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id (Q1), or a gap id. It is CHECKED against the record")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }
@@ -158,14 +153,15 @@ func placementRefusal(verb, noun string, err error) error {
 }
 
 type findingResult struct {
-	Label      string `json:"label"`
-	FindingID  string `json:"finding_id,omitempty"`
+	ID         string `json:"id"`
+	Area       string `json:"area"`
 	Idempotent bool   `json:"idempotent,omitempty"`
 }
 
 func (r findingResult) Human() string {
+	ref := record.FindingRef(r.ID, r.Area)
 	if r.Idempotent {
-		return "finding " + r.Label + " (idempotent retry — existing label returned)"
+		return "finding " + ref + " (idempotent retry — existing finding returned)"
 	}
-	return "finding recorded: " + r.Label + " — the run-unique label a gap's found_by names (id " + r.FindingID + ")"
+	return "finding recorded: " + ref + " — the id a gap's found_by names"
 }

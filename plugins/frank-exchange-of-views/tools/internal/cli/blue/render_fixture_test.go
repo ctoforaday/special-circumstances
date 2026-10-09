@@ -22,7 +22,7 @@ func loadFixture(t *testing.T) string {
 	return string(b)
 }
 
-var immortalAnchor = regexp.MustCompile(`<!--(?:fx:f|cite:c|proof:p)-[0-9a-f]+-->`)
+var immortalAnchor = regexp.MustCompile(`<!--(?:fx:F|cite:C|proof:P)-[0-9a-f]{8}-->`)
 
 // TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor is the committed fidelity guard: a
 // realistic sequence of edits (including one whose span sits flush before a finding-marker)
@@ -43,7 +43,7 @@ func TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor(t *testing.T) {
 		{Old: "legibus inter se", New: "legibus atque moribus inter se"},
 		// anchor-CARRYING: the old span contains a citation anchor and --new carries it unchanged,
 		// so it transits the edit — the case droppedMarker + AnchorsTransitUnchanged govern.
-		{Old: "longissime absunt<!--cite:c-0badf00d-->", New: "longissime procul absunt<!--cite:c-0badf00d-->"},
+		{Old: "longissime absunt<!--cite:C-0badf00d-->", New: "longissime procul absunt<!--cite:C-0badf00d-->"},
 	}
 
 	viaEdit := base

@@ -238,8 +238,9 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
 	prepareRun(t, bin, runDir, m, nil)
-	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: G1 open, G2 before
-	// the bench as M1. Without it, every gap verb — close, regrade, carry, manifest-row, both
+	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
+	// before the bench as MOTION001 — the placeholders the prologue's own output is given below,
+	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, manifest-row, both
 	// motions — lands only when a random mint happened to precede it on the right seat with the
 	// right id, and a docket ruling only when a random filing did too. Over the fixed seed set
 	// several of them never did; the bench's ruling was 0 in 10 with the gap alone.
@@ -252,7 +253,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
 		{verb: "mint", args: mintArgs("the open gap the fuzz starts from")},
 		{verb: "mint", args: mintArgs("a contested claim awaiting a bench ruling")},
-		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G2",
+		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP002",
 			"--reason", "contested, and not red's to close"}},
 	}
 	// A RECORDED PROOF, for a sequence with a reproduce in it — and only for one, so the sequences
@@ -266,10 +267,13 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 			"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", "the computation a lens re-runs"}})
 	}
 	for _, pre := range prologue {
-		if inv := runGo(bin, runDir, pre); inv.code != 0 {
+		inv := runGo(bin, runDir, m, pre)
+		if inv.code != 0 {
 			t.Fatalf("fuzz prologue %s %v: exit %d\nstderr: %s", pre.verb, pre.args, inv.code, inv.stderr)
 		}
 		m.observe(filepath.Join(runDir, "records"))
+		// READ FOR ITS IDS: each id the prologue prints takes its placeholder here, in print order.
+		normalizeOutput(inv, runDir, m)
 	}
 	setup := collect(t, runDir, m).events
 	setupEvents := len(setup)
@@ -281,7 +285,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	res := replayResult{setup: setupEvents}
 	for _, c := range cmds {
 		c.args = fillVars(c.args, vars)
-		inv := runGo(bin, runDir, c)
+		inv := runGo(bin, runDir, m, c)
 		envelopeVars(inv.stdout, vars)
 		m.observe(filepath.Join(runDir, "records"))
 		got := normalizeOutput(inv, runDir, m)
@@ -302,16 +306,19 @@ var (
 	fuzzGrades = []string{"low", "low_medium", "medium", "medium_high", "high", "certain", "realized", "trivial",
 		"low", "medium", "high", "medium", "low-medium", "bogus"} // the last two are refused
 	fuzzClasses = []string{"scope-creep", "citation-drift", "scope-creep", "citation-drift", "propagation-incomplete"} // the last is not staged
-	// G1 is on the board from the prologue; the others exist only if the sequence minted them.
-	fuzzGapIDs  = []string{"G1", "G1", "G1", "G2", "G3"}
-	fuzzMotions = []string{"M1", "M1", "M2", "M3"}
+	// GAP001 and GAP002 are on the board from the prologue, and MOTION001 before the bench; the
+	// others name an id only once the sequence's own output has printed one, and until then reach
+	// the tool as the id of their kind that names nothing, refused for not existing.
+	fuzzGapIDs  = []string{"GAP001", "GAP001", "GAP001", "GAP002", "GAP003"}
+	fuzzMotions = []string{"MOTION001", "MOTION001", "MOTION002", "MOTION003"}
 	// Report text the seeded round-0 report carries, plus one line it does not (a mis-quote).
 	fuzzQuotes = []string{"A claim sits under S2.", "A claim sits under S4.", "a sentence the report never says"}
-	// Finding labels in the tool's own `<area>-F<n>` shape, which a mint's --found-by is checked
-	// against at the write — so some name a recorded finding and some name nothing.
-	fuzzFoundBy = []string{"evidence-F1", "logic-F1", "evidence-F2", "L1,L5"}
+	// Finding ids, which a mint's --found-by is checked against at the write, by the placeholder of
+	// the sequence's first, second and third finding — so some name a recorded finding and some
+	// name nothing.
+	fuzzFoundBy = []string{"FINDING001", "FINDING002", "FINDING003", "L1,L5"}
 
-	// The evidence lens twice: it originated G1, and only the originator may close or regrade a
+	// The evidence lens twice: it originated GAP001, and only the originator may close or regrade a
 	// gap — the other two lenses are where the wrong-originator refusal comes from.
 	lensSeats = []string{"red-lens-evidence", "red-lens-evidence", "red-lens-logic", "red-lens-dark-side"}
 	blueSeats = []string{"blue-respond", "blue-synthesize"}
@@ -346,7 +353,7 @@ var fuzzArms = []fuzzArm{
 		flags: func(rng *rand.Rand) []string {
 			// --key from a small space so the SAME seat sometimes repeats it — that exercises
 			// the crash-retry idempotency (a repeated key returns the existing tool-assigned
-			// label, no duplicate).
+			// id, no duplicate).
 			f := []string{"--key", fmt.Sprintf("F%d", 1+rng.Intn(3)),
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 				"--impact", pick(rng, fuzzGrades), "--reason", "a finding"}
@@ -360,10 +367,10 @@ var fuzzArms = []fuzzArm{
 			f := []string{"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
 				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
-			// G1 is on the board from the prologue, so naming it distinct drives the field the mint's
+			// GAP001 is on the board from the prologue, so naming it distinct drives the field the mint's
 			// duplicate screen is answered with.
 			if rng.Intn(4) == 0 {
-				f = append(f, "--distinct-from", "G1")
+				f = append(f, "--distinct-from", "GAP001")
 			}
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
@@ -412,7 +419,7 @@ var fuzzArms = []fuzzArm{
 			if rng.Intn(2) == 0 {
 				return []string{"--none", "--reason", "nothing archived yet"}
 			}
-			return []string{"--ids", "G1,G2", "--reason", "re-read both closures"}
+			return []string{"--ids", "GAP001,GAP002", "--reason", "re-read both closures"}
 		}},
 	{name: "chair motion docket file", weight: 2, seats: []string{"red-chair"}, verb: []string{"motion", "docket", "file"},
 		flags: func(rng *rand.Rand) []string {
@@ -449,10 +456,10 @@ var fuzzArms = []fuzzArm{
 //
 // KEPT OUT OF fuzzArms, so the random sequences are drawn exactly as they were measured. They run
 // as ONE extra sequence, the correction tour, in which each arm is drawn once, in this order: the
-// acts on G1 before the closure that ends it, the outcome before the halt that would make it
+// acts on GAP001 before the closure that ends it, the outcome before the halt that would make it
 // derivable.
 var correctionArms = []fuzzArm{
-	corrArm("blue manifest-row corrected", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("blue manifest-row corrected", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	corrArm("blue revision corrected", blueSeats, []string{"revision"}, reasonOnly, nil),
 	// A corrected cite keeps its label, url and quote — only the title moves, and nothing is fetched
 	// again; a corrected proof does not run again — only its note moves.
@@ -466,14 +473,14 @@ var correctionArms = []fuzzArm{
 		}, nil),
 	corrArm("blue position corrected", blueSeats, []string{"position"}, reasonOnly, nil),
 	corrArm("chair position corrected", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
-	corrArm("blue closing corrected", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
-	corrArm("chair closing corrected", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "G1", "--reason", t} }, nil),
+	corrArm("blue closing corrected", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
+	corrArm("chair closing corrected", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	corrArm("log corrected", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
 	corrArm("chair avenue review corrected", []string{"red-chair"}, []string{"avenue", "review"}, reasonOnly, nil),
 	corrArm("chair spot-check corrected", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--none", "--reason", t} }, nil),
 	corrArm("lens regrade corrected", []string{"red-lens-evidence"}, []string{"regrade"},
-		func(t string) []string { return []string{"--id", "G1", "--severity", "high", "--reason", t} }, nil),
+		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
 	corrArm("chair motion grade rule corrected", []string{"red-chair"}, []string{"motion", "grade", "rule"},
 		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
 		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
@@ -485,7 +492,7 @@ var correctionArms = []fuzzArm{
 		}),
 	corrArm("bench motion docket rule corrected", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
-			return []string{"--id", "M1", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
+			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
 				"--settled", "the proposition this ruling bars", "--reopens-on", "a reproduction on the shipped binary", "--reason", t}
 		}, nil),
 	corrArm("blue avenue propose corrected", blueSeats, []string{"avenue", "propose"},
@@ -498,7 +505,7 @@ var correctionArms = []fuzzArm{
 		func(t string) []string { return []string{"--as", "UNVERIFIED", "--reason", t} }, nil),
 	corrArm("lens close corrected", []string{"red-lens-evidence"}, []string{"close"},
 		func(t string) []string {
-			return []string{"--id", "G1", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
+			return []string{"--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
 		}, nil),
 	corrArm("bench halt corrected", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
 }
@@ -507,7 +514,7 @@ func reasonOnly(t string) []string { return []string{"--reason", t} }
 
 func fileGradeMotion(name string) cmd {
 	return fuzzStep(name+" · setup", []string{"motion", "grade", "file"}, "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded", "--json")
+		"--id", "GAP001", "--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded", "--json")
 }
 
 // fuzzStep is one command, spelled as its seat types it.

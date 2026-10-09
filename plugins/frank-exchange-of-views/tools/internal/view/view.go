@@ -8,6 +8,7 @@ package view
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -282,8 +283,10 @@ func ledgerMD(in Input) []byte {
 		}
 	}
 	var uncredited []*record.Observation
+	findingRef := map[string]string{} // finding id -> how text names it, with its lens's area
 	for _, o := range record.ObservationsOf(in.Events) {
-		if lbl := o.Finding.GetLabel(); lbl == "" || !credited[lbl] {
+		findingRef[o.Finding.GetId()] = record.FindingRef(o.Finding.GetId(), record.AreaOf(o.SeatID))
+		if !credited[o.Finding.GetId()] {
 			uncredited = append(uncredited, o)
 		}
 	}
@@ -291,13 +294,9 @@ func ledgerMD(in Input) []byte {
 	if len(uncredited) > 0 {
 		lines := make([]string, len(uncredited))
 		for i, o := range uncredited {
-			name := o.Finding.GetLabel()
-			if name == "" {
-				name = o.Key
-			}
 			// `reason` WAS THE PAYLOAD KEY; `text` is the field (lens/finding.go writes the
 			// prose under it). Finding carries no `reason`.
-			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Finding.GetText(), 120))
+			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, findingRef[o.Finding.GetId()], truncate(o.Finding.GetText(), 120))
 		}
 		notesFooter = "\n## lens findings credited by no gap (whether each was weighed is not recorded)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
@@ -314,8 +313,9 @@ func ledgerMD(in Input) []byte {
 			supersedes = " | supersedes " + strings.Join(s, " ")
 		}
 		foundBy := ""
-		if f := g.Mint.GetFoundBy(); len(f) > 0 {
-			foundBy = " | found_by " + strings.Join(f, ",")
+		for i, id := range g.Mint.GetFoundBy() {
+			// a credit naming no finding on the record stays visible, bare
+			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
 		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {

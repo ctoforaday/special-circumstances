@@ -7,7 +7,7 @@ import "testing"
 // anchors splice flush against the last content char, so a naive whitespace-only rule would
 // reject the common case.
 func TestSpanBoundaryOK(t *testing.T) {
-	const anchored = "The sieve is fast<!--fx:f-abc--> and simple."
+	const anchored = "The sieve is fast<!--fx:F-00000abc--> and simple."
 	for _, c := range []struct {
 		name string
 		s    string

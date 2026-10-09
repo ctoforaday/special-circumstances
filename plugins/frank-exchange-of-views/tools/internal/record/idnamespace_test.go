@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
@@ -20,76 +21,63 @@ import (
 // passes the right id to the wrong verb, or the wrong id to the right verb, must get a refusal,
 // never a silent join to a different entity.
 //
-// WHY IT MATTERS MORE AFTER #344. `motion <subject> rule --id` takes an M-number for a grade or a
-// petition and an A-number for a direction, chosen by SUBGROUP. If those two namespaces could
+// WHY IT MATTERS MORE AFTER #344. `motion <subject> rule --id` takes a motion id for a grade or a
+// petition and an avenue id for a direction, chosen by SUBGROUP. If those two namespaces could
 // ever produce the same string, the subgroup would decide which entity a caller meant — and the
 // probe that produced this file found the tool already deciding one fact (the motion's subject)
 // from the subgroup rather than the record, so this is not a hypothetical shape.
 //
-// The guarantee is bought with PREFIXES, and prefixes are only a guarantee while they are
-// distinct. Nothing structural stops a future minter from choosing `M`; this test is that
-// structure. It is deliberately written against the MINTERS rather than against a list of
-// strings, so a new id kind fails here on the day it is added rather than on the day it collides.
+// The guarantee is bought with the LETTER, and letters are only a guarantee while they are
+// distinct: every id is one shape, <LETTER>-<8 hex>, so the letter is ALL that tells two kinds
+// apart. Nothing structural stops a future kind from choosing `M`; this test is that structure.
+// It is deliberately written against the MINTER rather than against a list of strings, so a new id
+// kind fails here on the day it is added rather than on the day it collides.
 
-// idKind is one minted namespace: what mints it, and the shape it produces.
+// idKind is one minted namespace: the kind the minter is asked for, and the shape it produces.
 type idKind struct {
 	name string
 	// pattern must match every id this kind mints and NOTHING another kind mints. It is READ FROM
-	// internal/flags where the shape is declared, never restated here: this table used to carry
-	// its own `^A\d+$` and siblings, and when the avenue id moved A -> Q the copy stayed,
-	// so the matrix reported the MINTER as wrong against a pattern nobody had updated. A matrix
-	// that exists to catch namespace drift cannot itself hold a second copy of the namespace.
-	// The finding label is the one exception below, with its reason.
+	// internal/flags where a flag takes this kind alone, and from the anchor kinds table flags
+	// itself reads where none does — a finding and a proof are named on the general anchor flag —
+	// never restated here: a matrix that exists to catch namespace drift cannot itself hold a
+	// second copy of the namespace.
 	pattern *regexp.Regexp
-	// mint produces the next id of this kind in a run directory.
-	mint func(run Run) (string, error)
+	// anchored says an anchor stands for this kind, so the general anchor flag takes its id.
+	anchored bool
+}
+
+func kindShape(kind string) *regexp.Regexp {
+	return regexp.MustCompile(`^` + anchor.IDPattern(kind) + `$`)
 }
 
 func idKinds() []idKind {
 	return []idKind{
-		{
-			name:    "gap",
-			pattern: flags.GapID().Shape(),
-			mint:    func(run Run) (string, error) { return MintGapID(run) },
-		},
-		{
-			name:    "avenue",
-			pattern: flags.AvenueID().Shape(),
-			mint:    MintAvenueID,
-		},
-		{
-			name:    "motion",
-			pattern: flags.MotionID().Shape(),
-			mint:    MintMotionID,
-		},
-		{
-			name: "finding",
-			// FROM FLAGS, and the exception it used to carry is instructive. This entry restated
-			// the shape as `^[A-Za-z0-9]+-F\d+$`, on the reasoning that FindingLabel described a
-			// lens id and the minter here is driven by a seat id — different halves of one
-			// vocabulary. #791 named a lens for its area and the restatement stopped covering the
-			// vocabulary at all: `dark-side-F1` has a hyphen, and the only reason this test stayed
-			// green is that it minted from `evidence`, the area whose name happens not to. That is
-			// the drift this whole matrix exists to catch, reproduced inside it.
-			pattern: flags.FindingLabel().Shape(),
-			mint:    func(run Run) (string, error) { return NextFindingLabel(run, "red-lens-dark-side") },
-		},
+		{name: "gap", pattern: flags.GapID().Shape(), anchored: true},
+		{name: "avenue", pattern: flags.AvenueID().Shape()},
+		{name: "motion", pattern: flags.MotionID().Shape()},
+		{name: "citation", pattern: flags.CitationAnchor().Shape(), anchored: true},
+		{name: "finding", pattern: kindShape("finding"), anchored: true},
+		{name: "proof", pattern: kindShape("proof"), anchored: true},
 	}
 }
 
 // EVERY KIND'S SHAPE REJECTS EVERY OTHER KIND'S IDS.
 //
 // This is the whole invariant, stated as a matrix rather than as a promise. It mints a run of ids
-// from each kind and checks that no other kind's pattern accepts them — so a new minter that
-// picks a colliding prefix fails here, naming both sides of the collision.
+// from each kind, records each one, and checks that no other kind's pattern accepts them — so a
+// new kind that picks a colliding letter fails here, naming both sides of the collision.
 func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 	kinds := idKinds()
-	if len(kinds) < 4 {
-		t.Fatalf("only %d id kinds — a matrix this small stops being a sweep, and the point is that EVERY minter is in it", len(kinds))
+	if len(kinds) != len(idLetters) {
+		t.Fatalf("%d id kinds in the matrix and %d the minter is asked for — the point is that EVERY kind is in it", len(kinds), len(idLetters))
+	}
+	for _, k := range kinds {
+		if idLetters[k.name] == "" {
+			t.Fatalf("the matrix holds %q, which is no kind the minter is asked for", k.name)
+		}
 	}
 
-	// Several of each, because a collision can hide at n=1: `A1` and `M1` differ, and a kind
-	// that minted `A10` while another minted `A1` followed by `0` would not.
+	// Several of each: the id is random, and one sample proves one sample.
 	minted := map[string][]string{}
 	for _, k := range kinds {
 		runDir := newRun(t)
@@ -97,13 +85,10 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 			t.Fatal(err)
 		}
 		for i := 0; i < 12; i++ {
-			id, err := k.mint(mustRun(t, runDir))
-			if err != nil {
-				t.Fatalf("%s: mint %d: %v", k.name, i, err)
-			}
+			id := NewID(k.name)
 			minted[k.name] = append(minted[k.name], id)
-			// Minting is derived from the RECORD, so the next id only advances once the
-			// previous one is on it. Write the event the minter counts.
+			// THE WRITE PATH TAKES WHAT THE MINTER MAKES: each id goes onto the record under the
+			// event of its kind.
 			if err := appendMintedFor(t, runDir, k.name, id); err != nil {
 				t.Fatalf("%s: record %s: %v", k.name, id, err)
 			}
@@ -129,7 +114,7 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 			for _, id := range minted[mine.name] {
 				if theirs.pattern.MatchString(id) {
 					t.Errorf("NAMESPACE COLLISION: %s minted %q and the %s pattern (%s) accepts it.\n"+
-						"A command taking a %s id would join it to a %s, silently and at replay. The prefixes ARE the guarantee; one of these two kinds must change.",
+						"A command taking a %s id would join it to a %s, silently and at replay. The letters ARE the guarantee; one of these two kinds must change.",
 						mine.name, id, theirs.name, theirs.pattern, theirs.name, mine.name)
 				}
 			}
@@ -147,46 +132,79 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 			owner[id] = k.name
 		}
 	}
+
+	// 4. THE GENERAL ANCHOR FLAG TAKES EXACTLY THE KINDS AN ANCHOR STANDS FOR. A finding has no flag
+	// shape of its own: its id is an anchor id, and the anchor flag is what accepts it. The table
+	// agrees — the kind it reads off the id is the kind that was minted, and "" where no anchor
+	// stands for it.
+	anchorShape := flags.AnchorID().Shape()
+	for _, k := range kinds {
+		for _, id := range minted[k.name] {
+			if got := anchorShape.MatchString(id); got != k.anchored {
+				t.Errorf("the anchor flag on the %s id %q: accepted=%v, want %v", k.name, id, got, k.anchored)
+			}
+			want := ""
+			if k.anchored {
+				want = k.name
+			}
+			if got := anchor.Kind(id); got != want {
+				t.Errorf("anchor.Kind(%q) = %q for a minted %s, want %q", id, got, k.name, want)
+			}
+		}
+	}
 }
 
-// THE SHAPES ARE DISTINGUISHED BY MORE THAN THEIR FIRST CHARACTER.
+// THE KINDS ARE TOLD APART BY ONE LETTER, AND EACH KIND HOLDS ITS OWN.
 //
-// A prefix scheme that leans on one letter is one entity away from exhaustion, and the failure
-// would arrive as a collision rather than as a naming argument. This states the current scheme so
-// that adding a kind is a deliberate act: pick a letter no other kind uses, and this test is where
-// you find out you cannot.
+// Every id has the one shape, so the first character is doing all the work of telling the kinds
+// apart. This states the scheme so that adding a kind is a deliberate act: pick a letter no other
+// kind uses, and this test is where you find out you cannot. It reads the letter off what the
+// MINTER makes, then swaps every other kind's letter onto the same eight hex: the pattern must
+// refuse each, so a pattern that ignored the letter — or took two — fails whatever the hex is.
 func TestEveryIDKindHasADistinctPrefixLetter(t *testing.T) {
 	seen := map[string]string{}
+	ids := map[string]string{}
 	for _, k := range idKinds() {
-		// The literal prefix a pattern pins, e.g. `^R\d+-\d+$` -> "R". A kind whose pattern
-		// starts with a character class pins nothing and is reported as such.
 		src := k.pattern.String()
-		if !strings.HasPrefix(src, "^") || len(src) < 2 {
-			t.Errorf("%s's pattern %q is not anchored — an unanchored id pattern matches inside another kind's id", k.name, src)
-			continue
+		if !strings.HasPrefix(src, "^") || !strings.HasSuffix(src, "$") {
+			t.Errorf("%s's pattern %q is not anchored at both ends — an unanchored id pattern matches inside another kind's id", k.name, src)
 		}
-		letter := string(src[1])
-		if letter == "[" || letter == "(" || letter == `\` {
-			// `finding` is the honest exception: its label is ROLE-scoped (`L1-F3`), so its
-			// leading token is a seat name rather than a fixed letter. The `-F` infix is what
-			// makes it unmistakable, and the matrix above is what proves it.
-			continue
+		id := NewID(k.name)
+		if len(id) != 10 || id[1] != '-' {
+			t.Fatalf("%s minted %q, which is not a letter, a hyphen and eight hex", k.name, id)
+		}
+		letter := id[:1]
+		if want := idLetters[k.name]; letter != want {
+			t.Errorf("%s mints ids beginning %q, want %q", k.name, letter, want)
 		}
 		if prev, dup := seen[letter]; dup {
 			t.Errorf("%s and %s both mint ids beginning %q — the first character is doing the work of telling them apart, and now it cannot", prev, k.name, letter)
 		}
 		seen[letter] = k.name
+		ids[k.name] = id
+	}
+	for _, k := range idKinds() {
+		for other, id := range ids {
+			swapped := id[:1] + ids[k.name][1:]
+			if got, want := k.pattern.MatchString(swapped), other == k.name; got != want {
+				t.Errorf("the %s pattern on %q (a %s letter over a %s id's hex): matched=%v, want %v", k.name, swapped, other, k.name, got, want)
+			}
+		}
+		// And the letter is a LETTER of this kind in this case only: the lower-case spelling is no id.
+		if lower := strings.ToLower(ids[k.name][:1]) + ids[k.name][1:]; k.pattern.MatchString(lower) {
+			t.Errorf("the %s pattern accepts %q", k.name, lower)
+		}
 	}
 }
 
-// writeSeat registers the seat every minter counts events from.
+// writeSeat registers the seat the ids are recorded under.
 func writeSeat(t *testing.T, runDir string) error {
 	t.Helper()
 	_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", "")
 	return err
 }
 
-// appendMintedFor writes the event a minter counts, so the next mint advances.
+// appendMintedFor writes the event that carries an id of a kind.
 func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	t.Helper()
 	switch kind {
@@ -207,8 +225,14 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 		})
 		return err
 	case "finding":
-		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Finding{FindingId: proto.String(id), Label: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Finding{Id: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+		return err
+	case "citation":
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, corroboration(id, "https://example.org/"+id, "the claim "+id+" bears on", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS))
+		return err
+	case "proof":
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Proof{ProofId: proto.String(id), Script: proto.String("s.py")})
 		return err
 	}
-	return fmt.Errorf("no recorder for id kind %q — add one, or the minter never advances and this test compares twelve copies of the same id", kind)
+	return fmt.Errorf("no recorder for id kind %q — add one, or the write path is never shown an id of this kind", kind)
 }

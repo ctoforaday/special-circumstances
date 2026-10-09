@@ -65,7 +65,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 			Basis:  proto.String("red cannot settle G1"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:finding:F1", &recordpb.Finding{
-			FindingId: proto.String("f-1"), Label: proto.String("LV-F1"), Text: proto.String("the voice slips")}),
+			Id: proto.String("F-00000001"), Text: proto.String("the voice slips")}),
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:log:#1", &recordpb.Log{Text: proto.String("the tool refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		registersUnder(t, "blue-respond", "B1", "#1"), // blue sitting 1, epoch 2
@@ -120,10 +120,10 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		var fj record.FindingsJSON
 		unmarshal(t, must(t)(record.FindingsJSONBytes(run)), &fj)
 		if len(fj.Findings) != 1 || fj.Findings[0].Epoch != 2 {
-			t.Errorf("show findings = %+v, want LV-F1 at epoch 2", fj.Findings)
+			t.Errorf("show findings = %+v, want F-00000001 at epoch 2", fj.Findings)
 		}
 		if got := record.FindingsJSONOf(fam.Events, fam.At).Findings; len(got) != 1 || got[0].Epoch != 2 {
-			t.Errorf("the findings fold over the family = %+v, want LV-F1 at epoch 2", got)
+			t.Errorf("the findings fold over the family = %+v, want F-00000001 at epoch 2", got)
 		}
 	})
 

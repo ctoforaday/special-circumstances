@@ -63,12 +63,12 @@ export function makeWorld(respond) {
 // Canned envelopes, schema-shaped.
 export const blueEnv = (over = {}) => ({
   path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, sitting_record_appended: true,
-  manifest: ['G1'],
+  manifest: ['G-00000001'],
   open_questions: [], ...over,
 })
 // THE CHAIR RELAYS THE RECORD (plans/roundless.md §III.B.1): its envelope carries the plan `dispatch
 // next` printed. A stubbed chair is a stubbed plan; the default sequence is one sitting that engages
-// the evidence lens and blue on G1, then one with nobody ready and PASS permitted, on which the chair
+// the evidence lens and blue on G-00000001, then one with nobody ready and PASS permitted, on which the chair
 // records PASS — the shortest VERIFIED run.
 // The bench's party carries what it is convened for, as `dispatch next` prints it: `party('judge',
 // …gaps)` is the bench on its docket, `petitionBench()` the bench convened to hear petitions.
@@ -78,8 +78,8 @@ export const petitionBench = () => ({ seat_id: 'judge', gap_ids: [], occasions: 
 export const blocker = (subject, owner, kind = 'unruled_motion') => ({ kind, subject, owner })
 export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], remand_owed: [], pass_permitted: false, ceiling: false, max_epochs: 0, epoch_limit_reached: false, why: [], stale_areas: [], blockers: [], ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
-export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G1: at impasse, ruled remanded — at its limit'], ...over })
-export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G1')]), ...over })
+export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G-00000001: at impasse, ruled remanded — at its limit'], ...over })
+export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over })
 export const passChair = (over = {}) => chairEnv({ plan: passPlan(), verdict: 'PASS', ...over })
 export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',

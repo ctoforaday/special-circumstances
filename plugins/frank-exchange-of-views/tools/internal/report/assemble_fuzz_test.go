@@ -10,18 +10,18 @@ import (
 
 // FuzzWeaveCitations drives the citation weave over arbitrary report text with arbitrary
 // anchors and asserts its invariants hold no matter the input: it never panics, never
-// leaves a raw "<!--cite:c-…-->" anchor behind (every one becomes a [^N]), and produces a
+// leaves a raw "<!--cite:C-…-->" anchor behind (every one becomes a [^N]), and produces a
 // bibliography line for each distinct anchor it wove — a dangling anchor (no source) is
 // surfaced, never crashed on.
 //
 // The oracle reads the token with its own pattern, so the weave's reader does not grade itself.
 func FuzzWeaveCitations(f *testing.F) {
-	citeAnchor := regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
-	f.Add("Alpha<!--cite:c-1-->. Beta<!--cite:c-2-->.", "c-1|c-2")
+	citeAnchor := regexp.MustCompile(`<!--cite:(C-[0-9a-f]{8})-->`)
+	f.Add("Alpha<!--cite:C-00000001-->. Beta<!--cite:C-00000002-->.", "C-00000001|C-00000002")
 	f.Add("No citations here at all.", "")
-	f.Add("Dangling<!--cite:c-dead-->.", "") // anchor present, no source
-	f.Add("Repeat<!--cite:c-1--> and again<!--cite:c-1-->.", "c-1")
-	f.Add("<!--cite:c-a--><!--cite:c-b--><!--cite:c-a-->", "c-a|c-b")
+	f.Add("Dangling<!--cite:C-0000dead-->.", "") // anchor present, no source
+	f.Add("Repeat<!--cite:C-00000001--> and again<!--cite:C-00000001-->.", "C-00000001")
+	f.Add("<!--cite:C-0000000a--><!--cite:C-0000000b--><!--cite:C-0000000a-->", "C-0000000a|C-0000000b")
 
 	f.Fuzz(func(t *testing.T, md, labels string) {
 		var sources []record.Source
@@ -32,7 +32,7 @@ func FuzzWeaveCitations(f *testing.F) {
 		}
 		out := weaveCitations(md, sources) // must not panic
 
-		// No VALID citation anchor survives — every well-formed "<!--cite:c-hex-->" is woven
+		// No VALID citation anchor survives — every well-formed "<!--cite:C-hex-->" is woven
 		// to a [^N]. (A malformed fragment like a bare "<!--cite:" is not an anchor; it is
 		// inert HTML-comment text and legitimately passes through.)
 		if citeAnchor.MatchString(out) {

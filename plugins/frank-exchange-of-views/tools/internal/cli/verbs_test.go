@@ -45,7 +45,7 @@ func seedReferents(t *testing.T, runDir string) {
 	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
 	// the filing has to exist before the ruling can be tested at all — which is the join the
 	// collapse exists to make, and the reason these are seeded rather than assumed.
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "G1", "--dimension", "severity", "--proposed", "low",
 		"--reason", "the seeded grade motion this fixture answers"); err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func seedReferents(t *testing.T, runDir string) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G2", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
@@ -235,11 +235,11 @@ func TestVerbPayloads(t *testing.T) {
 			}
 			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
 			args = append(args, tc.args...)
-			out, err := run(t, args...)
+			out, err := runAt(t, args...)
 			if err != nil {
 				t.Fatalf("%v: %v", args, err)
 			}
-			if !strings.Contains(out, tc.says) {
+			if !strings.Contains(out, handleText(t, runDir, tc.says)) {
 				t.Errorf("stdout = %q, want it to contain %q", out, tc.says)
 			}
 			ev := lastOfType(t, runDir, tc.typ)
@@ -248,7 +248,7 @@ func TestVerbPayloads(t *testing.T) {
 				t.Fatalf("%s wrote an event with no body", tc.name)
 			}
 			for k, want := range tc.want {
-				if got := fieldText(t, body, k); got != want {
+				if got, want := fieldText(t, body, k), handleText(t, runDir, want); got != want {
 					t.Errorf("%s = %q, want %q", k, got, want)
 				}
 			}
@@ -272,17 +272,17 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	t.Run("with ids", func(t *testing.T) {
 		runDir := newRun(t)
 		seedReferents(t, runDir)
-		out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
+		out, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 			"--ids", "G2", "--reason", "it still holds")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out, "spot-checked G2") {
+		if !strings.Contains(out, handleText(t, runDir, "spot-checked G2")) {
 			t.Errorf("stdout = %q", out)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 		got := ev.GetIds()
-		if len(got) != 1 || got[0] != "G2" {
+		if len(got) != 1 || got[0] != handleText(t, runDir, "G2") {
 			t.Errorf("ids = %q, want [G2] — the only CLOSED gap, which is what a spot-check samples", got)
 		}
 		if ev.GetReason() != "it still holds" {
@@ -340,11 +340,11 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 	t.Parallel()
 	runDir := newRun(t)
 	seedReferents(t, runDir)
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "G2",
+	if _, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "G2",
 		"--reason", "re-read the closure record"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "G2",
+	_, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "G2",
 		"--reason", "re-read it again")
 	if err == nil {
 		t.Fatal("a second spot-check was accepted — the round's duty would have two discharges")
@@ -376,7 +376,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", seatID,
+	if _, err := runAt(t, "regrade", "--run", runDir, "--seat-id", seatID,
 		"--id", "G1", "--severity", "certain", "--reason", "new evidence in §4"); err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +399,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := board.Gap("G1")
+	g := board.Gap(handleText(t, runDir, "G1"))
 	if g.Severity != recordpb.Grade_GRADE_CERTAIN {
 		t.Errorf("board severity = %v, want certain", g.Severity)
 	}
@@ -440,7 +440,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 			runDir := seeded
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", body}, tc.extra...)
-			if _, err := run(t, args...); err != nil {
+			if _, err := runAt(t, args...); err != nil {
 				t.Fatal(err)
 			}
 			// BY TYPE, not "the last event in the log" — the fixture seeds referents, so the

@@ -18,7 +18,7 @@ invisible*, below). They are two axes with two forms:
   HTML-comment token; the anchor is a machine-readable locator, NOT reader-facing content; it can never
   silently leave; every content change under it is red-gated.
 - **Citations → the bibliography system** (built in 0.28.0/#256 — see `record-flow.md`). A citation is
-  *also* a tool-inserted **invisible** anchor — `<!--cite:c-…-->`, splice-identical to a
+  *also* a tool-inserted **invisible** anchor — `<!--cite:C-…-->`, splice-identical to a
   finding marker (it reuses `lens.InsertAnchor`) — but with the OPPOSITE assembly fate: where a finding
   is STRIPPED, a citation is **RESOLVED**. `blue cite` fetches the source **once** to a hash-addressed
   cache (`<run>/cache/<sha256>`, so red re-reads the exact bytes blue cited), then anchors the sentence;
@@ -27,11 +27,11 @@ invisible*, below). They are two axes with two forms:
 
 ## The marker
 
-- Format `<!--fx:<finding_id>-->` — an **invisible HTML comment**. It renders to nothing, is not a
+- Format `<!--fx:<id>-->` — an **invisible HTML comment**. It renders to nothing, is not a
   footnote (so no seat reads it as content or audits it as an undefined reference), and it cannot touch
   `claim_count` at all — a comment is never a `[^…]`, so no namespace rule or `Count` exclusion is
   needed. It is a pure machine anchor.
-- `finding_id` is the finding event's **already-minted unique id** (`f-<hex>`) — findings get one today.
+- `id` is the finding event's **tool-minted id**, `F-` and eight hex.
   The marker CONTENT is that id, a pointer ref; construction and grep-extraction agree on it verbatim.
 - The finding RECORD snapshots **{offending-content copy, reason}** at creation. That snapshot is what
   makes red's re-audit independent of blue: red re-locates and re-checks against the original, and

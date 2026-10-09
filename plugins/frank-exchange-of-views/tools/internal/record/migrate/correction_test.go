@@ -174,9 +174,10 @@ func TestB3ArchiveRoundTripsWithACorrection(t *testing.T) {
 	if _, _, err := record.RegisterSeat(blue, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	k := appendOK(t, blue, &recordpb.ManifestRow{GapId: proto.String("G2"), Row: proto.String("G2 is reproducible via ")}).GetKey()
+	g2 := res.IDs["G2"]
+	k := appendOK(t, blue, &recordpb.ManifestRow{GapId: proto.String(g2), Row: proto.String("it is reproducible via ")}).GetKey()
 	appendOK(t, correcting(blue, recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, k),
-		&recordpb.ManifestRow{GapId: proto.String("G2"), Row: proto.String("G2 is reproducible via the recorded proof")})
+		&recordpb.ManifestRow{GapId: proto.String(g2), Row: proto.String("it is reproducible via the recorded proof")})
 	want := liveTexts(t, run)
 
 	to := recordtest.TmpRun(t)

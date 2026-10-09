@@ -9,7 +9,7 @@ import (
 // replacement, it PRESERVES every finding-marker.
 //
 // THE ID MUST BE HEX, and for most of this fuzzer's life it was not. The seed marker read
-// `f-seed01`, and an anchor id is `f-[0-9a-f]+` — "s" is not a hex digit, so the anchor reader
+// `F-seed01`, and an anchor id is `F-` and eight hex — "s" is not a hex digit, so the anchor reader
 // never matched the token this test splices in. droppedMarker therefore returned "" on every
 // input, for every reason, and the set-membership assertion below asserted nothing at all.
 // The literal Contains check was the only live one, which is why the hole surfaced as
@@ -37,7 +37,7 @@ func FuzzPlanEdit(f *testing.F) {
 			}
 		}
 		mp := int(markerPos) % (len(body) + 1)
-		report := body[:mp] + "<!--fx:f-5eed01-->" + body[mp:]
+		report := body[:mp] + "<!--fx:F-005eed01-->" + body[mp:]
 
 		os := int(oldStart) % len(body)
 		ol := int(oldLen) % (len(body) - os + 1)
@@ -51,7 +51,7 @@ func FuzzPlanEdit(f *testing.F) {
 		if droppedMarker(report, next) != "" {
 			t.Fatalf("planEdit succeeded but dropped a marker\n report=%q\n old=%q\n next=%q", report, old, next)
 		}
-		if !strings.Contains(next, "<!--fx:f-5eed01-->") {
+		if !strings.Contains(next, "<!--fx:F-005eed01-->") {
 			t.Fatalf("marker token mangled\n report=%q\n old=%q\n next=%q", report, old, next)
 		}
 	})

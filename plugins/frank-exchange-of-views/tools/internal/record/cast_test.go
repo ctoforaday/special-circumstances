@@ -81,16 +81,16 @@ func TestACastNamingALaneItDoesNotSeatIsRefused(t *testing.T) {
 // anchor, another gap's and a finding's stand in that sentence and are not listed. An about gap
 // whose about_ref is a gap lists nothing.
 func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
-	cited := anchor.Token("c-a1b2c3d4")
-	unchecked := anchor.Token("c-99887766")
+	cited := anchor.Token("C-a1b2c3d4")
+	unchecked := anchor.Token("C-99887766")
 	was := reportRenderer
 	t.Cleanup(func() { reportRenderer = was })
 	reportRenderer = func(string, bool, []ReportOp) (string, error) {
-		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("f-0b0b0b0b") + anchor.Token("G1") + anchor.Token("G9") + ". Next one.\n", nil
+		return "# R\n\nA sentence " + cited + " and another" + unchecked + anchor.Token("F-0b0b0b0b") + anchor.Token("G-00000001") + anchor.Token("G-00000009") + ". Next one.\n", nil
 	}
 	dir := newRun(t)
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
-		GapId: proto.String("G1"), Class: proto.String("c"),
+		GapId: proto.String("G-00000001"), Class: proto.String("c"),
 		Problem:     proto.String("the claim rests on one source"),
 		Location:    proto.String("A sentence " + cited + " and another " + unchecked),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
@@ -102,8 +102,8 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Mint{
-		GapId: proto.String("G2"), Class: proto.String("c"), Problem: proto.String("about the first gap"),
-		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1"),
+		GapId: proto.String("G-00000002"), Class: proto.String("c"), Problem: proto.String("about the first gap"),
+		AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G-00000001"),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -113,7 +113,7 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "red-lens-evidence"}, &recordpb.Verify{
-		Anchor: proto.String("c-a1b2c3d4"), Claim: proto.String("the claim"),
+		Anchor: proto.String("C-a1b2c3d4"), Claim: proto.String("the claim"),
 		Text:       proto.String("the source states it at the leaf"),
 		Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
 		Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
@@ -141,11 +141,11 @@ func TestAGapCarriesWhatBacksItAndWhetherAnyoneChecked(t *testing.T) {
 	if len(by) != 2 {
 		t.Fatalf("backing = %+v, want the two citation anchors in the gap's sentence and nothing else", w.Open[0].Backing)
 	}
-	if g := by["c-a1b2c3d4"]; g.Outcome == "" || g.Kind != "citation" || g.VerifiedBy != "red-lens-evidence" {
+	if g := by["C-a1b2c3d4"]; g.Outcome == "" || g.Kind != "citation" || g.VerifiedBy != "red-lens-evidence" {
 		t.Errorf("a verified anchor lost its verification: %+v", g)
 	}
 	// UNVERIFIED IS AN ENTRY. "nobody looked" and "no anchor here" must not be the same bytes.
-	if g, ok := by["c-99887766"]; !ok || g.Outcome != "" {
+	if g, ok := by["C-99887766"]; !ok || g.Outcome != "" {
 		t.Errorf("an unchecked anchor is missing or claims an outcome: %+v", g)
 	}
 	// THE BOARD CARRIES THE SAME BACKING. It declared the field and never filled it, so every board
@@ -179,8 +179,8 @@ func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 	dir := newRun(t)
 	// Two DIFFERENT defects: the mint screens the open board, and one defect minted twice is refused.
 	problem := map[string]string{
-		"G1": "the retention figure contradicts the stated universal",
-		"G2": "the survey sample is too small for the precision claimed",
+		"G-00000001": "the retention figure contradicts the stated universal",
+		"G-00000002": "the survey sample is too small for the precision claimed",
 	}
 	mint := func(seat, gap string) {
 		if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: seat}, &recordpb.Mint{
@@ -196,8 +196,8 @@ func TestTheWorkListAnswersWhetherAGapIsYoursToClose(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mint("red-lens-evidence", "G1")
-	mint("red-lens-logic", "G2")
+	mint("red-lens-evidence", "G-00000001")
+	mint("red-lens-logic", "G-00000002")
 
 	for _, reader := range []string{"red-lens-evidence", "red-lens-logic"} {
 		b, err := WorkJSONBytes(mustRun(t, dir), "lens", reader)

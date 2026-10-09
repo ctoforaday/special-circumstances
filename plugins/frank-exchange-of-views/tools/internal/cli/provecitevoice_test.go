@@ -30,7 +30,7 @@ func TestProveAdvisesOnAVoicedNote(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the advisory refused a proof — it must refuse nothing: %v\n%s", err, out)
 	}
-	for _, want := range []string{"proof p-", "process-voice", "not a refusal", "footnote", "re-voiced"} {
+	for _, want := range []string{"proof P-", "process-voice", "not a refusal", "footnote", "re-voiced"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the proof's result does not carry %q:\n%s", want, out)
 		}

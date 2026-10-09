@@ -8,7 +8,7 @@ import "testing"
 // error — so it needs a test to be visible.
 func TestTokenizeIgnoresTheAnnotationLayer(t *testing.T) {
 	plain := Tokenize("Eight authoritative mathematical sources were consulted")
-	anchored := Tokenize("Eight authoritative mathematical sources were consulted<!--fx:f-dbd94684-->")
+	anchored := Tokenize("Eight authoritative mathematical sources were consulted<!--fx:F-dbd94684-->")
 	if len(plain) != len(anchored) {
 		t.Errorf("Tokenize saw %d token(s) plain and %d anchored — the anchor contributed vocabulary", len(plain), len(anchored))
 	}

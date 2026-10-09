@@ -969,14 +969,25 @@ message SpotCheck {
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
-  ABOUT_KIND_AVENUE = 2 [(means) = "an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
+  ABOUT_KIND_AVENUE = 2 [(means) = "an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
 }
 
 message Finding {
-  optional string finding_id = 1;
+  // id is the finding's one name: the tool mints it, a gap's found_by credits it by it, and the
+  // finding's anchor carries it. The lens that filed it is the event's seat, never part of the id.
+  //
+  // A finding with no id CANNOT BE ADDRESSED, and every one must get a fate. Measured on the
+  // 2026-07-18 run: 8 finding/observe events carried no name at all, so the chair could not name
+  // them even to decline them — they sat in the undisposed set forever.
+  optional string id = 11 [(sql) = {
+    required: true
+    unique: true
+    why: "the tool mints it; a finding with none can never be credited in a gap's found_by and its work is lost"
+  }];
   optional string finding_key = 2;
-  optional string label = 3;
+  reserved 1, 3;
+  reserved "finding_id", "label";
   optional string location = 4;
   optional string text = 5;
   optional Grade severity = 6;

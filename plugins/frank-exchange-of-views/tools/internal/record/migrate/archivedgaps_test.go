@@ -95,7 +95,8 @@ func archiveTarballs(t *testing.T) []string {
 // and the replay saw none. Migrated onto anchors, b9 G4 is marked on the sentence holding its minted
 // text, and b5 G5's edited_since is not empty.
 func TestB9AndB5GapsResolveByName(t *testing.T) {
-	_, b9 := migrateArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
+	res, b9 := migrateArchive(t, "2026-09-11_is-91-prime-b9.tar.gz")
+	id4 := migratedID(res, "G", "G4")
 	board, err := record.BoardJSONOfRun(b9)
 	if err != nil {
 		t.Fatal(err)
@@ -106,18 +107,18 @@ func TestB9AndB5GapsResolveByName(t *testing.T) {
 	}
 	var g4 *record.GapJSON
 	for _, g := range append(board.Open, board.Closed...) {
-		if g.ID == "G4" {
+		if g.ID == id4 {
 			g4 = &g
 		}
 	}
-	if g4 == nil || g4.LocationState != record.LocationMarked || !strings.Contains(g4.Location, fam.Gap("G4").Mint.GetLocation()) {
-		t.Errorf("b9 G4 is not marked on the sentence holding its minted text %q: %+v", fam.Gap("G4").Mint.GetLocation(), g4)
+	if g4 == nil || g4.LocationState != record.LocationMarked || !strings.Contains(g4.Location, fam.Gap(id4).Mint.GetLocation()) {
+		t.Errorf("b9 G4 is not marked on the sentence holding its minted text: %+v", g4)
 	}
 
-	_, b5 := migrateArchive(t, "2026-09-11_is-91-prime-b5.tar.gz")
+	res, b5 := migrateArchive(t, "2026-09-11_is-91-prime-b5.tar.gz")
 	reopened := 0
 	for _, e := range edits(t, b5) {
-		if slices.Contains(e.GetReopened(), "G5") {
+		if slices.Contains(e.GetReopened(), migratedID(res, "G", "G5")) {
 			reopened++
 		}
 	}

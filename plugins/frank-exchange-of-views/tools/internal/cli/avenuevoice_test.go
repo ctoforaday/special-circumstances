@@ -78,7 +78,7 @@ func TestMoveAdvisesOnAVoicedReason(t *testing.T) {
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
+	out, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "the debate settled it, so the line was dropped")
 	if err != nil {
 		t.Fatalf("the advisory refused a move — it must refuse nothing: %v\n%s", err, out)
@@ -105,7 +105,7 @@ func TestACleanAvenueCarriesNoNote(t *testing.T) {
 	if strings.Contains(out, "NOTE") {
 		t.Errorf("a clean proposal carries an advisory:\n%s", out)
 	}
-	out, err = run(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
+	out, err = runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "pursued", "--reason", "7 divides 91, so the line paid off")
 	if err != nil {
 		t.Fatal(err)
