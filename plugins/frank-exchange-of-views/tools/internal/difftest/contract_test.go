@@ -6,6 +6,11 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // command builds an invocation of the built binary.
@@ -119,6 +124,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding")
 
+	// A FINDING RECORDED WITHOUT ITS ANCHOR — the state a crash between a placing act's two appends
+	// leaves — at a location the report does not hold, for the retry row below.
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:seeded:F-00000ded", &recordpb.Finding{
+		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t")}))
+
 	// THE IDS THAT NAME NOTHING: noSuchGap, and a motion id of the same kind. Neither is minted, so a
 	// row that prints one prints it as written and it takes no placeholder.
 	const noSuchMotion = "M-00000000"
@@ -197,6 +207,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"a mint quoting a heading", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p", "--quote", "H"}},
 		{"a finding quoting a sentence that repeats", []string{"finding", "--key", "F9", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "Costs rose.", "--reason", "r"}},
+
+		// A RETRY PLACES THE STORED LOCATION, so its refusal is about that location and never about
+		// the --quote the retry carries.
+		{"a retry whose stored location the report no longer holds", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "somewhere", "--reason", "t"}},
 
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.

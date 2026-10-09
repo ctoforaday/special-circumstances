@@ -43,7 +43,7 @@ func newFinding() *cobra.Command {
 		if strings.TrimSpace(text) == "" {
 			return nil, fmt.Errorf("lens finding requires --reason: the explanation red re-audits the repair against")
 		}
-		location := seat.Str(cmd, flags.Quote)
+		location := seat.Location(cmd)
 		aboutKind, aboutRef := seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)
 		about, aboutRefP, aerr := record.ResolveAbout("lens finding", run, aboutKind, aboutRef)
 		aboutSet := about != nil
@@ -75,7 +75,7 @@ func newFinding() *cobra.Command {
 			// THE PAIR MAY BE HALF-APPENDED: the finding and its anchor are two appends, so a crash
 			// between them leaves the finding recorded and its anchor out of the report. The retry
 			// finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, run, prior, findingRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "lens finding", prior, key); err != nil {
 				return nil, err
 			}
 			return findingResult{ID: prior, Area: area, Idempotent: true}, nil
@@ -103,7 +103,7 @@ func newFinding() *cobra.Command {
 		body := &recordpb.Finding{
 			Id:         proto.String(findingID),
 			FindingKey: proto.String(seat.Str(cmd, flags.Key)),
-			Location:   proto.String(seat.Str(cmd, flags.Quote)),
+			Location:   proto.String(location),
 			Text:       proto.String(text),
 			AboutKind:  about,
 			AboutRef:   aboutRefP,

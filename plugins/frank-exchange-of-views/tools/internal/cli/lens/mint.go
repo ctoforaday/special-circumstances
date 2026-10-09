@@ -49,7 +49,7 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			// The mint and its anchor are two appends; a retry finishes the pair at the location the
 			// mint stored.
-			if err := seat.PlaceOwed(s, run, prior, mintPlacementRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "lens mint", prior, seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return mintResult{GapID: prior, Idempotent: true}, nil
@@ -110,7 +110,7 @@ func newMint() *cobra.Command {
 		if aerr != nil {
 			return nil, aerr
 		}
-		loc := seat.Str(cmd, flags.Quote)
+		loc := seat.Location(cmd)
 		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
 		// is not changed here — but a gap that claims both is claiming two.
 		if strings.TrimSpace(loc) != "" && about != nil {

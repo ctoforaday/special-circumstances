@@ -2,6 +2,7 @@ package seat
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -1019,6 +1020,14 @@ func inquestGroup() *cobra.Command {
 	return c
 }
 
+// Location is the location a placing verb stores for its --quote: the quote's visible text, every
+// anchor token out. A seat quotes a sentence as `show report` prints it, anchors included; a quote is
+// located with anchors skipped, so the stored text places the anchor where the typed quote does, and
+// no reader of a location is handed a token as part of the sentence.
+func Location(cmd *cobra.Command) string {
+	return anchor.Replace(Str(cmd, flags.Quote), func(string, string) string { return "" })
+}
+
 // Places is the refusal a placing verb gives where Attach will not place id's anchor at loc in the
 // report as it stands, worded by refuse. The verb checks before it records anything.
 func Places(run record.Run, id, loc string, refuse func(error) error) error {
@@ -1044,13 +1053,29 @@ func AppendPlaced(s Context, act proto.Message, id, loc string) error {
 
 // PlaceOwed appends the Anchor a retried act owes — the two appends are not one write, so a crash
 // between them leaves the act recorded and unplaced — at the location its first call stored, once
-// that location Places; otherwise the act stays unplaced.
-func PlaceOwed(s Context, run record.Run, id string, refuse func(error) error) error {
+// that location Places; otherwise the act stays unplaced. key is the --key the call repeats the act
+// under, or "" for an act its source and claim key.
+//
+// Its refusal is its own, never the verb's first-call wording: that wording teaches a seat to fix
+// --quote, and a retry places the stored location whatever --quote says.
+func PlaceOwed(s Context, run record.Run, verb, id, key string) error {
 	loc, err := record.UnplacedLocation(run, id)
 	if err != nil || loc == "" {
 		return err
 	}
-	if err := Places(run, id, loc, refuse); err != nil {
+	if err := Places(run, id, loc, func(err error) error {
+		state, repeats, anew := "no longer holds it where an anchor can stand", "naming the same source and claim", ""
+		if errors.Is(err, anchortext.ErrAmbiguous) {
+			state = "now holds it more than once"
+		}
+		if key != "" {
+			repeats, anew = fmt.Sprintf("under --key %q", key), fmt.Sprintf(", under a --key other than %q", key)
+		}
+		return fmt.Errorf("%s: the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
+			"A call %s repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. "+
+			"The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote%s",
+			verb, anchor.Kind(id), loc, state, repeats, anew)
+	}); err != nil {
 		return err
 	}
 	_, err = record.Append(s.Identity(), &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)})

@@ -291,6 +291,62 @@ func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
 	}
 }
 
+// A STORED LOCATION IS THE QUOTE'S VISIBLE TEXT, for every act that places an anchor. A seat quotes a
+// sentence as `show report` prints it, with the anchors already on it; the act and its Anchor store
+// that quote with every anchor token out, and the new anchor stands where the typed quote puts it —
+// at the end of the sentence's words, before the anchors it already carried. Reproduced from
+// universe m16, where a mint, a finding and their Anchors stored `…rejects it)<!--proof:…-->`.
+func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
+	const held, visible = "<!--fx:F-0000beef-->", "Costs rose sharply."
+	const quote = "Costs rose sharply" + held + "."
+	for _, c := range []struct {
+		name, seat string
+		args       []string
+		id, loc    func(*record.Event) string
+	}{
+		{"finding", lensSeat, []string{"finding", "--key", "K1", "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"},
+			func(e *record.Event) string { return e.GetFinding().GetId() }, func(e *record.Event) string { return e.GetFinding().GetLocation() }},
+		{"mint", lensSeat, nil,
+			func(e *record.Event) string { return e.GetMint().GetGapId() }, func(e *record.Event) string { return e.GetMint().GetLocation() }},
+		{"cite", blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},
+			func(e *record.Event) string { return e.GetCite().GetLabel() }, func(e *record.Event) string { return e.GetCite().GetLocation() }},
+		{"prove", blueSeat, []string{"prove", "--script", "p.js", "--reason", "r"},
+			func(e *record.Event) string { return e.GetProof().GetProofId() }, func(e *record.Event) string { return e.GetProof().GetLocation() }},
+		{"corroborate", lensSeat, []string{"corroborate", "--url", "https://example.org/r", "--title", "R", "--as", "supports", "--confidence", "high", "--reason", "r"},
+			func(e *record.Event) string { return e.GetVerify().GetLabel() }, func(e *record.Event) string { return e.GetVerify().GetClaim() }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			runDir := newRun(t)
+			writeReport(t, runDir, "# H\n\n"+quote+"\n")
+			registerChairOnce(t, runDir)
+			registerLensOnce(t, runDir)
+			registerBlue(t, runDir)
+			script(t, runDir, "p.js", "console.log(1)")
+			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://example.org/s": []byte("<html>a source</html>")}})
+			var err error
+			if c.args == nil {
+				_, err = mintQuote(t, runDir, "K1", quote)
+			} else {
+				_, err = run(t, append([]string{c.args[0], "--run", runDir, "--seat-id", c.seat, "--quote", quote}, c.args[1:]...)...)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			m, err := record.MergedEvents(runtest.Open(t, runDir))
+			if err != nil || len(m.Events) < 2 {
+				t.Fatal(err)
+			}
+			act, placed := m.Events[len(m.Events)-2], m.Events[len(m.Events)-1].GetAnchor()
+			if id := c.id(act); id == "" || placed.GetId() != id || c.loc(act) != visible || placed.GetLocation() != visible {
+				t.Fatalf("the act %s stores %q and its anchor %s stores %q, want %q in both", id, c.loc(act), placed.GetId(), placed.GetLocation(), visible)
+			}
+			if want := "Costs rose sharply" + anchor.Token(placed.GetId()) + held + "."; !strings.Contains(readReport(t, runDir), want) {
+				t.Errorf("the anchor does not stand before the one the sentence carried, as %q:\n%s", want, readReport(t, runDir))
+			}
+		})
+	}
+}
+
 // A RETRY ANCHORS THE STORED LOCATION, for every act that places an anchor. An act appended without
 // its Anchor — the crash window between the two appends — is named by the consistency check and
 // finished by a retry under its key at the location the act stored, never at the retry's own
@@ -358,7 +414,17 @@ func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 				got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR) - before
 				if twice {
 					if err == nil || got != 0 {
-						t.Errorf("with the stored location twice in the report the retry gave %v and appended %d anchor(s)", err, got)
+						t.Fatalf("with the stored location twice in the report the retry gave %v and appended %d anchor(s)", err, got)
+					}
+					// THE REFUSAL IS THE RETRY'S OWN. The verb's first-call wording teaches a seat to
+					// fix --quote, which a retry does not read.
+					for _, want := range []string{"is on the record without its anchor", "now holds it more than once", stored, "does not read --quote", "record a new act"} {
+						if !strings.Contains(err.Error(), want) {
+							t.Errorf("the retry's refusal lacks %q:\n%v", want, err)
+						}
+					}
+					if keyed := c.kind != "citation" || c.seat == blueSeat; keyed != strings.Contains(err.Error(), `under a --key other than "K1"`) {
+						t.Errorf("the retry's refusal names a new key exactly where the act is keyed (keyed=%v):\n%v", keyed, err)
 					}
 					continue
 				}

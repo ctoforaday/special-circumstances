@@ -51,7 +51,7 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 		prior, correcting := target.(*recordpb.Cite)
-		quote, url, title := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
+		quote, url, title := seat.Location(cmd), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
 		ocrQuote := seat.Str(cmd, flags.OCRQuote)
 		if strings.TrimSpace(quote) == "" {
 			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
@@ -116,7 +116,7 @@ func newCite() *cobra.Command {
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			if err := seat.PlaceOwed(s, run, prior, citeRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "blue cite", prior, key); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
@@ -228,7 +228,7 @@ func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
 // beside the source, where red decides what to verify. Set only when given, so "no argument
 // offered" stays distinct from an empty one.
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, read recordpb.SourceTextRead, why string) {
-	body.Location = proto.String(seat.Str(cmd, flags.Quote))
+	body.Location = proto.String(seat.Location(cmd))
 	body.Url = proto.String(seat.Str(cmd, flags.URL))
 	body.Title = proto.String(seat.Str(cmd, flags.Title))
 	body.CiteKey = proto.String(seat.Str(cmd, flags.Key))
