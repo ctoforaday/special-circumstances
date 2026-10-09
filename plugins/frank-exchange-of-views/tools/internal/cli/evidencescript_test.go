@@ -135,9 +135,9 @@ func TestAProofWhoseArtifactIsMissingIsRefusedNotShownEmpty(t *testing.T) {
 func TestEvidenceAtAnAnchorNothingIsAtIsRefused(t *testing.T) {
 	runDir, anchor, sha := provenRun(t, "console.log('no divisors in 2..6');")
 
-	if out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", "p-0000dead"); err == nil {
+	if out, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "evidence", "--anchor", "P-0000dead"); err == nil {
 		t.Errorf("an anchor on no entry was answered:\n%s", out)
-	} else if !strings.Contains(err.Error(), "p-0000dead") {
+	} else if !strings.Contains(err.Error(), "P-0000dead") {
 		t.Errorf("the refusal does not name the anchor it was given: %v", err)
 	}
 

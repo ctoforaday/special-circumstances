@@ -80,7 +80,7 @@ func TestMintRefusesAPrescriptionThatChangesNothing(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nIntro.\n\n(They stand "+strayPeriod+"\n")
 	mintGap(t, runDir, "G0", "overclaim")
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
-	_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+	_, err := runMintAt(t, runDir, "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "overclaim", "--problem", "stray period",
 		"--fix", "drop it", "--check-kind", "document", "--check", "no stray period",
 		"--severity", "low", "--likelihood", "low", "--impact", "low",

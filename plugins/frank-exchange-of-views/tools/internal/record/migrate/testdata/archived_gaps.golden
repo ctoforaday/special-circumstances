@@ -1,17 +1,17 @@
-2026-08-22_is-7-prime-run2 G1=unrendered G2=unrendered G3=unrendered G4=unrendered G5=unrendered G6=unrendered G7=unrendered
-2026-08-22_is-7-prime G1=unrendered G2=unrendered G3=unrendered G4=unrendered G5=unrendered
-2026-08-22_record-store-authority G5=unrendered G6=unrendered G7=unrendered G1=unrendered G2=unrendered G3=unrendered G4=unrendered
-2026-08-22_sqlite-schema-source G1=unrendered G2=unrendered G3=unrendered G4=unrendered G5=unrendered
-2026-08-23_research-loop-counterparts G1=unrendered G2=unrendered G3=unrendered G4=unrendered G5=unrendered G6=unrendered G7=unrendered G8=unrendered G9=unrendered G10=unrendered G11=unrendered G12=unrendered G13=unrendered G14=unrendered G15=unrendered G16=unrendered
-2026-08-23_sleeper-service-plan G19=unrendered G23=unrendered G1=unrendered G2=unrendered G3=unrendered G4=unrendered G5=unrendered G6=unrendered G7=unrendered G8=unrendered G9=unrendered G10=unrendered G11=unrendered G12=unrendered G13=unrendered G14=unrendered G15=unrendered G16=unrendered G17=unrendered G18=unrendered G20=unrendered G21=unrendered G22=unrendered
-2026-09-02_quadratic-formula G1=unrendered G2=unrendered G3=unrendered G4=unrendered G5=unrendered G6=unrendered G7=unrendered G8=unrendered G9=unrendered G10=unrendered G11=unrendered G12=unrendered G13=unrendered G14=unrendered G15=unrendered G16=unrendered G17=unrendered G18=unrendered G19=unrendered G20=unrendered G21=unrendered G22=unrendered G23=unrendered G24=unrendered G25=unrendered G26=unrendered
-2026-09-09_is-91-prime-a G1=marked+fallback G2=marked+fallback
-2026-09-09_is-91-prime-b G1=about G2=marked
-2026-09-10_is-91-prime-b3 G1=marked+fallback G2=marked G3=gone
-2026-09-11_is-91-prime-b4 G1=marked G2=marked+fallback
-2026-09-11_is-91-prime-b5 G2=marked G3=marked G7=about G1=marked G4=marked+fallback G5=marked+fallback G6=marked+fallback
-2026-09-11_is-91-prime-b6 G2=about G7=marked G1=marked+fallback G3=marked G4=marked G5=gone G6=marked+fallback
-2026-09-11_is-91-prime-b7 G2=marked G1=about G3=marked
-2026-09-11_is-91-prime-b8 G1=marked+fallback G2=marked G3=marked G4=marked+fallback
-2026-09-11_is-91-prime-b9 G3=marked G4=marked+fallback G1=gone G2=marked+fallback
-2026-10-09_is-91-prime-wave-a G1=marked G2=marked G5=about G7=marked G8=marked G3=gone G4=marked G6=marked
+2026-08-22_is-7-prime-run2 G-c28be04c=unrendered G-092a5e5e=unrendered G-49a38f3c=unrendered G-08a85de3=unrendered G-93f3c5d9=unrendered G-01d90007=unrendered G-c5244d00=unrendered
+2026-08-22_is-7-prime G-0911a4b6=unrendered G-a0830340=unrendered G-4ebca3f8=unrendered G-a1fe87f3=unrendered G-3de271d9=unrendered
+2026-08-22_record-store-authority G-15cced06=unrendered G-42b2320d=unrendered G-298b9f16=unrendered G-f89cc5c2=unrendered G-b0c2475d=unrendered G-b58efc8b=unrendered G-a3823220=unrendered
+2026-08-22_sqlite-schema-source G-9b10824f=unrendered G-f0ab5bc3=unrendered G-9ce09d42=unrendered G-c109194d=unrendered G-f89bddfa=unrendered
+2026-08-23_research-loop-counterparts G-97e1edce=unrendered G-25d4d914=unrendered G-ab65a8c4=unrendered G-cb34ef9a=unrendered G-343e743c=unrendered G-0e62e322=unrendered G-1ab70c8e=unrendered G-a78e0c3b=unrendered G-9127efcc=unrendered G-378f49ff=unrendered G-617ad72a=unrendered G-c027af8a=unrendered G-4be03018=unrendered G-2bd25793=unrendered G-52fb6a62=unrendered G-0a908b3c=unrendered
+2026-08-23_sleeper-service-plan G-c730ca6a=unrendered G-4f937d98=unrendered G-3b0c7922=unrendered G-d0deded4=unrendered G-6a68f7a1=unrendered G-962573bf=unrendered G-6a965a42=unrendered G-9f315a61=unrendered G-07397e44=unrendered G-5dadf602=unrendered G-2f8393ae=unrendered G-b9555e94=unrendered G-8e0cb26b=unrendered G-0f5ce8c3=unrendered G-d340a3a8=unrendered G-533c46a5=unrendered G-29cee5ad=unrendered G-6adc3557=unrendered G-2d489672=unrendered G-d6cd1fc5=unrendered G-d33cbccd=unrendered G-813b2245=unrendered G-6b9916cf=unrendered
+2026-09-02_quadratic-formula G-c499fff8=unrendered G-7fc21236=unrendered G-2dbf2d55=unrendered G-5eb9699e=unrendered G-6722bfb9=unrendered G-d304bbb2=unrendered G-4f2e3ef7=unrendered G-ffa5c5b8=unrendered G-5d4bad75=unrendered G-970250ea=unrendered G-e684016d=unrendered G-d3a14093=unrendered G-396865bd=unrendered G-0a58f64b=unrendered G-47de120c=unrendered G-7c6c6aa3=unrendered G-5a1d57a9=unrendered G-66889c07=unrendered G-99effe8a=unrendered G-c58ddc4e=unrendered G-057d5781=unrendered G-48310782=unrendered G-f956e7bd=unrendered G-b5b003ce=unrendered G-dd976878=unrendered G-3da22b21=unrendered
+2026-09-09_is-91-prime-a G-9e2aad3b=marked+fallback G-4ee5921d=marked+fallback
+2026-09-09_is-91-prime-b G-a654f9ea=about G-8337410f=marked
+2026-09-10_is-91-prime-b3 G-44fb1b4a=marked+fallback G-304b7eeb=marked G-19b1727b=gone
+2026-09-11_is-91-prime-b4 G-d6f0c41e=marked G-509c1642=marked+fallback
+2026-09-11_is-91-prime-b5 G-a3c8e5f3=marked G-a5008b94=marked G-253f8e3f=about G-d95ddb1f=marked G-a12c794f=marked+fallback G-4e13f1bb=marked+fallback G-d2962e60=marked+fallback
+2026-09-11_is-91-prime-b6 G-adb314b5=about G-37f2676c=marked G-9cb21173=marked+fallback G-782e2cf3=marked G-a73f4ca6=marked G-68c6ecf7=gone G-83420ea6=marked+fallback
+2026-09-11_is-91-prime-b7 G-7b484cd6=marked G-8f9ef62a=about G-d4d7e173=marked
+2026-09-11_is-91-prime-b8 G-f1911636=marked+fallback G-3f3a9f45=marked G-6c72ffdd=marked G-68a55b32=marked+fallback
+2026-09-11_is-91-prime-b9 G-5cbbdc12=marked G-ddb5c38b=marked+fallback G-8bd21b5d=gone G-3b07168d=marked+fallback
+2026-10-09_is-91-prime-wave-a G-b8948854=marked G-e455bb4e=marked G-22d16d99=about G-2005086e=marked G-66ecfae8=marked G-f6f63173=gone G-06c12f27=marked G-cb248920=marked

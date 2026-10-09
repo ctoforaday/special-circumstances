@@ -84,7 +84,7 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // the one that ships. What used to be the `.bindir` variant is simply the golden.
 
 // One run that seats every class the engine dispatches (plans/roundless.md §III.B.1): the chair's
-// first plan engages three active lenses, blue on G1, and the bench on G1
+// first plan engages three active lenses, blue on G-00000001, and the bench on G-00000001
 // (docketed); the second engages the evidence lens ON its gap — the other lens shape — and the
 // third permits PASS. Its plan holds a motion the bench owns so the terminal sitting fires too (a stub: the
 // record never permits PASS over one, but the terminal prompt is what this captures).
@@ -93,11 +93,11 @@ async function fullRun(args = ARGS) {
     blueSynth: [blueEnv({ claim_count: 200 })],
     blueRespond: [blueEnv({ claim_count: 210 })],
     chair: [
-      chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G1'), party('judge', 'G1')], { head: 2, docket: ['G1'] }) }),
-      chairEnv({ plan: plan([party('red-lens-evidence', 'G1'), party('red-lens-logic')], { head: 9 }) }),
-      passChair({ plan: passPlan({ blockers: [blocker('M1', 'judge')] }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { head: 2, docket: ['G-00000001'] }) }),
+      chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('red-lens-logic')], { head: 9 }) }),
+      passChair({ plan: passPlan({ blockers: [blocker('M-00000001', 'judge')] }) }),
     ],
-    judge: [judgeEnv({ dispositions: [{ gap_id: 'G1', disposition: 'remanded', rationale: 'the figure is still unrecomputed' }] })],
+    judge: [judgeEnv({ dispositions: [{ gap_id: 'G-00000001', disposition: 'remanded', rationale: 'the figure is still unrecomputed' }] })],
   }))
   await world.run(script, args)
   return world
@@ -147,7 +147,7 @@ test('seat prompt goldens: every seat class carries exactly its recorded contrac
 // like the other three, and a prompt nothing pins is a prompt whose clauses can move unobserved.
 test('the petition sitting prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G1')], { blockers: [blocker('M1', 'judge')] }) }), passChair()],
+    chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()],
   }))
   await world.run(script, ARGS)
   const call = world.calls.find((c) => c.opts.label.startsWith('judge · petition'))
@@ -161,7 +161,7 @@ test('the petition sitting prompt carries exactly its recorded contract', async 
 // — registering as the repair of the last sitting — where the prompt-naming check reads every golden.
 test('the sitting-record repair prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()],
     blueRespond: [blueEnv({ sitting_record_appended: false }), blueEnv()],
   }))
   await world.run(script, ARGS)
@@ -177,7 +177,7 @@ test('the sitting-record repair prompt carries exactly its recorded contract', a
 // owed clause, which is exactly the pair a golden is for.
 test('the synthesis sitting-record repair prompt carries exactly its recorded contract', async () => {
   const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G1')]) }), passChair()],
+    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()],
     blueSynth: [blueEnv({ sitting_record_appended: false }), blueEnv()],
   }))
   await world.run(script, ARGS)

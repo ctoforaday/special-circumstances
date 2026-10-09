@@ -13,14 +13,14 @@ import (
 // half: an anchor that SURVIVES onto rewritten prose backs a sentence nobody read, and until
 // now nothing said so.
 func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
-	const tok = "<!--cite:c-abc123-->"
+	const tok = "<!--cite:C-00abc123-->"
 	before := "# H\n\nThe sky is blue and the grass is green" + tok + ".\n\nAnother sentence entirely.\n"
 
 	// The inversion, which is the case worth naming: same anchor, opposite claim.
 	after := "# H\n\nThe sky is green and the grass is on fire" + tok + ".\n\nAnother sentence entirely.\n"
 	got := ReopenedAnchors(before, after)
-	if len(got) != 1 || got[0] != "c-abc123" {
-		t.Errorf("ReopenedAnchors = %v, want [c-abc123] — the citation now backs the opposite of what it was placed against", got)
+	if len(got) != 1 || got[0] != "C-00abc123" {
+		t.Errorf("ReopenedAnchors = %v, want [C-00abc123] — the citation now backs the opposite of what it was placed against", got)
 	}
 
 	// AN UNTOUCHED ANCHOR IS NOT REOPENED. Reopening everything on every edit is the same as
@@ -32,7 +32,7 @@ func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
 
 	// A SECOND ANCHOR ARRIVING IN THE SAME SENTENCE IS NOT A CHANGE TO THE FIRST. Anchors are
 	// stripped before comparing, or every cite would reopen its own neighbours.
-	twin := "# H\n\nThe sky is blue and the grass is green" + tok + "<!--fx:f-9f2a1c-->.\n\nAnother sentence entirely.\n"
+	twin := "# H\n\nThe sky is blue and the grass is green" + tok + "<!--fx:F-009f2a1c-->.\n\nAnother sentence entirely.\n"
 	if got := ReopenedAnchors(before, twin); len(got) != 0 {
 		t.Errorf("ReopenedAnchors = %v, want none — a neighbouring anchor is not a change to this one's referent", got)
 	}
@@ -62,7 +62,7 @@ func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
 // still matched, and the located span then ENDED BEFORE it: the transit guard never fired on a
 // whole-sentence edit, and the marker was left beside prose it was never placed against.
 func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
-	const tok = "<!--cite:c-abc123-->"
+	const tok = "<!--cite:C-00abc123-->"
 	report := "# H\n\nThe sky is blue and the grass is green" + tok + ".\n\nA second sentence with no anchor.\n"
 
 	// Quoting the sentence WITHOUT its anchor is refused, and the refusal names the token to carry.
@@ -75,9 +75,9 @@ func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
 	}
 
 	// A RUN of abutting anchors is named anchor by anchor, each by its kind.
-	run := "# H\n\nThe sky is blue<!--fx:f-a1--><!--cite:c-b2-->.\n"
+	run := "# H\n\nThe sky is blue<!--fx:F-000000a1--><!--cite:C-000000b2-->.\n"
 	_, _, err = LocateUniqueReplacing("blue edit", run, "The sky is blue.")
-	if err == nil || !strings.Contains(err.Error(), "carries "+anchor.Label("f-a1")+" and "+anchor.Label("c-b2")+",") {
+	if err == nil || !strings.Contains(err.Error(), "carries "+anchor.Label("F-000000a1")+" and "+anchor.Label("C-000000b2")+",") {
 		t.Errorf("the refusal does not name each anchor of the run by its kind: %v", err)
 	}
 

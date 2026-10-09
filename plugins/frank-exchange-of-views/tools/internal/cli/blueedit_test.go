@@ -83,16 +83,16 @@ func registerBlue(t *testing.T, runDir string) {
 func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	runDir := newRun(t)
 	// A trailing finding-marker after "time"; a footnote after "grows".
-	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:f-abc123-->. Volume grows[^v] steadily.\n")
+	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:F-00abc123-->. Volume grows[^v] steadily.\n")
 	registerBlue(t, runDir)
 
 	// THE QUOTE CARRIES THE MARKER, because the span ends exactly where the marker begins —
-	// "rising over time" IS the text f-abc123 is attached to. Quoting it without the token was
+	// "rising over time" IS the text F-00abc123 is attached to. Quoting it without the token was
 	// accepted before and left the anchor beside prose it was never placed against; now the seat
 	// quotes what `show report` prints and copies the token into --new like any other character.
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--quote", "rising over time<!--fx:f-abc123-->",
-		"--new", "climbing sharply<!--fx:f-abc123-->", "--reason", "sharper phrasing")
+		"--key", "E1", "--quote", "rising over time<!--fx:F-00abc123-->",
+		"--new", "climbing sharply<!--fx:F-00abc123-->", "--reason", "sharper phrasing")
 	if err != nil {
 		t.Fatalf("blue edit: %v (out %q)", err, out)
 	}
@@ -100,7 +100,7 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if !strings.Contains(rep, "climbing sharply") || strings.Contains(rep, "rising over time") {
 		t.Errorf("span not replaced: %q", rep)
 	}
-	if !strings.Contains(rep, "<!--fx:f-abc123-->") {
+	if !strings.Contains(rep, "<!--fx:F-00abc123-->") {
 		t.Errorf("finding-marker was dropped: %q", rep)
 	}
 	// THE MARKERS ARE IN THE RECORDED OP, on both sides. The diff stack is the record of what
@@ -108,12 +108,12 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	// omits the token would describe an edit nobody made. Carrying it in `old` and `new` is also
 	// what lets the stack be replayed or reviewed without the document to hand.
 	ev := lastBody(t, runDir, &recordpb.BlueEdit{})
-	if ev.GetOld() != "rising over time<!--fx:f-abc123-->" || ev.GetNew() != "climbing sharply<!--fx:f-abc123-->" {
+	if ev.GetOld() != "rising over time<!--fx:F-00abc123-->" || ev.GetNew() != "climbing sharply<!--fx:F-00abc123-->" {
 		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.GetOld(), ev.GetNew())
 	}
 	// AND THE EDIT REOPENED THE FINDING, because it rewrote the words that finding is anchored to.
-	if got := ev.GetReopened(); len(got) != 1 || got[0] != "f-abc123" {
-		t.Errorf("reopened = %v, want [f-abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
+	if got := ev.GetReopened(); len(got) != 1 || got[0] != "F-00abc123" {
+		t.Errorf("reopened = %v, want [F-00abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
 	}
 	if ev.GetText() != "sharper phrasing" {
 		t.Errorf("reason not recorded: %q", ev.GetText())
@@ -122,7 +122,7 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 
 func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nThe value is context<!--fx:f-1-->: important here.\n")
+	writeReport(t, runDir, "# H\n\nThe value is context<!--fx:F-00000001-->: important here.\n")
 	registerBlue(t, runDir)
 
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -134,7 +134,7 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	// name the marker and tell blue how to succeed — carry the token across — rather than the old
 	// "edit around it", which deadlocked against the uniqueness guard whenever the disambiguating
 	// context was the anchored text itself.
-	if !strings.Contains(err.Error(), "f-1") || !strings.Contains(err.Error(), "<!--fx:f-1-->") {
+	if !strings.Contains(err.Error(), "F-00000001") || !strings.Contains(err.Error(), "<!--fx:F-00000001-->") {
 		t.Errorf("reject message should name the marker and quote the token to reproduce: %v", err)
 	}
 	if strings.Contains(readReport(t, runDir), "vital") {
@@ -242,13 +242,13 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 	mintGap(t, runDir, "G1", "overclaimed-independence")
 	registerBlue(t, runDir)
 
-	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+	_, err := runAt(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--answers", "G99", "--reason", "why")
 	if err == nil {
 		t.Fatal("an edit answering a gap no mint created was accepted")
 	}
-	if !strings.Contains(err.Error(), "G99") {
+	if !strings.Contains(err.Error(), handleText(t, runDir, "G99")) {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
@@ -352,7 +352,7 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
@@ -375,7 +375,7 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text.\n")
 	registerLensOnce(t, runDir)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {
@@ -398,7 +398,7 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	registerLensOnce(t, runDir)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
 		"--quote", "a sentence the report never contained", "--new", "anything")
@@ -506,7 +506,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	prior := seedProposalApplied(t, runDir)
 
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
@@ -533,7 +533,7 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
@@ -547,7 +547,7 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 	runDir := newRun(t)
 	seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --quote is matched against the report,
 		// so "text the guard should not cover" can no longer mean "text that does not exist".
 		"--key", "G2", "--class", "overclaim", "--quote", "Sieve costs grow with the bound.",
@@ -692,7 +692,7 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 // naming it, with nothing recorded; a fragment edit keeping its fragment re-places the anchor and
 // reopens it, because the document's sentence moved.
 func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
-	const fx, cite, rose, climb = "<!--fx:f-aaaa1111-->", "<!--cite:c-bbbb2222-->", "<!--fx:f-cccc3333-->", "<!--fx:f-dddd4444-->"
+	const fx, cite, rose, climb = "<!--fx:F-aaaa1111-->", "<!--cite:C-bbbb2222-->", "<!--fx:F-cccc3333-->", "<!--fx:F-dddd4444-->"
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\nOld intro. The cost is high"+fx+".\n\nRevenue fell sharply in Q1"+cite+".\n\n"+
 		"Costs rose"+rose+".\n\nPrices climbed"+climb+".\n")
@@ -747,8 +747,8 @@ func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
 		if ev.GetNew() != "rose, then fell sharply in Q1"+cite {
 			t.Errorf("recorded new = %q", ev.GetNew())
 		}
-		if !slices.Contains(ev.GetReopened(), "c-bbbb2222") {
-			t.Errorf("reopened = %v, want c-bbbb2222: the sentence it backs now reads differently", ev.GetReopened())
+		if !slices.Contains(ev.GetReopened(), "C-bbbb2222") {
+			t.Errorf("reopened = %v, want C-bbbb2222: the sentence it backs now reads differently", ev.GetReopened())
 		}
 	})
 }

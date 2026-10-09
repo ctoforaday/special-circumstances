@@ -124,7 +124,7 @@ func TestTheBudgetIsTheLargerOfTheFloorAndTheCeiling(t *testing.T) {
 // Each measure reads its own source: the cite and proof rows, and the rendered report.
 func TestEachMeasureReadsTheRecord(t *testing.T) {
 	id := budgetRun(t, 1, 3, 2, "red-lens-evidence")
-	md := "# Report\n\nOne<!--cite:c-0-->. Two<!--cite:c-1--><!--cite:c-2-->.\n\nThree.\n\nFour<!--cite:c-0-->.\n\n<!--fx:f-1-->\n\nFive.\n\nSix.\n\nSeven."
+	md := "# Report\n\nOne<!--cite:C-00000000-->. Two<!--cite:C-00000001--><!--cite:C-00000002-->.\n\nThree.\n\nFour<!--cite:C-00000000-->.\n\n<!--fx:F-00000001-->\n\nFive.\n\nSix.\n\nSeven."
 	withRenderer(t, renders(&md))
 	for area, want := range map[string][2]int{ // units, budget
 		"evidence":     {3, 2},

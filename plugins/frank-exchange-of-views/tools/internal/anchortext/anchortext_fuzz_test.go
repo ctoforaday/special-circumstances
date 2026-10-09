@@ -52,7 +52,7 @@ func FuzzLocateEnd(f *testing.F) {
 		if a > b {
 			a, b = b, a
 		}
-		annotated := base[:a] + "<!--fx:f-seed01-->" + base[a:b] + "[^fn1]" + base[b:]
+		annotated := base[:a] + "<!--fx:F-5eed0001-->" + base[a:b] + "[^fn1]" + base[b:]
 
 		end := locateEnd(annotated, base)
 		if end < 0 {
@@ -63,8 +63,8 @@ func FuzzLocateEnd(f *testing.F) {
 		// invisible layer. The offset may sit just before a trailing annotation (a legal
 		// boundary), but inserting there must never split a marker/footnote — so stripping
 		// the whole annotation layer recovers the same prose as before the insert.
-		out := string(insertMarker([]byte(annotated), end, "<!--fx:f-abcdef-->"))
-		if !strings.Contains(out, "<!--fx:f-abcdef-->") || reFindingMarker.FindStringSubmatch(out) == nil {
+		out := string(insertMarker([]byte(annotated), end, "<!--fx:F-00abcdef-->"))
+		if !strings.Contains(out, "<!--fx:F-00abcdef-->") || reFindingMarker.FindStringSubmatch(out) == nil {
 			t.Fatalf("inserted marker did not round-trip in %q", out)
 		}
 		if stripAnnotations(out) != stripAnnotations(annotated) {
@@ -81,7 +81,7 @@ func FuzzLocateEnd(f *testing.F) {
 // one occurrence Attach counts is InsertAnchor's first match; a quote across a blank line (#552's
 // shape) is refused by Attach and missed by InsertAnchor.
 func TestAttachPlacesWhereReplayDoes(t *testing.T) {
-	words := []string{"Costs", "rose", "sharply.", "Volume", "grows", "\"rose", "sharply\"", "fell.", "\n\n", "<!--cite:c-1-->", "again."}
+	words := []string{"Costs", "rose", "sharply.", "Volume", "grows", "\"rose", "sharply\"", "fell.", "\n\n", "<!--cite:C-00000001-->", "again."}
 	r := rand.New(rand.NewSource(552))
 	placed, crossing := 0, 0
 	for i := 0; i < 20000; i++ {
@@ -94,7 +94,7 @@ func TestAttachPlacesWhereReplayDoes(t *testing.T) {
 		a := r.Intn(n)
 		b := a + 1 + r.Intn(n-a)
 		quote := strings.Join(ws[a:b], " ")
-		out, err := Attach(doc, "G1", quote)
+		out, err := Attach(doc, "G-00000001", quote)
 		if err != nil {
 			if err == ErrCrossesParagraph {
 				crossing++
@@ -102,7 +102,7 @@ func TestAttachPlacesWhereReplayDoes(t *testing.T) {
 			continue
 		}
 		placed++
-		want, err := InsertAnchor([]byte(doc), quote, anchor.Token("G1"))
+		want, err := InsertAnchor([]byte(doc), quote, anchor.Token("G-00000001"))
 		if err != nil || string(want) != out {
 			t.Fatalf("Attach and replay disagree on %q in %q:\n Attach %q\n replay %q (%v)", quote, doc, out, want, err)
 		}

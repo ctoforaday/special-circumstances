@@ -27,7 +27,7 @@ func clauseCut(t *testing.T) (string, string) {
 		"--quote", "the sky is blue", "--url", "https://sky/m", "--title", "Sky"); err != nil {
 		t.Fatalf("cite the clause: %v", err)
 	}
-	m := regexp.MustCompile(`the sky is blue<!--cite:(c-[0-9a-f]+)-->`).FindStringSubmatch(readReport(t, runDir))
+	m := regexp.MustCompile(`the sky is blue<!--cite:(C-[0-9a-f]{8})-->`).FindStringSubmatch(readReport(t, runDir))
 	if m == nil {
 		t.Fatalf("no marker after the clause:\n%s", readReport(t, runDir))
 	}
@@ -70,7 +70,7 @@ func TestARetireNamingTheMarkerTakesItOut(t *testing.T) {
 func TestARetireRefusesAMarkerTheCutDidNotLeave(t *testing.T) {
 	runDir, _ := clauseCut(t)
 	_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "the sky is blue",
-		"--anchor", "c-00000000", "--reason", "refuted")
+		"--anchor", "C-00000000", "--reason", "refuted")
 	if err == nil || !strings.Contains(err.Error(), "the report holds no") {
 		t.Fatalf("a marker not in the report was accepted: %v", err)
 	}

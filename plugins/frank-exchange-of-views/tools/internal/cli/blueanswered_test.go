@@ -195,7 +195,7 @@ func answeredBoard(t *testing.T) (runDir, gapID string) {
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Mint{
-			GapId: proto.String("G1"), Class: proto.String("c"),
+			GapId: proto.String("G-00000001"), Class: proto.String("c"),
 			Problem:         proto.String("the figure rests on one source"),
 			Location:        proto.String("The cost is high"),
 			RequiredFix:     proto.String("qualify it"),
@@ -204,7 +204,7 @@ func answeredBoard(t *testing.T) (runDir, gapID string) {
 			Severity:        recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
-		at("red-lens-evidence", &recordpb.Anchor{Id: proto.String("G1"), Location: proto.String("The cost is high")}),
+		at("red-lens-evidence", &recordpb.Anchor{Id: proto.String("G-00000001"), Location: proto.String("The cost is high")}),
 	)
-	return runDir, "G1"
+	return runDir, "G-00000001"
 }

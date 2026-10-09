@@ -303,10 +303,10 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		"# Whether the cache is coherent — research report",
 		"",
 		"## TL;DR",
-		"The cache is coherent<!--cite:c-1-->, and the interleaving was model-checked<!--proof:p-1-->.",
+		"The cache is coherent<!--cite:C-00000001-->, and the interleaving was model-checked<!--proof:P-00000001-->.",
 		"",
 		"## Analysis",
-		"Single-writer invalidation is the load-bearing invariant<!--cite:c-1-->.",
+		"Single-writer invalidation is the load-bearing invariant<!--cite:C-00000001-->.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -343,24 +343,24 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-		Label: proto.String("c-1"), Url: proto.String("https://ex/coherence"),
+		Label: proto.String("C-00000001"), Url: proto.String("https://ex/coherence"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Coherence Proof"),
 		AccessDate: proto.String("2026-08-03"),
 	})
 	// A SECOND source, cited only from red's board — so its reference lands in docket.md and
 	// nowhere else. This is the case a global weave gets wrong and a per-file weave gets right.
 	add("blue-synthesize", &recordpb.Cite{SourceTextOrigin: recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_EMBEDDED.Enum(), WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum(), SourceCompleteness: recordpb.SourceCompleteness_SOURCE_COMPLETENESS_FULL.Enum(),
-		Label: proto.String("c-2"), Url: proto.String("https://ex/eviction"),
+		Label: proto.String("C-00000002"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("beefcafe"), Title: proto.String("Eviction Under Contention"),
 		AccessDate: proto.String("2026-08-04"),
 	})
 	add("blue-synthesize", &recordpb.Proof{
-		ProofId: proto.String("p-1"), ProofSha: proto.String(sha),
+		ProofId: proto.String("P-00000001"), ProofSha: proto.String(sha),
 		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
 		Text: proto.String("the model check settles the race"),
 	})
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--cite:c-2-->"),
+		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--cite:C-00000002-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
@@ -369,7 +369,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	})
 	// And a proof anchored from the transcript, so debate.md must define P1 for itself too.
 	add("blue-respond", &recordpb.Position{
-		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and G1 does not stand"),
+		Text: proto.String("the interleaving is model-checked<!--proof:P-00000001--> and G1 does not stand"),
 	})
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),

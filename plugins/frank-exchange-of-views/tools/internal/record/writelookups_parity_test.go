@@ -40,10 +40,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("RegisteredSeats = (%v, %v), want event order", seats, err)
 	}
 
-	// Mints: the id allocator counts THIS round's mints; the key lookup returns the first match.
-	if id, err := MintGapID(run); err != nil || id != "G1" {
-		t.Errorf("MintGapID on an unminted round = (%q, %v)", id, err)
-	}
+	// Mints: the key lookup returns the first match.
 	for _, gid := range []string{"G1", "G2"} {
 		if _, err := Append(red, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId:           proto.String(gid),
@@ -58,9 +55,6 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-	}
-	if id, err := MintGapID(run); err != nil || id != "G3" {
-		t.Errorf("MintGapID = (%q, %v), want G3 after two mints", id, err)
 	}
 	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id != "G2" {
 		t.Errorf("ExistingMintByKey = (%q, %v)", id, err)
@@ -86,16 +80,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("priorClosureEpochs on a never-closed gap = (%v, %v)", rounds, err)
 	}
 
-	// A new EPOCH does NOT restart the counter — ids are run-global, so the chair sitting again
-	// changes nothing about the next id.
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if id, err := MintGapID(run); err != nil || id != "G3" {
-		t.Errorf("MintGapID counts over the RUN: got (%q, %v)", id, err)
-	}
-
-	// A proposal counts toward the next avenue id; a MOVE of the same line must not.
+	// An avenue is referable once proposed, and a move of it leaves it so.
 	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
 		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
@@ -105,9 +90,6 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		SupersedesStatus: proto.String(recordpb.Word(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED))}); err != nil {
 		t.Fatal(err)
 	}
-	if id, err := MintAvenueID(run); err != nil || id != "Q2" {
-		t.Errorf("MintAvenueID = (%q, %v) — a move counted as a proposal, or the proposal was missed", id, err)
-	}
 	if err := RequireAvenueRef(run, "Q1"); err != nil {
 		t.Errorf("RequireAvenueRef(Q1) = %v", err)
 	}
@@ -115,25 +97,25 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Error("RequireAvenueRef accepted an avenue nobody proposed")
 	}
 
-	// Findings and their markers: the label allocator, the key lookup, the anchor pair heal.
+	// Findings and their markers: the key lookup, the reference check, the anchor pair heal.
 	if _, err := Append(Identity{Run: run, SeatID: "red-lens-evidence"}, &recordpb.Finding{
-		FindingId: proto.String("f-0a0a0a0a"), Label: proto.String("evidence-F1"), FindingKey: proto.String("fk-1"),
+		Id: proto.String("F-0a0a0a0a"), FindingKey: proto.String("fk-1"),
 		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if label, err := NextFindingLabel(run, "red-lens-evidence"); err != nil || label != "evidence-F2" {
-		t.Errorf("NextFindingLabel = (%q, %v)", label, err)
+	if id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || id != "F-0a0a0a0a" {
+		t.Errorf("FindingByKey = (%q, %v)", id, err)
 	}
-	if label, id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || label != "evidence-F1" || id != "f-0a0a0a0a" {
-		t.Errorf("FindingByKey = (%q, %q, %v)", label, id, err)
+	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id != "" {
+		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id, err)
 	}
-	if err := requireFindings(run, []string{"evidence-F1"}, "mint", "--found-by"); err != nil {
-		t.Errorf("requireFindings on a recorded label = %v", err)
+	if err := requireFindings(run, []string{"F-0a0a0a0a"}, "mint", "--found-by"); err != nil {
+		t.Errorf("requireFindings on a recorded id = %v", err)
 	}
-	if err := requireFindings(run, []string{"evidence-F1", "L9-F9"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "L9-F9") {
-		t.Errorf("requireFindings must name the first missing label: %v", err)
+	if err := requireFindings(run, []string{"F-0a0a0a0a", "F-99999999"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
+		t.Errorf("requireFindings must name the first missing id: %v", err)
 	}
-	if loc, err := UnplacedLocation(run, "f-0a0a0a0a"); err != nil || loc != "L" {
+	if loc, err := UnplacedLocation(run, "F-0a0a0a0a"); err != nil || loc != "L" {
 		t.Errorf("UnplacedLocation = (%q, %v) — no anchor event was appended for this finding, so its stored location is owed", loc, err)
 	}
 

@@ -13,11 +13,11 @@ func TestAQuotedPhraseInsideALocationDoesNotStealTheAnchor(t *testing.T) {
 	const report = "# H\n\nThe cost is climbing sharply.\n\nBlue wrote that the cost is \"climbing sharply\" and gave no source for it.\n"
 	const location = `Blue wrote that the cost is "climbing sharply" and gave no source for it.`
 
-	got, err := Attach(report, "f-1", location)
+	got, err := Attach(report, "F-00000001", location)
 	if err != nil {
 		t.Fatalf("a location present in the report verbatim was refused: %v", err)
 	}
-	if !strings.Contains(got, `no source for it<!--fx:f-1-->.`) || strings.Contains(got, `climbing sharply<!--fx:f-1-->.`) {
+	if !strings.Contains(got, `no source for it<!--fx:F-00000001-->.`) || strings.Contains(got, `climbing sharply<!--fx:F-00000001-->.`) {
 		t.Errorf("the anchor did not land on the sentence the location names:\n%s", got)
 	}
 }
@@ -28,10 +28,10 @@ func TestAQuotedPhraseInsideALocationDoesNotStealTheAnchor(t *testing.T) {
 func TestALabelledLocationIsRefused(t *testing.T) {
 	const report = "# H\n\n## Foundations\n\nThe scheduler is preemptive.\n"
 	const labelled = `§ Foundations: "The scheduler is preemptive"`
-	if _, err := Attach(report, "c-1", labelled); err != ErrMisQuote {
+	if _, err := Attach(report, "C-00000001", labelled); err != ErrMisQuote {
 		t.Errorf("Attach(labelled) = %v, want ErrMisQuote", err)
 	}
-	if _, err := InsertAnchor([]byte(report), labelled, "<!--cite:c-1-->"); err != ErrMisQuote {
+	if _, err := InsertAnchor([]byte(report), labelled, "<!--cite:C-00000001-->"); err != ErrMisQuote {
 		t.Errorf("InsertAnchor(labelled) = %v, want ErrMisQuote", err)
 	}
 }
@@ -40,7 +40,7 @@ func TestALabelledLocationIsRefused(t *testing.T) {
 // refusal exists for.
 func TestALocationThatIsNotThereIsStillRefused(t *testing.T) {
 	const report = "# H\n\nThe cost is climbing sharply.\n"
-	if _, err := Attach(report, "f-2", `Nothing in this document says "anything like this".`); err == nil {
+	if _, err := Attach(report, "F-00000002", `Nothing in this document says "anything like this".`); err == nil {
 		t.Fatal("a location absent from the report was anchored anyway")
 	}
 }

@@ -51,7 +51,7 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 		prior, correcting := target.(*recordpb.Cite)
-		quote, url, title := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
+		quote, url, title := seat.Location(cmd), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
 		ocrQuote := seat.Str(cmd, flags.OCRQuote)
 		if strings.TrimSpace(quote) == "" {
 			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
@@ -116,7 +116,7 @@ func newCite() *cobra.Command {
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			if err := seat.PlaceOwed(s, run, prior, citeRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "blue cite", prior, key); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
@@ -156,7 +156,7 @@ func newCite() *cobra.Command {
 		// a crash before the appends leaves nothing to adopt. Mint the label (it forms the marker)
 		// and VALIDATE the placement against the current render — a mis-quote or in-fence quote is
 		// refused now, and the validated bytes discarded.
-		label := record.NewCitationID()
+		label := record.NewID("citation")
 		if err := seat.Places(run, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func newCite() *cobra.Command {
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.OCRQuote, "for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf")
-	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
+	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id")
 	return seat.Correctable(c)
 }
 
@@ -228,7 +228,7 @@ func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
 // beside the source, where red decides what to verify. Set only when given, so "no argument
 // offered" stays distinct from an empty one.
 func citeFields(cmd *cobra.Command, body *recordpb.Cite, read recordpb.SourceTextRead, why string) {
-	body.Location = proto.String(seat.Str(cmd, flags.Quote))
+	body.Location = proto.String(seat.Location(cmd))
 	body.Url = proto.String(seat.Str(cmd, flags.URL))
 	body.Title = proto.String(seat.Str(cmd, flags.Title))
 	body.CiteKey = proto.String(seat.Str(cmd, flags.Key))

@@ -19,6 +19,15 @@
 > session's inbox socket with no model call, and that channel addresses a process, not an
 > in-process Workflow seat — and gblock's ruling that every host surface the rig drives sits
 > behind a harness boundary so Antigravity can be swapped in (`plans/dual-target-claude-antigravity.md`).
+>
+> Corrected 2026-10-09 against `12879192` (179 commits since `44ce54d6`; EventSchema 23): the record
+> now names the work item's parts — `kind` is the record's `Occasion`, the dispatch row carries
+> seat, occasions, gap ids and blockers, and markers part 4 delivers the brief — so §III.1 is
+> restated on those names; #1190/#1191 are closed by the record route and §III.2/§IV.1 no longer
+> argue from envelopes; the petition-latency ruling and #1281's relay rule bound §III.2 and are
+> argued against, not around; §III.2's schemas and §III.3's generator belong to slimming plans 09
+> and 07; §III.6 states the vehicle question as relay versus read. Each correction is dated in
+> place. Nothing in §III has started; §I's ruling is still open.
 
 ## I. Summary & Goals
 
@@ -83,6 +92,12 @@ what the Workflow script is *for*.
 ## II. Technical Context — what the tree does today, measured
 
 ### II.1 The engine (`debate.js`, 1148 lines at `b0ff6679`)
+
+> Corrected 2026-10-09: 1262 lines at `12879192`; the epoch loop is at `:1076` (chair `:1078`,
+> lenses `:1116`, blue `:1121`, bench `:1150`) with a petition bench sitting inserted before the
+> lenses (`:1112`, #1239). Every other line number in this section is at `b0ff6679` and is read
+> as a locator, not a fact. `takeFriction` and the envelope `log` are gone (#1282); `unruled_motions`
+> is gone from the chair envelope, which is `{plan, verdict, notes}` (`:578`, #1239).
 
 The script calls `agent()` and `parallel()` only; `pipeline()` is stubbed in the goja harness and
 unused. The bookends are fixed: frontier (1 agent), lanes (N in parallel), synthesis (1),
@@ -212,6 +227,28 @@ engine dispatches one `Item` at a time**, and `Item` gains what a dispatch needs
 | `brief` | the projection the seat needs: the gap's problem text and acceptance check, the anchored report text, the edits since the seat last sat, the sources cited — rendered by the record, delivered with the dispatch | replaces the orientation calls; it is `show` with the selector chosen by the engine |
 | `budget` | calls allowed for this item | the cap becomes per item, small, and refusable |
 
+**Corrected 2026-10-09 — the item's parts have names on the record, and the plan takes them.**
+`kind` is the record's `Occasion` (`recordpb/record.proto:1799–1820`): "what a sitting was
+convened to do, as against who was asked", today recorded only on the bench's register because
+the bench is "the one seat whose id stopped determining its question", and the comment at
+`:1934–1948` says where the next such seat's occasion goes — the same field. One item per
+dispatch is that collapse applied to every seat: a lens convened to `adjudicate` one gap is not
+told apart from a lens convened to `audit-area` by its id. So the kinds in the table above are
+values of `Occasion`, the field is extended to every seat's register, and the refusal that today
+rejects an occasion from any seat but the bench inverts into "every register states one". The
+dispatch row already carries the rest of the item — `seat_id`, `gap_ids`, `occasions`, and the
+party's `blockers` (`Dispatch` at `record.proto`, #1239) — so `subject` is `gap_ids` narrowed to
+one, and the row is the item. `brief` exists in substance since markers part 4 (#1271): each
+work-list gap carries the marker's sentence, passage, backing, `edited_since` and a
+`location_state` of `marked`, `gone` or `unrendered`, and the lens prompt says the work list
+tells it whether blue moved (`debate.js:1042`). Two consequences from the markers plan: every id
+becomes `<LETTER>-<8 hex>` from `crypto/rand` at part 6 (epoch 24, in flight), so `subject` is
+unique by construction; and "cut = answer" (its R-9) means an `adjudicate` item takes a `gone`
+gap as a decision input, never as silence. Its non-goal "no per-seat view of markers; every seat
+sees the same text" bounds `brief`: a window onto the report, never a seat-specific rendering.
+Slimming plan 04 phase 2 widens `seat_of_agent` with `occasion`; that is the change the
+extension rides on, and the register's "one occasion per sitting" refusal is its test (#1291).
+
 The `kind` census above is derived from the duties the constitutions and prompts already hold
 (§II.2, debate.js lines 948–980): it adds no duty. What it removes is the seat's freedom to
 choose which of them to do next. Each kind maps to a verb set; a `respond` item may `edit`,
@@ -242,6 +279,33 @@ sitting per epoch. Two changes remove the epoch and most of the cost:
    record a question through the only channel the Workflow tool has. The chair's judgment — the
    PASS/FAIL verdict, rulings, closings, the spot-check — becomes items of their own kinds.
 
+**Corrected 2026-10-09.** (1) The envelope argument is stale: #1190 is closed, absorbed by
+#1267; #1191 is closed by #1239. Petitions reach the bench from the record — `motion petition
+file` readies a bench sitting with occasion `petition` at the next chair plan — and no envelope
+carries a log (#1282). Lens and lane envelopes are still prose (`:961`, `:1116`); the chair,
+blue, bench, petition, terminal and assemble envelopes are schema'd, and the chair's refuses
+everything `requirePlan` refuses (#1281). The receipt principle stands; the cost it was argued
+from does not. Envelope and plan schemas generated from Go are slimming plan 09 phase 5's; a
+hand-written schema here would be its rival, so this step is that phase. (2) Two rulings bound
+the dispatch read and the plan argues against them, not around them. #1281 rejected the engine
+reading the record, twice, because the Workflow sandbox has no filesystem; so under vehicle 1
+"the engine reads the record" means a seat relays the record's plan, which is what the chair
+does today, and `dispatch next`'s prose form now prints the plan as JSON so the relaying seat
+composes nothing. The petition ruling (slimming P06.F2, 2026-09-29) chose one epoch of latency
+over "a chair re-plan after every wave", costed at two to three judgment sittings per epoch, and
+rejected an envelope doorbell as a second channel. The read-after-every-receipt above is the
+option that ruling declined. What it was priced against no longer exists: the chair rode the
+judgment tier (`debate.js:28`) and composed the plan; since #1281 the relay is a verbatim print
+of a record verb, and item 2 above puts it at the bulk tier with one act. The measurement that
+reopens the ruling is in §V.0, item 5 (#1292). Until it is run, §III.2 is bound by the one-epoch
+latency, and the loop below is an epoch of width one. (3) The no-progress valve is not deleted;
+it is being made honest — plan 06 ruled it keys only on fields the relay audit compares against
+the record, with `why` leaving the key (#1267, open). #1290 proposes the fold that makes the
+audit an equality — store the plan the record rendered on the dispatch event — which is also
+what makes a relay a receipt. Under an item loop the valve is per item:
+an item re-readied with an unchanged premise is the no-progress condition, which the `as_of`
+refusal of §III.4 states exactly.
+
 With both, the loop is: read the ready items → dispatch each as it becomes ready (`pipeline`,
 not `parallel`) → on each receipt, re-read. The epoch, `max_epochs`, and the no-progress valve
 keyed on identical plans go; the mint budget (roundless §III.B.2.2) and a per-run item budget
@@ -257,6 +321,19 @@ already deliver. The generated block shrinks from ~10.7k words to that kind's ve
 hand-written duties split the same way — the craft principles (DEFEND FOCUS, COMPLEXITY MUST
 PAY) go with `respond` and `propagate`, the stopping heuristics with `rule` and `verdict`. This
 is the same generator with a finer key; `agentgen -check` gates staleness as it does now.
+
+**Corrected 2026-10-09.** This section is slimming plan 07 phase C — a duty registry whose
+fragments generate the constitutions, with a gate over the rendered dispatch — and the split
+between brief and constitution is already ruled there (P07.F10): a duty conditional on this
+sitting's state goes in the prompt, an unconditional one in the constitution. Under this plan
+the brief is the conditional carrier and the per-occasion constitution the unconditional one;
+nothing here adds a third. Plan 09 phase 3 generates the engine's seat block from Go. Two
+generators writing agent-facing text from two declarations is the shape this plan exists to
+remove; whether they are one is a question those plans own, and this document does not file it. The numbers this
+section lacked: #1284 measured the fixed context per seat at 96–102 KB of definition plus
+preloaded skills (the bench 80 KB, preloading nothing), with only the hook-delivered list
+per-item; it also recorded that the run-directory map drew a seat to read `report.md`, which
+`hookgate` refused — evidence that seats stop reading the whole report by design.
 
 The cost model this buys, stated as a model and not a measurement: a lens sitting of 4
 adjudications at ≈50 turns and ≈85k mean context is ≈4M cache-read tokens. Four `adjudicate`
@@ -380,6 +457,18 @@ is a hole where it says *not measured*: the mid-sitting post has no proven carri
 rig that depends on it is a rig that runs on one host until that cell is measured the way the
 Claude one was. The boundary is not a reason to build vehicle 2 sooner; §V.0 still gates it.
 
+**Corrected 2026-10-09 — relay versus read.** #1281 settled that under the Workflow tool the
+engine never reads the record: a seat relays its plan. Under vehicle 2 the rig reads the record
+itself, and it is now also the only vehicle the inbox socket reaches. The vehicle question is
+therefore not "which is faster" (§II.4 answered that) but "does the record drive the seats, or
+does a seat relay the record to a script that drives them", and the petition-latency ruling
+(§III.2) is the price of the second answer. Three open defects are rows of the boundary table's
+`claude` column and are owned there, not here: a hook bracket opens a sitting and binds a seat
+(#1262), `SubagentStart` does not fire on a resumed dispatch (#1111), and two open runs record
+nothing (#1255). The slimming survey's D4 — stop injecting `FEOV_RUN` — would remove the identity
+row's carrier; identity then comes from the dispatch through the boundary or not at all, which
+is why D4 and #1255 are one decision (commented there 2026-10-09).
+
 ## IV. Risks & Objections
 
 ### IV.1 The punch list crowds out the survey — the strongest objection
@@ -392,8 +481,9 @@ sections nobody minted, the motion nobody filed — is off every item's list.
 Answer, and it is the reason `audit-area` is a kind and not a residue: discovery is dispatched
 with a whole-area brief and a mint budget, at the moments the record says an area moved. What
 the record cannot say — "something is wrong that no item points at" — reaches the engine only
-through the petition right, which is why every envelope carries `petitions` as a field (§III.2)
-and why losing them in a string envelope is a defect today. If §V.0's discovery measure falls
+through the petition right — which since #1239 is a record route (`motion petition file`
+readies the bench), so a lens's petition no longer depends on its envelope's shape [corrected
+2026-10-09; the sentence it replaces argued from the string envelope #1190 described]. If §V.0's discovery measure falls
 (new gaps minted per area per run), this objection was right and the sequence stops at §III.2.
 
 ### IV.2 A delivered brief is a pushed projection
@@ -466,9 +556,18 @@ Instrument the current engine, no design change, on one dev run and one smoke:
    engaged gap.
 4. **Done 2026-09-27**, from m11's 47 seat transcripts: peak concurrency 7; the chain — chair +
    longest lens + blue + bench per epoch — is 45.8 of the 48.9 min after the bookends. §IV.5
-   stands on it. Method: per seat transcript under the workflow's directory, the first and last
+   stands on it. #1124 (open) is the chain defect stated as a defect: lenses are dispatched
+   before blue responds in the same epoch and verify repairs that do not exist — the epoch as
+   quantum, measured on a run. Method: per seat transcript under the workflow's directory, the first and last
    record timestamps are the sitting's span and the seat prompt's opening words name the role;
    chair starts delimit epochs; the chain is summed inside each. *Re-arms on any new run.*
+5. **Added 2026-10-09 (#1292).** The relay-only chair sitting, priced: dispatch a chair at the
+   bulk tier whose only permitted act is `dispatch next` and the relay, on the wave A archive
+   (PR #1288) or m12; take its cost from the transcript's usage and its wall clock; compare to a
+   full chair sitting on the same record. Of the order of one call: the petition-latency ruling
+   was priced on a seat that no longer exists and §III.2's per-receipt read is priced, not
+   refused. Otherwise the ruling stands and §III.2 is an epoch of width one. *Re-arms on any
+   change to the chair's constitution or preloads.*
 
 The decision rule: if orientation is under a third of calls, or the modelled per-kind context is
 not under half the sitting's mean, the cost case fails and only §III.2 (the schema'd envelopes

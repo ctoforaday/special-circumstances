@@ -61,7 +61,7 @@ func TestAFindingCannotClaimBothAnchors(t *testing.T) {
 // whatever sentence happened to be nearby.
 func TestAnAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	runDir := seatRun(t)
-	_, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-logic",
+	_, err := runAt(t, "finding", "--run", runDir, "--seat-id", "red-lens-logic",
 		"--key", "F4", "--about-kind", "avenue", "--about", "Q99",
 		"--reason", "the decline reason is a category error",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")

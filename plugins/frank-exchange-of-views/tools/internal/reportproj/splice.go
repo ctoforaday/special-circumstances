@@ -75,11 +75,22 @@ func tidySeam(s string, at int) (string, bool) {
 		i--
 	}
 	// "M<!--fx:…-->M" → "<!--fx:…-->M" : the same doubled mark as above, with the anchor layer
-	// between the two. The mark from --new goes and the report's stays, which is what puts the
-	// anchor back INSIDE its sentence instead of stranding it after the new sentence's period.
-	if j := anchor.SkipRun(string(b), at); j > at && j < len(b) && at > 0 {
-		if c := b[at-1]; strings.IndexByte(dupPunct, c) >= 0 && b[j] == c {
-			b = append(b[:at-1], b[at:]...)
+	// between the two, on either side of the seam: the report's anchors after it, or the anchors
+	// --new carries before it. The first mark goes and the second stays, which is what keeps the
+	// anchors INSIDE their sentence instead of stranding them after its period.
+	lo, run, prev := at, 0, -1
+	anchor.Each(string(b[:min(at, len(b))]), func(start, end int, _ string) {
+		if start != prev {
+			run = start
+		}
+		prev = end
+	})
+	if prev == at {
+		lo = run
+	}
+	if j := anchor.SkipRun(string(b), at); j > lo && j < len(b) && lo > 0 {
+		if c := b[lo-1]; strings.IndexByte(dupPunct, c) >= 0 && b[j] == c {
+			b = append(b[:lo-1], b[lo:]...)
 			changed = true
 		}
 	}

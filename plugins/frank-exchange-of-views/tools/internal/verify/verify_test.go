@@ -57,11 +57,11 @@ func TestFoundByResolves(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"L1-F1"}}},
+			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"F-f0000001"}}},
 			"G2": {ID: "G2", Mint: &recordpb.Mint{FoundBy: []string{"GHOST"}}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-evidence", &recordpb.Finding{Label: proto.String("L1-F1")}),
+			recordtest.Event(t, "red-lens-evidence", &recordpb.Finding{Id: proto.String("F-f0000001")}),
 		},
 	}
 	c := find(t, Run(b.fam(t)), "found-by-resolves")
@@ -151,7 +151,7 @@ func TestRegisterBeforeAppend(t *testing.T) {
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-r1", &recordpb.Register{}),
 			recordtest.Event(t, "blue-r1", &recordpb.Position{}),
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{}), // never registered
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000009")}), // never registered
 		},
 	}
 	c := find(t, Run(b.fam(t)), "register-before-append")
@@ -164,12 +164,12 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"L5-F1"}}},
+			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"F-f0000002"}}},
 			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
-			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000002")}), // minted
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Id: proto.String("F-f0000003")}), // un-minted
 			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
 			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
 			// is the same number an honest run with no bench sitting produces.

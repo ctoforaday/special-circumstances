@@ -123,7 +123,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 						}
 						args = append(args, "--"+o.Name, placeholderFor(c, o, path))
 					})
-					_, err := run(t, args...)
+					_, err := runAt(t, args...)
 					if err == nil {
 						t.Fatalf("--%s says REQUIRED in its help and the verb ran without it.\n\nusage: %s\n\nA seat reading that supplies it and nothing is wrong; a seat that misses it records an event with a hole, and the hole surfaces rounds later as an empty section nobody can trace.", f.Name, f.Usage)
 					}
@@ -170,7 +170,7 @@ func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 		{"an unknown command", []string{"frobnicate", "--seat-id", "blue-respond"}, `no command named "frobnicate"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := run(t, append(append([]string{}, tc.args...), "--run", runDir)...)
+			out, err := runAt(t, append(append([]string{}, tc.args...), "--run", runDir)...)
 			if err == nil {
 				t.Fatal("expected a refusal")
 			}
@@ -323,7 +323,7 @@ func seatRunForContracts(t *testing.T) string {
 		if record.SeatOwesOccasion(id) {
 			args = append(args, "--occasion", "docket")
 		}
-		if _, err := run(t, args...); err != nil {
+		if _, err := runAt(t, args...); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}
@@ -347,7 +347,7 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
 		t.Fatalf("seed avenue: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "G1", "--dimension", "severity", "--proposed", "low",
 		"--reason", "the motion a probe's --id names"); err != nil {
 		t.Fatalf("seed motion: %v", err)

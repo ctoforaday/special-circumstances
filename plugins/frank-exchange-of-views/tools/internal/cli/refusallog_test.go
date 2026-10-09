@@ -40,7 +40,7 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	t.Run("a flag the verb does not take is logged, by name, never by value", func(t *testing.T) {
 		runDir := seatRun(t)
 		const value = "a distinctive reason no entry may carry"
-		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", "blue-respond",
+		if _, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", "blue-respond",
 			"--id", "Q1", "--as", "pursued", "--reason", value, "--key", "AV1"); err == nil {
 			t.Fatal("--key on avenue move was accepted")
 		}
@@ -131,7 +131,7 @@ func TestAJSONRefusalFailsTheCallAndIsLogged(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := seatRun(t)
 			args := append(append([]string{}, c.args...), "--json", "--run", runDir, "--seat-id", "red-lens-evidence")
-			out, err := run(t, args...)
+			out, err := runAt(t, args...)
 			if err == nil {
 				t.Fatalf("the --json refusal returned no error, so the binary exits 0:\n%s", out)
 			}

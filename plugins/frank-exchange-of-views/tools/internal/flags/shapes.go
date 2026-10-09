@@ -23,14 +23,14 @@ import (
 // # Shape here, existence at the write path — and the line is not arbitrary
 //
 // A pflag.Value sees ONE STRING. It does not know the run directory, so it cannot ask whether
-// gap G7 exists, whether c-1a2b names a citation, or whether a quoted sentence appears in the
+// a gap id exists, whether an anchor id names a citation, or whether a quoted sentence appears in the
 // report. Those are RECORD questions and they belong in record.validate, which is the single
 // write path every caller goes through.
 //
 // What a flag type CAN do is refuse a value that could never be right whatever the record says:
-// `R3` is not a gap id, `banana` is not an anchor, `last tuesday` is not a date. That is worth
+// `banana` is not an anchor, `last tuesday` is not a date. That is worth
 // doing at the flag because the refusal arrives with the usage line attached, and because a
-// malformed id reaching validate produces "no such gap R3" — which reads as a missing gap rather
+// malformed id reaching validate produces "no such gap" — which reads as a missing gap rather
 // than a typo, and sends a seat looking for the wrong thing.
 //
 // So: shape is refused here, existence is refused there, and neither pretends to be the other.
@@ -38,20 +38,12 @@ import (
 // checked against the record — because a shape check that looked like a reference check would be
 // the more dangerous half-measure.
 
-// gapIDShape is G<n>, the id `MintGapID` assigns — run-global, no epoch in it.
-var gapIDShape = regexp.MustCompile(`^G\d+$`)
-
-// anchorShape is the tool-inserted anchor id of any kind in the anchor kinds table. The prefix
-// carries the kind, which is why a bare hex string is not one.
-var anchorShape = regexp.MustCompile(`^` + anchor.IDPattern() + `$`)
-
-// findingLabelShape is <area>-F<n>, the run-unique label the tool assigns a lens finding, built
-// from LensAreas so the vocabulary has one declaration. It still admits the pre-#791 `L<n>-F<n>`,
-// because a label minted in August is read for as long as its run is.
-var findingLabelShape = regexp.MustCompile(`^` + FindingLabelAlt() + `$`)
-
-// motionIDShape is M<n>.
-var motionIDShape = regexp.MustCompile(`^M\d+$`)
+// idShape is the whole-value shape of an id of the named kinds, read from the anchor kinds table —
+// of any anchor kind when none is named. The prefix carries the kind, which is why a bare hex
+// string is not one.
+func idShape(kinds ...string) *regexp.Regexp {
+	return regexp.MustCompile(`^` + anchor.IDPattern(kinds...) + `$`)
+}
 
 // shaShape is a sha256 in hex, the handle `blue prove` prints and `lens reproduce --id` takes.
 var shaShape = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -81,7 +73,7 @@ type ShapedValue struct {
 	check Checker
 	val   string
 	set   bool
-	// unwrapsAnchor takes the id out of a `<!--cite:c-…-->` token before the shape is matched, for the
+	// unwrapsAnchor takes the id out of an anchor token before the shape is matched, for the
 	// flags whose value a seat copies out of the report. See Set.
 	unwrapsAnchor bool
 }
@@ -130,13 +122,13 @@ func (v *ShapedValue) Set(s string) error {
 	// when it needs an anchor, and the id there is inside a token — so copying the token is the
 	// obvious act, and it was refused.
 	//
-	// MEASURED on universe-m12: a lens passed `<!--cite:c-db9ddfe6-->` to --anchor twice, and the
-	// refusal it got named the very form it had ("the c-<hex> INSIDE a `<!--cite:c-…-->` token").
+	// MEASURED on universe-m12: a lens passed a whole citation token to --anchor twice, and the
+	// refusal it got named the very form it had (the id INSIDE a token).
 	// The tool knew what it had been handed and declined to take it.
 	//
 	// THIS IS NOT A TOLERANCE PATH for an old spelling: the token is the CURRENT form, in the
 	// current report, and the unwrapped id is what is stored — nothing downstream ever sees a
-	// token. The class check still applies afterwards, so `<!--fx:f-…-->` handed to a citation flag
+	// token. The class check still applies afterwards, so a finding token handed to a citation flag
 	// is still refused for being a finding.
 	if v.unwrapsAnchor {
 		if ids := anchor.IDs(t); len(ids) == 1 && anchor.Token(ids[0]) == t {
@@ -155,56 +147,41 @@ func (v *ShapedValue) Set(s string) error {
 
 func (v *ShapedValue) Type() string { return v.kind }
 
-// GapID refuses anything that is not G<n>.
+// GapID refuses anything that is not a gap id.
 func GapID() *ShapedValue {
-	return &ShapedValue{kind: "gap-id", re: gapIDShape,
-		hint: "a gap id looks like G7 (the number the mint returned); `show board` lists them"}
+	return &ShapedValue{kind: "gap-id", re: idShape("gap"),
+		hint: "a gap id is G- and eight hex, as the mint returned it; `show board` lists them"}
 }
 
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.
 func AnchorID() *ShapedValue {
-	return &ShapedValue{kind: "anchor", re: anchorShape, unwrapsAnchor: true,
-		hint: "an anchor is a `" + anchor.Token("c-…") + "`, `" + anchor.Token("f-…") + "`, `" + anchor.Token("p-…") + "` or `" + anchor.Token("G…") + "` token in the report, or the id inside one — paste either; `show evidence`, `show findings` and `show board` resolve them"}
+	return &ShapedValue{kind: "anchor", re: idShape(), unwrapsAnchor: true,
+		hint: "an anchor is a `" + anchor.Token("C-…") + "`, `" + anchor.Token("F-…") + "`, `" + anchor.Token("P-…") + "` or `" + anchor.Token("G-…") + "` token in the report, or the id inside one — paste either; `show evidence`, `show findings` and `show board` resolve them"}
 }
-
-// citationAnchorShape is the CITATION class only.
-var citationAnchorShape = regexp.MustCompile(`^c-[0-9a-f]+$`)
 
 // CitationAnchor refuses an anchor of the wrong CLASS, not merely the wrong form.
 //
 // `blue prove --cites` and `lens verify --anchor` both name a source, and the general anchor
-// shape would accept `f-…` (a finding) or `p-…` (a computation) — well-formed ids that cannot
+// shape would accept a finding or a computation — well-formed ids that cannot
 // possibly be citations. The prefix carries the class precisely so a reader never has to guess
 // which kind of thing an id is; a flag that accepts all three throws that away and defers the
 // error to a record lookup whose message is about existence rather than kind.
 func CitationAnchor() *ShapedValue {
-	return &ShapedValue{kind: "citation-anchor", re: citationAnchorShape, unwrapsAnchor: true,
-		hint: "a citation anchor is a `" + anchor.Token("c-…") + "` token in the report or the c-<hex> inside one — paste either — while `f-` is a finding and `p-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
+	return &ShapedValue{kind: "citation-anchor", re: idShape("citation"), unwrapsAnchor: true,
+		hint: "a citation anchor is a `" + anchor.Token("C-…") + "` token in the report or the id inside one — paste either — while `F-` is a finding and `P-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
-// avenueIDShape is Q<n>, the id assigned when an avenue is proposed.
-//
-// It was A<n>, for "avenue" — the word this concept no longer uses. Q is for the QUESTION the
-// line asks, which is what `--line` holds ("the question or approach you are proposing"), and it
-// was the only free letter: R is a gap, L a lens finding, M a motion.
-var avenueIDShape = regexp.MustCompile(`^Q\d+$`)
-
-// AvenueID refuses anything that is not Q<n>.
+// AvenueID refuses anything that is not an avenue id. Its letter is Q, for the QUESTION the line
+// asks, which is what `--line` holds.
 func AvenueID() *ShapedValue {
-	return &ShapedValue{kind: "avenue-id", re: avenueIDShape,
-		hint: "an avenue id looks like Q1 and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
+	return &ShapedValue{kind: "avenue-id", re: idShape("avenue"),
+		hint: "an avenue id is Q- and eight hex, and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
 }
 
-// FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).
-func FindingLabel() *ShapedValue {
-	return &ShapedValue{kind: "finding-label", re: findingLabelShape,
-		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by the lens's `finding`; `show findings` lists them"}
-}
-
-// MotionID refuses anything that is not M<n>.
+// MotionID refuses anything that is not a motion id.
 func MotionID() *ShapedValue {
-	return &ShapedValue{kind: "motion-id", re: motionIDShape,
-		hint: "a motion id looks like M1 and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
+	return &ShapedValue{kind: "motion-id", re: idShape("motion"),
+		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
 // SHA refuses anything that is not a 64-character hex digest.

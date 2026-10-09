@@ -46,7 +46,7 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 		t.Errorf("a deterministic computation was not graded reproducible: %q", out)
 	}
 	// The anchor binds the computation to the sentence, like a citation.
-	if !strings.Contains(readReport(t, runDir), "<!--proof:p-") {
+	if !strings.Contains(readReport(t, runDir), "<!--proof:P-") {
 		t.Error("no proof anchor was spliced, so nothing connects the script to the claim")
 	}
 	ev := lastBody(t, runDir, &recordpb.Proof{})

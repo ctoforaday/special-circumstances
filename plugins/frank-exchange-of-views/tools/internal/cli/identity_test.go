@@ -2,6 +2,7 @@ package cli
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -14,11 +15,11 @@ import (
 // and the chair CONTINUED THE SEQUENCE. A guessable id can be composed without checking it
 // exists; an unguessable one has to be looked up.
 //
-// Both halves are now fixed at the source: the LABEL is TOOL-assigned (L{role}-F{N},
-// run-unique per role — two lenses cannot collide, and a lens cannot invent one), and the
-// finding_id stays the random, unguessable dedup identity.
+// A finding has ONE name: the id the tool assigns, random and unique. A lens cannot invent one,
+// two lenses cannot collide on one, and wherever it is printed the area that raised it stands
+// beside it.
 
-var findingID = regexp.MustCompile(`f-[0-9a-f]{8}`)
+var findingID = regexp.MustCompile(`F-[0-9a-f]{8}`)
 
 func TestARecordedFindingIsToldItsID(t *testing.T) {
 	runDir := seatRun(t)
@@ -33,49 +34,30 @@ func TestARecordedFindingIsToldItsID(t *testing.T) {
 	}
 }
 
-// Two lenses CANNOT collide on a label now: the tool prefixes each with the seat's role, so
-// L1 and L2 both passing local --key F1 get L1-F1 and L2-F1 — distinct BY the label — and the
-// finding_ids are distinct too. (This replaces the old "two seats may share label F1, but the
-// id disambiguates" test: sharing a label is no longer possible.)
-func TestTwoLensesGetRolePrefixedLabelsThatCannotCollide(t *testing.T) {
+// Two lenses passing the same local --key get two findings: the ids differ, and each is printed
+// with the area of the lens that raised it.
+func TestTwoLensesPassingOneKeyGetDistinctFindings(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-adversary"); err != nil {
 		t.Fatal(err)
 	}
-	labels, ids := map[string]bool{}, map[string]bool{}
-	for _, seat := range []string{"red-lens-evidence", "red-lens-adversary"} {
-		out, err := run(t, "finding", "--run", runDir, "--seat-id", seat,
+	ids := map[string]bool{}
+	for _, l := range []struct{ seat, area string }{
+		{"red-lens-evidence", "evidence"}, {"red-lens-adversary", "adversary"},
+	} {
+		out, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
 			"--key", "F1", "--quote", "§1", "--reason", "a finding",
 			"--severity", "low", "--likelihood", "low", "--impact", "low")
 		if err != nil {
 			t.Fatal(err)
 		}
-		ids[findingID.FindString(out)] = true
-		labels[labelRe.FindString(out)] = true
-	}
-	if len(labels) != 2 {
-		t.Errorf("two lenses produced %d distinct labels, want 2 (evidence-F1, adversary-F1) — the area prefix keeps them apart", len(labels))
+		id := findingID.FindString(out)
+		if want := "finding recorded: " + id + " (" + l.area + ") "; id == "" || !strings.HasPrefix(out, want) {
+			t.Errorf("%s was told %q, want it to open %q — the id with the area that raised it", l.seat, out, want)
+		}
+		ids[id] = true
 	}
 	if len(ids) != 2 {
 		t.Errorf("two findings produced %d distinct ids, want 2", len(ids))
-	}
-}
-
-// A label is <area>-F<n> on a live seat; archived records carry the numeric L<n>-F<n> form.
-var labelRe = regexp.MustCompile(`(?:L\d+|[a-z]+(?:-[a-z]+)*)-F\d+`)
-
-// Every finding gets a label — the tool assigns it, so the 8-unlabelled-findings failure
-// (events nobody could ever address) is now impossible by construction. A finding recorded
-// with no label flag (there is none) still comes back carrying <area>-F{N}.
-func TestEveryFindingGetsAToolAssignedLabel(t *testing.T) {
-	runDir := seatRun(t)
-	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--key", "F1", "--quote", "§1", "--reason", "a finding",
-		"--severity", "low", "--likelihood", "low", "--impact", "low")
-	if err != nil {
-		t.Fatalf("a finding must record and receive a label: %v", err)
-	}
-	if got := labelRe.FindString(out); got != "evidence-F1" {
-		t.Errorf("the tool did not assign the run-unique label: %q (want evidence-F1)", out)
 	}
 }

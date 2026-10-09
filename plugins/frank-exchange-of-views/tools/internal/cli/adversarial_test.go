@@ -251,13 +251,13 @@ func TestAHostileSeatIsRefused(t *testing.T) {
 			runDir := adversarialRun(t)
 
 			for i, step := range tc.setup {
-				args := append(append([]string{}, step...), "--run", runDir)
+				args := byHandle(t, runDir, append(append([]string{}, step...), "--run", runDir))
 				if _, err := run(t, args...); err != nil {
 					t.Fatalf("setup step %d (%v) failed: %v\n\nA scenario whose setup fails asserts its outcome against a board that was never built, which passes for the wrong reason.", i, step, err)
 				}
 			}
 
-			args := append(append([]string{}, tc.act...), "--run", runDir)
+			args := byHandle(t, runDir, append(append([]string{}, tc.act...), "--run", runDir))
 			out, err := run(t, args...)
 
 			if tc.refused == "" {

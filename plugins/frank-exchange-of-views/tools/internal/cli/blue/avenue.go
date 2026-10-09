@@ -87,7 +87,7 @@ func newAvenuePropose() *cobra.Command {
 				return avenueResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
 			}
 		}
-		id, err := proposalID(s, run)
+		id, err := proposalID(s)
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +141,7 @@ func newAvenuePropose() *cobra.Command {
 // proposalID is the id a proposal records: a new one, or — when the proposal corrects an earlier
 // one — the corrected proposal's own. A correction re-states the act; a freshly minted id would be a
 // different line, and the correction would be refused for changing it.
-func proposalID(s seat.Context, run record.Run) (string, error) {
+func proposalID(s seat.Context) (string, error) {
 	t, err := s.CorrectionTarget()
 	if err != nil {
 		return "", err
@@ -149,7 +149,7 @@ func proposalID(s seat.Context, run record.Run) (string, error) {
 	if a, ok := t.(*recordpb.Avenue); ok {
 		return a.GetAvenueId(), nil
 	}
-	return record.MintAvenueID(run)
+	return record.NewID("avenue"), nil
 }
 
 func newAvenueMove() *cobra.Command {
@@ -191,7 +191,7 @@ func newAvenueMove() *cobra.Command {
 		return avenueResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
 	}), "avenue"))
 
-	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "the avenue whose fate you are moving (Q1, Q2 …); the avenues projection lists every one")
+	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "the avenue whose fate you are moving; the avenues projection lists every one")
 	seat.Require(c, flags.ID)
 	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
 	// five statuses — `deferred` had been added to AvenueStatuses and never to the string — and

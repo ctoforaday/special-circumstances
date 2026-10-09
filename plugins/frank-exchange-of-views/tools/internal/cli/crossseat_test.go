@@ -2,6 +2,8 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -91,7 +93,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
 	}
@@ -122,7 +124,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
 		t.Fatalf("motion petition file: %v", err)
 	}
-	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
+	if _, err := runAt(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
 		"--id", "M1", "--as", "granted",
 		"--reason", "the relief binds the coming seats"); err != nil {
 		t.Fatalf("motion petition rule: %v", err)
@@ -143,7 +145,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	// `petitioner` off the ruling — a field the ruler restated, which is why two petitions from
 	// one seat in one round could not be told apart. The ruling names the MOTION, and the motion
 	// names its filer, so the join is a fact rather than a restatement.
-	if got := rule.GetMotionId(); got != "M1" {
+	if got := rule.GetMotionId(); got != handleText(t, runDir, "M1") {
 		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
 	}
 	// The FILER is on the envelope, not the body — the body is what the seat said.
@@ -203,8 +205,8 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		t.Fatalf("register L2: %v", err)
 	}
 	for _, l := range []struct{ seat, label string }{
-		{"red-lens-evidence", "L1-F1"},  // local --key F1 → tool assigns L1-F1 (role-prefixed)
-		{"red-lens-adversary", "L2-F1"}, // and L2-F1
+		{"red-lens-evidence", "evidence"}, // both pass the same local --key F1
+		{"red-lens-adversary", "adversary"},
 	} {
 		if _, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
 			"--key", "F1", "--quote", "§1", "--reason", "a finding",
@@ -213,15 +215,18 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 		}
 	}
 
-	seen := map[string]bool{}
+	seen := map[string]string{} // finding id -> the seat that filed it
 	for _, e := range events(t, runDir) {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
 			f, _ := recordpb.BodyAs[*recordpb.Finding](e)
-			seen[f.GetLabel()] = true
+			if seen[f.GetId()] != "" || f.GetId() == "" {
+				t.Errorf("finding id %q is empty or shared by two findings", f.GetId())
+			}
+			seen[f.GetId()] = e.GetSeatId()
 		}
 	}
-	if !seen["evidence-F1"] || !seen["adversary-F1"] {
-		t.Errorf("the chair sees %v, want both lenses — findings from every seat are rows in one record", seen)
+	if seats := slices.Sorted(maps.Values(seen)); !slices.Equal(seats, []string{"red-lens-adversary", "red-lens-evidence"}) {
+		t.Errorf("the chair sees %v, want one finding from each lens — findings from every seat are rows in one record", seen)
 	}
 }
 
@@ -297,7 +302,7 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("lens mint: %v", err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
+	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "the repair was verified at the leaf"); err != nil {

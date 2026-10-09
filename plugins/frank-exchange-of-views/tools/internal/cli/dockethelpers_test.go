@@ -20,7 +20,7 @@ import (
 // carried in prose, and a reword would return the empty string as confidently as a real id.
 func docketFile(t *testing.T, runDir, filer, gapID, basis string) string {
 	t.Helper()
-	out, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", filer,
+	out, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", filer,
 		"--id", gapID, "--reason", basis, "--json")
 	if err != nil {
 		t.Fatalf("motion docket file %s: %v", gapID, err)
@@ -62,7 +62,7 @@ func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 	id := docketFile(t, runDir, "red-chair", gapID, "contested, and not mine to close")
 	args := append([]string{}, benchRuleArgs(id, as, principle)...)
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
-	if _, err := run(t, args...); err != nil {
+	if _, err := runAt(t, args...); err != nil {
 		t.Fatalf("motion docket rule %s on %s: %v", as, gapID, err)
 	}
 }

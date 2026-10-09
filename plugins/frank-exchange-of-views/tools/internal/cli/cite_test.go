@@ -17,13 +17,13 @@ import (
 )
 
 // blue cite is blue's ONLY citation mechanism: it fetches a source through the run cache
-// and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor at the quoted sentence. These
+// and splices an INVISIBLE, IMMORTAL <!--cite:C-…--> anchor at the quoted sentence. These
 // drive the real command tree so the fetch-once cache, the invisible anchor, the reject
 // paths, and the defect the tool logs on an unreachable source are pinned where they are enforced.
 
 const citeSeat = blueSeat
 
-var citeAnchorRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
+var citeAnchorRe = regexp.MustCompile(`<!--cite:(C-[0-9a-f]{8})-->`)
 
 // firstCiteEvent returns the cite BODY, typed. The label is tool-assigned, so the event is the
 // source of truth for it and the test has to read the record rather than the command's output.

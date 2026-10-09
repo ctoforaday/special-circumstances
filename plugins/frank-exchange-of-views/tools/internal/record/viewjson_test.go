@@ -158,7 +158,7 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 			Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			FoundBy:    []string{"L1-F1"},
+			FoundBy:    []string{"F-f0000001"},
 		}),
 		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G2"), Class: proto.String("citation"),
@@ -235,7 +235,7 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 	if w.Open[0].Severity != "high" || w.Open[0].Class != "correctness" || w.Open[0].Location != "§open" {
 		t.Errorf("open gap lost a lean field: %+v", w.Open[0])
 	}
-	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "L1-F1" {
+	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "F-f0000001" {
 		t.Errorf("open gap lost found_by: %+v", w.Open[0].FoundBy)
 	}
 }
@@ -305,7 +305,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			Supersedes:      []string{"G1"},
 			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
 			// conversion dropped it, so the test asserted against a gap that credited nobody.
-			FoundBy: []string{"L1-F1", "L5-F3"},
+			FoundBy: []string{"F-f0000001", "L5-F3"},
 		}),
 	})
 	b, err := BoardJSONBytes(mustRun(t, runDir))
@@ -315,7 +315,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	s := string(b)
 	// The lineage + leaf-check fields are promoted to the top level (their only home now).
 	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
-	for _, want := range []string{`"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"G1"`} {
+	for _, want := range []string{`"found_by"`, `"F-f0000001"`, `"L5-F3"`, `"supersedes"`, `"G1"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
 		}
@@ -340,8 +340,8 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	s := "red-lens-evidence"
 	m := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, s, s+":finding:L1-F1", &recordpb.Finding{Label: proto.String("L1-F1"), Text: proto.String("credited")}),
-		recordtest.At(t, s, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
+		recordtest.At(t, s, s+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("credited")}),
+		recordtest.At(t, s, s+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -350,7 +350,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			FoundBy:         []string{"L1-F1"},
+			FoundBy:         []string{"F-f0000001"},
 		}),
 	})
 	bj := mustBoardJSONT(t, mustRun(t, runDir))
@@ -358,9 +358,9 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		t.Errorf("exactly one finding is credited by no gap; got %d uncredited", bj.Counts.UncreditedFindings)
 	}
 	for _, o := range bj.Observations {
-		want := o.Label == "L1-F1"
+		want := o.ID == "F-f0000001"
 		if o.Credited != want {
-			t.Errorf("%s: credited=%v, want %v", o.Label, o.Credited, want)
+			t.Errorf("%s: credited=%v, want %v", o.ID, o.Credited, want)
 		}
 	}
 }

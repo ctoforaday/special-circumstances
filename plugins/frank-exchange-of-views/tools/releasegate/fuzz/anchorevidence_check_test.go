@@ -14,12 +14,12 @@ func TestAnchorEvidenceNamesTheMarkersTheReportCarries(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	body := "# § fuzz\n\nA sentence.<!--fx:f-00abc123--> Another.<!--cite:c-00def456-->\n"
+	body := "# § fuzz\n\nA sentence.<!--fx:F-00abc123--> Another.<!--cite:C-00def456-->\n"
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got := anchorEvidence(runDir)
-	for _, want := range []string{"f-00abc123", "c-00def456", "2 protected anchor(s)"} {
+	for _, want := range []string{"F-00abc123", "C-00def456", "2 protected anchor(s)"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("anchor evidence does not carry %q — a diagnostic that names nothing cannot diagnose:\n%s", want, got)
 		}

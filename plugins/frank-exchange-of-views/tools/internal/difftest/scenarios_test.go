@@ -2,6 +2,16 @@ package difftest
 
 import "time"
 
+// A SCRIPT NAMES AN ID BY THE PLACEHOLDER ITS GOLDEN SHOWS. Ids are random, so `--id GAP001` is the
+// first gap id the scenario's output printed, `MOTION002` the second motion id, and the harness
+// puts the real id back before the command runs (nonceMapper.resolve). Numbering is by first
+// APPEARANCE, per kind.
+//
+// noSuchGap is the gap id that names nothing: the shape of a gap id, which no mint produces in
+// practice. It prints as written and takes no ordinal, and a placeholder no output has printed yet
+// reaches the tool as the such id of its kind.
+const noSuchGap = "G-00000000"
+
 // The scenarios replay the oracle suite's behaviours as CLI command lists — the
 // "29 oracle tests' scenarios exported as replayable command lists" the R2g plan
 // calls for. Each names the oracle test it stands in for.
@@ -39,7 +49,7 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "run it",
 					"--severity", "catastrophic", "--problem", "bad grade"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "run it",
-					"--supersedes", "G1", "--problem", "dangling lineage"),
+					"--severity", "low", "--likelihood", "low", "--impact", "low", "--supersedes", noSuchGap, "--problem", "dangling lineage"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "grep the sites",
 					"--severity", "high", "--likelihood", "high", "--impact", "medium", "--complexity", "low", "--problem", "a real one"),
 			},
@@ -65,12 +75,12 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium", "--problem", "source moved"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G2", "--verified-by", "L1",
-					"--verified-with", "git show", "--verified-against", "7bc501e:x"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired_with_regression",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001"),
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", noSuchGap, "--verified-by", "L1",
+					"--verified-with", "git show", "--verified-against", "7bc501e:x", "--reason", "checked"),
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired_with_regression",
 					"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:x"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--as", "repaired",
 					"--verified-by", "L1", "--verified-with", "WebFetch", "--verified-against", "https://example.invalid/spec#s3",
 					"--reason", "refetched; the source now resolves and supports the claim"),
 			},
@@ -82,7 +92,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "reread",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "carried case"),
-				base("carry", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--carried-from", "1"),
+				base("carry", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1"),
 			},
 		},
 		{
@@ -95,7 +105,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"), // re-dispatch rotates the nonce
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
 					"--severity", "high", "--likelihood", "high", "--problem", "from the live dispatch",
-					"--impact", "high", "--distinct-from", "G1"), // a second gap, and the mint's screen is told so
+					"--impact", "high", "--distinct-from", "GAP001"), // a second gap, and the mint's screen is told so
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},
 		},
@@ -121,12 +131,17 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "finding_labels_run_unique_per_role_across_rounds", // oracle: the tool assigns <area>-F{N}, the sequence spanning rounds — a lens cannot reuse a label, so round two gets evidence-F2, not another evidence-F1
+			// A finding's id is the tool's, and a seat's --key is what makes a retry safe: a second key
+			// is a second finding with its own id, and the first key again answers with the first id and
+			// writes nothing.
+			name: "finding_key_retry_returns_the_same_finding",
 			cmds: []cmd{
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round one"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2", // the seat's SECOND finding, in a later sitting: its own key, the next label
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F2", // the seat's SECOND finding, in a later sitting: its own key, its own id
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round two"),
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1", // the retry: FINDING001 again, and no third event
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "A claim sits under S2.", "--reason", "round one"),
 			},
 		},
 		{
@@ -136,10 +151,10 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "high", "--problem", "graded high at mint"),
-				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--severity", "medium"),
-				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--severity", "medium",
+				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--severity", "medium"),
+				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--severity", "medium",
 					"--likelihood", "low", "--reason", "blue narrowed the scope; consequence shrank"),
-				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--impact", "low",
+				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--impact", "low",
 					"--reason", "second movement, same id"),
 			},
 		},
@@ -148,7 +163,7 @@ func scenarios() []scenario {
 			// (plans/same-sitting-correction.md III.C.4). Every act is followed at once by its
 			// correction, before any other seat acts; the keys are the ones each success line prints.
 			// The named cases: a retry that writes nothing, a proposal corrected after its move
-			// (keeps Q1), a ruling and its appeal, a closure of a gap its own target closed, a
+			// (keeps its id), a ruling and its appeal, a closure of a gap its own target closed, a
 			// petition ruling, and an outcome.
 			name: "correction_accepted_per_command",
 			cmds: []cmd{
@@ -160,33 +175,33 @@ func scenarios() []scenario {
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the second gap",
-					"--distinct-from", "G1"), // a second gap, and the mint's screen is told so
-				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via "),
-				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via the recorded proof",
-					"--corrects", "blue-respond:manifest_row:#1:G1", "--correction-why", "the row lost its method"),
-				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "G1 is reproducible via the recorded proof",
-					"--corrects", "blue-respond:manifest_row:#1:G1", "--correction-why", "the row lost its method"),
+					"--distinct-from", "GAP001"), // a second gap, and the mint's screen is told so
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via "),
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof",
+					"--corrects", "blue-respond:manifest_row:#1:GAP001", "--correction-why", "the row lost its method"),
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof",
+					"--corrects", "blue-respond:manifest_row:#1:GAP001", "--correction-why", "the row lost its method"),
 				base("avenue", "propose", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "try the  method"),
-				base("avenue", "move", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "Q1", "--as", "pursued", "--reason", "the method held"),
+				base("avenue", "move", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "AVENUE001", "--as", "pursued", "--reason", "the method held"),
 				base("avenue", "propose", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "try the recorded method",
 					"--corrects", "blue-respond:avenue:#1", "--correction-why", "a word was lost"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G2", "--dimension", "severity",
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP002", "--dimension", "severity",
 					"--proposed", "low", "--reason", "the consequence is bounded"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not  it"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it",
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not  it"),
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not reach it",
 					"--corrects", "red-chair:motion_rule:#1", "--correction-why", "a word was lost"),
-				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing it on  grounds"),
-				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing it on new grounds",
+				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on  grounds"),
+				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on new grounds",
 					"--corrects", "blue-respond:motion_appeal:#1", "--correction-why", "a word was lost"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--verified-by", "L1", "--verified-with", "Read",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the  leaf"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--verified-by", "L1", "--verified-with", "Read",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the leaf",
-					"--corrects", "red-lens-evidence:close:#1:G1", "--correction-why", "a word was lost"),
+					"--corrects", "red-lens-evidence:close:#1:GAP001", "--correction-why", "a word was lost"),
 				base("motion", "petition", "file", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "safety",
 					"--relief", "halt before the next round", "--reason", "a consent gate is missing"),
-				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "denied", "--reason", "the gate  exists"),
-				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "denied", "--reason", "the gate already exists",
+				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "denied", "--reason", "the gate  exists"),
+				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "denied", "--reason", "the gate already exists",
 					"--corrects", "judge:motion_rule:#1", "--correction-why", "a word was lost"),
 				base("outcome", "--run", "{RUN}", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "it stopped because  refused"),
 				base("outcome", "--run", "{RUN}", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "it stopped because the gate refused",
@@ -229,12 +244,12 @@ func scenarios() []scenario {
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "red's round position"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
-				base("closing", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--reason", "red's closing"),
+				base("closing", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "red's closing"),
 				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "blue's round position"),
-				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "blue's closing"),
+				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
 				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "repairs landed"),
-				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1", "--reason", "figures recomputed; check run: pass"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1",
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "figures recomputed; check run: pass"),
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--quote", "throughput doubled",
 					"--title", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
@@ -243,9 +258,9 @@ func scenarios() []scenario {
 				// the bench rules on that filing. The differential drives both because the
 				// projection under test reads the JOIN — the gap is on the filing and the
 				// disposition on the ruling.
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1",
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001",
 					"--reason", "contested, and not red's to close"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M2", "--as", "remanded",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "remanded",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--reopens-on", "the figure recomputed from its source", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge", "--reason", "what a human should re-examine"),
@@ -258,7 +273,7 @@ func scenarios() []scenario {
 				base("motion", "petition", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "safety",
 					"--reason", "the design erodes a consent gate", "--relief", "halt and escalate"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
-				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "granted", "--binds", "both", "--reason", "the relief binds the coming seats"),
 				base("halt", "--run", "{RUN}", "--seat-id", "judge", "--reason", "continuing would compromise the consent gate"),
 			},
@@ -286,20 +301,20 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep",
 					"--check-kind", "document", "--check", "x", "--severity", "medium",
 					"--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1",
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001",
 					"--reason", "contested, and not red's to close"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--review-flag", "none", "--settled", "s"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--tension", "t", "--review-flag", "none", "--settled", "s"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "", "--review-flag", "none", "--settled", "s", "--final"),
-				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "M1",
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION001",
 					"--as", "remanded", "--reason", "r", "--principle", "p", "--tension", "t", "--review-flag", "none", "--settled", "s", "--final"),
 			},
 		},
@@ -308,7 +323,7 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "x"),
 				base("mint", "--run", "{RUN}", "--seat-id", "blue-respond", "--class", "x"),
-				base("close", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1"),
+				base("close", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", noSuchGap),
 				base("mint", "--run", "{RUN}", "--seat-id", "judge", "--class", "x"),
 				// Each seat's own tree, which is what a boundary IS now. These rows read
 				// `lens help` … `bench help` and pinned four copies of the `--seat-id IS REQUIRED`
@@ -349,7 +364,7 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "sequential_ids_across_rounds", // oracle: gap ids are run-global, and so are motion ids
+			name: "ids_stay_distinct_across_rounds", // a gap minted after the chair sits again is a third id, and the chair's spot-check and blue's motion name the earlier ones
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
@@ -360,11 +375,11 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "a", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r2 first"),
-				base("spot-check", "--run", "{RUN}", "--seat-id", "red-chair", "--ids", "G1, G2", "--reason", "both re-read"),
+				base("spot-check", "--run", "{RUN}", "--seat-id", "red-chair", "--ids", "GAP001, GAP002", "--reason", "both re-read"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "G1",
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
 					"--dimension", "likelihood", "--proposed", "high", "--reason", "the second failure is not required"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected",
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected",
 					"--reason", "the consequence stands"),
 			},
 		},
@@ -382,7 +397,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium",
-					"--quote", "A claim sits under S2.", "--found-by", "evidence-F1,logic-F1", "--problem", "the cited source does not say this"),
+					"--quote", "A claim sits under S2.", "--found-by", "FINDING001,FINDING002", "--problem", "the cited source does not say this"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "round one: FAIL"),
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},

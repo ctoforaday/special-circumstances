@@ -34,7 +34,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	// location/reason would), plus a terminal outcome so assembly composes fully.
 	mint := &recordpb.Mint{
 		GapId:           proto.String("G1"),
-		Problem:         proto.String("the sentence flagged here <!--fx:f-leak12--> is wrong"),
+		Problem:         proto.String("the sentence flagged here <!--fx:F-0001eac2--> is wrong"),
 		Location:        proto.String("§1"),
 		RequiredFix:     proto.String("fix it"),
 		AcceptanceCheck: proto.String("recheck"),

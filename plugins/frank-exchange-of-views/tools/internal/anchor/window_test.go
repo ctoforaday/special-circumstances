@@ -13,7 +13,7 @@ intro paragraph, above every heading.
 
 the first finding paragraph.
 
-the corpus holds 340 records.<!--fx:f-a1b2c3-->
+the corpus holds 340 records.<!--fx:F-00a1b2c3-->
 
 a paragraph after it.
 
@@ -25,7 +25,7 @@ method text.
 `
 
 func TestReadAroundCarriesTheLiveTextAndItsSection(t *testing.T) {
-	w, err := ReadAround(windowDoc, "f-a1b2c3", DefaultWindow)
+	w, err := ReadAround(windowDoc, "F-00a1b2c3", DefaultWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestReadAroundCarriesTheLiveTextAndItsSection(t *testing.T) {
 // THE HEADING IS FOUND EVEN WHEN IT IS OUTSIDE THE WINDOW — that is the whole reason it is a
 // separate field rather than "whatever the window happened to include".
 func TestTheSectionIsFoundBeyondTheWindow(t *testing.T) {
-	w, err := ReadAround(windowDoc, "f-a1b2c3", 1)
+	w, err := ReadAround(windowDoc, "F-00a1b2c3", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestTheSectionIsFoundBeyondTheWindow(t *testing.T) {
 // An empty window reads as "the report says nothing here", which is a different fact and a false
 // one — the same plausible zero this suite keeps finding.
 func TestAMissingAnchorRefusesRatherThanReadingEmpty(t *testing.T) {
-	_, err := ReadAround(windowDoc, "f-deadbeef", DefaultWindow)
+	_, err := ReadAround(windowDoc, "F-deadbeef", DefaultWindow)
 	if err == nil {
 		t.Fatal("a missing anchor produced a window — an empty read is indistinguishable from a section with nothing in it")
 	}
@@ -83,8 +83,8 @@ func TestAMissingAnchorRefusesRatherThanReadingEmpty(t *testing.T) {
 // duplicate, so two occurrences means the guarantee failed upstream — picking either would hide
 // that behind a plausible answer.
 func TestADuplicateAnchorRefuses(t *testing.T) {
-	doc := windowDoc + "\nand again.<!--fx:f-a1b2c3-->\n"
-	_, err := ReadAround(doc, "f-a1b2c3", DefaultWindow)
+	doc := windowDoc + "\nand again.<!--fx:F-00a1b2c3-->\n"
+	_, err := ReadAround(doc, "F-00a1b2c3", DefaultWindow)
 	if err == nil {
 		t.Fatal("a duplicated anchor was read as though one of them were the right one")
 	}
@@ -96,8 +96,8 @@ func TestADuplicateAnchorRefuses(t *testing.T) {
 // Citation and proof anchors resolve through the same door — AnchorToken already knows all three
 // classes, so nothing here needs to.
 func TestEveryAnchorClassResolves(t *testing.T) {
-	doc := "## S\n\ncited.<!--cite:c-11-->\n\nproved.<!--proof:p-22-->\n"
-	for _, id := range []string{"c-11", "p-22"} {
+	doc := "## S\n\ncited.<!--cite:C-00000011-->\n\nproved.<!--proof:P-00000022-->\n"
+	for _, id := range []string{"C-00000011", "P-00000022"} {
 		if _, err := ReadAround(doc, id, 1); err != nil {
 			t.Errorf("anchor class %q does not resolve: %v", id, err)
 		}

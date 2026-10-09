@@ -114,17 +114,17 @@ func requireGaps(run Run, ids []string, verb, flag string) error {
 // requireFindings refuses found_by attribution to a finding that does not exist.
 //
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
-// read back by the capture-recapture estimate. An invented label inflates the count of
+// read back by the capture-recapture estimate. An invented id inflates the count of
 // lens-sourced gaps with a finding nobody made.
-func requireFindings(run Run, labels []string, verb, flag string) error {
-	if len(labels) == 0 {
+func requireFindings(run Run, ids []string, verb, flag string) error {
+	if len(ids) == 0 {
 		return nil
 	}
-	// One existence question per named label, in the caller's order, so the refusal names the
+	// One existence question per named finding, in the caller's order, so the refusal names the
 	// FIRST missing one exactly as the set-membership walk did. The list is bounded by what a
 	// seat passes to --found-by, not by the record's size.
-	for _, l := range labels {
-		found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "label" = ? LIMIT 1`, l)
+	for _, l := range ids {
+		found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1`, l)
 		if err != nil {
 			return err
 		}

@@ -93,7 +93,7 @@ then certifies the blockade.
 ## 2. Cite — putting it on the record
 
 `blue cite --url --quote --title [--source-text leaf|summary_only|unread]` resolves the url
-through the same cache. It records a `cite` event and inserts an invisible `<!--cite:c-…-->` marker
+through the same cache. It records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker
 at the quoted sentence.
 
 - **The reading is the seat's claim**, and it defaults to the weak one, `unread`. Two refusals keep
@@ -114,7 +114,7 @@ at the quoted sentence.
   `unbacked_citations` flags any divergence. When blue rewrites the sentence around an anchor, the
   anchor stays, and the evidence view lists it under `reopened`: any verdict on it is now stale, and
   red re-reads those first.
-- **The label** is `c-` plus 8 random hex digits, minted by the tool.
+- **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it
 
@@ -127,7 +127,7 @@ outcome vocabulary has a negative half — `refutes` and `absent` are findings, 
 - **`supports` from an abstract is allowed, and says so.** Every verdict naming a url is stamped
   with the copy's `source_completeness`. A support read off an abstract confirms what the abstract
   says, not what the study shows, and the record carries which.
-- **A supporting corroboration becomes a footnote.** It carries a label and `work_status`, exactly
+- **A supporting corroboration becomes a footnote.** It carries an id and `work_status`, exactly
   as a blue cite does. A refuting or weak one is a board matter, never a reference.
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
@@ -210,7 +210,7 @@ from here.**
 - Page locators are the pdf's page **index**, not the folio printed on the page.
 - An archive snapshot is a different artifact, what a url said on a date. Provenance travels on the
   fetch record, and the footnote shows the url that was asked.
-- Citation labels are 4 random bytes. Collisions are negligible per run, but the uniqueness test
+- Citation ids are 4 random bytes. Collisions are negligible per run, but the uniqueness test
   fails by design about once in 8,600 CI runs (#1184).
 
 **Coverage of the pipeline itself.**

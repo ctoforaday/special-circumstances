@@ -1,9 +1,7 @@
 package record
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -11,27 +9,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// CITATION IDENTITY MIRRORS FINDING IDENTITY — see findingid.go for the full argument.
+// CITATION IDENTITY MIRRORS FINDING IDENTITY — see NewID for the full argument.
 //
-// A citation, like a finding, is a TOOL-INSERTED invisible anchor (<!--cite:c-<hex>-->)
+// A citation, like a finding, is a TOOL-INSERTED invisible anchor (a citation anchor)
 // that the seat never hand-writes and cannot invent. The id is random for the same
 // reason a finding id is: an id you cannot guess is one you have to LOOK UP, so "which
 // citation do you mean" is a read, not a memory exercise. Under the lockdown the anchor
 // leaves the document only with a retire that names it, so each cite event's anchor is in the
 // document or on a retire — the id is the identity that pins both halves together.
-
-// NewCitationID mints an unguessable citation id.
-//
-// The "c-" prefix keeps it legible in a transcript and names its kind in the anchor kinds
-// table — every kind shares the lockdown's protection, and none is confused with another in
-// an error message.
-func NewCitationID() string {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		panic("record: entropy unavailable: " + err.Error())
-	}
-	return "c-" + hex.EncodeToString(b)
-}
 
 // Source is one cited source, drawn from a blue `cite` event — the composer input for the
 // assembled bibliography and the hash a reader verifies the cached bytes against.
@@ -212,7 +197,7 @@ func citationLabelsOf(events []*Event) []string {
 
 // ExistingCiteByKey returns the label of a prior blue cite this seat recorded under the
 // same --key, so a crash-retried `blue cite` returns its existing anchor label instead of
-// minting a duplicate. Mirrors existingFindingByKey: the retry dedup is a short-circuit
+// minting a duplicate. Mirrors FindingByKey: the retry dedup is a short-circuit
 // BEFORE the fetch and the marker insert, not a change to the event key (which stays the
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
@@ -260,16 +245,6 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 // counted as red's audit volume — a number red reads as how much work it did — with no error
 // and no signal. Both helpers are deleted; readers switch on the type.
 
-// NewProofID mints a proof anchor id. Same shape as a citation's, its own kind's prefix in the
-// anchor kinds table.
-func NewProofID() string {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		panic("record: entropy unavailable: " + err.Error())
-	}
-	return "p-" + hex.EncodeToString(b)
-}
-
 // ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
 // after the event landed re-runs the same key and gets the recorded sha back rather than
 // executing the script a second time and splicing a second anchor.
@@ -290,7 +265,7 @@ func ExistingProofByKey(run Run, seatID, key string) (sha, id string, err error)
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input
 // for the assembled report's Proofs section and the handle red re-runs.
 type Proof struct {
-	Label  string // the p-<hex> anchor id
+	Label  string // the proof anchor id
 	SHA    string
 	Basis  string
 	Script string

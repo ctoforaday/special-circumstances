@@ -32,7 +32,7 @@ func bfSeat(t *testing.T, dir, seat string, t0 time.Time, offsets []time.Duratio
 	}
 	for i, off := range offsets {
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, seat, seat+":finding:F"+string(rune('1'+i)), &recordpb.Finding{Text: proto.String("r")}),
+			recordtest.At(t, seat, seat+":finding:F"+string(rune('1'+i)), &recordpb.Finding{Id: proto.String(record.NewID("finding")), Text: proto.String("r")}),
 			t0.Add(off).Format(bfStamp)))
 	}
 	recordtest.Seed(t, dir, evs...)
@@ -119,7 +119,7 @@ func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.
 	// cannot reject prose that is not a timestamp, so the audit still has to notice rather than
 	// fold the miss into its zero.
 	recordtest.Seed(t, dir, recordtest.Stamped(
-		recordtest.At(t, "red-chair", "red-chair:finding:F1", &recordpb.Finding{}),
+		recordtest.At(t, "red-chair", "red-chair:finding:F1", &recordpb.Finding{Id: proto.String(record.NewID("finding"))}),
 		"not-a-timestamp"))
 
 	a := BackfillAudit(runtest.Open(t, dir))
@@ -139,7 +139,7 @@ func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 	var evs []*recordpb.Event
 	for i := 0; i < 6; i++ {
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F"+string(rune('1'+i)), &recordpb.Finding{}),
+			recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F"+string(rune('1'+i)), &recordpb.Finding{Id: proto.String(record.NewID("finding"))}),
 			t0.Add(10*time.Minute+time.Duration(i)*time.Millisecond).Format(bfStamp)))
 	}
 	recordtest.Seed(t, dir, evs...)

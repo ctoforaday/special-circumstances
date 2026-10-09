@@ -18,9 +18,9 @@ func TestIs7PrimeRun2Archive(t *testing.T) {
 	if len(res.Refusals) != 0 {
 		t.Fatalf("refusals: %+v", res.Refusals)
 	}
-	gap := res.GapIDs["R1-1"]
+	gap := res.IDs["R1-1"]
 	if gap == "" {
-		t.Fatalf("R1-1 is not in the gap-id table: %v", res.GapIDs)
+		t.Fatalf("R1-1 is not in the id table: %v", res.IDs)
 	}
 	fam, err := record.FamilyOf(dst)
 	if err != nil {

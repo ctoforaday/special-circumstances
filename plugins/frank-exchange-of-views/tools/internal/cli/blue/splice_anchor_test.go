@@ -13,7 +13,7 @@ import (
 // replacement ending in "." lands against "<!--fx:…-->." and the two marks are never adjacent.
 // Measured through the real command before the fix:
 //
-//	"The cost is falling.<!--fx:f-abc123-->. Volume grows steadily."
+//	"The cost is falling.<!--fx:F-00abc123-->. Volume grows steadily."
 //
 // a doubled period AND red's marker displaced out of the sentence it annotates.
 //
@@ -34,13 +34,13 @@ import (
 // Every defect main put under test here is still under test — the doubled period, the orphaned
 // period, the abutting run — asked through this contract instead.
 func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
-	const anchored = "Intro.\n\nThe cost is rising over time<!--fx:f-abc123-->. Volume grows steadily.\n"
+	const anchored = "Intro.\n\nThe cost is rising over time<!--fx:F-00abc123-->. Volume grows steadily.\n"
 	const bare = "Intro.\n\nThe cost is rising over time. Volume grows steadily.\n"
 	for _, tc := range []struct{ name, report, old, new, want string }{
 		{
 			"a reword keeps the anchor inside its sentence and does not double the period",
-			anchored, "The cost is rising over time<!--fx:f-abc123-->.", "The cost is falling<!--fx:f-abc123-->.",
-			"Intro.\n\nThe cost is falling<!--fx:f-abc123-->. Volume grows steadily.\n",
+			anchored, "The cost is rising over time<!--fx:F-00abc123-->.", "The cost is falling<!--fx:F-00abc123-->.",
+			"Intro.\n\nThe cost is falling<!--fx:F-00abc123-->. Volume grows steadily.\n",
 		}, {
 			"control: the same reword with no anchor was already clean",
 			bare, "The cost is rising over time.", "The cost is falling.",
@@ -49,8 +49,8 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 			// The anchor STAYS: it is immortal, and removing it is not blue's call — see
 			// AnchorsTransitUnchanged. What goes is the period the deleted sentence owned.
 			"a deletion leaves the anchor but not the orphaned period",
-			anchored, "The cost is rising over time<!--fx:f-abc123-->.", "<!--fx:f-abc123-->",
-			"Intro.\n\n<!--fx:f-abc123--> Volume grows steadily.\n",
+			anchored, "The cost is rising over time<!--fx:F-00abc123-->.", "<!--fx:F-00abc123-->",
+			"Intro.\n\n<!--fx:F-00abc123--> Volume grows steadily.\n",
 		}, {
 			// Fires with NO anchor, which is what makes it a separate defect rather than a
 			// consequence of the one above.
@@ -59,19 +59,19 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 			"Intro.\n\nVolume grows steadily.\n",
 		}, {
 			// Two lenses anchoring one sentence is a real corpus shape:
-			// "verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->".
+			// "verification<!--fx:F-e4bc25ec--><!--fx:F-73a56bd3-->".
 			"a run of abutting anchors is carried whole, not one token deep",
-			"Intro.\n\nThe cost is rising over time<!--fx:f-abc123--><!--cite:c-d4d4d4-->. Volume grows steadily.\n",
-			"The cost is rising over time<!--fx:f-abc123--><!--cite:c-d4d4d4-->.",
-			"The cost is falling<!--fx:f-abc123--><!--cite:c-d4d4d4-->.",
-			"Intro.\n\nThe cost is falling<!--fx:f-abc123--><!--cite:c-d4d4d4-->. Volume grows steadily.\n",
+			"Intro.\n\nThe cost is rising over time<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
+			"The cost is rising over time<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->.",
+			"The cost is falling<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->.",
+			"Intro.\n\nThe cost is falling<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
 		}, {
 			// The anchor is INSIDE the span here, so it must be reproduced and no seam rule
 			// applies. Included so a change that over-fires shows up as this case moving.
 			"a mid-sentence anchor is untouched",
-			"Intro.\n\nThe cost<!--fx:f-abc123--> is rising over time. Volume grows steadily.\n",
-			"The cost is rising over time.", "The cost<!--fx:f-abc123--> is falling.",
-			"Intro.\n\nThe cost<!--fx:f-abc123--> is falling. Volume grows steadily.\n",
+			"Intro.\n\nThe cost<!--fx:F-00abc123--> is rising over time. Volume grows steadily.\n",
+			"The cost is rising over time.", "The cost<!--fx:F-00abc123--> is falling.",
+			"Intro.\n\nThe cost<!--fx:F-00abc123--> is falling. Volume grows steadily.\n",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -101,15 +101,15 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 // follows the quote. Reproducing an adjacent anchor is not refused; it is how you edit the
 // sentence. There is no "which side am I on" left to answer, which is what ends the loop.
 func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
-	const rep = "Intro.\n\nThe cost is rising over time<!--fx:f-abc123-->. Volume grows steadily.\n"
+	const rep = "Intro.\n\nThe cost is rising over time<!--fx:F-00abc123-->. Volume grows steadily.\n"
 
 	// ADJACENT, QUOTED: the span follows the quote and the edit APPLIES. Under main's contract
 	// this exact call is the refused one, which is the whole of the divergence.
-	got, _, _, err := planEdit(rep, "The cost is rising over time<!--fx:f-abc123-->.", "The cost is falling<!--fx:f-abc123-->.")
+	got, _, _, err := planEdit(rep, "The cost is rising over time<!--fx:F-00abc123-->.", "The cost is falling<!--fx:F-00abc123-->.")
 	if err != nil {
 		t.Fatalf("quoting the sentence as printed was refused: %v", err)
 	}
-	if want := "Intro.\n\nThe cost is falling<!--fx:f-abc123-->. Volume grows steadily.\n"; got != want {
+	if want := "Intro.\n\nThe cost is falling<!--fx:F-00abc123-->. Volume grows steadily.\n"; got != want {
 		t.Errorf("planEdit =\n  %q\nwant\n  %q", got, want)
 	}
 
@@ -119,24 +119,24 @@ func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
 	if err == nil {
 		t.Fatal("rewriting the text an anchor sits on, without the anchor, was accepted — it strands the reference")
 	}
-	for _, want := range []string{"stops just before it", "<!--fx:f-abc123-->", "AS `show report` PRINTS IT"} {
+	for _, want := range []string{"stops just before it", "<!--fx:F-00abc123-->", "AS `show report` PRINTS IT"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not carry %q:\n%v", want, err)
 		}
 	}
 
 	// INSIDE the span: the generic message is correct and must survive, naming the token to copy.
-	const mid = "Intro.\n\nThe cost<!--fx:f-abc123--> is rising over time. Volume grows steadily.\n"
+	const mid = "Intro.\n\nThe cost<!--fx:F-00abc123--> is rising over time. Volume grows steadily.\n"
 	_, _, _, err = planEdit(mid, "The cost is rising over time.", "The cost is falling.")
 	if err == nil {
 		t.Fatal("dropping an anchor from inside the span was accepted")
 	}
-	if !strings.Contains(err.Error(), "<!--fx:f-abc123-->") {
+	if !strings.Contains(err.Error(), "<!--fx:F-00abc123-->") {
 		t.Errorf("the drop refusal does not name the token to copy:\n%v", err)
 	}
 
 	// A GENUINE INVENTION — an anchor nowhere near the span — still gets the flat prohibition.
-	_, _, _, err = planEdit(rep, "Volume grows steadily.", "Volume falls<!--cite:c-d4d4d4-->.")
+	_, _, _, err = planEdit(rep, "Volume grows steadily.", "Volume falls<!--cite:C-00d4d4d4-->.")
 	if err == nil {
 		t.Fatal("inventing an anchor was accepted")
 	}

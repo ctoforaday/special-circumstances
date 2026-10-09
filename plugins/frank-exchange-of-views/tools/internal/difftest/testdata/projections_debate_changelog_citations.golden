@@ -33,17 +33,17 @@ position recorded [key red-chair:position:#1]
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ closing --run {RUN} --seat-id red-chair --id G1 --reason red's closing
+$ closing --run {RUN} --seat-id red-chair --id GAP001 --reason red's closing
 exit 0
 stdout:
-closing filed for G1 [key red-chair:closing:#1:G1]
+closing filed for GAP001 [key red-chair:closing:#1:GAP001]
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ position --run {RUN} --seat-id blue-respond --reason blue's round position
@@ -53,10 +53,10 @@ position recorded [key blue-respond:position:#0]
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
-$ closing --run {RUN} --seat-id blue-respond --id G1 --reason blue's closing
+$ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
 exit 0
 stdout:
-closing filed for G1 [key blue-respond:closing:#0:G1]
+closing filed for GAP001 [key blue-respond:closing:#0:GAP001]
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
 
@@ -66,16 +66,16 @@ stdout:
 revision recorded — this sitting's changes are on the record [key blue-respond:revision:#0]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason figures recomputed; check run: pass
+$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason figures recomputed; check run: pass
 exit 0
 stdout:
-manifest row recorded for G1 [key blue-respond:manifest_row:#0:G1]
+manifest row recorded for GAP001 [key blue-respond:manifest_row:#0:GAP001]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ motion grade file --run {RUN} --seat-id blue-respond --id G1 --dimension likelihood --proposed low --reason the harm needs two failures
+$ motion grade file --run {RUN} --seat-id blue-respond --id GAP001 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
 stdout:
-motion M1 filed (grade)
+motion MOTION001 filed (grade)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ verify --run {RUN} --seat-id red-lens-evidence --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
@@ -112,7 +112,7 @@ Usage:
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->     REQUIRED — the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
   -h, --help                         help for verify
@@ -152,20 +152,20 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ motion docket file --run {RUN} --seat-id red-chair --id G1 --reason contested, and not red's to close
+$ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contested, and not red's to close
 exit 0
 stdout:
-motion M2 filed (docket)
+motion MOTION002 filed (docket)
 4 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-  · motion M1 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
-  · motion M2 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
+  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ motion docket rule --run {RUN} --seat-id judge --id M2 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --reopens-on the figure recomputed from its source --reason the rationale body
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION002 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --reopens-on the figure recomputed from its source --reason the rationale body
 exit 0
 stdout:
-motion M2 ruled remanded [key judge:motion_rule:#1]
+motion MOTION002 ruled remanded [key judge:motion_rule:#1]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ certify --run {RUN} --seat-id judge --reason what a human should re-examine
@@ -180,17 +180,17 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"text":"red's round position"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"G1","text":"red's closing"},"key":"red-chair:closing:#1:G1","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_CLOSING"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"closing":{"gap_id":"GAP001","text":"red's closing"},"key":"red-chair:closing:#1:GAP001","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"G1","text":"blue's closing"},"key":"blue-respond:closing:#0:G1","seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_CLOSING"}
+{"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#0:GAP001","seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond:manifest_row:#0:G1","manifest_row":{"gap_id":"G1","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:manifest_row:#0:GAP001","manifest_row":{"gap_id":"GAP001","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_MOTION"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","reopens_on":"the figure recomputed from its source","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":15,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","reopens_on":"the figure recomputed from its source","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":15,"type":"EVENT_TYPE_MOTION_RULE"}
 {"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":16,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══

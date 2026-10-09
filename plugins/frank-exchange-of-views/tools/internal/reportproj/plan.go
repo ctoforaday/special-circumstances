@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 )
 
 // ErrNoChange is the sentinel for an edit whose planned report equals the report. `blue edit`
@@ -131,10 +132,11 @@ func stripTail(s string) string {
 //
 // It compares RUNS RATHER THAN COUNTS so ordinary prose cannot trip it: a document may legitimately
 // gain a "?!" or an ellipsis. What it refuses is a run LONGER than any the document already had,
-// which is the signature of a terminator landing beside one rather than on top of it.
+// which is the signature of a terminator landing beside one rather than on top of it. Anchors
+// between two marks are not content between them, so the runs are read with every anchor out.
 func DoubledTerminator(before, after string) string {
 	worst := func(s string) string {
-		longest := ""
+		s, longest := claimcount.StripAnchors(s), ""
 		for i := 0; i < len(s); {
 			j := i
 			for j < len(s) && strings.ContainsRune(anchortext.TrailingPunct, rune(s[j])) {

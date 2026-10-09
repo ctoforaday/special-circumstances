@@ -43,14 +43,13 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	// every assertion below pass over the answer `0` being correct.
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
 	app(lens, &recordpb.Register{ToolVersion: proto.String("test")})
-	app(lens, &recordpb.Finding{FindingId: proto.String("f-1"), Label: proto.String("logic-F1"),
-		Text: proto.String("first epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+	app(lens, &recordpb.Finding{Id: proto.String("F-00000001"), Text: proto.String("first epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	app(chair, &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("self-attestation"),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		FoundBy: []string{"logic-F1"}})
+		FoundBy: []string{"F-00000001"}})
 	app(chair, &recordpb.Log{Text: proto.String("no verb renders a gap's lineage in one read"),
 		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	app(chair, &recordpb.Motion{MotionId: proto.String("M1"),
@@ -61,8 +60,7 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	// SECOND EPOCH. Everything below lands after the chair sits again, so a projection whose
 	// epoch is stuck reports these rows with the same number as the ones above.
 	app(chair, &recordpb.Register{ToolVersion: proto.String("test")})
-	app(lens, &recordpb.Finding{FindingId: proto.String("f-2"), Label: proto.String("logic-F2"),
-		Text: proto.String("second epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+	app(lens, &recordpb.Finding{Id: proto.String("F-00000002"), Text: proto.String("second epoch finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	app(lens, &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String("c"),
 		Label: proto.String("v-1"), Title: proto.String("t"),
 		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),

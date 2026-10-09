@@ -85,7 +85,7 @@ import (
 // genuinely requires and cobra refuses the nonsense before the handler runs.
 // verifyAnchorAdvice is what a lens naming no citation is told: --anchor adjudicates a citation
 // already on the record, so the act is to read the real label, not to create one.
-var verifyAnchorAdvice = "--anchor names the citation you checked, so it is read off the record, not chosen: take the c-<hex> from the report's `" + anchor.Token("c-…") + "` token beside the claim"
+var verifyAnchorAdvice = "--anchor names the citation you checked, so it is read off the record, not chosen: take the id from the report's `" + anchor.Token("C-…") + "` token beside the claim"
 
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
@@ -96,7 +96,7 @@ func newVerify() *cobra.Command {
 		return writeVerify(s, cmd, body, adjudates)
 	}))
 
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `"+anchor.Token("c-…")+"` token — resolve it with `show evidence`")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`")
 	seat.Require(c, flags.Anchor)
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
 	verifyAxes(c)
@@ -253,7 +253,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	if err != nil {
 		return nil, err
 	}
-	body.Claim = proto.String(seat.Str(cmd, flags.Quote))
+	body.Claim = proto.String(seat.Location(cmd))
 	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
 	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
 	// same defect that made `merge close` write `successor = ''` and fail every closure once the
@@ -339,12 +339,12 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		} else if prior != "" {
 			// The corroboration and its anchor are two appends; a retry finishes the pair at the
 			// claim the corroboration stored.
-			if err := seat.PlaceOwed(s, run, prior, corroborateRefusal); err != nil {
+			if err := seat.PlaceOwed(s, run, "lens corroborate", prior, ""); err != nil {
 				return nil, err
 			}
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
 		}
-		label := record.NewCitationID()
+		label := record.NewID("citation")
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced. VALIDATE the placement
 		// against the current render — a mis-quote or in-fence claim is refused now and no event is

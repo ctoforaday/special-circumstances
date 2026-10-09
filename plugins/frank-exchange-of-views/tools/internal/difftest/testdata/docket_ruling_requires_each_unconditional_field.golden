@@ -26,18 +26,18 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ motion docket file --run {RUN} --seat-id red-chair --id G1 --reason contested, and not red's to close
+$ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contested, and not red's to close
 exit 0
 stdout:
-motion M1 filed (docket)
+motion MOTION001 filed (docket)
 3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap G1 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
-  · motion M1 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id judge --occasion docket
@@ -51,34 +51,34 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · motion M1 (docket, ruled by the bench seat) is unruled and the gavel is yours — the run cannot end in a verdict while it stands
+  · motion MOTION001 (docket, ruled by the bench seat) is unruled and the gavel is yours — the run cannot end in a verdict while it stands
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t
 exit 2
 stderr:
 feov-record: bench: record: motion rule requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --review-flag none --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --review-flag none --settled s
 exit 2
 stderr:
 feov-record: bench: record: motion rule requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --tension t --review-flag none --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --tension t --review-flag none --settled s
 exit 2
 stderr:
 feov-record: bench: record: motion rule requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension t --review-flag none --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t --review-flag none --settled s
 exit 2
 stderr:
 feov-record: bench: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as repaired --reason r --principle p --tension "" --review-flag none --settled s --final
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension "" --review-flag none --settled s --final
 exit 2
 stderr:
 feov-record: bench: record: motion rule requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)
 
-$ motion docket rule --run {RUN} --seat-id judge --id M1 --as remanded --reason r --principle p --tension t --review-flag none --settled s --final
+$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as remanded --reason r --principle p --tension t --review-flag none --settled s --final
 exit 2
 stderr:
 feov-record: bench: record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing
@@ -88,8 +88,8 @@ feov-record: bench: record: motion docket rule --as remanded requires --reopens-
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M1","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION001","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":6,"type":"EVENT_TYPE_REGISTER"}
 {"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: bench: record: motion rule requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":7,"type":"EVENT_TYPE_LOG"}
 {"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled: bench: record: motion rule requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":8,"type":"EVENT_TYPE_LOG"}

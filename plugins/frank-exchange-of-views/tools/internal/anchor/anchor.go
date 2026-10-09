@@ -22,7 +22,10 @@
 package anchor
 
 import (
+	"encoding/hex"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -41,7 +44,7 @@ const (
 // kind is one row of the kinds table: what an anchor of the kind MEANS.
 type kind struct {
 	name     string // Kind's answer
-	prefix   string // the id's prefix; the class is carried by it
+	prefix   string // the id's letter and hyphen; the kind is carried by it
 	tag      string // the token's tag: <!--TAG:ID-->
 	label    string // the noun a message names an anchor of this kind by
 	assembly Assembly
@@ -55,10 +58,17 @@ type kind struct {
 // footnote AND red audited it as one. A comment renders as nothing and is no footnote, so no seat
 // audits it.
 var kinds = []kind{
-	{name: "finding", prefix: "f-", tag: "fx", label: "finding anchor", assembly: Strip},
-	{name: "citation", prefix: "c-", tag: "cite", label: "citation anchor", assembly: WeaveSource, claim: true, backs: true},
-	{name: "proof", prefix: "p-", tag: "proof", label: "proof anchor", assembly: WeaveProof, backs: true},
-	{name: "gap", prefix: "G", tag: "gap", label: "gap anchor", assembly: Strip},
+	{name: "finding", prefix: "F-", tag: "fx", label: "finding anchor", assembly: Strip},
+	{name: "citation", prefix: "C-", tag: "cite", label: "citation anchor", assembly: WeaveSource, claim: true, backs: true},
+	{name: "proof", prefix: "P-", tag: "proof", label: "proof anchor", assembly: WeaveProof, backs: true},
+	{name: "gap", prefix: "G-", tag: "gap", label: "gap anchor", assembly: Strip},
+}
+
+// otherIDs are the kinds of id the record mints that no anchor stands for. They take the one id
+// shape and a letter no anchor kind holds, so no id of one kind reads as an id of another.
+var otherIDs = []kind{
+	{name: "avenue", prefix: "Q-"},
+	{name: "motion", prefix: "M-"},
 }
 
 // lifecycle is what Label says of every kind alike, because every kind lives the same way.
@@ -66,34 +76,50 @@ const lifecycle = " (the tool places it and every edit carries it; its claim lea
 
 const tokenOpen, tokenClose = "<!--", "-->"
 
-// rowOf is the row an id names. An id no row claims reads as a finding.
+// idHex is the length of an id after its prefix: four bytes in hex.
+const idHex = 8
+
+// ID spells the id of a kind from its four bytes — the one id shape, <LETTER>-<8 hex>. A kind
+// neither table holds is the caller's defect, so it panics rather than spell an id nothing reads.
+func ID(kindName string, b [idHex / 2]byte) string {
+	for _, k := range append(kinds, otherIDs...) {
+		if k.name == kindName {
+			return k.prefix + hex.EncodeToString(b[:])
+		}
+	}
+	panic("anchor: no id kind " + kindName)
+}
+
+// rowOf is the row an id names, or an empty row for an id no anchor kind claims.
 func rowOf(id string) *kind {
 	for i := range kinds {
 		if strings.HasPrefix(id, kinds[i].prefix) {
 			return &kinds[i]
 		}
 	}
-	return &kinds[0]
+	return &kind{}
 }
 
 // Token rebuilds the literal token for an anchor id, so a message can quote what must be
 // reproduced verbatim.
 //
-// THE CLASS IS CARRIED BY THE ID's PREFIX, which is the one string-encoded fact here that is
+// THE KIND IS CARRIED BY THE ID's PREFIX, which is the one string-encoded fact here that is
 // load-bearing on purpose: the minting verbs choose the prefix, and every reader — this function,
-// Label, the edit guard's sweep — recovers the class from it rather than from a field. It is
+// Label, the edit guard's sweep — recovers the kind from it rather than from a field. It is
 // tolerable because the id and its token are minted together and never travel apart, and because
-// an unknown prefix falls to the finding class rather than to a plausible zero.
+// an id of no kind spells a token no reader recognises rather than another kind's.
 func Token(id string) string { return tokenOpen + rowOf(id).tag + ":" + id + tokenClose }
 
 // IDPattern is the one id matcher: a regular expression, unanchored and with no capture group,
-// matching an anchor id of any kind in the table.
-func IDPattern() string {
-	alt := make([]string, len(kinds))
-	for i, k := range kinds {
-		alt[i] = regexp.QuoteMeta(k.prefix)
+// matching an id of any of the named kinds — of any anchor kind when none is named.
+func IDPattern(names ...string) string {
+	var alt []string
+	for _, k := range append(kinds, otherIDs...) {
+		if slices.Contains(names, k.name) || len(names) == 0 && k.tag != "" {
+			alt = append(alt, regexp.QuoteMeta(k.prefix))
+		}
 	}
-	return `(?:` + strings.Join(alt, "|") + `)[0-9a-f]+`
+	return `(?:` + strings.Join(alt, "|") + `)[0-9a-f]{` + strconv.Itoa(idHex) + `}`
 }
 
 // IDs are the anchor ids in s, in order, deduplicated. It reads what Token writes, here, so the
@@ -179,14 +205,16 @@ func CountsAsClaim(id string) bool { return rowOf(id).claim }
 // Backs reports whether an anchor of id's kind is evidence standing behind its sentence.
 func Backs(id string) bool { return rowOf(id).backs }
 
-// Label describes an anchor id by its kind, so a seat is told which KIND of anchor its edit would
-// have disturbed. A generic name is passed through unchanged.
+// Label describes an anchor by its kind and its token, so a seat is told which KIND of anchor its
+// edit would have disturbed and holds the text to carry. It names the token, never the bare id: a
+// finding id in text stands beside its lens's area (record.FindingRef), which no reader of report
+// text alone knows. A generic name is passed through unchanged.
 func Label(id string) string {
 	k := rowOf(id)
-	if !strings.HasPrefix(id, k.prefix) {
+	if k.name == "" {
 		return id
 	}
-	return k.label + " " + id + lifecycle
+	return k.label + " " + Token(id) + lifecycle
 }
 
 // Kinds are the names of every kind in the table, in its order.
@@ -217,8 +245,8 @@ func SkipRun(s string, i int) int {
 }
 
 // tokenLenAt is the length of the anchor token beginning at i, or 0. It recognises a token of a
-// kind in the table whose id carries that kind's prefix and then hex, and nothing else: a stray
-// HTML comment is not an anchor.
+// kind in the table whose id carries that kind's prefix and then exactly eight hex, as IDPattern
+// does, and nothing else: a stray HTML comment is not an anchor.
 func tokenLenAt(s string, i int) int {
 	if i < 0 || i >= len(s) {
 		return 0
@@ -243,7 +271,7 @@ func tokenLenAt(s string, i int) int {
 		return 0
 	}
 	end := strings.Index(id, tokenClose)
-	if end <= 0 {
+	if end != idHex {
 		return 0
 	}
 	for i := 0; i < end; i++ {

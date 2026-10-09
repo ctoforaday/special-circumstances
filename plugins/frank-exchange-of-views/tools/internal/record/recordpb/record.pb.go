@@ -3806,15 +3806,20 @@ func (x *SpotCheck) GetAreas() []string {
 }
 
 type Finding struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	FindingId  *string                `protobuf:"bytes,1,opt,name=finding_id,json=findingId,proto3,oneof" json:"finding_id,omitempty"`
-	FindingKey *string                `protobuf:"bytes,2,opt,name=finding_key,json=findingKey,proto3,oneof" json:"finding_key,omitempty"`
-	Label      *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Location   *string                `protobuf:"bytes,4,opt,name=location,proto3,oneof" json:"location,omitempty"`
-	Text       *string                `protobuf:"bytes,5,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	Severity   *Grade                 `protobuf:"varint,6,opt,name=severity,proto3,enum=feov.record.v1.Grade,oneof" json:"severity,omitempty"`
-	Likelihood *Grade                 `protobuf:"varint,7,opt,name=likelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"likelihood,omitempty"`
-	Impact     *Grade                 `protobuf:"varint,8,opt,name=impact,proto3,enum=feov.record.v1.Grade,oneof" json:"impact,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id is the finding's one name: the tool mints it, a gap's found_by credits it by it, and the
+	// finding's anchor carries it. The lens that filed it is the event's seat, never part of the id.
+	//
+	// A finding with no id CANNOT BE ADDRESSED, and every one must get a fate. Measured on the
+	// 2026-07-18 run: 8 finding/observe events carried no name at all, so the chair could not name
+	// them even to decline them — they sat in the undisposed set forever.
+	Id         *string `protobuf:"bytes,11,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	FindingKey *string `protobuf:"bytes,2,opt,name=finding_key,json=findingKey,proto3,oneof" json:"finding_key,omitempty"`
+	Location   *string `protobuf:"bytes,4,opt,name=location,proto3,oneof" json:"location,omitempty"`
+	Text       *string `protobuf:"bytes,5,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	Severity   *Grade  `protobuf:"varint,6,opt,name=severity,proto3,enum=feov.record.v1.Grade,oneof" json:"severity,omitempty"`
+	Likelihood *Grade  `protobuf:"varint,7,opt,name=likelihood,proto3,enum=feov.record.v1.Grade,oneof" json:"likelihood,omitempty"`
+	Impact     *Grade  `protobuf:"varint,8,opt,name=impact,proto3,enum=feov.record.v1.Grade,oneof" json:"impact,omitempty"`
 	// WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
 	// report quote, which places a marker) or this pair is set — a finding anchored to nothing is
 	// the state the verb refuses, and one anchored to BOTH is claiming two subjects.
@@ -3854,9 +3859,9 @@ func (*Finding) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *Finding) GetFindingId() string {
-	if x != nil && x.FindingId != nil {
-		return *x.FindingId
+func (x *Finding) GetId() string {
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return ""
 }
@@ -3864,13 +3869,6 @@ func (x *Finding) GetFindingId() string {
 func (x *Finding) GetFindingKey() string {
 	if x != nil && x.FindingKey != nil {
 		return *x.FindingKey
-	}
-	return ""
-}
-
-func (x *Finding) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
 	}
 	return ""
 }
@@ -7513,27 +7511,24 @@ const file_record_proto_rawDesc = "" +
 	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x01R\x06reason\x88\x01\x01\x12\x14\n" +
 	"\x05areas\x18\x05 \x03(\tR\x05areasB\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xb4\x04\n" +
-	"\aFinding\x12\"\n" +
-	"\n" +
-	"finding_id\x18\x01 \x01(\tH\x00R\tfindingId\x88\x01\x01\x12$\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\x89\x05\n" +
+	"\aFinding\x12\x84\x01\n" +
+	"\x02id\x18\v \x01(\tBo\x82\xb5\x18k\b\x01\x1aethe tool mints it; a finding with none can never be credited in a gap's found_by and its work is lost(\x01H\x00R\x02id\x88\x01\x01\x12$\n" +
 	"\vfinding_key\x18\x02 \x01(\tH\x01R\n" +
-	"findingKey\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\x03 \x01(\tH\x02R\x05label\x88\x01\x01\x12\x1f\n" +
-	"\blocation\x18\x04 \x01(\tH\x03R\blocation\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\x05 \x01(\tH\x04R\x04text\x88\x01\x01\x126\n" +
-	"\bseverity\x18\x06 \x01(\x0e2\x15.feov.record.v1.GradeH\x05R\bseverity\x88\x01\x01\x12:\n" +
+	"findingKey\x88\x01\x01\x12\x1f\n" +
+	"\blocation\x18\x04 \x01(\tH\x02R\blocation\x88\x01\x01\x12\x17\n" +
+	"\x04text\x18\x05 \x01(\tH\x03R\x04text\x88\x01\x01\x126\n" +
+	"\bseverity\x18\x06 \x01(\x0e2\x15.feov.record.v1.GradeH\x04R\bseverity\x88\x01\x01\x12:\n" +
 	"\n" +
-	"likelihood\x18\a \x01(\x0e2\x15.feov.record.v1.GradeH\x06R\n" +
+	"likelihood\x18\a \x01(\x0e2\x15.feov.record.v1.GradeH\x05R\n" +
 	"likelihood\x88\x01\x01\x122\n" +
-	"\x06impact\x18\b \x01(\x0e2\x15.feov.record.v1.GradeH\aR\x06impact\x88\x01\x01\x12=\n" +
+	"\x06impact\x18\b \x01(\x0e2\x15.feov.record.v1.GradeH\x06R\x06impact\x88\x01\x01\x12=\n" +
 	"\n" +
-	"about_kind\x18\t \x01(\x0e2\x19.feov.record.v1.AboutKindH\bR\taboutKind\x88\x01\x01\x12 \n" +
+	"about_kind\x18\t \x01(\x0e2\x19.feov.record.v1.AboutKindH\aR\taboutKind\x88\x01\x01\x12 \n" +
 	"\tabout_ref\x18\n" +
-	" \x01(\tH\tR\baboutRef\x88\x01\x01B\r\n" +
-	"\v_finding_idB\x0e\n" +
-	"\f_finding_keyB\b\n" +
-	"\x06_labelB\v\n" +
+	" \x01(\tH\bR\baboutRef\x88\x01\x01B\x05\n" +
+	"\x03_idB\x0e\n" +
+	"\f_finding_keyB\v\n" +
 	"\t_locationB\a\n" +
 	"\x05_textB\v\n" +
 	"\t_severityB\r\n" +
@@ -7541,7 +7536,8 @@ const file_record_proto_rawDesc = "" +
 	"\a_impactB\r\n" +
 	"\v_about_kindB\f\n" +
 	"\n" +
-	"_about_ref\"\x87\x01\n" +
+	"_about_refJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\n" +
+	"finding_idR\x05label\"\x87\x01\n" +
 	"\aObserve\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x17\n" +
 	"\x04text\x18\x02 \x01(\tH\x01R\x04text\x88\x01\x01\x12%\n" +
@@ -8080,11 +8076,11 @@ const file_record_proto_rawDesc = "" +
 	"\x19AVENUE_RULING_UNSPECIFIED\x10\x00\x12P\n" +
 	"\x16AVENUE_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12J\n" +
 	"\x1aAVENUE_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12`\n" +
-	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xef\x03\n" +
+	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xe8\x03\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x9d\x01\n" +
-	"\x11ABOUT_KIND_AVENUE\x10\x02\x1a\x85\x01\x8a\xb5\x18\x80\x01an avenue, by its id (Q1): an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12v\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x96\x01\n" +
+	"\x11ABOUT_KIND_AVENUE\x10\x02\x1a\x7f\x8a\xb5\x18{an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12v\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1ab\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
 	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +

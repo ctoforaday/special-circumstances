@@ -39,32 +39,32 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 	seedProof(t, runDir, sha, "console.log('divisors of 9:', 3);", "divisors of 9: 3\n")
 
 	proofs := []record.Proof{{
-		Label: "p-deadbeef", SHA: sha, Basis: "reproducible",
-		Script: "nine.js", Reason: "trial division settles it", Cites: "c-1234",
+		Label: "P-deadbeef", SHA: sha, Basis: "reproducible",
+		Script: "nine.js", Reason: "trial division settles it", Cites: "C-00001234",
 	}}
-	md := "Nine is composite by trial division<!--proof:p-deadbeef-->.\n"
+	md := "Nine is composite by trial division<!--proof:P-deadbeef-->.\n"
 	out, used := weaveProofRefs(md, proofs)
 
 	if strings.Contains(out, "<!--proof:") {
 		t.Error("a raw proof anchor shipped into the deliverable")
 	}
-	if len(used) != 1 || used[0] != "p-deadbeef" {
+	if len(used) != 1 || used[0] != "P-deadbeef" {
 		t.Errorf("the weave did not report which proofs the document anchors: %v", used)
 	}
 	for _, want := range []string{
 		"[^P1]",                  // the visible marker at the sentence
 		"[^P1]: trial division",  // AND ITS DEFINITION — the half #590 shipped without
-		"evidence.md#p-deadbeef", // pointing at the computation in full
+		"evidence.md#P-deadbeef", // pointing at the computation in full
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the woven document is missing %q:\n%s", want, out)
 		}
 	}
 
-	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"p-deadbeef": true})
+	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
 	for _, want := range []string{
 		"## Proofs",                // the section
-		"<a id=\"p-deadbeef\">",    // the anchor the footnote links to
+		"<a id=\"P-deadbeef\">",    // the anchor the footnote links to
 		"### P1 — trial division",  // a HEADING, not a second dangling reference (#590)
 		"console.log('divisors",    // THE SCRIPT — a computation's source IS its evidence
 		"divisors of 9: 3",         // and its output
@@ -88,10 +88,10 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 // documents fails this the moment the layer is resolved globally and split afterwards.
 func TestEveryProofReferenceHasADefinitionInTheSameDocument(t *testing.T) {
 	proofs := []record.Proof{
-		{Label: "p-a", SHA: "s1", Basis: "reproducible", Script: "a.js", Reason: "first"},
-		{Label: "p-b", SHA: "s2", Basis: "observed", Script: "b.js", Reason: "second"},
+		{Label: "P-0000000a", SHA: "s1", Basis: "reproducible", Script: "a.js", Reason: "first"},
+		{Label: "P-0000000b", SHA: "s2", Basis: "observed", Script: "b.js", Reason: "second"},
 	}
-	out, _ := weaveProofRefs("One<!--proof:p-b-->. Two<!--proof:p-a-->.\n", proofs)
+	out, _ := weaveProofRefs("One<!--proof:P-0000000b-->. Two<!--proof:P-0000000a-->.\n", proofs)
 	for _, ref := range []string{"[^P1]", "[^P2]"} {
 		if !strings.Contains(out, ref+": ") {
 			t.Errorf("reference %s has no definition in the document that carries it:\n%s", ref, out)
@@ -103,11 +103,11 @@ func TestEveryProofReferenceHasADefinitionInTheSameDocument(t *testing.T) {
 // same computation, because a per-document first-appearance number makes them different ones.
 func TestProofNumbersAreRunWideNotPerDocument(t *testing.T) {
 	proofs := []record.Proof{
-		{Label: "p-a", SHA: "s1", Basis: "reproducible", Script: "a.js", Reason: "first"},
-		{Label: "p-b", SHA: "s2", Basis: "reproducible", Script: "b.js", Reason: "second"},
+		{Label: "P-0000000a", SHA: "s1", Basis: "reproducible", Script: "a.js", Reason: "first"},
+		{Label: "P-0000000b", SHA: "s2", Basis: "reproducible", Script: "b.js", Reason: "second"},
 	}
 	// A document that anchors ONLY the second proof still calls it P2.
-	out, _ := weaveProofRefs("Only the second<!--proof:p-b-->.\n", proofs)
+	out, _ := weaveProofRefs("Only the second<!--proof:P-0000000b-->.\n", proofs)
 	if !strings.Contains(out, "[^P2]") || strings.Contains(out, "[^P1]") {
 		t.Errorf("proof numbering is per-document, so the same computation has two names:\n%s", out)
 	}
@@ -121,9 +121,9 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 	seedProof(t, runDir, sha, "console.log(Math.random());", "0.42\n")
 
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
-		Label: "p-1", SHA: sha, Basis: "observed", Script: "s.js",
+		Label: "P-00000001", SHA: sha, Basis: "observed", Script: "s.js",
 		Drift: "output differs from byte 2 between runs", Reason: "live sample",
-	}}, map[string]bool{"p-1": true})
+	}}, map[string]bool{"P-00000001": true})
 	if !strings.Contains(out, "observed") || !strings.Contains(out, "differs from byte 2") {
 		t.Errorf("an observed proof was not distinguished from a reproducible one:\n%s", out)
 	}
@@ -134,8 +134,8 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 	runDir := newRun(t)
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
-		Label: "p-9", SHA: "notonthisdisk", Basis: "reproducible", Script: "gone.js",
-	}}, map[string]bool{"p-9": true})
+		Label: "P-00000009", SHA: "notonthisdisk", Basis: "reproducible", Script: "gone.js",
+	}}, map[string]bool{"P-00000009": true})
 	if !strings.Contains(out, "missing from this run directory") {
 		t.Errorf("a missing artifact was silently omitted, so the report shows a proof it cannot produce:\n%s", out)
 	}
@@ -147,7 +147,7 @@ func TestAnUnanchoredProofIsShownAndLabelled(t *testing.T) {
 	runDir := newRun(t)
 	seedProof(t, runDir, "s5", "x", "y")
 	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
-		Label: "p-5", SHA: "s5", Basis: "reproducible", Script: "e.js", Reason: "nobody cited it",
+		Label: "P-00000005", SHA: "s5", Basis: "reproducible", Script: "e.js", Reason: "nobody cited it",
 	}}, map[string]bool{})
 	if !strings.Contains(out, "anchored to nothing") {
 		t.Errorf("a proof no document references was rendered as if it were cited:\n%s", out)
@@ -160,7 +160,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 	// A VALID hex id with no event behind it. (An id-shaped-but-not-hex token like
 	// "p-nothing" is not an anchor at all — the regex correctly ignores it, which is a
 	// different case and not the one under test.)
-	out, _ := weaveProofRefs("A claim<!--proof:p-abcdef01-->.\n", nil)
+	out, _ := weaveProofRefs("A claim<!--proof:P-abcdef01-->.\n", nil)
 	if !strings.Contains(out, "unresolved proof") {
 		t.Errorf("a dangling proof anchor vanished silently:\n%s", out)
 	}
@@ -180,8 +180,8 @@ func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 
 // One proof cited twice shares one number, like a citation reused.
 func TestOneProofUsedTwiceSharesItsNumber(t *testing.T) {
-	out, _ := weaveProofRefs("First<!--proof:p-a-->. Second<!--proof:p-a-->.\n",
-		[]record.Proof{{Label: "p-a", SHA: "s1", Basis: "reproducible", Script: "a.js"}})
+	out, _ := weaveProofRefs("First<!--proof:P-0000000a-->. Second<!--proof:P-0000000a-->.\n",
+		[]record.Proof{{Label: "P-0000000a", SHA: "s1", Basis: "reproducible", Script: "a.js"}})
 	if strings.Count(out, "[^P1]") != 3 { // two references plus the definition
 		t.Errorf("a proof used twice did not share one number:\n%s", out)
 	}

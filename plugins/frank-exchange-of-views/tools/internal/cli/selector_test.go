@@ -186,12 +186,12 @@ func TestTheBoardIsSelectableAndKeepsItsEmptyArrays(t *testing.T) {
 // THE SELECTOR MATCHES THE VISIBLE TEXT, NOT THE RAW BYTES.
 //
 // The report carries an invisible annotation layer, and anchors ABUT inside a sentence:
-// `negligible<!--fx:f-eee49716--><!--fx:f-051df802-->.` is one sentence. A seat quoting
+// `negligible<!--fx:F-eee49716--><!--fx:F-051df802-->.` is one sentence. A seat quoting
 // `negligible.` exactly as the page reads it matched NOTHING — verified on m10's real report before
 // this gate was written, and it is the silent zero this surface keeps removing. `blue edit` already
 // tolerated both anchors and whitespace runs; the selector now normalises the same two things.
 func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
-	runDir := seatRunReport(t, "# Findings\n\nOverhead is negligible<!--fx:f-eee49716--><!--fx:f-051df802-->.\n\nCost   is\n  spread over lines.\n")
+	runDir := seatRunReport(t, "# Findings\n\nOverhead is negligible<!--fx:F-eee49716--><!--fx:F-051df802-->.\n\nCost   is\n  spread over lines.\n")
 	for _, tc := range []struct{ name, flag, value string }{
 		{"a phrase spanning two abutting anchors", "--quote", "negligible."},
 		{"a regex spanning an anchor", "--match", "negligible[.]"},

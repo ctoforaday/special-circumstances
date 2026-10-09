@@ -21,7 +21,7 @@ func TestAFindingAboutYourGapReachesYou(t *testing.T) {
 	const minter, critic = "red-lens-logic", "red-lens-evidence"
 	about := func(b *stage) *stage {
 		return b.add(critic, &recordpb.Finding{
-			Label: proto.String("evidence-F1"), Text: proto.String("G2 is labeled unverified, and its proof was re-run and verified sound"),
+			Id: proto.String("F-f0000001"), Text: proto.String("G2 is labeled unverified, and its proof was re-run and verified sound"),
 			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW),
 			AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G2"),
 		})

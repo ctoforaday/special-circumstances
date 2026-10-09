@@ -16,7 +16,7 @@ func TestParagraphsCountsBlankLineBlocksThatCarryProse(t *testing.T) {
 		{"runs of blank lines are one separator", "One.\n\n\n\nTwo.\n\n", 2},
 		{"a heading is not a paragraph", "# Title\n\n## Section\n\nBody.", 1},
 		{"a heading over its text counts the text once", "## Section\nBody.", 1},
-		{"an anchor-only line is not prose", "<!--cite:c-1-->\n\n- <!--fx:f-2-->\n\nBody<!--proof:p-3-->.", 1},
+		{"an anchor-only line is not prose", "<!--cite:C-00000001-->\n\n- <!--fx:F-00000002-->\n\nBody<!--proof:P-00000003-->.", 1},
 		{"a footnote definition is not prose", "[^L1]: https://example.org\n\nBody.", 1},
 		{"a fence is not prose, blank lines inside it included", "```\ncode\n\nmore code\n```\n\nBody.", 1},
 		{"a fence under prose joins its paragraph", "Body:\n```\nx\n\ny\n```", 1},

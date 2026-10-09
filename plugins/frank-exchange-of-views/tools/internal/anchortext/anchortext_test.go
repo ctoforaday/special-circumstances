@@ -14,7 +14,7 @@ import (
 // reFindingMarker mirrors the anchor kinds table's finding token: the downstream parser is position-
 // agnostic, so a test that re-extracts an inserted id proves the round-trip regardless of
 // where in the sentence the marker landed.
-var reFindingMarker = regexp.MustCompile(`<!--fx:(f-[0-9a-f]+)-->`)
+var reFindingMarker = regexp.MustCompile(`<!--fx:(` + anchor.IDPattern("finding") + `)-->`)
 
 // reAnyAnnotation strips the whole invisible layer (any fx marker + any footnote ref) so
 // a test can compare the semantic prose before and after an insertion.
@@ -39,7 +39,7 @@ func mustLocateInsert(t *testing.T, report, quote, marker string) (string, int) 
 
 func TestLocateSpanReturnsRawSpan(t *testing.T) {
 	// A marker sits AFTER "time" (trailing), a footnote after "grows".
-	report := "The cost is rising over time<!--fx:f-1--> now. Volume grows[^v] fast."
+	report := "The cost is rising over time<!--fx:F-00000001--> now. Volume grows[^v] fast."
 	start, end := LocateSpan(report, "rising over time")
 	if start < 0 {
 		t.Fatal("LocateSpan failed to match")
@@ -81,8 +81,8 @@ func TestLocateEndExactAndFlexible(t *testing.T) {
 func TestInsertMarkerAtOffset(t *testing.T) {
 	report := []byte("The sky is blue.")
 	end := locateEnd(string(report), "sky is blue")
-	got := string(insertMarker(report, end, "<!--fx:f-abc-->"))
-	if got != "The sky is blue<!--fx:f-abc-->." {
+	got := string(insertMarker(report, end, "<!--fx:F-00000abc-->"))
+	if got != "The sky is blue<!--fx:F-00000abc-->." {
 		t.Errorf("insertMarker = %q", got)
 	}
 }
@@ -110,7 +110,7 @@ func TestLocateEndSkipsAnnotations(t *testing.T) {
 		// Real line 5: an fx marker between a word and its colon, and another at sentence end.
 		{
 			"fx-between-word-and-colon (real)",
-			"Acceptability depends on context<!--fx:f-762c1674-->: approximate financial models tolerate floating-point; transaction settlement does not.<!--fx:f-2462cfb8-->",
+			"Acceptability depends on context<!--fx:F-762c1674-->: approximate financial models tolerate floating-point; transaction settlement does not.<!--fx:F-2462cfb8-->",
 			"Acceptability depends on context: approximate financial models tolerate floating-point; transaction settlement does not.",
 		},
 		// Real line 16: a footnote ref before the terminal period; internal punctuation
@@ -123,12 +123,12 @@ func TestLocateEndSkipsAnnotations(t *testing.T) {
 		// Real line 25: an em-dash aside plus a trailing footnote AND fx marker.
 		{
 			"em-dash + trailing footnote + fx (real)",
-			"Every major production payment system surveyed—including Modern Treasury, Stripe, Square, PayPal—uses integer minor units (cents) or decimal types, never binary floating-point[^NoProductionFloats].<!--fx:f-96ae5702-->",
+			"Every major production payment system surveyed—including Modern Treasury, Stripe, Square, PayPal—uses integer minor units (cents) or decimal types, never binary floating-point[^NoProductionFloats].<!--fx:F-96ae5702-->",
 			"Every major production payment system surveyed—including Modern Treasury, Stripe, Square, PayPal—uses integer minor units (cents) or decimal types, never binary floating-point",
 		},
 		{
 			"marker between two words",
-			"The scheduler is<!--fx:f-11-->preemptive and fair.",
+			"The scheduler is<!--fx:F-00000011-->preemptive and fair.",
 			"The scheduler ispreemptive and fair",
 		},
 		{
@@ -138,12 +138,12 @@ func TestLocateEndSkipsAnnotations(t *testing.T) {
 		},
 		{
 			"several markers/footnotes in one sentence",
-			"Floats[^a] are<!--fx:f-1--> unsafe[^b] for money<!--fx:f-2--> here.",
+			"Floats[^a] are<!--fx:F-00000001--> unsafe[^b] for money<!--fx:F-00000002--> here.",
 			"Floats are unsafe for money here",
 		},
 		{
 			"marker mid-token (splices a word)",
-			"Reconcili<!--fx:f-9-->ation catches the drift.",
+			"Reconcili<!--fx:F-00000009-->ation catches the drift.",
 			"Reconciliation catches the drift",
 		},
 	}
@@ -230,13 +230,13 @@ func TestLocateEndGuardrails(t *testing.T) {
 // present, re-parses, and never lands inside an annotation or a fence; the semantic prose
 // is unchanged apart from the added marker.
 func TestLocateEndOffsetInsertRoundTrips(t *testing.T) {
-	report := "Floats[^a] are<!--fx:f-1--> unsafe for money here."
+	report := "Floats[^a] are<!--fx:F-00000001--> unsafe for money here."
 	quote := "Floats are unsafe for money here"
-	out, _ := mustLocateInsert(t, report, quote, "<!--fx:f-abc123-->")
+	out, _ := mustLocateInsert(t, report, quote, "<!--fx:F-00abc123-->")
 	ids := reFindingMarker.FindAllStringSubmatch(out, -1)
 	found := false
 	for _, m := range ids {
-		if m[1] == "f-abc123" {
+		if m[1] == "F-00abc123" {
 			found = true
 		}
 	}
@@ -289,17 +289,17 @@ func TestLocateEndAgainstRealArtifact(t *testing.T) {
 // unmapped, so each placing verb keeps its own message.
 func TestAttachPlacesTheTablesTokenAtTheQuotesEnd(t *testing.T) {
 	doc := "# H\n\nWater is wet. The sky is blue.\n"
-	got, err := Attach(doc, "c-1a2b", "The sky is blue.")
+	got, err := Attach(doc, "C-00001a2b", "The sky is blue.")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "# H\n\nWater is wet. The sky is blue<!--cite:c-1a2b-->.\n"; got != want {
+	if want := "# H\n\nWater is wet. The sky is blue<!--cite:C-00001a2b-->.\n"; got != want {
 		t.Errorf("Attach = %q, want %q", got, want)
 	}
-	if _, err := Attach(doc, "f-1a2b", "not in the report"); !errors.Is(err, ErrMisQuote) {
+	if _, err := Attach(doc, "F-00001a2b", "not in the report"); !errors.Is(err, ErrMisQuote) {
 		t.Errorf("a mis-quote = %v, want ErrMisQuote", err)
 	}
-	if _, err := Attach("```\ncode here\n```\n", "p-1a2b", "code here"); !errors.Is(err, ErrInFence) {
+	if _, err := Attach("```\ncode here\n```\n", "P-00001a2b", "code here"); !errors.Is(err, ErrInFence) {
 		t.Errorf("a quote in a fence = %v, want ErrInFence", err)
 	}
 }
@@ -320,11 +320,11 @@ func TestAttachRefusesAHeading(t *testing.T) {
 		{"The sieve runs once.", nil},
 		{"Is 91 prime?", nil},
 	} {
-		if _, err := Attach(doc, "f-1a2b", c.quote); !errors.Is(err, c.err) {
+		if _, err := Attach(doc, "F-00001a2b", c.quote); !errors.Is(err, c.err) {
 			t.Errorf("Attach(%q) = %v, want %v", c.quote, err, c.err)
 		}
 	}
-	if _, err := InsertAnchor([]byte(doc), "Method", anchor.Token("f-1a2b")); err != nil {
+	if _, err := InsertAnchor([]byte(doc), "Method", anchor.Token("F-00001a2b")); err != nil {
 		t.Errorf("replay refused an archived placement on a heading: %v", err)
 	}
 }
@@ -342,7 +342,7 @@ func TestInsideFenceReadsTheBlockReader(t *testing.T) {
 		{"code here\n```", ErrInFence},
 		{"After the fence", nil},
 	} {
-		if _, err := InsertAnchor([]byte(report), c.quote, "<!--cite:c-1-->"); !errors.Is(err, c.err) {
+		if _, err := InsertAnchor([]byte(report), c.quote, "<!--cite:C-00000001-->"); !errors.Is(err, c.err) {
 			t.Errorf("InsertAnchor(%q) = %v, want %v", c.quote, err, c.err)
 		}
 	}
@@ -364,7 +364,7 @@ func TestLocateOnceRefusesInItsOrder(t *testing.T) {
 		{"Costs\n\nrose.", "Costs rose", StopAtParagraph, ErrCrossesParagraph, -1},
 		{"Costs\n\nrose.", "Costs rose", CrossParagraphs, nil, 11},
 		{"Costs rosed.", "Costs rose", StopAtParagraph, ErrSplitsWord, -1},
-		{"Costs rose<!--fx:f-1-->.", "Costs rose.", StopAtParagraph, nil, 10},
+		{"Costs rose<!--fx:F-00000001-->.", "Costs rose.", StopAtParagraph, nil, 10},
 	} {
 		if _, end, err := LocateOnce(c.doc, c.quote, c.scope); err != c.want || end != c.end {
 			t.Errorf("LocateOnce(%q, %q) = %d, %v; want %d, %v", c.doc, c.quote, end, err, c.end, c.want)

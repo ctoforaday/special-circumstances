@@ -34,7 +34,7 @@ func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond",
+	if _, err := runAt(t, "edit", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "Five independent approaches agree.", "--new", "Two approaches agree.",
 		"--answers", "G1", "--reason", "narrow the claim"); err != nil {
 		t.Fatalf("edit refused: %v", err)

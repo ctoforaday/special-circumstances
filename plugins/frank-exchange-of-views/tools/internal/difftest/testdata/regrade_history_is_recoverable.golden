@@ -26,12 +26,12 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
 exit 0
 stdout:
-minted G1
+minted GAP001
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --severity medium
+$ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --severity medium
 exit 2
 stderr:
 feov-record: required flag(s) "reason" not set
@@ -90,26 +90,26 @@ Global Flags:
       --schema           print the event-schema epoch this binary writes, and exit
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
-$ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
+$ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0
 stdout:
-regraded G1 [key red-lens-evidence:regrade:#1:G1]
+regraded GAP001 [key red-lens-evidence:regrade:#1:GAP001]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
-$ regrade --run {RUN} --seat-id red-lens-evidence --id G1 --impact low --reason second movement, same id
+$ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --impact low --reason second movement, same id
 exit 2
 stderr:
-feov-record: lens: record: red-lens-evidence has already recorded a regrade on "G1" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:regrade:#1:G1 --correction-why <what was wrong>. The corrected act stays on the record, struck, beside the replacement
+feov-record: lens: record: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:regrade:#1:GAP001 --correction-why <what was wrong>. The corrected act stays on the record, struck, beside the replacement
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:G1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_HIGH","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"graded high at mint","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_HIGH","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"graded high at mint","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `regrade` with --id --severity: required flag(s) \"reason\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:regrade:#1:G1","regrade":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"G1","likelihood":"GRADE_LOW","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_REGRADE"}
-{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `regrade` with --id --impact --reason: lens: record: red-lens-evidence has already recorded a regrade on \"G1\" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:regrade:#…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:regrade:#1:GAP001","regrade":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"GAP001","likelihood":"GRADE_LOW","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_REGRADE"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `regrade` with --id --impact --reason: lens: record: red-lens-evidence has already recorded a regrade on \"GAP001\" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:r…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

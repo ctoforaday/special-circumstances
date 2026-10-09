@@ -54,7 +54,7 @@ func TestGolden(t *testing.T) {
 			var transcript strings.Builder
 
 			for _, c := range sc.cmds {
-				inv := runGo(bin, runDir, c)
+				inv := runGo(bin, runDir, m, c)
 				m.observe(filepath.Join(runDir, "records"))
 				applyMtimes(t, runDir, m, c)
 				got := normalizeOutput(inv, runDir, m)
@@ -119,7 +119,7 @@ func TestGolden(t *testing.T) {
 				// lost its RENDERS and REPORT halves, and regenerating would have recorded that as
 				// the new expected output. 2278 deletions against 323 insertions across 20 files,
 				// and every one of them would have been "the goldens moved with the surface".
-				got := normalizeOutput(runGo(bin, runDir, cmd{verb: "show", args: []string{v, "--run", runDir, "--seat-id", "red-chair"}}), runDir, m)
+				got := normalizeOutput(runGo(bin, runDir, m, cmd{verb: "show", args: []string{v, "--run", runDir, "--seat-id", "red-chair"}}), runDir, m)
 				if got.code == 0 {
 					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
 				}
@@ -144,7 +144,7 @@ func TestGolden(t *testing.T) {
 			// blue/report.md cannot assemble, so it contributes no section — the same
 			// degenerate-run rule RENDERS already follows, and the reason this could be added to
 			// every scenario rather than needing a fixture of its own.
-			if inv := runGo(bin, runDir, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge"}}); inv.code == 0 {
+			if inv := runGo(bin, runDir, m, cmd{verb: "assemble", args: []string{"--run", runDir, "--seat-id", "judge"}}); inv.code == 0 {
 				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 				if err != nil {
 					t.Fatalf("bench assemble exited 0 but wrote no report.md: %v", err)
@@ -194,7 +194,7 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
 		{verb: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
 	} {
-		if inv := runGo(bin, runDir, setup); inv.code != 0 {
+		if inv := runGo(bin, runDir, m, setup); inv.code != 0 {
 			t.Fatalf("round-0 setup %v: exit %d\nstderr: %s", setup.args, inv.code, inv.stderr)
 		}
 		m.observe(filepath.Join(runDir, "records"))
