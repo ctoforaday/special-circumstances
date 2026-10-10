@@ -232,11 +232,16 @@ func anchorsExiting(md, claim string, spans []record.EditSpan) []string {
 	return out
 }
 
-// quoteCore is a quote or span reduced to what it says: anchors out, then surrounding
+// quoteCore is a quote or span reduced to what it says: anchors out, the list marker or block-quote
+// marker it opens with out — those lie outside every sentence (anchor.Sentences), and an edit that
+// quotes a bullet with its "- " cuts the same claim a retire names without it — then surrounding
 // whitespace and emphasis markers and trailing punctuation trimmed until nothing more comes off.
 // Internal text is untouched — "the sky" and "sky" stay different claims.
 func quoteCore(s string) string {
 	s = claimcount.StripAnchors(s)
+	if sp := anchor.Sentences(s); len(sp) > 0 {
+		s = s[sp[0][0]:]
+	}
 	for {
 		t := strings.TrimRight(strings.Trim(s, " \t\n*_"), anchortext.TrailingPunct)
 		if t == s {
