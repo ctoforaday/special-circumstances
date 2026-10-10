@@ -185,7 +185,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: jud.String()},
 		{File: FileAvenues, Nav: "Avenues", Title: "avenues",
-			Blurb: "every avenue the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it, red's ruling and any appeal", Body: inq},
+			Blurb: "every avenue the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it and red's ruling", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",

@@ -109,7 +109,7 @@ var enforcedElsewhere = map[string]string{
 	// set the write path did not check, on the day it was added.
 	// KEYED ON THE RECORD TYPE, not the command name. setKey prefers `seat.RecordType`, and the
 	// motion verbs carry it now — they were built as raw cobra commands with no annotation, so
-	// they fell back to the leaf's name (`file`, `rule`, `appeal`) and sat outside the contract
+	// they fell back to the leaf's name (`file`, `rule`) and sat outside the contract
 	// gate entirely. Three verbs' requirements were unchecked; the keys here moved with them.
 	"motion_rule --binds": "record.validate's MotionFields loop on the motion-rule arm; help generated from record.MotionFieldEnum — the same table",
 

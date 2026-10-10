@@ -101,15 +101,13 @@ var referenceChecks = []struct {
 	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
 	// THE AVENUE SUBJECT KEYS ON Q, NOT M — a direction has no filing verb (the proposal is the
-	// filing), so the ruling and the appeal both name the LINE and are checked against the lines on
+	// filing), so the ruling names the LINE and is checked against the lines on
 	// the record. `rule` sits only on the chair's tree, which is why seatHolding resolves the whole
 	// path: asked for "motion" alone it answered "lens", and the fixture ran a verb that seat cannot
-	// name. Both refusals come from the body and name the LINE, which is the right word for an id the
+	// name. The refusal comes from the body and names the LINE, which is the right word for an id the
 	// subject keys on Q.
 	{verb: []string{"motion", "avenue", "rule"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
 		extra: []string{"--as", "endorsed", "--reason", "r"}},
-	{verb: []string{"motion", "avenue", "appeal"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
-		extra: []string{"--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
 	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "G2",

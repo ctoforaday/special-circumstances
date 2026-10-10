@@ -46,18 +46,18 @@ const AnswerLead = "IF WHAT YOU RECORDED WAS WRONG"
 // teachAnswer ends a recording verb's help with the act that answers a wrong act of the type it
 // records: an act stands as filed, so the page that teaches the verb says what a seat does about
 // one it got wrong. The words are the record's (record.AnswersTo), narrowed to what the verb
-// fixes — the subject of a ruling or an appeal, the key fields of a verify. A verb whose type holds
-// no row gets no paragraph.
+// fixes — the subject of a ruling, the key fields of a verify. A verb whose type holds no row gets
+// no paragraph.
 //
 // IT PANICS when a verb records a type whose repeat the record refuses and the table holds no row
 // for it: that refusal would end by sending the seat nowhere, and the mount is where a new verb
 // finds out.
-func teachAnswer(c *cobra.Command, role string) {
+func teachAnswer(c *cobra.Command) {
 	typ, ok := eventTypeOf(RecordType(c))
 	if !ok || c.Annotations[answerTaughtKey] != "" {
 		return
 	}
-	rows := AnswersFor(c, role)
+	rows := AnswersFor(c)
 	if len(rows) == 0 {
 		if record.RefusesARepeat(typ) {
 			panic(fmt.Sprintf("seat: %s records a %s, whose second act in a sitting the record refuses, and no row says what answers a wrong one — add it to record's superseders",
@@ -83,9 +83,9 @@ func teachAnswer(c *cobra.Command, role string) {
 }
 
 // AnswersFor is the rows of the answers table this verb's help states: every row of the type it
-// records, less the rows for a motion subject the verb does not rule or appeal, for a key field
-// its act is not keyed on, and for an answering act the surface's role does not hold.
-func AnswersFor(c *cobra.Command, role string) []record.Answer {
+// records, less the rows for a motion subject the verb does not rule and for a key field its act is
+// not keyed on.
+func AnswersFor(c *cobra.Command) []record.Answer {
 	typ, ok := eventTypeOf(RecordType(c))
 	if !ok {
 		return nil
@@ -104,9 +104,6 @@ func AnswersFor(c *cobra.Command, role string) []record.Answer {
 			continue
 		}
 		if r.Keyed != "" && !keys[r.Keyed] {
-			continue
-		}
-		if r.Holder != "" && r.Holder != role {
 			continue
 		}
 		out = append(out, r)

@@ -35,7 +35,7 @@ func avenueRulingFold(t *testing.T, run Run, avenueID string) string {
 // THE MOTION READERS, HELD AGAINST THE FOLDS THEY REPLACED — step 4's third group: the
 // ask-and-answer joins that used to be hand-written per reader (the eight-reader defect
 // views.go's motion_state documents). The fixture walks one motion through its whole
-// lifecycle — filed, ruled, appealed — asserting each guard's answer at each state, and rules
+// lifecycle — filed, ruled — asserting each guard's answer at each state, and rules
 // one avenue to hold AvenueRuling to its fold.
 func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
@@ -86,9 +86,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if err := RequireUnruledMotion(db, "M1", ""); err != nil {
 		t.Errorf("RequireUnruledMotion before any ruling = %v", err)
 	}
-	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err == nil {
-		t.Error("RequireRuledMotion found a ruling nobody made")
-	}
 
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
@@ -102,25 +99,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	err = RequireUnruledMotion(db, "M1", "")
 	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by red-chair`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
-	}
-	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil {
-		t.Errorf("RequireRuledMotion after a ruling = %v", err)
-	}
-	if err := RequireUnappealedMotion(db, "M1", ""); err != nil {
-		t.Errorf("RequireUnappealedMotion before any appeal = %v", err)
-	}
-
-	if _, err := Append(blue, &recordpb.MotionAppeal{
-		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-		Reason:   proto.String("the ruling reads past the argument"),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	err = RequireUnappealedMotion(db, "M1", "")
-	if err == nil || !strings.Contains(err.Error(), "blue-respond") ||
-		!strings.Contains(err.Error(), "the ruling reads past the argument") {
-		t.Errorf("RequireUnappealedMotion after an appeal = %v, want the appeal quoted", err)
 	}
 
 	// An avenue: subject resolution falls through to the avenue, and the ruling read

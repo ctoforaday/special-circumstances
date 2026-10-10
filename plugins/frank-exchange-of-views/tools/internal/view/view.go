@@ -793,13 +793,6 @@ func AvenueBody(evs []*record.Event, win record.WindowIndex) string {
 			if a.Ruling != "" {
 				avenue = append(avenue, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
 			}
-			// The appeal sits beside the ruling it answers, in the document about the directions.
-			// judgments.md carries it too, with the filer's reason, among every other motion; this
-			// is where a reader following one line meets it. (It left report.md with the ruling:
-			// the debate over a direction is not research prose.)
-			if a.Contests != "" {
-				avenue = append(avenue, fmt.Sprintf("  - BLUE APPEALED the `%s` ruling", a.Contests))
-			}
 		}
 		avenue = append(avenue, "")
 	}

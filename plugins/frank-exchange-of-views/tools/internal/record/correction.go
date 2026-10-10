@@ -279,7 +279,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, fmt.Errorf("record: asking whether another seat has acted since %s: %w", target.Key, err)
 	}
-	// A MOTION IS ANSWERED ONCE, and a replayed ruling or appeal does not ask again: both types are
+	// A MOTION IS ANSWERED ONCE, and a replayed ruling does not ask again: the type is
 	// PROSE tier, so validateCorrection has held the replacement to its target's motion, and the
 	// target is that motion's one answer — the ordinary write refused any other (requireUnanswered).
 	// THE CHAIN: the replacement's key is the chain's ROOT key and its depth, both walked here from

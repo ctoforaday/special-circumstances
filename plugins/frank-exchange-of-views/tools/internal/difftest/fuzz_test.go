@@ -456,12 +456,6 @@ var tourArms = []fuzzArm{
 	tourArm("chair motion grade rule", []string{"red-chair"}, []string{"motion", "grade", "rule"},
 		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
 		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
-	tourArm("blue motion grade appeal", []string{"blue-respond"}, []string{"motion", "grade", "appeal"},
-		func(t string) []string { return []string{"--id", "{MOTION}", "--reason", t} },
-		func(name string) []cmd {
-			return []cmd{fileGradeMotion(name), fuzzStep(name+" · setup", []string{"motion", "grade", "rule"}, "red-chair",
-				"--id", "{MOTION}", "--as", "rejected", "--reason", "the evidence does not reach it")}
-		}),
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
 			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",

@@ -10,7 +10,7 @@ import (
 //
 // A motion BLOCKS the terminal verb: `chair verdict --as PASS` is refused while one is unruled,
 // and the refusal names its id. Until this view, that id was all a seat could ever learn — there
-// was no read verb (`motion` offers direction|grade|petition, each file/rule/appeal, no show) and
+// was no read verb (`motion` offers a subject's file and rule, no show) and
 // no projection carried one. The ask was on the record and unreadable.
 //
 // Measured, from a probed chair seat blocked by exactly this. It tried `motion show --id M1`,
@@ -48,9 +48,6 @@ type MotionJSON struct {
 	RulingEpoch int    `json:"ruling_epoch"`
 	Opinion     string `json:"opinion"`
 
-	Appealed     bool   `json:"appealed"`
-	AppealReason string `json:"appeal_reason"`
-
 	// Fields carries the subject-specific payload — a grade motion's gap_id/dimension/proposed,
 	// a petition's class. Kept as the record holds them rather than flattened into named columns
 	// that would differ per subject.
@@ -85,7 +82,6 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 			Basis: m.Basis, Relief: m.Relief,
 			Ruled: m.Ruling != "", Ruling: m.Ruling, RulingBy: m.RulingBy,
 			RulingEpoch: m.RulingEpoch, Opinion: m.Opinion,
-			Appealed: m.Appealed, AppealReason: m.AppealReason,
 		}
 		mj.GapID = m.GapID
 		if len(m.Fields) > 0 {
@@ -117,8 +113,7 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
 	recordpb.EventType_EVENT_TYPE_AVENUE,
 	recordpb.EventType_EVENT_TYPE_MOTION,
-	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL)
+	recordpb.EventType_EVENT_TYPE_MOTION_RULE)
 
 // MotionsJSONBytes renders the motions view as indented JSON.
 func MotionsJSONBytes(run Run) ([]byte, error) { return motionsView.jsonBytes(run) }

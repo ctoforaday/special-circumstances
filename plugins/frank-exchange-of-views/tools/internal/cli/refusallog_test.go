@@ -125,8 +125,8 @@ func TestAJSONRefusalFailsTheCallAndIsLogged(t *testing.T) {
 		name string
 		args []string
 	}{
-		// A motion: no motion M9 exists to appeal.
-		{"a motion verb", []string{"motion", "grade", "appeal", "--id", "M9", "--reason", "the grade understates it"}},
+		// A motion: no gap G99 exists to put before the bench.
+		{"a motion verb", []string{"motion", "docket", "file", "--id", "G99", "--reason", "the bench should decide it"}},
 		// A verb built by seat.New: --id names no gap on the record.
 		{"a writing verb outside motion", []string{"close", "--id", "G99", "--as", "repaired", "--reason", "the report now cites the primary",
 			"--verified-by", "red-lens-evidence", "--verified-with", "show report", "--verified-against", "blue/report.md"}},

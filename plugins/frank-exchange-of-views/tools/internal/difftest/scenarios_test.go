@@ -162,7 +162,7 @@ func scenarios() []scenario {
 			// oracle: an act stands as filed, and a repeat the record refuses names the act that
 			// answers the first — each followed here by that act, at the time its row states. The
 			// named cases: a manifest row (the next sitting's), a ruling (the ruler's docket
-			// motion), an appeal (a new docket motion), a closure (a docket motion on the closed
+			// motion, and beside it the docket motion of the seat that disagrees with the ruling), a closure (a docket motion on the closed
 			// gap) and a position (the next sitting's).
 			name: "a_repeated_act_names_its_answer",
 			cmds: []cmd{
@@ -180,9 +180,7 @@ func scenarios() []scenario {
 				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not  it"),
 				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not reach it"),
 				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "my ruling lost a word: the evidence does not reach it"),
-				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on  grounds"),
-				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on new grounds"),
-				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "my appeal lost a word: I press it on new grounds"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the ruling reads past the evidence: the bench should decide the gap"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the  leaf"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",

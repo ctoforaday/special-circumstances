@@ -347,6 +347,12 @@ func teachUnknownSubcommand(root *cobra.Command) {
 		}
 		group := g
 		group.Args = cobra.ArbitraryArgs
+		// THE ACT'S FLAGS ARE NOT THE GROUP'S, and cobra parses flags before it runs this: a seat
+		// that types another seat's act types that act's flags with it, and the parse would answer
+		// "unknown flag: --id" — a problem with a flag, about a command that is not the seat's at
+		// all. The group has no flags of its own, so whatever lands here is already a refusal; the
+		// only question is which one the seat is told.
+		group.FParseErrWhitelist = cobra.FParseErrWhitelist{UnknownFlags: true}
 		group.RunE = func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()

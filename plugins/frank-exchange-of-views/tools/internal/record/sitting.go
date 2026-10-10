@@ -60,7 +60,7 @@ type Item struct {
 	// documented as never touching it. The split was defensible one clause at a time — a duty
 	// must be enforced at a write path, an affordance is not an obligation, and inventing duties
 	// would make this view disagree with the gates. Its consequence was that a seat's completion
-	// check could only ever see the mechanically-enforced half, so a petition, an appeal, a
+	// check could only ever see the mechanically-enforced half, so a petition, a
 	// corroboration and a re-run were not merely unlisted as owed: they were absent from the one
 	// surface a seat consults to ask whether there is anything left. Three seats interviewed
 	// about the verbs they never touched gave the same account of stopping — "the `outstanding`

@@ -116,9 +116,9 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 |---|---|---|---|
 | `motion grade file` | you dispute a gap's severity, likelihood, impact or complexity | `blue dispute` | EXECUTED (#344) |
 | `motion grade rule` | red answering a grade motion | `merge dispute-respond` | EXECUTED (#344) |
-| `motion grade appeal` | pressing a rejected grade ruling to the bench | — | CLEAN |
+| ~~`motion grade appeal`~~ | CUT (2026-10-10) — pressing a rejected grade ruling | `motion docket file` | EXECUTED: 0 appeals against 64 rulings in 17 archived runs. A ruling stands, and a seat that disagrees with one puts the gap before the bench |
 | `motion avenue rule` | red ruling on a proposed avenue | `merge avenue-rule` (retired) | EXECUTED (#344) |
-| `motion avenue appeal` | pressing an avenue ruling to the bench | — | CLEAN |
+| ~~`motion avenue appeal`~~ | CUT (2026-10-10) — pressing an avenue ruling | `avenue move` | EXECUTED: 0 appeals in 17 archived runs. An avenue ruling binds no move, so what blue does about one is the move |
 | `chair avenue review` | red's PER-SITTING verdict that the report still carries an avenue, read at the leaf | — | CLEAN: new channel. A line reaches the report as a row `assemble` GENERATES, so it carries no citation anchor and `lens verify` cannot reach it — "we pursued X" was the one class of claim in the document nothing could refuse. `unsupported` and `absent` put the line on blue's worklist; `verdict --as PASS` is refused while any line is unvoted this sitting |
 | `motion petition file` | an ethical, safety, integrity or constitutional objection | envelope `petitions[]` | EXECUTED (#315, #1203): the event is the only channel — no envelope carries a petition, and the chair's plan convenes the bench for each one at the next chair sitting |
 | `motion petition rule` | the bench ruling on a petition | — | CLEAN, except for the halt channel above (#329) |

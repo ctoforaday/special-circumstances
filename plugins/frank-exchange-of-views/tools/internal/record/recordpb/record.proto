@@ -459,7 +459,7 @@ enum GradeRuling {
   // chair ruled M1 accepted and wrote that the minting lens owns applying it; the record holds no
   // regrade after the ruling, which is the duty the old sentence would have called satisfied.
   GRADE_RULING_ACCEPTED = 1 [(means) = "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"];
-  GRADE_RULING_REJECTED = 2 [(means) = "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"];
+  GRADE_RULING_REJECTED = 2 [(means) = "the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion"];
 }
 
 enum PetitionRuling {
@@ -1526,7 +1526,7 @@ message Motion {
   optional string motion_id = 1 [(sql) = {
     required: true
     unique: true
-    why: "the id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered"
+    why: "the id everything else joins on — the tool assigns it, and a motion without one cannot be ruled or rendered"
   }];
   optional MotionSubject subject = 2;
 
@@ -1625,7 +1625,7 @@ message DocketRuling {
   // `--none` made the empty case sayable.
   option (check) = {
     expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting"
+    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting"
   };
 
   // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"

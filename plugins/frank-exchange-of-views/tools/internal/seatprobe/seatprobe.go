@@ -157,7 +157,6 @@ var verbOfEvent = map[recordpb.EventType]string{
 	recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW: "avenue review",
 	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:  "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:        "motion file",
-	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL: "motion appeal",
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE:   "motion rule",
 	recordpb.EventType_EVENT_TYPE_PROOF:         "prove",
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:    "spot-check",
@@ -165,7 +164,7 @@ var verbOfEvent = map[recordpb.EventType]string{
 
 // motionSubject is the SUBGROUP a seat typed, read off whichever motion body the event carries.
 //
-// A type switch rather than a switch on `e.GetType()`: the three bodies are the only messages
+// A type switch rather than a switch on `e.GetType()`: the two bodies are the only messages
 // that have a subject at all, so asking the body cannot go stale against the enum.
 func motionSubject(e *record.Event) string {
 	if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
@@ -174,16 +173,13 @@ func motionSubject(e *record.Event) string {
 	if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
 		return subjectVerb(m.GetSubject())
 	}
-	if m, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e); ok {
-		return subjectVerb(m.GetSubject())
-	}
 	return ""
 }
 
 // subjectVerb spells a motion subject the way the COMMAND TREE spells it, which for one of the
 // three is not the enum's word.
 //
-// `MOTION_SUBJECT_AVENUE` is typed `motion avenue rule` / `motion avenue appeal` — the
+// `MOTION_SUBJECT_AVENUE` is typed `motion avenue rule` — the
 // schema re-conceived the subject as a DIRECTION (it rules on an avenue blue proposed,
 // and `AvenueMotion` carries the avenue's own id) while the CLI subgroup, its help text and
 // every board expectation still say `avenue`. Rendering the enum's word here would report a

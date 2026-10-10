@@ -1008,7 +1008,7 @@ file a grade motion — the tool assigns its id.
 
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
-It disputes a gap's grade.
+It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before the bench with `motion docket file`.
 
 Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
 

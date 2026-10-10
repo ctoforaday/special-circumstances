@@ -556,19 +556,19 @@ var satisfiedByAnyOf = map[string][]string{
 // silent" — but `motion` is mounted separately at root.go, so its leaves got none of it. It looked
 // fine only because refHelp hand-wrote "REQUIRED — " into `--id`'s usage, which is the second copy
 // markRequired exists to be the sole writer of.
-func MarkTree(c *cobra.Command, role string) { markTree(c, role) }
+func MarkTree(c *cobra.Command) { markTree(c) }
 
-func markTree(c *cobra.Command, role string) {
+func markTree(c *cobra.Command) {
 	if c.HasSubCommands() {
 		for _, sub := range c.Commands() {
-			markTree(sub, role)
+			markTree(sub)
 		}
 		return
 	}
 	if t := RecordType(c); t != "" {
 		markRequired(c, t)
 	}
-	teachAnswer(c, role)
+	teachAnswer(c)
 }
 
 // RecordType is the event type a verb writes, or "" for a command that writes no record.

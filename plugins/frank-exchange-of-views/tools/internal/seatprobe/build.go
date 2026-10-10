@@ -392,7 +392,7 @@ func readScan(run record.Run, exec Exec, url string) error {
 //
 // The boilerplate it replaces ("ruled <verdict> on the line as it was proposed") was measured, by
 // asking a seat: it read the motions view twice and reported that it could not find red's
-// reasoning, which was true. A board that scores whether a seat appeals a ruling must let the seat
+// reasoning, which was true. A board that scores what a seat does about a ruling must let the seat
 // READ the ruling, or it is scoring a guess.
 //
 // A missing RuledWhy is loud rather than papered over. The alternative — falling back to the old

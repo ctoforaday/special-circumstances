@@ -204,23 +204,5 @@ func actRows() map[string]actRow {
 					"--principle", "thoroughness over speed", "--tension", "cost against certainty",
 					"--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", text}
 			}},
-		"motion grade appeal": {seat: "blue-respond",
-			setup: func(t *testing.T, runDir string) actVars {
-				m := fileGradeMotion(t, runDir)
-				must(t, runDir, "motion", "grade", "rule", "--seat-id", "red-chair", "--id", m, "--as", "rejected", "--reason", "the evidence does not reach it")
-				return actVars{"m": m}
-			},
-			act: func(v actVars, text string) []string {
-				return []string{"motion", "grade", "appeal", "--id", v["m"], "--reason", text}
-			}},
-		"motion avenue appeal": {seat: "blue-respond",
-			setup: func(t *testing.T, runDir string) actVars {
-				proposeQ1(t, runDir)
-				must(t, runDir, "motion", "avenue", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
-				return nil
-			},
-			act: func(_ actVars, text string) []string {
-				return []string{"motion", "avenue", "appeal", "--id", "Q1", "--reason", text}
-			}},
 	}
 }

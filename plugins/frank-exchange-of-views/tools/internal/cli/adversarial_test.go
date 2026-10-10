@@ -17,7 +17,7 @@ import (
 // person who wrote the verb.
 //
 // So these were found by hand, driving the real binary as each seat and deliberately taking the
-// awkward path: ruling under the wrong subgroup, ruling twice, appealing what nobody ruled,
+// awkward path: ruling under the wrong subgroup, ruling twice, appealing a ruling,
 // passing a verdict over an unanswered ask. Six of the ten scenarios below were ACCEPTED by the
 // tool when first tried, and four of those six reached the rendered report.
 //
@@ -109,44 +109,23 @@ func adversarialCases() []adversarialCase {
 			refused: "is already ruled",
 			guards: "Two rulings replay as whichever the shard ordering favours and the report " +
 				"shows ONE, with nothing saying the other exists. Measured on both petition and " +
-				"direction. The escalation path is an appeal, which keeps both positions.",
+				"direction. The ruler's own answer to a wrong ruling is a new act, which keeps both.",
 		},
 		{
-			name:  "a ruling can be appealed",
+			name:  "a seat that disagrees with a grade ruling puts the gap before the bench",
 			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"}},
-			act:   seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing it to the bench on new grounds"},
-			guards: "The positive case beside the refusal above: pressing a settled motion is the " +
-				"SUPPORTED move, and a suite that only tested refusals would let it rot.",
+			act:   seatStep{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "G1", "--reason", "the ruling reads past the caller's validation; the bench should decide the gap"},
+			guards: "The positive case beside the refusal above: the docket motion is the " +
+				"SUPPORTED move against a ruling, and a suite that only tested refusals would let it rot.",
 		},
 		{
-			name:    "an appeal needs a ruling to appeal against",
-			setup:   []seatStep{mint, fileGrade},
-			act:     seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing on before anyone answered"},
-			refused: "no ruling to appeal",
-			guards: "Otherwise the motion replays both unruled and appealed, a state the report " +
-				"has no honest sentence for.",
-		},
-		{
-			name: "a motion cannot be appealed twice",
-			setup: []seatStep{mint, fileGrade,
-				{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
-				{"motion", "grade", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "the first argument, which must survive"}},
-			act:     seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "a second argument that would replace the first"},
-			refused: "already appealed",
-			guards: "FOUND BY THE STATE GRAPH (#673), not by reading: probing every act from every " +
-				"state, `appeal` on an already-appealed motion was ACCEPTED, left the state alone, " +
-				"and rewrote appeal_reason — three in a row, the report showing only the last. It is " +
-				"RequireUnruledMotion's defect one verb over, and worse: a ruling replaced is an " +
-				"answer overturned, while an appeal replaced is the ARGUMENT itself going quiet.",
-		},
-		{
-			name:    "a petition has no appeal, and says so",
-			setup:   []seatStep{filePetition, {"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied", "--reason", "denied on the papers"}},
-			act:     seatStep{"motion", "petition", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing a petition"},
-			refused: "has no `appeal` verb",
+			name:    "a ruling is not appealed, and the refusal says what the subject holds",
+			setup:   []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"}},
+			act:     seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing a ruling"},
+			refused: "has no `appeal` verb — it has file",
 			guards: "It answered `unknown flag: --id`, which sends a seat looking at its flags for " +
-				"a problem that is not there. The bench is the last forum, so " +
-				"there is nothing to escalate to — and the refusal is where a seat meets that.",
+				"a problem that is not there. A motion is filed and ruled and the ruling stands — " +
+				"and the refusal is where a seat meets that.",
 		},
 		{
 			name:    "PASS is refused while a motion is unanswered",
@@ -172,13 +151,21 @@ func adversarialCases() []adversarialCase {
 				"has to reach a different id space than the other two subjects.",
 		},
 		{
-			name:  "any seat may appeal, not only the filer",
+			name:  "blue pursues an avenue against its ruling",
 			setup: []seatStep{propose, {"motion", "avenue", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
-			act:   seatStep{"motion", "avenue", "appeal", "--seat-id", "red-lens-evidence", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
-			guards: "STANDING IS OPEN ON PURPOSE and this pins it. A motion belongs to the run, not " +
-				"to its filer — a lens files a safety petition and it is BLUE the granted relief " +
-				"binds. The code comment used to say `the filer` while the code checked nobody, so " +
-				"the doc was the wrong half.",
+			act:   seatStep{"avenue", "move", "--seat-id", "blue-respond", "--id", "Q1", "--as", "pursued", "--reason", "the open question turns on exactly this line"},
+			guards: "A RULING ON AN AVENUE IS AN ARGUMENT, NOT A COMMAND, and this pins it: it binds " +
+				"no move, so what blue does about one it disagrees with is the move itself. A " +
+				"guard that refused the move would leave blue no act at all against the ruling.",
+		},
+		{
+			name:    "an avenue motion is the chair's, and another seat is told so",
+			setup:   []seatStep{propose, {"motion", "avenue", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
+			act:     seatStep{"motion", "avenue", "rule", "--seat-id", "blue-respond", "--id", "Q1", "--as", "endorsed", "--reason", "ruling my own avenue"},
+			refused: "the chair's `motion avenue`",
+			guards: "The avenue subject holds a ruling and nothing else, so it is on the chair's " +
+				"surface alone. Absent-because-not-yours must not read as absent-by-design: the " +
+				"refusal names whose it is.",
 		},
 		{
 			name:    "a grade motion names a gap that exists",

@@ -205,7 +205,7 @@ CREATE TABLE "enum_grade_ruling" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('accepted', 'the filer is right and the grade should move. The ruling moves nothing itself: the gap''s originating lens moves it with `regrade`, so say in --reason which grade and to what');
-INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('rejected', 'the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion');
+INSERT INTO "enum_grade_ruling" ("value", "means") VALUES ('rejected', 'the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion');
 
 CREATE TABLE "enum_petition_ruling" (
   "value" TEXT PRIMARY KEY,

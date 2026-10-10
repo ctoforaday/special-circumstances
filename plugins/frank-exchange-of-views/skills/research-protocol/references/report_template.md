@@ -67,7 +67,7 @@
                                               each with its reason (the counter), in the subject's terms. A line abandoned
                                               with no `pursued` step on the record is tagged [abandoned before pursuit], so
                                               the tag never claims a pursuit the record does not hold. Who proposed a
-                                              line, the path its status took, red's ruling and any appeal are the debate,
+                                              line, the path its status took and red's ruling are the debate,
                                               not the subject: they render in avenues.md and judgments.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
@@ -107,8 +107,8 @@
 # avenues.md — each avenue and what became of it
 
 ## (by fate)                             <!-- [RECORD] every avenue grouped by its current fate, each with its hypothesis,
-                                              the PATH its status took epoch by epoch, the seat that last moved it, red's
-                                              ruling and any appeal; then the avenues still awaiting a decision. The same
+                                              the PATH its status took epoch by epoch, the seat that last moved it and red's
+                                              ruling; then the avenues still awaiting a decision. The same
                                               rendering a seat reads through the tool. report.md carries only each avenue's
                                               fate and reason; this is where how it got there lives. Omitted when the run
                                               recorded no avenue. -->

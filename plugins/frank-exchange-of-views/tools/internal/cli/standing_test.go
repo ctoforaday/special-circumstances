@@ -112,7 +112,7 @@ func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 }
 
 // A MOTION CARRIES IT TOO, and it is here because the motion verbs reach Emit by a different route:
-// they are built from a bare cobra.Command rather than through NewKeyed. Filing, ruling and appealing
+// they are built from a bare cobra.Command rather than through NewKeyed. Filing and ruling
 // are writes, a bench ruling is the act most likely to flip `complete`, and nothing else in this file
 // drives a verb built that way.
 func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
