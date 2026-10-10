@@ -83,7 +83,11 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 			// The grade subject is on every surface, so the refusal is the subject's own: it names
 			// the verbs the seat holds there.
 			grade := d.refused("an appeal of the grade ruling", seatID, "motion", "grade", "appeal", "--id", m, "--reason", "the ruling ignored the source")
-			if !strings.Contains(grade, "has no `appeal` verb — it has file") {
+			holds := "it has file"
+			if seatID == "red-chair" {
+				holds = "it has rule"
+			}
+			if !strings.Contains(grade, "has no `appeal` verb — "+holds) {
 				t.Errorf("the refusal of a grade appeal does not say what a grade motion holds for %s:\n%s", seatID, grade)
 			}
 			// The avenue subject is on the ruler's surface alone.
@@ -100,8 +104,13 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 			}
 
 			// WHAT THE SEAT DOES INSTEAD IS ON ITS SURFACE AND ADMITTED: the gap goes before the
-			// bench, and blue says what it does with the avenue in a move.
-			d.docketMotion("a docket motion on the gap whose grade ruling the seat disagrees with", seatID)
+			// bench, and blue says what it does with the avenue in a move. The bench rules docket
+			// motions and files none: what it holds against a grade ruling is a new grade motion.
+			if seatID == "judge" {
+				d.gradeMotion("a new grade motion on another axis, by the bench", seatID, "impact", true)
+			} else {
+				d.docketMotion("a docket motion on the gap whose grade ruling the seat disagrees with", seatID)
+			}
 			if seatID == "blue-respond" {
 				d.admitted("a move of the avenue against its ruling", seatID, "avenue", "move", "--id", "Q1", "--as", "pursued",
 					"--reason", "the ruling reads the question too narrowly, and this line answers it")

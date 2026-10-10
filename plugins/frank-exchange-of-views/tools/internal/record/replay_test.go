@@ -360,7 +360,12 @@ func validateContractCases() []validateContract {
 func TestValidateVerbContracts(t *testing.T) {
 	for _, tc := range validateContractCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(mustRun(t, newRun(t)), "red-chair", tc.typ, tc.p)
+			// An avenue is blue's to propose: the chair rules on them and files none.
+			seat := "red-chair"
+			if tc.typ == recordpb.EventType_EVENT_TYPE_AVENUE {
+				seat = "blue-respond"
+			}
+			err := validate(mustRun(t, newRun(t)), seat, tc.typ, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)

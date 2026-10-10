@@ -31,7 +31,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		// THE GAP REFERENCE MOVED TO THE FILING. `bench opinion --id` named the gap; the bench's
 		// ruling names the MOTION, so the dangling-gap case this row has always pinned is now
 		// `motion docket file --id`, and the dangling-motion case is the row below it.
-		{"motion docket file --id", "no mint event created", []string{"motion", "docket", "file", "--seat-id", "judge",
+		{"motion docket file --id", "no mint event created", []string{"motion", "docket", "file", "--seat-id", "red-chair",
 			"--id", "G99", "--reason", "escalating a gap nobody minted"}},
 		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge",
 			"--id", "M9", "--as", "remanded", "--principle", "p", "--tension", "t",

@@ -57,7 +57,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
-  - A grade motion is a side's motion contesting a gap's grade, ruled by the chair.
+  - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
@@ -133,7 +133,7 @@ Enumerated values:
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
 §15 (on 3 pages):
-Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
+Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
 §16 (on 7 pages):
 Global Flags:
@@ -487,7 +487,7 @@ file a docket motion — the tool assigns its id.
 
 It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.
 
-(Any seat may file; exactly one r…) → SHARED §15
+(Every seat but the one that rule…) → SHARED §15
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -508,9 +508,9 @@ file a grade motion — the tool assigns its id.
 
 (ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §14
 
-It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before the bench with `motion docket file`.
+It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that.
 
-(Any seat may file; exactly one r…) → SHARED §15
+(Every seat but the one that rule…) → SHARED §15
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -542,7 +542,7 @@ file a petition motion — the tool assigns its id.
 
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
-(Any seat may file; exactly one r…) → SHARED §15
+(Every seat but the one that rule…) → SHARED §15
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 

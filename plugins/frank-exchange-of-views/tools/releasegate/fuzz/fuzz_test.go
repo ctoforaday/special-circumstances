@@ -271,6 +271,12 @@ type runner struct {
 	// that answers the first. It fails the run: an act stands as filed, and the refusal of a
 	// second is where a seat learns what answers a wrong one.
 	repeatErr string
+	// rulerFilingsRefused counts the filings the tool refused the seat that rules their subject —
+	// the chair's grade motion, the bench's docket motion. The sweep gates it at zero.
+	rulerFilingsRefused int
+	// rulerFilingErr is the first such filing the tool admitted, or refused for another reason
+	// than the gavel. It fails the run: a motion its own ruler filed is one no other seat can rule.
+	rulerFilingErr string
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
@@ -557,6 +563,27 @@ func (r *runner) noteApplyMiss(why string) {
 	r.applyMisses[why]++
 }
 
+// rulerFilingRefused files a motion as the seat that rules its subject, and holds the tool to
+// refusing it for that reason (record's rulerfiles.go, through the surface's refusal).
+func (r *runner) rulerFilingRefused(seatID string, args ...string) {
+	out, err := r.exec(append([]string{args[0], args[1], args[2], "--seat-id", seatID}, args[3:]...)...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	what := seatID + "'s `" + strings.Join(args[:3], " ") + "`"
+	switch {
+	case err == nil:
+		if r.rulerFilingErr == "" {
+			r.rulerFilingErr = what + " was admitted, and that seat rules the subject: " + firstLine(out)
+		}
+	case !strings.Contains(out, "so `file` is not on your surface") || !strings.Contains(out, "is one no other seat can rule"):
+		if r.rulerFilingErr == "" {
+			r.rulerFilingErr = what + " was refused without saying that its ruler files nothing on the subject: " + firstLine(out)
+		}
+	default:
+		r.rulerFilingsRefused++
+	}
+}
+
 // noteEstoppelMiss records WHY the estoppel drive declined, so `estoppels=0` names its reason.
 func (r *runner) noteEstoppelMiss(why string) {
 	r.mu.Lock()
@@ -681,6 +708,12 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 		mid, _ := d["motion_id"].(string)
 		if mid == "" {
 			continue
+		}
+		// THE RULER FILES NO MOTION ON ITS OWN SUBJECT: the chair reaching for a grade motion on a
+		// gap whose motion it is about to rule is refused, and the motion it rules is blue's.
+		if r.coin(25) {
+			r.rulerFilingRefused(seatID, "motion", "grade", "file", "--id", id, "--dimension", pick(r.rng, disputeDims),
+				"--proposed", "high", "--reason", "fuzz: the chair contesting a grade it rules on")
 		}
 		if _, err := r.exec("motion", "grade", "rule", "--seat-id", seatID, "--id", mid,
 			"--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
@@ -2574,6 +2607,9 @@ type outcome struct {
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
 	repeatsRefused int
+	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
+	// (runner.rulerFilingsRefused).
+	rulerFilingsRefused int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -2970,6 +3006,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.repeatErr != "" {
 		res.err = "a repeated act: " + r.repeatErr
+		return res
+	}
+	if r.rulerFilingErr != "" {
+		res.err = "a ruler's filing: " + r.rulerFilingErr
 		return res
 	}
 	if r.passOverAnotherSeat != "" {
@@ -3512,6 +3552,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.avenueMoves = r.avenueMoves
 	res.positionsRefused = r.positionsRefused
 	res.repeatsRefused = r.repeatsRefused
+	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT THAT OWES NONE — read off the record, so a refusal
 	// that logged and wrote the act anyway fails here.
@@ -4180,6 +4221,7 @@ func TestFuzzDebate(t *testing.T) {
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
 	repeatsRefused := 0                    // second acts refused in a sitting that holds one, naming the answering act
+	rulerFilingsRefused := 0               // filings refused the seat that rules their subject
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
 
@@ -4244,6 +4286,7 @@ func TestFuzzDebate(t *testing.T) {
 			avenueMoves += o.avenueMoves
 			positionsRefused += o.positionsRefused
 			repeatsRefused += o.repeatsRefused
+			rulerFilingsRefused += o.rulerFilingsRefused
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -4353,6 +4396,12 @@ func TestFuzzDebate(t *testing.T) {
 		// that stopped repeating an act would leave those refusals unreached behind a green sweep.
 		if repeatsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", completed)
+		}
+		// THE RULER-FILES-NOTHING GATE. The chair's grade motion and the bench's docket motion are
+		// refused at the surface; a drive that stopped reaching for them would leave the refusal
+		// unreached behind a green sweep.
+		if rulerFilingsRefused == 0 {
+			t.Errorf("fuzz drove ZERO refused ruler filings across %d runs — neither the chair filed a grade motion nor the bench a docket motion, so the refusal of a filing by its subject's ruler is unexercised (false green)", completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267
@@ -5324,14 +5373,6 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	}
 }
 
-// mergeFilerFor names the CHAIR seat that escalates a gap to the bench in the sitting the given
-// judge seat is holding. The chair for round N acts before the bench does, so it is already
-// registered by the time this is called; `judge-terminal` follows the last round, so it takes the
-// highest chair seat on the record.
-//
-// It falls back to the judge's own id rather than skipping the drive: a fallback that returned ""
-// would silently stop exercising both verbs, which is the failure this whole helper was rewritten
-// to stop reporting as coverage.
 // unruledDocketMotion reads the motions projection for the docket motion on gapID that has no
 // ruling yet — the one the dispatch filed — or "" when there is none.
 func (r *runner) unruledDocketMotion(gapID string) string {
@@ -5361,17 +5402,10 @@ func (r *runner) unruledDocketMotion(gapID string) string {
 	return ""
 }
 
-func (r *runner) mergeFilerFor(judgeSeatID string) string {
-	// Roundless there is one chair, and either it has registered or it has not. The old body
-	// matched the judge's round out of its id and looked for the chair of the same round; neither
-	// id carries a round now.
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.registered["red-chair"] {
-		return "red-chair"
-	}
-	return judgeSeatID
-}
+// docketFiler is the seat that files the fallback docket motion the bench then rules: the chair,
+// which sits before the bench does. Never the bench — it rules docket motions and files none, so a
+// filing in its name is refused and the drive would rule nothing.
+const docketFiler = "red-chair"
 
 // settledByFuzzBench is the proposition every fuzz ruling bars, on the record and on the envelope.
 const settledByFuzzBench = "the proposition this ruling bars"
@@ -5395,9 +5429,12 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	// that before this read the board. The fallback filing stays for a gap no dispatch docketed,
 	// and it files as the CHAIR seat, never the bench (the gavel problem in miniature).
 	motionID := r.unruledDocketMotion(gapID)
+	// THE BENCH FILES NO DOCKET MOTION: reaching for one on the gap it is about to rule is refused.
+	if r.coin(25) {
+		r.rulerFilingRefused(seatID, "motion", "docket", "file", "--id", gapID, "--reason", "fuzz: the bench docketing "+gapID+" to itself")
+	}
 	if motionID == "" {
-		filer := r.mergeFilerFor(seatID)
-		out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", filer, "--id", gapID,
+		out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", docketFiler, "--id", gapID,
 			"--reason", "fuzz: "+gapID+" is contested and is the bench's to settle")
 		if err != nil {
 			return // recorded by noteExec under `motion docket file`

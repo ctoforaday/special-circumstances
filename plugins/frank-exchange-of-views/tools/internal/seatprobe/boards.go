@@ -79,7 +79,7 @@ type Avenue struct {
 // is the gate, and this is the state it demands.
 type Motion struct {
 	Subject string // grade | petition
-	// Filer is who files it. A grade motion is blue's; a petition may come from any seat.
+	// Filer is who files it. A grade motion is blue's; a petition may come from any seat but the bench.
 	Filer string
 	// GapID, Dimension and Proposed carry a grade motion; Class and Relief carry a petition.
 	GapID, Dimension, Proposed, Class, Relief string
@@ -363,7 +363,7 @@ Reversibility under load was not tested.
 		},
 		Expect: []Expectation{
 
-			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a motion is filed by ANY seat. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
+			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a docket motion is filed by any seat but the bench. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond", Verb: "avenue move", Because: "Two avenues are ruled and neither has a fate. Every avenue at proposed or pursued owes a MOVE each epoch — an avenue declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 avenues land in round 0 and never change."},
 			{Seat: "blue-respond", Verb: "position", Because: "The epoch's narrative renders as the report's BLUE section from the record. An epoch with no position leaves the transcript with a hole where blue's account should be."},
 		},
@@ -546,7 +546,7 @@ The working group's standard has been withdrawn since the benchmark was run.
 			{Seat: "red-lens-evidence", Verb: "verify", Because: "A cited claim is checked against what the source actually says, and the confidence is the whole content of that check. Reading the source and saying so in prose leaves the citation ledger empty."},
 			{Seat: "red-lens-evidence", Verb: "corroborate", Because: "The methodology claim rests on a standard BLUE NEVER CITED, so there is no anchor to verify against — and `verify` requires one. The source red goes and finds is its own act with its own verb, and the alternative is a lens that reads the standard, learns it was withdrawn, and has nowhere to put that but prose."},
 			{Seat: "red-lens-evidence", Verb: "reproduce", Because: "A proof is audited by RE-RUNNING it, not by reading it — and then judged for whether it establishes the claim at all. `print(\"7 is prime\")` reproduces perfectly forever."},
-			{Seat: "red-lens-evidence", Verb: "motion petition file", Because: "A lens that believes proceeding would require asserting what it thinks false has one channel, and it is not prose. Every seat may file; the bench rules."},
+			{Seat: "red-lens-evidence", Verb: "motion petition file", Because: "A lens that believes proceeding would require asserting what it thinks false has one channel, and it is not prose. Every seat but the bench may file; the bench rules."},
 			{Seat: "red-lens-evidence", Verb: "log", Because: "The report cites a claim whose source is behind a paywall this seat cannot reach. There is no verb for `I could not read it`, so the accounted move is to say so in the log — and a lens that instead grades the citation on the abstract has produced a verification that never happened."},
 		},
 	}
@@ -819,10 +819,9 @@ func Boards() map[string]Board {
 // <verb>", with the argument for why not.
 //
 // THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
-// file` is offered to every seat because a motion is filed by ANY seat and ruled by one — but
-// grades are blue's to contest. A lens files findings; a chair sets the grades itself; a bench
-// disposes of gaps rather than arguing their axes. The verb-slots below exist and no board here
-// reaches them.
+// file` is offered to every seat but the chair, which rules it — but grades are blue's to
+// contest. A lens files findings; a bench disposes of gaps rather than arguing their axes. The
+// verb-slots below exist and no board here reaches them.
 //
 // That is capability offered without purpose, and the choice report would otherwise show every
 // non-blue seat permanently "using 6 of 10". Two ways out, and neither is this map: scope the
@@ -830,12 +829,9 @@ func Boards() map[string]Board {
 // where a seat can read it. Tracked rather than quietly excused — see the issue named below.
 var NoSituation = map[string]string{
 	"lens motion docket file":    "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
-	"bench motion docket file":   "the bench RULES docket motions. Filing one to itself is the gavel problem in miniature — the forum putting a question to the forum, then answering it.",
 	"lens motion grade file":     "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
-	"chair motion grade file":    "the chair SETS the grades. Filing a motion against its own grade is an argument with itself, and `regrade` is the channel for changing its mind.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
-	"bench motion petition file": "the bench RULES petitions. Filing one to itself is the gavel problem in miniature.",
 }
 
 // AlwaysTaken are the verbs no board needs to bait, with why.

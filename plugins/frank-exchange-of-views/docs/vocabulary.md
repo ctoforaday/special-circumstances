@@ -478,7 +478,7 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 ## grade motion
 
-A grade motion is a side's motion contesting a gap's grade, ruled by the chair.
+A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

@@ -166,7 +166,11 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
 		t.Error("a direction ruling named Q1, which no avenue created, and was accepted")
 	}
-	if _, err := Append(id, &recordpb.Avenue{
+	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
+	if _, _, err := RegisterSeat(blue, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(blue, &recordpb.Avenue{
 		AvenueId: proto.String("Q1"),
 		Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED),
 		Line:     proto.String("read the adjacent literature"),

@@ -57,7 +57,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				return err
 			},
 			// The ruler is told the act that answers its ruling.
-			wants:  []string{`motion M1 is already ruled "rejected" by red-chair`, "The first stands. If it was wrong, say so in a docket motion on the gap, or a new grade motion while the gap is open"},
+			wants:  []string{`motion M1 is already ruled "rejected" by red-chair`, "The first stands. If it was wrong, say so in a docket motion on the gap; the record"},
 			motion: "M1", ruling: "rejected",
 		},
 		{
