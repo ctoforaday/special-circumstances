@@ -127,15 +127,16 @@ func PartyOf(e *Event) string {
 // role it belongs to.
 //
 // It is the half of the role guard that survives where there is no role to enforce — the motion
-// commands, whose parent is their SUBJECT. Every seat may FILE any motion and that asymmetry is
-// deliberate; being a seat at all is not optional, and it was not being checked.
+// commands, whose parent is their SUBJECT. Every seat files on the subjects it does not rule
+// (rulerfiles.go) and that asymmetry is deliberate; being a seat at all is not optional, and it
+// was not being checked.
 func RequireDispatchedSeat(seatID string) error {
 	if roleOfSeat(seatID) != "" {
 		return nil
 	}
 	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace — "+
 		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created. "+
-		"Every seat may file a motion, but only a seat the engine created", seatID)
+		"A motion is filed by a seat the engine created", seatID)
 }
 
 // CheckSeatRole enforces the binding at the CLI boundary.
@@ -151,7 +152,7 @@ func RequireDispatchedSeat(seatID string) error {
 //	blue position      --seat-id totally-invented   REFUSED  ("does not belong to any role namespace")
 //	motion grade file  --seat-id totally-invented   ACCEPTED ("motion M2 filed (grade)")
 //
-// Every seat may FILE any motion — that asymmetry is deliberate and this does not touch it. What
+// Which seat files which subject is rulerfiles.go's question and this does not touch it. What
 // was lost is the other half of the same guard: that the seat id is one the engine created. A
 // motion attributed to an invented identity is rendered in the report, ruled on, and joined to a
 // gap, which is exactly the property the refusal's own message claims to protect ("a hand-invented

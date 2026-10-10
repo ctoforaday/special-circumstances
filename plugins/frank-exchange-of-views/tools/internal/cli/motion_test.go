@@ -68,7 +68,7 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	_, err := runAt(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "granted", "--reason", "granting my own petition")
 	if err == nil {
-		t.Fatal("the chair ruled a petition; a motion is filed by any seat and ruled by ONE, and that asymmetry is the mechanism")
+		t.Fatal("the chair ruled a petition; a motion is ruled by ONE seat, and that asymmetry is the mechanism")
 	}
 	for _, want := range []string{"bench", "red-chair"} {
 		if !strings.Contains(err.Error(), want) {
@@ -82,13 +82,25 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 }
 
 // A GRADE MOTION'S PAGE SAYS WHERE A SEAT THAT DISAGREES WITH ITS RULING GOES — the gap before the
-// bench — and that act is on the surface of every seat the page is shown to.
+// bench — on the subject's page for every seat, and on each filing page a seat holds: the chair
+// rules grade motions and files none, and the bench rules docket motions and files none.
 func TestAGradeMotionPageNamesTheDocketRoute(t *testing.T) {
 	for _, seatID := range []string{"blue-respond", lensSeat, "red-chair", "judge"} {
-		for _, page := range [][]string{{"motion", "grade"}, {"motion", "grade", "file"}} {
-			if h := help(t, append(append([]string{}, page...), "--help", "--seat-id", seatID)...); !strings.Contains(h, "puts the gap before the bench with `motion docket file`") {
+		pages := [][]string{{"motion", "grade"}}
+		if seatID != "red-chair" {
+			pages = append(pages, []string{"motion", "grade", "file"})
+		}
+		for _, page := range pages {
+			route := "files `motion docket file` on the gap, and the bench rules that"
+			if seatID == "judge" {
+				route = "puts the gap before you in a docket motion"
+			}
+			if h := help(t, append(append([]string{}, page...), "--help", "--seat-id", seatID)...); !strings.Contains(h, route) {
 				t.Errorf("%s: %v does not name the docket route:\n%s", seatID, page, h)
 			}
+		}
+		if seatID == "judge" {
+			continue
 		}
 		if h := help(t, "motion", "docket", "file", "--help", "--seat-id", seatID); !strings.Contains(h, "a seat that disagrees with a ruling on the gap's grade") {
 			t.Errorf("%s: the docket filing page does not say it is the route for a disputed grade ruling:\n%s", seatID, h)

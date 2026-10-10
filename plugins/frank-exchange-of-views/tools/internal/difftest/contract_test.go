@@ -154,6 +154,10 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// mis-naming the two rows below record. The missing-FIELD refusal for the bench's ruling
 		// is pinned where it can be reached, in the difftest scenario of that name.
 		{"docket rule without the gavel", []string{"motion", "docket", "rule", "--id", noSuchMotion, "--as", "remanded", "--reason", "r"}},
+		// THE OTHER HALF OF THE GAVEL: the seat that rules a subject files nothing on it.
+		{"grade motion filed by the chair, which rules it", []string{"motion", "grade", "file", "--id", "GAP001", "--dimension", "severity", "--proposed", "low", "--reason", "r"}},
+		{"docket motion filed by the bench, which rules it", []string{"motion", "docket", "file", "--seat-id", "judge", "--id", "GAP001", "--reason", "r"}},
+		{"petition filed by the bench, which rules it", []string{"motion", "petition", "file", "--seat-id", "judge", "--class", "safety", "--relief", "x", "--reason", "r"}},
 		// The closed sets. Each names what would have worked AND what the near-miss
 		// would have done, because the near-miss is the case that used to be recorded
 		// silently rather than refused.
@@ -172,7 +176,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// the same reason as the rest of this catalogue: the refusal is the seat's
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
-		{"grade motion dimension outside the set", []string{"motion", "grade", "file", "--id", "GAP001", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
+		{"grade motion dimension outside the set", []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
 		{"verification outcome outside the set", []string{"verify", "--quote", "c", "--title", "r", "--independent", "--as", "banana", "--confidence", "high"}},
 		// The two cases that used to be unstatable: a verification that does not say WHICH
 		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb

@@ -58,7 +58,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
   - A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
-  - A grade motion is a side's motion contesting a gap's grade, ruled by the chair.
+  - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
@@ -70,22 +70,22 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (on 21 pages):
+§2 (on 20 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
 
-§3 (on 21 pages):
+§3 (on 20 pages):
   X=$(cat <<'EOF'
   your text — backticks, apostrophes and $ signs are all literal here
   EOF
   )
   … "$X"
 
-§4 (on 6 pages):
+§4 (on 5 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§5 (on 19 pages):
+§5 (on 18 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -104,11 +104,11 @@ THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-fo
 §9 (on 2 pages):
 EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
 
-§10 (on 3 pages):
+§10 (on 2 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
-§11 (on 3 pages):
-Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
+§11 (on 2 pages):
+Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
 §12 (on 7 pages):
 Global Flags:
@@ -431,7 +431,7 @@ file a docket motion — the tool assigns its id.
 
 It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.
 
-(Any seat may file; exactly one r…) → SHARED §11
+(Every seat but the one that rule…) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -447,38 +447,6 @@ Flags:
 
 (Global Flags:) → SHARED §5
 ==============================================================================
-$ feov-record motion grade file --help
-file a grade motion — the tool assigns its id.
-
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §10
-
-It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before the bench with `motion docket file`.
-
-(Any seat may file; exactly one r…) → SHARED §11
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
-
-(X=$(cat <<'EOF') → SHARED §3
-
-Usage:
-  feov-record motion grade file [flags]
-
-Flags:
-      --dimension dimension-value   REQUIRED — the grade axis you contest
-  -h, --help                        help for file
-      --id gap-id                   REQUIRED — the gap this motion is about
-      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --reason string               → SHARED §4
-
-Enumerated values:
-  --dimension
-    severity    how bad the defect is in itself
-    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
-    impact      how bad the consequence is if it lands
-    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
-
-(Global Flags:) → SHARED §5
-==============================================================================
 $ feov-record motion grade rule --help
 rule on a grade motion — this verb is the chair seat's, and it appears only on that surface.
 
@@ -488,8 +456,7 @@ rule on a grade motion — this verb is the chair seat's, and it appears only on
 
 (X=$(cat <<'EOF') → SHARED §3
 
-IF WHAT YOU RECORDED WAS WRONG, say so in a docket motion on the gap, or a new grade motion while
-the gap is open.
+IF WHAT YOU RECORDED WAS WRONG, say so in a docket motion on the gap.
 
 Usage:
   feov-record motion grade rule [flags]
@@ -514,7 +481,7 @@ file a petition motion — the tool assigns its id.
 
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
-(Any seat may file; exactly one r…) → SHARED §11
+(Every seat but the one that rule…) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 

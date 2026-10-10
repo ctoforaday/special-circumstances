@@ -11,9 +11,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// A PETITION IS A PARTY'S RIGHT, AND THE BENCH IS NOT A PARTY (#1191). The bench rules every
-// petition and halts the run itself where it must; `file` is off its surface, and a bench that
-// reaches for it is told why rather than that the verb does not exist.
+// THE BENCH RULES EVERY PETITION AND FILES NONE (#1191) — the rule every gavel is under
+// (TestNoGavelHolderFilesItsOwnSubject). It halts the run itself where it must; `file` is off its
+// surface, and a bench that reaches for it is told why rather than that the verb does not exist.
 func TestTheBenchFilesNoPetition(t *testing.T) {
 	if h := help(t, "motion", "petition", "--help", "--seat-id", "judge"); strings.Contains(h, "\n  file ") {
 		t.Errorf("the bench's petition group offers `file`:\n%s", h)
@@ -25,7 +25,8 @@ func TestTheBenchFilesNoPetition(t *testing.T) {
 	stageEvents(t, runDir)
 	out, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "judge",
 		"--class", "safety", "--relief", "stop", "--reason", "the bench petitioning itself")
-	if err == nil || !strings.Contains(out+err.Error(), "the bench is not a party") {
+	if err == nil || !strings.Contains(out+err.Error(), "a petition motion is ruled by the bench seat, so `file` is not on your surface") ||
+		!strings.Contains(out+err.Error(), "`halt` is yours") {
 		t.Errorf("the bench filed a petition, or was refused without the reason: %v\n%s", err, out)
 	}
 }

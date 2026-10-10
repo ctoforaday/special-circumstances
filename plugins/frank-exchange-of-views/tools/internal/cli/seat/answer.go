@@ -70,11 +70,11 @@ func teachAnswer(c *cobra.Command) {
 	for i, r := range rows {
 		switch {
 		case len(rows) == 1:
-			b.WriteString(", say so in " + r.Act)
+			b.WriteString(", " + r.Clause())
 		case i == 0:
-			b.WriteString(": " + r.When + ", say so in " + r.Act)
+			b.WriteString(": " + r.When + ", " + r.Clause())
 		default:
-			b.WriteString("; " + r.When + ", say so in " + r.Act)
+			b.WriteString("; " + r.When + ", " + r.Clause())
 		}
 	}
 	b.WriteString(".")

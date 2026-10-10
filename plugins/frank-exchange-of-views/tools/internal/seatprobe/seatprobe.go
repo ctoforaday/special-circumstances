@@ -47,8 +47,8 @@ import (
 // RoleVerbs is what each role may do, as the tree offers it. A verb absent from a seat's role is
 // not a choice it declined — it is one it never had, and the report must not confuse the two.
 //
-// THE MOTION VERBS ARE LISTED PER ROLE BY GAVEL, not by group membership: every seat may FILE any
-// motion, and exactly one role RULES each subject. Listing `motion petition rule` under blue would
+// THE MOTION VERBS ARE LISTED PER ROLE BY GAVEL, not by group membership: exactly one role RULES
+// each subject, and every other role FILES on it. Listing `motion petition rule` under blue would
 // report a verb blue cannot use as one it declined — the same conflation the doc above forbids,
 // arriving through the one group that is not scoped by role.
 // Surface is the verb set the tool actually offers, derived from the cobra tree.
@@ -60,8 +60,9 @@ import (
 // here. A gate holding its own copy of the surface measures the copy — the defect that let a
 // hand-written role list report "4 of 14" when the true figure was 4 of 18.
 //
-// THE MOTION VERBS ARE SCOPED BY GAVEL, not by group membership: every seat may FILE any motion
-// and exactly one role RULES each subject, so `motion petition rule` belongs to the bench alone.
+// THE MOTION VERBS ARE SCOPED BY GAVEL, not by group membership: exactly one role RULES each
+// subject and files nothing on it, so `motion petition rule` belongs to the bench alone and
+// `motion petition file` to every seat but the bench.
 //
 // THE GAVEL IS READ FROM THE SCHEMA, NOT COPIED HERE. This was a hand-written
 // map[string]string — the fourth copy of a fact the MotionSubject enum already carries as a
@@ -102,8 +103,13 @@ func NewSurface(paths []string) Surface {
 				byRole[rulerOf(subject)] = append(byRole[rulerOf(subject)], p)
 				continue
 			}
+			// THE FILING IS EVERY OTHER ROLE'S: the role that rules a subject files nothing on it,
+			// read from the same predicate the command tree mounts the two verbs on.
+			subj, _ := record.MotionSubjectEnum(subject)
 			for _, r := range Roles {
-				byRole[r] = append(byRole[r], p)
+				if !record.HoldsGavel(r, subj) {
+					byRole[r] = append(byRole[r], p)
+				}
 			}
 		}
 	}

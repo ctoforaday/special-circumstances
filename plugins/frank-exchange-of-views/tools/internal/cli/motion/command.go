@@ -12,8 +12,8 @@
 //
 // The other groups hang off a role node, and `seat.Of` reads the role from the command's
 // POSITION — a verb's parent IS its role. That cannot work here: under `motion grade file` the
-// parent is `grade`. And it should not work here, because a motion is not one seat's act. All
-// four seats file; merge and bench rule.
+// parent is `grade`. And it should not work here, because a motion is not one seat's act: the
+// chair and the bench each rule two subjects, and every seat files on the subjects it does not rule.
 //
 // So these verbs take the acting role from the SEAT'S IDENTITY rather than from tree position,
 // which is the model plans/command-groups.md stage 6 moves the whole tree to. It arrives early
@@ -73,14 +73,14 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	mount(subject(actingRole, "grade",
 		// THE CHAIR'S RULING IS THE LAST WORD ON THE MOTION, and the line says where a seat that
 		// disagrees goes: `rule` is the chair's verb and a second ruling is refused, so the forum
-		// left is the bench, which is reached by putting the GAP before it.
-		"contest a gap's grade: the chair rules, and its ruling stands — a seat that disagrees with it puts the gap before the bench with `motion docket file`",
+		// left is the bench, which is reached by putting the GAP before it (docketRoute).
+		"contest a gap's grade: the chair rules, and its ruling stands — "+docketRoute(actingRole),
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	mount(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — at the next chair sitting, before any party of that epoch sits",
 		[]string{flags.Class, flags.Relief}, nil))
 	mount(subject(actingRole, "docket",
-		"put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate",
+		"put a GAP before the bench: any seat but the bench files, the BENCH rules, and its disposition decides the gap's fate",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
 	mount(subject(actingRole, "avenue",
@@ -131,6 +131,11 @@ func rulerFor(name string) string {
 // proposed, so a filing verb here would be a second way to say what `blue avenue` already says.
 func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cobra.Command {
 	ruler := rulerFor(name)
+	subj := mustSubject(name)
+	// THE ONE QUESTION BOTH VERBS ARE MOUNTED ON: does this role hold the subject's gavel
+	// (record.HoldsGavel, the schema's `ruled_by`). It gets `rule` where it does and `file` where
+	// it does not, so no role is handed both.
+	holds := record.HoldsGavel(actingRole, subj)
 	c := &cobra.Command{
 		Use: name, Short: short, SilenceUsage: true,
 		// Tolerate unknown flags AT THE GROUP LEVEL so the Args check below is what answers.
@@ -159,18 +164,19 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 		// yours" reads as "does not exist", and a seat that believes a verb is missing works
 		// around it and loses the capability for the run. The verb IS missing here — and saying
 		// only that would tell a blue seat grade motions cannot be ruled at all.
-		if len(args) > 0 && args[0] == "rule" && actingRole != ruler {
+		if len(args) > 0 && args[0] == "rule" && !holds {
 			// NAMES BOTH PARTIES: the seat that holds the gavel, and the one that asked. Either
 			// alone sends a seat to the wrong fix — "the bench rules this" without saying who you
 			// are reads as advice, and "you are merge" without saying who does reads as a dead end.
 			return feov.Errorf(feov.RoleViolation,
 				"a %s motion is ruled by the %s seat, so `rule` is not on your surface; you are %s (%s). "+
-					"A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle",
+					"A motion is ruled by one seat, and that seat is never its filer — that asymmetry is the mechanism, not an obstacle",
 				name, ruler, seat.DispatchedAs(cmd), actingRole)
 		}
-		if len(args) > 0 && args[0] == "file" && name == petitionSubject && actingRole == ruler {
-			return feov.Errorf(feov.RoleViolation,
-				"a petition is a party's right, and the bench is not a party: you rule every petition, and where the run itself must stop, `halt` is yours")
+		// THE RULER NAMED A FILING ITS SUBJECT HAS: the same refusal, in the same words, the write
+		// gives a body that reaches it another way.
+		if len(args) > 0 && args[0] == "file" && fileFlags != nil && holds {
+			return record.RefuseRulerFiling(subj, seat.DispatchedAs(cmd), false)
 		}
 		named := "names no verb"
 		if len(args) > 0 {
@@ -178,25 +184,21 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 		}
 		return feov.Errorf(feov.Validation,
 			"%s %s motion %s — it has %s. If you expected one, its absence is the design, not an omission: see `motion %s --help`",
-			article(name), name, named, strings.Join(have, ", "), name)
+			record.Article(name), name, named, strings.Join(have, ", "), name)
 	}
-	// A PETITION IS A PARTY'S RIGHT, AND THE BENCH IS NOT A PARTY (#1191). It rules every petition
-	// and has `halt` for the case where it must stop the run itself; a petition of its own would
-	// convene a later sitting of the same seat to hear it.
-	if fileFlags != nil && !(name == petitionSubject && actingRole == ruler) {
-		c.AddCommand(newFile(name, fileFlags))
-	}
-	// ONLY THE GAVEL-HOLDER GETS THE VERB. Every seat may FILE — that asymmetry is the mechanism —
-	// and exactly one rules, which is a fact about which tree you are in rather than a refusal the
-	// verb performs. A seat that cannot rule this subject cannot name the command.
-	if actingRole == ruler {
+	// THE GAVEL-HOLDER GETS `rule`, AND EVERY OTHER SEAT GETS `file` — one branch, so a seat holds
+	// one of the two and never both. Which verb a seat has is a fact about which tree it is in
+	// rather than a refusal the verb performs: a seat that cannot rule this subject cannot name the
+	// command, and the seat that rules it cannot file on it (record's rulerfiles.go says why, and
+	// the write refuses the same filing by any other path).
+	switch {
+	case holds:
 		c.AddCommand(newRule(name, ruler, ruleFlags))
+	case fileFlags != nil:
+		c.AddCommand(newFile(actingRole, name, fileFlags))
 	}
 	return c
 }
-
-// petitionSubject is the petition's word in the MotionSubject enum.
-var petitionSubject = recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_PETITION)
 
 // prose pulls the one prose field, refusing an empty one by name.
 func prose(cmd *cobra.Command, verb, why string) (string, error) {

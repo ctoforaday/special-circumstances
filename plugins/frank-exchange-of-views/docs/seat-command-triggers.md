@@ -100,7 +100,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | ~~`bench opinion`~~ | ruling on a docketed item, with principle, tension and review-flag | — | EXECUTED (#681): RETIRED. The docket is a motion, so the disposition carries a motion id and joins to the ask that raised it — see the two `motion docket` rows above. Kept as a ledger row because this file's rows are history, not a command list |
-| `motion docket file` | an open gap you cannot settle yourself and the bench should | — | CLEAN. Filed by ANY seat — the chair because it owns what reaches the bench, blue to escalate a gap it believes red is wrong about |
+| `motion docket file` | an open gap you cannot settle yourself and the bench should | — | CLEAN. Filed by any seat but the bench, which rules it — the chair because it owns what reaches the bench, blue to escalate a gap it believes red is wrong about |
 | `motion docket rule` | the bench disposing of a docketed gap, with principle, tension, review-flag and settled | — | CLEAN. `remanded` answers the motion and sends the gap back to the debate: the dispatch readies its minting lens and blue for ONE more exchange on the ruling's stated direction, and if that exchange leaves it at impasse the dispatch dockets it again as a fresh filing — a second remand at impasse leaves it open at its limit. An open material gap still refuses a chair PASS throughout |
 | `bench outcome` | the run's terminal act | — | CLEAN. It carried no reasoning at all until a bench seat reached for `--reason`, found nothing, and filed the absence as friction — so `--reason` is required (#375): the verdict is derived, how the sitting ENDED is not |
 | `bench halt` | end the run on a safety boundary | `motion petition rule --as halt` | EXECUTED (#329, verified 2026-08-13): debate.js emits `ruling: 'halt'` zero times; the halt is `bench halt` and the petition enum rules `granted\|denied` only |
@@ -114,7 +114,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `motion grade file` | you dispute a gap's severity, likelihood, impact or complexity | `blue dispute` | EXECUTED (#344) |
+| `motion grade file` | you dispute a gap's severity, likelihood, impact or complexity | `blue dispute` | EXECUTED (#344). Filed by any seat but the chair, which rules it |
 | `motion grade rule` | red answering a grade motion | `merge dispute-respond` | EXECUTED (#344) |
 | ~~`motion grade appeal`~~ | CUT (2026-10-10) — pressing a rejected grade ruling | `motion docket file` | EXECUTED: 0 appeals against 64 rulings in 17 archived runs. A ruling stands, and a seat that disagrees with one puts the gap before the bench |
 | `motion avenue rule` | red ruling on a proposed avenue | `merge avenue-rule` (retired) | EXECUTED (#344) |

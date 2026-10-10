@@ -1047,6 +1047,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
 			return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
 		}
+		// THE FILER DOES NOT RULE THE SUBJECT (rulerfiles.go) — asked of every writer, because the
+		// verb's absence from the ruler's surface refuses only a seat that types it.
+		if err := requireFilerHoldsNoGavel(seatID, b.GetSubject(), false); err != nil {
+			return err
+		}
 		// THE FILING MUST BE THE SUBJECT'S OWN. This is the structural successor to the
 		// MotionFields loop, which checked that a value belonged to its (subject, key) pair. It
 		// cannot be that any more — `dimension` lives on GradeMotion and `class` on
@@ -1273,6 +1278,13 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
 			if err := requireAvenue(run, b.GetAvenueId(), "blue's `avenue move`", "--id"); err != nil {
+				return err
+			}
+		}
+		// A PROPOSAL IS THE AVENUE SUBJECT'S FILING, so the seat that rules on avenues proposes none
+		// (rulerfiles.go). A move files nothing.
+		if b.SupersedesStatus == nil {
+			if err := requireFilerHoldsNoGavel(seatID, recordpb.MotionSubject_MOTION_SUBJECT_AVENUE, true); err != nil {
 				return err
 			}
 		}

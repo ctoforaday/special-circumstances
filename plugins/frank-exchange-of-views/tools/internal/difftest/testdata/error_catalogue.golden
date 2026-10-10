@@ -676,7 +676,19 @@ Global Flags:
 
 ── docket rule without the gavel
 exit 2
-feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
+feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is ruled by one seat, and that seat is never its filer — that asymmetry is the mechanism, not an obstacle
+
+── grade motion filed by the chair, which rules it
+exit 2
+feov-record: a grade motion is ruled by the chair seat, so `file` is not on your surface; you are red-chair (chair). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The bench, blue and lens seats file one. To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.
+
+── docket motion filed by the bench, which rules it
+exit 2
+feov-record: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one.
+
+── petition filed by the bench, which rules it
+exit 2
+feov-record: a petition motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one. Where the run itself must stop, `halt` is yours.
 
 ── verdict in the wrong case
 exit 2
@@ -1008,9 +1020,9 @@ file a grade motion — the tool assigns its id.
 
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
-It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before the bench with `motion docket file`.
+It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that.
 
-Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
+Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
@@ -1386,7 +1398,7 @@ ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rul
 
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
-Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.
+Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every

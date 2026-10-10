@@ -1,6 +1,7 @@
 package motion
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,7 +20,7 @@ import (
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
 // `avenue` has none: proposing the line is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
-	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before the bench with `motion docket file`.",
+	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
 	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.",
 }
@@ -27,23 +28,29 @@ var fileSubjectSays = map[string]string{
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command
 // construction, so a new subject that forgot to say what filing it does fails at startup rather
 // than shipping a page that is silent about its own purpose.
-func fileSays(subject string) string {
+func fileSays(actingRole, subject string) string {
 	s, ok := fileSubjectSays[subject]
 	if !ok {
 		panic("motion: subject " + subject + " has a file verb and no fileSubjectSays sentence")
 	}
+	if strings.Contains(s, "%s") {
+		return fmt.Sprintf(s, docketRoute(actingRole))
+	}
 	return s
 }
 
-// article is the indefinite article for a subject word — "an avenue", "a grade".
-func article(word string) string {
-	if word != "" && strings.ContainsRune("aeiou", rune(word[0])) {
-		return "an"
+// docketRoute says where a seat that disagrees with a ruling on a grade goes, IN THE READER'S OWN
+// TERMS: the gap goes before the bench in a docket motion, which every seat but the bench files.
+// The bench reads the same pages — it files grade motions — and a page that handed it the filing
+// verb would name a command its surface does not carry.
+func docketRoute(actingRole string) string {
+	if record.HoldsGavel(actingRole, recordpb.MotionSubject_MOTION_SUBJECT_DOCKET) {
+		return "a seat that disagrees with it puts the gap before you in a docket motion"
 	}
-	return "a"
+	return "a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that"
 }
 
-func newFile(subject string, required []string) *cobra.Command {
+func newFile(actingRole, subject string, required []string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "file",
 		Short: "file a " + subject + " motion — the tool assigns its id",
@@ -60,8 +67,8 @@ func newFile(subject string, required []string) *cobra.Command {
 		// had already chosen this one.
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
 			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
-			fileSays(subject) + "\n\n" +
-			"Any seat may file; exactly one rules, and `rule` appears only on that seat's surface.",
+			fileSays(actingRole, subject) + "\n\n" +
+			"Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.",
 		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
 		// as, an agent with no register is registered first or refused, and the refusal renders in
 		// the envelope every verb's does. The filer id is what found_by, estoppel and the bench read.
@@ -225,14 +232,14 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	e := record.MotionVerdictEnum(subject)
 	c := &cobra.Command{
 		Use:   "rule",
-		Short: "rule on " + article(subject) + " " + subject + " motion (the " + ruler + " seat's)",
+		Short: "rule on " + record.Article(subject) + " " + subject + " motion (the " + ruler + " seat's)",
 		// THE PAGE HAS TO SAY WHICH SUBJECT IT IS — `file` carries one for the same reason. `rule`
 		// differs from it in that it is not on every seat's surface at all, so the page a seat CAN
 		// open should also say which ones it cannot.
 		//
 		// Why `rule` is missing from the other surfaces is said to the seats that meet its absence
 		// — the subgroup's refusal in command.go — not to the gavel-holder, who never does.
-		Long: "rule on " + article(subject) + " " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
+		Long: "rule on " + record.Article(subject) + " " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
 			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two each convene a " +
 			"sitting of their own: a petition at the next chair sitting, before any party of that epoch " +
