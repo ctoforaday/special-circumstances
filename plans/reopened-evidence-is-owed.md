@@ -205,7 +205,7 @@ PASS costs one more epoch (2–5 min). Not modelled: what the lens FINDS. A one-
 | R6 | The owed sitting retires the lens earlier (F8) | M × L × M | Ruled. `TestAReopenedSittingCountsInTheRetirementFold` pins it |
 | R7 | The fuzz never reopens a checked citation, so the arm is undriven | M × M × L | Gate: `reopened readied` > 0 at `surfaceQuorum`; if it reads zero, blue's `cite` drive (`fuzz_test.go:1934`) quotes the sentence the edit drive rewrites |
 | R8 | The m19 archive is epoch 24; the next event-shape change makes the live reader refuse it | H × L × L | Gate: `TestM19…` fails in `check`. That change's `migrate` translation routes the test through `Migrate`, as `remaplists_test.go:336` does; the test finds its fold points by content, never by literal event id |
-| R9 | With no evidence lens in the cast (F7) a run passes the gate and Part 2's screen FAILs its reopened citation | L × M × L | UNRESOLVED, owed before the Part 2 PR: whether the screen follows F7. `TestNoEvidenceLensInTheCastNoBlocker` asserts the screen's row either way |
+| R9 | With no evidence lens in the cast (F7) a run passes the gate while Part 2's screen sees a reopened citation the report still cites | L × M × L | The screen follows F7 (derived from it, 2026-10-10): with no evidence lens in the cast the row reads "unchecked since the edit — no evidence lens in this cast" and does not FAIL, so the gate and the audit agree. `TestNoEvidenceLensInTheCastNoBlocker` asserts that row |
 | R10 | `fix/anchor-placement-guards` (in flight) edits `blue/edit.go` and `help/edit.md` | M × L × L | The `:162` and `:25` references move when it lands; each part's PR re-runs the census |
 
 ## V. Verification Plan
