@@ -21,15 +21,18 @@ Research that survives an adversary.
   A `refutes` or `absent` reading is not a reference backing the sentence and is never spliced: it
   is red finding the text unsupported, which is a defect, and it goes to the board as a finding —
   a PASS is refused until one is raised for it.
-- **An anchor is part of the text you edit.** The report as the tool renders it prints every
-  anchor, of every kind — `<!--fx:…-->`, `<!--cite:…-->`, `<!--proof:…-->` and `<!--gap:…-->` — as
-  it is; quote the span as printed and copy each token into the replacement like any other
-  character. Every kind lives one way: the tool places an anchor at the end of its quote, an edit
-  carries it, the tool puts back one whose sentence the edit kept word for word, an edit that drops
-  or types one is refused, and retiring its claim is the one way it leaves. A quote that stops just
-  short of the anchor on the sentence it rewrites is refused, and the refusal names the token to
-  carry. An edit that moves the words under an anchor REOPENS it — the reference stands, its
-  referent moved, so a verification of it is stale rather than refuted.
+- **An anchor is part of the text you edit, and it belongs to the sentence that holds its claim.**
+  The report as the tool renders it prints every anchor, of every kind — `<!--fx:…-->`,
+  `<!--cite:…-->`, `<!--proof:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
+  one way: the tool places an anchor at the end of its quote, an edit carries it, the tool puts back
+  one whose sentence the edit kept word for word, an edit that drops or types one is refused, and
+  retiring its claim is the one way it leaves. An anchor your quote leaves out stays where it
+  stands. One your quote carries goes into the replacement after the sentence that now holds its
+  claim — never after the last sentence by default. When you split a sentence, each anchor goes
+  with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
+  read what each one marks on the record before you place it. An edit that moves the words under
+  an anchor REOPENS it — the reference stands, its referent moved, so a verification of it is stale
+  rather than refuted.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
