@@ -273,11 +273,16 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
-	// THE LENS OWES ONE THING OF ITS OWN: RAISING A CONTRADICTION IT READ. Beyond the two duties
-	// every seat holds above this switch (the log channel, and the sitting it was dispatched for),
-	// a contradicting source the lens verified and no finding raises is a PASS blocker whose owner
-	// is that lens (passBlockersOf), and dispatch readies the lens for it once — so it qualifies
-	// under the rule at the top of this file, and it is the kind table's own sentence.
+	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, AND — THE EVIDENCE
+	// LENS — CHECKING A REOPENED CITATION OR PROOF. Beyond the two duties every seat holds above
+	// this switch (the log channel, and the sitting it was dispatched for), each is a PASS blocker
+	// whose owner is that lens (passBlockersOf), and dispatch readies the lens for it once — so it
+	// qualifies under the rule at the top of this file, and it is the kind table's own sentence.
+	//
+	// A REOPENED ITEM IS LISTED ONLY IN A SITTING THAT OPENED AFTER ITS EDIT. A sitting already open
+	// when the edit landed cannot clear the item (reopenedEvidence), so holding that sitting open
+	// on it would hold it on work it cannot do; the next plan readies the lens, and that sitting
+	// lists it.
 	//
 	// Nothing else blocks a lens. The acts a lens genuinely has open to it — verifying a citation
 	// nobody checked, corroborating one blue never cited, re-running a proof nobody re-ran — come
@@ -285,9 +290,13 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// it owed.
 	case "lens":
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
-			if b.Kind == BlockerContradiction && b.Owner == seatID {
-				add(b.WorkItem())
+			if (b.Kind != BlockerContradiction && b.Kind != BlockerReopened) || b.Owner != seatID {
+				continue
 			}
+			if b.Kind == BlockerReopened && win.LatestSittingOf(seatID) <= b.since {
+				continue
+			}
+			add(b.WorkItem())
 		}
 	case "bench":
 		// THE BENCH'S MOTIONS ARE THE GATE'S LIST, read through passBlockersOf: every unruled motion

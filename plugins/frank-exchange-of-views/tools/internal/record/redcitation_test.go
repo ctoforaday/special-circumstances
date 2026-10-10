@@ -323,32 +323,3 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got, err, label)
 	}
 }
-
-// AN EMPTY REOPENED ID NEVER ENTERS THE PROTECTED SET.
-//
-// `citationLabelsOf` feeds the blue-report lockdown's EXPECTED anchors. An empty string entering
-// it makes the lockdown expect an anchor that cannot exist in any document, so every subsequent
-// check reports a dropped citation that was never there. The guard is `id != "" && !seen[id]`,
-// and a sweep showed neither half was tested alone.
-func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
-	if _, _, err := RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	// An edit whose reopened list carries a blank alongside a real id, and the real id twice.
-	if _, err := Append(id, &recordpb.BlueEdit{
-		Old: proto.String("before"), New: proto.String("after"), Text: proto.String("why"),
-		Reopened: []string{"", "c-real", "c-real", ""},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	b, err := FamilyOf(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := reopenedAnchors(b.Events)
-	if len(got) != 1 || got[0] != "c-real" {
-		t.Errorf("reopenedAnchors = %#v, want exactly [c-real] — a blank would make the lockdown expect an anchor no document can carry, and a duplicate would count one reopening twice", got)
-	}
-}

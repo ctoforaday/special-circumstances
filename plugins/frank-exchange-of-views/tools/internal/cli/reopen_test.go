@@ -62,16 +62,31 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := evidence().Reopened
-	if len(got) != 1 || !strings.HasPrefix(got[0], "C-") {
-		t.Fatalf("reopened = %v, want the corroboration's citation — the footnote now backs a sentence nobody read", got)
+	if len(got) != 1 || !strings.HasPrefix(got[0].Anchor, "C-") || got[0].Edit <= got[0].LastCheck {
+		t.Fatalf("reopened = %+v, want the corroboration's citation, its edit after its check — the footnote now backs a sentence nobody read", got)
 	}
+	anchor := got[0].Anchor
 	// The anchor is still THERE: reopening is not losing, and the no-loss promise still holds.
 	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(md, got[0]) {
+	if !strings.Contains(md, anchor) {
 		t.Error("the anchor was lost rather than reopened — an anchor may transit an edit but never be dropped by one")
+	}
+
+	// IT STANDS UNTIL A SITTING OPENED AFTER THE EDIT CHECKS IT: the lens sits again and reads the
+	// sentence as it now stands. (Its open sitting holds one check per anchor, so the write path
+	// already refuses a second one from the sitting the edit landed in.)
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run(t, "verify", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", anchor,
+		"--quote", "§2 an entirely different assertion now", "--as", "supports", "--confidence", "high", "--reason", "read again at the leaf"); err != nil {
+		t.Fatalf("verify: %v\n%s", err, out)
+	}
+	if got := evidence().Reopened; len(got) != 0 {
+		t.Errorf("reopened = %+v after a later sitting verified it, want none", got)
 	}
 }
 

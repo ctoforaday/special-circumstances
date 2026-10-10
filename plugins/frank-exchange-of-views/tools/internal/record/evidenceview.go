@@ -225,11 +225,13 @@ type EvidenceJSON struct {
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
 	Independent []EvidenceVerificationJSON `json:"independent"`
-	// Reopened are the anchors whose text has MOVED since they were placed — a citation whose
-	// sentence blue has since rewritten. The reference stands and its referent changed, so a
-	// verification of it is STALE rather than refuted; red re-reads these first, and a reader who
-	// cannot tell stale from refuted either re-checks everything or trusts everything.
-	Reopened []string `json:"reopened"`
+	// Reopened are the citations and proofs REOPENED AND UNCHECKED: an edit changed the sentence
+	// each backs and no sitting opened since has checked it (reopenedEvidence). The reference
+	// stands and its referent changed, so its check is of a sentence the report no longer
+	// carries — stale, which is not refuted. It is the standing set: a check from a later sitting
+	// removes the row. Listed whether or not the evidence lens is in the cast; it holds a PASS
+	// only where it is (passBlockersOf).
+	Reopened []EvidenceReopenedJSON `json:"reopened"`
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
 	// not support the report, and no finding was ever raised about it.
 	//
@@ -254,6 +256,14 @@ type EvidenceJSON struct {
 	} `json:"counts"`
 }
 
+// EvidenceReopenedJSON is one reopened citation or proof. Edit and LastCheck are events.id: the
+// edit that changed its sentence, and its latest check, which that edit outdated.
+type EvidenceReopenedJSON struct {
+	Anchor    string `json:"anchor"`
+	Edit      int64  `json:"edit"`
+	LastCheck int64  `json:"last_check"`
+}
+
 // EvidenceJSONOf projects the record's evidence layer in event order.
 func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	out := EvidenceJSON{
@@ -264,8 +274,9 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 	if out.UnansweredContradictions = unansweredContradictions(evs); out.UnansweredContradictions == nil {
 		out.UnansweredContradictions = []string{}
 	}
-	if out.Reopened = reopenedAnchors(evs); out.Reopened == nil {
-		out.Reopened = []string{}
+	out.Reopened = []EvidenceReopenedJSON{}
+	for _, r := range reopenedEvidence(evs, win.IDs(evs), win) {
+		out.Reopened = append(out.Reopened, EvidenceReopenedJSON{Anchor: r.anchor, Edit: r.edit, LastCheck: r.lastCheck})
 	}
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
@@ -466,14 +477,15 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 
 // evidenceView is the evidence read from the record: the sources, proofs and their checks, the
 // findings that answer a contradicting check (unanswered_contradictions), and the edits that
-// reopen an anchor (reopened).
+// reopen an anchor with the retires that take one out of the report (reopened).
 var evidenceView = declareNarrowedView("evidence", rendersEvents(EvidenceJSONOf),
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
 	recordpb.EventType_EVENT_TYPE_PROOF,
 	recordpb.EventType_EVENT_TYPE_REPRODUCE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
-	recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+	recordpb.EventType_EVENT_TYPE_BLUE_EDIT,
+	recordpb.EventType_EVENT_TYPE_RETIRE)
 
 // EvidenceJSONBytes renders the evidence view as indented JSON.
 func EvidenceJSONBytes(run Run) ([]byte, error) { return evidenceView.jsonBytes(run) }
@@ -491,6 +503,10 @@ type EvidenceAtJSON struct {
 	// it is a computation's. Exactly one is present.
 	Source *EvidenceSourceJSON  `json:"source,omitempty"`
 	Proof  *EvidenceProofAtJSON `json:"proof,omitempty"`
+	// Reopened is the anchor's row of the table's `reopened`, absent when it owes no check — the
+	// PASS refusal sends a seat here for a reopened anchor, and this is where it reads which edit
+	// and which check.
+	Reopened *EvidenceReopenedJSON `json:"reopened,omitempty"`
 }
 
 // EvidenceProofAtJSON is a proof's row WITH THE COMPUTATION ITSELF: the script the lens's
@@ -525,14 +541,22 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 	if err != nil {
 		return EvidenceAtJSON{}, err
 	}
+	at := EvidenceAtJSON{Anchor: id}
+	for i := range ev.Reopened {
+		if ev.Reopened[i].Anchor == id {
+			at.Reopened = &ev.Reopened[i]
+		}
+	}
 	for i := range ev.Proofs {
 		if ev.Proofs[i].Anchor == id {
-			return EvidenceAtJSON{Anchor: id, Proof: &EvidenceProofAtJSON{EvidenceProofJSON: ev.Proofs[i]}}, nil
+			at.Proof = &EvidenceProofAtJSON{EvidenceProofJSON: ev.Proofs[i]}
+			return at, nil
 		}
 	}
 	for i := range ev.Sources {
 		if ev.Sources[i].Anchor == id {
-			return EvidenceAtJSON{Anchor: id, Source: &ev.Sources[i]}, nil
+			at.Source = &ev.Sources[i]
+			return at, nil
 		}
 	}
 	// A WELL-FORMED ID NOTHING HERE IS AT — a finding's, a gap's, or a citation or proof this record
