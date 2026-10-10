@@ -828,6 +828,13 @@ func renderView(cmd *cobra.Command, want string) error {
 			return werr
 		}
 		if a := Str(cmd, flags.Anchor); a != "" {
+			// ONE WINDOW IS NOT A SET TO SELECT FROM, as at `evidence` below: the pair would be
+			// accepted and do nothing, and the seat would read the window as its selection.
+			if sel, serr := SelectorOf(cmd); serr != nil {
+				return serr
+			} else if sel.Active() {
+				return feov.Errorf(feov.Validation, "show report: --anchor reads the report at one anchor, and --match/--quote select lines from the whole report — pass one or the other")
+			}
 			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `retire` takes a bare anchor out
 			// of the report on the record; saying "stale reference or another run" of it would send
 			// the reader hunting for an error that is really a recorded exit.
