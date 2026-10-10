@@ -401,9 +401,9 @@ Flags:
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record inquest debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. A SITTING THAT HOLDS NO POSITION IS STATED, NEVER LEFT BLANK: the chair owes one every sitting and blue-respond one at each sitting that found an engaged gap open, and `position_sittings` lists each such sitting the epoch opened with the `state` of its position — `filed`; `missing`, owed and the record closed the sitting without one; `unresolved`, none so far and the record cannot close the sitting, which may still be in flight; `not_owed`, a blue-respond sitting that found every engaged gap closed. The markdown form says the same under a RED or BLUE heading. No other seat owes one, so none has a row. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}],position_sittings:[{seat_id,sitting,state}]}]}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}]}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 

@@ -123,11 +123,6 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified at the leaf")}),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
-		// A blue-respond sitting for a dispatch, closed by its agent's stop with no position: the
-		// debate view states it, from the families that bound a sitting.
-		recordtest.Event(t, "red-chair", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: str("blue-respond"), GapIds: []string{"G2"}}),
-		recordtest.Event(t, "blue-respond", &recordpb.Register{AgentId: str("blue-agent")}),
-		recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: str("blue-agent"), AgentType: str("frank-exchange-of-views:blue-researcher")}),
 	)
 	run := mustRun(t, dir)
 	whole, err := MergedEvents(run)

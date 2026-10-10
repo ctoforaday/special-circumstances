@@ -3,6 +3,7 @@ package capture
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -15,18 +16,23 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
-// THE POSITION STATES ARE READ IN ONE PLACE. Four surfaces say whether a sitting filed its position:
-// capture's record-parity audit, blue's work list, the structured transcript and its markdown form.
-// Each is held here to record.PositionSittings on one record at one reading — so a sitting cannot
-// be short of a position on one and silent, or complete, on another.
+// THE POSITION STATES ARE READ IN ONE PLACE. Two surfaces say whether a sitting filed its position:
+// capture's record-parity audit and blue's work list. Each is held here to record.PositionSittings
+// on one record at one reading — so a sitting cannot be short of a position on one and complete on
+// the other.
 //
 //   - missing: the audit FAILS naming the sitting; blue-respond's list blocks on it and the chair's
-//     holds no item; the transcript states it.
+//     holds no item.
 //   - unresolved: no FAIL — NOT MEASURED, and a SKIP; blue-respond's list blocks on it (the seat can
-//     still file); the transcript states it as unresolved, never as missing.
-//   - not owed: no finding and no item; the transcript says none was owed.
+//     still file).
+//   - not owed: no finding and no item.
 //   - filed: nothing anywhere but the position.
-//   - a lane, the frontier and the synthesizer: no row on any of the four.
+//   - a lane, the frontier and the synthesizer: no row, no finding, no item.
+//
+// THE TRANSCRIPT PRINTS WHAT WAS FILED AND IS SILENT ON THE REST. A sitting that holds no position
+// has NO section — never a heading over an empty body, and no line saying one is missing, owed or
+// pending: the audit above is the reader that reports that. So both transcript forms hold exactly
+// one section per position on the record, whatever the states are.
 func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 	position := &recordpb.Position{Text: proto.String("what the bench is asked to weigh")}
 	revision := &recordpb.Revision{Text: proto.String("the G1 edit")}
@@ -151,24 +157,16 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 					t.Errorf("read %v: a %s audit says a sitting filed no position:\n%s", read.when, a.Verdict, a.Detail)
 				}
 
-				// THE STRUCTURED TRANSCRIPT carries every row with its state, and no other.
-				var listed []string
-				for _, ep := range record.DebateJSONOfEvents(fam.Events, fam.At, read.when).Epochs {
-					for _, p := range ep.PositionSittings {
-						listed = append(listed, fmt.Sprintf("%s %d %s", p.SeatID, p.Sitting, p.State))
-					}
-				}
-				var wantListed []string
-				for _, p := range rows {
-					wantListed = append(wantListed, fmt.Sprintf("%s %d %s", p.Seat, p.Ordinal, p.State))
-				}
-				if fmt.Sprint(listed) != fmt.Sprint(wantListed) {
-					t.Errorf("read %v: the transcript lists %v, the record says %v", read.when, listed, wantListed)
-				}
 			}
 
-			// THE LIVE SURFACES read while the run runs: the seat's own transcript, and blue's list.
-			rows := record.PositionSittings(fam.Events, fam.At, record.WhileRunning)
+			// THE TRANSCRIPT: one section per filed position, in both forms, and nothing for a sitting
+			// that holds none.
+			filed := map[string]int{}
+			for _, e := range fam.Events {
+				if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
+					filed[record.PartyOf(e)]++
+				}
+			}
 			var served record.DebateJSON
 			b, err := record.DebateJSONBytes(run)
 			if err != nil {
@@ -177,28 +175,30 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 			if err := json.Unmarshal(b, &served); err != nil {
 				t.Fatal(err)
 			}
-			nServed := 0
+			red, blue := 0, 0
 			for _, ep := range served.Epochs {
-				nServed += len(ep.PositionSittings)
+				red, blue = red+len(ep.Red), blue+len(ep.Blue)
 			}
-			if nServed != len(rows) {
-				t.Errorf("the transcript a seat is served lists %d sitting(s), the record holds %d", nServed, len(rows))
+			if red != filed["chair"] || blue != filed["blue"] {
+				t.Errorf("the structured transcript holds %d red and %d blue section(s); the record holds %d and %d position(s)", red, blue, filed["chair"], filed["blue"])
 			}
 			md, err := view.Markdown(run, "debate", "")
 			if err != nil {
 				t.Fatal(err)
 			}
-			stated := map[string]int{}
-			for _, p := range rows {
-				if a := p.Absence(); a != "" {
-					stated[a]++
+			headings := regexp.MustCompile(`(?m)^### (RED|BLUE)(.*)\n(.*)$`).FindAllStringSubmatch(string(md), -1)
+			got := map[string]int{}
+			for _, h := range headings {
+				got[h[1]]++
+				if strings.TrimSpace(h[2]) != "" && !strings.Contains(h[2], "CLOSING") {
+					t.Errorf("the transcript heads a section %q: a position's heading says the party and nothing of a position not filed", h[0])
+				}
+				if strings.TrimSpace(h[3]) == "" {
+					t.Errorf("the transcript holds a heading with an empty body — a seat with no position has no section:\n%s", md)
 				}
 			}
-			for _, state := range []record.PositionState{record.PositionMissing, record.PositionUnresolved, record.PositionNotOwed} {
-				a := record.PositionSitting{State: state}.Absence()
-				if got := strings.Count(string(md), a); got != stated[a] {
-					t.Errorf("the markdown transcript states %q %d time(s), the record holds %d such sitting(s):\n%s", a, got, stated[a], md)
-				}
+			if got["RED"] != filed["chair"] || got["BLUE"] != filed["blue"] {
+				t.Errorf("the markdown transcript holds %d RED and %d BLUE section(s); the record holds %d and %d position(s):\n%s", got["RED"], got["BLUE"], filed["chair"], filed["blue"], md)
 			}
 			w, err := record.WorkOfSeat(run, "blue", "blue-respond")
 			if err != nil {

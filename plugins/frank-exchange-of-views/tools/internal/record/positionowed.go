@@ -16,10 +16,12 @@ import (
 // a draft, the avenues, the report.
 //
 // ONE PREDICATE, AND EVERY SURFACE THAT ENFORCES, LISTS, AUDITS OR RENDERS THE DUTY CALLS IT: the
-// verb refuses a seat it is false for, the work list blocks blue-respond on it, capture's
-// record-parity audit fails a closed sitting short of one, and the transcript states a sitting that
-// holds none. A second computation of "does this seat owe a position" is how a seat comes to be told
-// to do something its surface refuses.
+// verb refuses a seat it is false for, the work list blocks blue-respond on it, and capture's
+// record-parity audit fails a closed sitting short of one. A second computation of "does this seat
+// owe a position" is how a seat comes to be told to do something its surface refuses.
+//
+// THE TRANSCRIPT PRINTS WHAT WAS FILED AND NOTHING ELSE: a sitting that holds no position has no
+// section there, and capture's audit is the reader that reports it.
 
 // positionSeats is every seat that owes a position, in the order a refusal names them.
 var positionSeats = []string{blueRespondSeat, chairSeat}
@@ -83,35 +85,18 @@ func holdsPosition(acts []*Event) bool {
 
 // PositionSitting is one sitting of a seat that owes a position, and what the record says of it.
 type PositionSitting struct {
-	// Party is the seat's party as the transcript heads its sections: chair or blue.
-	Party string
-	Seat  string
-	// Ordinal counts the seat's rows from 1, in stream order: "red-chair sitting 3". For
-	// blue-respond the rows are BlueSittings', so it is the number capture's audit already names.
+	Seat string
+	// Ordinal counts the seat's rows from 1, in stream order: "red-chair sitting 3".
 	Ordinal int
-	// Epoch and SittingID are where the record holds the sitting's opening.
-	Epoch     int
+	// SittingID is the stored sitting the row is — what the work list holds against the seat's
+	// latest sitting.
 	SittingID int64
-	// Open is, for blue-respond, the engaged gaps the sitting found open — what it owed an answer
-	// on. Empty for the chair, whose every sitting owes.
-	Open   []string
+	// Blue is, for blue-respond, the sitting as BlueSittings reads it: the gaps it found open and,
+	// while the sitting owes a revision too, the acts that hold one. Nil for the chair, whose every
+	// sitting owes a position and nothing else here.
+	Blue   *BlueSitting
 	State  PositionState
 	opened int64
-}
-
-// Absence words a sitting that holds no position, for a reader of the transcript; it is empty for
-// a sitting that filed one. THE ONE PLACE THE THREE ABSENCES ARE WORDED, so the markdown transcript,
-// the assembled report and capture's audit cannot describe one sitting three ways.
-func (p PositionSitting) Absence() string {
-	switch p.State {
-	case PositionMissing:
-		return "NO POSITION RECORDED THIS SITTING"
-	case PositionUnresolved:
-		return "NO POSITION SO FAR — the record cannot close this sitting, so it may still be in flight"
-	case PositionNotOwed:
-		return "NO POSITION OWED — every gap this sitting was engaged on was closed when it sat"
-	}
-	return ""
 }
 
 // PositionSittings is one row per sitting of each seat SeatOwesPosition names, in stream order,
@@ -124,20 +109,15 @@ func (p PositionSitting) Absence() string {
 //
 // THE READERS DIFFER ONLY IN WHAT THEY DO WITH A STATE. The work list treats missing and unresolved
 // alike, because the seat reading its own list can still file. Capture fails missing and never
-// fails unresolved. The transcript states each absence in its own words.
+// fails unresolved.
 func PositionSittings(evs []*Event, win WindowIndex, when ReadWhen) []PositionSitting {
 	var out []PositionSitting
 	live := Live(evs)
-	place := func(at int64) (int, int64) {
-		w := win.Of(live[at])
-		return w.Epoch, w.SittingID
-	}
 	if SeatOwesPosition(blueRespondSeat) {
 		for k, s := range BlueSittings(evs, win, when) {
-			p := PositionSitting{Party: roleOfSeat(blueRespondSeat), Seat: blueRespondSeat, Ordinal: k + 1, Open: s.Open, opened: s.opened,
-				State: positionStateOf(len(s.Open) > 0, holdsPosition(s.Acts), !s.Unresolved)}
-			p.Epoch, p.SittingID = place(s.opened)
-			out = append(out, p)
+			out = append(out, PositionSitting{Seat: blueRespondSeat, Ordinal: k + 1, Blue: &s, opened: s.opened,
+				SittingID: win.Of(live[s.opened]).SittingID,
+				State:     positionStateOf(len(s.Open) > 0, holdsPosition(s.Acts), !s.Unresolved)})
 		}
 	}
 	if SeatOwesPosition(chairSeat) {
@@ -154,9 +134,8 @@ func PositionSittings(evs []*Event, win WindowIndex, when ReadWhen) []PositionSi
 				filed = live[i].GetSeatId() == chairSeat && holds(spans, i) &&
 					live[i].GetType() == recordpb.EventType_EVENT_TYPE_POSITION
 			}
-			p := PositionSitting{Party: roleOfSeat(chairSeat), Seat: chairSeat, Ordinal: k + 1, opened: start, State: positionStateOf(true, filed, closed)}
-			p.Epoch, p.SittingID = place(start)
-			out = append(out, p)
+			out = append(out, PositionSitting{Seat: chairSeat, Ordinal: k + 1, opened: start,
+				SittingID: win.Of(live[start]).SittingID, State: positionStateOf(true, filed, closed)})
 		}
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].opened < out[b].opened })

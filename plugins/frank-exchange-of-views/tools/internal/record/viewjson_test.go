@@ -75,7 +75,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dj := DebateJSONOfEvents(m.Events, m.At, WhileRunning)
+	dj := DebateJSONOfEvents(m.Events, m.At)
 
 	if len(dj.Epochs) != 2 {
 		t.Fatalf("want 2 epochs, got %d: %+v", len(dj.Epochs), dj.Epochs)

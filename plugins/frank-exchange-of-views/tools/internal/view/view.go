@@ -607,25 +607,6 @@ func debateMD(in Input) []byte {
 	// (DebateJSONOf) builds the same map for the same reason.
 	docketGapOf := record.DocketGapByMotion(in.Events)
 
-	// A SITTING THAT HOLDS NO POSITION IS STATED, NEVER LEFT AS A MISSING SECTION. A seat that owed
-	// one and filed none, one that owed none, and one still in flight would otherwise all render as
-	// nothing — the same bytes as a seat that never sat. The states are record.PositionSittings',
-	// the reading capture's record-parity audit judges, worded once (PositionSitting.Absence). This
-	// is a live view, so it reads while the run is running.
-	absent := map[int]map[string][]string{}
-	for _, p := range record.PositionSittings(in.Events, in.At, record.WhileRunning) {
-		if a := p.Absence(); a != "" {
-			if absent[p.Epoch] == nil {
-				absent[p.Epoch] = map[string][]string{}
-				if _, seen := byEpoch[p.Epoch]; !seen {
-					epochOrder = append(epochOrder, p.Epoch)
-				}
-			}
-			absent[p.Epoch][p.Party] = append(absent[p.Epoch][p.Party], a)
-		}
-	}
-	sort.Ints(epochOrder)
-
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
 		re := byEpoch[r]
@@ -651,9 +632,6 @@ func debateMD(in Input) []byte {
 				parts = append(parts, "### RED\n"+l.Markdown(p.GetText()))
 			}
 		}
-		for _, a := range absent[r]["chair"] {
-			parts = append(parts, "### RED — "+a)
-		}
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l.Event); ok {
 				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), l.Markdown(c.GetText())))
@@ -663,9 +641,6 @@ func debateMD(in Input) []byte {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](l.Event); ok {
 				parts = append(parts, "### BLUE\n"+l.Markdown(p.GetText()))
 			}
-		}
-		for _, a := range absent[r]["blue"] {
-			parts = append(parts, "### BLUE — "+a)
 		}
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l.Event); ok {

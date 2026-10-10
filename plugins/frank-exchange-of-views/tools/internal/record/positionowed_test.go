@@ -184,8 +184,8 @@ func TestPositionSittingsReadsTheFourStates(t *testing.T) {
 				var got []row
 				for _, p := range PositionSittings(m.Events, m.At, read.when) {
 					got = append(got, row{p.Seat, p.State})
-					if (p.Absence() == "") != (p.State == PositionFiled) {
-						t.Errorf("%s sitting %d is %s and its absence reads %q: only a filed position has none", p.Seat, p.Ordinal, p.State, p.Absence())
+					if (p.Blue != nil) != (p.Seat == "blue-respond") {
+						t.Errorf("%s sitting %d: a blue-respond row carries its sitting and a chair row carries none, got %v", p.Seat, p.Ordinal, p.Blue)
 					}
 				}
 				if !reflect.DeepEqual(got, read.want) {

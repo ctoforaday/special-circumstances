@@ -99,7 +99,7 @@ func TestJSONListingsCarryTheStruckActAsAField(t *testing.T) {
 	if lj.Counts.Total != 1 {
 		t.Errorf("log total = %d, want 1 — a corrected entry is one entry", lj.Counts.Total)
 	}
-	dj := DebateJSONOfEvents(m.Events, m.At, WhileRunning)
+	dj := DebateJSONOfEvents(m.Events, m.At)
 	if len(dj.Epochs) != 1 {
 		t.Fatalf("%d epochs", len(dj.Epochs))
 	}

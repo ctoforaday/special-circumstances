@@ -238,7 +238,7 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// THE CHAIR ARM HOLDS NO SUCH ITEM, on purpose: its blocking items are the PASS gate's
 		// blockers and nothing else, so its position is held by its prompt and by capture.
 		if p, sitting := positionSittingNow(evs, win, seatID); sitting && (p.State == PositionMissing || p.State == PositionUnresolved) {
-			add("this sitting's position is missing — it found " + strings.Join(p.Open, ", ") + " still open, and the bench reads no argument of yours for a sitting whose position is not on the record")
+			add("this sitting's position is missing — it found " + strings.Join(p.Blue.Open, ", ") + " still open, and the bench reads no argument of yours for a sitting whose position is not on the record")
 		}
 	case "chair":
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on

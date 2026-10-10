@@ -658,8 +658,11 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 // RecordParityAudit holds the sittings that owe the record something to the record. A POSITION is
 // owed by the seats record.SeatOwesPosition names — every chair sitting, and every sitting
 // blue-respond took for a dispatch that engaged it on a gap still open when it sat — and the state
-// of each is record.PositionSittings', the reading blue's work list blocks on and the transcript
-// states. A blue-respond sitting that owes also owes a REVISION (record.BlueSitting.Owes).
+// of each is record.PositionSittings', the reading blue's work list blocks on. A blue-respond
+// sitting that owes also owes a REVISION (record.BlueSitting.Owes).
+//
+// THIS AUDIT IS THE READER THAT REPORTS A POSITION THAT WAS NOT FILED. The transcript prints the
+// positions that were, and gives a sitting that holds none no section.
 //
 // THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT A POSITION IS REPORTED. The chair's work list holds
 // no item for it — its blocking items are the PASS gate's blockers and nothing else — so its
@@ -697,7 +700,6 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 	if len(rows) == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no chair sitting and no blue sitting for a dispatch on record"}
 	}
-	blue := record.BlueSittings(evs, win, when)
 	chairs, blues, owed := 0, 0, 0
 	var short, unmeasured []string
 	for _, p := range rows {
@@ -708,10 +710,8 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 		if p.State == record.PositionMissing || unresolved {
 			missing = append(missing, "no position")
 		}
-		// blue-respond's rows are BlueSittings', one for one, so the row's number is the sitting's.
-		if p.Party == "blue" {
+		if s := p.Blue; s != nil {
 			blues++
-			s := blue[p.Ordinal-1]
 			if len(s.Open) > 0 {
 				owed++
 			}
@@ -1824,7 +1824,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	}
 	redEpochs := 0
 	if fam != nil {
-		dj := record.DebateJSONOfEvents(fam.Events, fam.At, record.AfterTheRun)
+		dj := record.DebateJSONOfEvents(fam.Events, fam.At)
 		for _, r := range dj.Epochs {
 			if len(r.Red) > 0 {
 				redEpochs++

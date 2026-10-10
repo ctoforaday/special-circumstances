@@ -623,38 +623,17 @@ func TestMarkdownDebateAndAvenue(t *testing.T) {
 	// asserted where it is now read: record.EvidenceJSONOf, and `show evidence` end to end.
 }
 
-// AN EPOCH WITH NOTHING TO SAY HAS NO HEADING, AND A CHAIR SITTING WITH NO POSITION IS NOT NOTHING.
-// Epoch 0 — the acts before the chair first sits — holds no position, closing or opinion and owes
-// none, so it is skipped. Each later epoch is a chair sitting, and the chair owes a position at
-// every one: a sitting that holds none is stated under its epoch, in the words the record gives the
-// state — closed without one, or not yet closed — and never as a missing section.
-func TestMarkdownDebateSkipsEmptyEpochsAndStatesASittingWithNoPosition(t *testing.T) {
+func TestMarkdownDebateSkipsEmptyEpochs(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-evidence"
-	// A log entry before the chair sits; then three chair sittings, the second with a position.
+	// Three chair sittings, and the only thing done in the third is a log entry.
 	writeShard(t, runDir, []*record.Event{
+		chairSits(t, 1), chairSits(t, 2), chairSits(t, 3),
 		recordtest.At(t, lens, lens+":friction:#1", &recordpb.Log{Text: proto.String("not debate content"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		chairSits(t, 1), chairSits(t, 2),
-		recordtest.At(t, "red-chair", "red-chair:position:2", &recordpb.Position{Text: proto.String("red says so")}),
-		chairSits(t, 3),
 	})
 	debate := md(t, runDir, "debate")
-	if strings.Contains(debate, "## Epoch 0") {
-		t.Errorf("an epoch with no positions, closings or opinions, and no sitting that owes one, got a heading:\n%s", debate)
-	}
-	missing := record.PositionSitting{State: record.PositionMissing}.Absence()
-	unresolved := record.PositionSitting{State: record.PositionUnresolved}.Absence()
-	for _, want := range []string{
-		"## Epoch 1\n\n### RED — " + missing + "\n",
-		"## Epoch 2\n\n### RED\nred says so\n",
-		"## Epoch 3\n\n### RED — " + unresolved + "\n",
-	} {
-		if !strings.Contains(debate, want) {
-			t.Errorf("the transcript does not hold %q:\n%s", want, debate)
-		}
-	}
-	if n := strings.Count(debate, "### RED"); n != 3 {
-		t.Errorf("the transcript holds %d RED sections for three chair sittings:\n%s", n, debate)
+	if strings.Contains(debate, "## Epoch") {
+		t.Errorf("an epoch with no positions, closings or opinions got a heading:\n%s", debate)
 	}
 }
 
