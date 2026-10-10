@@ -845,7 +845,7 @@
     },
     {
       "term": "grade motion",
-      "definition": "A grade motion is a side's motion contesting a gap's grade, ruled by the bench.",
+      "definition": "A grade motion is a side's motion contesting a gap's grade, ruled by the chair.",
       "seats": [
         "lens",
         "chair",
