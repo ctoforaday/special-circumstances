@@ -478,3 +478,48 @@ func TestAGuttedCitedSentenceLeavesTheCount(t *testing.T) {
 		t.Fatalf("the claim count %d → %d after gutting a cited sentence, want a fall of 1", before, after)
 	}
 }
+
+// A BULLET CUT DOWN TO ITS ANCHORS, MARKER QUOTED, RETIRES — universe-m19's ev259, ev260 and ev401.
+//
+// Blue quoted an open-question bullet with its "- " and replaced it with "- " and the bullet's four
+// finding anchors; then retired the question, quoting its words without the marker. The retire
+// compared its quote with the edit's whole old span, the marker made the two differ, and it took no
+// anchor, said "retired:" and nothing else — twice. The bullet stood as four tokens and a period,
+// and the assembled report printed "- ." in a VERIFIED run.
+//
+// The list marker lies outside every sentence, so it is no part of the claim on either side: the
+// retire takes both anchors, the line goes whole, and the claim is recorded as verified.
+func TestRetireTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
+	runDir := citedRun(t)
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
+	for _, key := range []string{"F1", "F2"} {
+		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", "Water is wet.",
+			"--reason", "unsupported "+key, "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+			t.Fatalf("finding: %v", err)
+		}
+	}
+	m := regexp.MustCompile(`- Water is wet((?:<!--fx:F-[0-9a-f]{8}-->){2})\.`).FindStringSubmatch(readReport(t, runDir))
+	if m == nil {
+		t.Fatalf("the bullet does not hold two finding anchors:\n%s", readReport(t, runDir))
+	}
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--quote", "- Water is wet"+m[1]+".", "--new", "- "+m[1], "--reason", "the question is answered"); err != nil {
+		t.Fatalf("the cut down to the bullet's anchors: %v", err)
+	}
+	// THE HUSK NEVER REACHES A READER, retired or not: assembly strips the finding tokens, and a line
+	// left with a list marker and punctuation goes with them.
+	asm := assembled(t, runDir)
+	if husk := regexp.MustCompile(`(?m)^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]*[.,;:!?…]*|[.,;:!?…]+)[ \t]*$`).FindString(asm); husk != "" || !strings.Contains(asm, "- Fire is hot.") {
+		t.Errorf("the assembled report prints the emptied bullet %q, or lost its neighbour:\n%s", husk, asm)
+	}
+
+	ev := retireClaim(t, runDir, "Water is wet.")
+	if len(ev.GetAnchors()) != 2 || ev.GetRemovalBasis() != record.RemovalVerified {
+		t.Errorf("the retire took %v on basis %q, want both finding anchors, verified", ev.GetAnchors(), ev.GetRemovalBasis())
+	}
+	want := "# Findings\n\nThe sky is blue. The grass is green.\n\n- Fire is hot.\n\nClosing paragraph stays.\n"
+	if rep := readReport(t, runDir); rep != want {
+		t.Errorf("the report after the retire:\n got %q\nwant %q", rep, want)
+	}
+}
