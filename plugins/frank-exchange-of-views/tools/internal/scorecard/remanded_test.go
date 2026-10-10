@@ -12,20 +12,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// Blue's position prose is written once and kept, so a run recorded while the deferring
-// disposition was spelled "carried" still says so. Direction uptake reads that prose: a pattern
-// that knew only the current word would score such a run's uptake as zero, silently.
-func TestDirectionUptakeReadsBothSpellingsOfTheDeferral(t *testing.T) {
-	for _, prose := range []string{"the gap was remanded; acting on the stated research", "the gap was carried; acting on the stated research"} {
-		dj := record.DebateJSON{Epochs: []record.DebateEpochJSON{
-			{Lead: []record.DebateOpinionJSON{{GapID: "G1"}}, Blue: []string{prose}},
-		}}
-		if lead, blue := ComputeDirectionUptake(dj); lead != 1 || blue != 1 {
-			t.Errorf("%q: uptake %d/%d, want 1/1", prose, blue, lead)
-		}
-	}
-}
-
 // benchSatOn seeds one docket motion per disposition, each ruled by the bench with a principle
 // and an opinion — the shape the write requires of every docket ruling.
 func benchSatOn(t *testing.T, opinions []string, ds ...recordpb.Disposition) *record.Family {

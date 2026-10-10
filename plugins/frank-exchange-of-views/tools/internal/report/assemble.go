@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -1280,6 +1281,24 @@ func debate(fam record.Family) string {
 	// it lives, and recovering it a second way is how two renderers come to disagree.
 	docketGapOf := record.DocketGapByMotion(fam.Events)
 
+	// A SITTING THAT HOLDS NO POSITION IS STATED IN ITS EPOCH — the states and their words are
+	// record.PositionSittings', as in the markdown transcript (view.debateMD) and capture's
+	// record-parity audit, so the three cannot describe one sitting differently. The report is
+	// assembled while the run is running, which is the reading this takes.
+	absent := map[int]map[string][]string{}
+	for _, p := range record.PositionSittings(fam.Events, fam.At, record.WhileRunning) {
+		if a := p.Absence(); a != "" {
+			if absent[p.Epoch] == nil {
+				absent[p.Epoch] = map[string][]string{}
+				if _, seen := byEpoch[p.Epoch]; !seen {
+					order = append(order, p.Epoch)
+				}
+			}
+			absent[p.Epoch][p.Party] = append(absent[p.Epoch][p.Party], a)
+		}
+	}
+	sort.Ints(order)
+
 	var parts []string
 	for _, r := range order {
 		re := byEpoch[r]
@@ -1311,6 +1330,9 @@ func debate(fam record.Family) string {
 			redHead = "### RED — NO VERDICT RECORDED THIS EPOCH"
 		}
 		var epoch []string
+		for _, a := range absent[r]["chair"] {
+			epoch = append(epoch, "### RED — "+a)
+		}
 		// THE BODY IS THE TYPE, and the party is still the seat's. `--reason` lands on
 		// Position.text and Closing.text — one prose channel each, declared for Closing in
 		// recordpb/required.go ("the closing argument for this gap").
@@ -1351,6 +1373,9 @@ func debate(fam record.Family) string {
 		// The bench's in-epoch acts: its rulings on DOCKET motions — the dispositions that
 		// settle a gap. A grade or petition ruling answers a different question and does not
 		// belong under LEAD's per-gap list.
+		for _, a := range absent[r]["blue"] {
+			epoch = append(epoch, "### BLUE — "+a)
+		}
 		var lead []string
 		for _, l := range re {
 			mr, ok := recordpb.BodyAs[*recordpb.MotionRule](l.Event)

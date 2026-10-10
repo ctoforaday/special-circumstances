@@ -655,10 +655,15 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 		Detail: "no event shards outside a run directory"}
 }
 
-// RecordParityAudit holds blue's sittings to the record: every sitting blue-respond took for a
-// dispatch that engaged it on a gap still open when it sat carries a blue POSITION and a blue
-// REVISION. record.BlueSittings is the one reading of what a sitting owed, shared with the
-// correctness manifest.
+// RecordParityAudit holds the sittings that owe the record something to the record. A POSITION is
+// owed by the seats record.SeatOwesPosition names — every chair sitting, and every sitting
+// blue-respond took for a dispatch that engaged it on a gap still open when it sat — and the state
+// of each is record.PositionSittings', the reading blue's work list blocks on and the transcript
+// states. A blue-respond sitting that owes also owes a REVISION (record.BlueSitting.Owes).
+//
+// THIS IS THE ONE PLACE A CHAIR SITTING WITHOUT A POSITION IS REPORTED. The chair's work list holds
+// no item for it — its blocking items are the PASS gate's blockers and nothing else — so its
+// position is held by its prompt and by this audit.
 //
 // A SITTING THAT FOUND EVERY GAP CLOSED OWES NEITHER. The lenses sit before blue, so a lens can
 // close a gap between the dispatch and blue's register, and blue then has nothing to answer.
@@ -674,38 +679,57 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 // sitting is still in flight and the end of the record closes every sitting nothing else closed: a
 // last sitting that filed no revision before the run ended filed none. B9's last blue sitting,
 // engaged on G4 still open, filed no revision, and its headless agent left no stop to close it.
-//
-// A SITTING READ AS UNRESOLVED IS NEVER JUDGED. Its missing act may belong to a sitting still in
-// flight, so it is NOT MEASURED, never a finding: with no closed sitting short, the audit is SKIP
-// and names it, and a FAIL names it too. Read after the run, no sitting is unresolved.
 func RecordParityAudit(run record.Run) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "record-parity", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
 	}
-	sittings := record.BlueSittings(fam.Events, fam.At, record.AfterTheRun)
-	if len(sittings) == 0 {
-		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no blue sitting for a dispatch on record"}
+	return recordParityAt(fam.Events, fam.At, record.AfterTheRun)
+}
+
+// recordParityAt is the audit at a stated reading.
+//
+// A SITTING READ AS UNRESOLVED IS NEVER JUDGED. Its missing act may belong to a sitting still in
+// flight, so it is NOT MEASURED, never a finding: with no closed sitting short, the audit is SKIP
+// and names it, and a FAIL names it too. Read after the run, no sitting is unresolved.
+func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.ReadWhen) Audit {
+	rows := record.PositionSittings(evs, win, when)
+	if len(rows) == 0 {
+		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no chair sitting and no blue sitting for a dispatch on record"}
 	}
-	owed := 0
+	blue := record.BlueSittings(evs, win, when)
+	chairs, blues, owed := 0, 0, 0
 	var short, unmeasured []string
-	for k, s := range sittings {
-		if len(s.Open) == 0 {
-			continue
-		}
-		owed++
+	for _, p := range rows {
+		name := fmt.Sprintf("%s sitting %d ", p.Seat, p.Ordinal)
+		why := "the record cannot close it (" + p.Seat + " has not opened a sitting since and its agent's stop is not on the record)"
 		var missing []string
-		for _, typ := range s.Owes() {
-			missing = append(missing, "no "+recordpb.Word(typ))
+		unresolved := p.State == record.PositionUnresolved
+		if p.State == record.PositionMissing || unresolved {
+			missing = append(missing, "no position")
+		}
+		// blue-respond's rows are BlueSittings', one for one, so the row's number is the sitting's.
+		if p.Party == "blue" {
+			blues++
+			s := blue[p.Ordinal-1]
+			if len(s.Open) > 0 {
+				owed++
+			}
+			name = fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, ", p.Ordinal, strings.Join(s.Open, ", "))
+			why = "the record cannot close it (blue has not registered since and its agent's stop is not on the record)"
+			if slices.Contains(s.Owes(), recordpb.EventType_EVENT_TYPE_REVISION) {
+				missing = append(missing, "no revision")
+			}
+			unresolved = s.Unresolved
+		} else {
+			chairs++
 		}
 		switch {
 		case len(missing) == 0:
-		case s.Unresolved:
-			unmeasured = append(unmeasured, fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, shows %s so far — NOT MEASURED: the record cannot close it (blue has not registered since and its agent's stop is not on the record)",
-				k+1, strings.Join(s.Open, ", "), strings.Join(missing, " and ")))
+		case unresolved:
+			unmeasured = append(unmeasured, fmt.Sprintf("%sshows %s so far — NOT MEASURED: %s", name, strings.Join(missing, " and "), why))
 		default:
-			short = append(short, fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, filed %s",
-				k+1, strings.Join(s.Open, ", "), strings.Join(missing, " and ")))
+			short = append(short, fmt.Sprintf("%sfiled %s", name, strings.Join(missing, " and ")))
 		}
 	}
 	if len(short) > 0 {
@@ -715,8 +739,8 @@ func RecordParityAudit(run record.Run) Audit {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: strings.Join(unmeasured, "; ")}
 	}
 	return Audit{Check: "record-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d blue sitting(s) for a dispatch: %d owed an answer and each carries a position and a revision; %d found every gap it was engaged on closed first",
-			len(sittings), owed, len(sittings)-owed)}
+		Detail: fmt.Sprintf("%d chair sitting(s), each with its position; %d blue sitting(s) for a dispatch: %d owed an answer and each carries a position and a revision; %d found every gap it was engaged on closed first",
+			chairs, blues, owed, blues-owed)}
 }
 
 // ---- AUDIT 7: back-fill ----
@@ -1800,7 +1824,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	}
 	redEpochs := 0
 	if fam != nil {
-		dj := record.DebateJSONOfEvents(fam.Events, fam.At)
+		dj := record.DebateJSONOfEvents(fam.Events, fam.At, record.AfterTheRun)
 		for _, r := range dj.Epochs {
 			if len(r.Red) > 0 {
 				redEpochs++

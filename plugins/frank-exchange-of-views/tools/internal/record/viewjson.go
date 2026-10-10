@@ -1542,6 +1542,20 @@ type DebateEpochJSON struct {
 	// wrote it — listed with what it said, who struck it and why. The arrays above hold the acts
 	// that stand; this is where the struck ones remain visible.
 	Struck []DebateStruckJSON `json:"struck"`
+	// PositionSittings is every sitting the record opened in this epoch for a seat that owes a
+	// position (SeatOwesPosition), with what the record says of that position — PositionSittings'
+	// state, the one capture's record-parity audit judges. It is here because `red` and `blue` hold
+	// only what was filed: without it a sitting that owed a position and filed none, one that owed
+	// none, and one still in flight are the same empty array.
+	PositionSittings []DebatePositionJSON `json:"position_sittings"`
+}
+
+// DebatePositionJSON is one sitting of a seat that owes a position: the seat, the sitting's number
+// among that seat's, and its position's state — filed, missing, unresolved or not_owed.
+type DebatePositionJSON struct {
+	SeatID  string `json:"seat_id"`
+	Sitting int    `json:"sitting"`
+	State   string `json:"state"`
 }
 
 // DebateStruckJSON is one struck transcript act: its type and seat, the text it carried, and the
@@ -1575,8 +1589,15 @@ type DebateOpinionJSON struct {
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
 // families debateView declares. A caller holding merged events uses DebateJSONOfEvents.
-func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
+//
+// when is the reader's (ReadWhen): it decides whether a sitting nothing has closed reads unresolved
+// or, after the run, short of its position.
+func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, when ReadWhen) DebateJSON {
 	out := DebateJSON{Epochs: []DebateEpochJSON{}}
+	positions := map[int][]DebatePositionJSON{}
+	for _, p := range PositionSittings(evs, win, when) {
+		positions[p.Epoch] = append(positions[p.Epoch], DebatePositionJSON{SeatID: p.Seat, Sitting: p.Ordinal, State: string(p.State)})
+	}
 
 	epochOrder := append([]int{}, epochs...)
 	// THE ARRAYS HOLD THE ACTS THAT STAND; the struck ones are gathered into the epoch's `struck`
@@ -1619,7 +1640,9 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 			return s
 		}
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
-			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, Struck: []DebateStruckJSON{}}
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, Struck: []DebateStruckJSON{},
+			PositionSittings: []DebatePositionJSON{}}
+		rj.PositionSittings = append(rj.PositionSittings, positions[r]...)
 		rj.Struck = append(rj.Struck, struckIn[r]...)
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
@@ -1680,7 +1703,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 // DebateJSONOfEvents is DebateJSONOf for a caller holding the WHOLE stream (a board's events, the
 // oracle's walk): the epoch skeleton derives from every event, exactly as the board-shaped
 // signature derived it.
-func DebateJSONOfEvents(evs []*Event, win WindowIndex) DebateJSON {
+func DebateJSONOfEvents(evs []*Event, win WindowIndex, when ReadWhen) DebateJSON {
 	var epochs []int
 	seen := map[int]bool{}
 	for _, e := range evs {
@@ -1689,23 +1712,30 @@ func DebateJSONOfEvents(evs []*Event, win WindowIndex) DebateJSON {
 			epochs = append(epochs, r)
 		}
 	}
-	return DebateJSONOf(epochs, evs, win)
+	return DebateJSONOf(epochs, evs, win, when)
 }
 
-// debateView is the structured debate read from the record: the transcript's families, and the
-// chair's recorded verdicts each epoch's `verdict` is read from.
+// debateView is the structured debate read from the record: the transcript's families, the chair's
+// recorded verdicts each epoch's `verdict` is read from, and the families PositionSittings bounds a
+// sitting by — what opens one, what closes one, the dispatch that engaged blue and the closes that
+// preceded its sitting. It is a seat's read, made while the run is running.
 var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*Event, win WindowIndex) (DebateJSON, error) {
 	epochs, err := epochsAt(q)
 	if err != nil {
 		return DebateJSON{}, err
 	}
-	return DebateJSONOf(epochs, evs, win), nil
+	return DebateJSONOf(epochs, evs, win, WhileRunning), nil
 },
 	recordpb.EventType_EVENT_TYPE_POSITION,
 	recordpb.EventType_EVENT_TYPE_CLOSING,
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-	recordpb.EventType_EVENT_TYPE_VERDICT)
+	recordpb.EventType_EVENT_TYPE_VERDICT,
+	recordpb.EventType_EVENT_TYPE_REGISTER,
+	recordpb.EventType_EVENT_TYPE_SITTING_OPEN,
+	recordpb.EventType_EVENT_TYPE_SITTING_CLOSE,
+	recordpb.EventType_EVENT_TYPE_DISPATCH,
+	recordpb.EventType_EVENT_TYPE_CLOSE)
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }

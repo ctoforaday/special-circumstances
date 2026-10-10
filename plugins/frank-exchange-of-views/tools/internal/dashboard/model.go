@@ -452,7 +452,7 @@ func buildJudiciary(fam record.Family) Judiciary {
 	// A chair that has just sat opens an epoch nothing has happened in yet, and a gap has not
 	// lived through it.
 	current := fam.At.CurrentEpoch(fam.Events)
-	for _, ep := range record.DebateJSONOfEvents(fam.Events, fam.At).Epochs {
+	for _, ep := range record.DebateJSONOfEvents(fam.Events, fam.At, record.WhileRunning).Epochs {
 		if ep.Verdict != "" {
 			j.LatestVerdict, j.VerdictEpoch = strings.ToUpper(ep.Verdict), ep.Epoch
 		}

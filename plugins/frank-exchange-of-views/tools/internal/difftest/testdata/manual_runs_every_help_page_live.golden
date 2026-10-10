@@ -287,9 +287,9 @@ Flags:
 (Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record inquest debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. A SITTING THAT HOLDS NO POSITION IS STATED, NEVER LEFT BLANK: the chair owes one every sitting and blue-respond one at each sitting that found an engaged gap open, and `position_sittings` lists each such sitting the epoch opened with the `state` of its position — `filed`; `missing`, owed and the record closed the sitting without one; `unresolved`, none so far and the record cannot close the sitting, which may still be in flight; `not_owed`, a blue-respond sitting that found every engaged gap closed. The markdown form says the same under a RED or BLUE heading. No other seat owes one, so none has a row. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}]}]}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}],position_sittings:[{seat_id,sitting,state}]}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -954,7 +954,7 @@ change anything the act says except --id, which names what it is about. Repeat y
 correction that leaves out a flag the act holds is refused.
 
 §10 (on 2 pages):
-WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`.
+WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.
 
 §11 (on 2 pages):
 your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice
@@ -1031,7 +1031,7 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's BLUE section
+  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -1535,9 +1535,9 @@ Enumerated values:
 (Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record position --help
-your sitting's position — the argument the bench reads when it rules, rendered as this sitting's BLUE section
+blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
 
-It renders as this sitting's ### BLUE section. It is prose on the record, not a summary of your acts — the acts are already there.
+It renders as this sitting's ### BLUE section. It holds what no act of the sitting holds — what you ask the bench to weigh, and why a route the record offered was left untaken — and restates no act: the acts are already there. IT IS BLUE-RESPOND'S ACT, at a sitting that finds a gap it is engaged on still open. A lane, the frontier and the synthesizer file none and are refused one: they argue in what they write.
 
 (If you need a verb or a flag tha…) → SHARED §1
 

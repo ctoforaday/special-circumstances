@@ -154,7 +154,12 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		}
 		d := debate(fam)
 		contains("debate.md", d, "### Epoch 2")
-		absent("debate.md", d, "### Epoch 1\n")
+		// The chair's first sitting closed with no position, and the assembled transcript says so
+		// in the words the record gives that state — the ones the markdown view and capture use.
+		contains("debate.md", d, "### Epoch 1\n\n### RED — "+record.PositionSitting{State: record.PositionMissing}.Absence()+"\n")
+		if e2, blue := strings.Index(d, "### Epoch 2"), strings.Index(d, "### BLUE\n"); blue < e2 {
+			absent("debate.md", d[:e2], "### BLUE\n")
+		}
 	})
 
 	t.Run("the avenues view", func(t *testing.T) {

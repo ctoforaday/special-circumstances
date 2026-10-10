@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -226,6 +227,18 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// gate behind it when the gap is material by its class or grade. Restoring a second duty here would be the same fact told twice.
 		if revisionOwed(evs, win, seatID) && !seatDidThisSitting(evs, win, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
+		}
+		// THE POSITION IS OWED BY THE SEAT SeatOwesPosition NAMES, and among blue seats that is the
+		// responding one: its sitting that found an engaged gap open owes the bench an argument.
+		// The state is PositionSittings' — the reading capture's record-parity audit fails a closed
+		// sitting on — so this list and that audit cannot disagree about which sitting is short.
+		// MISSING AND UNRESOLVED ARE ONE ITEM HERE: the seat reading its own list is the seat that
+		// can still file. A lane, the frontier and the synthesizer have no row and no item.
+		//
+		// THE CHAIR ARM HOLDS NO SUCH ITEM, on purpose: its blocking items are the PASS gate's
+		// blockers and nothing else, so its position is held by its prompt and by capture.
+		if p, sitting := positionSittingNow(evs, win, seatID); sitting && (p.State == PositionMissing || p.State == PositionUnresolved) {
+			add("this sitting's position is missing — it found " + strings.Join(p.Open, ", ") + " still open, and the bench reads no argument of yours for a sitting whose position is not on the record")
 		}
 	case "chair":
 		// THE GATE'S BLOCKERS ARE THE BLOCKING ITEMS HERE, from the one list the gate refuses on

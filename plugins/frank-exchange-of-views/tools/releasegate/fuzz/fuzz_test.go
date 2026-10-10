@@ -256,6 +256,13 @@ type runner struct {
 	// avenueMoves counts the moves the tool ACCEPTED on an id read from a propose result — the
 	// drive avenueIDOf feeds. The sweep gates it at zero.
 	avenueMoves int
+	// positionsRefused counts the positions the tool REFUSED a seat that owes none
+	// (record.SeatOwesPosition) — a lane, the frontier, the synthesizer. The sweep gates it at zero.
+	positionsRefused int
+	// positionAdmittedErr is the first position the tool ADMITTED from a seat that owes none. It
+	// fails the run: the verb is on the whole blue role's surface, and the refusal is what keeps a
+	// position off the record where only the bench and the chair read it.
+	positionAdmittedErr string
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
@@ -444,6 +451,30 @@ func (r *runner) noteAvenueIDErr(msg string) {
 	defer r.mu.Unlock()
 	if r.avenueIDErr == "" {
 		r.avenueIDErr = msg
+	}
+}
+
+// positionRefused drives `position` as a seat that owes none and holds the tool to refusing it,
+// naming the seats whose act it is. The verb stays on the blue role's one surface, so a lane, the
+// frontier and the synthesizer can type it; the refusal is driven here rather than left unreached.
+func (r *runner) positionRefused(seatID string) {
+	if record.SeatOwesPosition(seatID) {
+		return
+	}
+	out, err := r.exec("position", "--seat-id", seatID, "--reason", "fuzz: a position from a seat that owes none")
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch {
+	case err == nil:
+		if r.positionAdmittedErr == "" {
+			r.positionAdmittedErr = seatID + " filed a position and owes none: " + firstLine(out)
+		}
+	case !strings.Contains(out, record.PositionSeats()):
+		if r.positionAdmittedErr == "" {
+			r.positionAdmittedErr = seatID + "'s position was refused without naming the seats whose act it is (" + record.PositionSeats() + "): " + firstLine(out)
+		}
+	default:
+		r.positionsRefused++
 	}
 }
 
@@ -2015,13 +2046,20 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.do("log", seat).set("--type", "friction").set("--reason", "fuzz: the repair was refused — "+firstLine(err.Error())).run()
 			return map[string]any{"sitting_record_appended": false, "note": firstLine(err.Error())}
 		}
-		_, _ = r.exec("position", "--seat-id", seat, "--reason", "repair: the position the sitting owed")
+		// A POSITION ONLY FROM A SEAT THAT OWES ONE (record.SeatOwesPosition): the re-prompted
+		// synthesizer files its revision alone, and a position from it is driven as the refusal.
+		if record.SeatOwesPosition(seat) {
+			_, _ = r.exec("position", "--seat-id", seat, "--reason", "repair: the position the sitting owed")
+		} else {
+			r.positionRefused(seat)
+		}
 		r.do("revision", seat).set("--reason", "repair: the revision the sitting owed").run()
 		return map[string]any{"sitting_record_appended": true}
 
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.extras("blue", seatID, nil)
+		r.maybe(25, func() { r.positionRefused(seatID) })
 		r.maybePetition(seatID)
 		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10}
 
@@ -2318,6 +2356,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				role = "blue"
 			}
 			r.register(role, seatID)
+			// A LANE AND THE FRONTIER OWE NO POSITION, and hold the verb: the blue role is one
+			// surface. Some of them type it, and the tool refuses each.
+			if role == "blue" {
+				r.maybe(25, func() { r.positionRefused(seatID) })
+			}
 			// The non-prose lens channel is the RECORD now, not red/candidates files: a
 			// citation lens records cite events, and every red lens records finding events
 			// (label TOOL-assigned). This is the ONLY harness that drives that path end to
@@ -2526,6 +2569,9 @@ type outcome struct {
 	// answer to a ruling moves a line by an id read off the record, so neither notices the
 	// propose-result reader going blind.
 	avenueMoves int
+	// positionsRefused is the positions the tool refused a seat that owes none
+	// (runner.positionsRefused).
+	positionsRefused int
 	// repairs is the registers on the record that name the sitting they repair (#1002). The
 	// register verb is gated as a type, which any register satisfies, so a repair path that stopped
 	// writing the field would pass it silently.
@@ -2918,6 +2964,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.avenueIDErr != "" {
 		res.err = "avenue drive: " + r.avenueIDErr
+		return res
+	}
+	if r.positionAdmittedErr != "" {
+		res.err = "position duty: " + r.positionAdmittedErr
 		return res
 	}
 	if r.passOverAnotherSeat != "" {
@@ -3460,7 +3510,15 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.citeAnchors = strings.Count(md, "<!--cite:")
 	r.mu.Lock()
 	res.avenueMoves = r.avenueMoves
+	res.positionsRefused = r.positionsRefused
 	r.mu.Unlock()
+	// NO POSITION ON THE RECORD IS FROM A SEAT THAT OWES NONE — read off the record, so a refusal
+	// that logged and wrote the act anyway fails here.
+	for _, e := range board.Events {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION && !record.SeatOwesPosition(e.GetSeatId()) && res.err == "" {
+			res.err = "position duty: the record holds a position by " + e.GetSeatId() + ", a seat that owes none"
+		}
+	}
 	for _, e := range board.Events {
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -4122,6 +4180,7 @@ func TestFuzzDebate(t *testing.T) {
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
+	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
 	repairs := 0                           // registers naming the sitting they repair (the engine's re-prompt)
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
@@ -4185,6 +4244,7 @@ func TestFuzzDebate(t *testing.T) {
 			typedVerbatim += o.typedVerbatim
 			estoppels += o.estoppels
 			avenueMoves += o.avenueMoves
+			positionsRefused += o.positionsRefused
 			repairs += o.repairs
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
@@ -4283,6 +4343,12 @@ func TestFuzzDebate(t *testing.T) {
 		if avenueMoves == 0 {
 			t.Errorf("fuzz moved ZERO avenues by an id read from `avenue propose` across %d runs (with %d avenue events) — "+
 				"the propose result named no id the harness reads, or the tool refused every move; the avenue lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["avenue"])
+		}
+		// THE POSITION-REFUSAL GATE. The `position` verb gate above is satisfied by the chair's and
+		// blue-respond's positions, so a drive that stopped typing it as a seat that owes none —
+		// or a tool that stopped refusing it — would leave the refusal unreached behind a green sweep.
+		if positionsRefused == 0 {
+			t.Errorf("fuzz drove ZERO refused positions across %d runs — no lane, frontier or synthesizer typed `position`, so the refusal for a seat that owes none is unexercised (false green)", completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267

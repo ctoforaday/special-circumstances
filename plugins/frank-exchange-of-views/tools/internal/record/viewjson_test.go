@@ -17,7 +17,7 @@ import (
 func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	runDir := newRun(t)
 	merge := "red-chair"
-	blue := "blue-lane-1"
+	blue := "blue-respond"
 	judge := "judge"
 	merge2 := "red-chair"
 
@@ -75,7 +75,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dj := DebateJSONOfEvents(m.Events, m.At)
+	dj := DebateJSONOfEvents(m.Events, m.At, WhileRunning)
 
 	if len(dj.Epochs) != 2 {
 		t.Fatalf("want 2 epochs, got %d: %+v", len(dj.Epochs), dj.Epochs)
