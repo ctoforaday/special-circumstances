@@ -47,6 +47,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1166,24 +1167,23 @@ func (r *runner) someCitation() string {
 	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
-// someReopened returns a citation or proof the record holds as reopened and unchecked — its
-// anchor, and for a proof the sha256 its re-run takes — or "" when none stands.
-func (r *runner) someReopened() (anchor, sha string) {
+// reopened returns every citation and proof the record holds as reopened and unchecked — each
+// anchor, and for a proof the sha256 its re-run takes.
+func (r *runner) reopened() []record.ProofRef {
 	b, ok := r.board()
 	if !ok {
-		return "", ""
+		return nil
 	}
 	ev := record.EvidenceJSONOf(b.Events, b.At)
-	if len(ev.Reopened) == 0 {
-		return "", ""
-	}
-	anchor = ev.Reopened[r.rng.Intn(len(ev.Reopened))].Anchor
+	sha := map[string]string{}
 	for _, p := range ev.Proofs {
-		if p.Anchor == anchor {
-			return anchor, p.Sha256
-		}
+		sha[p.Anchor] = p.Sha256
 	}
-	return anchor, ""
+	var out []record.ProofRef
+	for _, it := range ev.Reopened {
+		out = append(out, record.ProofRef{Anchor: it.Anchor, Sha: sha[it.Anchor]})
+	}
+	return out
 }
 
 // readiedForReopened reports whether plan holds a reopened blocker, and whether it readies the
@@ -2007,8 +2007,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(50, "--quote", "fuzz cited claim "+seatID).
 				// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
 				// seeded sentence no edit touches, no checked citation is ever reopened, and the
-				// plan's reopened arm and the gate behind it are unreached.
-				on(35, "--quote", "across the whole sampled corpus").
+				// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
+				// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
+				on(25, "--quote", "across the whole sampled corpus").
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
 				on(50, "--reason", "fuzz: why this source backs the claim")
 			if r.coin(75) {
@@ -2471,21 +2472,33 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
-				// A REOPENED CITATION OR PROOF IS CHECKED AGAIN, ON A COIN — so the sweep holds
-				// both ends: an anchor a later sitting clears, and one a lens sat for and left,
+				// A REOPENED CITATION OR PROOF IS CHECKED AGAIN, ONE OF THEM ON A COIN — so the sweep
+				// holds both ends: an anchor a later sitting clears, and one a lens sat for and left,
 				// which holds the PASS and ends the run naming it. A citation is verified at its
 				// anchor — read, or found `unreachable`, which clears nothing; a proof is re-run by
 				// the sha256 its row carries. The evidence lens alone drives it, as the seat whose
 				// work list holds the item: seven lenses each re-running a proof per sitting put
 				// the longest runs at the sweep's ten-minute limit.
-				if anchor, sha := r.someReopened(); anchor != "" && seatID == "red-lens-evidence" && r.coin(50) {
-					if sha != "" {
-						r.do("reproduce", seatID).set("--id", sha).set("--as", pick(r.rng, []string{"sound", "unsound"})).
-							set("--reason", "fuzz: read the script as the sentence now stands and re-ran it").run()
-					} else {
-						r.do("verify", seatID).set("--anchor", anchor).set("--quote", "A § fuzz sentence to anchor findings.").
-							set("--as", pick(r.rng, []string{"supports", "unreachable"})).set("--confidence", pick(r.rng, verifyConfidence)).
-							set("--reason", "fuzz: read the sentence as it now stands against its source").run()
+				//
+				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The lens is readied once
+				// per reopening, so an item its one sitting leaves holds the PASS for the rest of the
+				// run, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
+				if seatID == "red-lens-evidence" {
+					owed, results := r.reopened(), []string{"supports", "unreachable"}
+					if r.forceVerified {
+						results = results[:1]
+					} else if len(owed) > 0 {
+						owed = owed[r.rng.Intn(len(owed)):][:r.rng.Intn(2)]
+					}
+					for _, it := range owed {
+						if it.Sha != "" {
+							r.do("reproduce", seatID).set("--id", it.Sha).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+								set("--reason", "fuzz: read the script as the sentence now stands and re-ran it").run()
+						} else {
+							r.do("verify", seatID).set("--anchor", it.Anchor).set("--quote", "A § fuzz sentence to anchor findings.").
+								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
+								set("--reason", "fuzz: read the sentence as it now stands against its source").run()
+						}
 					}
 				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
@@ -3600,7 +3613,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
 		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
 		// the contradiction worth catching.
-		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 {
+		//
+		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. The evidence lens is readied once
+		// per reopening; one it sat for and left holds the PASS over a board with every gap
+		// closed, and the run ends UNVERIFIED naming it — the outcome the rule exists to give.
+		reopenedStands := slices.ContainsFunc(plan.Blockers, func(b record.PlanBlocker) bool { return b.Kind == record.BlockerReopened })
+		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 && !reopenedStands {
 			benchClosed := 0
 			for _, gOrd := range board.Gaps {
 				id := gOrd.ID
