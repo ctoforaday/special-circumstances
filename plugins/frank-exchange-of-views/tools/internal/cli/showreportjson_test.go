@@ -66,6 +66,19 @@ func TestShowReportJSONIsTheSameLinesAtHead(t *testing.T) {
 			t.Errorf("a read with no selector carries a selection block: %+v", d.Selection)
 		}
 	})
+	// A seat copies an anchor from this read into a quote, so the token prints as the report holds
+	// it, in the whole read and the selected one: universe-m19's blue read "\u003c!--fx:…--\u003e".
+	t.Run("an anchor prints as its token, never \\u-escaped", func(t *testing.T) {
+		for _, extra := range [][]string{nil, {"--match", "Costs rose"}} {
+			out, err := run(t, append([]string{"show", "report", "--run", runDir, "--seat-id", lensSeat, "--json"}, extra...)...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(out, anchor.Token(id)) {
+				t.Errorf("show report --json %v does not print %s as written:\n%s", extra, anchor.Token(id), out)
+			}
+		}
+	})
 	t.Run("head: an edit moves it, with the text", func(t *testing.T) {
 		before := reportJSONOf(t, runDir)
 		if before.Head == 0 {

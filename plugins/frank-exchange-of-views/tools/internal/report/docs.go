@@ -23,9 +23,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
@@ -219,7 +221,16 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
 		// the record-derived findings/transcript sections, and only a final-output strip
 		// catches those. No raw marker ships (the leak fix).
-		body := anchor.StripAssembled(collapseBlanks(docs[i].Body))
+		//
+		// A LINE THE STRIP EMPTIES GOES WHOLE. A bullet an edit cut down to its finding anchors, which
+		// no retire took, is tokens and a terminator; stripped, it printed "- ." in universe-m19's
+		// verified report. A line that held a stripped token and holds no prose and no other anchor
+		// without it is the husk reportproj.RemoveAnchorAt takes at a retire.
+		lines := slices.DeleteFunc(strings.Split(collapseBlanks(docs[i].Body), "\n"), func(ln string) bool {
+			s := anchor.StripAssembled(ln)
+			return s != ln && len(anchor.IDs(s)) == 0 && !claimcount.HasProse(s)
+		})
+		body := anchor.StripAssembled(strings.Join(lines, "\n"))
 		body = collapseBlanks(weaveCitations(body, sources))
 		body, hit := weaveProofRefs(body, proofs)
 		for _, label := range hit {

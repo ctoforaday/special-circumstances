@@ -1,6 +1,7 @@
 package seat
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -261,11 +262,16 @@ func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]
 		record.ReportJSON
 		Selection map[string]any `json:"selection,omitempty"`
 	}{record.ReportJSON{Head: head, Lines: lines}, selection}
-	b, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
+	// A line's anchors print as the tokens they are: a seat copies them from here into a quote, and
+	// the default encoding spells each "<" and ">" as a \u escape.
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(doc); err != nil {
 		return nil, err
 	}
-	return append(b, '\n'), nil
+	return b.Bytes(), nil
 }
 
 // selectJSONArrays keeps only the entries of EVERY top-level array whose JSON text the selector hits,
