@@ -19,6 +19,20 @@ import (
 // directory.
 func ExtractArchive(t *testing.T, name string) string {
 	t.Helper()
+	return extractArchive(t, name, t.Skipf)
+}
+
+// RequireArchive is ExtractArchive for a test whose SUBJECT is that archive: an absent or misnamed
+// tarball fails the test. Skipped, a test that pins one run's event ids reads as green on a
+// checkout where it measured nothing.
+func RequireArchive(t *testing.T, name string) string {
+	t.Helper()
+	return extractArchive(t, name, t.Fatalf)
+}
+
+// extractArchive unpacks the named tarball, and reports one it cannot find through missing.
+func extractArchive(t *testing.T, name string, missing func(format string, args ...any)) string {
+	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +51,7 @@ func ExtractArchive(t *testing.T, name string) string {
 		dir = parent
 	}
 	if tarball == "" {
-		t.Skipf("run-archive/%s not found above this checkout", name)
+		missing("run-archive/%s not found above this checkout", name)
 	}
 	into := TmpRun(t)
 	f, err := os.Open(tarball)
