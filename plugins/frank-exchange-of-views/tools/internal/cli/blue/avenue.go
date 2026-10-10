@@ -76,18 +76,15 @@ func newAvenuePropose() *cobra.Command {
 		}
 		// CRASH-RETRY IDEMPOTENCY, before an id is minted. A seat whose call returned nothing retries
 		// it, and without this the retry is a second avenue saying the same thing — ten for
-		// five on universe-m12. A CORRECTION is exempt: it re-states an act on purpose, and
-		// proposalID gives it the corrected line's own id.
-		if corrects, cerr := s.CorrectionTarget(); cerr == nil && corrects == nil {
-			prior, err := record.ExistingProposalByText(run, s.SeatID, why, seat.Str(cmd, flags.Hypothesis))
-			if err != nil {
-				return nil, err
-			}
-			if prior != "" {
-				return avenueResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
-			}
+		// five on universe-m12.
+		prior, err := record.ExistingProposalByText(run, s.SeatID, why, seat.Str(cmd, flags.Hypothesis))
+		if err != nil {
+			return nil, err
 		}
-		id, err := proposalID(s)
+		if prior != "" {
+			return avenueResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
+		}
+		id := record.NewID("avenue")
 		if err != nil {
 			return nil, err
 		}
@@ -135,21 +132,7 @@ func newAvenuePropose() *cobra.Command {
 	seat.Require(c, flags.Reason)
 	flags.Text(c, flags.Hypothesis, "what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
-	return seat.Correctable(c)
-}
-
-// proposalID is the id a proposal records: a new one, or — when the proposal corrects an earlier
-// one — the corrected proposal's own. A correction re-states the act; a freshly minted id would be a
-// different line, and the correction would be refused for changing it.
-func proposalID(s seat.Context) (string, error) {
-	t, err := s.CorrectionTarget()
-	if err != nil {
-		return "", err
-	}
-	if a, ok := t.(*recordpb.Avenue); ok {
-		return a.GetAvenueId(), nil
-	}
-	return record.NewID("avenue"), nil
+	return c
 }
 
 func newAvenueMove() *cobra.Command {
@@ -198,7 +181,7 @@ func newAvenueMove() *cobra.Command {
 	// glossed the four it did carry differently from the enum. enumhelp renders every value with
 	// its own meaning from the record, so the usage line's job is to say what the FIELD is for.
 	enumhelp.Flag(c, flags.As, record.MustEnum("avenue", "status"), "the fate of this avenue")
-	return seat.Correctable(c)
+	return c
 }
 
 type avenueResult struct {

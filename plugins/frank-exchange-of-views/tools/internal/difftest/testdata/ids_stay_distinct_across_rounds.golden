@@ -86,7 +86,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ motion grade rule --run {RUN} --seat-id red-chair --id MOTION001 --as rejected --reason the consequence stands
 exit 0
 stdout:
-motion MOTION001 ruled rejected [key red-chair:motion_rule:#1]
+motion MOTION001 ruled rejected
 1 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 

@@ -107,7 +107,7 @@ func newAvenueReview() *cobra.Command {
 	// declared.
 	seat.Records(c, "avenue_review")
 	// validate refuses a review that says nothing — silence cannot clear the duty.
-	return seat.Correctable(seat.SaysRequired(c, flags.Reason))
+	return seat.SaysRequired(c, flags.Reason)
 }
 
 type avenueReviewResult struct{}

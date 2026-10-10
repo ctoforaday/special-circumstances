@@ -52,7 +52,7 @@ func TestEventsOfACorrectableTypeCarriesItsCorrections(t *testing.T) {
 	run := corrRun(t)
 	blue := sit(t, run, "blue-respond")
 	k := mustAppend(t, blue, &recordpb.Position{Text: proto.String("the board is  going in")}).GetKey()
-	if _, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_POSITION, k, "a word was lost"),
+	if _, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_POSITION, k, "a word was lost"),
 		&recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestRegradeHistoryAndProofsListTheStruckAct(t *testing.T) {
 		return &recordpb.Regrade{GapId: proto.String("G1"), Severity: sev.Enum(), Basis: proto.String(basis)}
 	}
 	k := mustAppend(t, red, regrade(recordpb.Grade_GRADE_LOW, "the consequence is  bounded")).GetKey()
-	if _, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_REGRADE, k, "a word was lost"),
+	if _, err := replayed(correcting(red, recordpb.EventType_EVENT_TYPE_REGRADE, k, "a word was lost"),
 		regrade(recordpb.Grade_GRADE_HIGH, "the consequence reaches every caller")); err != nil {
 		t.Fatal(err)
 	}

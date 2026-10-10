@@ -47,27 +47,13 @@ func newOutcome() *cobra.Command {
 		// posture as seatenv's --run: where the tool can decide, a flag that disagrees is
 		// REFUSED naming both, rather than obeyed.
 		basis, basisWhy := record.VerdictAsserted, ""
-		// A CORRECTION RE-STATES THE OUTCOME; it does not re-derive it. The verdict is frozen by the
-		// correction's own compare, so the derivation's basis and reasoning are the corrected act's —
-		// re-derived over a record that has moved since, they could change a field the correction
-		// may not.
-		target, err := s.CorrectionTarget()
+		derived, why, ok, err := record.DeriveVerdict(run)
 		if err != nil {
-			return nil, err
-		}
-		prior, correcting := target.(*recordpb.Outcome)
-		derived, why, ok := "", "", false
-		if !correcting {
-			derived, why, ok, err = record.DeriveVerdict(run)
-			if err != nil {
-				// Not a refusal of the verdict: the record could not be read to derive one, so the
-				// call is retried as it stands.
-				return nil, fmt.Errorf("outcome: the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
-			}
+			// Not a refusal of the verdict: the record could not be read to derive one, so the
+			// call is retried as it stands.
+			return nil, fmt.Errorf("outcome: the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
 		}
 		switch {
-		case correcting:
-			basis, basisWhy = prior.GetVerdictBasis(), prior.GetVerdictWhy()
 		case ok && verdict != derived:
 			return nil, feov.Errorf(feov.Conflict,
 				"outcome: --as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
@@ -134,7 +120,7 @@ func newOutcome() *cobra.Command {
 	seat.Prose(c)
 	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words — the bench's account of the sitting, and on an UNVERIFIED run the only evidence of why it stopped"
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
-	return seat.Correctable(c)
+	return c
 }
 
 type outcomeResult struct {

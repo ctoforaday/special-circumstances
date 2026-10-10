@@ -246,8 +246,8 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 	})
 
 	// THE SAME-SITTING HOLD. The earlier regrade is written through Append, so it carries the key
-	// a second regrade this sitting would derive; its correction is refused because the ruling is
-	// another seat's act after it. The item waits for the sitting that can record the regrade.
+	// a second regrade this sitting would derive, and the refusal of that second names the sitting
+	// that admits it. The item waits for the sitting that can record the regrade.
 	t.Run("regraded before the ruling, in the current sitting", func(t *testing.T) {
 		dir, run, id := start(t, regradeLens)
 		first := mustAppend(t, id, regrade())
@@ -256,11 +256,7 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 		}
 		recordtest.Seed(t, dir, accepted(t, "M1")...)
 		refused(t, run, id, `has already recorded a regrade on "G1" this sitting`)
-		_, err := Append(correcting(id, recordpb.EventType_EVENT_TYPE_REGRADE, firstKey, "w"),
-			&recordpb.Regrade{GapId: proto.String("G1"), Basis: proto.String("the ruling's basis")})
-		// The refusal names the sitting that admits it: a second regrade now is the refusal above.
-		mustRefuse(t, err, "another seat has acted since this regrade",
-			"say it in a new regrade at your next sitting (a sitting holds one per --id, and this sitting's stands)")
+		refused(t, run, id, "say so in a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands)")
 
 		recordtest.Seed(t, dir, registers(t, regradeLens))
 		admitted(t, run, id, secondKey)
@@ -312,7 +308,7 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 			return r
 		}
 		k := mustAppend(t, chair, rule("ruled")).GetKey()
-		mustAppend(t, correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
+		mustReplay(t, correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
 			rule("the grade moves, and here is why"))
 		admitted(t, run, id, firstKey)
 	})

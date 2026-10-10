@@ -132,14 +132,11 @@ type Identity struct {
 	Run    Run
 	SeatID string
 
-	// Correct, when set, makes this identity's write of Correct.Type a same-sitting correction of
-	// the act Correct.Key names (see Correct). Nil for every ordinary write.
+	// Correct, when set, makes this identity's write of Correct.Type the replacement of the act
+	// Correct.Key names, written with its Correction (see Correct). MIGRATE ALONE SETS IT, replaying
+	// a correction an archived record holds: Append refuses it outside a migration, and no seat's
+	// identity carries one (cli/seat Context.Identity).
 	Correct *Correct
-
-	// OnWrite is told of every event a write through this identity committed — the replacement
-	// and its Correction included — so the command that asked can say what it wrote (its key)
-	// without re-deriving it.
-	OnWrite func(*Event)
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -550,12 +547,18 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A CORRECTING INVOCATION'S ONE BODY OF THE CORRECTED TYPE is the replacement; every other body
-	// it writes (a tool log beside it) is an ordinary act.
+	// A CORRECTION IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. An archived record holds the ones its
+	// seats made, and migrate replays each as the pair it was written as; a live record gains none —
+	// an act stands as filed, and what answers a wrong one is another act (supersede.go). The one
+	// body of the corrected type written through the identity is the replacement.
 	if c := id.Correct; c != nil && typ == c.Type {
+		if !Migrating {
+			return nil, feov.Errorf(feov.Validation,
+				"record: a correction is written by migrate together with the act it replaces, never by a seat — an act stands as filed, and a wrong one is answered by a new act")
+		}
 		if c.written {
 			return nil, feov.Errorf(feov.Validation,
-				"record: this invocation already wrote its correction of %s — a second %s in one correcting command would be an act with no key to name it by",
+				"record: this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
 				c.Key, recordpb.Word(typ))
 		}
 		c.written = true
@@ -568,9 +571,6 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	// and appended — two steps with a gap, held together only by one seat owning one file.
 	if err := insertNumbered(db, ev, seatID, typ, body); err != nil {
 		return ev, err
-	}
-	if id.OnWrite != nil {
-		id.OnWrite(ev)
 	}
 	return ev, nil
 }
@@ -607,7 +607,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	}
 	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings or
 	// two appeals racing each other resolve to one answer and one refusal (motion.go).
-	if err := requireUnanswered(tx, seatID, body, ""); err != nil {
+	if err := requireUnanswered(tx, seatID, body); err != nil {
 		return err
 	}
 	envelope(ev, Now().UTC().Format(stampLayout), seatID, key)
@@ -625,17 +625,18 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 		// (deriveKey) changes what it must hold back, and the current-sitting row of
 		// TestARegradeOnTheListIsOneTheWritePathAdmits is the one that notices.
 		if isDuplicateKey(err) {
-			// THE TAIL DEPENDS ON THE TIER. A correctable act gets the key of the act that stands
-			// and the invocation that corrects it — the act that "supersedes" a manifest row or a
-			// ruling does not exist, and sending a seat to it is what moved clean text into a log.
-			// An act that cannot be corrected keeps the old tail: the domain act supersedes it.
-			tail := "If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible"
-			if Correctable(typ, body) {
-				tail = correctionPointer(tx, key)
+			// THE TAIL NAMES THE ACT THAT ANSWERS THE FIRST, read from the one table that holds it
+			// (supersede.go). A generic "say so in the act that supersedes it" names an act that, for
+			// a manifest row or a regrade, does not exist this sitting, and sending a seat to it is
+			// what moved clean text into a log. Where the table holds no row — a key the tool
+			// minted, which only a retried write lands on twice — the refusal ends without one.
+			tail := ""
+			if a := SupersedingAnswer(typ, body, seatID); a != "" {
+				tail = " " + a
 			}
 			return feov.Errorf(feov.Validation,
 				"record: %s has already recorded a %s on %q this sitting — the record keeps your first one "+
-					"rather than quietly replacing it (a retried write lands on the same key on purpose). %s",
+					"rather than quietly replacing it (a retried write lands on the same key on purpose).%s",
 				seatID, recordpb.Word(typ), keyLabel(body), tail)
 		}
 		return err
@@ -659,10 +660,10 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 // schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
 // than assumed: see the filing/ruling arms below.
 //
-// TARGET IS THE ACT A CORRECTION REPLACES, nil for every ordinary write. A guard that refuses
-// because "this has already happened" must pass when what already happened IS the act being
-// corrected — a closure's correction names a closed gap by definition. validate is the ordinary
-// write's form; validateAgainst is the correction's.
+// TARGET IS THE ACT A REPLAYED CORRECTION REPLACES, nil for every ordinary write. A guard that
+// refuses because "this has already happened" must pass when what already happened IS the act
+// being replaced — a closure's correction names a closed gap by definition. validate is the
+// ordinary write's form; validateAgainst is migrate's replay of a correction.
 func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
 	return validateAgainst(run, seatID, typ, body, nil)
 }
@@ -726,7 +727,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
 		// transaction as the replacement it names; one without the other is a strike with nothing
 		// in its place, or a replacement nothing marks as one.
-		return fmt.Errorf("record: a correction is written by re-running the corrected act's own verb with --corrects <key>, never on its own")
+		return fmt.Errorf("record: a correction is written by migrate together with the act it replaces, never on its own")
 	case *recordpb.Anchor:
 		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
 		// deriveKey, so a retry writes one event rather than a second marker.

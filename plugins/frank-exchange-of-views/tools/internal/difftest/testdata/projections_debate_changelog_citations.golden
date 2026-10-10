@@ -26,7 +26,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ position --run {RUN} --seat-id red-chair --reason red's round position
 exit 0
 stdout:
-position recorded [key red-chair:position:#1]
+position recorded
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
@@ -41,7 +41,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ closing --run {RUN} --seat-id red-chair --id GAP001 --reason red's closing
 exit 0
 stdout:
-closing filed for GAP001 [key red-chair:closing:#1:GAP001]
+closing filed for GAP001
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
@@ -49,19 +49,19 @@ closing filed for GAP001 [key red-chair:closing:#1:GAP001]
 $ position --run {RUN} --seat-id blue-respond --reason blue's round position
 exit 0
 stdout:
-position recorded [key blue-respond:position:#0]
+position recorded
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
 exit 0
 stdout:
-closing filed for GAP001 [key blue-respond:closing:#0:GAP001]
+closing filed for GAP001
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason figures recomputed; check run: pass
 exit 0
 stdout:
-manifest row recorded for GAP001 [key blue-respond:manifest_row:#0:GAP001]
+manifest row recorded for GAP001
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ motion grade file --run {RUN} --seat-id blue-respond --id GAP001 --dimension likelihood --proposed low --reason the harm needs two failures
@@ -98,6 +98,9 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   EOF
   )
   … "$X"
+
+IF WHAT YOU RECORDED WAS WRONG, say so in a new verification of the citation at your next sitting (a
+sitting holds one per --anchor, and this sitting's stands).
 
 Usage:
   feov-record verify [flags]
@@ -157,13 +160,13 @@ motion MOTION002 filed (docket)
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION002 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --reopens-on the figure recomputed from its source --reason the rationale body
 exit 0
 stdout:
-motion MOTION002 ruled remanded [key judge:motion_rule:#1]
+motion MOTION002 ruled remanded
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ certify --run {RUN} --seat-id judge --reason what a human should re-examine
 exit 0
 stdout:
-certification recorded [key judge:certify:#1]
+certification recorded
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══

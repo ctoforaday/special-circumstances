@@ -43,17 +43,6 @@ func newProve() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// A CORRECTION RE-STATES THE PROOF; it does not run the script again or mint a new id. The
-		// id, the hash, the basis, the exit and the drift are the corrected act's, because the tool
-		// assigned or computed them. Everything the seat types comes from this command line exactly
-		// as a new proof takes it (proofFields): a flag left out is left out, and the correction
-		// refuses it as a change wherever the act recorded a value. Only the note — the seat's own
-		// wording — may differ.
-		target, err := s.CorrectionTarget()
-		if err != nil {
-			return nil, err
-		}
-		prior, correcting := target.(*recordpb.Proof)
 		location, script := seat.Location(cmd), seat.Str(cmd, flags.Script)
 		if strings.TrimSpace(location) == "" {
 			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
@@ -80,22 +69,6 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 		tells := spanVoiceTells(why)
-
-		if correcting {
-			body := &recordpb.Proof{
-				ProofId:    held(prior.ProofId),
-				ProofSha:   held(prior.ProofSha),
-				ProofBasis: held(prior.ProofBasis),
-				Exit:       held(prior.Exit),
-				Drift:      held(prior.Drift),
-			}
-			proofFields(cmd, body, why)
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			return proveResult{Label: prior.GetProofId(), SHA: prior.GetProofSha(), Basis: prior.GetProofBasis(),
-				Exit: int(prior.GetExit()), Drift: prior.GetDrift(), VoiceTells: tells}, nil
-		}
 
 		// The script's own sha settles it, and costs a file read rather than an execution.
 		if prior, priorID, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
@@ -182,12 +155,11 @@ func newProve() *cobra.Command {
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer")
 	seat.Records(c, "proof")
-	return seat.Correctable(c)
+	return c
 }
 
-// proofFields sets every field of a proof that the SEAT types, for a new proof and for its
-// correction alike — one builder, so a correction re-states the act with the presence the act
-// itself has. `script` is the flag's own value: proof.Run records the path it was handed.
+// proofFields sets every field of a proof that the SEAT types. `script` is the flag's own value:
+// proof.Run records the path it was handed.
 func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
 	body.Location = proto.String(seat.Location(cmd))
 	body.Script = proto.String(seat.Str(cmd, flags.Script))
@@ -195,16 +167,6 @@ func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
 	body.Answers = proto.String(seat.Str(cmd, flags.Answers))
 	body.Cites = proto.String(seat.Str(cmd, flags.Cites))
 	body.Text = proto.String(why)
-}
-
-// held copies a field the corrected act holds, keeping its presence: an unset field stays unset,
-// so the replacement differs from its act only where the command line does.
-func held[T any](p *T) *T {
-	if p == nil {
-		return nil
-	}
-	v := *p
-	return &v
 }
 
 func proveRefusal(err error) error { return anchortext.Refusal("blue prove", err) }

@@ -1,0 +1,245 @@
+$ register --run {RUN} --seat-id red-chair
+exit 0
+stdout:
+registered red-chair
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id blue-respond
+exit 0
+stdout:
+registered blue-respond
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --problem the first gap
+exit 0
+stdout:
+minted GAP001
+  acceptance check RECORDED as: a
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via 
+exit 0
+stdout:
+manifest row recorded for GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded proof
+exit 2
+stderr:
+feov-record: blue: record: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+
+$ position --run {RUN} --seat-id blue-respond --reason the board is  going in
+exit 0
+stdout:
+position recorded
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ position --run {RUN} --seat-id blue-respond --reason the board is clean going in
+exit 2
+stderr:
+feov-record: blue: record: blue-respond has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+
+$ motion grade file --run {RUN} --seat-id blue-respond --id GAP001 --dimension severity --proposed low --reason the consequence is bounded
+exit 0
+stdout:
+motion MOTION001 filed (grade)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ motion grade rule --run {RUN} --seat-id red-chair --id MOTION001 --as rejected --reason the evidence does not  it
+exit 0
+stdout:
+motion MOTION001 ruled rejected
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+
+$ motion grade rule --run {RUN} --seat-id red-chair --id MOTION001 --as rejected --reason the evidence does not reach it
+exit 2
+stderr:
+feov-record: chair: record: motion MOTION001 is already ruled "rejected" by red-chair. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. The first stands. If it was wrong, say so in a docket motion on the gap, or a new grade motion while the gap is open; the record is append-only and both stay visible
+
+$ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason my ruling lost a word: the evidence does not reach it
+exit 0
+stdout:
+motion MOTION002 filed (docket)
+3 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
+  · your terminal act is missing — the run cannot say from its own record that it was ever verified
+
+$ motion grade appeal --run {RUN} --seat-id blue-respond --id MOTION001 --reason pressing it on  grounds
+exit 0
+stdout:
+motion MOTION001 appealed
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ motion grade appeal --run {RUN} --seat-id blue-respond --id MOTION001 --reason pressing it on new grounds
+exit 2
+stderr:
+feov-record: blue: record: motion MOTION001 is already appealed by blue-respond ("pressing it on  grounds"). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. The first stands. If it was wrong, say so in a new grade motion while the gap is open, or a docket motion on the gap; the record is append-only and both stay visible
+
+$ motion docket file --run {RUN} --seat-id blue-respond --id GAP001 --reason my appeal lost a word: I press it on new grounds
+exit 0
+stdout:
+motion MOTION003 filed (docket)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
+exit 0
+stdout:
+closed GAP001 (repaired)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the leaf
+exit 2
+stderr:
+feov-record: lens: record: close --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure
+
+$ motion docket file --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason my closure lost a word: verified at the leaf
+exit 0
+stdout:
+motion MOTION004 filed (docket)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id blue-respond
+exit 0
+stdout:
+registered blue-respond (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded proof
+exit 0
+stdout:
+manifest row recorded for GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ position --run {RUN} --seat-id blue-respond --reason the board is clean going in
+exit 0
+stdout:
+position recorded
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+═══ EVENTS ═══
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"the first gap","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-respond:manifest_row:#1:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via "},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `manifest-row` with --id --reason: blue: record: blue-respond has already recorded a manifest_row on \"GAP001\" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next …","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"blue-respond:position:#1","position":{"text":"the board is  going in"},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_POSITION"}
+{"key":"blue-respond:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `position` with --reason: blue: record: blue-respond has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stan…","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_LOG"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the consequence is bounded","grade":{"dimension":"GRADE_DIMENSION_SEVERITY","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"MOTION001","opinion":"the evidence does not  it","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion grade rule` with --as --id --reason: chair: record: motion MOTION001 is already ruled \"rejected\" by red-chair. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. The first stands. If it was wrong, say so in a docket motion on the gap, or a new grade mot…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_LOG"}
+{"key":"red-chair:motion:#1","motion":{"basis":"my ruling lost a word: the evidence does not reach it","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:motion_appeal:#1","motion_appeal":{"motion_id":"MOTION001","reason":"pressing it on  grounds","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":14,"type":"EVENT_TYPE_MOTION_APPEAL"}
+{"key":"blue-respond:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion grade appeal` with --id --reason: blue: record: motion MOTION001 is already appealed by blue-respond (\"pressing it on grounds\"). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. The first stands. If it was wrong, say so in a new grad…","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":15,"type":"EVENT_TYPE_LOG"}
+{"key":"blue-respond:motion:#2","motion":{"basis":"my appeal lost a word: I press it on new grounds","docket":{"gap_id":"GAP001"},"motion_id":"MOTION003","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"blue-respond","ts":16,"type":"EVENT_TYPE_MOTION"}
+{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"verified at the  leaf"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_CLOSE"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --reason --verified-against --verified-by --verified-with: lens: record: close --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from \u003cepoch\u003e` RESTATES an earlier closure","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":18,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP001"},"motion_id":"MOTION004","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-lens-evidence","ts":19,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":20,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded proof"},"seat_id":"blue-respond","ts":21,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:position:#2","position":{"text":"the board is clean going in"},"seat_id":"blue-respond","ts":22,"type":"EVENT_TYPE_POSITION"}
+
+═══ RENDERS ═══
+-- avenues
+# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+
+_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md)
+
+---
+
+**Outcome:** NONE (no terminal outcome on the record)
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| _(no open gaps)_ |  |  |  |  |
+
+The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Additional findings
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.

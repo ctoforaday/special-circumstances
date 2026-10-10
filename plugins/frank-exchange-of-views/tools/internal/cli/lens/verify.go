@@ -98,6 +98,8 @@ func newVerify() *cobra.Command {
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`")
 	seat.Require(c, flags.Anchor)
+	// A verification is keyed on the citation it names.
+	seat.KeysOn(c, "anchor")
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
 	verifyAxes(c)
 	return c
@@ -195,6 +197,9 @@ func newCorroborate() *cobra.Command {
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.URL, flags.Title)
 	verifyAxes(c)
+	// A corroboration is keyed on the source it read — or, when the source backs the claim, on the
+	// label of the citation the tool then places (writeVerify).
+	seat.KeysOn(c, "url", "label")
 	return c
 }
 

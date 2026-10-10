@@ -175,7 +175,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
 			// RE-RUNNING it, not by reading it" and handed over the re-run's id — so the first thing
 			// a lens could do with the item was record a verdict on a script it had not read (wave A,
-			// 2026-10-09: three placeholder verdicts, then a refused correction).
+			// 2026-10-09: three placeholder verdicts, each of which stands).
 			item := "proof " + pr.Anchor + " is recorded and nobody has re-run it — a proof is audited by READING its script and then RE-RUNNING it, never by reading alone: `show evidence --anchor " + pr.Anchor + "` prints the script and its recorded output"
 			if pr.Sha != "" {
 				item += ", and `reproduce` then re-runs it and records your verdict in one act: --id " + pr.Sha
@@ -318,14 +318,15 @@ func anyClosedGap(gaps []WorkGapState) bool {
 // THE SAME-SITTING HOLD IS EXACT. A regrade's key carries the count of its seat's sittings
 // (deriveKey) and its stored sitting is the seat's newest at the write; both read the `sittings`
 // view. So an earlier regrade's key is the one a regrade now would derive exactly when its stored
-// sitting is still the seat's latest. The correction the duplicate-key refusal points to cannot
-// stand in: the ruling is another seat's act after the regrade, and a correction is refused once
-// another seat has acted. The item appears at the seat's next sitting, which is the first that can
-// record the regrade. A struck regrade and its replacement are one gap in one sitting, so reading
-// the raw stream gives the same answer for both.
+// sitting is still the seat's latest. Nothing stands in for it this sitting: the first regrade
+// stands, and the duplicate-key refusal names the next sitting's regrade as the act that answers
+// it (supersede.go). The item appears at the seat's next sitting, which is the first that can
+// record the regrade. A struck regrade an archived record holds and its replacement are one gap in
+// one sitting, so reading the raw stream gives the same answer for both.
 //
-// POSITIONS IN evs ARE SOUND UNDER CORRECTIONS. evs is one read of the whole record in id order.
-// A ruling or a regrade is corrected only before another seat acts, and the ruler and the minter
+// POSITIONS IN evs ARE SOUND UNDER AN ARCHIVED RECORD'S CORRECTIONS. evs is one read of the whole
+// record in id order. A ruling or a regrade was struck only before another seat acted, and the
+// ruler and the minter
 // are different seats, so no regrade falls between a ruling and its replacement and no pre-ruling
 // regrade is corrected after the ruling. The reader is the work list's whole-record snapshot
 // (WorkOfSeat), so win knows every seat's latest sitting.

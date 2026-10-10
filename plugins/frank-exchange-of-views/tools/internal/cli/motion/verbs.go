@@ -357,11 +357,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// established, which a parse-time refusal would pre-empt.
 			flags.Text(c, f, ruleFlagHelp[f])
 			seat.SaysRequired(c, f)
-		case flags.ReopensOn:
-			// Answered by --final, never by an empty value: the write wants exactly one of the
-			// two, and a correction may not move --final, so this wording is never dropped.
-			flags.Text(c, f, ruleFlagHelp[f])
-			seat.MustRepeat(c, f)
 		default:
 			flags.Text(c, f, ruleFlagHelp[f])
 		}
@@ -371,7 +366,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	}
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_rule")
-	return seat.Correctable(c)
+	return c
 }
 
 // appeal: a seat presses a motion on after a ruling.
@@ -434,7 +429,7 @@ func newAppeal(subject string) *cobra.Command {
 	seat.Require(c, flags.ID)
 	// The record type, for the contract gate — see newFile.
 	seat.Records(c, "motion_appeal")
-	return seat.Correctable(c)
+	return c
 }
 
 // refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the

@@ -204,7 +204,7 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Costs rose sharply in Q1."), Reason: proto.String("refuted"), Anchors: []string{"c-0000aaa1"}})
 			fixed := proto.Clone(cited.GetCite()).(*recordpb.Cite)
 			fixed.Title = proto.String("S, section 2")
-			if _, err := record.Append(record.Identity{Run: s.run, SeatID: shapeBlue,
+			if _, err := replayed(record.Identity{Run: s.run, SeatID: shapeBlue,
 				Correct: &record.Correct{Type: recordpb.EventType_EVENT_TYPE_CITE, Key: cited.GetKey(), Why: "the title was wrong"}}, fixed); err != nil {
 				s.t.Fatalf("seeding the correction: %v", err)
 			}
@@ -237,7 +237,7 @@ func TestPlacementTranslationAnchorsEveryPlacer(t *testing.T) {
 	src.proof("p-0000aaa2", "")
 	fixed := proto.Clone(cited.GetCite()).(*recordpb.Cite)
 	fixed.Title = proto.String("S, section 2")
-	if _, err := record.Append(record.Identity{Run: src.run, SeatID: shapeBlue,
+	if _, err := replayed(record.Identity{Run: src.run, SeatID: shapeBlue,
 		Correct: &record.Correct{Type: recordpb.EventType_EVENT_TYPE_CITE, Key: cited.GetKey(), Why: "the title was wrong"}}, fixed); err != nil {
 		t.Fatalf("seeding the correction: %v", err)
 	}

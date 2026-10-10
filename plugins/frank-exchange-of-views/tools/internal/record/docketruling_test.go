@@ -80,7 +80,7 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 	ruleM1 := func(t *testing.T, judge Identity, correct bool) {
 		k := mustAppend(t, judge, docketRule("M1", "typo")).GetKey()
 		if correct {
-			if _, err := Append(correcting(judge, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "typo"), docketRule("M1", "fixed")); err != nil {
+			if _, err := replayed(correcting(judge, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "typo"), docketRule("M1", "fixed")); err != nil {
 				t.Fatalf("correcting the docket ruling refused: %v", err)
 			}
 		}

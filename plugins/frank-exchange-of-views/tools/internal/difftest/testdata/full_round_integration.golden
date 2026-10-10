@@ -39,6 +39,9 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
+IF WHAT YOU RECORDED WAS WRONG, say so in a new verification of the citation at your next sitting (a
+sitting holds one per --anchor, and this sitting's stands).
+
 Usage:
   feov-record verify [flags]
 
@@ -120,7 +123,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ position --run {RUN} --seat-id red-chair --reason round one: FAIL
 exit 0
 stdout:
-position recorded [key red-chair:position:#1]
+position recorded
 2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
   · your terminal act is missing — the run cannot say from its own record that it was ever verified

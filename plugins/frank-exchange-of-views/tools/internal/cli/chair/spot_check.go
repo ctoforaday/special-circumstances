@@ -80,7 +80,7 @@ func newSpotCheck() *cobra.Command {
 	seat.ProseRequired(c)
 	// The verb's name is not its event's word, so the event is declared.
 	seat.Records(c, "spot_check")
-	return seat.Correctable(c)
+	return c
 }
 
 type spotCheckResult struct {

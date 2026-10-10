@@ -40,17 +40,6 @@ func newCite() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// A CORRECTION RE-STATES THE CITE; it does not fetch again or mint a new label. The label,
-		// the hash, the access date, the text origin, the pages and what the fetch learned about the
-		// work are the corrected act's, because the tool assigned or computed them. Everything the
-		// seat types comes from this command line exactly as a new cite takes it (citeFields): a
-		// flag left out is left out, and the correction refuses it as a change wherever the act
-		// recorded a value. Only the title and the argument — the seat's own wording — may differ.
-		target, err := s.CorrectionTarget()
-		if err != nil {
-			return nil, err
-		}
-		prior, correcting := target.(*recordpb.Cite)
 		quote, url, title := seat.Location(cmd), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
 		ocrQuote := seat.Str(cmd, flags.OCRQuote)
 		if strings.TrimSpace(quote) == "" {
@@ -80,33 +69,6 @@ func newCite() *cobra.Command {
 		read, err := sourceTextRead(cmd)
 		if err != nil {
 			return nil, err
-		}
-
-		// The replacement's marker is the original's: it re-carries the label and appends no Anchor,
-		// so the report carries the one anchor the original placed, wherever edits moved it.
-		if correcting {
-			body := &recordpb.Cite{
-				Label:              held(prior.Label),
-				Sha256:             held(prior.Sha256),
-				AccessDate:         held(prior.AccessDate),
-				SourceTextOrigin:   held(prior.SourceTextOrigin),
-				Pages:              append([]int32(nil), prior.GetPages()...),
-				OcrEngine:          held(prior.OcrEngine),
-				OcrTextSha:         held(prior.OcrTextSha),
-				WorkStatus:         held(prior.WorkStatus),
-				SourceCompleteness: held(prior.SourceCompleteness),
-			}
-			citeFields(cmd, body, read, why)
-			// The pages stay the corrected act's: a correction never re-locates. The span is the
-			// seat's, so it is set exactly when it is given — left out against an act that holds
-			// one, or given against an act that holds none, it is a change the correction refuses.
-			if seat.Given(cmd, flags.OCRQuote) {
-				body.OcrQuote = proto.String(ocrQuote)
-			}
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			return citeResult{Label: prior.GetLabel(), URL: prior.GetUrl(), Sha256: prior.GetSha256(), VoiceTells: tells}, nil
 		}
 
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
@@ -201,7 +163,7 @@ func newCite() *cobra.Command {
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
 	flags.Text(c, flags.OCRQuote, "for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id")
-	return seat.Correctable(c)
+	return c
 }
 
 // sourceTextRead is the reading the seat asserts for the source. THE DEFAULT IS THE WEAK CLAIM: a
@@ -219,8 +181,7 @@ func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
 	return v, nil
 }
 
-// citeFields sets every field of a cite that the SEAT types, for a new cite and for its correction
-// alike — one builder, so a correction re-states the act with the presence the act itself has.
+// citeFields sets every field of a cite that the SEAT types.
 //
 // THE ARGUMENT FOR THE CITATION goes on the record, in Cite.text — why this source backs this
 // sentence. It is not printed in the report (the note and the Bibliography print the title, and a

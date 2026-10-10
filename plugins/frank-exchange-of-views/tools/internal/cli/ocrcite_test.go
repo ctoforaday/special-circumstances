@@ -334,32 +334,3 @@ func TestRenderPageSaysWhenThereIsNoReading(t *testing.T) {
 		t.Errorf("render-page with no reading must say reading none and print no reading sha:\n%s", out)
 	}
 }
-
-// A CORRECTION NEVER RE-LOCATES (D7a). The quote's page identifies where it sits, as the url does:
-// a corrected title keeps the pages, and a different span is refused as a frozen field.
-func TestACorrectedOCRCiteKeepsItsPages(t *testing.T) {
-	runDir, _ := ocrRun(t, threePages)
-	k := correctionKeyOf(t, runDir, citeSeat, []string{"cite", "--quote", ocrClaim, "--url", ocrURL,
-		"--title", "IEEE 1012, as read in this run", "--source-text", "leaf", "--ocr-quote", "Annexes A through J"})
-	// Every flag is repeated: left out, --ocr-quote and --source-text would each be a change.
-	must(t, runDir, "cite", "--seat-id", citeSeat, "--quote", ocrClaim, "--url", ocrURL, "--title", "IEEE 1012",
-		"--source-text", "leaf", "--ocr-quote", "Annexes A through J",
-		"--corrects", k, "--correction-why", "the title narrated the run")
-	srcs, err := record.CitedSources(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(srcs) != 1 || srcs[0].Title != "IEEE 1012" || len(srcs[0].Pages) != 1 || srcs[0].Pages[0] != 2 {
-		t.Fatalf("sources = %+v, want one with the corrected title and pages [2]", srcs)
-	}
-
-	k2 := correctionKeyOf(t, runDir, citeSeat, []string{"cite", "--quote", ocrClaim, "--url", ocrURL,
-		"--title", "Again", "--ocr-quote", "integrity levels"})
-	for _, span := range [][]string{{"--ocr-quote", "The integrity levels are four."}, nil} {
-		_, err = run(t, append([]string{"cite", "--run", runDir, "--seat-id", citeSeat, "--quote", ocrClaim, "--url", ocrURL, "--title", "Again",
-			"--corrects", k2, "--correction-why", "wrong span"}, span...)...)
-		if err == nil || !strings.Contains(err.Error(), "this one changes --ocr-quote,") {
-			t.Fatalf("a correction with the span %q was not refused as a change to --ocr-quote: %v", span, err)
-		}
-	}
-}
