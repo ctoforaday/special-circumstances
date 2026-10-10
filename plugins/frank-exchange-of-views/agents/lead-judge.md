@@ -149,7 +149,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
-  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the chair.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.

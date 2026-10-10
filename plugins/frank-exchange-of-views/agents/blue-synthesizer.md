@@ -148,7 +148,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
-  - A grade motion is a side's motion contesting a gap's grade, ruled by the bench.
+  - A grade motion is a side's motion contesting a gap's grade, ruled by the chair.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
