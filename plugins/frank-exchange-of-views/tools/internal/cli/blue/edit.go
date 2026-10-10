@@ -3,6 +3,7 @@ package blue
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -193,6 +194,12 @@ func newEdit() *cobra.Command {
 				body.AppliedVerbatim = proto.Bool(true)
 			}
 		}
+		// Red's own text, taken whole, places the gap's anchor where the tool puts it (record.Proposal).
+		if !body.GetAppliedVerbatim() {
+			if err := bunchedRefusal(run, peek, oldStr, applied, exact); err != nil {
+				return nil, err
+			}
+		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -300,6 +307,128 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 			"of the text before it to be unique, or leave the terminator out of --new", run)
 	}
 	return planned, applied, exact, nil
+}
+
+// bunchedRun is the anchor run a replacement carries from the end of the text it replaces to the end
+// of its own last sentence, when it holds MORE sentences than that text — with those sentences.
+//
+// A run at a sentence's end says which sentence its claims are on and nothing finer, and a split is
+// the first moment a finer answer is needed. Measured (gblock's ruling, 2026-10-10, and the
+// elicitation that refined it): blue reads every anchor in place and copies the run after the last
+// sentence it writes — universe-m19 ev400 (one sentence to two, four anchors, the citation's
+// footnote moved onto a sentence its source does not back), universe-m18 ev263 (one to two, three)
+// and ev267 (one to four, the five-anchor end run).
+//
+// The smallest form that holds all three and none of the corpus's other 115 anchor-carrying edits:
+// the sentences are anchor.Sentences' that hold prose; the run is two anchors or more with no
+// prose after them in the replaced text's last sentence; every one of them stands the same way in
+// the replacement's last sentence; and that sentence is not the old one word for word. An anchor
+// the replacement writes anywhere else, a sentence count that does not grow, and a last sentence
+// kept as it was all apply — the last is how a seat says the run belongs where it stands: reword
+// the sentence in one edit, add the others in a second that keeps it.
+func bunchedRun(report, old, applied string, exact bool) (run []string, was int, now []string) {
+	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
+	if exact {
+		start, end, _, _ = bluedoc.LocateLiteral(report, old)
+	} else if err != nil {
+		return nil, 0, nil
+	}
+	prose := func(s string) (out []string) {
+		for _, sp := range anchor.Sentences(s) {
+			if claimcount.HasProse(s[sp[0]:sp[1]]) {
+				out = append(out, s[sp[0]:sp[1]])
+			}
+		}
+		return out
+	}
+	atEnd := func(s string) (ids []string) {
+		anchor.Each(s, func(_, stop int, id string) {
+			if !claimcount.HasProse(s[stop:]) {
+				ids = append(ids, id)
+			}
+		})
+		return ids
+	}
+	before, now := prose(report[start:end]), prose(applied)
+	if len(before) == 0 || len(now) <= len(before) || quoteCore(before[len(before)-1]) == quoteCore(now[len(now)-1]) {
+		return nil, 0, nil
+	}
+	run = atEnd(before[len(before)-1])
+	stands := atEnd(now[len(now)-1])
+	for _, id := range run {
+		if !slices.Contains(stands, id) {
+			return nil, 0, nil
+		}
+	}
+	if len(run) < 2 {
+		return nil, 0, nil
+	}
+	return run, len(before), now
+}
+
+// bunchedRefusal refuses bunchedRun's edit, printing beside each anchor of the run what the record
+// says it is about — the one thing that tells a seat which sentence holds its claim. Never the
+// anchor's stored location: in every measured case that is the whole old sentence, the same words
+// for every anchor of the run.
+func bunchedRefusal(run record.Run, report, old, applied string, exact bool) error {
+	ids, was, now := bunchedRun(report, old, applied, exact)
+	if ids == nil {
+		return nil
+	}
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		return err
+	}
+	proofs, err := record.RecordedProofs(run)
+	if err != nil {
+		return err
+	}
+	line := func(s string) string {
+		r := []rune(strings.Join(strings.Fields(claimcount.StripAnchors(s)), " "))
+		if len(r) > 200 {
+			return string(r[:200]) + "…"
+		}
+		return string(r)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "blue edit: your replacement holds %d sentences where the text it replaces holds %d, and it carries the %d anchors that stood at the end of that text to the end of its last sentence. "+
+		"An anchor belongs on the sentence that holds its claim, and a run at a sentence's end does not say which sentence that is now. What each one marks, from the record:\n", len(now), was, len(ids))
+	for _, id := range ids {
+		about := ""
+		switch anchor.Kind(id) {
+		case "finding":
+			for _, f := range record.FindingsJSONOf(fam.Events, fam.At).Findings {
+				if f.ID == id {
+					about = f.Text
+				}
+			}
+		case "gap":
+			if g := fam.Gap(id); g != nil && g.Mint != nil {
+				about = g.Mint.GetProblem()
+			}
+		case "proof":
+			for _, p := range proofs {
+				if p.Label == id {
+					about = p.Reason
+				}
+			}
+		default:
+			if at, err := record.EvidenceAt(run, id); err == nil && at.Source != nil {
+				about = at.Source.Title + " — " + at.Source.Text
+			}
+		}
+		if about = line(about); about == "" {
+			about = "the record holds no text for it"
+		}
+		fmt.Fprintf(&b, "  %s %s: %s\n", anchor.Kind(id), anchor.Token(id), about)
+	}
+	b.WriteString("Your replacement's sentences:\n")
+	for i, s := range now {
+		fmt.Fprintf(&b, "  %d. %s\n", i+1, line(s))
+	}
+	fmt.Fprintf(&b, "Write each anchor after the sentence that now holds its claim. Where every one of them belongs on sentence %d, make the change in two edits: "+
+		"reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word", len(now))
+	return errors.New(b.String())
 }
 
 // droppedMarker returns an anchor id present in before but absent from after, or "" — read on the

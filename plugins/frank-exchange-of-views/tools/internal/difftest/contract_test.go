@@ -249,6 +249,16 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"repeat target: the chair sits again", []string{"register", "--seat-id", "red-chair"}},
 		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "repaired", "--reason", "restating"}},
 		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "not_a_defect", "--reason", "restating otherwise"}},
+
+		// A RUN CARRIED TO THE END OF A LONGER REPLACEMENT. The two target rows place two findings on
+		// one sentence; the refusal prints what the record holds about each and the replacement's
+		// sentences, numbered.
+		{"bunch target: a finding on a plain sentence", []string{"finding", "--key", "FB1", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "Plain two.", "--reason", "the word plain is unsupported"}},
+		{"bunch target: a second finding on it", []string{"finding", "--key", "FB2", "--severity", "low", "--likelihood", "low", "--impact", "low",
+			"--quote", "Plain two.", "--reason", "the count two is not shown"}},
+		{"an edit carrying a run of anchors to the end of a longer replacement", []string{"edit", "--seat-id", "blue-respond",
+			"--quote", "Plain two<!--fx:FINDING003--><!--fx:FINDING004-->.", "--new", "Plain it is. Two it is<!--fx:FINDING003--><!--fx:FINDING004-->.", "--reason", "r"}},
 	}
 
 	var b strings.Builder

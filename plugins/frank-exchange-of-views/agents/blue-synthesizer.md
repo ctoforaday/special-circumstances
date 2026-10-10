@@ -413,6 +413,8 @@ YOUR QUOTE DECIDES WHICH ANCHORS THE EDIT TOUCHES. An anchor your quote does not
 
 An anchor your quote carries, or one in the middle of the quoted text, is INSIDE the span and must be copied verbatim into the replacement, where its claim now stands. That is how an anchor at a sentence's end MOVES — onto an earlier sentence of a longer replacement, say: quote the sentence as `show report` prints it, anchors included, and write each one where it goes. Quoting one anchor of a run takes every anchor before it in that run into the span with it.
 
+A RUN AT A SENTENCE'S END DOES NOT SAY WHICH PART OF THE SENTENCE EACH ANCHOR MARKS. When your replacement holds more sentences than the text it replaces, write each anchor your quote carries after the sentence that now holds its claim. A replacement that carries two or more anchors from the end of that text to the end of its own last sentence is refused, and the refusal prints what the record says each one marks beside your sentences, numbered. Where every one of them does belong on the last sentence, make the change in two edits: reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word.
+
 Either way the record marks each anchor whose sentence your edit changed as reopened, so red reads the claim under it again.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.

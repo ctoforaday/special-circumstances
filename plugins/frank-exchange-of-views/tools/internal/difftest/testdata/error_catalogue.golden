@@ -1769,3 +1769,23 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 exit 2
 feov-record: chair: record: red-chair has already recorded a close on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and both stay visible
 
+── bunch target: a finding on a plain sentence
+exit 0
+finding recorded: FINDING003 (evidence) — the id a gap's found_by names
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+── bunch target: a second finding on it
+exit 0
+finding recorded: FINDING004 (evidence) — the id a gap's found_by names
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+── an edit carrying a run of anchors to the end of a longer replacement
+exit 2
+feov-record: blue: blue edit: your replacement holds 2 sentences where the text it replaces holds 1, and it carries the 2 anchors that stood at the end of that text to the end of its last sentence. An anchor belongs on the sentence that holds its claim, and a run at a sentence's end does not say which sentence that is now. What each one marks, from the record:
+  finding <!--fx:FINDING004-->: the count two is not shown
+  finding <!--fx:FINDING003-->: the word plain is unsupported
+Your replacement's sentences:
+  1. Plain it is.
+  2. Two it is.
+Write each anchor after the sentence that now holds its claim. Where every one of them belongs on sentence 2, make the change in two edits: reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word
+
