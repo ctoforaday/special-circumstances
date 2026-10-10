@@ -14,7 +14,7 @@ import (
 )
 
 // avenueOracleRun seeds one avenue proposed under line, ruled as ruling, and then pursued by blue
-// with no appeal, and returns the run and its board.
+// against the ruling, and returns the run and its board.
 func avenueOracleRun(t *testing.T, line string, ruling recordpb.AvenueRuling) (record.Run, record.Family) {
 	t.Helper()
 	run := runtest.New(t, recordtest.TmpRun(t))
@@ -50,7 +50,7 @@ func avenueOracleRun(t *testing.T, line string, ruling recordpb.AvenueRuling) (r
 // therefore an unaudited avenue reported clean.
 //
 // Two fixtures, because the failure has to be told apart from BOTH healthy answers: a record with
-// a breach on it (ruled out of scope, pursued, no appeal) and a record with none (endorsed,
+// a breach on it (ruled out of scope and pursued, on a line the drive declines) and a record with none (endorsed,
 // pursued). The view is dropped through the run's cached handle, so the oracle's read fails as a
 // busy or malformed database would.
 func TestTheAvenueOracleFailsOnARulingItCannotRead(t *testing.T) {

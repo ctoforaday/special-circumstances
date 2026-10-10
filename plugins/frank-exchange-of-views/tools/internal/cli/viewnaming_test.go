@@ -43,9 +43,9 @@ var viewWriters = map[string][]string{
 	// `prove` splice the anchor layer into it, which is why they are named here too — a seat
 	// reading the report meets their tokens and has to carry them.
 	"report": {"edit", "cite", "finding", "prove"},
-	// The motion group fills it: the ask, the answer, and the press-on. All three, because a
+	// The motion group fills it: the ask and the answer. Both, because a
 	// view that named only `file` would leave a reader wondering where a ruling comes from.
-	"motions":  {"motion", "rule", "appeal"},
+	"motions":  {"motion", "rule"},
 	"work":     {"mint"},
 	"findings": {"finding"},
 	"debate":   {"position"},

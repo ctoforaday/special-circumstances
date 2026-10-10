@@ -24,7 +24,7 @@ research/<date>_<slug>/
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
-├── avenues.md         # each avenue's fate, the path it took, its ruling and appeal
+├── avenues.md         # each avenue's fate, the path it took and its ruling
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # the log, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks

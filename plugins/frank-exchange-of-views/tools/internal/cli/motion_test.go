@@ -30,10 +30,6 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 		"--id", "M1", "--as", "rejected", "--reason", "the bound does not hold across the retry path"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
-	if _, err := runAt(t, "motion", "grade", "appeal", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "M1", "--reason", "the retry path is guarded upstream; taking it to the bench"); err != nil {
-		t.Fatalf("appeal: %v", err)
-	}
 
 	b, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
@@ -46,9 +42,6 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	m := ms[0]
 	if !m.Ruled() || m.Ruling != "rejected" {
 		t.Errorf("the ask lost its answer: %+v", m)
-	}
-	if !m.Appealed {
-		t.Error("the appeal was lost — a ruling is an argument, not a command, and pressing on is the substance")
 	}
 	if m.Fields["dimension"] != "severity" || m.Fields["gap_id"] != gap {
 		t.Errorf("subject payload lost: %+v", m.Fields)
@@ -88,14 +81,18 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	}
 }
 
-// A PETITION HAS NO APPEAL, expressed by ABSENCE rather than a runtime refusal: the bench is the
-// last forum, so there is nothing to escalate to.
-func TestAPetitionHasNoAppealVerb(t *testing.T) {
-	if h := help(t, "motion", "petition", "--help", "--seat-id", "judge"); strings.Contains(h, "appeal") {
-		t.Error("a petition grew an appeal verb; the bench is the last forum, so there is nothing to appeal to")
-	}
-	if h := help(t, "motion", "grade", "--help", "--seat-id", "red-chair"); !strings.Contains(h, "appeal") {
-		t.Error("a grade motion must be appealable — a rejected dispute goes to the bench")
+// A GRADE MOTION'S PAGE SAYS WHERE A SEAT THAT DISAGREES WITH ITS RULING GOES — the gap before the
+// bench — and that act is on the surface of every seat the page is shown to.
+func TestAGradeMotionPageNamesTheDocketRoute(t *testing.T) {
+	for _, seatID := range []string{"blue-respond", lensSeat, "red-chair", "judge"} {
+		for _, page := range [][]string{{"motion", "grade"}, {"motion", "grade", "file"}} {
+			if h := help(t, append(append([]string{}, page...), "--help", "--seat-id", seatID)...); !strings.Contains(h, "puts the gap before the bench with `motion docket file`") {
+				t.Errorf("%s: %v does not name the docket route:\n%s", seatID, page, h)
+			}
+		}
+		if h := help(t, "motion", "docket", "file", "--help", "--seat-id", seatID); !strings.Contains(h, "a seat that disagrees with a ruling on the gap's grade") {
+			t.Errorf("%s: the docket filing page does not say it is the route for a disputed grade ruling:\n%s", seatID, h)
+		}
 	}
 }
 

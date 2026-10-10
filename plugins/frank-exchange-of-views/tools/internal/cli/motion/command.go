@@ -62,30 +62,31 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	// in internal/record, which cannot import this package, told blocked seats to rule motions
 	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
 	// now, so a subject cannot be added with a gavel in one place and not the other.
-	c.AddCommand(subject(actingRole, "grade",
-		// "TO THE BENCH" NAMED AN ACTOR THAT CANNOT RESPOND (#673). `rule` is the chair's verb, and
-		// RequireUnruledMotion refuses a second ruling in terms — so no bench act can answer an
-		// appeal, and the state graph shows `appealed` with no exit. A seat reading the old line
-		// filed an appeal and waited for a sitting that the protocol has no way to hold.
-		//
-		// What replaces it says the two things a seat actually needs, and says them the way the
-		// appeal verb's own help already does ("the losing side may answer it on the record"):
-		// the appeal is worth filing because it is where the ARGUMENT lands, and nothing further
-		// arrives. debate.js presses blue to appeal whether or not it yields, so a line that only
-		// said "the ruling stands" would have read as "do not bother".
-		"contest a gap's grade: the chair rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling",
+	// A SUBJECT IS MOUNTED WHERE IT HOLDS A VERB FOR THIS ROLE. An avenue motion has a ruling and no
+	// filing, so it is on its ruler's surface alone: mounted bare on the others it is a page that
+	// offers no act, and a seat that names it is told whose it is (cli's teachUnknownSubcommand).
+	mount := func(s *cobra.Command) {
+		if s.HasSubCommands() {
+			c.AddCommand(s)
+		}
+	}
+	mount(subject(actingRole, "grade",
+		// THE CHAIR'S RULING IS THE LAST WORD ON THE MOTION, and the line says where a seat that
+		// disagrees goes: `rule` is the chair's verb and a second ruling is refused, so the forum
+		// left is the bench, which is reached by putting the GAP before it.
+		"contest a gap's grade: the chair rules, and its ruling stands — a seat that disagrees with it puts the gap before the bench with `motion docket file`",
 		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
-	c.AddCommand(subject(actingRole, "petition",
+	mount(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: a party files, the BENCH rules — at the next chair sitting, before any party of that epoch sits",
 		[]string{flags.Class, flags.Relief}, nil))
-	c.AddCommand(subject(actingRole, "docket",
+	mount(subject(actingRole, "docket",
 		"put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
-	c.AddCommand(subject(actingRole, "avenue",
+	mount(subject(actingRole, "avenue",
 		"rule on an avenue blue proposed: the chair rules. NO file verb — the proposal (blue's `avenue propose`) is the filing",
 		nil, nil))
-	seat.MarkTree(c, actingRole)
+	seat.MarkTree(c)
 	return c
 }
 
@@ -133,20 +134,20 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	c := &cobra.Command{
 		Use: name, Short: short, SilenceUsage: true,
 		// Tolerate unknown flags AT THE GROUP LEVEL so the Args check below is what answers.
-		// Cobra parses flags before Args, so `motion petition appeal --id M1` died on `--id`
-		// (unknown to the group) and never reached the message that explains the real problem.
+		// Cobra parses flags before Args, so `motion petition rule --id M1` from a party died on
+		// `--id` (unknown to the group) and never reached the message that explains the real problem.
 		// The group has no RunE, so anything landing here is already an error path — the only
 		// question is which error the seat is told about.
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 	// A VERB THIS SUBJECT DOES NOT HAVE MUST SAY SO. Without this, cobra parsed the verb word as
-	// a positional ARGUMENT to the subgroup and then failed on the first flag: `motion petition
-	// appeal --id M1` answered "unknown flag: --id", which sends a seat looking at its flags for
-	// a problem that is not there. Measured by probing.
+	// a positional ARGUMENT to the subgroup and then failed on the first flag, answering "unknown
+	// flag: --id", which sends a seat looking at its flags for a problem that is not there.
+	// Measured by probing.
 	//
-	// The absent verb is a real design statement — the bench is the last forum, so a petition has
-	// nothing to escalate to — and the refusal is where a seat actually meets it, so it is where
-	// the reason belongs.
+	// The absent verb is a real design statement — a motion is filed and ruled, and the ruling
+	// stands — and the refusal is where a seat actually meets it, so it names the verbs the
+	// subject does hold.
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		var have []string
 		for _, sub := range c.Commands() {
@@ -176,8 +177,8 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 			named = "has no `" + args[0] + "` verb"
 		}
 		return feov.Errorf(feov.Validation,
-			"a %s motion %s — it has %s. If you expected one, its absence is the design, not an omission: see `motion %s --help`",
-			name, named, strings.Join(have, ", "), name)
+			"%s %s motion %s — it has %s. If you expected one, its absence is the design, not an omission: see `motion %s --help`",
+			article(name), name, named, strings.Join(have, ", "), name)
 	}
 	// A PETITION IS A PARTY'S RIGHT, AND THE BENCH IS NOT A PARTY (#1191). It rules every petition
 	// and has `halt` for the case where it must stop the run itself; a petition of its own would
@@ -190,18 +191,6 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 	// verb performs. A seat that cannot rule this subject cannot name the command.
 	if actingRole == ruler {
 		c.AddCommand(newRule(name, ruler, ruleFlags))
-	}
-	// THE EXCLUSION KEYS ON THE RULER, NOT THE NAME — the class fix rather than the instance.
-	//
-	// It read `name != "petition"`, which states the instance and leaves the next bench-ruled
-	// subject to walk into a default nobody chose: adding `docket` would have minted an undesigned
-	// `motion docket appeal`, writing motion-appeal events against a bench ruling. A motion the
-	// BENCH rules has no appeal because the bench is the last forum — which is the reason petition
-	// never had one, said once, where it applies to every subject that will ever share the gavel.
-	if ruler != "bench" {
-		// A bench-ruled motion has no appeal: the bench is the last forum, so there is nothing to
-		// escalate to. Expressed by absence rather than by a runtime refusal.
-		c.AddCommand(newAppeal(name))
 	}
 	return c
 }

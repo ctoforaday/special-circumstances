@@ -187,7 +187,6 @@ const (
 	rowGradeRule   = "a docket motion on the gap, or a new grade motion while the gap is open"
 	rowDocketRule  = "a new docket motion on the gap"
 	rowPetition    = "a declaration"
-	rowGradeAppeal = "a new grade motion while the gap is open, or a docket motion on the gap"
 	rowAvenue      = "a move of the avenue"
 	rowReproduce   = "a new re-run of the proof, whose reason says which earlier re-run it replaces"
 )
@@ -373,15 +372,18 @@ func answerDrives() []answerDrive {
 			d.endsWithRow(d.refused("a second ruling", "red-chair", rule("accepted")...), rowGradeRule)
 			d.docketMotion("the ruler's docket motion", "red-chair")
 			d.gradeMotion("the ruler's new grade motion, the gap open", "red-chair", "impact", true)
-			// THE ROW DOES NOT SAY "AN APPEAL": the write path admits the ruler's own appeal, which
-			// would spend the one appeal the losing party holds. A ruler that follows its row
-			// leaves that appeal where it belongs.
-			d.admitted("the losing party's appeal, after the ruler followed its row", "blue-respond",
-				"motion", "grade", "appeal", "--id", m, "--reason", "the ruling ignored the source")
+			// THE ROW IS THE RULER'S. A seat that DISAGREES with the ruling holds the same two acts,
+			// and the record refuses it neither: the filer, the minting lens and the bench each
+			// put the gap before the bench, and each files a new grade motion on another axis.
+			for i, seatID := range []string{"blue-respond", lensSeat, "judge"} {
+				d.docketMotion("a docket motion on the gap, by "+seatID+", which disagrees with the ruling", seatID)
+				d.gradeMotion("a new grade motion, the gap open, by "+seatID, seatID, []string{"likelihood", "complexity", "severity"}[i], true)
+			}
 			// "while the gap is open".
 			d.closeG1(lensSeat)
 			d.gradeMotion("the ruler's new grade motion, the gap closed", "red-chair", "likelihood", false)
 			d.docketMotion("the ruler's docket motion, the gap closed", "red-chair")
+			d.docketMotion("the filer's docket motion, the gap closed", "blue-respond")
 		}},
 		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
@@ -400,52 +402,20 @@ func answerDrives() []answerDrive {
 			d.endsWithRow(d.refused("a second ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "granted", "--reason", "again"), rowPetition)
 			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on the petition was wrong, and this is what holds")
 		}},
-		// NO ROW: the chair holds no act that answers its own ruling on an avenue.
+		// NO ROW: the chair holds no act that answers its own ruling on an avenue. A docket motion
+		// names a gap and an avenue is not one, so the route a grade ruling has is refused here.
 		{name: "a ruling on an avenue", drive: func(d drive) {
 			proposeQ1(d.t, d.run)
-			d.admitted("the ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed", "--reason", "worth pursuing")
+			d.admitted("the ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
 			d.endsWithoutARow(d.refused("a second ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed", "--reason", "again"))
-		}},
-		{name: "an appeal of a grade ruling, by blue", row: rowGradeAppeal,
-			helps: []string{"blue motion grade appeal", "lens motion grade appeal", "chair motion grade appeal", "bench motion grade appeal"}, drive: func(d drive) {
-				for i, appellant := range []string{"blue-respond", lensSeat, "judge", "red-chair"} {
-					dimension := []string{"severity", "likelihood", "impact", "complexity"}[i]
-					out := d.admitted("a grade motion", "blue-respond", "motion", "grade", "file", "--id", "G1", "--dimension", dimension,
-						"--proposed", "high", "--reason", "the consequence is larger", "--json")
-					m := motionIDOf(d.t, out)
-					d.admitted("the ruling", "red-chair", "motion", "grade", "rule", "--id", m, "--as", "rejected", "--reason", "no")
-					d.admitted("the appeal, by "+appellant, appellant, "motion", "grade", "appeal", "--id", m, "--reason", "the ruling ignored the source")
-					d.endsWithRow(d.refused("a second appeal, by "+appellant, appellant, "motion", "grade", "appeal", "--id", m, "--reason", "again"), rowGradeAppeal)
-					d.docketMotion("the appellant's docket motion, by "+appellant, appellant)
-				}
-				// Each appellant's new grade motion, the gap open: one axis each, since a motion that
-				// asks for the grade already on the board is refused for asking nothing.
-				d.admitted("a regrade so a motion has something to ask", lensSeat, "regrade", "--id", "G1", "--severity", "low", "--likelihood", "low",
-					"--impact", "low", "--complexity", "low", "--reason", "restated")
-				for i, appellant := range []string{"blue-respond", lensSeat, "judge", "red-chair"} {
-					dimension := []string{"severity", "likelihood", "impact", "complexity"}[i]
-					d.admitted("the appellant's new grade motion, by "+appellant, appellant, "motion", "grade", "file", "--id", "G1",
-						"--dimension", dimension, "--proposed", "medium", "--reason", "my appeal misstated it")
-				}
-				d.closeG1(lensSeat)
-				d.gradeMotion("an appellant's new grade motion, the gap closed", "blue-respond", "severity", false)
-				d.docketMotion("an appellant's docket motion, the gap closed", "blue-respond")
-			}},
-		{name: "an appeal of an avenue ruling, by blue", row: rowAvenue, helps: []string{"blue motion avenue appeal"}, drive: func(d drive) {
-			proposeQ1(d.t, d.run)
-			d.admitted("the ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
-			d.admitted("the appeal", "blue-respond", "motion", "avenue", "appeal", "--id", "Q1", "--reason", "it is this question")
-			d.endsWithRow(d.refused("a second appeal", "blue-respond", "motion", "avenue", "appeal", "--id", "Q1", "--reason", "again"), rowAvenue)
-			d.admitted("a move of the avenue", "blue-respond", "avenue", "move", "--id", "Q1", "--as", "pursued", "--reason", "my appeal misstated it")
-		}},
-		// NO ROW for a seat that is not blue: the write path admits its appeal of an avenue ruling,
-		// and it holds no move of an avenue to answer one with.
-		{name: "an appeal of an avenue ruling, by a seat that holds no move", drive: func(d drive) {
-			proposeQ1(d.t, d.run)
-			d.admitted("the ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
-			d.admitted("the lens's appeal", lensSeat, "motion", "avenue", "appeal", "--id", "Q1", "--reason", "it is this question")
-			d.endsWithoutARow(d.refused("the lens's second appeal", lensSeat, "motion", "avenue", "appeal", "--id", "Q1", "--reason", "again"))
-			d.refused("a move of the avenue by the lens", lensSeat, "avenue", "move", "--id", "Q1", "--as", "pursued", "--reason", "x")
+			for _, seatID := range []string{"red-chair", "blue-respond"} {
+				d.refused("a docket motion naming the avenue, by "+seatID, seatID, "motion", "docket", "file", "--id", "Q1", "--reason", "the bench should decide the avenue")
+			}
+			// THE RULING BINDS NO MOVE: what blue does about one it disagrees with is the avenue's
+			// own row, in every status.
+			for _, status := range []string{"pursued", "declined", "deferred"} {
+				d.admitted("a move to "+status+" against the ruling", "blue-respond", "avenue", "move", "--id", "Q1", "--as", status, "--reason", "what the question turns on")
+			}
 		}},
 		{name: "avenue", row: rowAvenue, helps: []string{"blue avenue propose", "blue avenue move"}, drive: func(d drive) {
 			proposeQ1(d.t, d.run)
@@ -489,18 +459,6 @@ func answerDrives() []answerDrive {
 	}
 }
 
-// motionIDOf reads a filing's motion id off its envelope.
-func motionIDOf(t *testing.T, envelope string) string {
-	t.Helper()
-	const key = `"motion_id":"`
-	i := strings.Index(envelope, key)
-	if i < 0 {
-		t.Fatalf("no motion id on the filing's envelope: %s", envelope)
-	}
-	rest := envelope[i+len(key):]
-	return rest[:strings.Index(rest, `"`)]
-}
-
 // Every row is driven, member by member; a refusal that ends with words no drive covers fails.
 func TestARefusedRepeatNamesAnActTheWritePathAdmits(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
@@ -527,7 +485,7 @@ func TestEveryRefusedRepeatHasARow(t *testing.T) {
 			return
 		}
 		derived[word] = true
-		if len(seat.AnswersFor(c, role)) == 0 {
+		if len(seat.AnswersFor(c)) == 0 {
 			t.Errorf("%s %s records a %s, whose repeat the record refuses, and its page states no answer", role, strings.Join(path, " "), word)
 		}
 	})

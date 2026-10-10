@@ -279,11 +279,11 @@ func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 	}
 }
 
-// RED'S RULING AND BLUE'S APPEAL ARE THE DEBATE, NOT THE SUBJECT. The report used to print both
-// under the line, with the proposing seat's id after it; the report is research prose and tool
-// markers, and all three are on the ledger. The ruling's opinion renders in judgments.md, and the
-// ruling and the appeal together in avenues.md (view.TestAnAppealRendersBesideItsRuling).
-func TestAvenueRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
+// RED'S RULING IS THE DEBATE, NOT THE SUBJECT. The report used to print it under the line, with
+// the proposing seat's id after it; the report is research prose and tool markers, and both are on
+// the ledger. The ruling's opinion renders in judgments.md, and the ruling beside the line's path
+// in avenues.md (view.TestAnAvenueRulingRendersBesideTheMoveMadeAgainstIt).
+func TestAvenueRulingAndSeatStayOutOfTheReport(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
 		// The LIVE vocabulary: red rules a direction through `motion avenue rule`, whose motion_id
@@ -296,14 +296,8 @@ func TestAvenueRulingAppealAndSeatStayOutOfTheReport(t *testing.T) {
 			Opinion:  proto.String("a real question, not THIS run's"),
 			Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
 		}),
-		// Blue pursues it ANYWAY. `contests_ruling` was a payload key on the line; the defiance is
-		// its own act now — `motion direction appeal` — so what the report reads is the appeal.
+		// Blue pursues it ANYWAY: the ruling binds no move, and the move is what blue does about it.
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
-		recordtest.Event(t, "blue-r1", &recordpb.MotionAppeal{
-			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
-			Reason:   proto.String("the adjacent literature is what the question turns on"),
-		}),
 	})
 	exp := avenues(board, "Research areas", accepted)
 	if !strings.Contains(exp, "- **survey the adjacent literature**") {

@@ -205,24 +205,15 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"motion avenue rule":   {"a proposed avenue", func(b Board) bool { return len(b.Avenues) > 0 }},
-		"motion grade appeal":  {"a RULED grade motion", func(b Board) bool { return hasMotion(b, "grade", true) }},
-		"motion avenue appeal": {"a RULED avenue", func(b Board) bool {
-			for _, a := range b.Avenues {
-				if a.Ruled != "" {
-					return true
-				}
-			}
-			return false
-		}},
-		"reproduce":   {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
-		"regrade":     {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
-		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
-		"verify":      {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
-		"render-page": {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
-		"retire":      {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
-		"avenue":      {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
+		"reproduce":            {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
+		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"close":                {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"closing":              {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"spot-check":           {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},
+		"verify":               {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
+		"render-page":          {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
+		"retire":               {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
+		"avenue":               {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
 	}
 
 	for name, b := range Boards() {
@@ -273,8 +264,8 @@ func hasMotion(b Board, subject string, ruled bool) bool {
 // somewhere it could not see. It was right: Build stamped every ruling "ruled <verdict> on the line
 // as it was proposed".
 //
-// Boards demand `motion grade appeal` and `motion avenue appeal` — acts that are judgements
-// about the ARGUMENT behind a refusal. Scoring whether a seat appealed a verdict it could not read
+// Boards demand acts taken against a ruling — a docket motion, a move — that are judgements
+// about the ARGUMENT behind a refusal. Scoring what a seat did about a verdict it could not read
 // is scoring a coin flip, and no acting probe could ever report it, because a content-free reason
 // and a considered one produce identical events.
 func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
@@ -284,7 +275,7 @@ func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
 				continue
 			}
 			if strings.TrimSpace(a.RuledWhy) == "" {
-				t.Errorf("board %q avenue %d is ruled %q with no RuledWhy — a seat asked whether to appeal it is guessing", name, i+1, a.Ruled)
+				t.Errorf("board %q avenue %d is ruled %q with no RuledWhy — a seat asked what to do about it is guessing", name, i+1, a.Ruled)
 				continue
 			}
 			assertNotRestatement(t, name, "avenue", a.Ruled, a.RuledWhy)

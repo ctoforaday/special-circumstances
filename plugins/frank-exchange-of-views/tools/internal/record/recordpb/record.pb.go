@@ -7738,9 +7738,9 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\a\n" +
 	"\x05_typeB\t\n" +
 	"\a_sourceB\x0e\n" +
-	"\f_estopped_by\"\xc1\x04\n" +
-	"\x06Motion\x12\xa4\x01\n" +
-	"\tmotion_id\x18\x01 \x01(\tB\x81\x01\x82\xb5\x18}\b\x01\x1awthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12<\n" +
+	"\f_estopped_by\"\xb6\x04\n" +
+	"\x06Motion\x12\x99\x01\n" +
+	"\tmotion_id\x18\x01 \x01(\tBw\x82\xb5\x18s\b\x01\x1amthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x19\n" +
 	"\x05basis\x18\x03 \x01(\tH\x03R\x05basis\x88\x01\x01\x12\x1b\n" +
 	"\x06relief\x18\x04 \x01(\tH\x04R\x06relief\x88\x01\x01\x123\n" +
@@ -7769,7 +7769,7 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xbb\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xdf\x10\n" +
+	"\a_gap_id\"\xf1\x10\n" +
 	"\fDocketRuling\x12\xfd\x01\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\xb8\x01\x82\xb5\x18\xb3\x01\b\x01\x12\x02as\x1a\xaa\x01the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
 	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\xc1\x01\n" +
@@ -7780,8 +7780,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"reopens_on\x18\x06 \x01(\tB\xd3\x01\x82\xb5\x18\xca\x01\x12\n" +
 	"reopens-on\x1a\xbb\x01on a ruling that closes the gap, the evidence or condition that would make it worth raising again; on a remand, the research direction its one more exchange owes blue and the minting lens\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
-	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xd2\x06\x92\xb5\x18\xb6\x02\n" +
-	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x82\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
+	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xe4\x06\x92\xb5\x18\xc8\x02\n" +
+	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x94\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
 	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\xd9\x02\n" +
 	"]\"disposition\" <> 'remanded' OR coalesce(trim(\"reopens_on\", ' ' || char(9, 10, 13)), '') <> ''\x12\xf7\x01a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; a blank one is no direction, and --final says nothing would reopen a closed gap — a remand closes nothingB\x0e\n" +
 	"\f_dispositionB\f\n" +
@@ -8055,11 +8055,11 @@ const file_record_proto_rawDesc = "" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
 	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x8b\x01\n" +
 	"\x15MOTION_SUBJECT_AVENUE\x10\x03\x1ap\x8a\xb5\x18ca ruling on an avenue blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
-	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\x8f\x03\n" +
+	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\xad\x03\n" +
 	"\vGradeRuling\x12\x1c\n" +
 	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x12\xce\x01\n" +
-	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\xb2\x01\x8a\xb5\x18\xad\x01the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what\x12\x90\x01\n" +
-	"\x15GRADE_RULING_REJECTED\x10\x02\x1au\x8a\xb5\x18qthe grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion*\xf5\x02\n" +
+	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\xb2\x01\x8a\xb5\x18\xad\x01the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what\x12\xae\x01\n" +
+	"\x15GRADE_RULING_REJECTED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion*\xf5\x02\n" +
 	"\x0ePetitionRuling\x12\x1f\n" +
 	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
 	"\x17PETITION_RULING_GRANTED\x10\x01\x1ar\x8a\xb5\x18nthe objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow\x12\xaf\x01\n" +

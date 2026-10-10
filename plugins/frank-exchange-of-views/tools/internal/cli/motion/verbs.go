@@ -19,9 +19,9 @@ import (
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
 // `avenue` has none: proposing the line is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
-	"grade":    "It disputes a gap's grade.",
+	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before the bench with `motion docket file`.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
-	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself.",
+	"docket":   "It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.",
 }
 
 // fileSays PANICS on a subject with a `file` verb and no sentence: this runs at command
@@ -183,7 +183,7 @@ func newFile(subject string, required []string) *cobra.Command {
 	// THE MOTION ID IS ASSIGNED BY THE TOOL on a filing — a seat that chose its own would collide
 	// with another seat's, which is the join #312 exists to make reliable. Declared at the verb
 	// that does the assigning.
-	seat.Supplies(c, "motion_id", "the tool assigns it on filing; a ruling and an appeal name it with --id")
+	seat.Supplies(c, "motion_id", "the tool assigns it on filing; a ruling names it with --id")
 	return c
 }
 
@@ -226,9 +226,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "rule",
 		Short: "rule on " + article(subject) + " " + subject + " motion (the " + ruler + " seat's)",
-		// THE THIRD PAGE THAT HAD TO SAY WHICH SUBJECT IT IS — `file` and `appeal` carry one for
-		// the same reason. `rule` differs from those two in that it is not on every seat's
-		// surface at all, so the page a seat CAN open should also say which ones it cannot.
+		// THE PAGE HAS TO SAY WHICH SUBJECT IT IS — `file` carries one for the same reason. `rule`
+		// differs from it in that it is not on every seat's surface at all, so the page a seat CAN
+		// open should also say which ones it cannot.
 		//
 		// Why `rule` is missing from the other surfaces is said to the seats that meet its absence
 		// — the subgroup's refusal in command.go — not to the gavel-holder, who never does.
@@ -251,7 +251,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// refuses an unreasoned ruling and an unknown --as itself, so the subject is asked
 			// here, before either; record.Append asks it again for every writer, and owns the
 			// motion's state (#1205) — still unruled — under its write lock.
-			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionRuling); err != nil {
+			if err := record.RequireSubjectMatches(run, mustSubject(subject), id); err != nil {
 				return nil, err
 			}
 			// No runtime gavel check: this verb exists only in the gavel-holder's tree
@@ -369,69 +369,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	return c
 }
 
-// appeal: a seat presses a motion on after a ruling.
-//
-// STANDING IS DELIBERATELY OPEN, and the first draft's comment said "the filer" while the code
-// checked nobody — so the doc was wrong rather than the code. A motion belongs to the RUN, not to
-// the seat that filed it: a lens files a safety petition and it is BLUE that the granted relief
-// binds, so restricting the appeal to the filer would leave the seat actually affected with no
-// channel. Any registered seat may appeal; who did is on the event.
-//
-// `contests_ruling` was a bespoke field on ONE of the three exchanges — blue pursuing a direction
-// red ruled out-of-scope. Here it is the same act on every subject that has one, which is what
-// the collapse buys: re-disputing a rejected grade and pursuing a refused line stop being two
-// unrelated mechanisms.
-func newAppeal(subject string) *cobra.Command {
-	c := &cobra.Command{
-		Use:   "appeal",
-		Short: "press " + article(subject) + " " + subject + " motion after a ruling — a ruling is an argument, not a command",
-		// SAME EVENT, TWO SUBJECTS, AND THE PAGE HAS TO SAY WHICH IS WHICH — the reason `file`
-		// carries one, for the same reason: a seat picks between them by opening one of them.
-		Long: "press " + article(subject) + " " + subject + " motion after a ruling — a ruling is an ARGUMENT, not a " +
-			"command, so the losing side may answer it on the record.\n\n" +
-			"TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade motion the chair " +
-			"rejected; `motion avenue appeal` presses an avenue red ruled out_of_scope or " +
-			"too_thin, and it is filed whether or not blue also pursues the avenue — separating the " +
-			"argument from the act is the whole point of the verb.\n\n" +
-			"A BENCH-RULED MOTION (petition, docket) HAS NO APPEAL, and that absence is the design rather " +
-			"than an omission: the bench is the last forum, so there is nothing to escalate to.",
-		// Through Begin, as the filing is — see newFile.
-		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			run, err := s.Run()
-			if err != nil {
-				return nil, err
-			}
-			id := seat.Str(cmd, flags.ID)
-			// ORDER IS THE MESSAGE, as in newRule: the subject first, before this verb's own refusal
-			// of an appeal with no argument. The motion's state — ruled, not yet appealed (#673,
-			// #1205) — is the write's to refuse; record.Append checks it for every writer.
-			if err := record.RequireSubjectMatches(run, mustSubject(subject), id, record.MotionAppealing); err != nil {
-				return nil, err
-			}
-			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
-			if err != nil {
-				return nil, err
-			}
-			subj := mustSubject(subject)
-			if _, err := record.Append(s.Identity(), &recordpb.MotionAppeal{
-				MotionId: proto.String(id),
-				Subject:  &subj,
-				Reason:   proto.String(reason),
-			}); err != nil {
-				return nil, err
-			}
-			return appealed{ID: id}, nil
-		}),
-	}
-	// prose() refuses an appeal with no argument, and the record one naming no motion.
-	seat.SaysRequired(seat.Prose(c), flags.Reason)
-	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject)+" — the motion being appealed, which must already have been ruled")
-	seat.Require(c, flags.ID)
-	// The record type, for the contract gate — see newFile.
-	seat.Records(c, "motion_appeal")
-	return c
-}
-
 // refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the
 // avenue's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs it and works around the
@@ -469,12 +406,6 @@ type ruled struct {
 }
 
 func (r ruled) Human() string { return "motion " + r.ID + " ruled " + r.Ruling }
-
-type appealed struct {
-	ID string `json:"motion_id"`
-}
-
-func (r appealed) Human() string { return "motion " + r.ID + " appealed" }
 
 // mustSubject resolves a subject word registered by this package's own command tree, where an
 // unknown word is a programming error rather than seat input: subject() is called with literals.
@@ -529,16 +460,15 @@ var ruleFlagHelp = map[string]string{
 //
 // THE AVENUE SUBJECT IS THE ASYMMETRY, and refHelp already states it: a direction's filing joins on
 // the avenue's own id, "not an M-number", so every avenue motion verb keys on Q. For the
-// other subjects the FILING names the thing being disputed — a gap — while the ruling and the appeal
-// name the motion. Registering all of them as a plain string is what made the help print `string`
+// other subjects the FILING names the thing being disputed — a gap — while the ruling names the
+// motion. Registering all of them as a plain string is what made the help print `string`
 // nine times and refuse nothing (internal/cli/idshape_test.go).
 //
 // SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
 // `.WithCheck(record.GapExists)` and `.WithCheck(record.AvenueExists)` for one commit; deleting both
 // left the whole suite green and left every refusal BYTE-IDENTICAL, because the write already
-// resolves the reference — `requireGap` at the filing, `RequireSubjectMatches` at the ruling and
-// the appeal, then `RequireRuledMotion` at the appeal — and the last two are STRONGER than
-// existence, being bound to the subject and to the ruled state. A checker here would have been a
+// resolves the reference — `requireGap` at the filing, `RequireSubjectMatches` at the ruling — and
+// the second is STRONGER than existence, being bound to the subject. A checker here would have been a
 // second implementation of a check that already refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 	if subject == "avenue" {

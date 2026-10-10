@@ -82,12 +82,11 @@ func TestAnUnregisteredAgentFilesNoMotionWithoutARegister(t *testing.T) {
 // caller got the top-level parse envelope — no verb, no role — for a refusal the handler made.
 func TestAMotionRefusalIsTheVerbEnvelope(t *testing.T) {
 	runDir := seatRun(t)
-	// A HANDLER'S refusal, past parsing: no motion M9 exists to appeal, and that is refused before
-	// the argument is read.
+	// A HANDLER'S refusal, past parsing: no gap G99 exists to put before the bench.
 	// --reason is passed so the refusal reached is the record's, and so the harness's unread-reason
 	// check cannot stand in for it.
-	out, err := runAt(t, "motion", "grade", "appeal", "--json", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--id", "M9", "--reason", "the grade understates the gap")
+	out, err := runAt(t, "motion", "docket", "file", "--json", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--id", "G99", "--reason", "the bench should decide the gap")
 	if err == nil {
 		t.Fatalf("a --json refusal returned no error, so the call exits 0 and the refusal log never sees it:\n%s", out)
 	}
@@ -103,7 +102,7 @@ func TestAMotionRefusalIsTheVerbEnvelope(t *testing.T) {
 	if env.OK || env.Code == "" {
 		t.Fatalf("not a refusal: %s", out)
 	}
-	if env.Verb != "appeal" || env.Role == nil || *env.Role == "" {
+	if env.Verb != "file" || env.Role == nil || *env.Role == "" {
 		t.Errorf("a motion refusal is missing the verb envelope's verb/role: %s", out)
 	}
 }

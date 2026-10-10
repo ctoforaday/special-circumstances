@@ -69,7 +69,7 @@ type entityProbe struct {
 	// fate, which debate.js calls out as legitimate in terms — "Re-recording `pursued` WITH what
 	// it learned is a legitimate reaffirmation and settles the line for that round — do not read it
 	// as neglect". Both keep the prior value: Gap.Regrades is a list and Avenue.History is a line
-	// per move. The double appeal keeps nothing, which is why it is the one that survived.
+	// per move. A second ruling keeps nothing, which is why it is the one the write refuses.
 	accumulates []string
 	// terminal names the states from which nothing more is expected, with the reason each is a
 	// finish rather than a stall. THIS IS THE ONE DECLARED THING IN THE WHOLE FILE, and it has to
@@ -90,7 +90,7 @@ var probeSeats = []string{"red-lens-evidence", "red-chair", "blue-respond", "jud
 // It is not decoration. The setup builds a state by running the same acts, so an act attempted with
 // the setup's own wording writes back the bytes already there — and an overwrite becomes invisible,
 // because the fields before and after are equal. That is this gate's own finding reporting itself
-// as absent: measured, the second appeal on an already-appealed motion read as `inert` until the
+// as absent: measured, a repeated act on an already-answered motion read as `inert` until the
 // wording differed.
 const probeReason = "PROBE: this wording exists only to make an overwrite visible"
 
@@ -438,8 +438,6 @@ func motionProbe(subject, id string, prelude, acts []probeAct, states []string, 
 			switch {
 			case m == nil:
 				return states[0]
-			case m.Appealed:
-				return "appealed"
 			case m.Ruled():
 				return "ruled"
 			default:
@@ -454,7 +452,7 @@ func motionProbe(subject, id string, prelude, acts []probeAct, states []string, 
 			}
 			return map[string]string{
 				"basis": m.Basis, "relief": m.Relief, "ruling": m.Ruling,
-				"opinion": m.Opinion, "appeal_reason": m.AppealReason,
+				"opinion": m.Opinion,
 			}
 		},
 		terminal: terminal,
@@ -486,12 +484,10 @@ func gradeMotionProbe() entityProbe {
 			"--proposed", "low", "--reason", "the consequence is bounded by the caller's own validation"}},
 		{"rule", []string{"motion", "grade", "rule", "--id", "M1", "--as", "rejected",
 			"--reason", "the evidence does not reach it"}},
-		{"appeal", []string{"motion", "grade", "appeal", "--id", "M1",
-			"--reason", "pressing it on new grounds"}},
-	}, []string{"unfiled", "filed", "ruled", "appealed"},
-		map[string]string{"filed": "file", "ruled": "rule", "appealed": "appeal"},
+	}, []string{"unfiled", "filed", "ruled"},
+		map[string]string{"filed": "file", "ruled": "rule"},
 		map[string]string{
-			"appealed": "BY DESIGN, and debate.js says so in blue's own prompt: \"appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded and the fate is only what you decided to do about it.\" An appeal is a recorded dissent, not a request for a second ruling — record.RequireUnruledMotion refuses that in terms, and internal/report/motions.go renders the appeal as the filer's position.",
+			"ruled": "BY DESIGN: the chair's ruling is the motion's one answer and it stands — record.RequireUnruledMotion refuses a second in terms. A seat that disagrees files a docket motion on the gap, or a new grade motion while the gap is open: each is a NEW entity with its own graph, and this motion's answer does not reopen.",
 		})
 }
 
@@ -505,7 +501,7 @@ func petitionMotionProbe() entityProbe {
 	}, []string{"unfiled", "filed", "ruled"},
 		map[string]string{"filed": "file", "ruled": "rule"},
 		map[string]string{
-			"ruled": "A petition has no appeal and the surface says so: `motion petition appeal` does not exist, and the refusal is asserted in adversarial_test.go. The bench is the last forum, so there is nothing to escalate to.",
+			"ruled": "The bench's ruling is the motion's one answer and it stands; the bench is the last forum. New grounds are a new petition.",
 		})
 }
 
@@ -520,12 +516,10 @@ func avenueMotionProbe() entityProbe {
 	return motionProbe("avenue", "Q1", []probeAct{avenuePropose()}, []probeAct{
 		{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
 			"--reason", "worth this run's time"}},
-		{"appeal", []string{"motion", "avenue", "appeal", "--id", "Q1",
-			"--reason", "pressing the ruling on new grounds"}},
-	}, []string{"unruled", "ruled", "appealed"},
-		map[string]string{"ruled": "rule", "appealed": "appeal"},
+	}, []string{"unruled", "ruled"},
+		map[string]string{"ruled": "rule"},
 		map[string]string{
-			"appealed": "The same finish as a grade motion's, for the same reason and from the same prompt: debate.js tells blue \"Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded and the fate is only what you decided to do about it.\" The LINE itself stays movable; the motion's answer does not reopen.",
+			"ruled": "The same finish as a grade motion's: the ruling is the motion's one answer. It is an argument beside the line, not a command — the LINE itself stays movable (the avenue probe), and the motion's answer does not reopen.",
 		})
 }
 
@@ -558,8 +552,6 @@ func avenueProbe() entityProbe {
 			moveTo("pursued"), moveTo("declined"), moveTo("abandoned"), moveTo("deferred"),
 			{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
 				"--reason", "worth this run's time"}},
-			{"appeal", []string{"motion", "avenue", "appeal", "--id", "Q1",
-				"--reason", "pressing the ruling on new grounds"}},
 		},
 		buildTo: func(t *testing.T, state string) string {
 			t.Helper()
@@ -639,7 +631,7 @@ var entityEvents = map[string][]string{
 	// bench's disposition is a motion ruling now, so the gap's third exit is an event the motion
 	// entity also owns. One event, two entities, and saying so is what keeps both graphs honest.
 	"gap":    {"mint", "close", "regrade", "opinion", "motion_rule"},
-	"motion": {"motion", "motion_rule", "motion_appeal"},
+	"motion": {"motion", "motion_rule"},
 	"avenue": {"avenue"},
 }
 
@@ -788,13 +780,12 @@ func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 		t.Errorf("SILENT OVERWRITE: an act was accepted, left the entity in the same state, and REWROTE a field that already had a value.\n\n  %s\n\n"+
 			"Both events stay on the record and replay keeps the LAST, so the earlier value stops "+
 			"being the answer with nothing saying so. record.RequireUnruledMotion refuses exactly "+
-			"this for a second ruling, in those words, and record.RequireUnappealedMotion for a "+
-			"second appeal; whatever act is named above has no such guard.", o)
+			"this for a second ruling, in those words; whatever act is named above has no such guard.", o)
 	}
 	for _, d := range deadEnds {
 		t.Errorf("DEAD END: an entity in state %q has no act that moves it, and nothing declares that state a finish.\n\n"+
 			"Either the state is terminal — say so in the probe's `terminal` map with the reason, "+
-			"the way gap/closed and motion/grade/appealed do — or an entity can reach a position "+
+			"the way gap/closed and motion/grade/ruled do — or an entity can reach a position "+
 			"the protocol has no way out of, which is the defect this gate exists to find.", d)
 	}
 }

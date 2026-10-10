@@ -303,10 +303,6 @@ type runner struct {
 	raised []map[string]any
 	// disputedThisRound is what blueRespondTo raised for the CURRENT round's envelope.
 	disputedThisRound []map[string]any
-	// ruledMotions are motions that HAVE a ruling and can therefore be appealed. Kept apart from
-	// the pending set (r.raised) because the two states admit different verbs: an appeal against
-	// no ruling is refused, and a list that mixed them would drive the verb without exercising it.
-	ruledMotions []string
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
 	presented gapSet
@@ -695,11 +691,6 @@ func (r *runner) answerDisputes(seatID string) []map[string]any {
 			r.mu.Unlock()
 			continue
 		}
-		// AN APPEAL IS ONLY POSSIBLE ONCE A RULING EXISTS, so the ruled id goes to blue rather
-		// than blue appealing what it just filed. The first appeal driver fired in the same
-		// breath as the filing and all 14 were REFUSED — driven in the tally, exercising nothing,
-		// which is exactly the false green the refusal count was added to expose.
-		r.ruledMotions = append(r.ruledMotions, mid)
 		refs = append(refs, map[string]any{"gap_id": id, "dimension": dim, "response": resp})
 	}
 	r.raised = nil
@@ -1896,15 +1887,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// fresh-mint loop in envelopeFor's chair branch.
 	case "blue":
 		r.maybe(45, func() { avenue("blue") })
-		// APPEAL WHAT HAS ALREADY BEEN RULED — a round later than the filing, which is when an
-		// appeal is possible at all.
-		for _, id := range r.ruledMotions {
-			if r.coin(40) {
-				_, _ = r.exec("motion", "grade", "appeal", "--seat-id", seatID, "--id", id,
-					"--reason", "fuzz: pressing it to the bench")
-			}
-		}
-		r.ruledMotions = nil
 		// NO RANDOM STATUS MOVE HERE. answerAvenueRulings owns moves now: it answers red's
 		// ruling, comply or contest, one decision per avenue. A second writer sliding statuses
 		// at random fought it — the oracle caught it immediately, 24 of 60, reporting endorsed
@@ -3386,12 +3368,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	//
 	// Red's ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
 	// pursuing a line red called out-of-scope looked exactly like pursuing one red endorsed.
-	// The design says a ruling is an ARGUMENT blue may contest. That contest used to be
-	// `contests_ruling`, a field set as a SIDE EFFECT of moving a line to `pursued` — so it could
-	// only record disagreement that won, and a seat that argued and then yielded fell out of the
-	// count silently (measured on a real run; see #344). It is `motion direction appeal` now: its
-	// own event, with its own reason, filed against the ruling and independent of what the line's
-	// status does next.
+	// The design says a ruling is an ARGUMENT, not a command: it binds no move, and what blue
+	// does about one it disagrees with is the avenue's own move. The oracle joins the two — the
+	// ruling the view states and the status the fold reads — against the fate each line was
+	// proposed to take.
 	if msg := avenueRulingOracle(oracleRun, board); msg != "" {
 		res.err = msg
 		return res
@@ -3594,13 +3574,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 // not ruled, and that avenue has nothing to check; an error means the check did not happen, and
 // passing over it would report an unaudited avenue as a clean one.
 func avenueRulingOracle(run record.Run, board record.Family) string {
-	contests := map[string]string{}
-	for _, e := range board.Events {
-		a, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e)
-		if ok && a.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-			contests[a.GetMotionId()] = "appealed"
-		}
-	}
 	for _, a := range record.AvenuesOf(board.Events, board.At) {
 		ruling, err := record.AvenueRuling(run, a.ID)
 		if err != nil {
@@ -3614,16 +3587,13 @@ func avenueRulingOracle(run record.Run, board record.Family) string {
 			if a.Status != "pursued" {
 				return "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
 			}
-			if contests[a.ID] == "" {
-				return "avenue " + a.ID + " was pursued AGAINST a " + ruling + " ruling and the record does not say so — the disagreement is invisible, which is the state this join exists to end"
-			}
 		case ruling == "endorsed":
 			if a.Status != "pursued" {
 				return "avenue " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
 			}
 		default:
-			if a.Status == "pursued" && contests[a.ID] == "" {
-				return "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway with nothing recording the contest"
+			if a.Status == "pursued" {
+				return "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway, on a line the drive declines"
 			}
 		}
 	}
@@ -3683,8 +3653,8 @@ var verbsWithEvents = []string{
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
 	"log",
-	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
-	"motion", "motion_rule", "motion_appeal",
+	// The motion collapse (#344): filed by any seat, ruled by one.
+	"motion", "motion_rule",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
 	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
@@ -3711,6 +3681,8 @@ var verbsWithEvents = []string{
 	// A correction an archived record holds: migrate replays it beside the act it replaced, and no
 	// verb records one.
 	"correction",
+	// An appeal an archived record holds: migrate replays it, and no verb records one.
+	"motion_appeal",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -3747,6 +3719,12 @@ var coverExempt = map[string]bool{
 	// one outside a migration); migrate's own tests drive it. Phase 4 of #1298 removes the type
 	// and this exemption with it.
 	"correction": true,
+	// NO COMMAND WRITES AN APPEAL. A ruling stands, and a seat that disagrees with one files a
+	// docket motion. The type stays declared so `migrate` can replay an appeal an archived record
+	// holds, and migrate is its one writer (record.Append refuses one outside a migration);
+	// record's motion-guard tests drive that replay. Phase 4 of #1298 removes the type and this
+	// exemption with it.
+	"motion_appeal": true,
 	// NO COMMAND WRITES A REVISION. The type stays declared so `migrate` can carry the revisions
 	// an archived record holds, and migrate is its one writer; migrate's own tests drive it.
 	"revision": true,
@@ -3888,11 +3866,10 @@ var dialecticProseKey = map[string]string{
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
 	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
 	"manifest_row": "row",
-	// The motion group. `basis` is the ASK, `opinion` the answer, `reason` the appeal — all three
-	// render in the report's one Motions section, joined on the motion id (#344).
-	"motion":        "basis",
-	"motion_rule":   "opinion",
-	"motion_appeal": "reason",
+	// The motion group. `basis` is the ASK, `opinion` the answer — both render in the report's
+	// one Motions section, joined on the motion id (#344).
+	"motion":      "basis",
+	"motion_rule": "opinion",
 	// Red re-reading its own closure archive. The prose is what the sample FOUND — the whole
 	// point of sampling — and it reached no reader at all until the floor was enforced (#317).
 	"spot_check": "reason",
@@ -4135,8 +4112,8 @@ func markViewDriven(v string) {
 // surfaceQuorum is the run count at or above which the coverage gates can hold the sweep to the
 // FULL surface. Below it a low-frequency path can flake to zero and fail an honest run.
 //
-// MEASURED, not guessed: across a default 60-run sweep the scarcest path is `motion avenue
-// appeal` at 9 invocations (0.15/run), which gives ~10% odds of never firing at N=15 against
+// MEASURED, not guessed: across a default 60-run sweep the scarcest path fired
+// 9 times (0.15/run), which gives ~10% odds of never firing at N=15 against
 // ~0.25% at N=40. The number is shape-dependent — lane-driven verbs scale with `lanes`, dispute-
 // driven ones with `maxRounds` — so it is a floor for THIS shape, and a shape change re-tunes it.
 // That is why the gates below assert the tally rather than trusting this constant to stand in
@@ -4710,8 +4687,8 @@ var avenueFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
 //
 // UNDERSCORES: these are the schema's words, the ones `motion avenue rule --as` accepts and
 // record.AvenueRuling answers with. A hyphenated word is refused at the write, the drive discards
-// the refusal, and everything below a ruling starves with it — a contested line can only be
-// appealed after it is ruled.
+// the refusal, and everything below a ruling starves with it — blue answers a ruling only once
+// the line is ruled.
 func rulingFor(line string) string {
 	switch {
 	case strings.HasPrefix(line, avEndorse):
@@ -4774,18 +4751,7 @@ func (r *runner) answerAvenueRulings(seatID string) {
 		}
 		switch {
 		case strings.HasPrefix(a.Line, avContest):
-			// THE CONTEST, IN BOTH VOCABULARIES. `contests_ruling` is a field the move sets as a
-			// side effect; `motion direction appeal` is the act named as itself. Both are live
-			// during the additive stage, so the move still happens either way — what the appeal
-			// adds is that the disagreement has its own event instead of riding on a status
-			// change, which is the whole reason the collapse treats an appeal as one act across
-			// all three subjects.
-			// UNCONDITIONAL, not a coin. Behind a 50% gate this reached 2 invocations across 60
-			// runs — contests are already rare — and a drive that thin flakes to ZERO, which the
-			// unreached-path gate reports as a missing drive in CI and nowhere else. The legacy
-			// `contests_ruling` field is still exercised by the move below either way.
-			_, _ = r.exec("motion", "avenue", "appeal", "--seat-id", seatID, "--id", a.ID,
-				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
+			// THE CONTEST IS THE MOVE: the ruling binds none, so blue pursues the line against it.
 			r.do("avenue move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":
@@ -4928,7 +4894,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot
 			// say why. `scenario DISPUTE: G1 has no dispute event` is what a discarded error
 			// looks like from the far end — a coverage report about a drive that ran fine, which
-			// is the same shape as the hyphenated ruling words that made `motion avenue appeal`
+			// is the same shape as the hyphenated ruling words that left everything below an avenue ruling
 			// read as unreached. 2 of 7 filings were refused across 60 runs and nothing said so.
 			if err != nil {
 				if r.disputeRefusals == nil {

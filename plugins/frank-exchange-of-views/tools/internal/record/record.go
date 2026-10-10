@@ -547,6 +547,13 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
+	// AN APPEAL IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. No seat appeals a ruling: a ruling stands
+	// as made, and a seat that disagrees with one answers it with another act — a docket motion on
+	// the gap, which the bench rules. An archived record that holds an appeal is replayed with it.
+	if typ == recordpb.EventType_EVENT_TYPE_MOTION_APPEAL && !Migrating {
+		return nil, feov.Errorf(feov.Validation,
+			"record: an appeal is written by migrate from an archived record, never by a seat — a ruling stands as made, and a seat that disagrees with one answers it with another act")
+	}
 	// A CORRECTION IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. An archived record holds the ones its
 	// seats made, and migrate replays each as the pair it was written as; a live record gains none —
 	// an act stands as filed, and what answers a wrong one is another act (supersede.go). The one
@@ -605,9 +612,9 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	if err := requireOncePerSitting(tx, seatID, typ, body); err != nil {
 		return err
 	}
-	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings or
-	// two appeals racing each other resolve to one answer and one refusal (motion.go).
-	if err := requireUnanswered(tx, seatID, body); err != nil {
+	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings
+	// racing each other resolve to one answer and one refusal (motion.go).
+	if err := requireUnanswered(tx, body); err != nil {
 		return err
 	}
 	envelope(ev, Now().UTC().Format(stampLayout), seatID, key)
@@ -631,7 +638,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 			// what moved clean text into a log. Where the table holds no row — a key the tool
 			// minted, which only a retried write lands on twice — the refusal ends without one.
 			tail := ""
-			if a := SupersedingAnswer(typ, body, seatID); a != "" {
+			if a := SupersedingAnswer(typ, body); a != "" {
 				tail = " " + a
 			}
 			return feov.Errorf(feov.Validation,
@@ -699,22 +706,24 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 	}
-	// ORDER IS THE MESSAGE. A ruling's or an appeal's motion is established FIRST — that it exists
-	// and was filed under the subject this act names — because every later refusal is phrased in
-	// terms of it: a bench typing `motion docket rule` at a grade motion should be told it named the
-	// wrong subject, not that a docket ruling needs --settled, which is true, irrelevant, and sends
-	// it to the wrong fix. With no id there is no motion to establish, and the required-field walk
-	// below names the missing --id in the annotation's words.
+	// ORDER IS THE MESSAGE. A ruling's motion is established FIRST — that it exists and was filed
+	// under the subject this act names — because every later refusal is phrased in terms of it: a
+	// bench typing `motion docket rule` at a grade motion should be told it named the wrong subject,
+	// not that a docket ruling needs --settled, which is true, irrelevant, and sends it to the wrong
+	// fix. With no id there is no motion to establish, and the required-field walk below names the
+	// missing --id in the annotation's words.
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
 		if b.GetMotionId() != "" {
-			if err := RequireSubjectMatches(run, b.GetSubject(), b.GetMotionId(), MotionRuling); err != nil {
+			if err := RequireSubjectMatches(run, b.GetSubject(), b.GetMotionId()); err != nil {
 				return err
 			}
 		}
 	case *recordpb.MotionAppeal:
+		// MIGRATE'S REPLAY ONLY (Append). An archived appeal is held to what makes it a record: it
+		// names a motion some filing created.
 		if b.GetMotionId() != "" {
-			if err := RequireSubjectMatches(run, b.GetSubject(), b.GetMotionId(), MotionAppealing); err != nil {
+			if _, err := RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId()); err != nil {
 				return err
 			}
 		}
@@ -1097,18 +1106,6 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return err
 			}
 		}
-	case *recordpb.MotionAppeal:
-		// THE MOTION'S STATE IS THE WRITE'S TO GUARD, not a verb's (#1205): every writer — the
-		// verbs, migrate, a fixture, the fuzz — reaches the record here. Its subject was matched
-		// above, before the required fields; what remains is that the subject takes an appeal at
-		// all and that the motion has a ruling to press. Both are settled facts once true, so
-		// reading them before the writing transaction is safe; "not yet appealed" is not, and
-		// requireUnanswered asks it inside the transaction. No Migrating gate: these are
-		// structural, and no archived run holds such an appeal.
-		if err := requireAppealable(b.GetSubject(), b.GetMotionId()); err != nil {
-			return err
-		}
-		return RequireRuledMotion(run, b.GetSubject(), b.GetMotionId())
 	case *recordpb.MotionRule:
 		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502) — the bench's ruling only.
 		//
@@ -1138,7 +1135,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return fmt.Errorf("record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing")
 			}
 			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
-				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted sitting")
+				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
 				return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")

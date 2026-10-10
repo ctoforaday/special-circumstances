@@ -86,16 +86,19 @@ func promptPath(m []string, real map[string]bool) string {
 //
 // THE BOUNDARY IS LOOSER HERE ON PURPOSE, and the looseness is the honest trade. Prompts write
 // motions both with the binary in front (`"${binDir}/feov-record" motion grade rule --id …`) and
-// without it (`"motion direction appeal --id <A1>"`), so anchoring on the binary would have covered
+// without it (`"motion avenue rule --id <Q1>"`), so anchoring on the binary would have covered
 // 3 of 7 while reporting on all seven — a gate silently measuring less than it claims, which is the
 // defect this file keeps finding. `motion <subject> <verb>` is specific enough that ordinary prose
 // does not hit it.
 // AND THE SUBJECT LIST IS BUILT FROM record.MotionSubjects, NOT RETYPED.
 //
 // It was `(grade|petition|direction)`, a hand-written copy of that slice. When `direction` became
-// `avenue` the copy stayed, so `motion avenue rule` and `motion avenue appeal` matched nothing
-// and the gate reported two live verbs as named nowhere — while the prompts named them plainly.
-// A gate that holds prompts to the command tree cannot hold its own vocabulary by hand.
+// `avenue` the copy stayed, so `motion avenue rule` matched nothing and the gate reported a live
+// verb as named nowhere — while the prompts named it plainly. A gate that holds prompts to the
+// command tree cannot hold its own vocabulary by hand.
+//
+// `appeal` IS MATCHED AND NO SUBJECT HOLDS IT: a ruling stands, and a text that sends a seat to
+// appeal one names a path the tree lacks — which is what this gate reports.
 var promptMotion = regexp.MustCompile(
 	`\bmotion\s+(` + strings.Join(record.MotionSubjects, "|") + `)\s+(file|rule|appeal)\b`)
 

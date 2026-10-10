@@ -53,7 +53,7 @@ type Gap struct {
 // Avenue is a proposed avenue, and red's ruling on it if there is one.
 type Avenue struct {
 	Line, Hypothesis string
-	// Ruled, when set, is the fate red has already given it — which is what makes an appeal or a
+	// Ruled, when set, is the fate red has already given it — which is what makes a
 	// move the seat's next act rather than a fresh proposal.
 	Ruled string
 	// RuledWhy is red's ARGUMENT for that fate, and a board is not honest without it.
@@ -64,9 +64,9 @@ type Avenue struct {
 	// transcript that I can't see from here." It was RIGHT. Build wrote every ruling with
 	// "ruled <verdict> on the line as it was proposed" — a reason that restates the verdict.
 	//
-	// Boards ask a seat to APPEAL, ACCEPT or press a ruling, and every one of those is a judgement
+	// Boards ask a seat to ACCEPT a ruling or answer it, and each of those is a judgement
 	// about the ARGUMENT behind it. Handing a seat a verdict with no argument and then scoring
-	// whether it appealed is scoring a coin flip — and the miss is invisible, because a
+	// what it did next is scoring a coin flip — and the miss is invisible, because a
 	// content-free reason and a considered one occupy the same field.
 	RuledWhy string
 }
@@ -85,10 +85,10 @@ type Motion struct {
 	GapID, Dimension, Proposed, Class, Relief string
 	Basis                                     string
 	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
-	// APPEAL the seat's next move rather than a fresh filing.
+	// docket motion on the gap the seat's next move rather than a fresh grade motion.
 	Ruled string
 	// RuledWhy is the ruler's argument. See Avenue.RuledWhy for why a board without one is not a
-	// board: a seat asked whether to appeal a refusal it cannot read is being scored on a guess.
+	// board: a seat asked whether to answer a refusal it cannot read is being scored on a guess.
 	RuledWhy string
 }
 
@@ -336,9 +336,9 @@ Reversibility under load was not tested.
 				Fix:      "Grade the untested case or say why it cannot be graded.",
 				Check:    "The limitation carries a stated risk.", CheckKind: "document",
 				Severity: "certain", Likelihood: "certain", Impact: "high", Complexity: "low",
-				Baits: "motion grade appeal",
+				Baits: "motion docket file",
 				Why: "Graded `certain` on both axes for a limitation the report DISCLOSES. A seat that files " +
-					"a grade motion and is refused has one accounted move left, and it is the appeal — " +
+					"a grade motion and is refused has one accounted move left, and it is the gap before the bench — " +
 					"not pursuing it anyway and not silently accepting it.",
 			},
 		},
@@ -364,9 +364,7 @@ Reversibility under load was not tested.
 		Expect: []Expectation{
 
 			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a motion is filed by ANY seat. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
-			{Seat: "blue-respond", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. The appeal records the argument whether or not it prevails."},
 			{Seat: "blue-respond", Verb: "avenue move", Because: "Two avenues are ruled and neither has a fate. Every avenue at proposed or pursued owes a MOVE each epoch — an avenue declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 avenues land in round 0 and never change."},
-			{Seat: "blue-respond", Verb: "motion avenue appeal", Because: "One avenue was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the avenue, which is the whole point of separating it from the status move."},
 			{Seat: "blue-respond", Verb: "position", Because: "The epoch's narrative renders as the report's BLUE section from the record. An epoch with no position leaves the transcript with a hole where blue's account should be."},
 		},
 	}
@@ -821,11 +819,10 @@ func Boards() map[string]Board {
 // <verb>", with the argument for why not.
 //
 // THIS MAP IS A FINDING, NOT AN EXEMPTION LIST. Building the boards surfaced it: `motion grade
-// file`, `motion grade appeal` and `motion avenue appeal` are offered to every seat because a
-// motion is filed by ANY seat and ruled by one — but grades and directions are blue's to contest.
-// A lens files findings; a chair sets the grades itself and would be appealing its own ruling; a
-// bench disposes of gaps rather than arguing their axes. Twelve verb-slots exist that no honest
-// situation reaches.
+// file` is offered to every seat because a motion is filed by ANY seat and ruled by one — but
+// grades are blue's to contest. A lens files findings; a chair sets the grades itself; a bench
+// disposes of gaps rather than arguing their axes. The verb-slots below exist and no board here
+// reaches them.
 //
 // That is capability offered without purpose, and the choice report would otherwise show every
 // non-blue seat permanently "using 6 of 10". Two ways out, and neither is this map: scope the
@@ -835,15 +832,9 @@ var NoSituation = map[string]string{
 	"lens motion docket file":    "a lens files FINDINGS; the chair turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
 	"bench motion docket file":   "the bench RULES docket motions. Filing one to itself is the gavel problem in miniature — the forum putting a question to the forum, then answering it.",
 	"lens motion grade file":     "a lens files FINDINGS; the chair turns them into graded gaps. Contesting a grade it never set has no sitting.",
-	"lens motion grade appeal":   "follows from the above: nothing for a lens to appeal.",
-	"lens motion avenue appeal":  "directions are blue's to propose and blue's to press; a lens has no avenue of its own at stake.",
 	"chair motion grade file":    "the chair SETS the grades. Filing a motion against its own grade is an argument with itself, and `regrade` is the channel for changing its mind.",
-	"chair motion grade appeal":  "the chair rules grade motions; appealing one is appealing its own ruling.",
-	"chair motion avenue appeal": "the chair RULES directions. The appeal is the other side of that exchange.",
 	"chair motion petition file": "possible and real — a chair may object on integrity grounds — but no board here builds it, and claiming coverage of a sitting nobody wrote would be worse than saying so.",
 	"bench motion grade file":    "the bench DISPOSES of gaps; it does not argue their axes with the seat that set them.",
-	"bench motion grade appeal":  "follows from the above.",
-	"bench motion avenue appeal": "the bench does not propose or pursue avenues.",
 	"bench motion petition file": "the bench RULES petitions. Filing one to itself is the gavel problem in miniature.",
 }
 

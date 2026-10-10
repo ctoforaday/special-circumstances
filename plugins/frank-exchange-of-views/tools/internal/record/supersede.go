@@ -13,8 +13,8 @@ import (
 // motion, a wrong regrade by the next sitting's regrade, a wrong re-run by another re-run.
 // superseders is the one statement of that, and it has three readers: the refusal of a second
 // once-per-sitting act (requireOncePerSitting), the refusal of a repeated label-keyed act
-// (insertNumbered), the refusal of a second ruling or appeal (motion.go) — and each recording
-// verb's help page, through AnswersTo.
+// (insertNumbered), the refusal of a second ruling (motion.go) — and each recording verb's help
+// page, through AnswersTo.
 //
 // A ROW IS A CLAIM ABOUT THE WRITE PATH. A seat told only "say it in a new act" is told nothing: a
 // lens sent that way had to work out for itself that a re-run is answered by another re-run, and a
@@ -38,15 +38,11 @@ type superseder struct {
 	whole string
 	// when says which acts of a verb the row is for, where one verb's help states two rows.
 	when string
-	// holder is the one role that holds the answering act, where a seat of another role can write
-	// the act it answers; such a seat is told nothing rather than sent to a verb it does not have.
-	// Empty when every seat that can write the first act holds the answer.
-	holder string
 }
 
-// supersederKey is what decides the answer: the event type — and, for a ruling or an appeal, the
-// motion's subject; for a verify, the key field its body fills (one event type, two verbs, three
-// key shapes). The zero subject and the empty field match every act of the type.
+// supersederKey is what decides the answer: the event type — and, for a ruling, the motion's
+// subject; for a verify, the key field its body fills (one event type, two verbs, three key
+// shapes). The zero subject and the empty field match every act of the type.
 type supersederKey struct {
 	typ     recordpb.EventType
 	subject recordpb.MotionSubject
@@ -57,23 +53,21 @@ const (
 	subjectGrade    = recordpb.MotionSubject_MOTION_SUBJECT_GRADE
 	subjectDocket   = recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	subjectPetition = recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	subjectAvenue   = recordpb.MotionSubject_MOTION_SUBJECT_AVENUE
 )
 
 // superseders holds a row for every type whose second act the record refuses and some command
 // records (RefusesARepeat), and for the numbered types whose answer a seat would otherwise guess.
 //
 // NO ROW IS A STATEMENT TOO, and three are deliberate. The chair holds no act that answers its own
-// ruling on an AVENUE (no verb files a motion on one), so that refusal ends without a tail. An
-// anchor, a finding and a mint are keyed on an id the tool mints per act, so a second with the same
-// key is a retried write and nothing else. No verb records an observe.
+// ruling on an AVENUE: a docket motion names a gap, an avenue is not one, and no verb files a
+// motion on an avenue — so that refusal ends without a tail. An anchor, a finding and a mint are
+// keyed on an id the tool mints per act, so a second with the same key is a retried write and
+// nothing else. No verb records an observe.
 //
-// THE GRADE RULING'S ROW DOES NOT SAY "AN APPEAL". The write path admits a ruler's appeal of its own
-// ruling, and that appeal spends the one appeal the losing party holds; naming it here would send
-// the chair to take it.
-//
-// AN AVENUE APPEAL'S ROW IS BLUE'S ALONE. The write path admits an appeal of an avenue ruling from
-// any seat, and only a blue seat holds the move that answers one.
+// A RULING'S ROW IS THE RULER'S, the one seat that can repeat it. What a seat that DISAGREES with a
+// ruling does is the same act on a grade — a docket motion on the gap, which the bench rules, or a
+// new grade motion while the gap is open — and it reaches that seat through its prompt and the
+// `motion` pages, since the record refuses it nothing.
 var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_AVENUE}:                                {act: "a move of the avenue"},
 	{typ: recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW}:                         {act: "a new review of the avenues", own: true},
@@ -85,8 +79,6 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                                  {act: "a new halt", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                                   {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MANIFEST_ROW}:                          {act: "a new manifest row for the gap", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, subject: subjectGrade}:  {act: "a new grade motion while the gap is open, or a docket motion on the gap"},
-	{typ: recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, subject: subjectAvenue}: {act: "a move of the avenue", holder: "blue"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectGrade}:    {act: "a docket motion on the gap, or a new grade motion while the gap is open"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}:   {act: "a new docket motion on the gap"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},
@@ -116,20 +108,14 @@ type Answer struct {
 	Act string
 	// When says which acts of a verb the row is for, where one verb's help states two rows.
 	When string
-	// Holder is the one role that holds the answering act, or "" when every writer of the first
-	// act holds it.
-	Holder string
 }
 
-// AnswerTo is the act that answers a wrong act of this type and body for the seat that is asking,
-// or false where the table holds no row the seat can act on — a refusal then ends without a tail
-// rather than send a seat to an act it has to guess, or to one it does not hold.
-func AnswerTo(typ recordpb.EventType, body proto.Message, seatID string) (string, bool) {
+// AnswerTo is the act that answers a wrong act of this type and body, or false where the table
+// holds no row — a refusal then ends without a tail rather than send a seat to an act it has to
+// guess.
+func AnswerTo(typ recordpb.EventType, body proto.Message) (string, bool) {
 	k := supersederKey{typ: typ}
-	switch b := body.(type) {
-	case *recordpb.MotionRule:
-		k.subject = b.GetSubject()
-	case *recordpb.MotionAppeal:
+	if b, ok := body.(*recordpb.MotionRule); ok {
 		k.subject = b.GetSubject()
 	}
 	field := keyField(body)
@@ -139,7 +125,7 @@ func AnswerTo(typ recordpb.EventType, body proto.Message, seatID string) (string
 		k.keyed = ""
 		row, ok = superseders[k]
 	}
-	if !ok || (row.holder != "" && row.holder != roleOfSeatID(seatID)) {
+	if !ok {
 		return "", false
 	}
 	return row.render(typ, field), true
@@ -161,7 +147,7 @@ func AnswersTo(typ recordpb.EventType) []Answer {
 			if field == "" {
 				field = typeKeyField(typ)
 			}
-			out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when, Holder: row.holder})
+			out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when})
 		}
 	}
 	return out
@@ -201,9 +187,9 @@ func (s superseder) render(typ recordpb.EventType, field protoreflect.Name) stri
 }
 
 // SupersedingAnswer words the tail every refusal of a repeated act ends with, or "" where the
-// table holds no row the asking seat can act on.
-func SupersedingAnswer(typ recordpb.EventType, body proto.Message, seatID string) string {
-	act, ok := AnswerTo(typ, body, seatID)
+// table holds no row.
+func SupersedingAnswer(typ recordpb.EventType, body proto.Message) string {
+	act, ok := AnswerTo(typ, body)
 	if !ok {
 		return ""
 	}

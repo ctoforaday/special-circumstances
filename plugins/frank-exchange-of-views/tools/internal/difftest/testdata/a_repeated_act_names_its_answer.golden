@@ -93,18 +93,7 @@ motion MOTION002 filed (docket)
   · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
-$ motion grade appeal --run {RUN} --seat-id blue-respond --id MOTION001 --reason pressing it on  grounds
-exit 0
-stdout:
-motion MOTION001 appealed
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
-
-$ motion grade appeal --run {RUN} --seat-id blue-respond --id MOTION001 --reason pressing it on new grounds
-exit 2
-stderr:
-feov-record: blue: record: motion MOTION001 is already appealed by blue-respond ("pressing it on  grounds"). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. The first stands. If it was wrong, say so in a new grade motion while the gap is open, or a docket motion on the gap; the record is append-only and both stay visible
-
-$ motion docket file --run {RUN} --seat-id blue-respond --id GAP001 --reason my appeal lost a word: I press it on new grounds
+$ motion docket file --run {RUN} --seat-id blue-respond --id GAP001 --reason the ruling reads past the evidence: the bench should decide the gap
 exit 0
 stdout:
 motion MOTION003 filed (docket)
@@ -166,15 +155,13 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"MOTION001","opinion":"the evidence does not  it","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_MOTION_RULE"}
 {"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion grade rule` with --as --id --reason: chair: record: motion MOTION001 is already ruled \"rejected\" by red-chair. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. The first stands. If it was wrong, say so in a docket motion on the gap, or a new grade mot…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_LOG"}
 {"key":"red-chair:motion:#1","motion":{"basis":"my ruling lost a word: the evidence does not reach it","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_MOTION"}
-{"key":"blue-respond:motion_appeal:#1","motion_appeal":{"motion_id":"MOTION001","reason":"pressing it on  grounds","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":14,"type":"EVENT_TYPE_MOTION_APPEAL"}
-{"key":"blue-respond:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion grade appeal` with --id --reason: blue: record: motion MOTION001 is already appealed by blue-respond (\"pressing it on grounds\"). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. The first stands. If it was wrong, say so in a new grad…","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":15,"type":"EVENT_TYPE_LOG"}
-{"key":"blue-respond:motion:#2","motion":{"basis":"my appeal lost a word: I press it on new grounds","docket":{"gap_id":"GAP001"},"motion_id":"MOTION003","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"blue-respond","ts":16,"type":"EVENT_TYPE_MOTION"}
-{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"verified at the  leaf"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_CLOSE"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --reason --verified-against --verified-by --verified-with: lens: record: close --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from \u003cepoch\u003e` RESTATES an earlier closure","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":18,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP001"},"motion_id":"MOTION004","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-lens-evidence","ts":19,"type":"EVENT_TYPE_MOTION"}
-{"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":20,"type":"EVENT_TYPE_REGISTER"}
-{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded proof"},"seat_id":"blue-respond","ts":21,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond:position:#2","position":{"text":"the board is clean going in"},"seat_id":"blue-respond","ts":22,"type":"EVENT_TYPE_POSITION"}
+{"key":"blue-respond:motion:#2","motion":{"basis":"the ruling reads past the evidence: the bench should decide the gap","docket":{"gap_id":"GAP001"},"motion_id":"MOTION003","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"blue-respond","ts":14,"type":"EVENT_TYPE_MOTION"}
+{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"verified at the  leaf"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":15,"type":"EVENT_TYPE_CLOSE"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --reason --verified-against --verified-by --verified-with: lens: record: close --id names gap GAP001, which is already CLOSED — closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from \u003cepoch\u003e` RESTATES an earlier closure","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":16,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:motion:#1","motion":{"basis":"my closure lost a word: verified at the leaf","docket":{"gap_id":"GAP001"},"motion_id":"MOTION004","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-lens-evidence","ts":17,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":18,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:manifest_row:#2:GAP001","manifest_row":{"gap_id":"GAP001","row":"G1 is reproducible via the recorded proof"},"seat_id":"blue-respond","ts":19,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:position:#2","position":{"text":"the board is clean going in"},"seat_id":"blue-respond","ts":20,"type":"EVENT_TYPE_POSITION"}
 
 ═══ RENDERS ═══
 -- avenues

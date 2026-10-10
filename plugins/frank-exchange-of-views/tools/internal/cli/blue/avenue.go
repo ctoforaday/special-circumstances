@@ -154,12 +154,9 @@ func newAvenueMove() *cobra.Command {
 			SupersedesStatus: proto.String("1"),
 			Status:           &st,
 		}
-		// THE CONTEST IS `motion avenue appeal` (#344), NOT A FIELD HERE. `contests_ruling`
-		// was set as a side effect of moving a line to `pursued` against an adverse ruling,
-		// and that coupling can only record disagreement that WINS: in one real record the
-		// merge ruled a line too thin, blue argued the reasoning at the leaf and then
-		// declined the line anyway — the ordinary outcome of an argument — and the field
-		// recorded nothing. It appears zero times in the whole record.
+		// RED'S RULING ON THE AVENUE BINDS NOTHING HERE. It is an argument beside the line; the
+		// move records what blue decided — any status, against the ruling or with it — and no
+		// field marks a move as made against one.
 		why, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err

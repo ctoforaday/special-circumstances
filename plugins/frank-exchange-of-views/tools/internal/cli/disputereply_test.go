@@ -76,28 +76,3 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 		t.Errorf("the refusal must say the reference resolves to nothing: %v", err)
 	}
 }
-
-// AN APPEAL AGAINST NO RULING IS REFUSED.
-//
-// The other half of the same discipline, and it did not exist before the collapse: `contests_ruling`
-// was a field set as a side effect of a status move, so there was nothing to refuse. An appeal is
-// pressing on AFTER an answer; against no answer the event would replay as a motion both unruled
-// and appealed, which the report has no honest sentence for.
-func TestAnAppealAgainstNoRulingIsRefused(t *testing.T) {
-	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nA claim.\n")
-	mintGap(t, runDir, "G1", "overclaim")
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
-		t.Fatalf("file refused: %v", err)
-	}
-
-	_, err := runAt(t, "motion", "grade", "appeal", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "M1", "--reason", "pressing it to the bench")
-	if err == nil {
-		t.Fatal("an appeal was recorded against a motion nobody had ruled — there is nothing to press against")
-	}
-	if !strings.Contains(err.Error(), "no ruling to appeal") {
-		t.Errorf("the refusal must say WHY there is nothing to appeal: %v", err)
-	}
-}

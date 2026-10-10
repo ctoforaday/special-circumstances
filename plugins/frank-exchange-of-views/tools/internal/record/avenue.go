@@ -64,20 +64,6 @@ type Avenue struct {
 	Ruling     string // red's fate, if ruled
 	RulingWhy  string
 	RuledEpoch int
-	// Contests was the ruling blue moved AGAINST, recorded by `blue avenue` at the moment
-	// of the move. Read from the field rather than re-derived from (status, ruling): the write
-	// path already decided what counts as contesting, and a second derivation downstream is a
-	// second definition that can disagree with it.
-	//
-	// ITS CARRIER IS THE APPEAL, NOT A FIELD ON THE LINE: `motion avenue appeal` writes a
-	// MotionAppeal on the line's id. AvenuesOf sets this to the line's ruling when the line is
-	// appealed — the pairing motion_answers states, the first appeal against the first ruling,
-	// whatever their order — and a line never ruled leaves it empty. The write refuses an appeal
-	// against an unruled line (RequireRuledMotion). Its reader is the avenues projection
-	// (view.AvenueBody), which ships as avenues.md; judgments.md carries the same appeal
-	// with the filer's reason. report.md does not render it — the debate over a direction is not
-	// research prose.
-	Contests string
 	// THERE IS NO PER-LINE SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
 	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-epoch answer to
 	// "does the report still CARRY this line". That made presence the question. Presence is not a
@@ -118,7 +104,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 	evs = Live(evs)
 	byID := map[string]*Avenue{}
 	var order []string
-	ruled, appealed := map[*Avenue]bool{}, map[*Avenue]bool{}
+	ruled := map[*Avenue]bool{}
 	for _, e := range evs {
 		w := win.Of(e)
 		body, ok := recordpb.Body(e)
@@ -176,14 +162,6 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 				a.EverPursued = true
 			}
 			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()
-			// `contests_ruling` HAS NO FIELD, AND THAT IS THE SCHEMA'S DECISION, NOT THIS
-			// CONVERSION'S. It was set as a side effect of moving a line to `pursued` against an
-			// adverse ruling; #344 replaced it with `motion avenue appeal`, blue/avenue.go:109
-			// records that nothing has written it since, and recordpb's key census calls it "the
-			// legacy spelling of an appeal … the one legacy field with no counterpart at all".
-			// So the read is dropped rather than converted. THE CONCEPT IS NOT DEAD: its post-#344
-			// carrier is a `motion-appeal` event on this line's id, read by the MotionAppeal arm
-			// below, which is what sets Avenue.Contests now.
 			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 		case *recordpb.MotionRule:
 			// THE CURRENT SPELLING, and reading it here is not optional.
@@ -224,22 +202,6 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			a.Ruling = rulingWord(t)
 			// The ruler's argument is `opinion`, the only prose channel MotionRule has.
 			a.RulingWhy, a.RuledEpoch = t.GetOpinion(), w.Epoch
-		case *recordpb.MotionAppeal:
-			// BLUE MOVING AGAINST A RULING. This arm records only THAT the line is appealed.
-			//
-			// What blue contested is the ruling ON THE RECORD, so it is read off the line rather
-			// than restated by the appeal: an appeal names the motion, and the motion carries one
-			// ruling. Contests is filled after the walk, from that ruling, so the pairing does not
-			// depend on which of the two the stream holds first. A line never ruled leaves it
-			// empty, because there is nothing to have moved against.
-			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-				continue
-			}
-			a, ok := byID[t.GetMotionId()]
-			if !ok {
-				continue
-			}
-			appealed[a] = true
 			// THERE IS NO AvenueReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
 			// review is ONE event per epoch about the report as a whole; it names no line, so there
 			// is nothing here for it to join to. Its reader is AvenueReviewDue.
@@ -247,11 +209,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 	}
 	out := make([]*Avenue, 0, len(order))
 	for _, id := range order {
-		a := byID[id]
-		if appealed[a] {
-			a.Contests = a.Ruling
-		}
-		out = append(out, a)
+		out = append(out, byID[id])
 	}
 	return out
 }

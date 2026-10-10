@@ -117,8 +117,6 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
-		recordtest.Event(t, "blue-respond", &recordpb.MotionAppeal{MotionId: str("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Reason: str("the ruling reads past the argument")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified at the leaf")}),

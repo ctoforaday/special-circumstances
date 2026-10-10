@@ -757,8 +757,8 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
 // ruling with its opinion, and a sentence that blue had moved against that ruling. All four are
 // the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
-// report text: avenues.md (view.AvenueBody) ships the seat, path, ruling and appeal, and
-// judgments.md the ruling's opinion and the appeal's reason with the other motions. The fate word
+// report text: avenues.md (view.AvenueBody) ships the seat, path and ruling, and
+// judgments.md the ruling's opinion with the other motions. The fate word
 // itself stays, because it is subject content: `abandoned` means the line was tried and died. What a reader of the report
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
