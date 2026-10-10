@@ -32,7 +32,7 @@ import (
 // view arrives in prose. One idiom is regular — "the board, work and motions projections", "the
 // `avenues` projection" — and is read in full. The transcript is the exception: it is the one
 // view a prompt calls by a word that is not its name, and that word also appears where nothing is
-// being read ("your position and closings in the transcript"). So the gate looks for the word in
+// being read ("your closings in the transcript"). So the gate looks for the word in
 // a sentence that tells the seat to READ or PULL, and nowhere else; a prompt that sent a seat to
 // it in other words would pass. Both matchers are held to a floor below so that a reworded idiom
 // fails this test instead of emptying it.

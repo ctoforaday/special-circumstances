@@ -177,35 +177,6 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 	return a, t, true
 }
 
-// citeRe reads blue's POSITION PROSE, which a run writes once and keeps: a run recorded before
-// the deferring disposition was spelled `remanded` says "carried" in the same place. Matching only
-// the current word would score those runs' uptake low and look like a measurement.
-var citeRe = regexp.MustCompile(`(?i)lead|judge|direction|carried|remanded`)
-
-// ComputeDirectionUptake counts LEAD sittings and blue sections referencing the bench direction
-// — the pure kernel over the debate JSON (JS computeDirectionUptake).
-func ComputeDirectionUptake(dj record.DebateJSON) (leadSections, blueCitesLead int) {
-	for _, r := range dj.Epochs {
-		if len(r.Lead) > 0 {
-			leadSections++
-		}
-		for _, b := range r.Blue {
-			if citeRe.MatchString(b) {
-				blueCitesLead++
-			}
-		}
-	}
-	return leadSections, blueCitesLead
-}
-
-func directionUptake(fam *record.Family) (leadSections, blueCitesLead int, ok bool) {
-	if fam == nil {
-		return 0, 0, false
-	}
-	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(fam.Events, fam.At))
-	return l, b, true
-}
-
 var lNum = regexp.MustCompile(`^L(\d+)`)
 
 func citationYieldByRole(fam *record.Family) (objJSON, bool) {
@@ -739,20 +710,6 @@ func benchRows(fam *record.Family) []Row {
 			Note:  strconv.Itoa(remanded) + "/" + strconv.Itoa(len(rulings)) + "; baseline 76/77"})
 	default:
 		rows = append(rows, Row{Clause: "Not a router", Metric: "remanded_share", Cls: "benchmark", Note: "the bench did not sit this run"})
-	}
-
-	// blue_sections_citing_direction (string value)
-	leadSections, blueCitesLead, ok := directionUptake(fam)
-	if ok && leadSections > 0 {
-		rows = append(rows, Row{Clause: "Direction-uptake (headline)", Metric: "blue_sections_citing_direction", Cls: "benchmark",
-			Value: strconv.Itoa(blueCitesLead) + "/" + strconv.Itoa(leadSections),
-			Note:  "textual proxy: blue sections referencing the bench after a LEAD section; baseline ~100%"})
-	} else {
-		n := "needs the tool (the debate view) — direction-uptake reads the record, not the debate.md stub"
-		if ok {
-			n = "no LEAD sections this run"
-		}
-		rows = append(rows, Row{Clause: "Direction-uptake (headline)", Metric: "blue_sections_citing_direction", Cls: "benchmark", Note: n})
 	}
 
 	// undeclared_inspection_risk (always 0), over the same docket rulings remanded_share counts —

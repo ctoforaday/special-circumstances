@@ -534,7 +534,7 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 func TestMarkdownDebateAndAvenue(t *testing.T) {
 	runDir := t.TempDir()
 	merge := "red-chair"
-	blue := "blue-lane-1"
+	blue := "blue-respond"
 	judge := "judge"
 	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*record.Event{
@@ -610,7 +610,7 @@ func TestMarkdownDebateAndAvenue(t *testing.T) {
 	if pursuedAt < 0 || abandonedAt < 0 || pursuedAt > abandonedAt {
 		t.Errorf("avenues sections are wrong or out of order:\n%s", avenue)
 	}
-	if !strings.Contains(avenue, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-lane-1)") {
+	if !strings.Contains(avenue, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-respond)") {
 		t.Errorf("an abandoned avenue row is wrong:\n%s", avenue)
 	}
 	if strings.Contains(avenue, "## declined") {

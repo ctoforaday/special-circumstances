@@ -106,11 +106,9 @@ already failed your own standard.
   file it on the record as a petition motion, stating that class, basis, and relief sought. The chair's next plan convenes the bench to hear it, before any party of that epoch sits; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
-- AFTER changing `blue/report.md`, YOU MUST record BOTH what changed and the argument you
-  are making by changing it. They are two acts because they answer two questions, and a sitting
-  that records only the first leaves the other side nothing to answer. **Write both from the
-  ARTIFACT, never from recall** — a revision or position composed from memory of what you meant to do
-  is the one document in the run nothing checks.
+- AFTER changing `blue/report.md`, YOU MUST record what changed, as the
+  sitting's revision. **Write it from the ARTIFACT, never from recall** — a revision composed
+  from memory of what you meant to do is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** You are its author, so this is yours first, and you write it as a file before any verb sees it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, avenue's propose and move, and prove and cite, whose proof note and source title the report prints.
@@ -217,7 +215,7 @@ change anything the act says except --id, which names what it is about. Repeat y
 correction that leaves out a flag the act holds is refused.
 
 §10 (on 2 pages):
-WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `position` or `closing`.
+WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.
 
 §11 (on 2 pages):
 your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice
@@ -294,7 +292,7 @@ Available Commands:
   ingest       freeze the synthesized report into the record and remove the file — done once, by its author
   log          an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row your receipt for one repaired gap: what you checked, and what checking it showed
-  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's BLUE section
+  position     blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
@@ -798,9 +796,9 @@ Enumerated values:
 (Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record position --help
-your sitting's position — the argument the bench reads when it rules, rendered as this sitting's BLUE section
+blue-respond's position for a sitting — its argument to the bench, the BLUE section; no other blue seat files one
 
-It renders as this sitting's ### BLUE section. It is prose on the record, not a summary of your acts — the acts are already there.
+It renders as this sitting's ### BLUE section. It holds what no act of the sitting holds — what you ask the bench to weigh, and why a route the record offered was left untaken — and restates no act: the acts are already there. IT IS BLUE-RESPOND'S ACT, at a sitting that finds a gap it is engaged on still open. A lane, the frontier and the synthesizer file none and are refused one: they argue in what they write.
 
 (If you need a verb or a flag tha…) → SHARED §1
 

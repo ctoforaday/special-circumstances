@@ -4,4 +4,4 @@ your sitting's position — the argument the bench reads when it rules, rendered
 
 ## detail
 
-It renders as this sitting's ### RED section. It is prose on the record, not a summary of your acts — the acts are already there.
+It renders as this sitting's ### RED section. It holds what no act of the sitting holds — what you ask the bench to weigh, and why a route the record offered was left untaken — and restates no act: the acts are already there.

@@ -167,6 +167,9 @@ func TestRegisterBeforeAppend(t *testing.T) {
 // seat registered next. `verify` read the tool's entry as the seat writing unregistered. The two
 // controls hold the invariant where it was: the tool's entry does not excuse a seat whose own first
 // event is not its register, and a seat's own log before its register is still a violation.
+//
+// The fixtures seat blue-respond: the act after the register is a position, which the verb admits
+// from a seat that owes one.
 func TestRegisterBeforeAppendReadsPastWhatTheToolWrote(t *testing.T) {
 	tool := func(seat string) *record.Event {
 		return recordtest.Event(t, seat, &recordpb.Log{
@@ -180,19 +183,19 @@ func TestRegisterBeforeAppendReadsPastWhatTheToolWrote(t *testing.T) {
 		bad    int
 	}{
 		"the tool's refusal, then the register": {[]*record.Event{
-			tool("blue-synthesize"),
-			recordtest.Event(t, "blue-synthesize", &recordpb.Register{}),
-			recordtest.Event(t, "blue-synthesize", &recordpb.Position{}),
+			tool("blue-respond"),
+			recordtest.Event(t, "blue-respond", &recordpb.Register{}),
+			recordtest.Event(t, "blue-respond", &recordpb.Position{}),
 		}, 0},
 		"the tool's refusal, then an act with no register": {[]*record.Event{
-			tool("blue-synthesize"),
-			recordtest.Event(t, "blue-synthesize", &recordpb.Position{}),
+			tool("blue-respond"),
+			recordtest.Event(t, "blue-respond", &recordpb.Position{}),
 		}, 1},
 		"the seat's own log, then the register": {[]*record.Event{
-			recordtest.Event(t, "blue-synthesize", &recordpb.Log{
+			recordtest.Event(t, "blue-respond", &recordpb.Log{
 				Text: proto.String("friction"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(),
 				Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-			recordtest.Event(t, "blue-synthesize", &recordpb.Register{}),
+			recordtest.Event(t, "blue-respond", &recordpb.Register{}),
 		}, 1},
 	} {
 		t.Run(name, func(t *testing.T) {

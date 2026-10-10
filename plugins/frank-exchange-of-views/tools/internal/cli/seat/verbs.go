@@ -193,6 +193,15 @@ func Log() *cobra.Command {
 func Position(key string) *cobra.Command {
 	// validate refuses an empty position — "a duty discharged by nothing".
 	return Correctable(SaysRequired(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
+		// WHOSE ACT IT IS, from the one predicate. The blue role is one surface, so a lane, the
+		// frontier and the synthesizer hold this verb; a position of theirs would be argument filed
+		// where only the bench and the chair read, by a seat nothing holds to filing it. The seats
+		// the refusal names are the predicate's, so it never points at one the write path refuses.
+		if !record.SeatOwesPosition(s.SeatID) {
+			return nil, feov.Errorf(feov.RoleViolation,
+				"position is the act of %s — the seats that argue before the bench. A %s sitting files none: it argues in what it writes, and nothing is owed here",
+				record.PositionSeats(), s.SeatID)
+		}
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err

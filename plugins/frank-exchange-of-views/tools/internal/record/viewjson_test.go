@@ -17,7 +17,7 @@ import (
 func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	runDir := newRun(t)
 	merge := "red-chair"
-	blue := "blue-lane-1"
+	blue := "blue-respond"
 	judge := "judge"
 	merge2 := "red-chair"
 

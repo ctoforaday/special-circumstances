@@ -254,6 +254,7 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 	}
 	evs := []*record.Event{
 		at("red-chair", &recordpb.Register{}),
+		at("red-chair", &recordpb.Position{Text: proto.String("what the bench is asked to hold")}),
 		at("red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
 			RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -306,10 +307,18 @@ func TestRecordParityAudit(t *testing.T) {
 	if a := RecordParityAudit(blueSittingRun(t, false, false, position, revision)); a.Verdict != "PASS" {
 		t.Errorf("a sitting the run ended in that carries both: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
+	// EVERY CHAIR SITTING OWES A POSITION, and this audit is the one place a chair sitting without
+	// one is reported: its work list holds no item for it.
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, chairRegister(t, 1))
+	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-chair sitting 1 filed no position") {
+		t.Errorf("a chair sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
+	}
+	// A record no seat that owes a position sat on has nothing to hold to it.
+	dir = t.TempDir()
+	recordtest.Seed(t, dir, recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", &recordpb.Register{}))
 	if a := RecordParityAudit(runtest.Open(t, dir)); a.Verdict != "SKIP" {
-		t.Errorf("no blue sitting for a dispatch: want SKIP, got %s", a.Verdict)
+		t.Errorf("no chair sitting and no blue sitting for a dispatch: want SKIP, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
@@ -396,6 +405,7 @@ func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
 		dir := t.TempDir()
 		recordtest.Seed(t, dir,
 			at("red-chair", "", &recordpb.Register{}),
+			at("red-chair", "", &recordpb.Position{Text: proto.String("what the bench is asked to hold")}),
 			at("red-lens-logic", "", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
 				RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 				CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),

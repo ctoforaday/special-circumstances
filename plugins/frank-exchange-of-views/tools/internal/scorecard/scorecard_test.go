@@ -151,17 +151,6 @@ func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
 	}
 }
 
-func TestComputeDirectionUptake(t *testing.T) {
-	dj := record.DebateJSON{Epochs: []record.DebateEpochJSON{
-		{Lead: []record.DebateOpinionJSON{{GapID: "G1"}}, Blue: []string{"acted on the judge direction as carried"}},
-		{Lead: nil, Blue: []string{"unrelated repair notes"}},
-	}}
-	lead, blue := ComputeDirectionUptake(dj)
-	if lead != 1 || blue != 1 {
-		t.Errorf("ComputeDirectionUptake = %d/%d, want 1/1", lead, blue)
-	}
-}
-
 func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 	// The additive-integrity detector: a claim_count fall the retire EVENTS don't account for is
 	// substance leaving silently. Retires come from the RECORD (retire events on the board), NOT a

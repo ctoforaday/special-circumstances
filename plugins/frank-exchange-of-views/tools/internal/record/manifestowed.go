@@ -100,17 +100,15 @@ func (s BlueSitting) Owes() []recordpb.EventType {
 	if len(s.Open) == 0 {
 		return nil
 	}
-	var position, revision bool
+	revision := false
 	for _, e := range s.Acts {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_POSITION:
-			position = true
-		case recordpb.EventType_EVENT_TYPE_REVISION:
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
 			revision = true
 		}
 	}
 	var owes []recordpb.EventType
-	if !position {
+	// The position half is the scan PositionSittings makes of the same acts (holdsPosition).
+	if !holdsPosition(s.Acts) {
 		owes = append(owes, recordpb.EventType_EVENT_TYPE_POSITION)
 	}
 	if !revision {

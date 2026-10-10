@@ -471,7 +471,8 @@ var correctionArms = []fuzzArm{
 		func(t string) []string {
 			return []string{"--quote", "A claim sits under S2.", "--script", "{RUN}/fuzz-proof.js", "--reason", t}
 		}, nil),
-	corrArm("blue position corrected", blueSeats, []string{"position"}, reasonOnly, nil),
+	// blue-respond alone: a position is refused for a blue seat that owes none (record.SeatOwesPosition).
+	corrArm("blue position corrected", []string{"blue-respond"}, []string{"position"}, reasonOnly, nil),
 	corrArm("chair position corrected", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
 	corrArm("blue closing corrected", blueSeats, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
 	corrArm("chair closing corrected", []string{"red-chair"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),

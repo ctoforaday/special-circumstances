@@ -1,4 +1,4 @@
-prompt sha256: 81a43261875d566b01a3121b4b7b632ec25db9d02f57d808e64a070f4d970e44
+prompt sha256: f9bca2bdba2613d82c65eef09ee1f3ea01c8e927bef049611172a1aafd5fc375
 
 Blue response, topic "the seat prompt contract".
 You are engaged on: G-00000001.
@@ -16,7 +16,7 @@ The projection names, this prompt's words for a concept, and the command that wr
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.
 The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
-YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your position and closings in the transcript, your grounds beside the acts on the board.
+YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your closings in the transcript, your grounds beside the acts on the board.
 The transcript is your case to the bench, which reads it when it rules, and to the reader of the run; the grounds on the board are what the other party's seats read and answer.
 NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run.
 And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs.
@@ -53,6 +53,10 @@ DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT (a grade motion on the axis, wi
 Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it.
 PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own — and list the sites you checked in your revision.
 A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.
+YOUR POSITION ARGUES TO THE BENCH, one per sitting that finds a gap you are engaged on still open.
+It holds two things no act of the sitting holds: what you ask the bench to weigh, and why you left untaken a route the record offered you — a repair a gap's fix prescribed that you did not make, a gap you rebutted rather than repaired.
+It restates no edit, manifest row or motion: each carries its own reason on the record.
+It answers no lens: no lens reads it.
 CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: G-00000001.
 For EACH, after your repairs, argue in ~120 words why your response resolves it, or why red's grade or claim is wrong, citing the exact section and evidence, as your recorded closing.
 This is your case; material not in the record cannot help you.
