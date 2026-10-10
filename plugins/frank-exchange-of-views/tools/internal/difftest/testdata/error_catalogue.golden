@@ -1681,6 +1681,10 @@ feov-record: blue: blue edit: your old span carries finding anchor <!--fx:FINDIN
 exit 2
 feov-record: blue: blue edit: this edit puts <!--fx:FINDING002--> on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it
 
+── an edit ending its own sentence before an anchor its quote leaves out
+exit 2
+feov-record: blue: blue edit: your quote stops before finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
+
 ── repeat target: the lens regrades GAP001
 exit 0
 regraded GAP001

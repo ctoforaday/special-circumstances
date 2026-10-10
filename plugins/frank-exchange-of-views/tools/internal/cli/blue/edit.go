@@ -204,7 +204,7 @@ func newEdit() *cobra.Command {
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
 	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". An anchor standing at its end stays where it is unless the quote carries it")
-	flags.Text(c, flags.New, "the text that span should become")
+	flags.Text(c, flags.New, "the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
@@ -260,6 +260,36 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 	planned, applied, exact, err := planEdit(report, old, new)
 	if err != nil {
 		return "", "", false, err
+	}
+	// A RUN THAT STAYS PUT, AFTER A REPLACEMENT THAT ENDS ITS OWN SENTENCE (gblock, 2026-10-10).
+	// The quote left the run out, so it stands after the replacement; the seam tidy takes the
+	// replacement's terminator and the run lands on the replacement's last sentence, whichever
+	// sentence held its claims. Measured on universe-m19: all four stay-put edits whose --new ended
+	// its sentence meant something other than a rewording (one left a finding on the wrong
+	// sentence), and the nine without one were clean. The sentence rule is anchor.Sentences, read
+	// over the splice before the tidy: the run opens a sentence of its own exactly when the
+	// replacement closed the one before it.
+	//
+	// Here and not in PlanSplice: `lens mint` checks a prescription before the gap's anchor stands,
+	// and the pair --accept sends carries that run (record.Proposal), so it is never stay-put.
+	// A literal span holds the terminator, and a run past a terminator is on no sentence of the span.
+	if start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old); err == nil && !exact {
+		if run, punct := bluedoc.AbuttingRun(report, end); run != "" && punct == 0 && claimcount.HasProse(applied) {
+			at := start + len(applied)
+			for _, sp := range anchor.Sentences(report[:start] + applied + report[end:]) {
+				if sp[0] != at {
+					continue
+				}
+				var labels []string
+				for _, id := range anchor.IDs(run) {
+					labels = append(labels, anchor.Label(id))
+				}
+				return "", "", false, fmt.Errorf("blue edit: your quote stops before %s. An anchor the quote leaves out stays where it stands, on the text that precedes it, "+
+					"and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. "+
+					"To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes",
+					strings.Join(labels, ", "))
+			}
+		}
 	}
 	if run := reportproj.DoubledTerminator(report, planned); run != "" {
 		return "", "", false, fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+

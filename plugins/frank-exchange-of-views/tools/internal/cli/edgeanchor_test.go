@@ -15,7 +15,11 @@ import (
 // quoting and rewriting its prose alone. The edit applies, the run's bytes stand after the new text
 // and before the terminator, the event records the replacement as written and every anchor of the
 // run as reopened — and a lens prescribing a fix on that sentence, its quote stopping at the same
-// place, mints.
+// place, mints, with or without the terminator: the pair an acceptance sends carries the run.
+//
+// A REPLACEMENT THAT ENDS ITS OWN SENTENCE IS REFUSED while the run stays put (gblock, 2026-10-10;
+// universe-m19's ev358, ev434, ev435, ev436): the refusal names every anchor of the run, the report
+// and the record are untouched, and the same replacement applies once the quote carries the run.
 func TestAnAnchorRunAtTheQuotesEndStaysWhereItStands(t *testing.T) {
 	for _, term := range []string{"", "."} {
 		t.Run("edit"+term, func(t *testing.T) {
@@ -29,7 +33,26 @@ func TestAnAnchorRunAtTheQuotesEndStaysWhereItStands(t *testing.T) {
 			if rep := readReport(t, runDir); !strings.Contains(rep, acceptS+run+".") {
 				t.Fatalf("the fixture does not hold the run before the terminator:\n%s", rep)
 			}
-			if err := acceptEdit(t, runDir, "E", gap, "--quote", acceptS+term, "--new", acceptN+term); err != nil {
+			before := readReport(t, runDir)
+			err = acceptEdit(t, runDir, "E", gap, "--quote", acceptS+term, "--new", acceptN+term)
+			if term != "" {
+				for _, want := range []string{anchor.Label(gap), anchor.Label(cite), "ends its own sentence", "leave its closing punctuation off --new", "quote it as `show report` prints it"} {
+					if err == nil || !strings.Contains(err.Error(), want) {
+						t.Fatalf("a replacement ending its own sentence before a run that stays put: got %v, want a refusal holding %q", err, want)
+					}
+				}
+				if before != readReport(t, runDir) {
+					t.Fatal("the refused edit reached the record: the report it renders moved")
+				}
+				if err := acceptEdit(t, runDir, "E", gap, "--quote", acceptS+run+term, "--new", acceptN+run+term); err != nil {
+					t.Fatalf("the same replacement, its quote carrying the run, was refused: %v", err)
+				}
+				if rep := readReport(t, runDir); !strings.Contains(rep, "The year opened badly. "+acceptN+run+". Volume recovered later.") {
+					t.Errorf("the carried run does not stand before the terminator:\n%s", rep)
+				}
+				return
+			}
+			if err != nil {
 				t.Fatalf("an edit whose quote stops before the run was refused: %v", err)
 			}
 			if rep := readReport(t, runDir); !strings.Contains(rep, "The year opened badly. "+acceptN+run+". Volume recovered later.") {

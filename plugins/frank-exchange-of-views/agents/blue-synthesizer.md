@@ -409,7 +409,7 @@ recorded as one.
 
 The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: an anchor of any kind may travel THROUGH your edit, never disappear in one.
 
-YOUR QUOTE DECIDES WHICH ANCHORS THE EDIT TOUCHES. An anchor your quote does not carry is outside the span and stays exactly where it stands. That covers the commonest place for one — the anchors at the END of a sentence, before its terminator: quote the sentence without them, write the replacement without them, and they stand after your new text, before the terminator, untouched. Typing one of them into the replacement without quoting it is refused, and the refusal names it.
+YOUR QUOTE DECIDES WHICH ANCHORS THE EDIT TOUCHES. An anchor your quote does not carry is outside the span and stays exactly where it stands. That covers the commonest place for one — the anchors at the END of a sentence, before its terminator: quote the sentence without them, write the replacement without them, and they stand after your new text, before the terminator, untouched. Leave the closing punctuation off that replacement — the terminator already stands after the anchors — because a replacement that ends its own sentence there is refused: it would leave them on that sentence, whichever sentence held the claim each marks. Typing one of them into the replacement without quoting it is refused, and the refusal names it.
 
 An anchor your quote carries, or one in the middle of the quoted text, is INSIDE the span and must be copied verbatim into the replacement, where its claim now stands. That is how an anchor at a sentence's end MOVES — onto an earlier sentence of a longer replacement, say: quote the sentence as `show report` prints it, anchors included, and write each one where it goes. Quoting one anchor of a run takes every anchor before it in that run into the span with it.
 
@@ -437,7 +437,7 @@ Flags:
       --answers gap-id   the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap
   -h, --help             help for edit
       --key string       → SHARED §7
-      --new string       the text that span should become
+      --new string       the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused
       --quote string     REQUIRED unless --accept — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. An anchor standing at its end stays where it is unless the quote carries it
       --reason string    → SHARED §8
 

@@ -223,6 +223,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"an edit carrying an anchor onto a heading", []string{"edit", "--seat-id", "blue-respond",
 			"--quote", "Prices climbed<!--fx:F-0000beef-->", "--new", "## Prices climbed<!--fx:F-0000beef-->", "--reason", "r"}},
 
+		// A run the quote leaves out stays put, and a replacement that ends its own sentence would
+		// leave it on that sentence: refused, naming the run.
+		{"an edit ending its own sentence before an anchor its quote leaves out", []string{"edit", "--seat-id", "blue-respond",
+			"--quote", "Prices climbed", "--new", "Prices soared.", "--reason", "r"}},
+
 		// A REPEATED ACT. Rows marked "target" record the act the refusal after them names; each
 		// refusal ends with the act that answers the first, read from the record's one table, or
 		// with nothing where the seat holds no such act. They run last, so no earlier row sees
