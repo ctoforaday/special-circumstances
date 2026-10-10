@@ -59,9 +59,11 @@ func TestTheDispatchedPromptTeachesTheBindingContract(t *testing.T) {
 		if !strings.Contains(p, "--seat-id "+b.Seat+" <command> --help") {
 			t.Errorf("%s: the dispatched prompt shows the seat no worked call naming itself — nothing demonstrates the flag that binds its identity", name)
 		}
-		if !strings.Contains(p, "register") {
-			t.Errorf("%s: the dispatched prompt does not name register — the seat does not know which call binds its id", name)
-		}
+		// NOT ASSERTED: that the prompt names the call that binds the id. A prompt names acts and
+		// no verb (TestTheSeatPromptsNameNoVerb), and the constitution carries the verb's whole
+		// page. A substring check for the word passes on any prose holding it — "the session's
+		// registered working directories" satisfied one here on eight boards whose prompts name
+		// no such call.
 		// And the seat id it is told to register is the one this board stages.
 		if !strings.Contains(p, "SEAT_ID: "+b.Seat) {
 			t.Errorf("%s: the dispatched prompt does not name seat %s", name, b.Seat)

@@ -1,4 +1,4 @@
-prompt sha256: ab68e9fc85fa1c3e76632f5bb5d80b7c89cddc1b014b4077a548f327c79d4a1e
+prompt sha256: bec8c55d004f7eccad8caedcee36fd7c774275182e65a1011b65159eadea6d4f
 
 Adjudication, topic "the seat prompt contract".
 Docketed for you: G-00000001 — each reached impasse under the run's terms and the record docketed it.
@@ -22,8 +22,8 @@ Five independent tool calls in ONE message cost one round-trip; the same five in
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
 Serialize only where the second call cannot be written until the first has answered.
 If you are about to send a message with one tool call in it, ask what else you already know you will need.
-Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
-KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
+READ a file with the file-reading tool (offset/limit), never sed/awk/head/tail/cat through the shell: a shell spawn costs 10-100x a native read and buys nothing.
+SEARCH with the search tool your session offers; where it offers none, or the tool refuses a path under the run directory ("Path does not exist" — a KNOWN HARNESS LIMIT, W1.11, do NOT log it as friction), search through the shell (grep, ls) — one command that finds the lines, never a whole file dumped to be read by eye.
 SEAT_ID: judge.
 OCCASION: docket — what this sitting was convened to do.
 Your seat id is the same for all four of your sittings, so this is the only thing that tells them apart on the record; it is required of you where it is required of nobody else.

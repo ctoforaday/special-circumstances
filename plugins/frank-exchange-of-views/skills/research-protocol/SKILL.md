@@ -62,7 +62,8 @@ There is no search index, and there are two access modes:
    (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim through the run's cached source read, so every seat that reads it after you reads the same bytes.
    WebFetch is not used: it returns a summary, not the source.
 
-To find text inside the run's own artifacts, use `Grep` — the terms you want are the terms you
+To find text inside the run's own artifacts, search for it lexically — with the search tool the
+session offers, or the shell's `grep` where it offers none: the terms you want are the terms you
 already have, and a lexical match over a known file beats a ranked guess over a corpus.
 
 ## Harness contract
@@ -72,7 +73,7 @@ transcript directory's `journal.jsonl` is the HARNESS's lifecycle record — `st
 events only, never script logs. Per-agent API transcripts are `agent-*.jsonl` (the cost
 audit's input). Durable in-run state lives ONLY in the run directory (git-tracked run files) or
 in envelopes; anything else evaporates with the session. Tool footguns with live recurrences:
-Grep's count mode counts LINES, not occurrences (anchor patterns when counting); the Read tool caps ~25k
+a search's count mode — the search tool's or `grep -c` — counts LINES, not occurrences (anchor patterns when counting); the Read tool caps ~25k
 tokens — a full-document read over that cap is consecutive whole windows, which satisfies the
 full-re-read MUST without a confidence discount.
 
