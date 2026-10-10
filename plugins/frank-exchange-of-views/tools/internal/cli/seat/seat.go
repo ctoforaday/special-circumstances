@@ -162,10 +162,6 @@ type Context struct {
 	// bound is the seat this agent registered as, when the lookup answered one. A refusal of a
 	// disagreeing --seat-id is the registered seat's act, and is logged under it (see RefusalSeat).
 	bound string
-
-	// cmd is the command this context was read from: the key its write log and its correction are
-	// held under (see Correctable).
-	cmd *cobra.Command
 }
 
 // Run resolves the seat's run, or returns why it could not.
@@ -230,14 +226,9 @@ func (c Context) Identity() record.Identity {
 	// The zero Run when this context was REFUSED. Append asserts Valid() and refuses rather
 	// than writing, so a caller that skipped Run() still cannot record into an unresolved run —
 	// which is what the old `RunDir: ""` did, into the working directory.
-	id := record.Identity{Run: c.handle(), SeatID: c.SeatID}
-	// A CORRECTABLE COMMAND KEEPS A WRITE LOG, so its success line can print the key a later
-	// correction names, and carries the correction it was asked to make (see Correctable).
-	if inv := invocationOf(c.cmd); inv != nil {
-		id.OnWrite = inv.add
-		id.Correct = inv.correct
-	}
-	return id
+	// NO CORRECTION RIDES ON IT: a seat's act stands as filed, and record.Identity.Correct is
+	// migrate's alone.
+	return record.Identity{Run: c.handle(), SeatID: c.SeatID}
 }
 
 // requireBound refuses an act by an agent that has not registered.
@@ -369,7 +360,7 @@ func Of(cmd *cobra.Command) Context {
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
 		// will use it, and every reader below this point trusts what it is handed.
-		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved, cmd: cmd}
+		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved}
 	}
 	runDir = resolved
 	// Identity resolves the same way (#348): the binding wins, and a disagreeing flag is carried
@@ -379,7 +370,7 @@ func Of(cmd *cobra.Command) Context {
 	// NewRun, not OpenRun: Of() must hand back a Context even for a run that is not on disk —
 	// the existence check belongs at Run(), where a verb actually acts on the run.
 	run, _ := record.NewRun(runDir)
-	c := Context{runDir: runDir, Role: roleOf(cmd), RunVia: via, cmd: cmd}
+	c := Context{runDir: runDir, Role: roleOf(cmd), RunVia: via}
 	// THE LOOKUP ONCE, and its two failures apart. A binding that DISAGREES with the flag is a
 	// refusal for every verb; a lookup that cannot answer (a record the query cannot read) is not,
 	// for a read — it is refused at Begin, where a write would otherwise go unattributed.
@@ -451,11 +442,9 @@ func (m Msg) Human() string { return m.Message }
 // position (not string-mashed into the message); the Result nests under "result" so the
 // envelope stays fully typed end to end. An error carries a `code` a consumer switches on.
 type okEnvelope struct {
-	Verb string `json:"verb"`
-	Role string `json:"role"`
-	OK   bool   `json:"ok"`
-	// Key is the record key of the act a correctable verb just wrote — what --corrects names.
-	Key    string `json:"key,omitempty"`
+	Verb   string `json:"verb"`
+	Role   string `json:"role"`
+	OK     bool   `json:"ok"`
 	Result Result `json:"result,omitempty"`
 	// Standing is where the seat stands AFTER this act — absent on a read, which moved nothing.
 	// See standing.go: it is what ends `show work` after an act, and it carries the verdict rather
@@ -567,19 +556,19 @@ var satisfiedByAnyOf = map[string][]string{
 // silent" — but `motion` is mounted separately at root.go, so its leaves got none of it. It looked
 // fine only because refHelp hand-wrote "REQUIRED — " into `--id`'s usage, which is the second copy
 // markRequired exists to be the sole writer of.
-func MarkTree(c *cobra.Command) { markTree(c) }
+func MarkTree(c *cobra.Command, role string) { markTree(c, role) }
 
-func markTree(c *cobra.Command) {
+func markTree(c *cobra.Command, role string) {
 	if c.HasSubCommands() {
 		for _, sub := range c.Commands() {
-			markTree(sub)
+			markTree(sub, role)
 		}
 		return
 	}
 	if t := RecordType(c); t != "" {
 		markRequired(c, t)
 	}
-	teachCorrection(c)
+	teachAnswer(c, role)
 }
 
 // RecordType is the event type a verb writes, or "" for a command that writes no record.
@@ -840,34 +829,17 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 		}
 		return prefixed
 	}
-	// A CORRECTABLE VERB SHOWS THE KEY OF WHAT IT WROTE, because a correction names the act by its
-	// key and most keys are numbered — a re-run never collides with them, so the success line is the
-	// only place a seat can learn one. A correcting run that wrote no act of its type corrected
-	// nothing, and saying "ok" to it would read as a correction made.
-	key, correcting, tracked := writtenKey(cmd)
-	if tracked && correcting && key == "" {
-		return Emit(cmd, nil, feov.Errorf(feov.Validation,
-			"nothing was corrected — this invocation wrote no %s, so nothing replaced the act --corrects names", RecordType(cmd)))
-	}
 	// WHERE THE SEAT NOW STANDS RIDES THE ACT. Computed once, here, for both forms — a seat reading
 	// the human line and a consumer parsing the envelope are answering the same question and must not
 	// be told different things.
 	standing := standingAfter(cmd)
 	if jsonMode(cmd) {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(okEnvelope{
-			Verb: cmd.Name(), Role: role, OK: true, Key: key, Result: res, Standing: standing,
+			Verb: cmd.Name(), Role: role, OK: true, Result: res, Standing: standing,
 		})
 	}
 	if res != nil {
-		line := res.Human()
-		if key != "" {
-			first, rest, multi := strings.Cut(line, "\n")
-			line = first + " [key " + key + "]"
-			if multi {
-				line += "\n" + rest
-			}
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), line)
+		fmt.Fprintln(cmd.OutOrStdout(), res.Human())
 	}
 	// AFTER the verb's own line, never instead of it: the act's own result is what the seat asked
 	// for, and the standing is the context it would otherwise have spent a call on.

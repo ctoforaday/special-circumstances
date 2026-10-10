@@ -58,31 +58,20 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
-wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
-printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
-struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
-record an act when you are sure of it, never as a placeholder to correct later. A correction may
-change anything the act says except --id, which names what it is about. Repeat your wording too: a
-correction that leaves out a flag the act holds is refused.
-
-ONCE THAT WINDOW HAS CLOSED, say it in a new regrade at your next sitting (a sitting holds one per
---id, and this sitting's stands).
+IF WHAT YOU RECORDED WAS WRONG, say so in a new regrade at your next sitting, while the gap is open
+(a sitting holds one per --id, and this sitting's stands).
 
 Usage:
   feov-record regrade [flags]
 
 Flags:
-      --complexity grade        what fixing it costs, on the same scale
-      --correction-why string   what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
-      --corrects string         the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
-  -h, --help                    help for regrade
-      --id gap-id               REQUIRED — the gap id
-      --impact grade            how bad the consequence is if it lands
-      --likelihood grade        how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --reason string           REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --severity grade          how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --complexity grade   what fixing it costs, on the same scale
+  -h, --help               help for regrade
+      --id gap-id          REQUIRED — the gap id
+      --impact grade       how bad the consequence is if it lands
+      --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there
+      --reason string      REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
+      --severity grade     how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
@@ -93,13 +82,13 @@ Global Flags:
 $ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0
 stdout:
-regraded GAP001 [key red-lens-evidence:regrade:#1:GAP001]
+regraded GAP001
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --impact low --reason second movement, same id
 exit 2
 stderr:
-feov-record: lens: record: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:regrade:#1:GAP001 --correction-why <what was wrong>. The corrected act stays on the record, struck, beside the replacement
+feov-record: lens: record: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -109,7 +98,7 @@ feov-record: lens: record: red-lens-evidence has already recorded a regrade on "
 {"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_HIGH","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"graded high at mint","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `regrade` with --id --severity: required flag(s) \"reason\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:regrade:#1:GAP001","regrade":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"GAP001","likelihood":"GRADE_LOW","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_REGRADE"}
-{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `regrade` with --id --impact --reason: lens: record: red-lens-evidence has already recorded a regrade on \"GAP001\" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). If it was wrong, correct it now: run the same command with --corrects red-lens-evidence:r…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `regrade` with --id --impact --reason: lens: record: red-lens-evidence has already recorded a regrade on \"GAP001\" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new regrade at your next sitting, while th…","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

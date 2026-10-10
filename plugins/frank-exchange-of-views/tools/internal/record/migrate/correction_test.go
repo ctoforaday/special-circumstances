@@ -19,11 +19,22 @@ func seatLog(text string) *recordpb.Log {
 
 func appendOK(t *testing.T, id record.Identity, body proto.Message) *record.Event {
 	t.Helper()
-	ev, err := record.Append(id, body)
+	append := record.Append
+	if id.Correct != nil {
+		append = replayed
+	}
+	ev, err := append(id, body)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return ev
+}
+
+// replayed appends as Replay does — the one path that writes a correction.
+func replayed(id record.Identity, body proto.Message) (*record.Event, error) {
+	record.Migrating = true
+	defer func() { record.Migrating = false }()
+	return record.Append(id, body)
 }
 
 func correcting(id record.Identity, typ recordpb.EventType, key string) record.Identity {

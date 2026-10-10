@@ -85,7 +85,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	c.AddCommand(subject(actingRole, "avenue",
 		"rule on an avenue blue proposed: the chair rules. NO file verb — the proposal (blue's `avenue propose`) is the filing",
 		nil, nil))
-	seat.MarkTree(c)
+	seat.MarkTree(c, actingRole)
 	return c
 }
 

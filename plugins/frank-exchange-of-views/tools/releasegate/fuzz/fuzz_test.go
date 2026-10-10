@@ -263,6 +263,14 @@ type runner struct {
 	// fails the run: the verb is on the whole blue role's surface, and the refusal is what keeps a
 	// position off the record where only the bench and the chair read it.
 	positionAdmittedErr string
+	// repeatsRefused counts the second acts the tool refused in a sitting that holds one — a
+	// position, a closing on a gap — each naming the act that answers the first. The sweep gates
+	// it at zero.
+	repeatsRefused int
+	// repeatErr is the first repeated act the tool admitted, or refused without naming the act
+	// that answers the first. It fails the run: an act stands as filed, and the refusal of a
+	// second is where a seat learns what answers a wrong one.
+	repeatErr string
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
@@ -572,14 +580,46 @@ func firstLine(s string) string {
 	return s
 }
 
+// repeatRefused files an act a second time in a sitting that holds one of it, and holds the tool to
+// refusing it with the act that answers the first (record's superseders, through its refusal). It
+// is driven only after the first was admitted: a second act after a refused first is a first.
+func (r *runner) repeatRefused(seatID string, args ...string) {
+	out, err := r.exec(append([]string{args[0], "--seat-id", seatID}, args[1:]...)...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	what := seatID + "'s second `" + args[0] + "` in one sitting"
+	switch {
+	case err == nil:
+		if r.repeatErr == "" {
+			r.repeatErr = what + " was admitted: " + firstLine(out)
+		}
+	case !strings.Contains(out, "The first stands. If it was wrong, say so in "):
+		if r.repeatErr == "" {
+			r.repeatErr = what + " was refused without naming the act that answers the first: " + firstLine(out)
+		}
+	default:
+		r.repeatsRefused++
+	}
+}
+
 // dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
 // narrative and a closing per open gap — plus, at random, a regrade issued by the gap's minting
 // lens, a lineage-carrying close-with-regression, and (blue) a grade dispute / (chair) its answer.
 // Unique prose per act so the report oracle can prove each one actually rendered.
 func (r *runner) dialectic(role, seatID string, open []string) {
-	_, _ = r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
+	if _, err := r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID); err == nil {
+		// A SEAT THAT GOT ITS POSITION WRONG TYPES IT AGAIN. The sitting holds one, so the second
+		// is refused and the refusal names the act that answers the first.
+		r.maybe(20, func() {
+			r.repeatRefused(seatID, "position", "--reason", "fuzz: the position again, restated")
+		})
+	}
 	for _, id := range open {
-		_, _ = r.exec("closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID)
+		if _, err := r.exec("closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID); err == nil {
+			r.maybe(10, func() {
+				r.repeatRefused(seatID, "closing", "--id", id, "--reason", "fuzz: the closing again, restated")
+			})
+		}
 	}
 	if role == "blue" {
 	}
@@ -2549,6 +2589,9 @@ type outcome struct {
 	// positionsRefused is the positions the tool refused a seat that owes none
 	// (runner.positionsRefused).
 	positionsRefused int
+	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
+	// the act that answers the first (runner.repeatsRefused).
+	repeatsRefused int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -2941,6 +2984,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.positionAdmittedErr != "" {
 		res.err = "position duty: " + r.positionAdmittedErr
+		return res
+	}
+	if r.repeatErr != "" {
+		res.err = "a repeated act: " + r.repeatErr
 		return res
 	}
 	if r.passOverAnotherSeat != "" {
@@ -3484,6 +3531,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.mu.Lock()
 	res.avenueMoves = r.avenueMoves
 	res.positionsRefused = r.positionsRefused
+	res.repeatsRefused = r.repeatsRefused
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT THAT OWES NONE — read off the record, so a refusal
 	// that logged and wrote the act anyway fails here.
@@ -3660,8 +3708,8 @@ var verbsWithEvents = []string{
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
 	"cast", "dispatch",
-	// A same-sitting correction (plans/same-sitting-correction.md): written beside the replacement
-	// by the corrected act's own verb, run with --corrects.
+	// A correction an archived record holds: migrate replays it beside the act it replaced, and no
+	// verb records one.
 	"correction",
 }
 
@@ -3694,10 +3742,10 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
-	// A CORRECTION IS A SEAT REPAIRING ITS OWN DEFECTIVE TEXT, which no simulated seat of the sweep
-	// writes: the fake agent writes the text it means the first time. It is driven where a defect
-	// can be staged on purpose — the record tests, the per-command acceptance test in internal/cli,
-	// and the determinism fuzz in internal/difftest.
+	// NO COMMAND WRITES A CORRECTION. The type stays declared so `migrate` can replay the
+	// corrections an archived record holds, and migrate is its one writer (record.Append refuses
+	// one outside a migration); migrate's own tests drive it. Phase 4 of #1298 removes the type
+	// and this exemption with it.
 	"correction": true,
 	// NO COMMAND WRITES A REVISION. The type stays declared so `migrate` can carry the revisions
 	// an archived record holds, and migrate is its one writer; migrate's own tests drive it.
@@ -4154,6 +4202,7 @@ func TestFuzzDebate(t *testing.T) {
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
+	repeatsRefused := 0                    // second acts refused in a sitting that holds one, naming the answering act
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
 
@@ -4217,6 +4266,7 @@ func TestFuzzDebate(t *testing.T) {
 			estoppels += o.estoppels
 			avenueMoves += o.avenueMoves
 			positionsRefused += o.positionsRefused
+			repeatsRefused += o.repeatsRefused
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -4320,6 +4370,12 @@ func TestFuzzDebate(t *testing.T) {
 		// or a tool that stopped refusing it — would leave the refusal unreached behind a green sweep.
 		if positionsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused positions across %d runs — no lane, frontier or synthesizer typed `position`, so the refusal for a seat that owes none is unexercised (false green)", completed)
+		}
+		// THE REPEATED-ACT GATE. No verb takes a correction: a seat that got an act wrong meets the
+		// refusal of its second, and that refusal names the act that answers the first. A drive
+		// that stopped repeating an act would leave those refusals unreached behind a green sweep.
+		if repeatsRefused == 0 {
+			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", completed)
 		}
 		// #267 PROVENANCE GATE. The verb gate above accepts any blue_edit, so an edit drive
 		// that stopped sending --answers would satisfy it while the join key every #267

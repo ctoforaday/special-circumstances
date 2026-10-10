@@ -39,15 +39,15 @@ import (
 // not a marker, and `mint --fix`'s "the required fix" is a field name.
 //
 // EVERY LEAF A SEAT CAN RUN IS IN THE TABLE OR EXEMPTED WITH A REASON. The first table was
-// corrRows plus a hand-typed dozen, and `verdict --as` and `fetch --url` — refused when omitted,
+// actRows plus a hand-typed dozen, and `verdict --as` and `fetch --url` — refused when omitted,
 // unmarked — were neither probed nor exempt, so the gate was green over the defect it exists for.
 // TestEveryRunnableLeafIsProbedForItsMarkers is the census.
 
-// requiredProbe is one verb with an argument set that RUNS CLEAN on the correction fixture.
+// requiredProbe is one verb with an argument set that RUNS CLEAN on the act fixture.
 type requiredProbe struct {
 	seat  string
-	setup func(t *testing.T, runDir string) corrVars
-	args  func(v corrVars) []string
+	setup func(t *testing.T, runDir string) actVars
+	args  func(v actVars) []string
 	// fullIsRefused says the clean set is expected to be REFUSED for a reason no flag can cure —
 	// render-page needs a cached PDF the fixture does not build. Only the omissions are then
 	// probed, and only flags the help marks are checked; an unmarked flag cannot be shown optional
@@ -77,13 +77,13 @@ var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true, 
 
 func requiredProbes() map[string]requiredProbe {
 	probes := map[string]requiredProbe{}
-	// The correctable verbs already carry a working act each; the text is the prose argument.
-	for name, row := range corrRows() {
+	// The act rows already carry a working act for each of these verbs; the text is the prose argument.
+	for name, row := range actRows() {
 		row := row
 		probes[name] = requiredProbe{seat: row.seat, setup: row.setup,
-			args: func(v corrVars) []string { return row.act(v, "the argument for this act") }}
+			args: func(v actVars) []string { return row.act(v, "the argument for this act") }}
 	}
-	fixed := func(args ...string) func(corrVars) []string { return func(corrVars) []string { return args } }
+	fixed := func(args ...string) func(actVars) []string { return func(actVars) []string { return args } }
 	probes["lens finding"] = requiredProbe{seat: lensSeat, args: fixed("finding", "--key", "F1",
 		"--quote", "§1 first — a finding sits in sec 1 here.",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}
@@ -98,18 +98,18 @@ func requiredProbes() map[string]requiredProbe {
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,
-		setup: func(t *testing.T, runDir string) corrVars {
+		setup: func(t *testing.T, runDir string) actVars {
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/v": []byte("<html>the source</html>")}})
 			must(t, runDir, "cite", "--seat-id", "blue-respond", "--quote", "§2 the finding prose lands in a quoted sentence.",
 				"--url", "https://src/v", "--title", "T")
-			return corrVars{"anchor": firstCiteEvent(t, runDir).GetLabel()}
+			return actVars{"anchor": firstCiteEvent(t, runDir).GetLabel()}
 		},
-		args: func(v corrVars) []string {
+		args: func(v actVars) []string {
 			return []string{"verify", "--anchor", v["anchor"], "--quote", "§2 the finding prose lands in a quoted sentence.",
 				"--as", "supports", "--confidence", "high", "--reason", "r"}
 		}}
 	probes["lens corroborate"] = requiredProbe{seat: lensSeat,
-		setup: func(t *testing.T, runDir string) corrVars {
+		setup: func(t *testing.T, runDir string) actVars {
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/c": []byte("<html>the source</html>")}})
 			return nil
 		},
@@ -126,7 +126,7 @@ func requiredProbes() map[string]requiredProbe {
 	probes["motion docket file"] = requiredProbe{seat: "red-chair", args: fixed("motion", "docket", "file",
 		"--id", "G1", "--reason", "r")}
 	probes["fetch"] = requiredProbe{seat: lensSeat,
-		setup: func(t *testing.T, runDir string) corrVars {
+		setup: func(t *testing.T, runDir string) actVars {
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/f": []byte("<html>the source</html>")}})
 			return nil
 		},
@@ -263,13 +263,13 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 			// not, and the next omission would then be refused for a reason that has nothing to
 			// do with its flag (a duplicate key, a gap already closed).
 			var runDir string
-			var vars corrVars
+			var vars actVars
 			dirty := true
 			fresh := func() {
 				if !dirty {
 					return
 				}
-				runDir = corrFixture(t)
+				runDir = actFixture(t)
 				vars = nil
 				if p.setup != nil {
 					vars = p.setup(t, runDir)

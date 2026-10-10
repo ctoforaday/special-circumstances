@@ -596,18 +596,15 @@ func noAppeal(word, id string) string {
 }
 
 // requireUnanswered is the first-wins half of the motion guards: a second ruling, a second
-// appeal. It runs INSIDE the writing transaction — insertNumbered's, or appendCorrected's — which
-// takes the write lock at BEGIN. Read before the transaction it is check-then-insert: every seat
-// that reads "unanswered" before the first answer commits lands its own, and the record holds two
-// answers to one motion.
-//
-// correcting is the key a correction names ("" for an ordinary write).
-func requireUnanswered(q rowQuerier, seatID string, body proto.Message, correcting string) error {
+// appeal. It runs INSIDE the writing transaction (insertNumbered's), which takes the write lock at
+// BEGIN. Read before the transaction it is check-then-insert: every seat that reads "unanswered"
+// before the first answer commits lands its own, and the record holds two answers to one motion.
+func requireUnanswered(q rowQuerier, seatID string, body proto.Message) error {
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
-		return RequireUnruledMotion(q, b.GetMotionId(), seatID, correcting)
+		return RequireUnruledMotion(q, b.GetMotionId(), SupersedingAnswer(recordpb.EventType_EVENT_TYPE_MOTION_RULE, b, seatID))
 	case *recordpb.MotionAppeal:
-		return RequireUnappealedMotion(q, b.GetMotionId(), seatID, correcting)
+		return RequireUnappealedMotion(q, b.GetMotionId(), SupersedingAnswer(recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, b, seatID))
 	}
 	return nil
 }
@@ -620,52 +617,38 @@ func requireUnanswered(q rowQuerier, seatID string, body proto.Message, correcti
 // ordering happens to favour, so the answer a reader sees is decided by shard interleaving.
 //
 // Two writers disagreeing about one fate is the defect the avenue code already guards against by
-// giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
-// which is a new event that preserves both positions, rather than a second ruling that erases one.
+// giving moves a single writer; a ruling had no such guard.
 //
-// q is the writing transaction (requireUnanswered). seatID is the seat asking to rule, and
-// correcting is the key its --corrects names ("" for an ordinary ruling). A CORRECTION OF THE
-// RULING THIS FINDS IS NOT A SECOND RULING: it restates the first in its place, so the guard
-// passes when the ruling it finds IS that act. When the ruling is the asker's own and from its
-// current sitting, the refusal also offers the correction — whether one would be admitted (no
-// other seat has acted since) is the write's to decide.
-func RequireUnruledMotion(q rowQuerier, id, seatID, correcting string) error {
+// THE SEAT THIS REFUSES IS THE RULER, repeating its own ruling — one seat holds each gavel. So the
+// refusal does not send it to an appeal, which is the losing party's act: answer is the tail for
+// the motion's subject and the asking seat, the act that answers a wrong ruling (supersede.go), ""
+// where the seat holds none.
+//
+// q is the writing transaction (requireUnanswered).
+func RequireUnruledMotion(q rowQuerier, id, answer string) error {
 	// motion_answers is the one statement of first-wins: the FIRST ruling is the one quoted,
 	// its word whichever arm the rule carried, "" when it carried none. A row whose ruled_by
 	// is NULL is an appeal with no ruling — not a ruling, so it does not refuse.
-	var word, seat, key sql.NullString
-	var seq sql.NullInt64
-	found, err := rowOf(q, []any{&word, &seat, &key, &seq},
-		`SELECT a."ruling", a."ruled_by", e."key", a."ruled_seq" FROM "motion_answers" a
-		   JOIN "events" e ON e."id" = a."ruled_seq"
+	var word, seat sql.NullString
+	found, err := rowOf(q, []any{&word, &seat},
+		`SELECT a."ruling", a."ruled_by" FROM "motion_answers" a
 		  WHERE a."motion_id" = ? AND a."ruled_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
-	if found && correcting != "" && key.String == correcting {
-		return nil
-	}
 	if found {
-		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command%s",
-			id, word.String, seat.String, correctionOffer(q, seatID, seat.String, key.String, seq, "ruling"))
+		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer%s",
+			id, word.String, seat.String, sentenceAfter(answer))
 	}
 	return nil
 }
 
-// correctionOffer is the sentence a first-wins refusal adds when the act it found is the asker's
-// own, from its current sitting — the one case where the act may still be corrected rather than
-// only answered. Empty otherwise, so every other refusal reads exactly as before.
-func correctionOffer(q rowQuerier, asker, by, key string, seq sql.NullInt64, noun string) string {
-	if asker == "" || by != asker || key == "" || !seq.Valid {
+// sentenceAfter joins a refusal's tail to the sentence before it, or adds nothing.
+func sentenceAfter(tail string) string {
+	if tail == "" {
 		return ""
 	}
-	var before, now int
-	found, err := rowOf(q, []any{&before, &now}, sittingBeforeAndNowSQL, asker, seq.Int64)
-	if err != nil || !found || before != now {
-		return ""
-	}
-	return fmt.Sprintf(". It is your own %s from this sitting: if it came out wrong, correct it instead — run the same command with --corrects %s --correction-why <what was wrong>, and the first stays on the record, struck",
-		noun, key)
+	return ". " + tail
 }
 
 // RequireUnappealedMotion refuses a SECOND appeal on a motion already appealed.
@@ -685,25 +668,20 @@ func correctionOffer(q rowQuerier, asker, by, key string, seq sql.NullInt64, nou
 // drives (`grade_dispute_re_raised`). That keeps both arguments, which is the whole point of an
 // appeal being an event rather than a field.
 //
-// q, seatID and correcting are RequireUnruledMotion's: it runs in the writing transaction, a
-// correction of the appeal this finds passes, and the asker's own appeal from this sitting is
-// offered the correction.
-func RequireUnappealedMotion(q rowQuerier, id, seatID, correcting string) error {
-	var seat, reason, key sql.NullString
-	var seq sql.NullInt64
-	found, err := rowOf(q, []any{&seat, &reason, &key, &seq},
-		`SELECT a."appealed_by", a."appeal_reason", e."key", a."appealed_seq" FROM "motion_answers" a
-		   JOIN "events" e ON e."id" = a."appealed_seq"
+// q is the writing transaction (requireUnanswered); answer is the tail for the motion's subject
+// and the asking seat — the act that answers a wrong appeal, and the act new grounds are pressed in
+// (supersede.go) — "" where the seat holds none.
+func RequireUnappealedMotion(q rowQuerier, id, answer string) error {
+	var seat, reason sql.NullString
+	found, err := rowOf(q, []any{&seat, &reason},
+		`SELECT a."appealed_by", a."appeal_reason" FROM "motion_answers" a
 		  WHERE a."motion_id" = ? AND a."appealed_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
-	if found && correcting != "" && key.String == correcting {
-		return nil
-	}
 	if found {
-		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this epoch: two motions keep two arguments, which is what an appeal being an event rather than a field is for%s",
-			id, seat.String, reason.String, correctionOffer(q, seatID, seat.String, key.String, seq, "appeal"))
+		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees%s",
+			id, seat.String, reason.String, sentenceAfter(answer))
 	}
 	return nil
 }

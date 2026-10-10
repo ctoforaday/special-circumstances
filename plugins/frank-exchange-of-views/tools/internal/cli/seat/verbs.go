@@ -169,12 +169,12 @@ func Log() *cobra.Command {
 	enumhelp.Flag(c, flags.Type, record.SeatLogTypeEnum(),
 		"what this entry asserts")
 	// validate refuses an entry with no sentence; the marker says so where the seat reads.
-	return Correctable(SaysRequired(c, flags.Reason))
+	return SaysRequired(c, flags.Reason)
 }
 
 func Position(key string) *cobra.Command {
 	// validate refuses an empty position — "a duty discharged by nothing".
-	return Correctable(SaysRequired(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
+	return SaysRequired(Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		// WHOSE ACT IT IS, from the one predicate. The blue role is one surface, so a lane, the
 		// frontier and the synthesizer hold this verb; a position of theirs would be argument filed
 		// where only the bench and the chair read, by a seat nothing holds to filing it. The seats
@@ -192,7 +192,7 @@ func Position(key string) *cobra.Command {
 			return nil, err
 		}
 		return Msg{Message: "position recorded"}, nil
-	})), flags.Reason))
+	})), flags.Reason)
 }
 
 func Closing(key string) *cobra.Command {
@@ -211,7 +211,7 @@ func Closing(key string) *cobra.Command {
 	}))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
 	// validate refuses a closing that names no gap — "a receipt naming no gap cannot be audited".
-	return Correctable(SaysRequired(c, flags.ID))
+	return SaysRequired(c, flags.ID)
 }
 
 // views are the projections a seat may read. `defaultFor` is the role whose default this view
@@ -996,7 +996,7 @@ func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 		// Applied HERE rather than in each verb: a verb that had to remember to mark its own
 		// required flags is a verb that can forget, and the forgetting is silent — the help
 		// simply looks like everything is optional.
-		markTree(v)
+		markTree(v, role)
 		out = append(out, v)
 	}
 	out = append(out, Show())

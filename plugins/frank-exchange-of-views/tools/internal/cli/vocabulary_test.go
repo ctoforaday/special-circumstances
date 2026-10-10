@@ -144,9 +144,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 
 	// AN EVENT TYPE IS NOT ALWAYS A VERB.
 	noVerbOfItsOwn := map[string]string{
-		// A correction is written BESIDE the replacement by the corrected act's own verb, run with
-		// --corrects; its one flag-filled field, why, is --correction-why on each of those verbs.
-		"correction": "recorded by any correctable verb run with --corrects; its flags are on that verb",
+		// A correction is on an archived record only: migrate replays it with the act it replaces,
+		// and no verb records one. Phase 4 of #1298 removes the type.
+		"correction": "written by migrate, replaying an archived record; no verb records one",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go

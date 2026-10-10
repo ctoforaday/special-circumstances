@@ -159,53 +159,38 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			// oracle: same-sitting correction, accepted, through each command's own handler
-			// (plans/same-sitting-correction.md III.C.4). Every act is followed at once by its
-			// correction, before any other seat acts; the keys are the ones each success line prints.
-			// The named cases: a retry that writes nothing, a proposal corrected after its move
-			// (keeps its id), a ruling and its appeal, a closure of a gap its own target closed, a
-			// petition ruling, and an outcome.
-			name: "correction_accepted_per_command",
+			// oracle: an act stands as filed, and a repeat the record refuses names the act that
+			// answers the first — each followed here by that act, at the time its row states. The
+			// named cases: a manifest row (the next sitting's), a ruling (the ruler's docket
+			// motion), an appeal (a new docket motion), a closure (a docket motion on the closed
+			// gap) and a position (the next sitting's).
+			name: "a_repeated_act_names_its_answer",
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
-				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the first gap"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
-					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "the second gap",
-					"--distinct-from", "GAP001"), // a second gap, and the mint's screen is told so
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via "),
-				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof",
-					"--corrects", "blue-respond:manifest_row:#1:GAP001", "--correction-why", "the row lost its method"),
-				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof",
-					"--corrects", "blue-respond:manifest_row:#1:GAP001", "--correction-why", "the row lost its method"),
-				base("avenue", "propose", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "try the  method"),
-				base("avenue", "move", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "AVENUE001", "--as", "pursued", "--reason", "the method held"),
-				base("avenue", "propose", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "try the recorded method",
-					"--corrects", "blue-respond:avenue:#1", "--correction-why", "a word was lost"),
-				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP002", "--dimension", "severity",
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof"),
+				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "the board is  going in"),
+				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "the board is clean going in"),
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--dimension", "severity",
 					"--proposed", "low", "--reason", "the consequence is bounded"),
 				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not  it"),
-				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not reach it",
-					"--corrects", "red-chair:motion_rule:#1", "--correction-why", "a word was lost"),
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "MOTION001", "--as", "rejected", "--reason", "the evidence does not reach it"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "my ruling lost a word: the evidence does not reach it"),
 				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on  grounds"),
-				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on new grounds",
-					"--corrects", "blue-respond:motion_appeal:#1", "--correction-why", "a word was lost"),
+				base("motion", "grade", "appeal", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "MOTION001", "--reason", "pressing it on new grounds"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "my appeal lost a word: I press it on new grounds"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
 					"--verified-against", "report.md#S2", "--reason", "verified at the  leaf"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
-					"--verified-against", "report.md#S2", "--reason", "verified at the leaf",
-					"--corrects", "red-lens-evidence:close:#1:GAP001", "--correction-why", "a word was lost"),
-				base("motion", "petition", "file", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "safety",
-					"--relief", "halt before the next round", "--reason", "a consent gate is missing"),
-				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "denied", "--reason", "the gate  exists"),
-				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge", "--id", "MOTION002", "--as", "denied", "--reason", "the gate already exists",
-					"--corrects", "judge:motion_rule:#1", "--correction-why", "a word was lost"),
-				base("outcome", "--run", "{RUN}", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "it stopped because  refused"),
-				base("outcome", "--run", "{RUN}", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "it stopped because the gate refused",
-					"--corrects", "judge:outcome:#1", "--correction-why", "a word was lost"),
+					"--verified-against", "report.md#S2", "--reason", "verified at the leaf"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--reason", "my closure lost a word: verified at the leaf"),
+				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
+				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "G1 is reproducible via the recorded proof"),
+				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "the board is clean going in"),
 			},
 		},
 		{

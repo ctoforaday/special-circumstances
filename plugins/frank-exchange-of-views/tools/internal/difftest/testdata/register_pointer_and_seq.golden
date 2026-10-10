@@ -26,7 +26,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ position --run {RUN} --seat-id blue-respond --reason first pass
 exit 0
 stdout:
-position recorded [key blue-respond:position:#1]
+position recorded
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ log --run {RUN} --seat-id blue-respond --reason no PDF extraction
@@ -64,23 +64,12 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
-wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
-printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
-struck beside its replacement. You may correct only your own act, only in the sitting that recorded
-it, and only until any other seat registers or acts. Where seats sit in parallel that is seconds, so
-record an act when you are sure of it, never as a placeholder to correct later. A correction may
-change anything the act says. Repeat your wording too: a correction that leaves out a flag the act
-holds is refused.
-
-ONCE THAT WINDOW HAS CLOSED, say it in a new log entry.
+IF WHAT YOU RECORDED WAS WRONG, say so in a new log entry.
 
 Usage:
   feov-record log [flags]
 
 Flags:
-      --correction-why string          what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
-      --corrects string                the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
   -h, --help                           help for log
       --reason string                  REQUIRED — the entry: what you concluded about the tooling
       --type defect|request|friction   REQUIRED — what this entry asserts

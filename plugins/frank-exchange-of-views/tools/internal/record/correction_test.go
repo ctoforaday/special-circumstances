@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -45,8 +44,23 @@ func mustAppend(t *testing.T, id Identity, body proto.Message) *Event {
 	return ev
 }
 
-// correcting is id, re-run to correct the act keyed key. A fresh Correct per invocation, as the
-// command layer builds one per process.
+// replayed appends as migrate replays an archived correction — the one path that writes one.
+func replayed(id Identity, body proto.Message) (*Event, error) {
+	Migrating = true
+	defer func() { Migrating = false }()
+	return Append(id, body)
+}
+
+func mustReplay(t *testing.T, id Identity, body proto.Message) *Event {
+	t.Helper()
+	ev, err := replayed(id, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ev
+}
+
+// correcting is id, carrying the correction of the act keyed key as migrate's replay builds it.
 func correcting(id Identity, typ recordpb.EventType, key, why string) Identity {
 	id.Correct = &Correct{Type: typ, Key: key, Why: why}
 	return id
@@ -95,7 +109,7 @@ func TestACorrectionAppendsAReplacementAndStrikesTheAct(t *testing.T) {
 	bad := mustAppend(t, blue, &recordpb.Position{Text: proto.String("G2 is reproducible via ")})
 	before := len(allEvents(t, run))
 
-	rep, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_POSITION, bad.GetKey(), "the shell ate the method"),
+	rep, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_POSITION, bad.GetKey(), "the shell ate the method"),
 		&recordpb.Position{Text: proto.String("G2 is reproducible via the recorded proof")})
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +158,7 @@ func TestACorrectionRetryIsIdempotentAndAChainKeysOnItsRoot(t *testing.T) {
 	blue := sit(t, run, "blue-respond")
 	k := mustAppend(t, blue, seatLog("first, wrong")).GetKey()
 	fix := func(key, text string) (*Event, error) {
-		return Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, key, "typo"), seatLog(text))
+		return replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, key, "typo"), seatLog(text))
 	}
 	r1, err := fix(k, "second, right")
 	if err != nil {
@@ -169,7 +183,7 @@ func TestACorrectionRetryIsIdempotentAndAChainKeysOnItsRoot(t *testing.T) {
 		t.Errorf("a correction of a correction is keyed %q, want %q", r2.GetKey(), want)
 	}
 	_, err = fix(k, "a fourth")
-	mustRefuse(t, err, "name "+r2.GetKey())
+	mustRefuse(t, err, "the act that stands now is "+r2.GetKey())
 }
 
 // EVERY REFUSAL, with the reason a seat reads.
@@ -179,15 +193,15 @@ func TestACorrectionIsRefused(t *testing.T) {
 		red := sit(t, run, "red-chair")
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("blue's")).GetKey()
-		_, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("red's"))
-		mustRefuse(t, err, "only the seat that wrote an act may correct it")
+		_, err := replayed(correcting(red, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("red's"))
+		mustRefuse(t, err, "a correction strikes only its own seat's act")
 	})
 	t.Run("an earlier sitting's act", func(t *testing.T) {
 		run := corrRun(t)
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("first sitting")).GetKey()
 		sit(t, run, "blue-respond")
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("second sitting"))
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("second sitting"))
 		mustRefuse(t, err, "earlier sitting", "sitting 1; this is sitting 2")
 	})
 	t.Run("relied on: another seat acted since", func(t *testing.T) {
@@ -195,15 +209,15 @@ func TestACorrectionIsRefused(t *testing.T) {
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("read by red")).GetKey()
 		sit(t, run, "red-chair")
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("too late"))
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("too late"))
 		mustRefuse(t, err, "another seat has acted since this log", "a register by red-chair")
 	})
 	t.Run("a tool-written log", func(t *testing.T) {
 		run := corrRun(t)
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, toolLog("the tool refused a write")).GetKey()
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), toolLog("restated"))
-		mustRefuse(t, err, "cannot be corrected", "the tool wrote it")
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), toolLog("restated"))
+		mustRefuse(t, err, "which no correction strikes", "the tool wrote it")
 	})
 	t.Run("an act that creates an identity: mint", func(t *testing.T) {
 		run := corrRun(t)
@@ -211,8 +225,8 @@ func TestACorrectionIsRefused(t *testing.T) {
 		k := mustAppend(t, red, corrMint("G1")).GetKey()
 		m := corrMint("G1")
 		m.Problem = proto.String("reworded")
-		_, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_MINT, k, "w"), m)
-		mustRefuse(t, err, "is a mint, which cannot be corrected")
+		_, err := replayed(correcting(red, recordpb.EventType_EVENT_TYPE_MINT, k, "w"), m)
+		mustRefuse(t, err, "is a mint, which no correction strikes")
 	})
 	t.Run("an act that creates an identity: motion", func(t *testing.T) {
 		run := corrRun(t)
@@ -223,23 +237,23 @@ func TestACorrectionIsRefused(t *testing.T) {
 				Basis: proto.String(basis), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}
 		}
 		k := mustAppend(t, red, motion("red cannot settle G1")).GetKey()
-		_, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_MOTION, k, "w"), motion("reworded"))
-		mustRefuse(t, err, "is a motion, which cannot be corrected")
+		_, err := replayed(correcting(red, recordpb.EventType_EVENT_TYPE_MOTION, k, "w"), motion("reworded"))
+		mustRefuse(t, err, "is a motion, which no correction strikes")
 	})
 	t.Run("a replacement equal to its target", func(t *testing.T) {
 		run := corrRun(t)
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("same")).GetKey()
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("same"))
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("same"))
 		mustRefuse(t, err, "this correction changes nothing")
 	})
 	t.Run("a PROSE correction that moves a frozen field", func(t *testing.T) {
 		run := corrRun(t)
 		judge := sit(t, run, "judge")
 		k := mustAppend(t, judge, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("stopped because  refused")}).GetKey()
-		_, err := Append(correcting(judge, recordpb.EventType_EVENT_TYPE_OUTCOME, k, "w"),
+		_, err := replayed(correcting(judge, recordpb.EventType_EVENT_TYPE_OUTCOME, k, "w"),
 			&recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_VERIFIED.Enum(), Prose: proto.String("stopped because the gate refused")})
-		mustRefuse(t, err, "may change only the seat's own wording", "must stay as event")
+		mustRefuse(t, err, "changes only the seat's own wording", "stays as event")
 	})
 	t.Run("a FULL correction onto another label", func(t *testing.T) {
 		run := corrRun(t)
@@ -248,7 +262,7 @@ func TestACorrectionIsRefused(t *testing.T) {
 		mustAppend(t, red, corrMint("G2"))
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, &recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("checked")}).GetKey()
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, k, "w"),
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, k, "w"),
 			&recordpb.ManifestRow{GapId: proto.String("G2"), Row: proto.String("checked")})
 		mustRefuse(t, err, "keeps the act's label", `"G1"`, `"G2"`)
 	})
@@ -256,21 +270,21 @@ func TestACorrectionIsRefused(t *testing.T) {
 		run := corrRun(t)
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("a log")).GetKey()
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_POSITION, k, "w"), &recordpb.Position{Text: proto.String("a position")})
-		mustRefuse(t, err, "is a log, and this command writes a position")
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_POSITION, k, "w"), &recordpb.Position{Text: proto.String("a position")})
+		mustRefuse(t, err, "is a log, and its replacement is a position")
 	})
 	t.Run("a key nothing carries", func(t *testing.T) {
 		run := corrRun(t)
 		blue := sit(t, run, "blue-respond")
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, "blue-respond:log:#9", "w"), seatLog("x"))
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, "blue-respond:log:#9", "w"), seatLog("x"))
 		mustRefuse(t, err, "no act on this record carries that key")
 	})
 	t.Run("no why", func(t *testing.T) {
 		run := corrRun(t)
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("a")).GetKey()
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "  "), seatLog("b"))
-		mustRefuse(t, err, "--correction-why")
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "  "), seatLog("b"))
+		mustRefuse(t, err, "says what was wrong with the act it strikes")
 	})
 	t.Run("a correction appended on its own", func(t *testing.T) {
 		run := corrRun(t)
@@ -284,8 +298,8 @@ func TestACorrectionIsRefused(t *testing.T) {
 		blue := sit(t, run, "blue-respond")
 		k := mustAppend(t, blue, seatLog("a")).GetKey()
 		id := correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w")
-		mustAppend(t, id, seatLog("b"))
-		_, err := Append(id, seatLog("c"))
+		mustReplay(t, id, seatLog("b"))
+		_, err := replayed(id, seatLog("c"))
 		mustRefuse(t, err, "already wrote its correction")
 	})
 }
@@ -300,7 +314,7 @@ func TestRelianceIgnoresTheHarnessAndTheTool(t *testing.T) {
 	k := mustAppend(t, blue, seatLog("a")).GetKey()
 	recordtest.Seed(t, runDir, recordtest.At(t, HarnessSeat, "harness:sitting_open:x", &recordpb.SittingOpen{AgentId: proto.String("a1")}))
 	mustAppend(t, red, toolLog("the tool logged a refusal"))
-	if _, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("b")); err != nil {
+	if _, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("b")); err != nil {
 		t.Fatalf("a harness span and a tool log counted as another seat relying on the act: %v", err)
 	}
 }
@@ -363,7 +377,7 @@ func TestAvenueReadsACorrectedProposalInItsPlace(t *testing.T) {
 	}
 	k := mustAppend(t, blue, propose("try the  method")).GetKey()
 	mustAppend(t, blue, &recordpb.Avenue{AvenueId: proto.String("A1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(), SupersedesStatus: proto.String("proposed")})
-	if _, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_AVENUE, k, "the shell ate it"), propose("try the recorded method")); err != nil {
+	if _, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_AVENUE, k, "the shell ate it"), propose("try the recorded method")); err != nil {
 		t.Fatal(err)
 	}
 	var line, status string
@@ -394,17 +408,17 @@ func TestAClosureCorrectionPassesTheClosedGapGuard(t *testing.T) {
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String(prose)}
 	}
 	k := mustAppend(t, red, closure("fixed via ")).GetKey()
-	r1, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_CLOSE, k, "w"), closure("fixed via the patch"))
+	r1, err := replayed(correcting(red, recordpb.EventType_EVENT_TYPE_CLOSE, k, "w"), closure("fixed via the patch"))
 	if err != nil {
 		t.Fatalf("a closure's correction was refused because the gap is closed — by the act being corrected: %v", err)
 	}
-	if _, err := Append(correcting(red, recordpb.EventType_EVENT_TYPE_CLOSE, r1.GetKey(), "w"), closure("fixed via the patch, re-run")); err != nil {
+	if _, err := replayed(correcting(red, recordpb.EventType_EVENT_TYPE_CLOSE, r1.GetKey(), "w"), closure("fixed via the patch, re-run")); err != nil {
 		t.Fatalf("correcting the replacement was refused: %v", err)
 	}
 	c := closure("fixed via the patch")
 	c.AnchorTool = proto.String("another tool")
-	_, err = Append(correcting(red, recordpb.EventType_EVENT_TYPE_CLOSE, k+"~2", "w"), c)
-	mustRefuse(t, err, "must stay as event")
+	_, err = replayed(correcting(red, recordpb.EventType_EVENT_TYPE_CLOSE, k+"~2", "w"), c)
+	mustRefuse(t, err, "stays as event")
 	_, err = Append(red, closure("a second closure"))
 	if err == nil {
 		t.Fatal("an ordinary second closure of a closed gap was accepted")
@@ -447,7 +461,7 @@ func TestCorrectionConcurrentNeverCommitsAfterAForeignAct(t *testing.T) {
 			}(l)
 		}
 		close(start)
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("corrected"))
+		_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("corrected"))
 		close(corrected)
 		wg.Wait()
 		if err != nil {
@@ -476,111 +490,4 @@ func TestCorrectionConcurrentNeverCommitsAfterAForeignAct(t *testing.T) {
 		}
 	}
 	t.Logf("%d committed, %d refused", committed, refused)
-}
-
-// WORDING THE ACT HOLDS IS REPEATED OR CLEARED, NEVER LEFT OUT. A prose field may change, so the
-// frozen compare admits a replacement without it; what tells "dropped on purpose" from "not
-// re-typed" is whether the seat passed the flag, and the command layer says which flags it did not.
-// With no command line at all — migrate replaying an act the record already accepted — there is
-// nothing to ask, and the replacement stands as it did when it was written.
-func TestACorrectionLeavingOutHeldWordingIsRefused(t *testing.T) {
-	avenue := func(line, hypothesis string) *recordpb.Avenue {
-		return &recordpb.Avenue{AvenueId: proto.String("A1"), Line: proto.String(line), Hypothesis: proto.String(hypothesis),
-			Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()}
-	}
-	typ := recordpb.EventType_EVENT_TYPE_AVENUE
-	for _, tc := range []struct {
-		name     string
-		unpassed []string
-		refused  bool
-	}{
-		{"left out", []string{"--method", "--hypothesis"}, true},
-		{"passed empty", []string{"--method"}, false},
-		{"every flag passed", []string{}, false},
-		{"no command line", nil, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			run := corrRun(t)
-			blue := sit(t, run, "blue-respond")
-			act := mustAppend(t, blue, avenue("try the recorded method", "it settles the count"))
-			if got := HeldProseFlags(avenue("try the recorded method", "it settles the count")); strings.Join(got, " ") != "--hypothesis --reason" {
-				t.Fatalf("the act holds %v, want --hypothesis and --reason", got)
-			}
-			id := correcting(blue, typ, act.GetKey(), "a word was lost")
-			id.Correct.Unpassed = tc.unpassed
-			_, err := Append(id, avenue("try the recorded method, whole", ""))
-			if !tc.refused {
-				if err != nil {
-					t.Fatalf("refused: %v", err)
-				}
-				return
-			}
-			mustRefuse(t, err, "omits --hypothesis, which the act you are correcting holds", "a correction repeats every flag", `pass --hypothesis "" to clear it`)
-			if feov.CodeOf(err) != string(feov.MissingField) {
-				t.Errorf("the refusal is coded %q, want %q", feov.CodeOf(err), feov.MissingField)
-			}
-		})
-	}
-}
-
-// THE WAY OUT IS NAMED FOR EVERY CORRECTABLE TYPE. A correction refused for time sends the seat to
-// the act that supersedes the one it wrote, and a type with no row would be sent to "a new act" —
-// which names nothing. A type that joins a correction tier joins this table in the same change.
-func TestEveryCorrectableTypeNamesTheActThatSupersedesIt(t *testing.T) {
-	vs := recordpb.EventType(0).Descriptor().Values()
-	for i := 0; i < vs.Len(); i++ {
-		typ := recordpb.EventType(vs.Get(i).Number())
-		s, ok := superseders[typ]
-		correctable := recordpb.Tier(typ) != recordpb.CorrectionTier_CORRECTION_TIER_NONE
-		switch {
-		case correctable && !ok:
-			t.Errorf("%s can be corrected and names no superseding act — add its row to superseders", recordpb.Word(typ))
-		case correctable && strings.TrimSpace(s.act) == "":
-			t.Errorf("%s's superseding act is blank", recordpb.Word(typ))
-		case !correctable && ok:
-			t.Errorf("%s cannot be corrected, so no refusal reads its superseding act — drop the row", recordpb.Word(typ))
-		}
-	}
-}
-
-// A RE-RUN CORRECTED TOO LATE IS TOLD WHAT TO FILE INSTEAD, and the act it is told to file is one
-// the record admits: a lens that judged a proof, and found another seat had acted before it could
-// correct the judgement, files a new re-run in the same sitting.
-func TestAReproduceCorrectedTooLateIsToldTheActThatSupersedesIt(t *testing.T) {
-	rerun := func(note string) *recordpb.Reproduce {
-		return &recordpb.Reproduce{ProofSha: proto.String("abc"), Reproduced: proto.Bool(true),
-			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String(note)}
-	}
-	run := corrRun(t)
-	lens := sit(t, run, "red-lens-logic")
-	k := mustAppend(t, lens, rerun("x")).GetKey()
-	sit(t, run, "red-lens-voice")
-	_, err := Append(correcting(lens, recordpb.EventType_EVENT_TYPE_REPRODUCE, k, "filed before the script was read"), rerun("what the script computes"))
-	mustRefuse(t, err, "another seat has acted since this reproduce", "a register by red-lens-voice",
-		"say it in a new re-run of the proof")
-	if _, err := Append(lens, rerun("what the script computes")); err != nil {
-		t.Fatalf("the refusal sends the lens to a new re-run, and the record refused it: %v", err)
-	}
-}
-
-// BOTH TIME REFUSALS READ ONE TABLE: the earlier-sitting refusal and the relied-on refusal name the
-// same act for the same type.
-func TestBothTimeRefusalsNameTheSameSupersedingAct(t *testing.T) {
-	const want = "ay it in a new log entry"
-	t.Run("an earlier sitting", func(t *testing.T) {
-		run := corrRun(t)
-		blue := sit(t, run, "blue-respond")
-		k := mustAppend(t, blue, seatLog("first sitting")).GetKey()
-		sit(t, run, "blue-respond")
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("second sitting"))
-		mustRefuse(t, err, "earlier sitting", want)
-	})
-	t.Run("another seat acted", func(t *testing.T) {
-		run := corrRun(t)
-		blue := sit(t, run, "blue-respond")
-		k := mustAppend(t, blue, seatLog("read by red")).GetKey()
-		sit(t, run, "red-chair")
-		_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k, "w"), seatLog("too late"))
-		mustRefuse(t, err, "another seat has acted since this log", want)
-	})
 }

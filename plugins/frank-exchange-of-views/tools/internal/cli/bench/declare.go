@@ -51,7 +51,7 @@ import (
 // compliance, and nothing reports that it was not delivered.
 func newDeclare() *cobra.Command {
 	// The handler above refuses an empty holding; the marker says so where the seat reads.
-	return seat.Correctable(seat.SaysRequired(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	return seat.SaysRequired(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -63,5 +63,5 @@ func newDeclare() *cobra.Command {
 			return nil, err
 		}
 		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `inquest debate`, where the chair and the bench read it"}, nil
-	})), flags.Reason))
+	})), flags.Reason)
 }

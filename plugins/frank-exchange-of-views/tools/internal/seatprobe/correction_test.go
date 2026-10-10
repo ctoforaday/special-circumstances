@@ -29,7 +29,11 @@ func TestACorrectedLogIsReadOnceAndIsNotAVerb(t *testing.T) {
 	}
 	fix := id
 	fix.Correct = &record.Correct{Type: recordpb.EventType_EVENT_TYPE_LOG, Key: first.GetKey(), Why: "a word was lost"}
-	if _, err := record.Append(fix, entry("the tool refused the cite")); err != nil {
+	// Written as migrate replays an archived correction — the one path that writes one.
+	record.Migrating = true
+	_, err = record.Append(fix, entry("the tool refused the cite"))
+	record.Migrating = false
+	if err != nil {
 		t.Fatal(err)
 	}
 

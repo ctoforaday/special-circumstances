@@ -44,8 +44,7 @@ import (
 // seat the whole record as its sitting: the answer the old window reached by COALESCEing its start
 // to 0, kept here rather than lost to a cleaner-looking operator.
 //
-// It returns the FIRST such act rather than a count: the refusal points the seat at the act that
-// stands, and the correction chain is walked from there.
+// It asks for the first such act rather than a count: one row is the whole answer.
 const oncePerSittingSQL = `SELECT e."key" FROM "events" e
      WHERE e."seat_id" = ?1 AND e."type" = ?2
        AND e."sitting_id" IS (SELECT max("id") FROM "sittings" WHERE "seat_id" = ?1)
@@ -55,8 +54,9 @@ const oncePerSittingSQL = `SELECT e."key" FROM "events" e
 // sitting. It runs inside the writing transaction, which holds the write lock from its BEGIN, so the
 // read and the insert cannot straddle another write.
 //
-// A CORRECTION NEVER REACHES IT: appendCorrected writes the replacement itself, on the corrected
-// act's key chain, so the seat that files its position and then corrects it is filing one act.
+// THE FIRST STANDS FOR THE SITTING. The refusal's tail names the act that answers it and when the
+// write path admits that act — the seat's next sitting — read from the table every such refusal
+// reads (supersede.go).
 func requireOncePerSitting(q interface {
 	QueryRow(string, ...any) *sql.Row
 }, seatID string, typ recordpb.EventType, body proto.Message) error {
@@ -71,15 +71,12 @@ func requireOncePerSitting(q interface {
 	case err != nil:
 		return fmt.Errorf("record: asking whether %s has already recorded a %s this sitting: %w", seatID, word, err)
 	}
-	// THE TAIL DEPENDS ON THE TIER, as it does on every first-wins refusal: a correctable act gets
-	// the key of the act that stands and the invocation that corrects it, and one that cannot be
-	// corrected is superseded instead.
-	tail := "If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible"
-	if Correctable(typ, body) {
-		tail = correctionPointer(q, stands)
+	tail := ""
+	if a := SupersedingAnswer(typ, body, seatID); a != "" {
+		tail = " " + a
 	}
 	return feov.Errorf(feov.Validation,
 		"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
-			"the record keeps your first one rather than quietly replacing it. %s",
+			"the record keeps your first one rather than quietly replacing it.%s",
 		seatID, word, tail)
 }

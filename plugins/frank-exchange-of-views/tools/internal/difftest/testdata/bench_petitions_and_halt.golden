@@ -35,13 +35,13 @@ TWO CONSEQUENCES:
 $ motion petition rule --run {RUN} --seat-id judge --id MOTION001 --as granted --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
-motion MOTION001 ruled granted [key judge:motion_rule:#1]
+motion MOTION001 ruled granted
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ halt --run {RUN} --seat-id judge --reason continuing would compromise the consent gate
 exit 0
 stdout:
-JUDICIAL HALT recorded — capture relays this verbatim [key judge:halt:#1]
+JUDICIAL HALT recorded — capture relays this verbatim
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══

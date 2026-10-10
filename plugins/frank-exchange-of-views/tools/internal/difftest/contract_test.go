@@ -223,38 +223,27 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"an edit carrying an anchor onto a heading", []string{"edit", "--seat-id", "blue-respond",
 			"--quote", "Prices climbed<!--fx:F-0000beef-->", "--new", "## Prices climbed<!--fx:F-0000beef-->", "--reason", "r"}},
 
-		// SAME-SITTING CORRECTION (plans/same-sitting-correction.md). Rows marked "target" record the
-		// act the refusals after them name; every other row refuses for the reason its name gives, in
-		// the words a seat reads. They run last, so no earlier row sees their state.
-		{"correction target: the lens regrades GAP001", []string{"regrade", "--id", "GAP001", "--severity", "high", "--reason", "the consequence reaches every caller"}},
-		{"correction without a why", []string{"regrade", "--id", "GAP001", "--severity", "high", "--reason", "r", "--corrects", "red-lens-evidence:regrade:#1:GAP001"}},
-		{"correction-why without corrects", []string{"regrade", "--id", "GAP001", "--severity", "high", "--reason", "r", "--correction-why", "w"}},
-		{"correction that changes nothing", []string{"regrade", "--id", "GAP001", "--severity", "high", "--reason", "the consequence reaches every caller",
-			"--corrects", "red-lens-evidence:regrade:#1:GAP001", "--correction-why", "w"}},
-		{"correction of another seat's act", []string{"regrade", "--seat-id", "red-lens-logic", "--id", "GAP001", "--severity", "high", "--reason", "r",
-			"--corrects", "red-lens-evidence:regrade:#1:GAP001", "--correction-why", "w"}},
-		{"correction naming another type's act", []string{"log", "--type", "defect", "--reason", "x",
-			"--corrects", "red-lens-evidence:regrade:#1:GAP001", "--correction-why", "w"}},
-		{"correction naming a key nothing carries", []string{"regrade", "--id", "GAP001", "--severity", "high", "--reason", "r",
-			"--corrects", "red-lens-evidence:regrade:#9:GAP001", "--correction-why", "w"}},
-		{"a creating act takes no correction (a motion)", []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "GAP001",
-			"--dimension", "severity", "--proposed", "low", "--reason", "r", "--corrects", "x"}},
-		{"a verdict takes no correction", []string{"verdict", "--as", "FAIL", "--corrects", "x"}},
-		{"reliance target: a second gap, regraded", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
-			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "a second gap"}},
-		{"reliance target: the lens regrades GAP002", []string{"regrade", "--id", "GAP002", "--severity", "high", "--reason", "graded up"}},
-		{"reliance: another seat acts", []string{"register", "--seat-id", "red-chair"}},
-		{"correction after another seat has acted", []string{"regrade", "--id", "GAP002", "--severity", "medium", "--reason", "graded up, less",
-			"--corrects", "red-lens-evidence:regrade:#1:GAP002", "--correction-why", "w"}},
-		{"frozen field target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
-			"--verified-against", "t", "--reason", "verified at the  leaf"}},
-		{"a PROSE correction moving a frozen field", []string{"close", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "another tool",
-			"--verified-against", "t", "--reason", "verified at the leaf", "--corrects", "red-lens-evidence:close:#1:GAP001", "--correction-why", "w"}},
-		{"earlier sitting target: the lens sits again", []string{"register", "--seat-id", "red-lens-evidence"}},
-		// GAP002, not GAP001: the frozen-field rows above closed GAP001, and a regrade of a closed gap is refused
-		// for that before the correction's own checks run — which would pin the wrong refusal here.
-		{"correction of an earlier sitting's act", []string{"regrade", "--id", "GAP002", "--severity", "medium", "--reason", "r",
-			"--corrects", "red-lens-evidence:regrade:#1:GAP002", "--correction-why", "w"}},
+		// A REPEATED ACT. Rows marked "target" record the act the refusal after them names; each
+		// refusal ends with the act that answers the first, read from the record's one table, or
+		// with nothing where the seat holds no such act. They run last, so no earlier row sees
+		// their state.
+		{"repeat target: the lens regrades GAP001", []string{"regrade", "--id", "GAP001", "--severity", "high", "--reason", "the consequence reaches every caller"}},
+		{"a second regrade of a gap in one sitting", []string{"regrade", "--id", "GAP001", "--severity", "medium", "--reason", "on reflection, less"}},
+		{"repeat target: the chair sits and states its position", []string{"position", "--seat-id", "red-chair", "--reason", "the board is clean going in"}},
+		{"a second position in one sitting", []string{"position", "--seat-id", "red-chair", "--reason", "the board is clean going in, restated"}},
+		{"repeat target: the chair's spot-check", []string{"spot-check", "--seat-id", "red-chair", "--none", "--reason", "nothing is closed"}},
+		{"a second spot-check in one sitting", []string{"spot-check", "--seat-id", "red-chair", "--none", "--reason", "again"}},
+		{"repeat target: the chair's verdict", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
+		{"a second verdict in one sitting", []string{"verdict", "--seat-id", "red-chair", "--as", "FAIL"}},
+		{"repeat target: blue's closing on GAP001", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered"}},
+		{"a second closing on a gap in one sitting", []string{"closing", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "the gap is answered, restated"}},
+		{"repeat target: blue's manifest row for GAP001", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked the sentence"}},
+		{"a second manifest row for a gap in one sitting", []string{"manifest-row", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "checked it again"}},
+		{"repeat target: the lens closes GAP001", []string{"close", "--id", "GAP001", "--verified-by", "L1", "--verified-with", "Read",
+			"--verified-against", "t", "--reason", "verified at the leaf"}},
+		{"repeat target: the chair sits again", []string{"register", "--seat-id", "red-chair"}},
+		{"repeat target: the chair carries the closure", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "repaired", "--reason", "restating"}},
+		{"a second carry of a gap in one sitting", []string{"carry", "--seat-id", "red-chair", "--id", "GAP001", "--carried-from", "1", "--as", "not_a_defect", "--reason", "restating otherwise"}},
 	}
 
 	var b strings.Builder

@@ -11,46 +11,30 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// Correct is a same-sitting correction the WRITER asked for (plans/same-sitting-correction.md).
+// Correct is a correction an ARCHIVED record holds, as migrate replays it: the act it struck, the
+// act that replaced it, and why. No seat makes one — no verb takes a correction, and Append refuses
+// an identity that carries one outside a migration. An act a seat got wrong is answered by another
+// act (supersede.go).
 //
-// The seat re-runs the act's own verb with the text it meant, naming the act it corrects. The verb
-// builds its body exactly as it always does; the one body of Type the invocation writes becomes the
-// REPLACEMENT, and Append routes it to appendCorrected, which writes it and a Correction event in
-// one transaction. Every other body the invocation writes (a tool log a verb emits on the side)
-// appends normally.
+// The replayed replacement is the one body of Type written through the identity; Append routes it
+// to appendCorrected, which writes it and a Correction event in one transaction.
 type Correct struct {
-	Type recordpb.EventType // the type the correcting verb writes
-	Key  string             // the key of the act being corrected
+	Type recordpb.EventType // the type of the struck act and of its replacement
+	Key  string             // the migrated key of the struck act
 	Why  string             // what was wrong with it, in the seat's words
 
-	// Unpassed names, as "--flag", every flag the correcting verb registers that the seat did not
-	// pass. A correction repeats every flag, so wording the act holds whose flag is here was left
-	// out rather than cleared, and the correction is refused (requireHeldProseRepeated). nil means
-	// there is no command line to read — migrate replaying an act the record already accepted —
-	// and the check does not run; a seat's invocation always carries a non-nil list.
-	Unpassed []string
-
-	// written is set once the replacement is on the record: a second body of Type in one
-	// correcting invocation would be a second act with no key to name it by.
+	// written is set once the replacement is on the record: a second body of Type through the
+	// same identity would be a second act with no key to name it by.
 	written bool
 }
 
 // sittingBeforeAndNowSQL is "which sitting was this act filed in, and which sitting is the seat in
-// now" — the two numbers both first-wins refusals compare, bound as (seat, event id, seat).
-//
-// IT COUNTS THE SITTINGS THE RECORD HOLDS, which is the `sittings` view: a sitting-record repair
-// opens none, so its acts are the repaired sitting's and a seat correcting in its repair is still
-// in the sitting that wrote the act — the correction it is being offered is the one the repair
-// exists to make. Counting the repair as a turn here would refuse the correction with "that was an
-// earlier sitting" at the one moment the seat is back on the record precisely to finish it.
-//
-// ONE SOURCE FOR BOTH READERS. The same two subqueries sat inline in the correction gate and in the
-// sentence the ruling refusal offers, and either could have moved without the other.
+// now" — the two numbers the same-sitting check of a replayed correction compares, bound as
+// (seat, event id, seat). It counts the sittings the record holds, which is the `sittings` view.
 const sittingBeforeAndNowSQL = `SELECT
     (SELECT count(*) FROM "sittings" WHERE "seat_id" = ?1 AND "id" < ?2),
     (SELECT count(*) FROM "sittings" WHERE "seat_id" = ?1)`
@@ -79,7 +63,7 @@ func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
 	}
 	if !found {
 		return nil, feov.Errorf(feov.Validation,
-			"record: --corrects names %q, and no act on this record carries that key — the key is printed on the act's own success line as [key …]", key)
+			"record: a correction names %q, and no act on this record carries that key", key)
 	}
 	body, ok := recordpb.Body(ev)
 	if !ok {
@@ -88,38 +72,15 @@ func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
 	return &correctionTarget{ID: id, Key: key, SeatID: ev.GetSeatId(), Type: ev.GetType(), Body: body}, nil
 }
 
-// TargetBody is the body of the act a correcting verb names, for the handlers that must RE-STATE a
-// value the act already holds rather than re-derive it (F13): an avenue's id, a proof's
-// reproduced outputs, an outcome's derived verdict. It is loud on every miss — absent, another
-// seat's, another type — because a handler that silently fell back to deriving would write a
-// replacement the frozen compare then refuses, for a reason the seat cannot see.
-func TargetBody(run Run, seatID, key string, typ recordpb.EventType) (proto.Message, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, err
-	}
-	if db == nil {
-		return nil, feov.Errorf(feov.Validation, "record: --corrects names %q, and this run has recorded nothing", key)
-	}
-	t, err := readTarget(db, key)
-	if err != nil {
-		return nil, err
-	}
-	if err := requireSameSeatAndType(t, seatID, typ); err != nil {
-		return nil, err
-	}
-	return t.Body, nil
-}
-
 func requireSameSeatAndType(t *correctionTarget, seatID string, typ recordpb.EventType) error {
 	if t.Type != typ {
 		return feov.Errorf(feov.Validation,
-			"record: %s is a %s, and this command writes a %s — a correction re-runs the corrected act's OWN verb, so name a key this command wrote",
+			"record: %s is a %s, and its replacement is a %s — a correction replaces an act with one of its own type",
 			t.Key, recordpb.Word(t.Type), recordpb.Word(typ))
 	}
 	if t.SeatID != seatID {
 		return feov.Errorf(feov.Validation,
-			"record: %s was written by %s, not by %s — only the seat that wrote an act may correct it. To answer another seat's act, say so in an act of your own",
+			"record: %s was written by %s, not by %s — a correction strikes only its own seat's act",
 			t.Key, t.SeatID, seatID)
 	}
 	return nil
@@ -133,12 +94,6 @@ func tierOf(typ recordpb.EventType, body proto.Message) recordpb.CorrectionTier 
 		return recordpb.CorrectionTier_CORRECTION_TIER_NONE
 	}
 	return recordpb.Tier(typ)
-}
-
-// Correctable answers whether an act of this type can be corrected at all, for the surfaces that
-// must decide whether to offer the correction (the key-collision refusal's pointer).
-func Correctable(typ recordpb.EventType, body proto.Message) bool {
-	return tierOf(typ, body) != recordpb.CorrectionTier_CORRECTION_TIER_NONE
 }
 
 // validateCorrection is what may change between an act and its replacement: nothing at all for a
@@ -155,7 +110,7 @@ func validateCorrection(t *correctionTarget, seatID string, typ recordpb.EventTy
 			why = "the tool wrote it, as its own record of what it did, and a seat cannot restate that"
 		}
 		return feov.Errorf(feov.Validation,
-			"record: %s is a %s, which cannot be corrected — %s. Say it in the act that supersedes it; the record is append-only and both stay visible",
+			"record: %s is a %s, which no correction strikes — %s",
 			t.Key, recordpb.Word(t.Type), why)
 	}
 	if a, b := keyLabel(t.Body), keyLabel(body); a != b {
@@ -165,12 +120,12 @@ func validateCorrection(t *correctionTarget, seatID string, typ recordpb.EventTy
 	}
 	if proto.Equal(t.Body, body) {
 		return feov.Errorf(feov.Validation,
-			"record: this correction changes nothing — the replacement equals event %d; correct it with the text you meant", t.ID)
+			"record: this correction changes nothing — the replacement equals event %d", t.ID)
 	}
 	if tier == recordpb.CorrectionTier_CORRECTION_TIER_PROSE {
 		if diff := frozenDiff(t.Body, body); len(diff) > 0 {
 			return feov.Errorf(feov.Validation,
-				"record: a %s correction may change only the seat's own wording (%s); this one changes %s, which must stay as event %d recorded it. What the act decided is not restated by a correction — say it in a new act",
+				"record: a %s correction changes only the seat's own wording (%s); this one changes %s, which stays as event %d recorded it",
 				recordpb.Word(t.Type), strings.Join(proseFlags(t.Body.ProtoReflect().Descriptor()), ", "), strings.Join(diff, ", "), t.ID)
 		}
 	}
@@ -214,69 +169,6 @@ func frozenDiff(a, b proto.Message) []string {
 	return out
 }
 
-// requireHeldProseRepeated refuses a correction that LEAVES OUT wording the act holds.
-//
-// A prose field may change, so the frozen compare admits a replacement without it — and a seat
-// that corrected a title and did not re-type its argument would have dropped the argument from the
-// record without having said so. Leaving a flag out is not a statement; passing it empty is.
-//
-// IT RUNS AFTER THE WRITE'S OWN REQUIREMENTS (validateAgainst), so a flag the act cannot stand
-// without is refused there, as on any other write, and what reaches here is wording the act MAY
-// stand without: the offer to clear it is one the write admits.
-func requireHeldProseRepeated(c *Correct, t *correctionTarget) error {
-	if c.Unpassed == nil {
-		return nil
-	}
-	unpassed := map[string]bool{}
-	for _, f := range c.Unpassed {
-		unpassed[f] = true
-	}
-	var omitted []string
-	for _, f := range HeldProseFlags(t.Body) {
-		if unpassed[f] {
-			omitted = append(omitted, f)
-		}
-	}
-	switch len(omitted) {
-	case 0:
-		return nil
-	case 1:
-		return feov.Errorf(feov.MissingField,
-			"record: this correction omits %[1]s, which the act you are correcting holds — a correction repeats every flag: pass it again, or pass %[1]s \"\" to clear it",
-			omitted[0])
-	}
-	return feov.Errorf(feov.MissingField,
-		"record: this correction omits %s, which the act you are correcting holds — a correction repeats every flag: pass each again, or pass one empty (%s \"\") to clear it",
-		strings.Join(omitted, ", "), omitted[0])
-}
-
-// HeldProseFlags names, as "--flag", the flags of the prose fields a body HOLDS — set and not
-// blank — recursing into message fields and oneof arms like frozenDiff.
-func HeldProseFlags(body proto.Message) []string {
-	seen := map[string]bool{}
-	var out []string
-	var walk func(m protoreflect.Message)
-	walk = func(m protoreflect.Message) {
-		m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-			switch {
-			case fd.Message() != nil && !fd.IsList() && !fd.IsMap():
-				walk(v.Message())
-			case fd.Kind() == protoreflect.StringKind && !fd.IsList():
-				if p, _ := recordpb.IsProse(fd); p && strings.TrimSpace(v.String()) != "" {
-					if f := "--" + flagOf(fd); !seen[f] {
-						seen[f] = true
-						out = append(out, f)
-					}
-				}
-			}
-			return true
-		})
-	}
-	walk(body.ProtoReflect())
-	sort.Strings(out)
-	return out
-}
-
 // proseFlags names the flags that fill a body's prose fields, recursively.
 func proseFlags(md protoreflect.MessageDescriptor) []string {
 	seen := map[string]bool{}
@@ -307,121 +199,6 @@ func proseFlags(md protoreflect.MessageDescriptor) []string {
 	return out
 }
 
-// ProseFlags is proseFlags for an event type, for the generated help paragraph.
-func ProseFlags(typ recordpb.EventType) []string {
-	md, ok := bodyDescriptor(recordpb.Word(typ))
-	if !ok {
-		return nil
-	}
-	return proseFlags(md)
-}
-
-// LabelFlag is the flag that fills the field an act of this type is keyed on — what a FULL
-// correction may never change — or "" for a type keyed by number.
-func LabelFlag(typ recordpb.EventType) string {
-	md, ok := bodyDescriptor(recordpb.Word(typ))
-	if !ok {
-		return ""
-	}
-	for _, name := range keyFields {
-		if fd := md.Fields().ByName(name); fd != nil && fd.Kind() == protoreflect.StringKind && !fd.IsList() {
-			return "--" + flagOf(fd)
-		}
-	}
-	return ""
-}
-
-// flagOf is the word a seat types for a field: the field's own `(sql).flag` when it declares one,
-// else the payload-key map, which knows that a gap id is typed --id and a status --as. (FlagFor's
-// fallback is the field name itself, which would name --gap-id — a flag no verb has.)
-//
-// AN ENUM ARM OF A ONEOF IS TYPED --as. A ruling's word lands on MotionRule.grade, .petition or
-// .direction — one arm per subject — and every one of them is set through --as; named by its field,
-// a refusal would send the seat to --petition, which no verb has. They are the only enum oneof arms
-// on a correctable body.
-func flagOf(fd protoreflect.FieldDescriptor) string {
-	if o, _ := proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql); o.GetFlag() != "" {
-		return o.GetFlag()
-	}
-	if fd.ContainingOneof() != nil && fd.Enum() != nil {
-		return flags.As
-	}
-	return flags.ForPayloadKey(string(fd.Name()))
-}
-
-// supersedingAct is what a seat does instead when a correction is refused for time — the act that
-// answers an earlier one without restating it.
-//
-// ONE TABLE, THREE READERS: the earlier-sitting refusal, the relied-on refusal and the paragraph
-// every correctable verb's help carries. A seat told only "say it in a new act" is told nothing —
-// a lens whose three corrections were refused that way had to work out for itself that a re-run is
-// answered by another re-run, and left the first three standing with nothing pointing at them.
-func supersedingAct(typ recordpb.EventType) string {
-	if s, ok := superseders[typ]; ok {
-		return s.act
-	}
-	return "a new act"
-}
-
-// superseder is one row: the act that answers an act whose correction is refused for time.
-type superseder struct {
-	// act completes "say it in …".
-	act string
-	// own marks an act that is the corrected act's OWN VERB, run again — the rows where the
-	// sitting's key decides whether it is admitted now (SupersedingActThisSitting).
-	own bool
-}
-
-// superseders holds a row for EVERY correctable type and for no other;
-// TestEveryCorrectableTypeNamesTheActThatSupersedesIt fails a type that joins a correction tier
-// without one.
-var superseders = map[recordpb.EventType]superseder{
-	recordpb.EventType_EVENT_TYPE_AVENUE:        {act: "a move of the avenue"},
-	recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW: {act: "a new review of the avenues", own: true},
-	recordpb.EventType_EVENT_TYPE_CERTIFY:       {act: "a new certification", own: true},
-	recordpb.EventType_EVENT_TYPE_CITE:          {act: "a new citation", own: true},
-	recordpb.EventType_EVENT_TYPE_CLOSE:         {act: "a motion on the gap"},
-	recordpb.EventType_EVENT_TYPE_CLOSING:       {act: "a new closing on the gap", own: true},
-	recordpb.EventType_EVENT_TYPE_DECLARE:       {act: "a new declaration", own: true},
-	recordpb.EventType_EVENT_TYPE_HALT:          {act: "a new halt", own: true},
-	recordpb.EventType_EVENT_TYPE_LOG:           {act: "a new log entry", own: true},
-	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:  {act: "a new manifest row for the gap", own: true},
-	recordpb.EventType_EVENT_TYPE_MOTION_APPEAL: {act: "a new motion"},
-	recordpb.EventType_EVENT_TYPE_MOTION_RULE:   {act: "an appeal, or a new motion"},
-	recordpb.EventType_EVENT_TYPE_OUTCOME:       {act: "a new outcome", own: true},
-	recordpb.EventType_EVENT_TYPE_POSITION:      {act: "a new position", own: true},
-	recordpb.EventType_EVENT_TYPE_PROOF:         {act: "a new proof", own: true},
-	recordpb.EventType_EVENT_TYPE_REGRADE:       {act: "a new regrade", own: true},
-	recordpb.EventType_EVENT_TYPE_REPRODUCE:     {act: "a new re-run of the proof, whose reason says which earlier re-run it replaces", own: true},
-	recordpb.EventType_EVENT_TYPE_REVISION:      {act: "a new revision", own: true},
-	recordpb.EventType_EVENT_TYPE_SPOT_CHECK:    {act: "a new spot-check", own: true},
-}
-
-// SupersedingActThisSitting is supersedingAct for a seat still in the sitting that wrote the act —
-// the relied-on refusal and the help paragraph. Where the superseding act is the act's own verb and
-// a sitting holds only one of it, the act is admitted at the seat's NEXT sitting and the phrase
-// says so: sent to "a new regrade" now, the seat is refused a second regrade on the gap and pointed
-// back at the correction that was just refused.
-//
-// The one-a-sitting fact is read from what deriveKey keys on, never restated: a singleton, or a
-// label key that references something (a gap) rather than defining it.
-func SupersedingActThisSitting(typ recordpb.EventType) string {
-	s, ok := superseders[typ]
-	if !ok {
-		return supersedingAct(typ)
-	}
-	if !s.own {
-		return s.act
-	}
-	switch label := LabelFlag(typ); {
-	case singleton[typ]:
-		return s.act + " at your next sitting (a sitting holds one, and this sitting's stands)"
-	case label != "" && !defines[typ]:
-		return s.act + " at your next sitting (a sitting holds one per " + label + ", and this sitting's stands)"
-	}
-	return s.act
-}
-
 // appendCorrected writes a replacement and its Correction in ONE transaction.
 //
 // # What is checked where, and why the order
@@ -439,14 +216,10 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	run, seatID := id.Run, id.SeatID
 	if strings.TrimSpace(c.Why) == "" {
 		return nil, feov.Errorf(feov.MissingField,
-			"record: a correction requires --correction-why — what was wrong with the act; a reader sees it beside the struck text")
+			"record: a correction says what was wrong with the act it strikes, and this one says nothing; a reader sees it beside the struck text")
 	}
 	if existing, err := correctionRetry(db, seatID, c.Key, body); existing != nil || err != nil {
-		// THE RETRY IS ANSWERED WITH THE ACT THAT STANDS, and the command that asked is told of it
-		// as it was told of the write, so it prints the key it printed the first time.
-		if existing != nil && id.OnWrite != nil {
-			id.OnWrite(existing)
-		}
+		// THE RETRY IS ANSWERED WITH THE ACT THAT STANDS.
 		return existing, err
 	}
 	target, err := readTarget(db, c.Key)
@@ -457,9 +230,6 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		return nil, err
 	}
 	if err := validateAgainst(run, seatID, typ, body, target); err != nil {
-		return nil, err
-	}
-	if err := requireHeldProseRepeated(c, target); err != nil {
 		return nil, err
 	}
 
@@ -475,11 +245,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		correctionKey(seatID, c.Key)).Scan(&prior); {
 	case err == nil:
 		_ = tx.Rollback()
-		existing, err := correctionRetry(db, seatID, c.Key, body)
-		if existing != nil && id.OnWrite != nil {
-			id.OnWrite(existing)
-		}
-		return existing, err
+		return correctionRetry(db, seatID, c.Key, body)
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, err
 	}
@@ -492,8 +258,8 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	}
 	if before != now {
 		return nil, feov.Errorf(feov.Validation,
-			"record: %s was written in an earlier sitting of %s (sitting %d; this is sitting %d) — a correction is for the sitting that wrote the act, while it is still yours alone. Say it in %s; the record keeps both",
-			target.Key, seatID, before, now, supersedingAct(target.Type))
+			"record: %s was written in an earlier sitting of %s (sitting %d; this is sitting %d) — a correction belongs to the sitting that wrote the act it strikes",
+			target.Key, seatID, before, now)
 	}
 	// F7: NOT ONCE RELIED ON. Any act by another seat after the target counts, whatever it was —
 	// it may have read what this would change. The harness's span events and the tool's own log
@@ -508,16 +274,14 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		target.ID, seatID, HarnessSeat, recordpb.Word(recordpb.LogSource_LOG_SOURCE_TOOL)).Scan(&fid, &fseat, &ftype); {
 	case err == nil:
 		return nil, feov.Errorf(feov.Validation,
-			"record: another seat has acted since this %s (event %d, a %s by %s); what you would correct is now on the record they read — say it in %s; the record keeps both",
-			recordpb.Word(target.Type), fid, ftype, fseat, SupersedingActThisSitting(target.Type))
+			"record: another seat has acted since this %s (event %d, a %s by %s); a correction strikes an act only before any other seat acts",
+			recordpb.Word(target.Type), fid, ftype, fseat)
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, fmt.Errorf("record: asking whether another seat has acted since %s: %w", target.Key, err)
 	}
-	// A MOTION IS ANSWERED ONCE, under the lock as on an ordinary write (insertNumbered); the act
-	// this corrects is the answer that stands, so the guard passes it and refuses any other.
-	if err := requireUnanswered(tx, seatID, body, target.Key); err != nil {
-		return nil, err
-	}
+	// A MOTION IS ANSWERED ONCE, and a replayed ruling or appeal does not ask again: both types are
+	// PROSE tier, so validateCorrection has held the replacement to its target's motion, and the
+	// target is that motion's one answer — the ordinary write refused any other (requireUnanswered).
 	// THE CHAIN: the replacement's key is the chain's ROOT key and its depth, both walked here from
 	// the correction rows — never parsed out of a key.
 	root, depth := target.Key, 0
@@ -551,10 +315,6 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
-	}
-	if id.OnWrite != nil {
-		id.OnWrite(ev)
-		id.OnWrite(corr)
 	}
 	return ev, nil
 }
@@ -598,7 +358,7 @@ func correctionRetry(db *sql.DB, seatID, key string, body proto.Message) (*Event
 		return nil, err
 	}
 	return nil, feov.Errorf(feov.Validation,
-		"record: %s was already corrected — the act that stands now is %s; name %s to correct again", key, head, head)
+		"record: %s was already corrected — the act that stands now is %s", key, head)
 }
 
 // liveHead follows a key's correction chain to the act that stands now. A key nobody corrected is
@@ -619,20 +379,6 @@ func liveHead(q interface {
 		head = next
 	}
 	return "", fmt.Errorf("record: the correction chain of %s does not end", key)
-}
-
-// correctionPointer is the tail a key-collision refusal gains for a correctable act: the key of
-// the act that stands now, and the invocation that corrects it. Fail-safe to the literal key — a
-// chain that cannot be read (an older record has no correction table) points at the key the
-// collision named, and a correction of it answers loudly if it was already corrected.
-func correctionPointer(q interface {
-	QueryRow(string, ...any) *sql.Row
-}, key string) string {
-	head, err := liveHead(q, key)
-	if err != nil || head == "" {
-		head = key
-	}
-	return fmt.Sprintf("If it was wrong, correct it now: run the same command with --corrects %s --correction-why <what was wrong>. The corrected act stays on the record, struck, beside the replacement", head)
 }
 
 // Struck is one corrected act: the act that replaced it, who corrected it and why.

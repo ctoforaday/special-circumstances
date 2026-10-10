@@ -60,8 +60,9 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				_, err := Append(chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
 				return err
 			},
-			// The asker's own ruling from this sitting is offered the correction instead.
-			wants:  []string{`motion M1 is already ruled "rejected" by red-chair`, "appeal", "It is your own ruling from this sitting", "--corrects red-chair:motion_rule:#"},
+			// The ruler is told the act that answers its ruling — never an appeal, which is the
+			// losing party's.
+			wants:  []string{`motion M1 is already ruled "rejected" by red-chair`, "The first stands. If it was wrong, say so in a docket motion on the gap, or a new grade motion while the gap is open"},
 			motion: "M1", ruling: "rejected",
 		},
 		{
@@ -94,7 +95,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				// A correction restates the seat's own wording; the ruling it corrects stands.
 				fixed := gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED)
 				fixed.Opinion = proto.String("the grade stands, and here is why")
-				_, err := Append(correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"), fixed)
+				_, err := replayed(correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"), fixed)
 				return err
 			},
 			motion: "M1", ruling: "rejected",
@@ -137,7 +138,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				mustAppend(t, sit(t, run, "red-chair"), gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED))
 				blue := sit(t, run, "blue-respond")
 				k := mustAppend(t, blue, gradeAppeal("a typo")).GetKey()
-				_, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, k, "the typo"),
+				_, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, k, "the typo"),
 					gradeAppeal("the ruling reads past the argument"))
 				return err
 			},
@@ -381,14 +382,14 @@ func TestEveryMotionReaderStatesFirstWins(t *testing.T) {
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")
 	k := mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "o")).GetKey()
-	if _, err := Append(correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
+	if _, err := replayed(correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
 		gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why")); err != nil {
 		t.Fatal(err)
 	}
 	mustAppend(t, chair, avenueRule("Q1", recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE, "the first ruling's argument"))
 	blue := sit(t, run, "blue-respond")
 	k = mustAppend(t, blue, appeal("M1", grade, "a typo")).GetKey()
-	if _, err := Append(correcting(blue, recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, k, "the typo"),
+	if _, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_MOTION_APPEAL, k, "the typo"),
 		appeal("M1", grade, "the ruling reads past the argument")); err != nil {
 		t.Fatal(err)
 	}

@@ -31,7 +31,7 @@ backslash \ and \n literal
 
 exit 0
 stdout:
-position recorded [key red-chair:position:#1]
+position recorded
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 

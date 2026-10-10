@@ -6,18 +6,15 @@ motions, opinions — are events; the markdown files are *projections* of the re
 human reading afterward, never the channel. This diagram is kept current with the code
 ([[fuzzers-and-diagrams-track-code]]); update it in the same PR as any record/protocol change.
 
-## A same-sitting correction
+## A correction on an archived record
 
-Append-only holds for a correction too. A seat whose act came out wrong re-runs the act's own verb with
-what it meant and `--corrects <key>` (the key its success line printed); the tool writes the
-replacement and a `correction` event in one transaction, and only while the act is the seat's own,
-from this sitting, and no other seat has acted since. The re-run repeats every flag, as a new act
-takes them: a flag the verb requires is refused if left out, a flag whose recorded value the
-correction may not move is refused as a change, and wording the act holds is refused if left out —
-it is dropped only by passing its flag empty, where the verb takes it empty. Only what the tool
-assigned or computed (an id, a hash, a re-run's outputs) is taken from the corrected act. Nothing is edited: every view reads the acts
-that stand (`live_event` in SQL, `Live` in Go), and every listing shows the first act struck
-beside its replacement (`struck`, `Listing`).
+No verb makes a correction: an act stands as filed, and a seat answers a wrong one with another act
+— which act is one table, `superseders` in `internal/record/supersede.go`, rendered on each
+recording verb's help page and on the refusal of a second act where a sitting holds one. Records
+written while seats could strike an act hold `correction` events; `migrate` replays each beside the
+act it replaced, and nothing else writes one. Nothing is edited: every view reads the acts that
+stand (`live_event` in SQL, `Live` in Go), and every listing shows the first act struck beside its
+replacement (`struck`, `Listing`).
 
 ```mermaid
 flowchart LR
