@@ -112,9 +112,6 @@ func summarizeResult(raw any) string {
 	if v, ok := j["verdict"].(string); ok && v != "" {
 		bits = append(bits, "verdict "+v)
 	}
-	if c, ok := j["claim_count"].(float64); ok {
-		bits = append(bits, itoa(int(c))+" claims")
-	}
 	if r, ok := j["dispositions"].([]any); ok {
 		plural := "s"
 		if len(r) == 1 {
@@ -302,7 +299,7 @@ func RenderHTML(m Model) string {
 	}
 	tile(openGaps, "open gaps")
 	tile(latestTile(m, func(t *recordpb.TelemetryLine) string { return gradeOrDash(t.MaxSeverity) }), "max severity")
-	tile(intPtr(m.BlueClaims), "blue claims")
+	tile(countOrNotMeasured(m.BlueClaims), "blue claims")
 	tile(intUnavail(m.Shards.Findings), "lens findings")
 	tile(intUnavail(m.Shards.Citations), "citations checked")
 	verdict := m.TerminalVerdict
@@ -593,6 +590,16 @@ func gradeOrDash(g *recordpb.Grade) string {
 func intPtr(p *int) string {
 	if p == nil {
 		return "—"
+	}
+	return itoa(*p)
+}
+
+// countOrNotMeasured renders a count read off the record, and says so where there was nothing to
+// read: a dash would be one more tile that had no data yet, and this one states that the record
+// holds no report to count.
+func countOrNotMeasured(p *int) string {
+	if p == nil {
+		return "not measured"
 	}
 	return itoa(*p)
 }

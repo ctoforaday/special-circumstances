@@ -15,7 +15,7 @@ export const meta = {
 //   envelopes and drives every branch (args parsing, dispatch loop, contested docket, impasse,
 //   ceiling, null returns). Founding regressions: stringified args -> undefined paths (run 1);
 //   missing null-guard on agent() returns (run 2); lineage-blind docket + degenerate
-//   FAIL-with-empty-gaps + the unresolved-sitting-record list lost on throw (run 3 retrospective, report §3 rows 20-24).
+//   FAIL-with-empty-gaps (run 3 retrospective, report §3 rows 20-24).
 //   Behavior needs live agents — /research --smoke (1 lane + laneFloorOverride, 1 round,
 //   model=haiku) exercises the pipeline for ~50k tokens.
 //   Model tiers are REQUIRED — both `model` and `judgmentModel` must be set explicitly. The engine
@@ -98,9 +98,8 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
 // A SEAT'S LOG ENTRIES LIVE ON THE RECORD AND NOWHERE ELSE. No envelope carries one and this
 // script collects none: the record survives a mid-run throw, and a second copy in a return value
-// is a second account nobody can hold to the first. The one list this script keeps of its own is
-// sitting_record_unresolved — the seats whose sitting record stayed off the record after the
-// re-prompt — and TestNoEnvelopeRestatesARecordFact fails a schema that declares `log`.
+// is a second account nobody can hold to the first. TestNoEnvelopeRestatesARecordFact fails a
+// schema that declares `log`.
 // THE EMPTY-SITTING AFFORDANCE IS STATED TO THE SEATS THAT HAVE IT, AND THE PROMPT CEILING IS WHY.
 // Measured across eight runs: of 96 sittings that recorded nothing, 93 were LENSES — the chair had
 // 0 of 42 and the bench 0 of 8. A lens is woken speculatively to look for a class of defect it may
@@ -408,20 +407,13 @@ const BLUE_ENVELOPE = {
   // ENVELOPE → REFS (move (a)): `tldr` and `open_questions` are AUTHORED into blue/report.md and
   // lifted from it by assembly (`sectionOr`) — never consumed by the sandboxed engine, so they are
   // not round-tripped here. `path` was a constant the script already knows. Dropped: the report is
-  // the source, the envelope carries only what the engine threads (claim_count, the attestations,
-  // the manifest, the routing refs).
-  required: ['claim_count', 'saturation_reached', 'sitting_record_appended'],
+  // the source, the envelope carries only what the engine threads (the manifest, the routing refs).
+  // A FACT THE RECORD CAN COMPUTE IS COMPUTED BY THE READER THAT WANTS IT: the report's claim count
+  // is counted from the report, and what a sitting put on the record is read off the record — no
+  // seat relays the one or attests the other here (TestNoEnvelopeRestatesARecordFact).
+  required: ['saturation_reached'],
   properties: {
-    claim_count: { type: 'number' },
     saturation_reached: { type: 'boolean' },
-    // W1.7 round-parity attestation (run-5: blue's round-2 revision shipped with no ### BLUE
-    // block or round record; a lens misjudged the round state and the judge had to
-    // reconstruct blue's position from red's records). TRUE only after the round carries BOTH
-    // a `position` event and a `revision` event — both on the RECORD. A revision is not on the
-    // record until the record carries it. On false the script RE-PROMPTS once and, failing that,
-    // adds the seat to sitting_record_unresolved and CONTINUES. Attestation tier: shape in-run; capture's record-parity audit
-    // recounts post-hoc, so an unresolved gap is still scored.
-    sitting_record_appended: { type: 'boolean' },
     // W2b correctness manifest (repair-quality program A.2): one row per repaired gap —
     // the self-audit's receipt.
     //
@@ -737,69 +729,6 @@ const LANE_METHODS = [
 // halt ruling ends the run (verdict HALTED — capture relays the opinion
 // verbatim, never smoothed); granted relief is surfaced to subsequent seats.
 
-// THE ENGINE'S OWN NOTES, AND ONLY THOSE: one line per blue seat whose sitting record stayed off
-// the record after the re-prompt (ensureSittingRecord). It is handed to assembly and returned
-// under this name. No seat's log entry is in it — those are on the record.
-const sittingRecordUnresolved = []
-
-// W1.7 ROUND-PARITY RECOVERY (#249). The attestation duty is right — a revision is not on the
-// record until the transcript carries it — but killing the RUN over one seat's missed bookkeeping
-// is not. Measured: two consecutive haiku validation runs (2026-08-01 r3, 2026-08-02 r2) died here
-// and nowhere else, discarding 16-22 completed agents of paid work each time. A weak model trips
-// this reliably, so the cheap tier of the pipeline could never be driven end to end.
-//
-// So the GUARD stays and the CONSEQUENCE changes: re-prompt the seat ONCE to put its round record
-// on the record, and if it still will not, name the omission in sitting_record_unresolved and CONTINUE. The report
-// edits are already on disk; the parity gap becomes a scored defect (capture's record-parity audit
-// recounts it post-hoc) instead of a fatal error. Only a genuine unrecoverable integrity violation
-// aborts. #251 dissolves this entirely by making a revision a recorded op rather than an
-// attestation; until then this is the recovery, not a second rule.
-//
-// THE REPAIR REGISTERS AS A REPAIR (#1002). The re-prompt is a new agent handed a prompt, so it
-// gets its own call budget; what it must not do is take the acts. Registering plainly, the position
-// and revision it files would be its own — they would land in a sitting of its own, not the one
-// they complete, and record-parity could fail the sitting they completed. The prompt names the act;
-// the register records which sitting it repairs as a field, and refuses a repair the record does
-// not bear out.
-// THE RE-PROMPT BRANCHES ON A SENTENCE THE TOOL PLACES, NOT ON EACH REFUSAL'S OWN WORDS (#1026).
-// The repair CHECK produces two outcomes: the sitting owes a repair nothing, or the record does not
-// bear the claim out. This is record.RepairNothingToFile verbatim — the tool ends every refusal of
-// the first kind with it, and Go's TestTheRePromptNamesEveryRepairRefusalsBranch fails when the two
-// copies disagree or when the prompt stops holding the rest.
-// AND THE REGISTER IS REFUSED IN PLACES THE REPAIR CHECK NEVER REACHES (#1041). registerSeat checks
-// the seat id's shape, the roster, the cast, the attested role, the run directory and the database
-// BEFORE the repair branch, and writes the event after it; every one of those refusals carries no
-// branch and no anchor sentence. A prompt promising the seat that a refusal says which of exactly
-// two things happened is false for every one of them — the seat's ACT is right either way, since
-// they land on the failure side, but the sentence telling it how far to trust its reading is not.
-// So the prompt claims only what the anchor sentence carries: that sentence, or ANY OTHER REFUSAL,
-// which is a failure to report whatever produced it. The seat matches on one sentence, as before.
-const SITTING_RECORD_NOTHING_TO_FILE = 'There is nothing here for a repair to file: register without repairing, and report what the record supports.'
-const SITTING_RECORD = {
-  type: 'object',
-  required: ['sitting_record_appended'],
-  properties: {
-    sitting_record_appended: { type: 'boolean' },
-    note: { type: 'string' },
-  },
-  additionalProperties: true,
-}
-
-async function ensureSittingRecord(env, who, owed, opts) {
-  if (env && env.sitting_record_appended === true) return true
-  log(`attestation (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing`)
-  const retry = await agent(
-    `Sitting-record repair for ${who}. Your last sitting did not attest what it put on the record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. REGISTER AS THE REPAIR OF YOUR LAST SITTING: your register's help names how, and what you then put on the record counts as that sitting's rather than this one's. If that register is refused, ONE SENTENCE THE TOOL PLACES tells you which case you are in — judge the refusal by that sentence and by nothing else in its wording. A refusal ENDING WITH THE TOOL'S OWN SENTENCE "${SITTING_RECORD_NOTHING_TO_FILE}" means the sitting you would repair owes a repair nothing: do exactly what that sentence says, quote the refusal in the log, and return the attestation the record supports — this is a success, not a failure. ANY OTHER REFUSAL is a failure to report and not a finding, whether the record does not bear out the repair you claimed or the refusal is about something else entirely: quote it in the log word for word and return sitting_record_appended false. ${owed}. Do NOT re-do your substantive work and do NOT edit the report again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), say in the log exactly why, and return sitting_record_appended false with a one-line note. Return the attestation.`,
-    { ...(opts || {}), label: `${who}-sitting-record · ${slug}`, phase: 'Debate', schema: SITTING_RECORD })
-  if (retry && retry.sitting_record_appended === true) {
-    log(`attestation: ${who} attested on the retry — continuing`)
-    return true
-  }
-  const why = (retry && retry.note) ? ` — ${retry.note}` : ''
-  sittingRecordUnresolved.push(`${who}: attestation UNRESOLVED (W1.7) — ${owed} was never attested${why}. The run continued; capture's record-parity audit scores the gap.`)
-  log(`attestation: ${who} still unattested — added to sitting_record_unresolved, continuing (the run is no longer discarded for this)`)
-  return false
-}
 const petitionLog = []
 // HOLDINGS BIND EVERY SEAT AND NEVER EXPIRE, which is what makes them different from relief.
 //
@@ -979,12 +908,10 @@ YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, tech
 
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source. An unlocatable quote is graded LOW through no fault of the source. Two claims resting on the same url are one source and two anchors, not two sources.
 
-REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft to your scratchpad under a name WITHOUT that word that carries your seat id, then bash cp it to ${runDir}/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip. FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base. Do this ONCE; if it refuses, the tool records the refusal — log what you expected, and return sitting_record_appended honestly. Citing a source, proving a computation, counting claims and every later change read the frozen report, so each follows the freeze. Then recompute claim_count with the tool and relay the integer into the envelope; never hand-count it. RECORD THE SITTING, LAST, with WHY you organised it as you did — what you compacted, what you kept whole, what you retired and against what — and its claim_count as the reason; sitting_record_appended is TRUE only after that event exists.${avenueClause} ${petitionClause}${logClause('blue-synthesize', 'blue')}${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
+REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft to your scratchpad under a name WITHOUT that word that carries your seat id, then bash cp it to ${runDir}/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip. FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base. Do this ONCE; if it refuses, the tool records the refusal — log what you expected. Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze.${avenueClause} ${petitionClause}${logClause('blue-synthesize', 'blue')}${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
   { ...judgment, label: `blue-synthesize · ${slug}`, phase: 'Blue', agentType: 'frank-exchange-of-views:blue-synthesizer', schema: BLUE_ENVELOPE })
 
 if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
-await ensureSittingRecord(blueEnv, 'blue-synthesize', `your sitting's revision event, stating the synthesis and its claim_count`,
-  { ...judgment, agentType: 'frank-exchange-of-views:blue-synthesizer' })
 // ---- Debate loop: red audits gate; termination is the record's, and the engine refuses to spin ----
 // ─── THE DEBATE: chair sits → the record says who sits → they sit → the chair sits again ───────────
 //
@@ -1028,7 +955,6 @@ let noProgress = null // { epochs, head, parties } when the valve stopped the de
 let epoch = 0
 let chairEnv = null
 let lastPlan = null
-let blueEnv2 = null // the latest blue response, for claim_count in the result
 const infraDebts = [] // defect_owed_elsewhere rulings (W1.9) — the bench's named debts, surfaced at assembly and in the final envelope
 
 const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to whether anyone has re-run it, and — read at that claim's own anchor — to its script and the output blue recorded — an unaudited proof looks exactly like a clean one until you check. A citation whose evidence entry lists pages is OCR text — a machine's reading of page images, which can misread: check it against one page's image and record which page. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS its section changed since (read that off the recorded edits, not off blue's account of them), OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify, naming the anchor you looked up and quoting the claim from the report. A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there is no anchor to name — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through \`gh issue view <n> --comments\`), and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
@@ -1073,9 +999,9 @@ YOU MAY COMPUTE AN ANSWER, NOT ONLY COLLATE SOURCES. You have Bash, Write and Ed
 YOUR AVENUES ARE A LIVING RECORD, NOT AN OPENING PLAN. Every sitting, revisit what is still open and say what became of it. The hypothesis is what makes that honest — a line abandoned against its own stated claim is evidence of choosing; one abandoned on a shrug is not. Red rules on your proposals and you may APPEAL a ruling — appeal whether or not you go on to pursue the line, because the appeal is where your ARGUMENT is recorded.
 WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to take the first: apply it verbatim, counter-edit with your own fix, or dispute it. Say plainly which path you took and why. A sitting in which you never decline is not agreement, it is capitulation. Applying red's exact text ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
 OWNERSHIP BINDS, AS IT DID AT SYNTHESIS: you write ONLY your own surfaces — TL;DR, Catechism, technical foundations, analysis, open questions, your citations. You MUST NOT introduce a \`**Outcome:**\` line or any tool-owned section (\`## Risk matrix\`, \`## The board\`, \`## The debate\`, \`## How this run was conducted\`, a \`## Blue team report\` wrapper): assembly composes those from the record. AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied; if your argument turns on the models used, say that the record's measurement decides it. GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}): likelihood and impact are CONSEQUENCE axes — how likely the harm lands and how much it costs when it does — and severity is red's overall grade; they multiply into mass, and materiality is the class's default: always, never, or by grade from medium.
-ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` — expand and repair where red is right (each edit naming the gap it answers, so the repair joins to it), REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact — or, where the gap changes no reader decision or asks for complexity that does not pay, argue \`defect_accepted\` with that reason. DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT (a grade motion on the axis, with the grade you say it should be and your evidence). Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own — and list the sites you checked in your revision. A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.
+ANSWER EVERY GAP YOU ARE ENGAGED ON, ADDITIVELY, in the report through \`edit\` — expand and repair where red is right (each edit naming the gap it answers, so the repair joins to it), REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact — or, where the gap changes no reader decision or asks for complexity that does not pay, argue \`defect_accepted\` with that reason. DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT (a grade motion on the axis, with the grade you say it should be and your evidence). Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it. PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — a bare corrected FIGURE needs a report-wide sweep of its own. A sitting in which you record nothing on a gap you were engaged on is a NULL TURN on it, and null turns count toward its impasse: silence is a turn taken.
 YOUR POSITION ARGUES TO THE BENCH, one per sitting that finds a gap you are engaged on still open. It holds two things no act of the sitting holds: what you ask the bench to weigh, and why you left untaken a route the record offered you — a repair a gap's fix prescribed that you did not make, a gap you rebutted rather than repaired. It restates no edit, manifest row or motion: each carries its own reason on the record. It answers no lens: no lens reads it.${docket.length ? ` CLOSING ARGUMENTS: the following are DOCKETED for adjudication AFTER your response this sitting: ${docket.join(', ')}. For EACH, after your repairs, argue in ~120 words why your response resolves it, or why red's grade or claim is wrong, citing the exact section and evidence, as your recorded closing. This is your case; material not in the record cannot help you.` : ''}
-AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no row: your work list names each one, with the seat that closed it and its fate, and you name it in found_closed from that list. When EVERY gap you are engaged on is closed when you sit, the sitting owes no position and no revision — found_closed is its record. Otherwise record the sitting's revision with the tool's claim_count; never hand-count it — the tool computes claim_count with the tool's own read.${logClause('blue-respond', 'blue')}${petitionClause}`
+AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide — one manifest row per gap you REPAIRED — one an edit of yours this sitting answers — and the manifest array in your envelope names them; a gap you rebut without an edit owes none. A gap you are engaged on that you FOUND CLOSED when you sat — its lens sat before you and closed it — owes no row: your work list names each one, with the seat that closed it and its fate, and you name it in found_closed from that list. When EVERY gap you are engaged on is closed when you sit, the sitting owes no position — found_closed is its record.${logClause('blue-respond', 'blue')}${petitionClause}`
 const benchPrompt = (gaps) => `Adjudication, topic "${topic}". Docketed for you: ${gaps.join(', ')} — each reached impasse under the run's terms and the record docketed it. THE DOCKET IS A ROUTING LIST, NOT THE EVIDENCE. It carries ids; a gap's problem text and its acceptance check live on the board, and you read them FRESH before ruling. Re-run each document-probe acceptance check against the artifact AS IT NOW STANDS, and rule on what you find rather than on what any snapshot asserts.
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' recorded closings, the full transcript, and the final state of the artifacts — the board and the report as the record now renders them. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${holdingsClause()}${lawClause}${declareClause}${inspectionClause}
 Every docketed gap gets a written ruling — the docket ruling: its fate, the principle you applied, the values in tension (where none pulled, the ruling's weakest point: what a party would argue against the rule you applied), what a human should look at again (where nothing needs a human, what on the record already settles it), your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring as settled, and, for a ruling that closes the gap, what would reopen it or that nothing would (final). Two fates send the work on rather than ending it: a gap you REMAND was never closed, so a remand is never final — it goes back to the debate for ONE more exchange between its minting lens and blue, on the research direction you state, which the record refuses blank — if that exchange leaves it at impasse it comes back to you, and a gap you remand at impasse a second time stays open at its limit, that gap's deadlock and what CEILING is made of; and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the engine — leaves the board and ships as a NAMED infrastructure debt (defect_owed_elsewhere), recorded and never dropped. Rule every motion your work list names as the bench's. A bench sitting that rules nothing is a workflow error: the run cannot end in a verdict while a docketed gap stands unruled.${logClause('judge', 'bench')}${speedClause}${recordClause('judge', DOCKET_OCCASION)} Return your envelope.`
@@ -1128,19 +1054,17 @@ while (!halted) {
   }
   for (const p of blues) {
     phase('Debate')
-    blueEnv2 = await agent(bluePrompt(p.gap_ids, plan.docket), { ...bulk, label: labelFor('blue-respond'), phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
+    const blueEnv2 = await agent(bluePrompt(p.gap_ids, plan.docket), { ...bulk, label: labelFor('blue-respond'), phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
     if (!blueEnv2) throw new Error(`blue response (epoch ${epoch}) returned null (agent failed) — aborting cleanly`)
     const foundClosed = new Set((Array.isArray(blueEnv2.found_closed) ? blueEnv2.found_closed : []).filter((g) => p.gap_ids.includes(g)))
     const open = p.gap_ids.filter((g) => !foundClosed.has(g))
-    // A SITTING THAT FOUND EVERY ENGAGED GAP CLOSED OWES NO POSITION AND NO REVISION (gblock's
-    // ruling): it had nothing to answer, and the sitting the harness bracketed is the attestation.
-    // The work list (record.revisionOwed) and capture's record-parity read the sitting the same way,
-    // off the record's dispatch, close and register events.
-    if (open.length) {
-      await ensureSittingRecord(blueEnv2, 'blue-respond', `your position event for this sitting (it renders as the "### BLUE" section) AND your revision event`,
-        { ...bulk, agentType: 'frank-exchange-of-views:blue-researcher' })
-    } else {
-      log(`epoch ${epoch}: blue found every engaged gap (${p.gap_ids.join(', ')}) closed before it sat — no position or revision owed`)
+    // A SITTING THAT FOUND EVERY ENGAGED GAP CLOSED OWES NO POSITION (gblock's ruling): it had
+    // nothing to answer. This engine reads no record and re-prompts no seat for one: the seat's own
+    // work list blocks on a position it owes and has not filed (record.PositionSittings), and
+    // capture's record-parity reads the same sittings off the record's dispatch, close and register
+    // events.
+    if (!open.length) {
+      log(`epoch ${epoch}: blue found every engaged gap (${p.gap_ids.join(', ')}) closed before it sat — no position owed`)
     }
     // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). A row is owed for a gap blue
     // REPAIRED — its sitting's edit answers it — while the gap was still OPEN when blue sat; one
@@ -1153,7 +1077,7 @@ while (!halted) {
     const uncovered = open.filter((g) => !covered.has(g))
     if (foundClosed.size) log(`epoch ${epoch}: blue found ${[...foundClosed].join(', ')} closed before it sat — no manifest row owed (capture re-derives this from the record)`)
     if (uncovered.length) log(`epoch ${epoch}: manifest rows named for ${open.length - uncovered.length}/${open.length} gap(s) open when blue sat — no row for: ${uncovered.join(', ')} (owed where this sitting's edit answered it; scored at capture)`)
-    log(`epoch ${epoch}: blue responded on ${p.gap_ids.join(', ')} — corpus at ${blueEnv2.claim_count} claims`)
+    log(`epoch ${epoch}: blue responded on ${p.gap_ids.join(', ')}`)
   }
   for (const p of benches.filter((b) => b.occasions.includes(DOCKET_OCCASION))) {
     log(`epoch ${epoch}: the bench sits on ${p.gap_ids.join(', ')}`)
@@ -1249,7 +1173,7 @@ FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${halted ? `, ended by JUDICIAL
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
-THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the avenues, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}. sitting_record_unresolved — the seats that did not attest what their sitting put on the record, after one re-prompt: ${JSON.stringify(sittingRecordUnresolved)}.${holdingsClause()}${lawClause}${logClause('judge', 'bench')}${speedClause}${recordClause('judge', ASSEMBLE_OCCASION)} Return your envelope: a 5-line synopsis and open_gaps from the board.`,
+THEN ASSEMBLE. It writes the run's documents for the HUMAN reader — the research, the board, the transcript, the judgments, the avenues, the evidence, the run's account, the changelog, an index and a tabbed site — and a document with nothing in it is not written at all, so no judgments document means no motions were filed rather than a failure. It prints the verdict it stamped from the outcome on the record: confirm that is the outcome you recorded. Do not open the documents — they are the human's, and the report is read with the record tool. A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are blue's, inside the audited report. An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record. THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope. Infra debts the bench named: ${JSON.stringify(infraDebts)}.${holdingsClause()}${lawClause}${logClause('judge', 'bench')}${speedClause}${recordClause('judge', ASSEMBLE_OCCASION)} Return your envelope: a 5-line synopsis and open_gaps from the board.`,
   { ...judgment, label: `judge · ${ASSEMBLE_OCCASION} · ${slug}`, agentType: 'frank-exchange-of-views:lead-judge', schema: ASSEMBLE_ENVELOPE })
 // AN ASSEMBLY SITTING THAT RETURNS NOTHING STOPS THE RUN, as a null from any other seat does. The
 // assembly seat is the one that records the outcome and writes the documents; an envelope returned
@@ -1263,10 +1187,8 @@ return {
   lanes,
   termination: lastPlan ? { pass_permitted: lastPlan.pass_permitted, ceiling: lastPlan.ceiling, epoch_limit_reached: lastPlan.epoch_limit_reached, why: lastPlan.why, no_progress: noProgress } : null,
   gaps_outstanding: Number.isInteger(assembleEnv.open_gaps) ? assembleEnv.open_gaps : null,
-  blue_claims: blueEnv2 ? blueEnv2.claim_count : (blueEnv ? blueEnv.claim_count : null),
   infra_debts: infraDebts,
   petitions: petitionLog,
   halted,
   halt_opinion: haltOpinion,
-  sitting_record_unresolved: sittingRecordUnresolved,
 }

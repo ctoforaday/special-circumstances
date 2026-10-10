@@ -692,33 +692,6 @@ func TestCellEscapesTableBreakers(t *testing.T) {
 	}
 }
 
-func TestRevisionHistoryFromEvents(t *testing.T) {
-	// Each revision follows a chair sitting, so the two land in epochs 1 and 2.
-	evs := []*record.Event{
-		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "blue-respond", &recordpb.Revision{Text: proto.String("expanded the caching section; retired the stale figure")}),
-		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "blue-respond", &recordpb.Revision{Text: proto.String("addressed G1 in the analysis")}),
-		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("not a revision")}),
-	}
-	got := revisionHistoryT(t, evs)
-	if !strings.Contains(got, "## Report revision history") {
-		t.Fatalf("missing heading:\n%s", got)
-	}
-	if !strings.Contains(got, "### Epoch 1 — blue-respond") || !strings.Contains(got, "expanded the caching section") {
-		t.Errorf("epoch-1 revision not rendered:\n%s", got)
-	}
-	if !strings.Contains(got, "### Epoch 2 — blue-respond") {
-		t.Errorf("epoch-2 revision not rendered:\n%s", got)
-	}
-	if strings.Contains(got, "not a revision") {
-		t.Errorf("a non-revision event leaked into the revision history:\n%s", got)
-	}
-	if revisionHistory(record.NewFamily(nil, record.Merged{})) != "" {
-		t.Error("no revisions must yield empty (section omitted), not a bare heading")
-	}
-}
-
 // BLUE IS NOT CHARGED FOR THE BENCH'S CLOSURES.
 //
 // correctnessManifest listed every closed gap with no manifest row as "a repair nobody audited,

@@ -32,7 +32,7 @@ func scenarios() []scenario {
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
-				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "first pass"),
+				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "first pass"),
 				base("log", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
@@ -247,7 +247,6 @@ func scenarios() []scenario {
 				base("closing", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP001", "--reason", "red's closing"),
 				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "blue's round position"),
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "blue's closing"),
-				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason", "repairs landed"),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "figures recomputed; check run: pass"),
 				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),

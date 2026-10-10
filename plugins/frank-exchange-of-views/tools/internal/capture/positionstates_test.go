@@ -35,7 +35,6 @@ import (
 // one section per position on the record, whatever the states are.
 func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 	position := &recordpb.Position{Text: proto.String("what the bench is asked to weigh")}
-	revision := &recordpb.Revision{Text: proto.String("the G1 edit")}
 	type act struct {
 		seat string
 		body proto.Message
@@ -67,19 +66,19 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 		running, after want
 	}{
 		"blue-respond filed": {
-			acts:    append(append([]act{}, engaged...), blueSits, act{"blue-respond", position}, act{"blue-respond", revision}, blueStops),
+			acts:    append(append([]act{}, engaged...), blueSits, act{"blue-respond", position}, blueStops),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionFiled}, verdict: "PASS"},
 			after:   want{states: []record.PositionState{record.PositionFiled, record.PositionFiled}, verdict: "PASS"},
 		},
 		"blue-respond closed its sitting with none": {
-			acts: append(append([]act{}, engaged...), blueSits, act{"blue-respond", revision}, blueStops),
+			acts: append(append([]act{}, engaged...), blueSits, blueStops),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",
 				detail: []string{"blue sitting 1, engaged on G1 still open when it sat, filed no position"}, item: true},
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",
 				detail: []string{"blue sitting 1, engaged on G1 still open when it sat, filed no position"}, item: true},
 		},
 		"blue-respond in flight with none": {
-			acts: append(append([]act{}, engaged...), blueSits, act{"blue-respond", revision}),
+			acts: append(append([]act{}, engaged...), blueSits),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionUnresolved}, verdict: "SKIP",
 				detail: []string{"blue sitting 1", "shows no position so far", "NOT MEASURED"}, item: true},
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",

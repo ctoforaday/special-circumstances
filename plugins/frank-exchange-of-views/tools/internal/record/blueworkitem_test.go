@@ -123,7 +123,7 @@ func TestAWorkItemWithNoProposedTextStatesItsBasisAndCarriesNoPair(t *testing.T)
 	}
 }
 
-// THE WORK LIST NAMES THE ENGAGED GAPS BLUE FOUND CLOSED, off the sitting the revision duty and
+// THE WORK LIST NAMES THE ENGAGED GAPS BLUE FOUND CLOSED, off the sitting the position duty and
 // capture's record-parity read (BlueSittings): each gap of the dispatch a close preceded blue's
 // register on, with who closed it and the closure's fate.
 func TestBluesWorkListNamesTheEngagedGapsItFoundClosed(t *testing.T) {
@@ -150,7 +150,7 @@ func TestBluesWorkListNamesTheEngagedGapsItFoundClosed(t *testing.T) {
 	}
 	ss := BlueSittings(m.Events, m.At, WhileRunning)
 	if n := len(ss[len(ss)-1].Engaged) - len(ss[len(ss)-1].Open); n != len(e.FoundClosed) {
-		t.Errorf("found_closed names %d gap(s); the sitting the revision duty reads found %d closed", len(e.FoundClosed), n)
+		t.Errorf("found_closed names %d gap(s); the sitting the position duty reads found %d closed", len(e.FoundClosed), n)
 	}
 
 	// Nothing found closed is an empty list, never an absent one.

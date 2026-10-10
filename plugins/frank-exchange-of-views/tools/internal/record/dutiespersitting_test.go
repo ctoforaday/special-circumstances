@@ -43,9 +43,18 @@ func listed(s SittingJSON, sub string) bool {
 	return false
 }
 
-func (b *stage) revision(seat string) *stage {
-	return b.add(seat, &recordpb.Revision{Text: proto.String("the sitting's edits")})
+// repairs writes a register that names key as the sitting it repairs. NO COMMAND WRITES ONE: the
+// stored field stays readable, so the readers that bound a sitting by it keep a fixture.
+func (b *stage) repairs(seat, agent, key string) *stage {
+	return b.add(seat, &recordpb.Register{AgentId: proto.String(agent), RepairsSitting: proto.String(key)})
 }
+
+func (b *stage) position(seat string) *stage {
+	return b.add(seat, &recordpb.Position{Text: proto.String("the position")})
+}
+
+// lastKey is the key of the event the stage wrote last.
+func (b *stage) lastKey() string { return b.evs[len(b.evs)-1].GetKey() }
 
 func (b *stage) closeGap(lens, gap string) *stage {
 	return b.add(lens, &recordpb.Close{GapId: proto.String(gap),
@@ -95,27 +104,30 @@ func TestASittingThatRecordedNothingOwesNoLog(t *testing.T) {
 	}
 }
 
-// BLUE-RESPOND OWES A REVISION FOR EACH SITTING THAT HAD SOMETHING TO ANSWER, and none for a
-// sitting that found every engaged gap closed before it sat (gblock's ruling, 2026-09-11). In B9
-// blue sat in epoch 5 with G4 open, filed no revision, and read complete because its epoch-4
-// revision was on the record.
-func TestBlueRespondsRevisionIsOwedPerSittingThatHadAGapOpen(t *testing.T) {
-	sat := func() *stage {
-		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
-			register("red-chair").dispatch(2, "blue-respond", "G1").register("blue-respond").revision("blue-respond")
-	}
-	const missing = "this sitting's revision is missing"
-	if hasItem(sittingOfRunT(t, sat().seed(), "blue", "blue-respond"), missing) {
-		t.Fatal("blue revised this sitting and is told its revision is missing")
-	}
-	again := sat().register("red-chair").dispatch(2, "blue-respond", "G1").register("blue-respond")
-	if !hasItem(sittingOfRunT(t, again.seed(), "blue", "blue-respond"), missing) {
-		t.Fatal("blue's second sitting on an open G1 has no revision, and the work list does not say so")
-	}
-	closedFirst := sat().register("red-chair").dispatch(2, "blue-respond", "G1").closeGap(evLens, "G1").register("blue-respond")
-	if hasItem(sittingOfRunT(t, closedFirst.seed(), "blue", "blue-respond"), missing) {
-		t.Fatal("blue's sitting found G1 closed before it sat and is still told a revision is owed")
+// NO BLUE SEAT IS TOLD A REVISION IS MISSING, because none owes one. The work list is where a seat
+// reads what its sitting still owes, so an item there for an act no surface offers is an
+// instruction the tool then refuses. Every blue seat sits here having filed nothing at all; the
+// one sitting-record item any of them reads is blue-respond's position, which it owes because the
+// gap it was engaged on is open.
+func TestNoBlueSeatIsToldARevisionIsMissing(t *testing.T) {
+	for _, seat := range []string{"blue-lane-1", "frontier", "blue-synthesize", "blue-respond"} {
+		t.Run(seat, func(t *testing.T) {
+			b := newStage(t).cast(evLens, "red-chair", "blue-lane-1", "frontier", "blue-synthesize", "blue-respond", "judge").ingest().
+				register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+				register("red-chair").dispatch(2, "blue-respond", "G1").register(seat)
+			s := sittingOfRunT(t, b.seed(), "blue", seat)
+			for _, it := range s.Open {
+				if strings.Contains(strings.ToLower(it.What), "revision") {
+					t.Errorf("%s's work list names a revision, an act no surface offers: %q", seat, it.What)
+				}
+			}
+			if owes := seat == "blue-respond"; hasItem(s, "this sitting's position is missing") != owes {
+				t.Errorf("%s's work list holds a position item = %v, want %v: %+v", seat, !owes, owes, s.Open)
+			}
+			if seat != "blue-respond" && !s.Complete {
+				t.Errorf("%s sat, owes nothing, and its work list is not complete: %+v", seat, s.Open)
+			}
+		})
 	}
 }
 
@@ -136,18 +148,10 @@ func TestTheSpotCheckIsOwedEverySittingTheArchiveHoldsAClosure(t *testing.T) {
 	}
 }
 
-// Every other blue seat sits once for its act, and owes that sitting's revision.
-func TestTheSynthesizerOwesItsSittingsRevision(t *testing.T) {
-	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "blue-synthesize", "judge").register("blue-synthesize")
-	if !hasItem(sittingOfRunT(t, b.seed(), "blue", "blue-synthesize"), "this sitting's revision is missing") {
-		t.Fatal("the synthesizer filed no revision and is not told it is missing")
-	}
-}
-
-// WHETHER A BLUE SITTING OWES A REVISION IS FIXED AT ITS REGISTER. The latest sitting is unresolved
-// exactly while blue sits it — the moment its work list is read — so revisionOwed reads the Open set
+// WHETHER A BLUE SITTING OWES AN ANSWER IS FIXED AT ITS REGISTER. The latest sitting is unresolved
+// exactly while blue sits it — the moment its work list is read — so what it owes is its Open set
 // and never where the sitting ended: an unresolved sitting owes what it found open, as a closed one does.
-func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testing.T) {
+func TestWhatABlueSittingOwesIsWhatItFoundOpenWhetherOrNotItHasEnded(t *testing.T) {
 	cases := map[string]struct {
 		evs              []*Event
 		unresolved, owes bool
@@ -176,8 +180,12 @@ func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testi
 			if len(ss) != 1 || ss[0].Unresolved != c.unresolved {
 				t.Fatalf("sittings = %+v, want one with Unresolved=%v", ss, c.unresolved)
 			}
-			if got := revisionOwed(m.Events, m.At, "blue-respond"); got != c.owes {
-				t.Errorf("revisionOwed = %v, want %v", got, c.owes)
+			if got := len(ss[0].Open) > 0; got != c.owes {
+				t.Errorf("the sitting owes an answer = %v, want %v", got, c.owes)
+			}
+			p, sitting := positionSittingNow(m.Events, m.At, "blue-respond")
+			if !sitting || (p.State != PositionNotOwed) != c.owes {
+				t.Errorf("the work list's reading of the sitting = %q (found %v), want it owing a position = %v", p.State, sitting, c.owes)
 			}
 		})
 	}
@@ -187,19 +195,19 @@ func TestRevisionOwedReadsWhatTheSittingFoundOpenWhetherOrNotItHasEnded(t *testi
 // a reader that ATTRIBUTES — it answers "did this sitting file its log", not "has this turn" — so
 // its window is the sitting the record stored the acts in, from its OPENING (a hook's bracket or a
 // register), never a repair's own register. Starting it at the seat's latest register of any kind
-// would tell a re-prompted seat that the log channel is open for a sitting that has already filed
-// there: the prompt says "put it on the record NOW — nothing else" and the work list would then
-// name something the sitting has done.
+// would tell the seat that the log channel is open for a sitting that has already filed there, and
+// the work list would name something the sitting has done. No command writes such a register; the
+// record can hold one, and this reader answers for it.
 //
-// THE REVISION IS STILL OWED, which is the half that must not move with it: the repair exists
-// because that duty is outstanding, and a window that swallowed it would report the sitting complete.
+// WHAT THE SITTING STILL OWES IS STILL OWED, which is the half that must not move with it: a window
+// that swallowed the missing position would report the sitting complete.
 func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 	sat := func(t *testing.T) (*stage, string) {
 		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
 			register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-a")
 		opened := b.lastKey()
-		return b.logEntry("blue-respond").position("blue-respond").stop("blue-a"), opened
+		return b.logEntry("blue-respond").stop("blue-a"), opened
 	}
 
 	b, opened := sat(t)
@@ -207,8 +215,8 @@ func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
 	if listsItem(s, "the log is open") {
 		t.Error("inside the repair the work list asks for a log the sitting it repairs already filed")
 	}
-	if !hasItem(s, "this sitting's revision is missing") {
-		t.Error("inside the repair the work list does not name the revision the repair exists to file")
+	if !hasItem(s, "this sitting's position is missing") {
+		t.Error("inside the repair the work list does not name the position the repaired sitting still owes")
 	}
 
 	// THE CONTROL: a plain register is a real second sitting, and every per-sitting duty is owed

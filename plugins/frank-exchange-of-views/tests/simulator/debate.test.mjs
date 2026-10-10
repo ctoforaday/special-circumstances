@@ -373,7 +373,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
     'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
-    'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array', 'claim_count', 'never hand-count',
+    'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
   }
@@ -711,26 +711,40 @@ test('integrity inspection arms only with transcriptDir, on the bench, and binds
   assert.ok(!unarmed.calls.some((c) => /INTEGRITY INSPECTION/.test(c.prompt)))
 })
 
-test('the sitting record (W1.7): blue is re-prompted once, continues named in sitting_record_unresolved, and a recovered attestation names none', async () => {
-  const chair = [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()]
-  const unresolved = makeWorld(makeResponder({ chair, blueRespond: [blueEnv({ sitting_record_appended: false })] }))
-  const out = await unresolved.run(script, ARGS)
-  assert.ok(unresolved.calls.some((c) => c.opts.label.startsWith('blue-respond-sitting-record')), 'the seat was re-prompted for its sitting record')
-  assert.ok(out.sitting_record_unresolved.some((f) => /^blue-respond: attestation UNRESOLVED/.test(f)))
-  assert.ok(!('friction' in out), 'the workflow returns its notes under one name')
-  // THE LIST REACHES ASSEMBLY UNDER ITS NAME, WITH ITS CONTENT. The prompt golden pins the clause;
-  // only this pins that the list handed over is the one the engine filled.
-  assert.match(firstPrompt(unresolved, 'judge · assemble'), /sitting_record_unresolved[^\[]*\["blue-respond: attestation UNRESOLVED/)
-  const synth = makeWorld(makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] }))
-  const out2 = await synth.run(script, ARGS)
-  assert.ok(synth.calls.some((c) => c.opts.label.startsWith('blue-synthesize-sitting-record')) && labelsOf(synth, 'red-chair').length === 1 && out2.sitting_record_unresolved.some((f) => /^blue-synthesize: attestation UNRESOLVED/.test(f)))
-  const recovered = makeWorld((p, o) => {
-    if (o.label.startsWith('blue-synthesize-sitting-record')) return { sitting_record_appended: true }
-    return makeResponder({ chair: [passChair()], blueSynth: [blueEnv({ sitting_record_appended: false })] })(p, o)
-  })
-  const out3 = await recovered.run(script, ARGS)
-  assert.deepEqual(out3.sitting_record_unresolved, [], 'a recovered attestation is named nowhere')
-  assert.match(firstPrompt(recovered, 'judge · assemble'), /sitting_record_unresolved[^\[]*\[\]/)
+// THE ENGINE RE-PROMPTS NO SEAT FOR ITS SITTING RECORD, AND NO ENVELOPE RELAYS A FACT THE RECORD
+// HOLDS. A claim count is counted from the report by whoever wants it; what a sitting put on the
+// record is read off the record — blue-respond's own work list blocks on a position it owes and
+// capture's record-parity names a sitting that closed without one. So an envelope that carries
+// neither key is the whole envelope, one that carries them anyway moves nothing, and nothing the
+// engine returns or hands to assembly is a list of unattested sittings.
+test('the engine re-prompts no seat for its sitting record and reads no relayed claim count', async () => {
+  const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
+  for (const gone of ['ensureSittingRecord', 'sitting_record_appended', 'sitting_record_unresolved', 'claim_count', 'blue_claims']) {
+    assert.ok(!src.includes(gone), `debate.js names ${gone}: the engine reads the record for nothing and relays nothing it could compute`)
+  }
+  const chair = () => [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()]
+  const bare = makeWorld(makeResponder({ chair: chair() }))
+  const out = await bare.run(script, ARGS)
+  assert.equal(out.verdict, 'VERIFIED')
+  for (const c of bare.calls) {
+    if (!/^blue-(synthesize|respond) /.test(c.opts.label)) continue
+    assert.ok(c.opts.schema, `${c.opts.label} is dispatched with no schema`)
+    assert.deepEqual(c.opts.schema.required, ['saturation_reached'], `${c.opts.label}: what a blue envelope must carry`)
+    for (const key of ['claim_count', 'sitting_record_appended']) assert.ok(!(key in c.opts.schema.properties), `${c.opts.label}: the schema declares ${key}`)
+    assert.ok(schemaAccepts(c.opts.schema, blueEnv()), `${c.opts.label}: an envelope carrying neither key is refused`)
+  }
+  // The old attestation, returned false by both seats, dispatches nobody and is named nowhere.
+  const stale = makeWorld(makeResponder({ chair: chair(), blueSynth: [blueEnv({ sitting_record_appended: false, claim_count: 7 })], blueRespond: [blueEnv({ sitting_record_appended: false, claim_count: 9 })] }))
+  const out2 = await stale.run(script, ARGS)
+  assert.deepEqual(stale.calls.map((c) => c.opts.label.replace(/ · .*$/, '')), bare.calls.map((c) => c.opts.label.replace(/ · .*$/, '')), 'an unattested envelope changed who was dispatched')
+  assert.ok(!stale.calls.some((c) => /sitting-record/.test(c.opts.label)), 'a seat was re-prompted for its sitting record')
+  for (const key of ['sitting_record_unresolved', 'blue_claims']) assert.ok(!(key in out2), `the workflow returns ${key}`)
+  assert.ok(!/sitting[_ -]record|re-prompt|did not attest/i.test(firstPrompt(stale, 'judge · assemble')), 'the assembly dispatch carries an unresolved-sitting list')
+  assert.ok(!stale.logs.some((l) => /claims|attest/.test(l)), stale.logs.join(' | '))
+  // blue's "found every engaged gap closed" path needs no attestation: it is the envelope's own list.
+  const closed = makeWorld(makeResponder({ chair: chair(), blueRespond: [blueEnv({ manifest: [], found_closed: ['G-00000001'] })] }))
+  assert.equal((await closed.run(script, ARGS)).verdict, 'VERIFIED')
+  assert.ok(closed.logs.some((l) => l.includes('blue found every engaged gap (G-00000001) closed before it sat — no position owed')), closed.logs.join(' | '))
 })
 
 // W2b, OWED GAPS ONLY, NEVER AN ABORT (gblock's ruling on #868). The B4 ordering: the plan engaged
@@ -775,7 +789,6 @@ test('a log a seat returns in its envelope reaches nothing: not the workflow ret
     assert.ok(!returned.includes(text), `the workflow returned a seat's envelope log: ${text}`)
     assert.ok(!handed.includes(text), `a prompt carries a seat's envelope log: ${text}`)
   }
-  assert.deepEqual(out.sitting_record_unresolved, [])
 })
 
 test('per-role models: bulk seats get `model`, judgment seats get `judgmentModel`; unset either throws; binDir is required', async () => {
@@ -786,15 +799,6 @@ test('per-role models: bulk seats get `model`, judgment seats get `judgmentModel
   await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, judgmentModel: 'sonnet' }), /refusing dispatch — model unset/)
   await assert.rejects(makeWorld(makeResponder()).run(script, { ...base, model: 'sonnet' }), /refusing dispatch — judgmentModel unset/)
   await assert.rejects(makeWorld(makeResponder()).run(script, { topic: 't', runDir: 'research/x', model: 'sonnet', judgmentModel: 'sonnet' }), /binDir unset/)
-})
-
-test('W1.6: the pinned claim unit reaches synthesis and every blue response', async () => {
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()] }))
-  await world.run(script, ARGS)
-  for (const seat of ['blue-synthesize', 'blue-respond']) {
-    const p = firstPrompt(world, seat)
-    assert.ok(/claim_count with the tool/.test(p) && /never hand-count/.test(p), `${seat} missing the pinned claim unit`)
-  }
 })
 
 test('the lens agent type is one configuration per area, and the areas dispatched are the plan\'s', async () => {

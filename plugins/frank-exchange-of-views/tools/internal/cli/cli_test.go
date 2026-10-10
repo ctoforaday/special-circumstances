@@ -275,8 +275,8 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		{"mint with no identity at all", []string{"mint", "--run", "X",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--severity", "medium", "--likelihood", "medium",
 			"--class", "x", "--problem", "p"}, "--seat-id IS REQUIRED HERE"},
-		{"blue revision without --run", []string{"revision", "--seat-id", "blue-lane-1",
-			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
+		{"blue log without --run", []string{"log", "--seat-id", "blue-lane-1", "--type", "defect",
+			"--reason", "what got in the way"}, "blue: --run <runDir> is required"},
 		{"opinion with no identity at all", []string{"opinion", "--run", "X",
 			"--id", "G1", "--as", "remanded", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},
@@ -335,7 +335,7 @@ func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	}
 
 	// A seat id no dispatch created is refused too.
-	_, err = run(t, "revision", "--run", runDir, "--seat-id", "hand-invented", "--reason", "t")
+	_, err = run(t, "log", "--run", runDir, "--seat-id", "hand-invented", "--type", "defect", "--reason", "t")
 	if err == nil {
 		t.Fatal("a hand-invented seat id was accepted")
 	}
@@ -356,7 +356,7 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 		{"blue", "mint"},
 		{"blue", "close"},
 		{"bench", "mint"},
-		{"chair", "revision"},
+		{"chair", "edit"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
@@ -1062,17 +1062,6 @@ func TestBlueVerbContracts(t *testing.T) {
 		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "invented", "--reason", "r"); err == nil {
 			t.Error("an undefined avenue status was accepted; the render groups BY status")
-		}
-	})
-
-	t.Run("revision records its prose (claim_count moved to count-claims, #70)", func(t *testing.T) {
-		if _, err := run(t, "revision", "--run", runDir, "--seat-id", seatID,
-			"--reason", "what changed"); err != nil {
-			t.Fatal(err)
-		}
-		ev := lastBody(t, runDir, &recordpb.Revision{})
-		if got := ev.GetText(); got != "what changed" {
-			t.Errorf("text = %q", got)
 		}
 	})
 }

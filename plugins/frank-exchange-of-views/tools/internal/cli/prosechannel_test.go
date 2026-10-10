@@ -45,7 +45,6 @@ func TestProseLandsInEveryFieldThatReadsTheChannel(t *testing.T) {
 	}{
 		{blueSeat, []string{"avenue", "propose", "--hypothesis", "h"}, []string{"line", "reason"}},
 		{blueSeat, []string{"position"}, nil},
-		{blueSeat, []string{"revision"}, nil},
 		{blueSeat, []string{"log", "--type", "defect"}, nil},
 		// A SEAT THE STAGED BOARD HAS NOT ALREADY USED. The docket board records a `position` for
 		// red-chair, and a position is a once-per-sitting act the record REFUSES to repeat

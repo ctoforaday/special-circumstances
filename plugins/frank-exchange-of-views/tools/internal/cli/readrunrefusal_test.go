@@ -37,10 +37,9 @@ func TestAReadHonoursARefusedRunInsteadOfInferringOne(t *testing.T) {
 	t.Setenv(seatenv.Var, "")
 	t.Setenv(seatenv.VarWrapper, dispatched)
 
-	// THE VERB IS TOP-LEVEL ON THE SEAT'S OWN SURFACE — there is no "blue" prefix to type, and
-	// the seat id is what selects the tree. Reaching for a prefix that does not exist got a
-	// cobra usage dump, which failed the test for a reason that had nothing to do with runs.
-	out, err := run(t, "count-claims", "--run", elsewhere, "--seat-id", record.SampleSeatOf("blue"))
+	// THE VERB IS THE OPERATOR'S, and the run it was dispatched into binds it as it binds a seat:
+	// the contradiction is refused whoever reads.
+	out, err := run(t, "count-claims", "--run", elsewhere, "--seat-id", record.OperatorRole)
 	if err == nil {
 		t.Fatalf("count-claims accepted a --run contradicting the dispatch and produced:\n%s", out)
 	}

@@ -48,7 +48,7 @@ import (
 // as long as the tree has been flat. The generator composed `feov-record merge mint …`; the role
 // groups were gone, so every command it built exited 2 with `no command named "chair" exists`,
 // the record was never written, and the two replays agreed perfectly on zero events. Over the
-// fixed seed set every arm landed 0 times — chair register 0/8, blue revision 0/7, merge
+// fixed seed set every arm landed 0 times — chair register 0/8, a blue arm 0/7, merge
 // spot-check 0/4 among them. The "every arm lands" subtest and the event floor below are what
 // make that state a failure instead of a pass.
 //
@@ -187,6 +187,11 @@ func TestReplayDeterminism(t *testing.T) {
 		for i := 0; i < vs.Len(); i++ {
 			typ := recordpb.EventType(vs.Get(i).Number())
 			if recordpb.Word(typ) == "" || recordpb.Tier(typ) == recordpb.CorrectionTier_CORRECTION_TIER_NONE {
+				continue
+			}
+			// NO COMMAND WRITES A REVISION, so no generated command can write or correct one: the
+			// type stays declared, with its tier, and migrate alone writes it.
+			if typ == recordpb.EventType_EVENT_TYPE_REVISION {
 				continue
 			}
 			n++
@@ -406,7 +411,9 @@ var fuzzArms = []fuzzArm{
 			}
 			return f
 		}},
-	{name: "chair carry", weight: 1, seats: []string{"red-chair"}, verb: []string{"carry"},
+	// Weight 2: a carry lands only after a closure, and over the fixed seed set a single weight drew it
+	// twice, both before any gap had closed.
+	{name: "chair carry", weight: 2, seats: []string{"red-chair"}, verb: []string{"carry"},
 		flags: func(rng *rand.Rand) []string {
 			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", "1"}
 			if rng.Intn(4) == 0 {
@@ -425,8 +432,6 @@ var fuzzArms = []fuzzArm{
 		flags: func(rng *rand.Rand) []string {
 			return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "contested, and not red's to close"}
 		}},
-	{name: "blue revision", weight: 1, seats: blueSeats, verb: []string{"revision"},
-		flags: func(*rand.Rand) []string { return []string{"--reason", "revised"} }},
 	{name: "blue manifest-row", weight: 1, seats: blueSeats, verb: []string{"manifest-row"},
 		flags: func(rng *rand.Rand) []string { return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "checked"} }},
 	// Was `blue dispute`, a verb the motion collapse retired: a grade dispute is a grade motion.
@@ -460,7 +465,6 @@ var fuzzArms = []fuzzArm{
 // derivable.
 var correctionArms = []fuzzArm{
 	corrArm("blue manifest-row corrected", blueSeats, []string{"manifest-row"}, func(t string) []string { return []string{"--id", "GAP001", "--reason", t} }, nil),
-	corrArm("blue revision corrected", blueSeats, []string{"revision"}, reasonOnly, nil),
 	// A corrected cite keeps its label, url and quote — only the title moves, and nothing is fetched
 	// again; a corrected proof does not run again — only its note moves.
 	corrArm("blue cite corrected", []string{"blue-respond"}, []string{"cite"},

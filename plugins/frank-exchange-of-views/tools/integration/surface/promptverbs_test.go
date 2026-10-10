@@ -791,10 +791,10 @@ func TestEveryVerbHasATriggerRow(t *testing.T) {
 	// `setup`, `capture`, `dashboard`, `graph`, `scorecard`, `verify`, `ops` and the hooks
 	// belong to the operator and the engine, and this document is titled for the seat.
 	//
-	// Two root commands a seat IS told to run — `fetch` and `count-claims` — are documented in the
-	// map under "Every seat" and are NOT checked here, because deriving "root command a prompt
-	// names" would take a second prompt scan and the honest cost of that is a rule stated in one
-	// place instead of enforced in two. Stated rather than left as a silent hole.
+	// One root command a seat IS told to run — `fetch` — is NOT checked here, because deriving
+	// "root command a prompt names" would take a second prompt scan and the honest cost of that is
+	// a rule stated in one place instead of enforced in two. Stated rather than left as a silent
+	// hole.
 	isSeatPath := regexp.MustCompile(`^(lens|chair|blue|bench|motion) `)
 	real := map[string]bool{}
 	var missing []string

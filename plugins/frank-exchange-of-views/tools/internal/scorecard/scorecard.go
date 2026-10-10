@@ -30,7 +30,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -366,23 +365,6 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Value: manifested, Note: "no gap was owed a row — blue repaired no gap it was dispatched onto while that gap was open — so this is a COUNT of manifest-row events, not a ratio"})
 	}
 
-	// sitting_record_failures
-	attested, claimed := 0, 0
-	for _, r := range results {
-		if _, present := r["sitting_record_appended"]; present {
-			claimed++
-			if b, ok := r["sitting_record_appended"].(bool); ok && b {
-				attested++
-			}
-		}
-	}
-	note := ""
-	if claimed == 0 {
-		note = "no envelope carried the attestation field"
-	}
-	rows = append(rows, Row{Clause: "Sitting on the record", Metric: "sitting_record_failures", Cls: "detector",
-		Value: claimed - attested, Note: note})
-
 	// THE LOG IS NOT SCORED FOR PRESENCE. A sitting that hit nothing files nothing — clean is derived
 	// from having sat and filed nothing — so a metric counting sittings without an entry scores the
 	// correct behaviour as a failure, and seats read their own scorecard. Two such metrics lived here
@@ -411,59 +393,6 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 				Note: fmt.Sprintf("%d entr(ies) across %d type(s) %v — every entry asserts a problem, so the "+
 					"question is the spread: a run that only ever files one kind is reporting through one lens", total, len(byType), byType)})
 		}
-	}
-
-	// unrecorded_claim_loss
-	var counts []float64
-	for _, r := range results {
-		if v, ok := num(r["claim_count"]); ok {
-			counts = append(counts, v)
-		}
-	}
-	// Retires come from the RECORD (retire events), NOT a BLUE_ENVELOPE field. An envelope
-	// carries no `retired`, so this detector would count zero and flag every LEGITIMATE
-	// retirement as an unrecorded loss — blind in both directions. A claim leaves the report
-	// ONLY through the retire verb, which is on the record.
-	//
-	// BUT ONLY WHAT A RETIRE TOOK OUT OF THE COUNT IS CREDITED. Every retire event used to
-	// count, and most do not lower claim_count: retiring uncited prose removes nothing the count
-	// ever held, and a retire's credit then cancelled an unrelated real loss. claim_count is the
-	// number of citation anchors attached to prose, and a retire names the citation anchors that
-	// exit with its claim (the verb computes that, at the write, from the report) — so each named
-	// c- anchor is exactly one unit of the fall, and the credit is read from that field rather
-	// than from the event's existence. A retire that took two cited sentences out credits two. A
-	// record written before the field credits no retire.
-	retires, events := 0, 0
-	if fam != nil {
-		for _, e := range fam.Live() {
-			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
-			if !ok {
-				continue
-			}
-			events++
-			for _, id := range r.GetAnchors() {
-				if anchor.CountsAsClaim(id) {
-					retires++
-				}
-			}
-		}
-	}
-	drop := 0.0
-	for i := 1; i < len(counts); i++ {
-		if counts[i] < counts[i-1] {
-			drop += counts[i-1] - counts[i]
-		}
-	}
-	if len(counts) > 1 {
-		lost := int(math.Max(0, drop-float64(retires)))
-		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
-			Value: lost,
-			Note: strconv.Itoa(int(drop)) + " claim(s) lost across envelopes, " + strconv.Itoa(retires) + " retired on the record (" +
-				strconv.Itoa(events) + " retire event(s); each citation anchor a retire took out credits one)",
-			Joint: "a fall the retire events do not account for is substance leaving silently, which is what the additive rule forbids"})
-	} else {
-		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
-			Note: "needs at least two envelopes reporting claim_count"})
 	}
 
 	// The dropped_finding_markers and unbacked_citations detectors lived here — they compared the

@@ -17,12 +17,11 @@ const role = "blue"
 // Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
-		seat.BlueRegister(),
+		seat.Register(),
 		newIngest(),
 		newEdit(),
 		newCite(),
 		newProve(),
-		newRevision(),
 		newRetire(),
 		newAvenue(),
 		newManifestRow(),

@@ -113,7 +113,7 @@ func TestManifestOwedIsARepairOfAGapStillOpenWhenBlueSat(t *testing.T) {
 			},
 			want: nil,
 		},
-		"owed once per gap across sittings, in first-owed order; a re-prompt register opens nothing": {
+		"owed once per gap across sittings, in first-owed order; a register no dispatch precedes owes nothing": {
 			evs: []*Event{
 				dispatchBlue(t, "G2"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G2"), registers(t, "blue-respond"),
 				dispatchBlue(t, "G1", "G2"), registers(t, "blue-respond"), editAnswers(t, "blue-respond", "G1"), editAnswers(t, "blue-respond", "G2"),

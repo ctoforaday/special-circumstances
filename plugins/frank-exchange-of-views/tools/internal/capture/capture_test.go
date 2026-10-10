@@ -277,22 +277,31 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 	return runtest.Open(t, dir)
 }
 
-// Record-parity is per blue sitting: one that owed an answer carries a position and a revision,
-// and one that found its gap closed owes neither.
+// Record-parity is per blue sitting: one that owed an answer carries a position, and one that found
+// its gap closed owes none.
+//
+// A POSITION IS THE WHOLE OF WHAT IT HOLDS A SITTING TO. A sitting that filed its position and no
+// revision is complete, and a revision — the type a migrated archive still holds — stands in for
+// nothing: a sitting that filed one and no position is short, and the audit names the position and
+// nothing else.
 func TestRecordParityAudit(t *testing.T) {
 	position := &recordpb.Position{Text: proto.String("G1 is repaired")}
 	revision := &recordpb.Revision{Text: proto.String("the G1 edit")}
 
-	if a := RecordParityAudit(blueSittingRun(t, false, true, position, revision)); a.Verdict != "PASS" {
-		t.Errorf("a sitting that answered with a position and a revision: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	a := RecordParityAudit(blueSittingRun(t, false, true, position))
+	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 owed an answer and each carries its position") {
+		t.Errorf("a sitting that answered with a position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	a := RecordParityAudit(blueSittingRun(t, false, true, revision))
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
-		t.Errorf("a sitting that owed G1 and filed no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
+	for name, acts := range map[string][]proto.Message{"a revision and no position": {revision}, "nothing": nil} {
+		a = RecordParityAudit(blueSittingRun(t, false, true, acts...))
+		if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
+			t.Errorf("a sitting that owed G1 and filed %s: want a FAIL naming the position, got %s (%s)", name, a.Verdict, a.Detail)
+		}
 	}
-	a = RecordParityAudit(blueSittingRun(t, false, true))
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "no position and no revision") {
-		t.Errorf("a sitting that owed G1 and filed nothing: want a FAIL naming both, got %s (%s)", a.Verdict, a.Detail)
+	for _, v := range []*Audit{&a, ptr(RecordParityAudit(blueSittingRun(t, false, true, position)))} {
+		if strings.Contains(strings.ToLower(v.Detail), "revision") {
+			t.Errorf("record-parity speaks of a revision, which no sitting owes: %s (%s)", v.Verdict, v.Detail)
+		}
 	}
 	// B7's epochs 3 and 4: the lens closed the gap before blue sat, and blue filed only a log.
 	if a := RecordParityAudit(blueSittingRun(t, true, true)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 found every gap") {
@@ -300,12 +309,12 @@ func TestRecordParityAudit(t *testing.T) {
 	}
 	// A SITTING NOTHING ABOUT BLUE CLOSED: blue has neither registered again nor returned. Capture
 	// reads the finished run, so the end of the record closes it and it is held to what it filed.
-	a = RecordParityAudit(blueSittingRun(t, false, false, revision))
+	a = RecordParityAudit(blueSittingRun(t, false, false))
 	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") || strings.Contains(a.Detail, "NOT MEASURED") {
 		t.Errorf("a sitting the run ended in with no position: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
-	if a := RecordParityAudit(blueSittingRun(t, false, false, position, revision)); a.Verdict != "PASS" {
-		t.Errorf("a sitting the run ended in that carries both: want PASS, got %s (%s)", a.Verdict, a.Detail)
+	if a := RecordParityAudit(blueSittingRun(t, false, false, position)); a.Verdict != "PASS" {
+		t.Errorf("a sitting the run ended in that carries its position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 	// EVERY CHAIR SITTING OWES A POSITION, and this audit is the one place a chair sitting without
 	// one is reported: its work list holds no item for it.
@@ -325,8 +334,8 @@ func TestRecordParityAudit(t *testing.T) {
 // CAPTURE CLOSES WHAT A LIVE READER CANNOT (#1002, ruling 1). One record, blue's last sitting with
 // no stop and no register after it: a reader while the run runs cannot tell it from a sitting in
 // flight and says NOT MEASURED; capture reads the finished run, where the end of the record closes
-// it, and holds it to the revision it never filed. The shape is B9's: a headless seat, whose agent
-// fires no stop, sat twice, and the second sitting — G4 still open — filed a position and no revision.
+// it, and holds it to the position it never filed. The shape is a headless seat, whose agent fires
+// no stop, sitting twice, the second time — G4 still open — filing nothing.
 func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
@@ -347,11 +356,9 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 		at("blue-respond", launcher),
 		at("blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b")}),
 		at("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired")}),
-		at("blue-respond", &recordpb.Revision{Text: proto.String("the G1 edit")}),
 		at("red-chair", &recordpb.Register{}), mint("G4"),
 		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(7), SeatId: proto.String("blue-respond"), GapIds: []string{"G4"}}),
 		at("blue-respond", launcher),
-		at("blue-respond", &recordpb.Position{Text: proto.String("nothing to dispute")}),
 	)
 	run := runtest.Open(t, dir)
 	fam, err := record.FamilyOf(run)
@@ -378,17 +385,17 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 		t.Fatalf("after the run, the end of the record closes the last sitting: %+v", after)
 	}
 	a := RecordParityAudit(run)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 2, engaged on G4 still open when it sat, filed no revision") {
-		t.Errorf("capture holds B9's last sitting to its missing revision: want FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 2, engaged on G4 still open when it sat, filed no position") {
+		t.Errorf("capture holds the last sitting to its missing position: want FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
-// THE SHIPPED ENGINE'S REPAIR PASSES PARITY (#1002, ruling 2). Blue's agent sat on G1, edited, and
-// returned with no position or revision, and its stop closed the sitting. The engine's re-prompt is
-// a new agent: registered as the repair of that sitting, it files both and returns. Parity holds
-// the sitting to what it and its repair filed. The same acts after a register that repairs nothing
-// land in a sitting of their own, and the dispatched sitting fails — which is what the field is
-// for.
+// A REGISTER THAT NAMES A REPAIRED SITTING PASSES PARITY FOR IT (#1002, ruling 2). No command writes
+// one; the record can hold one, and its readers answer for it. Blue's agent sat on G1, edited, and
+// returned with no position, and its stop closed the sitting. A second agent, under a register
+// naming that sitting, files the position and returns. Parity holds the sitting to what it and its
+// repair filed. The same acts after a register that repairs nothing land in a sitting of their own,
+// and the dispatched sitting fails — which is what the field is for.
 func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
 	seed := func(t *testing.T, repair *recordpb.Register) record.Run {
 		n := 0
@@ -416,17 +423,16 @@ func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
 			stop("blue-a"),
 			at("blue-respond", "blue-respond:register:#2", repair),
 			at("blue-respond", "", &recordpb.Position{Text: proto.String("G1 is repaired")}),
-			at("blue-respond", "", &recordpb.Revision{Text: proto.String("the G1 edit")}),
 			stop("blue-b"),
 		)
 		return runtest.Open(t, dir)
 	}
 	repaired := seed(t, &recordpb.Register{AgentId: proto.String("blue-b"), RepairsSitting: proto.String("blue-respond:register:#1")})
 	if a := RecordParityAudit(repaired); a.Verdict != "PASS" {
-		t.Errorf("a sitting whose repair filed its position and revision: want PASS, got %s (%s)", a.Verdict, a.Detail)
+		t.Errorf("a sitting whose repair filed its position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 	plain := seed(t, &recordpb.Register{AgentId: proto.String("blue-b")})
-	if a := RecordParityAudit(plain); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "filed no position and no revision") {
+	if a := RecordParityAudit(plain); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 1, engaged on G1 still open when it sat, filed no position") {
 		t.Errorf("the same acts after a register that repairs nothing are a sitting of their own: want FAIL, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
@@ -1529,3 +1535,5 @@ func castWithOneLane(t *testing.T) *recordpb.Event {
 	return recordtest.At(t, record.HarnessSeat, "harness:cast:1",
 		&recordpb.Cast{SeatIds: seats, LaneSeatIds: laneSeats})
 }
+
+func ptr[T any](v T) *T { return &v }

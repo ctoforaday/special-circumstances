@@ -96,8 +96,8 @@ func TestABanMatchesItsPhraseHowEverItIsJoined(t *testing.T) {
 	r, err := Parse([]byte(`{"entries":[{"term":"the log","definition":"The log is entries.","seats":["blue"],"bans":[
 		{"variant":"operator channel","kind":"GATED","pattern":"operator('s)? channel"},
 		{"variant":"method lens","kind":"GATED","pattern":"method[- ]lens"},
-		{"variant":"sitting record","kind":"GATED","pattern":"sitting records?\\b",
-		 "masks":[{"phrase":"sitting-record repair","reason":"the term"}]}],"collisions":[]}]}`))
+		{"variant":"round record","kind":"GATED","pattern":"round records?\\b",
+		 "masks":[{"phrase":"round-record index","reason":"the term"}]}],"collisions":[]}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestABanMatchesItsPhraseHowEverItIsJoined(t *testing.T) {
 		"the operator's - channel":     "operator's - channel",
 		"a method-lens":                "method-lens",
 		"a method lens":                "method lens",
-		"the sitting-record":           "sitting-record",
+		"the round-record":             "round-record",
 	} {
 		hs := r.Scan("x.md", text, nil)
 		if len(hs) != 1 {
@@ -120,7 +120,7 @@ func TestABanMatchesItsPhraseHowEverItIsJoined(t *testing.T) {
 			t.Errorf("%q: reported %q, want the text as written, %q", text, hs[0].Match, match)
 		}
 	}
-	for _, text := range []string{"the operatorchannel", "a method_lens", "a sitting record repair", "a sitting-record repair", "a Sitting-record\nrepair"} {
+	for _, text := range []string{"the operatorchannel", "a method_lens", "a round record index", "a round-record index", "a Round-record\nindex"} {
 		if hs := r.Scan("x.md", text, nil); len(hs) != 0 {
 			t.Errorf("%q: %d hit(s), want none", text, len(hs))
 		}

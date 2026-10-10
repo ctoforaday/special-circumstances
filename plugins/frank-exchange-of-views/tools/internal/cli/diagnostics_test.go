@@ -30,7 +30,7 @@ func trajectoryFor(t *testing.T, runDir, body string) string {
 
 // THE DENOMINATOR IS THE SEAT'S TREE, NOT THE role-PREFIXED JOIN KEYS.
 //
-// `motion`, `fetch` and `count-claims` are mounted on every seat's root and carry no role in
+// `motion` and `fetch` are mounted on every seat's root and carry no role in
 // their CommandPaths key, so a denominator built from that subset was MISSING them — and because
 // a listing containing a name the role does not own is rejected whole, their presence in the
 // seat's own help discarded the block. The measure reported a lens that had just been handed its
@@ -39,7 +39,7 @@ func TestTheDenominatorIsWhatTheSeatsTreeActuallyOffers(t *testing.T) {
 	acts := actsOf("lens")
 	// `manual` is deliberately absent: it is the operator's verb now, because a seat is handed
 	// what it prints. The root-mounted commands are the point of this test either way.
-	for _, want := range []string{"motion", "fetch", "count-claims", "finding"} {
+	for _, want := range []string{"motion", "fetch", "finding"} {
 		found := false
 		for _, a := range acts {
 			if a == want {

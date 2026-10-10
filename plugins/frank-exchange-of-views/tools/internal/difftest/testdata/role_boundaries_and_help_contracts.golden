@@ -79,7 +79,7 @@ exit 2
 stderr:
 feov-record: "mint" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
 
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
+feov-record — blue seats — the report and its edits, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -94,7 +94,6 @@ Usage:
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   edit         change the report — the only path into report.md, and how every repair lands
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
@@ -105,7 +104,6 @@ Available Commands:
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
-  revision     your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   avenue       an approach the research could take, and what became of it — `propose` one, `move` one you already proposed
@@ -127,7 +125,7 @@ exit 2
 stderr:
 feov-record: "close" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
 
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
+feov-record — blue seats — the report and its edits, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -142,7 +140,6 @@ Usage:
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   edit         change the report — the only path into report.md, and how every repair lands
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
@@ -153,7 +150,6 @@ Available Commands:
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
-  revision     your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   avenue       an approach the research could take, and what became of it — `propose` one, `move` one you already proposed
@@ -188,21 +184,20 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble     assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
-  certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  assemble    assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+  certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
+  declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
 
 Command groups — each holds commands THIS page does not list:
-  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -230,25 +225,24 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  close        close a gap with the verification you did THIS sitting, naming what you checked it against
-  corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  regrade      move a grade on a gap that already exists, with the reason it moved
-  render-page  draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
-  reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
-  verify       judge a citation blue authored, when the anchor exists and you have read what it points at
+  close       close a gap with the verification you did THIS sitting, naming what you checked it against
+  corroborate go and find a source blue never cited, when the claim has no anchor but the source is obtainable
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match  screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  regrade     move a grade on a gap that already exists, with the reason it moved
+  render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
+  reproduce   re-run a recorded computation and judge whether it proves the sentence it is attached to
+  verify      judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  class        the gap-class registry: what KINDS of defect this run recognises
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  class       the gap-class registry: what KINDS of defect this run recognises
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -276,23 +270,22 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry        restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dispatch     `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  spot-check   sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
-  verdict      the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
+  closing     your closing argument on one docketed gap, when the bench is about to rule on it
+  dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  spot-check  sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
+  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  avenue       read the report against every avenue on the record — `review` states what that reading found
-  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  avenue      read the report against every avenue on the record — `review` states what that reading found
+  inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -307,7 +300,7 @@ Use "feov-record [command] --help" for more information about a command.
 $ help --seat-id blue-respond
 exit 0
 stdout:
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
+feov-record — blue seats — the report and its edits, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -322,7 +315,6 @@ Usage:
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   edit         change the report — the only path into report.md, and how every repair lands
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
@@ -333,7 +325,6 @@ Available Commands:
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
-  revision     your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   avenue       an approach the research could take, and what became of it — `propose` one, `move` one you already proposed
@@ -366,21 +357,20 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble     assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
-  certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  assemble    assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+  certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
+  declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  outcome     stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
 
 Command groups — each holds commands THIS page does not list:
-  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record

@@ -50,7 +50,7 @@ func TestAMotionIsRefusedUnderASeatTheAgentDidNotRegisterAs(t *testing.T) {
 // AN AGENT THAT NEVER REGISTERED FILES NOTHING BEFORE A REGISTER BINDS IT. Where the surface's
 // register is the binding and nothing more, the tool registers it first, silently — which is what
 // every other verb does, and what arms the sitting's call cap. Where the register carries something
-// only the seat knows (blue's --repair-sitting, the bench's --occasion), the filing is refused.
+// only the seat knows (the bench's --occasion), the filing is refused.
 func TestAnUnregisteredAgentFilesNoMotionWithoutARegister(t *testing.T) {
 	runDir := seatRun(t)
 
@@ -67,11 +67,11 @@ func TestAnUnregisteredAgentFilesNoMotionWithoutARegister(t *testing.T) {
 		t.Errorf("the motion landed and no register binds its agent (bound %q, found %v)", seatID, found)
 	}
 
-	t.Setenv(seatenv.AgentVar, "agent_blue_never_registered")
+	t.Setenv(seatenv.AgentVar, "agent_bench_never_registered")
 	before := motionsOnRecord(t, runDir)
-	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--class", "safety", "--relief", "r", "--reason", "x"); err == nil {
-		t.Error("an unregistered agent filed a motion on blue's surface, whose register the tool cannot perform for it")
+	if _, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "judge",
+		"--id", "G1", "--reason", "x"); err == nil || !strings.Contains(err.Error(), "register") {
+		t.Errorf("an unregistered agent's filing on the bench's surface, whose register the tool cannot perform for it, = %v; want it refused naming the register", err)
 	}
 	if after := motionsOnRecord(t, runDir); after != before {
 		t.Errorf("the refused filing recorded a motion (%d -> %d)", before, after)

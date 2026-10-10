@@ -43,9 +43,8 @@ func TestAStopThatLandsAfterTheNextRegisterClosesNothing(t *testing.T) {
 	}
 }
 
-// A REPAIR JOINS ITS OWN SEAT'S SITTING AND NOBODY ELSE'S (#1002, finding 5). THE WRITER REFUSES THE
-// CLAIM — checkRepair admits only a register of a sitting of the SAME seat — and the record could not
-// hold it either way: the write path stores a repair register in its own seat's latest sitting, and
+// A REPAIR JOINS ITS OWN SEAT'S SITTING AND NOBODY ELSE'S (#1002, finding 5). The record cannot hold
+// it any other way: the write path stores a repair register in its own seat's latest sitting, and
 // the closer joins a repair to the sitting it is stored in, never to the one its key names. Read by
 // key, one blue seat naming another's register would extend that other seat's sitting over its own
 // acts, and the manifest and record-parity would answer for a sitting that never held them.
@@ -69,11 +68,5 @@ func TestARepairNamingAnotherSeatsSittingJoinsNothing(t *testing.T) {
 	}
 	if got := strings.Join(actTypes(ss[0]), ","); got != "EVENT_TYPE_REGISTER,EVENT_TYPE_BLUE_EDIT" {
 		t.Errorf("blue-respond's sitting = %s, want it closed by its own stop — another seat's register does not reopen it", got)
-	}
-
-	// The writer's half, which is why the reader's is depth rather than the only guard.
-	err := checkRepair(m.Events, m.At, "blue-synthesize", opened)
-	if err == nil || !strings.Contains(err.Error(), "is not a register of a sitting of blue-synthesize") {
-		t.Fatalf("the writer's refusal = %v, want it naming the seat the register does not belong to", err)
 	}
 }

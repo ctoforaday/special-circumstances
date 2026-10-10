@@ -512,7 +512,7 @@ func benchRowSitting(registers []int64, on map[recordpb.Occasion][]int64, d disp
 
 // sittingCloser IS THE ONE ANSWER TO "WHERE DID THIS SEAT'S SITTING END", as sittingFor is to where
 // it began. Every reader that bounds a seat's sitting asks it here — the exchange count
-// (exchangesOf) and blue's sittings (BlueSittings, behind revisionOwed, the manifest's owed set and
+// (exchangesOf) and blue's sittings (BlueSittings, behind PositionSittings, the manifest's owed set and
 // capture's record-parity audit) — so a change to what closes a sitting reaches all of them at once.
 //
 // ONLY FACTS ABOUT THIS SEAT CLOSE IT, AND THE EARLIER OF TWO DOES. A sitting ends at whichever
@@ -528,9 +528,9 @@ func benchRowSitting(registers []int64, on map[recordpb.Occasion][]int64, d disp
 // A REPAIR OF THE SITTING IS PART OF IT. A register naming the sitting it repairs (repairs_sitting)
 // opens no span of its own: the write path stores it in the seat's latest sitting, and from it to
 // where that register's own sitting would end — the seat's next opening, or the stop of the agent
-// on the repair — its acts are that sitting's. Under the shipped Workflow engine the first agent's stop has already closed the
-// sitting when the re-prompt registers, so the repair is a second span, and the sitting ends where
-// its last span does.
+// on the repair — its acts are that sitting's. Where the first agent's stop has already closed the
+// sitting when the repairing register lands, the repair is a second span, and the sitting ends where
+// its last span does. No command writes such a register; a record that holds one is read this way.
 //
 // NOTHING ANOTHER SEAT WRITES BOUNDS IT. A read keyed on another seat's act — the chair's next
 // register, the chair's next dispatch row — depends on a rule enforced at that seat's write path,

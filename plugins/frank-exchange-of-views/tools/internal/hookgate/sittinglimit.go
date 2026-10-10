@@ -21,9 +21,9 @@ func LimitReason(count, limit int) string {
 // InvokesRegister reports whether a Bash call invokes the record tool's `register` verb.
 //
 // IT IS THE ONE CALL A LIMITED SITTING STILL LETS THROUGH, because register is the TURN boundary:
-// it is what starts the next sitting's count. It asks about the verb and nothing else — a
-// sitting-record repair is a register too, and it is let through for the same reason, which is why
-// this is not record.opensASitting's question under another name. A warm session resumed for a new sitting
+// it is what starts the next sitting's count. It asks about the verb and nothing else — a register
+// that opens no sitting of its own is let through for the same reason, which is why this is not
+// record.opensASitting's question under another name. A warm session resumed for a new sitting
 // arrives with the old sitting's count still open, and refusing its register would refuse it every
 // sitting after the first one it spent.
 //

@@ -129,8 +129,8 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "termination", "rulings": []any{},
-			"dispositions": []any{}, "holdings": []any{}, "manifest": []any{}, "claim_count": 3,
-			"saturation_reached": false, "sitting_record_appended": true,
+			"dispositions": []any{}, "holdings": []any{}, "manifest": []any{},
+			"saturation_reached": false,
 		}
 		switch {
 		case seatID == "red-chair":

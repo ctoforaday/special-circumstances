@@ -35,7 +35,7 @@ Research that survives an adversary.
 
 ## The exchange is TOOL-MEDIATED
 
-Everything the two sides exchange — findings, closures, citations, proofs, revisions,
+Everything the two sides exchange — findings, closures, citations, proofs, edits,
 avenues, disputes, log entries, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
@@ -91,8 +91,8 @@ footnotes (with access dates; volatility noted for living sources).
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `avenues.md`
-(the avenues and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the report's own
-revisions and withdrawn claims). Nothing is summarized away by the split — the union is the
+(the avenues and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
+retired and the asks a later certification superseded). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 
 THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file

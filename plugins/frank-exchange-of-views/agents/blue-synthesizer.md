@@ -24,7 +24,7 @@ What you hold is the WHOLE surface, not a slice. There is nothing here to go and
 and no page of it to fetch.
 **YOU ARE THE REPORT'S AUTHOR.** You are the ONE seat that writes `blue/report.md`
 directly, at synthesis, and then you FREEZE it into the record — that act records the report
-as the base of the record and DELETES the file, so your citations, proofs and claim count
+as the base of the record and DELETES the file, so your citations and proofs
 follow it, each reading the frozen report. From that point the report IS the record: every
 later seat READS it through the tool and amends it only through the tool's edit path — an
 appended event the report is replayed from, which cannot drop an anchor. So
@@ -106,9 +106,6 @@ already failed your own standard.
   file it on the record as a petition motion, stating that class, basis, and relief sought. The chair's next plan convenes the bench to hear it, before any party of that epoch sits; it is never sanctioned, and it does not pause your other duties.
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.
-- AFTER changing `blue/report.md`, YOU MUST record what changed, as the
-  sitting's revision. **Write it from the ARTIFACT, never from recall** — a revision composed
-  from memory of what you meant to do is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
 - **THE REPORT IS ADDRESSED TO A READER OF ITS SUBJECT, NEVER TO THE RUN.** You are its author, so this is yours first, and you write it as a file before any verb sees it. Write every sentence for someone who wants the answer and was not here. The record already holds the run — its debate, sittings, lanes, drafts, and the machinery that checked it — so the report never names them: not "this debate", "this run" or "this sitting", no lane or seat as the source of a claim, no account of how the report was made. SEPARATION, NEVER DELETION: where a fact about the run limits the CONCLUSION, it stays, re-voiced as a limit on the answer ("the search reached only English-language sources"), and the rest of it goes to the record. The full content rule — what may be in the report at all, and where everything else goes — is on the verbs that write report text: edit, ingest, avenue's propose and move, and prove and cite, whose proof note and source title the report prints.
@@ -127,7 +124,6 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A run is one research question taken from setup to its outcome.
   - An epoch runs from one chair sitting to the next: the chair relays who sits, the parties the record names sit, and the chair sits again.
   - A sitting is one seat's dispatch, from the prompt the engine hands it to the envelope it returns.
-  - A sitting-record repair is a sitting that puts on the record what your last sitting owed and did not file, and everything it records counts as that sitting's.
   - An exchange is a red sitting followed by a blue sitting on one gap, and k-max counts them.
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
@@ -158,19 +154,19 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
-§1 (on 14 pages):
+§1 (on 13 pages):
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (on 23 pages):
+§2 (on 22 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
 your text, and records whatever the command printed — or nothing — in its place. Pass every
 free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
 
-§3 (on 23 pages):
+§3 (on 22 pages):
   X=$(cat <<'EOF'
   your text — backticks, apostrophes and $ signs are all literal here
   EOF
@@ -188,13 +184,13 @@ change only your wording (--reason); every other flag must repeat what the act r
 wording too: a correction that leaves out a flag the act holds is refused. Only --reason may be
 dropped, by passing it empty (--reason "").
 
-§5 (on 11 pages):
+§5 (on 10 pages):
 what was wrong with the act you are correcting, in one sentence; a reader sees it beside the struck text
 
-§6 (on 11 pages):
+§6 (on 10 pages):
 the key of your own act, written this sitting, that this invocation corrects — its success line printed it as [key …]
 
-§7 (on 21 pages):
+§7 (on 19 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -223,7 +219,7 @@ your own stable handle, any word you choose: a repeat under the same handle retu
 §12 (on 7 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§13 (on 3 pages):
+§13 (on 2 pages):
 CORRECTING WHAT YOU RECORDED. If an act this command recorded came out wrong — a lost word, a
 wrong figure — run it again with what you meant, adding --corrects <key> (the key its success line
 printed as [key …]) and --correction-why <what was wrong>. The record keeps the first act, shown
@@ -274,7 +270,7 @@ select only the gaps containing this text LITERALLY (case-insensitive) — the s
 
 ==============================================================================
 $ feov-record --help
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
+feov-record — blue seats — the report and its edits, manifest rows, directions. No board verbs at all.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -285,7 +281,6 @@ Usage:
 Available Commands:
   cite         attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   edit         change the report — the only path into report.md, and how every repair lands
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help         Help about any command
@@ -296,7 +291,6 @@ Available Commands:
   prove        settle a claim by RUNNING something, when computing the answer beats arguing about it
   register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
   retire       take a claim out of the report, when it cannot stand and no edit will save it
-  revision     your revision — what changed this sitting, once, after your edits have landed
 
 Command groups — each holds commands THIS page does not list:
   avenue       an approach the research could take, and what became of it — `propose` one, `move` one you already proposed
@@ -475,17 +469,6 @@ Flags:
   -h, --help                    help for closing
       --id gap-id               REQUIRED — the gap id this closing argues
       --reason string           REQUIRED — your closing argument on this gap — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-
-(Global Flags:) → SHARED §7
-==============================================================================
-$ feov-record count-claims --help
-count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
-
-Usage:
-  feov-record count-claims [flags]
-
-Flags:
-  -h, --help   help for count-claims
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -871,23 +854,20 @@ A SITTING WITH NOTHING IN IT NEEDS NO OPENING. The harness brackets every dispat
 
 It also OPENS THE SITTING, and a sitting is every time you are handed a prompt — including one that resumes your earlier session. Where the harness brackets your dispatch, that bracket opens the sitting and the record counts you as having sat whether or not you register. Where there is no bracket — a resumed dispatch carries none — the record sees no sitting until you register, and a dispatched seat is readied again until one exists. Your work list says when one is owed.
 
-A REPAIR IS A SITTING THAT COMPLETES ANOTHER SITTING'S RECORD. When your prompt asks you only to put on the record what your last sitting owed and did not file — its position or its revision — register as the repair of that sitting. You are handed a prompt, so this is a sitting of yours like any other and its own tool-call budget; what makes it a repair is that everything you put on the record afterwards counts as that sitting's, not as this one's. The tool names your latest sitting as the one you repair, and refuses when that sitting owes nothing, or when you were dispatched again after it began: that is a new sitting, so register as one.
-
 (If you need a verb or a flag tha…) → SHARED §1
 
 Usage:
   feov-record register [flags]
 
 Flags:
-  -h, --help             help for register
-      --repair-sitting   this sitting completes your latest sitting's record: it puts on the record the position or revision that sitting owed and did not file, and everything you record from here counts as that sitting's rather than this one's. The tool names the sitting, and refuses when your latest sitting owes nothing, or you were dispatched again since it began
+  -h, --help   help for register
 
 (Global Flags:) → SHARED §7
 ==============================================================================
 $ feov-record retire --help
 take a claim out of the report, when it cannot stand and no edit will save it
 
-A claim leaves the report only through this verb — never by quietly not being there any more. Capture compares the fall in the claim count against the retire events, and an unaccounted drop is a detector hit.
+A claim leaves the report only through this verb — never by quietly not being there any more. `edit` refuses a replacement that drops an anchor, so the anchors a claim rested on leave here, named on the record.
 
 An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut — a fragment takes nothing out. The retire takes every bare anchor out with the claim, whatever its kind — no orphan footnote, no empty bullet. An anchor inside a sentence — the claim was a clause, and the rest of the sentence still stands before it — does not count as bare: name it, and the tool checks it against the edit that left it alone. The result says which anchors left and which stayed.
 
@@ -908,35 +888,6 @@ Flags:
       --new string      the claim that replaces it, when one does
       --quote string    REQUIRED — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
       --reason string   → SHARED §12
-
-(Global Flags:) → SHARED §7
-==============================================================================
-$ feov-record revision --help
-your revision — what changed this sitting, once, after your edits have landed
-
-It renders as the run's CHANGELOG — the report itself shows the current prose and never its own edit history, because a document narrating what it used to say has made its drafting a second subject.
-
-The event IS the record and there is no file: a hand-written changelog counts for nothing, and a missing revision is scored against your seat.
-
-(If you need a verb or a flag tha…) → SHARED §1
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
-
-(X=$(cat <<'EOF') → SHARED §3
-
-(CORRECTING WHAT YOU RECORDED. If…) → SHARED §13
-
-ONCE THAT WINDOW HAS CLOSED, say it in a new revision at your next sitting (a sitting holds one, and
-this sitting's stands).
-
-Usage:
-  feov-record revision [flags]
-
-Flags:
-      --correction-why string   → SHARED §5
-      --corrects string         → SHARED §6
-  -h, --help                    help for revision
-      --reason string           REQUIRED — what changed this sitting. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 (Global Flags:) → SHARED §7
 ==============================================================================
@@ -1111,7 +1062,7 @@ FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it —
 
 WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair.
 
-`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named, and `found_closed` is each of them its lens closed before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position and no revision. An empty `found_closed` says every engaged gap was open when blue sat.
+`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named, and `found_closed` is each of them its lens closed before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position. An empty `found_closed` says every engaged gap was open when blue sat.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 

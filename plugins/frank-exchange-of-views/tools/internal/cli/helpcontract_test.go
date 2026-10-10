@@ -217,7 +217,7 @@ func isSeatRole(s string) bool {
 // role out of a command PATH, which stopped being possible when the role left the path.
 func seatHolding(path ...string) string {
 	// SEATS FIRST, AND IN A FIXED ORDER. `verify` is a lens verb AND the operator's whole-record
-	// cross-check, and `fetch`/`count-claims` sit in both too — so ranging a map returned whichever
+	// cross-check, and `fetch` sits in both too — so ranging a map returned whichever
 	// tree came up first and the answer changed between runs. This asks about SEAT verbs, so the
 	// operator's tree is not a candidate at all.
 	for _, role := range []string{"lens", "chair", "blue", "bench"} {

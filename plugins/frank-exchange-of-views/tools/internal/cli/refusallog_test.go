@@ -2,8 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -177,38 +175,33 @@ func TestAnIdentityRefusalIsLoggedUnderTheBoundSeat(t *testing.T) {
 
 // A REFUSAL THE TOOL LOGS BEFORE A SEAT REGISTERS DOES NOT FAIL THE RUN'S INVARIANTS.
 //
-// universe m18, events 26 to 28: the harness brackets blue-synthesize into a sitting, the seat
-// tries `ingest` before `register`, the tool refuses and — the seat having a sitting — logs the
-// refusal under it, and the seat registers next. `verify` then failed the run on
-// `register-before-append`, naming the tool's own entry as the seat's first event. The sequence is
-// driven here as it happened, and the operator's `verify` is asked.
+// universe m18, events 26 to 28: the harness brackets a seat into a sitting, the seat acts before
+// `register` on a surface whose register only the seat can make, the tool refuses and — the seat
+// having a sitting — logs the refusal under it, and the seat registers next. `verify` then failed
+// the run on `register-before-append`, naming the tool's own entry as the seat's first event. The
+// seat there was blue-synthesize; the bench is the surface that still has such a register, so the
+// sequence is driven on it, and the operator's `verify` is asked.
 func TestARefusalLoggedBeforeTheRegisterDoesNotFailVerify(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# Report\n\nOne sentence.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	const agent = "agent_bracketed_synthesizer"
+	const agent = "agent_bracketed_bench"
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
 		&recordpb.SittingOpen{
 			AgentId:   proto.String(agent),
-			AgentType: proto.String("frank-exchange-of-views:blue-synthesizer"),
-			SeatId:    proto.String("blue-synthesize"),
+			AgentType: proto.String("frank-exchange-of-views:lead-judge"),
+			SeatId:    proto.String("judge"),
 		}); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, agent)
 
-	if _, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"); err == nil {
-		t.Fatal("ingest before register was accepted, so no refusal precedes the register and this drives nothing")
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "judge", "--type", "defect", "--reason", "acting before the register"); err == nil {
+		t.Fatal("a bench act before register was accepted, so no refusal precedes the register and this drives nothing")
 	}
-	if got := toolRefusals(t, runDir); len(got) != 1 || !strings.HasPrefix(got[0], "blue-synthesize | ") {
-		t.Fatalf("want the one refusal logged under blue-synthesize, got %q", got)
+	if got := toolRefusals(t, runDir); len(got) != 1 || !strings.HasPrefix(got[0], "judge | ") {
+		t.Fatalf("want the one refusal logged under judge, got %q", got)
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge", "--occasion", "docket"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 

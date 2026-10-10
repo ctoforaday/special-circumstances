@@ -43,8 +43,8 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 	// the seat knows is still the seat's call. See TestAnAgentActingFirstIsRegisteredForIt.
 	for _, w := range []struct {
 		seat string
-		// refused is true where this surface's register carries more than the binding — blue's
-		// --repair-sitting, the bench's --occasion — so nothing can supply it but the seat.
+		// refused is true where this surface's register carries more than the binding — the
+		// bench's --occasion — so nothing can supply it but the seat.
 		refused bool
 		argv    []string
 	}{
@@ -56,7 +56,8 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 		{"red-chair", false, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},
 		{"red-lens-evidence", false, []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-		{"blue-respond", true, []string{"revision", "--reason", "round record"}},
+		{"blue-respond", false, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},
+		{"judge", true, []string{"log", "--type", "defect", "--reason", "acting before any binding"}},
 	} {
 		// ONE AGENT PER ROW, because an agent is ONE seat. These rows shared a handle, which was
 		// invisible while every write was refused: now the first row's silent register binds that

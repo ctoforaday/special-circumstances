@@ -5085,8 +5085,8 @@ type Retire struct {
 	// anchor layer, modulo surrounding whitespace, emphasis and trailing punctuation — a fragment
 	// names nothing) and that edit's new text was anchors alone, and only with anchors that are
 	// present AND bare in the report at the write — so an anchor carried on into surviving prose can
-	// never be named. An anchor of every kind leaves alike. Each named c- anchor is one unit of
-	// claim_count's fall, which is what the scorecard credits. Replay removes each named anchor at
+	// never be named. An anchor of every kind leaves alike. Each named c- anchor is one counted claim
+	// leaving the report. Replay removes each named anchor at
 	// this event's position (the report_op view's `remove` rows). A record written before this field
 	// carries none, and replays exactly as it did.
 	Anchors       []string `protobuf:"bytes,5,rep,name=anchors,proto3" json:"anchors,omitempty"`
@@ -6079,17 +6079,9 @@ type Register struct {
 	AgentType *string `protobuf:"bytes,6,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
 	// THE SITTING THIS REGISTER REPAIRS: the key of the seat's register in it.
 	//
-	// The engine re-prompts a seat whose sitting did not put its record on the record (the
-	// sitting-record repair). The re-prompted agent registers again, and a register opens a sitting —
-	// so the repair turn's position and revision belonged to no sitting, and a parity audit could
-	// fail the very sitting whose repair filed them. Under the shipped Workflow engine the first
-	// agent's stop has already closed that sitting when the re-prompt runs, so nothing in the stream
-	// joins the two.
-	//
-	// A FIELD, WRITTEN AT THE REGISTER AND REFUSABLE THERE. The seat asserts it is repairing; the
-	// write names its latest sitting and refuses one that is not this seat's, is not its latest, was
-	// dispatched past, or owes nothing. Readers attribute the repair's acts to the sitting named
-	// here, never by inferring the join from dispatch rows, which are the chair's writes.
+	// NO COMMAND WRITES IT. A record that holds one reads as it always did: the register opens no
+	// sitting of its own, and readers attribute the acts filed under it to the sitting named here,
+	// never by inferring the join from dispatch rows, which are the chair's writes.
 	//
 	// ABSENT is a register that opens a sitting of its own.
 	RepairsSitting *string `protobuf:"bytes,8,opt,name=repairs_sitting,json=repairsSitting,proto3,oneof" json:"repairs_sitting,omitempty"`

@@ -3,7 +3,6 @@ package record
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -60,21 +59,6 @@ func manifestUnreceiptedT(t *testing.T, evs []*Event, when ReadWhen) ManifestOwi
 	t.Helper()
 	m := loadedT(t, evs...)
 	return ManifestUnreceipted(m.Events, m.At, when)
-}
-
-// loadedUnlessForgedT is loadedT, except for a fixture holding a register with no body. That shape
-// cannot reach a database — Insert refuses an event with no body — so it has no stored sitting, and
-// the fixture keeps its hand-built events with an empty index: a reader that asks the index about
-// them panics, and one that refuses on the body first (checkRepair) is asked here.
-func loadedUnlessForgedT(t *testing.T, evs []*Event) ([]*Event, WindowIndex) {
-	t.Helper()
-	for _, e := range evs {
-		if _, ok := recordpb.Body(e); !ok {
-			return evs, WindowIndex{}
-		}
-	}
-	m := loadedT(t, evs...)
-	return m.Events, m.At
 }
 
 // bracket is the sitting_open SubagentStart writes for a configuration that seats exactly one seat.
@@ -316,53 +300,36 @@ func TestExchangesAreTheSameWhenEverySittingIsBracketed(t *testing.T) {
 	}
 }
 
-// A BRACKETED BLUE SEAT REPAIRS THE SITTING ITS PAIRED REGISTER JOINED (#1206).
-//
-// blue-synthesize's configuration seats one seat, so the hook opens its sitting and its register
-// joins it. The repair names that register; the store puts the repair in the bracket's sitting; the
-// claim check must agree that this is the seat's latest sitting and bound it from the bracket.
-func TestABracketedBlueSeatRepairsTheSittingItsRegisterJoined(t *testing.T) {
-	const seat = "blue-synthesize"
-	b := newStage(t).cast(seat).ingest().bracket(seat, "syn-a")
-	b.add(seat, &recordpb.Register{AgentId: proto.String("syn-a")})
-	reg := b.lastKey()
-	b.stop("syn-a")
-	m := loadedT(t, b.evs...)
-	key, err := repairTarget(m.Events, m.At, seat)
-	if err != nil || key != reg {
-		t.Fatalf("repairTarget = %q, %v; want the register %q, admitted — the sitting owes its revision", key, err, reg)
-	}
-
-	// A later sitting the hook opened and the seat never registered in is now its latest: the store
-	// would put a repair there, so a claim on the earlier register is refused, and the tool has no
-	// register in the latest sitting to name.
-	b.bracket(seat, "syn-b")
-	m = loadedT(t, b.evs...)
-	if err := checkRepair(m.Events, m.At, seat, reg); err == nil || !strings.Contains(err.Error(), "is in an earlier sitting of blue-synthesize") {
-		t.Errorf("a claim on an earlier sitting's register = %v, want it refused as an earlier sitting", err)
-	}
-	if _, err := repairTarget(m.Events, m.At, seat); err == nil || !strings.Contains(err.Error(), "latest sitting holds no register of yours") {
-		t.Errorf("repairTarget with a register-less latest sitting = %v, want it refused", err)
-	}
-}
-
 // A REPAIR OF A BRACKETED SITTING IS PART OF THAT SITTING (#1206).
 //
 // The repair names the register that joined the bracket's sitting, and the write path stores the
 // repair in that sitting. The closer adds the repair's span to the sitting it is stored in: keyed on
-// the register the repair names, it would find no sitting opened there, and the revision the repair
-// filed would count for nothing — the next claim admitted for a sitting that already carries it.
+// the register the repair names, it would find no sitting opened there, and the position filed
+// under the repair would count for nothing — the sitting read as short of what it holds.
 func TestARepairOfABracketedSittingIsPartOfIt(t *testing.T) {
-	const seat = "blue-synthesize"
-	b := newStage(t).cast(seat).ingest().bracket(seat, "syn-a")
-	b.add(seat, &recordpb.Register{AgentId: proto.String("syn-a")})
+	const seat = "blue-respond"
+	b := newStage(t).cast(evLens, "red-chair", seat).ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
+		register("red-chair").dispatch(2, seat, "G1").bracket(seat, "blue-a")
+	b.add(seat, &recordpb.Register{AgentId: proto.String("blue-a")})
 	reg := b.lastKey()
-	b.stop("syn-a")
-	b.add(seat, &recordpb.Register{AgentId: proto.String("syn-b"), RepairsSitting: proto.String(reg)})
-	b.revision(seat).stop("syn-b")
-	m := loadedT(t, b.evs...)
-	if err := checkRepair(m.Events, m.At, seat, reg); err == nil || !strings.Contains(err.Error(), "already carries its revision") {
-		t.Errorf("a second repair of a sitting whose first repair filed its revision = %v, want it refused as already carried", err)
+	b.stop("blue-a")
+	state := func() PositionState {
+		m := loadedT(t, b.evs...)
+		for _, p := range PositionSittings(m.Events, m.At, AfterTheRun) {
+			if p.Seat == seat {
+				return p.State
+			}
+		}
+		t.Fatal("blue-respond's dispatched sitting has no row")
+		return ""
+	}
+	if got := state(); got != PositionMissing {
+		t.Fatalf("the sitting closed without a position reads %q, want it missing", got)
+	}
+	b.repairs(seat, "blue-b", reg).position(seat).stop("blue-b")
+	if got := state(); got != PositionFiled {
+		t.Errorf("a position filed under a register naming the bracketed sitting reads %q, want it that sitting's", got)
 	}
 }
 

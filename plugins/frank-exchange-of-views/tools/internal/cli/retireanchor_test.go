@@ -15,7 +15,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
 // AN ANCHORED CLAIM LEAVES THROUGH RETIRE, AND ITS ANCHOR LEAVES WITH IT.
@@ -107,7 +106,7 @@ func TestRetireTakesABareCiteAnchorOutOfTheReport(t *testing.T) {
 		t.Errorf("rendered report after the retire:\n got %q\nwant %q", rep, want)
 	}
 	if got := claimcount.Count(rep); got != before-1 {
-		t.Errorf("claim_count = %d after retiring one of %d cited claims, want %d", got, before, before-1)
+		t.Errorf("the claim count = %d after retiring one of %d cited claims, want %d", got, before, before-1)
 	}
 	asm := assembled(t, runDir)
 	if strings.Contains(asm, "https://sky/1") || strings.Contains(asm, "[^1]") {
@@ -266,31 +265,11 @@ func TestDroppingAnAnchorTeachesRetire(t *testing.T) {
 	}
 }
 
-func claimLoss(t *testing.T, runDir string, counts ...int) int {
-	t.Helper()
-	var results []map[string]any
-	for _, c := range counts {
-		results = append(results, map[string]any{"claim_count": float64(c)})
-	}
-	fam, err := record.FamilyOf(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, r := range scorecard.Compute(runtest.Open(t, runDir), results, &fam, record.WhileRunning)["blue"] {
-		if r.Metric == "unrecorded_claim_loss" {
-			v, _ := r.Value.(int)
-			return v
-		}
-	}
-	t.Fatal("no unrecorded_claim_loss row")
-	return 0
-}
-
-// THE MEASURED OVER-CREDIT: two retires of gutted cited claims, a retire of uncited prose, one
-// cited sentence gutted with no retire, and a merge of two cited sentences into one. The retires
-// each took a citation out of the count, so they account for two of the three that left; the
-// unretired gut is the one unaccounted loss. The merge carries both anchors and moves nothing —
-// claim_count counts attached citations, not sentences — and the uncited retire credits nothing.
+// WHAT MOVES THE COUNT: two retires of gutted cited claims, a retire of uncited prose, one cited
+// sentence gutted with no retire, and a merge of two cited sentences into one. Each gut takes a
+// citation out of the count, retired or not, so three leave. The merge carries both anchors and
+// moves nothing — the count is of attached citations, not sentences — and the uncited retire
+// takes out nothing the count held.
 func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\nAlpha holds. Beta holds. Gamma holds. Delta holds. Epsilon holds. Plain prose here.\n")
@@ -324,10 +303,7 @@ func TestRetireCreditsOnlyTheClaimsItTookOut(t *testing.T) {
 	}
 	end := claimcount.Count(readReport(t, runDir))
 	if start != 5 || end != 2 {
-		t.Fatalf("claim_count %d → %d, want 5 → 2 — the merge keeps both citations (report %q)", start, end, readReport(t, runDir))
-	}
-	if got := claimLoss(t, runDir, start, end); got != 1 {
-		t.Errorf("unrecorded_claim_loss = %d, want 1 — two retires took two claims out, the unretired gut is the one unaccounted", got)
+		t.Fatalf("the claim count %d → %d, want 5 → 2 — the merge keeps both citations (report %q)", start, end, readReport(t, runDir))
 	}
 }
 
@@ -373,10 +349,7 @@ func TestRetireTakesTwoCitedSentencesOutAtOnce(t *testing.T) {
 	}
 	end := claimcount.Count(rep)
 	if start != 2 || end != 0 {
-		t.Errorf("claim_count %d → %d, want 2 → 0", start, end)
-	}
-	if got := claimLoss(t, runDir, start, end); got != 0 {
-		t.Errorf("unrecorded_claim_loss = %d, want 0 — one retire took both citations out and credits both", got)
+		t.Errorf("the claim count %d → %d, want 2 → 0", start, end)
 	}
 
 	_, _, ops, err := record.ReportProjection(runtest.Open(t, runDir))
@@ -412,7 +385,7 @@ func TestACitedEmphasizedSentenceStaysACountedClaim(t *testing.T) {
 		t.Fatalf("precondition: the anchor is not after the closing emphasis:\n%s", rep)
 	}
 	if got := claimcount.Count(rep); got != 1 {
-		t.Errorf("claim_count = %d, want 1 — the cited emphasized sentence is a claim", got)
+		t.Errorf("the claim count = %d, want 1 — the cited emphasized sentence is a claim", got)
 	}
 	if bare := claimcount.BareAnchorIDs(rep); len(bare) != 0 {
 		t.Errorf("the anchor on live cited prose was reported bare: %v", bare)
@@ -493,18 +466,15 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	}
 }
 
-// A GUTTED CITED SENTENCE WITH NO RETIRE IS NOW SEEN: the bare anchor is not a claim, so the count
-// falls, and nothing on the record accounts for it.
-func TestAGuttedCitedSentenceWithoutRetireReadsAsLoss(t *testing.T) {
+// A GUTTED CITED SENTENCE IS NOT COUNTED: the bare anchor is not a claim, so the count falls
+// whether or not a retire follows.
+func TestAGuttedCitedSentenceLeavesTheCount(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1")
 	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	before := claimcount.Count(readReport(t, runDir))
 	gutToAnchor(t, runDir, "The sky is blue.", "<!--cite:"+label+"-->")
 	after := claimcount.Count(readReport(t, runDir))
 	if after != before-1 {
-		t.Fatalf("claim_count %d → %d after gutting a cited sentence, want a fall of 1", before, after)
-	}
-	if got := claimLoss(t, runDir, before, after); got != 1 {
-		t.Errorf("unrecorded_claim_loss = %d, want 1 — a cited sentence left with no retire", got)
+		t.Fatalf("the claim count %d → %d after gutting a cited sentence, want a fall of 1", before, after)
 	}
 }

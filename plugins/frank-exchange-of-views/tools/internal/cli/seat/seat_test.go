@@ -20,7 +20,7 @@ import (
 //
 // It was half true. Every WRITE verb honoured FEOV_RUN through Begin/Of, and the reads —
 // `show`, `count-claims`, `graph`, `scorecard`, `verify`, `assemble` — read the
-// raw flag. Measured with the identity injected: register, friction and revision all recorded
+// raw flag. Measured with the identity injected: register and two write verbs all recorded
 // happily, then `show --view board` answered "--run <runDir> is required".
 //
 // That is the worst shape for a seat to meet: it followed the contract, wrote all round, and was

@@ -134,8 +134,6 @@
 
 # CHANGELOG.md — this report's own provenance
 
-## Report revision history               <!-- [RECORD] every recorded edit to blue's report, in record order -->
-
 ## Claims retired                      <!-- [RECORD] from the retire events: the claim as it stood, why it went, and what
                                               replaced it. A claim argued and then withdrawn is part of what the debate
                                               decided; omitting it makes this report identical to one where the claim was

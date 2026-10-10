@@ -114,7 +114,6 @@ func corrRows() map[string]corrRow {
 		"blue manifest-row": {seat: "blue-respond", act: func(_ corrVars, text string) []string {
 			return []string{"manifest-row", "--id", "G1", "--reason", text}
 		}},
-		"blue revision": {seat: "blue-respond", act: prose("revision")},
 		// A corrected cite keeps its label, url and quote; only the title — the prose the report
 		// prints — moves, and nothing is fetched again.
 		"blue cite": {seat: "blue-respond",
@@ -332,14 +331,14 @@ func TestCorrectingAProposalAfterItsMoveKeepsTheLine(t *testing.T) {
 // A CORRECTION FLAG WITHOUT ITS PAIR, and a correction that corrects nothing, are refused.
 func TestCorrectionFlagsAreRefusedAlone(t *testing.T) {
 	runDir := corrFixture(t)
-	k := correctionKeyOf(t, runDir, "blue-respond", []string{"revision", "--reason", "first"})
+	k := correctionKeyOf(t, runDir, "blue-respond", []string{"position", "--reason", "first"})
 	for _, tc := range []struct {
 		args []string
 		want string
 	}{
-		{[]string{"revision", "--reason", "second", "--correction-why", "w"}, "--corrects is not given"},
-		{[]string{"revision", "--reason", "second", "--corrects", k}, "requires --correction-why"},
-		{[]string{"log", "--type", "defect", "--reason", "x", "--corrects", k, "--correction-why", "w"}, "is a revision, and this command writes a log"},
+		{[]string{"position", "--reason", "second", "--correction-why", "w"}, "--corrects is not given"},
+		{[]string{"position", "--reason", "second", "--corrects", k}, "requires --correction-why"},
+		{[]string{"log", "--type", "defect", "--reason", "x", "--corrects", k, "--correction-why", "w"}, "is a position, and this command writes a log"},
 	} {
 		_, err := runAt(t, append(tc.args, "--run", runDir, "--seat-id", "blue-respond")...)
 		if err == nil || !strings.Contains(err.Error(), tc.want) {

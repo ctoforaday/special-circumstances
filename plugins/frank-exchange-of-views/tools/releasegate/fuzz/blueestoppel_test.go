@@ -35,9 +35,9 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 			"gaps": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"dispositions": []any{}, "grade_motions": []any{},
-			"manifest": []any{"G1", "G2"}, "claim_count": 3,
-			"saturation_reached": false, "sitting_record_appended": true,
-			"open_gaps": []any{},
+			"manifest":           []any{"G1", "G2"},
+			"saturation_reached": false,
+			"open_gaps":          []any{},
 		}
 		switch {
 		case strings.HasPrefix(seatID, "red-chair"):

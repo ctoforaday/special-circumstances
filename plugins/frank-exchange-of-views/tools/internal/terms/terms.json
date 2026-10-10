@@ -147,17 +147,7 @@
         {
           "variant": "sitting, round, judicial, adversarial or process record",
           "kind": "GATED",
-          "pattern": "(sitting|round|judicial|adversarial|process) records?\\b",
-          "masks": [
-            {
-              "phrase": "sitting-record repair",
-              "reason": "the registry's own term for the sitting that files what an earlier one owed; the repair prompt opens with it, and seatclass binds that opening to the seat it classifies in every transcript, archived ones included"
-            },
-            {
-              "phrase": "sitting-record ·",
-              "reason": "the repair dispatch's label, whose literal head binds it to its seat class; a dashboard reads it, a seat never does"
-            }
-          ]
+          "pattern": "(sitting|round|judicial|adversarial|process) records?\\b"
         }
       ],
       "collisions": [
@@ -250,20 +240,6 @@
         {
           "word": "turn",
           "resolution": "a NULL TURN (a sitting that moved nothing on a gap) and an API turn (one model call inside a sitting) keep the word"
-        }
-      ]
-    },
-    {
-      "term": "sitting-record repair",
-      "definition": "A sitting-record repair is a sitting that puts on the record what your last sitting owed and did not file, and everything it records counts as that sitting's.",
-      "seats": [
-        "blue"
-      ],
-      "bans": [],
-      "collisions": [
-        {
-          "word": "repair",
-          "resolution": "blue REPAIRS the report by editing it to answer a gap, and files a manifest row for each; a SITTING-RECORD repair files what a sitting of blue's own owed. The first is about the report, the second about the record"
         }
       ]
     },

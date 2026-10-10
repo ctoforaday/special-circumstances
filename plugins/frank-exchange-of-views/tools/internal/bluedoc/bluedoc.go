@@ -292,8 +292,8 @@ func ReopenedAnchors(before, after string) []string {
 		}
 		// An anchor LEFT BARE is not reopened either: its sentence is gone, not moved, so there is
 		// nothing for red to re-verify. It is a claim on its way out through `retire`, which
-		// takes the anchor with it — and if the retire never comes, the claim count has already
-		// fallen with no retire behind it, which is the loss detector's to report.
+		// takes the anchor with it — and if the retire never comes, the anchor stands bare in the
+		// report, where the lens that reads it finds it.
 		if bare[id] {
 			continue
 		}

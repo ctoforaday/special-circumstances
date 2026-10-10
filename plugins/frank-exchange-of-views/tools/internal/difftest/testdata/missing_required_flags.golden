@@ -115,23 +115,22 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry        restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dispatch     `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  spot-check   sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
-  verdict      the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
+  closing     your closing argument on one docketed gap, when the bench is about to rule on it
+  dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  spot-check  sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
+  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  avenue       read the report against every avenue on the record — `review` states what that reading found
-  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  avenue      read the report against every avenue on the record — `review` states what that reading found
+  inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record

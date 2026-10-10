@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -89,16 +91,18 @@ type Model struct {
 	// Run, not a path: the model is built from a resolved run and both its readers want that
 	// same run, so carrying the string would mean one of them re-deriving what the other
 	// already holds. No JSON tag — this struct is consumed by renderHtml alone.
-	Run             record.Run
-	Telemetry       []*recordpb.TelemetryLine
-	Latest          *recordpb.TelemetryLine
-	Seats           []Seat
-	Cost            float64
-	CostRows        []CostRow
-	APIRounds       int
-	Agents          int
-	Log             LogTile
-	Shards          Shards
+	Run       record.Run
+	Telemetry []*recordpb.TelemetryLine
+	Latest    *recordpb.TelemetryLine
+	Seats     []Seat
+	Cost      float64
+	CostRows  []CostRow
+	APIRounds int
+	Agents    int
+	Log       LogTile
+	Shards    Shards
+	// BlueClaims is the report's claim count, COUNTED FROM THE REPORT ON THE RECORD (blueClaimsOf)
+	// — what `count-claims` prints. Nil is "not measured": the record holds no report to count.
 	BlueClaims      *int
 	Steps           []Step
 	Rates           []Rate
@@ -130,6 +134,22 @@ func jsonl(path string) []map[string]any {
 		}
 	}
 	return out
+}
+
+// blueClaimsOf is the report's claim count, and it is `count-claims`' computation: the report
+// rendered from the record, counted by the one counting rule. No seat relays the number and no
+// envelope carries it, so the tile cannot disagree with the report it describes.
+//
+// NIL IS "NOT MEASURED", NEVER ZERO. A record with no frozen report — a run before its synthesis,
+// or no record at all — has nothing to count, and a zero there would read as a report with no
+// cited claim in it.
+func blueClaimsOf(run record.Run) *int {
+	md, err := reportproj.RenderFromRecord(run)
+	if err != nil {
+		return nil
+	}
+	n := claimcount.Count(md)
+	return &n
 }
 
 // BuildModel gathers the run's instruments — the Go port of buildModel. It reads the record
@@ -326,18 +346,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 	}
 
-	// Blue claims: last journal result carrying a numeric claim_count.
-	var blueClaims *int
-	for _, j := range journal {
-		r, _ := j["result"].(map[string]any)
-		if r == nil {
-			continue
-		}
-		if c, ok := r["claim_count"].(float64); ok {
-			n := int(c)
-			blueClaims = &n
-		}
-	}
+	blueClaims := blueClaimsOf(run)
 
 	var jud Judiciary
 	if haveRecord {

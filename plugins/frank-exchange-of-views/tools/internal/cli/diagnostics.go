@@ -258,8 +258,8 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 
 // actsOf is what THIS SEAT'S TREE offers, walked from the real root.
 //
-// IT WAS THE role-PREFIXED SUBSET OF CommandPaths(), AND THAT IS A DIFFERENT SET. `motion`,
-// `fetch` and `count-claims` are mounted on every seat's root and carry no role in their join
+// IT WAS THE role-PREFIXED SUBSET OF CommandPaths(), AND THAT IS A DIFFERENT SET. `motion`
+// and `fetch` are mounted on every seat's root and carry no role in their join
 // key, so they were missing from the denominator — and because SEEN rejects a listing containing
 // a name the role does not own, their presence in the seat's OWN help discarded the block whole.
 // The measure reported a lens that had just been handed its entire surface as having seen

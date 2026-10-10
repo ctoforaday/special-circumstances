@@ -279,19 +279,18 @@ Each claim below rests on a cited source.
 				Key: "stale", Class: "claim-contradicts-own-record",
 				Location: `An earlier draft of this report claimed the floor was 90 days.`,
 				Problem:  "A superseded claim is still stated in the report as though it stands.",
-				Fix:      "Remove the claim through the accounted channel so the claim count reconciles.",
+				Fix:      "Remove the claim through the accounted channel so the record shows it leaving.",
 				Check:    "The 90-day claim is gone AND its removal is on the record.", CheckKind: "document",
 				Severity: "medium", Likelihood: "high", Impact: "medium", Complexity: "low",
 				Baits: "retire",
-				Why: "A claim leaves only through the retire verb, never by quietly not being there: capture " +
-					"compares the claim-count fall against the retire events and an unaccounted drop is a " +
-					"detector hit against blue.",
+				Why: "A claim leaves only through the retire verb, never by quietly not being there: the " +
+					"retire names the claim, why it went and the anchors that leave with it, and the " +
+					"changelog lists it for the reader.",
 			},
 		},
 		Expect: []Expectation{
 			{Seat: "blue-respond", Verb: "cite", Because: "A source-kind check is settled by verifying an external source, and the cite verb is the only path that caches it and splices the anchor. Hand-typing a footnote is both refused and pointless."},
-			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. Deleting the sentence with an edit drops the claim count with no retire event behind it, which capture scores as an unaccounted drop."},
-			{Seat: "blue-respond", Verb: "revision", Because: "The sitting's edits are logged as a revision so the transcript and the report agree. A sitting whose repairs are real and whose revision is missing is the desync that once blinded a judge."},
+			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. Deleting the sentence with an edit leaves its anchor bare and no account of why the claim went."},
 		},
 	}
 }

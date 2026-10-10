@@ -10,7 +10,7 @@ package fuzz
 // not a happy path: lens (cite/finding/avenue/log), merge (position/closing/
 // mint/close incl. repaired_with_regression/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
-// across all four dimensions/manifest-row/avenue/revision/retire/petition), bench
+// across all four dimensions/manifest-row/avenue/retire/petition), bench
 // (opinion/outcome/certify/assemble/petition-rule). The
 // disputes docket is driven through the ENVELOPE (raiseDisputes/answerDisputes) and the
 // petition->petition-rule docket through the RECORD and the plan that relays it
@@ -137,7 +137,7 @@ type lockedRand struct {
 // A bench register without one is REFUSED, and these call sites discard the error — so the miss
 // arrived many steps later as a TypeError out of the engine, on a run whose bench had simply never
 // sat. That discard is its own defect and is filed separately; this is the fix for the argv.
-func registerArgs(seatID, occasion string, extra ...string) []string {
+func registerArgs(seatID, occasion string) []string {
 	args := []string{"register", "--seat-id", seatID}
 	if record.SeatOwesOccasion(seatID) {
 		// THE SITTING NAMES ITSELF. Hardcoding `docket` would register all four bench sittings as
@@ -148,7 +148,7 @@ func registerArgs(seatID, occasion string, extra ...string) []string {
 		}
 		args = append(args, "--occasion", occasion)
 	}
-	return append(args, extra...)
+	return args
 }
 
 func newLockedRand(seed int64) *lockedRand {
@@ -1980,13 +1980,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			pv.run()
 		})
-		r.maybe(40, func() { r.do("revision", seatID).set("--reason", "fuzz revision").run() })
 		r.maybe(30, func() {
 			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
 			// string that was never in the report — 45 times a sweep. A phantom retire is not
-			// merely uninformative: the scorecard computes unrecorded_claim_loss as the drop in
-			// claim_count MINUS the retire events, so retiring something that was never there
-			// cancels real loss and blinds the detector built to catch silent deletion.
+			// merely uninformative: the changelog lists every retirement as a claim that left the
+			// report, so retiring something that was never there tells the reader of a removal
+			// the report never had.
 			//
 			// A real retirement names text a recorded edit took out, which is what makes the
 			// removal something the record can SHOW rather than something a seat says.
@@ -2035,33 +2034,14 @@ func arr(v ...any) []any { return append([]any{}, v...) }
 // decide whether the loop continues, deadlocks, or terminates.
 func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	switch {
-	// THE ENGINE'S SITTING-RECORD RE-PROMPT (#1002). Its prompt names no SEAT_ID, so the seat comes
-	// from the label. The seat registers as the repair of its last sitting and files what that
-	// sitting owed; a refused repair — the sitting owed nothing — registers as a sitting of its own
-	// and attests what the refusal said. Listed first: the label also starts with the seat's id.
-	case strings.HasSuffix(seatID, "-sitting-record"):
-		seat := strings.TrimSuffix(seatID, "-sitting-record")
-		if _, err := r.exec(registerArgs(seat, "", "--repair-sitting")...); err != nil {
-			_, _ = r.exec(registerArgs(seat, "")...)
-			r.do("log", seat).set("--type", "friction").set("--reason", "fuzz: the repair was refused — "+firstLine(err.Error())).run()
-			return map[string]any{"sitting_record_appended": false, "note": firstLine(err.Error())}
-		}
-		// A POSITION ONLY FROM A SEAT THAT OWES ONE (record.SeatOwesPosition): the re-prompted
-		// synthesizer files its revision alone, and a position from it is driven as the refusal.
-		if record.SeatOwesPosition(seat) {
-			_, _ = r.exec("position", "--seat-id", seat, "--reason", "repair: the position the sitting owed")
-		} else {
-			r.positionRefused(seat)
-		}
-		r.do("revision", seat).set("--reason", "repair: the revision the sitting owed").run()
-		return map[string]any{"sitting_record_appended": true}
-
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.sit("blue", seatID)
 		r.extras("blue", seatID, nil)
 		r.maybe(25, func() { r.positionRefused(seatID) })
 		r.maybePetition(seatID)
-		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10}
+		// THE ENVELOPE RELAYS NOTHING THE RECORD HOLDS: no claim count and no attestation of what the
+		// sitting put on the record (TestNoEnvelopeRestatesARecordFact).
+		return map[string]any{"saturation_reached": r.coin(50)}
 
 	case strings.HasPrefix(seatID, "red-chair"):
 		r.sit("chair", seatID)
@@ -2177,11 +2157,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range engaged {
 			manifest = append(manifest, id)
 		}
-		// ONE SITTING IN FIVE DOES NOT ATTEST ITS RECORD, so the engine's re-prompt — and the register
-		// that repairs a sitting — is driven. Its revision is filed only some of the time (extras), so
-		// the repair is admitted where the sitting owes one and refused where it owes nothing.
 		r.maybePetition(seatID)
-		return map[string]any{"sitting_record_appended": !r.coin(20), "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_motions": disputes}
+		return map[string]any{"saturation_reached": r.coin(50), "manifest": manifest, "grade_motions": disputes}
 
 	// THE BENCH IS ONE SEAT ASKED FOUR QUESTIONS, so `seatID` no longer discriminates its sittings:
 	// every bench prompt renders `SEAT_ID: judge`. Routing on the id sent the petition sitting and
@@ -2572,10 +2549,6 @@ type outcome struct {
 	// positionsRefused is the positions the tool refused a seat that owes none
 	// (runner.positionsRefused).
 	positionsRefused int
-	// repairs is the registers on the record that name the sitting they repair (#1002). The
-	// register verb is gated as a type, which any register satisfies, so a repair path that stopped
-	// writing the field would pass it silently.
-	repairs int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -3525,10 +3498,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			continue
 		}
 		switch t := body.(type) {
-		case *recordpb.Register:
-			if t.RepairsSitting != nil {
-				res.repairs++
-			}
 		case *recordpb.BlueEdit:
 			if t.GetAnswers() != "" {
 				res.editAnswers++
@@ -3660,7 +3629,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "regrade", "mint", "close",
-	"cite", "verify", "finding", "avenue", "reproduce", "log", "revision", "retire",
+	"cite", "verify", "finding", "avenue", "reproduce", "log", "retire",
 	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
@@ -3730,6 +3699,9 @@ var coverExempt = map[string]bool{
 	// can be staged on purpose — the record tests, the per-command acceptance test in internal/cli,
 	// and the determinism fuzz in internal/difftest.
 	"correction": true,
+	// NO COMMAND WRITES A REVISION. The type stays declared so `migrate` can carry the revisions
+	// an archived record holds, and migrate is its one writer; migrate's own tests drive it.
+	"revision": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -3860,7 +3832,7 @@ var dialecticProseKey = map[string]string{
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// Run-level voices.
-	"revision": "text", "halt": "opinion", "certify": "statement", "declare": "holding",
+	"halt": "opinion", "certify": "statement", "declare": "holding",
 	// The log: what a seat told the operator. It renders in run.md, beside the seats that sat
 	// and filed nothing.
 	"log": "text",
@@ -3882,6 +3854,7 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
+	"revision":    "written by migrate alone, for the revisions an archived record holds — no command records one and no document renders its prose: the changelog lists what left the report",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
 	"blue_edit":   "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
@@ -4181,7 +4154,6 @@ func TestFuzzDebate(t *testing.T) {
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
-	repairs := 0                           // registers naming the sitting they repair (the engine's re-prompt)
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
 
@@ -4245,7 +4217,6 @@ func TestFuzzDebate(t *testing.T) {
 			estoppels += o.estoppels
 			avenueMoves += o.avenueMoves
 			positionsRefused += o.positionsRefused
-			repairs += o.repairs
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
 			}
@@ -4275,8 +4246,8 @@ func TestFuzzDebate(t *testing.T) {
 		sort.Strings(causes)
 		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
 	}
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s\n  sitting-record repairs: %d registers named the sitting they repaired",
-		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses, repairs)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
+		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", avenueMoves, dcov["avenue"])
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
@@ -4361,9 +4332,6 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if creditedMints == 0 {
 			t.Errorf("fuzz minted ZERO gaps crediting a finding across %d runs — no accepted mint carried --found-by, so the id a finding is credited by is unexercised (false green)", completed)
-		}
-		if repairs == 0 {
-			t.Errorf("fuzz recorded ZERO registers naming a repaired sitting across %d runs — the engine's sitting-record re-prompt never registered as a repair, so the repair path is unexercised (false green)", completed)
 		}
 		if verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)

@@ -51,10 +51,9 @@ func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
 
 // A PHANTOM RETIRE IS RECORDED AS `asserted`, NOT AS A REMOVAL.
 //
-// It is worse than useless when it passes for one: the scorecard computes
-// unrecorded_claim_loss as (drop in claim_count) MINUS (retire events), so retiring something
-// that was never there subtracts from the accounted side and cancels REAL loss — blinding the
-// one detector built to catch silent deletion.
+// It is worse than useless when it passes for one: the changelog lists every retirement as a
+// claim that left the report, so retiring something that was never there tells the reader of a
+// removal the report never had.
 func TestAPhantomRetireIsMarkedAsserted(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSomething entirely else.\n")

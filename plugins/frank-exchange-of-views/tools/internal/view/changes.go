@@ -13,9 +13,7 @@ import (
 //
 // `edit` has appended a `blue_edit` event since 0.27.0 and NO PROJECTION RENDERED IT.
 // The record's most detailed channel — every span blue replaced, with its reason — was
-// written by one seat and read by nobody, while the `changelog` view rendered faithfully
-// from a `revision` event no seat has emitted since the verb left the prompts. Two halves
-// that never met.
+// written by one seat and read by nobody.
 //
 // It matters now because estoppel cannot be adjudicated on evidence nobody can see. Red
 // answers "did blue fix R1-1?" by re-reading the whole report and INFERRING. That full
@@ -51,8 +49,8 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	// THE GROUP IS THE SITTING, not an epoch: the record carries no epoch column, and what a reader
 	// catching up wants is "since this seat's previous sitting" — so the heading changes when the
 	// editing seat or its sitting ordinal does. The ordinal is the sitting the record holds the edit
-	// in (in.At): a revision filed in a sitting-record repair is grouped under the sitting it
-	// completes rather than under a heading of its own.
+	// in (in.At): an edit filed under a register that names a repaired sitting is grouped under the
+	// sitting it names rather than under a heading of its own.
 	var group string
 	n, total := 0, 0
 	for _, e := range in.Events {

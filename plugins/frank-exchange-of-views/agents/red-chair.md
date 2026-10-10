@@ -101,7 +101,7 @@ the key of your own act, written this sitting, that this invocation corrects —
 §7 (on 8 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§8 (on 22 pages):
+§8 (on 21 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -167,23 +167,22 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  carry        restate an earlier sitting's closure, when the work is done and you are not re-attesting it
-  closing      your closing argument on one docketed gap, when the bench is about to rule on it
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dispatch     `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  position     your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  spot-check   sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
-  verdict      the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
+  carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
+  closing     your closing argument on one docketed gap, when the bench is about to rule on it
+  dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  spot-check  sample the closure archive — a duty every chair sitting owes, including the sittings with nothing to sample
+  verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  avenue       read the report against every avenue on the record — `review` states what that reading found
-  inquest      READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  avenue      read the report against every avenue on the record — `review` states what that reading found
+  inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -307,17 +306,6 @@ Flags:
   -h, --help                    help for closing
       --id gap-id               REQUIRED — the gap id this closing argues
       --reason string           REQUIRED — your closing argument on this gap — your THINKING, not your process. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-
-(Global Flags:) → SHARED §8
-==============================================================================
-$ feov-record count-claims --help
-count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
-
-Usage:
-  feov-record count-claims [flags]
-
-Flags:
-  -h, --help   help for count-claims
 
 (Global Flags:) → SHARED §8
 ==============================================================================
@@ -893,7 +881,7 @@ FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it —
 
 WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair.
 
-`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named, and `found_closed` is each of them its lens closed before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position and no revision. An empty `found_closed` says every engaged gap was open when blue sat.
+`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named, and `found_closed` is each of them its lens closed before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position. An empty `found_closed` says every engaged gap was open when blue sat.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 

@@ -61,9 +61,9 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 		e := debatejs.Envelope{
 			"synopsis": "seatprobe capture", "rulings": []any{},
 			"dispositions": []any{}, "holdings": []any{},
-			"manifest": ids, "claim_count": len(b.Claims),
-			"saturation_reached": false, "sitting_record_appended": true,
-			"open_gaps": 0,
+			"manifest":           ids,
+			"saturation_reached": false,
+			"open_gaps":          0,
 		}
 		switch {
 		case strings.HasPrefix(seatID, "red-chair"):

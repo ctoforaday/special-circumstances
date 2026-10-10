@@ -75,11 +75,10 @@ func TestEveryProjectionAPromptNamesIsOnThatSeatsSurface(t *testing.T) {
 			t.Fatal(err)
 		}
 		text := strings.Join(strings.Fields(string(b)), " ")
-		// THE SEAT IS THE ONE THE PROMPT STATES. A repair prompt states none — it goes to a seat
-		// already sitting — and is named for that seat instead. Either way the tree must be a
-		// seat's: an id the roster does not know gets a tree with no read group, and every view
+		// THE SEAT IS THE ONE THE PROMPT STATES, and where it states none, the one its golden is
+		// named for. Either way the tree must be a seat's: an id the roster does not know gets a tree with no read group, and every view
 		// would then be "missing" for a reason that has nothing to do with the prompt.
-		seatID := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(path), "prompt-"), ".golden"), "-sitting-record")
+		seatID := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(path), "prompt-"), ".golden")
 		if m := promptSeatID.FindStringSubmatch(text); m != nil {
 			seatID = m[1]
 		}

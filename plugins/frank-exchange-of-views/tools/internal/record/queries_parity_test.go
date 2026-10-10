@@ -160,10 +160,10 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Error("ClaimAppearsInAnEdit disagrees with the recorded old spans")
 	}
 
-	// GapsAwaitingProof: G1 is the open computation gap with no proof; G3's proof discharges
+	// The gaps the work list marks as awaiting a proof: G1 is the open computation gap with no proof; G3's proof discharges
 	// it and G2 is a document check.
-	if got := GapsAwaitingProof(run); len(got) != 1 || got[0] != "G1" {
-		t.Errorf("GapsAwaitingProof = %v, want [G1]", got)
+	if got := awaitingProofT(t, run); len(got) != 1 || got[0] != "G1" {
+		t.Errorf("the work list's awaiting-proof gaps = %v, want [G1]", got)
 	}
 
 	if kind, err := MintCheckKind(run, "G2"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
@@ -209,8 +209,8 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if err := passRefusalOver(t, run, BlockerStrandedGap); err != nil {
 		t.Errorf("the stranded refusal = %v", err)
 	}
-	if got := GapsAwaitingProof(run); got != nil {
-		t.Errorf("GapsAwaitingProof = %v", got)
+	if got := awaitingProofT(t, run); got != nil {
+		t.Errorf("the work list's awaiting-proof gaps = %v", got)
 	}
 	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 		t.Errorf("MintCheckKind = (%v, %v)", kind, err)

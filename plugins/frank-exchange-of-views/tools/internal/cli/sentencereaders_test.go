@@ -58,7 +58,7 @@ func TestEverySentenceReaderReadsOneSentence(t *testing.T) {
 	c4 := cite("Gone item", "https://a/5")
 
 	t.Run("a sentence carrying a terminator inside it counts as one claim", func(t *testing.T) {
-		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", blueSeat); err != nil || strings.TrimSpace(out) != "5" {
+		if out, err := run(t, "count-claims", "--run", runDir, "--seat-id", "operator"); err != nil || strings.TrimSpace(out) != "5" {
 			t.Errorf("count-claims = %q (%v), want 5: \"91 = 7 × 13. ✓%s\" is a cited claim", out, err, anchor.Token(c2))
 		}
 	})

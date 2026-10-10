@@ -64,8 +64,6 @@ func seatOfGolden(name string) string {
 	// sitting answered is the register's `occasion` now, not something this table recovers.
 	case name == "judge-terminal", name == "judge-petition", name == "assemble":
 		return "judge"
-	case strings.HasSuffix(name, "-sitting-record"):
-		return strings.TrimSuffix(name, "-sitting-record")
 	}
 	return name
 }

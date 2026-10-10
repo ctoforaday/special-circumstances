@@ -30,7 +30,7 @@ import (
 //
 // Nothing here invents an obligation. Each one is refused at a write path (open material gaps and
 // unruled motions block `verdict`; a computation gap cannot be closed on prose), is a stated
-// epoch-record requirement (W1.7's revision, the bench's terminal outcome), or is enforced by
+// record requirement (blue-respond's position, the bench's terminal outcome), or is enforced by
 // dispatch (a seat whose sitting has not opened since the dispatch named it — no hook bracket and
 // no register — is readied again; a chair that has not registered for its sitting is refused
 // `dispatch next`). Inventing a duty here would make this view disagree with the gates, and a seat
@@ -225,9 +225,6 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
 		// reaches blue through the ordinary route with a grade and a required fix — with the PASS
 		// gate behind it when the gap is material by its class or grade. Restoring a second duty here would be the same fact told twice.
-		if revisionOwed(evs, win, seatID) && !seatDidThisSitting(evs, win, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
-			add("this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)")
-		}
 		// THE POSITION IS OWED BY THE SEAT SeatOwesPosition NAMES, and among blue seats that is the
 		// responding one: its sitting that found an engaged gap open owes the bench an argument.
 		// The state is PositionSittings' — the reading capture's record-parity audit fails a closed
@@ -348,27 +345,11 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 	return false
 }
 
-// revisionOwed says whether this blue sitting owes a revision. Every blue sitting does, except a
-// blue-respond sitting that found every gap it was dispatched on closed before it sat: it has
-// nothing to answer, and the sitting its register opened is the whole record of it (gblock's
-// ruling). The sitting is record.BlueSittings' — the reading capture's record-parity audit
-// holds it to — so the work list and the audit cannot disagree about it.
-//
-// IT HAS NO NOT-MEASURED ANSWER, AND NEEDS NONE. Whether a sitting owes is its Open set, which is
-// fixed at blue's register — the dispatch and the closes before it — and never reads where the
-// sitting ended. The latest sitting is unresolved exactly while blue is sitting it, which is when
-// this list is read: an in-flight sitting still owes what it found open. Whether the owed revision
-// was FILED is seatDidThisSitting's question, read off blue's latest sitting.
-func revisionOwed(evs []*Event, win WindowIndex, seatID string) bool {
-	s, sat := sittingOfBlueRespond(evs, win, seatID)
-	return !sat || len(s.Open) > 0
-}
-
 // sittingOfBlueRespond is the sitting blue-respond's work list is read in: the latest of
 // record.BlueSittings, read while the run is running. sat is false for every other seat, and for a
-// blue-respond the record holds no dispatched sitting of. The revision duty (revisionOwed) and the
-// gaps the list names as found closed (engagedOf) are both read off it, so the list cannot excuse a
-// revision over one set of gaps and name another.
+// blue-respond the record holds no dispatched sitting of. The gaps the list names as found closed
+// (engagedOf) are read off it — the sitting PositionSittings holds to a position — so the list
+// cannot excuse a position over one set of gaps and name another.
 func sittingOfBlueRespond(evs []*Event, win WindowIndex, seatID string) (BlueSitting, bool) {
 	if seatID != blueRespondSeat {
 		return BlueSitting{}, false
@@ -387,7 +368,7 @@ type EngagedJSON struct {
 	GapIDs []string `json:"gap_ids"`
 	// FoundClosed is each of those a close preceded this sitting's register on — its lens sat first
 	// and closed it. It is what the sitting's envelope names as found closed, and when it holds
-	// every gap of GapIDs the sitting owes no position and no revision. Never omitted: an empty list
+	// every gap of GapIDs the sitting owes no position. Never omitted: an empty list
 	// is "every engaged gap was open when you sat".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
 }
@@ -417,13 +398,13 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 
 // seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts in the sitting
 // the write path stored them in count (thisSitting). seatDid reads the whole record,
-// so the first sitting's act discharged every later one: in B9 blue sat in epoch 5 with G4 open,
-// filed no revision, and read `complete` because its epoch-4 revision was on the record. A seat that
+// so the first sitting's act discharged every later one: a seat that sat again and filed nothing
+// read `complete` because its earlier sitting's act was on the record. A seat that
 // has never sat has no earlier sitting to borrow from, so the whole record is its sitting.
 //
 // IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
 // act belong to", so it reads the stored sitting, the one definition every attribution reader
-// shares: the write path stores a sitting-record repair, and its acts, in the sitting it repairs.
+// shares: the write path stores a register that names a repaired sitting, and its acts, in the sitting it names.
 // Starting the window at the seat's latest register of ANY kind put the repair's own register there, so inside a repair the work list said
 // the log channel was open for a sitting that had already filed there. The seat was told to file
 // something it had done, on the one surface it reads to find out what is left.

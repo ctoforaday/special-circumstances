@@ -175,7 +175,31 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		manifest := correctnessManifest(fam)
 		contains("correctness manifest", manifest, "**G1** (blue-respond #1)")
 		absent("correctness manifest", manifest, "#2")
-		contains("revision history", revisionHistory(fam), "### Epoch 2 — blue-respond")
+	})
+
+	// THE CHANGELOG HOLDS NO REVISION PROSE. The record above holds a revision — a migrated archive
+	// holds them, and nothing else writes one — and the document a human is handed lists what left
+	// the report and nothing a seat narrated about its sitting.
+	t.Run("the changelog document", func(t *testing.T) {
+		docs, err := AssembleAll(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body, blurb string
+		for _, d := range docs {
+			if d.File == FileChangelog {
+				body, blurb = d.Body, d.Blurb
+			}
+		}
+		contains("CHANGELOG.md", body, "the old figure")
+		for _, gone := range []string{"Report revision history", "recomputed the figure", "### Epoch"} {
+			if strings.Contains(body, gone) {
+				t.Errorf("CHANGELOG.md prints %q — a revision's prose:\n%s", gone, body)
+			}
+		}
+		if strings.Contains(strings.ToLower(blurb), "revision") {
+			t.Errorf("the changelog's blurb promises revisions: %q", blurb)
+		}
 	})
 
 	t.Run("the fact box", func(t *testing.T) {
