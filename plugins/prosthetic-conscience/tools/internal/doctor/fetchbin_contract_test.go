@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -84,7 +85,8 @@ func mustWrite(t *testing.T, path, body string) {
 	}
 }
 
-// run invokes the fixture's script. path, when non-empty, replaces PATH.
+// run invokes the fixture's script. path, when non-empty, replaces PATH. The script's processes
+// are waited for before the test's directories are removed — see awaitDescendants.
 func (f fetchFixture) run(t *testing.T, path string, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
 	cmd := exec.Command("sh", append([]string{filepath.Join(f.root, "hooks", "fetch-bin.sh")}, args...)...)
@@ -94,7 +96,14 @@ func (f fetchFixture) run(t *testing.T, path string, args ...string) (stdout, st
 	}
 	var o, e bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &o, &e
-	err := cmd.Run()
+	alive, held, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.ExtraFiles = []*os.File{held}
+	err = cmd.Run()
+	held.Close()
+	t.Cleanup(func() { awaitDescendants(t, alive) })
 	var exit *exec.ExitError
 	switch {
 	case errors.As(err, &exit):
@@ -103,6 +112,25 @@ func (f fetchFixture) run(t *testing.T, path string, args ...string) (stdout, st
 		t.Fatal(err)
 	}
 	return o.String(), e.String(), code
+}
+
+// awaitDescendants blocks until every process the script left behind has exited. `hook` returns
+// while the fetch it detached is still running, and that fetch goes on writing into .fetch/ after
+// the binaries are in bin/: it clears failed, stamps installed, appends to log, and its EXIT trap
+// removes tmp.<pid> and the lock. A test that returns on the binaries arriving hands a directory
+// still being written to t.TempDir's RemoveAll. Every descendant inherits the write end of this
+// pipe, so end-of-file is the last of them exiting; run registers this after the fixture's
+// directories exist, so it runs before they are removed.
+func awaitDescendants(t *testing.T, alive *os.File) {
+	t.Helper()
+	defer alive.Close()
+	if err := alive.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		t.Errorf("cannot bound the wait for the script's processes: %v", err)
+		return
+	}
+	if _, err := io.Copy(io.Discard, alive); err != nil {
+		t.Errorf("a process the script started is still running 30s after the test body returned: %v", err)
+	}
 }
 
 // hook runs `hook <event>` and holds it to the guard's contract: exit 0, and stdout empty or one
@@ -466,6 +494,29 @@ func TestFetchBinBreaksALockWhoseHolderHasExited(t *testing.T) {
 	mustWrite(t, f.state("lock/pid"), fmt.Sprintf("%d\n", gone.Process.Pid))
 	f.hook(t, "PreToolUse")
 	f.waitInstalled(t)
+}
+
+// The fixture owns the fetch a hook detaches: a test's directories are removed only after that
+// fetch has exited. The date stub holds the fetch open at its last log line — after the binaries
+// are in bin/, which is all waitInstalled watches for — and records that it got through.
+func TestFetchBinFixtureOutlastsTheFetchAHookDetached(t *testing.T) {
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep to hold the fetch open with")
+	}
+	marks := t.TempDir()
+	finished := filepath.Join(marks, "finished")
+	t.Run("hook", func(t *testing.T) {
+		f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+		path := toolPath(t, nil, map[string]string{"date": fmt.Sprintf("%q 0.5; : >%q; echo 2026-01-01T00:00:00Z", sleep, finished)})
+		if _, _, code := f.run(t, path, "hook", "PreToolUse"); code != 0 {
+			t.Fatalf("hook exited %d", code)
+		}
+		f.waitInstalled(t)
+	})
+	if _, err := os.Stat(finished); err != nil {
+		t.Fatalf("the test returned, and its directories were removed, while the fetch it started was still running: %v", err)
+	}
 }
 
 // `ensure` is the version question, asked once per session: a binary from an older release is as
