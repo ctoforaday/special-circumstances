@@ -63,7 +63,7 @@ type Blocker struct {
 	// the edit that reopened a citation or proof — so dispatch can ask whether its owner has sat
 	// since; 0 for the kinds dispatch does not ready.
 	since int64
-	// lastCheck is the events.id of a reopened anchor's latest check, which its edit outdated.
+	// lastCheck is the events.id of a reopened anchor's latest check, which does not clear it.
 	lastCheck int64
 }
 
@@ -109,11 +109,8 @@ func ownerOr(b Blocker, fallback string) string {
 // contradictionReader is who raises a contradiction when the record names no reader.
 const contradictionReader = "a lens"
 
-// reopenedChecker is who checks a reopened citation or proof when the blocker names no seat.
-const reopenedChecker = "the evidence lens"
-
 // reopenedFact is the one sentence every wording of a reopened blocker states: which anchor, the
-// edit that changed its sentence, and the check that edit outdated — all three as the record
+// edit that changed its sentence, and its latest check — all three as the record
 // holds them, so a reader can go to each.
 func reopenedFact(b Blocker) string {
 	return fmt.Sprintf("%s's sentence changed at edit %d and no sitting opened since has checked it (its last check is event %d)", b.Subject, b.since, b.lastCheck)
@@ -200,7 +197,7 @@ var blockerKinds = []blockerKind{
 			if b.Detail != "" {
 				act = "re-runs it (`reproduce --id " + b.Detail + "`)"
 			}
-			return fmt.Sprintf("%s — PASS is refused until %s %s", reopenedFact(b), ownerOr(b, reopenedChecker), act)
+			return fmt.Sprintf("%s — PASS is refused until %s %s", reopenedFact(b), evidenceSeat, act)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -210,10 +207,10 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%d citation(s) or proof(s) are unchecked since their sentence changed:\n  %s\n"+
 				"Each check on the record is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
 				"A `verify` (any result but `unreachable`) or a `reproduce` from a sitting opened after the edit clears it. It is owed by %s; PASS waits for it, and `--as FAIL` does not",
-				len(bs), strings.Join(named, "\n  "), ownerOr(bs[0], reopenedChecker))
+				len(bs), strings.Join(named, "\n  "), evidenceSeat)
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("%s — %s", reopenedFact(b), planHold(b, "PASS is not permitted until "+ownerOr(b, reopenedChecker)+" checks it"))
+			return fmt.Sprintf("%s — %s", reopenedFact(b), planHold(b, "PASS is not permitted until "+evidenceSeat+" checks it"))
 		},
 	},
 	{
@@ -378,7 +375,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	// owner cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence`
 	// lists the anchor either way.
 	if slices.Contains(castOfEvents(evs), evidenceSeat) {
-		for _, r := range reopenedEvidence(evs, ids, win) {
+		for _, r := range reopenedEvidence(evs, win) {
 			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: evidenceSeat, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
 		}
 	}

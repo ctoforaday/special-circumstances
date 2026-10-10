@@ -128,7 +128,7 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 func reopenedRows(t *testing.T, b *stage) []reopened {
 	t.Helper()
 	m := loadedT(t, b.evs...)
-	return reopenedEvidence(m.Events, m.At.IDs(m.Events), m.At)
+	return reopenedEvidence(m.Events, m.At)
 }
 
 func TestACheckBeforeTheEditDoesNotClear(t *testing.T) {
@@ -157,7 +157,7 @@ func TestACheckWithNoSittingDoesNotClear(t *testing.T) {
 	if s := m.At.Of(m.Events[len(m.Events)-1]).SittingID; s != 0 {
 		t.Fatalf("fixture: the verify sits in sitting %d, want none", s)
 	}
-	if got := reopenedEvidence(m.Events, m.At.IDs(m.Events), m.At); len(got) != 1 || got[0].lastCheck != b.at() {
+	if got := reopenedEvidence(m.Events, m.At); len(got) != 1 || got[0].lastCheck != b.at() {
 		t.Errorf("rows = %+v, want C-1 still reopened: a check in no sitting says nothing about when the sentence was read", got)
 	}
 }
@@ -257,6 +257,20 @@ func TestACorrectedRerunKeepsItsPlace(t *testing.T) {
 	got := reopenedRows(t, b)
 	if len(got) != 1 || got[0] != (reopened{anchor: "P-1", sha: "s1", edit: edit, lastCheck: first}) {
 		t.Errorf("rows = %+v, want P-1 still reopened at edit %d, its last check the re-run's own place %d", got, edit, first)
+	}
+}
+
+// F10: a proof and its re-run join on the script's sha, so one later re-run clears every reopened
+// proof sharing it — the accepted residue, pinned so a change to the join is a decision.
+func TestARerunClearsEveryProofSharingItsScript(t *testing.T) {
+	sound := recordpb.Soundness_SOUNDNESS_SOUND
+	b := reopenedBoard(t).proof("P-1", "s1").proof("P-2", "s1").reproduce(evLens, "s1", true, sound).reopen("P-1", "P-2")
+	if got := reopenedRows(t, b); len(got) != 2 {
+		t.Fatalf("fixture: rows before the re-run = %+v, want P-1 and P-2", got)
+	}
+	b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "s1", true, sound)
+	if got := reopenedRows(t, b); len(got) != 0 {
+		t.Errorf("rows after a later sitting re-ran the shared script = %+v, want none", got)
 	}
 }
 

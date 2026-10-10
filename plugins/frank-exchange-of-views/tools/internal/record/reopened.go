@@ -16,7 +16,7 @@ type reopened struct {
 }
 
 // reopenedEvidence is the citations and proofs that are REOPENED AND UNCHECKED, in the order the
-// record placed them. ids is evs's events.id, aligned with it.
+// record placed them.
 //
 // A CHECK ON THE RECORD IS A CHECK OF THE SENTENCE AS IT STOOD. An edit that changes the sentence
 // leaves the check standing over prose nobody read against the source: on universe-m19 a citation
@@ -34,14 +34,11 @@ type reopened struct {
 //
 // A corrected re-run stands in its target's place (liveAt), so it reads at that place's id and
 // that place's sitting: a correction filed in a later sitting does not date the re-run it corrects.
-func reopenedEvidence(evs []*Event, ids []int64, win WindowIndex) []reopened {
-	type item struct {
-		reopened
-		cleared bool
-	}
-	var order []*item
-	byAnchor := map[string]*item{}
-	bySha := map[string][]*item{} // a proof and its re-run join on proof_sha, the record's only join
+func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
+	// An item's edit is 0 while it owes nothing: never reopened, retired, or cleared.
+	var order []*reopened
+	byAnchor := map[string]*reopened{}
+	bySha := map[string][]*reopened{} // a proof and its re-run join on proof_sha, the record's only join
 	place := make([]int64, len(evs))
 	for i := range place {
 		place[i] = int64(i)
@@ -51,7 +48,7 @@ func reopenedEvidence(evs []*Event, ids []int64, win WindowIndex) []reopened {
 		if anchor == "" || byAnchor[anchor] != nil {
 			return
 		}
-		it := &item{reopened: reopened{anchor: anchor, sha: sha}}
+		it := &reopened{anchor: anchor, sha: sha}
 		byAnchor[anchor] = it
 		order = append(order, it)
 		if sha != "" {
@@ -73,15 +70,15 @@ func reopenedEvidence(evs []*Event, ids []int64, win WindowIndex) []reopened {
 		}
 	}
 	for i, e := range live {
-		stood := evs[at[i]]
-		id, sitting := ids[at[i]], win.Of(stood).SittingID
-		check := func(it *item, clears bool) {
+		stood := win.Of(evs[at[i]])
+		id := stood.ID
+		check := func(it *reopened, clears bool) {
 			if it == nil {
 				return
 			}
 			it.lastCheck = id
-			if clears && it.edit != 0 && sitting > it.edit {
-				it.cleared = true
+			if clears && stood.SittingID > it.edit {
+				it.edit = 0
 			}
 		}
 		body, _ := recordpb.Body(e)
@@ -89,7 +86,7 @@ func reopenedEvidence(evs []*Event, ids []int64, win WindowIndex) []reopened {
 		case *recordpb.BlueEdit:
 			for _, a := range b.GetReopened() {
 				if it := byAnchor[a]; it != nil {
-					it.edit, it.cleared = id, false
+					it.edit = id
 				}
 			}
 		case *recordpb.Retire:
@@ -114,8 +111,8 @@ func reopenedEvidence(evs []*Event, ids []int64, win WindowIndex) []reopened {
 	}
 	var out []reopened
 	for _, it := range order {
-		if it.edit != 0 && it.lastCheck != 0 && !it.cleared {
-			out = append(out, it.reopened)
+		if it.edit != 0 && it.lastCheck != 0 {
+			out = append(out, *it)
 		}
 	}
 	return out

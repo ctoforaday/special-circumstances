@@ -257,7 +257,7 @@ type EvidenceJSON struct {
 }
 
 // EvidenceReopenedJSON is one reopened citation or proof. Edit and LastCheck are events.id: the
-// edit that changed its sentence, and its latest check, which that edit outdated.
+// edit that changed its sentence, and its latest check, which does not clear it.
 type EvidenceReopenedJSON struct {
 	Anchor    string `json:"anchor"`
 	Edit      int64  `json:"edit"`
@@ -275,7 +275,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		out.UnansweredContradictions = []string{}
 	}
 	out.Reopened = []EvidenceReopenedJSON{}
-	for _, r := range reopenedEvidence(evs, win.IDs(evs), win) {
+	for _, r := range reopenedEvidence(evs, win) {
 		out.Reopened = append(out.Reopened, EvidenceReopenedJSON{Anchor: r.anchor, Edit: r.edit, LastCheck: r.lastCheck})
 	}
 
