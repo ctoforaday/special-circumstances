@@ -47,6 +47,7 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [scorecard](#scorecard) | lens, chair, blue, bench, operator |
 | [occasion](#occasion) | bench |
 | [avenue](#avenue) | lens, chair, blue, bench, operator |
+| [reopened](#reopened) | lens, chair, blue, operator |
 
 ## the report
 
@@ -541,3 +542,14 @@ An avenue is one approach the research could take on the question — proposed b
 
 - **direction** — plain English only: a bench REMAND states a research direction its one more exchange between the minting lens and blue owes, and the report's own heading is Future research directions — neither is an avenue
 - **line** — an avenue's `line` is its statement, the text `--reason` fills, and never a name for the avenue itself
+
+## reopened
+
+A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and a PASS waits on it.
+
+**Delivered to:** lens, chair, blue, operator
+
+**Collisions:**
+
+- **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or proof
+- **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or proof among them, checked before the edit, is reopened

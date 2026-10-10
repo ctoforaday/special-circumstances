@@ -112,8 +112,9 @@ at the quoted sentence.
   inserts. `blue edit` refuses any span that would drop or split an anchor, so the set of `cite`
   events and the anchors in the text stay in one-to-one correspondence; the scorecard's
   `unbacked_citations` flags any divergence. When blue rewrites the sentence around an anchor, the
-  anchor stays, and the evidence view lists it under `reopened`: any verdict on it is now stale, and
-  red re-reads those first.
+  anchor stays. A citation or proof red has checked is then **reopened**: the evidence view lists it
+  under `reopened` with the edit and its last check, the evidence lens is readied to check it again,
+  and a PASS waits until a sitting opened after the edit has.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it
@@ -132,7 +133,8 @@ outcome vocabulary has a negative half — `refutes` and `absent` are findings, 
 
 The **evidence view** (`show evidence`) is red's lookup table. It lists each anchor with the
 source's url, hash, title and quoted sentence, the stamped facts, and red's verdicts, plus
-independent corroborations, reopened anchors, and contradictions nobody has raised a finding about.
+independent corroborations, the citations and proofs reopened and not yet checked again, and
+contradictions nobody has raised a finding about.
 
 ## 4. Assembly — what the reader sees
 
@@ -201,8 +203,9 @@ from here.**
   (#247).
 - A retraction is known only where OpenAlex knows it, and only for sources with a doi. Everything
   else is `not_checked`, which is not reassurance.
-- A reopened anchor is flagged stale, not re-verified. The tool does not decide whether the
-  rewritten sentence is still what the source supports; red does.
+- A reopened citation or proof is owed a check. The tool does not decide whether the rewritten
+  sentence is still what the source supports; red does, and a PASS waits for it. A citation or proof
+  nobody ever checked is not reopened by an edit: it stays available work.
 
 **The bibliography itself.**
 - The title is whatever blue typed, and there is no verb to amend a wrong one (#551). Nor is there a

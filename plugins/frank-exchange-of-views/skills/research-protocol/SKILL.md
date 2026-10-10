@@ -30,9 +30,10 @@ Research that survives an adversary.
   stands. One your quote carries goes into the replacement after the sentence that now holds its
   claim — never after the last sentence by default. When you split a sentence, each anchor goes
   with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
-  read what each one marks on the record before you place it. An edit that moves the words under
-  an anchor REOPENS it — the reference stands, its referent moved, so a verification of it is stale
-  rather than refuted.
+  read what each one marks on the record before you place it. The record lists each anchor
+  whose sentence an edit changed. A citation or proof among them is REOPENED — the reference
+  stands, its referent moved, so its check is stale rather than refuted — and the evidence lens
+  checks it again before a PASS.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
 

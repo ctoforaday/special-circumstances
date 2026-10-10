@@ -109,3 +109,26 @@ func anchoredLine(t *testing.T, runDir string) (string, string) {
 	t.Fatal("no anchored line in the report")
 	return "", ""
 }
+
+// THE PAGE THE PASS REFUSAL SENDS A SEAT TO SAYS WHAT IT IS LOOKING AT. A `reopened` row is three
+// values and two of them are bare numbers: the page says they are event ids, which one is the
+// edit, and what removes the row — the lens's whole instruction for clearing it.
+func TestShowEvidenceHelpSaysWhatAReopenedRowMeans(t *testing.T) {
+	h := help(t, "show", "evidence", "--help", "--seat-id", "red-lens-evidence")
+	for _, want := range []string{
+		"A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked",
+		"`edit` and `last_check` are event ids",
+		"from a sitting opened after `edit` removes the row",
+		"`--as unreachable` does not",
+	} {
+		if !strings.Contains(h, want) {
+			t.Errorf("`show evidence --help` does not say %q", want)
+		}
+	}
+	// The shape is on the page as the fields the binary prints, at the table and at one anchor.
+	for _, tree := range []string{"reopened:[{anchor,edit,last_check}]", "reopened:{anchor,edit,last_check}"} {
+		if !strings.Contains(h, tree) {
+			t.Errorf("`show evidence --help` does not print the shape %s", tree)
+		}
+	}
+}
