@@ -69,11 +69,7 @@ func LocateUniqueReplacing(verb, report, old string) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	end, err = settleAbuttingAnchor(verb, report, old, end)
-	if err != nil {
-		return 0, 0, err
-	}
-	return start, end, nil
+	return start, settleAbuttingAnchor(report, old, end), nil
 }
 
 // LocateLiteral resolves `old` BYTE FOR BYTE: no whitespace folding, no skipping of the anchor
@@ -106,65 +102,46 @@ func LocateLiteral(report, old string) (start, end, count int, ok bool) {
 	return start, end, count, true
 }
 
-// requireAbuttingAnchor refuses a quote that stops JUST SHORT of the anchor attached to the text
-// it is replacing.
-//
-// THE MARKERS ARE THE MECHANISM, and they are visible for this reason. `show report` prints
-// anchors as they are, so a seat rewriting a sentence can see the token sitting in it and copy it
-// into --new the same way it copies every other character. That is the whole model: an edit
-// mimics how you edit any document — quote what is there, write what should be there.
-//
-// The tolerance broke it. normalizeQuote SKIPS annotation spans, so a quote that omits the marker
-// still matches — and the span it locates then ENDS BEFORE the marker. Measured: the transit
-// guard never fires on a whole-sentence edit (the commonest edit there is), the marker is stranded
-// beside prose it was never placed against, and tidySeam cannot even collapse the doubled
-// terminator because the marker sits between the two halves.
-//
-// Only the ABUTTING case is refused. A fragment edit inside a sentence does not touch what the
-// anchor is attached to; the marker keeps its position and `reopened` records that its sentence
-// moved. What is refused is rewriting the text an anchor is ON while pretending the anchor is not
-// there.
-func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
-	// Trailing punctuation the quote legitimately omitted sits between the span and the marker:
-	// InsertAnchor places the token BEFORE the terminator, so skip that run first. TrimLeft takes
-	// a rune cutset — `…` is three bytes, and a byte-wise skip would half-consume it.
+// AbuttingRun is the anchor run standing against report[:end] — after any trailing punctuation the
+// quote omitted, which sits between the span and the run — and the length of that punctuation.
+// Attach places an anchor after a quote's last content character, so the anchors on a sentence
+// stand before its terminator, where a whole-sentence quote stops.
+func AbuttingRun(report string, end int) (run string, punct int) {
 	tail := report[end:]
+	// TrimLeft takes a rune cutset — `…` is three bytes, and a byte-wise skip would half-consume it.
 	after := strings.TrimLeft(tail, anchortext.TrailingPunct)
-	// THE RUN, NOT THE FIRST TOKEN. Two lenses anchoring one sentence is an ordinary corpus shape
-	// — `verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->` is from a real report — and this
-	// consumed one token deep. The seat then quoted the sentence exactly as `show report` prints
-	// it, carried BOTH markers into --new as instructed, and was told the second one was an
-	// INVENTION: it sat past the extended span, so AnchorsTransitUnchanged saw it appear from
-	// nowhere. Following its own instruction was the thing that got it refused.
-	run := anchor.SkipRun(after, 0)
-	if run == 0 {
-		return end, nil
-	}
-	tok := after[:run]
+	return after[:anchor.SkipRun(after, 0)], len(tail) - len(after)
+}
 
-	// THE SEAT QUOTED IT: EXTEND THE SPAN TO COVER IT.
-	//
-	// normalizeQuote drops annotation spans from the quote as well as from the report, so a seat
-	// that copied the sentence EXACTLY as `show report` prints it still locates a span ending
-	// before the marker. The quote is the evidence of intent: if the token is in it, the seat
-	// means to replace the text the anchor sits on, so the span swallows the punctuation run and
-	// the token. AnchorsTransitUnchanged then sees the anchor and requires it in --new, and the
-	// terminator goes with the replacement instead of being stranded past the marker — which is
-	// what produced `now.<!--cite:c-…-->.`
-	if strings.Contains(quoted, tok) {
-		return end + (len(tail) - len(after)) + run, nil
+// settleAbuttingAnchor is where a replaced span ends when an anchor run stands against it: THE
+// QUOTE DECIDES, anchor by anchor.
+//
+// An anchor the quote does not carry is OUTSIDE the span. The edit replaces the quoted text and the
+// run stays exactly where it stands — after the replacement, before the terminator, its bytes
+// untouched — and ReopenedAnchors, which reads sentences rather than spans, records that the
+// sentence under it changed. tidySeam takes the terminator a replacement brings against the run.
+//
+// An anchor the quote carries is INSIDE it: the span runs through the LAST anchor of the run the
+// quote holds, punctuation before the run included, so the transit check sees every anchor up to
+// there and the replacement says where each goes. normalizeQuote drops annotation spans from the
+// quote as well as from the report, so without this a sentence quoted exactly as `show report`
+// prints it would locate a span ending before the anchors it names. Anchors of the run past the
+// last one quoted stay outside.
+//
+// REPLAY RUNS THIS ON EVERY RECORDED SPLICE, so it never refuses: a quote that carries the whole run
+// takes the whole run, as every recorded edit that carries one does.
+func settleAbuttingAnchor(report, quoted string, end int) int {
+	run, punct := AbuttingRun(report, end)
+	held := 0
+	anchor.Each(run, func(_, stop int, id string) {
+		if strings.Contains(quoted, anchor.Token(id)) {
+			held = stop
+		}
+	})
+	if held == 0 {
+		return end
 	}
-
-	// IT DID NOT: refuse, and print the token to carry, naming every anchor of the run.
-	var held []string
-	for _, id := range anchor.IDs(tok) {
-		held = append(held, anchor.Label(id))
-	}
-	return 0, fmt.Errorf("%s: the text you are replacing carries %s, and your quote stops just before it. "+
-		"That anchor is ON this sentence: rewriting the sentence without it strands the reference beside prose it was never placed against. "+
-		"Quote the sentence AS `show report` PRINTS IT — anchors included — and carry %s into --new unchanged. "+
-		"To change the words around it and leave the anchor where it is, quote a FRAGMENT that does not reach it",
-		verb, strings.Join(held, " and "), tok)
+	return end + punct + held
 }
 
 // AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it

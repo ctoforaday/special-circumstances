@@ -5,6 +5,13 @@ import (
 	"io"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	// THE REPORT RENDERER, LINKED FOR ITS REGISTRATION. The work list places each quote gap in the
+	// report as it stands, and record renders the report through whatever internal/reportproj
+	// registered at init — record cannot import it (reportproj imports record). A binary that
+	// renders a view without this line reads every quote gap `unrendered` while feov-record, over
+	// the same record at the same head, reads it `marked`; integration/surface holds every binary
+	// that links the record to linking the renderer.
+	_ "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 

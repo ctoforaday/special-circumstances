@@ -160,6 +160,51 @@ func TestRegisterBeforeAppend(t *testing.T) {
 	}
 }
 
+// THE TOOL'S ENTRY ABOUT A SEAT IS NOT THE SEAT'S FIRST EVENT.
+//
+// universe m18, events 27 and 28: blue-synthesize, bracketed into a sitting by the harness, tried
+// `ingest` before `register`; the tool refused it and logged the refusal under the seat, and the
+// seat registered next. `verify` read the tool's entry as the seat writing unregistered. The two
+// controls hold the invariant where it was: the tool's entry does not excuse a seat whose own first
+// event is not its register, and a seat's own log before its register is still a violation.
+func TestRegisterBeforeAppendReadsPastWhatTheToolWrote(t *testing.T) {
+	tool := func(seat string) *record.Event {
+		return recordtest.Event(t, seat, &recordpb.Log{
+			Text:   proto.String("refused `ingest`: `register` is your first act"),
+			Type:   recordpb.LogType_LOG_TYPE_REFUSAL.Enum(),
+			Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
+		})
+	}
+	for name, c := range map[string]struct {
+		events []*record.Event
+		bad    int
+	}{
+		"the tool's refusal, then the register": {[]*record.Event{
+			tool("blue-synthesize"),
+			recordtest.Event(t, "blue-synthesize", &recordpb.Register{}),
+			recordtest.Event(t, "blue-synthesize", &recordpb.Position{}),
+		}, 0},
+		"the tool's refusal, then an act with no register": {[]*record.Event{
+			tool("blue-synthesize"),
+			recordtest.Event(t, "blue-synthesize", &recordpb.Position{}),
+		}, 1},
+		"the seat's own log, then the register": {[]*record.Event{
+			recordtest.Event(t, "blue-synthesize", &recordpb.Log{
+				Text: proto.String("friction"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(),
+				Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+			recordtest.Event(t, "blue-synthesize", &recordpb.Register{}),
+		}, 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			b := &boardT{Events: c.events}
+			got := find(t, Run(b.fam(t)), "register-before-append")
+			if len(got.Violations) != c.bad || got.OK != (c.bad == 0) {
+				t.Errorf("want %d violation(s), got %+v", c.bad, got)
+			}
+		})
+	}
+}
+
 func TestComputeStatsReproducesCoverage(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"G1", "G2"},

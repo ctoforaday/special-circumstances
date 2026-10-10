@@ -186,8 +186,7 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 	if r.cast, err = castAt(q); err != nil || r.cast == nil {
 		return r, err
 	}
-	if _, err := queryRowAt(q, []any{&r.head},
-		`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'base_ingest')`); err != nil {
+	if r.head, err = reportHeadAt(q); err != nil {
 		return r, err
 	}
 	if r.evs, r.win, err = eventsAt(q); err != nil {

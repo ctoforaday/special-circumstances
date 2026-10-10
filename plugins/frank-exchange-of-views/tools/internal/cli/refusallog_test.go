@@ -2,12 +2,17 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
@@ -167,5 +172,50 @@ func TestAnIdentityRefusalIsLoggedUnderTheBoundSeat(t *testing.T) {
 	got := toolRefusals(t, runDir)
 	if len(got) != 1 || !strings.HasPrefix(got[0], "red-lens-evidence | ") {
 		t.Fatalf("want one refusal entry under the bound seat red-lens-evidence, got %q", got)
+	}
+}
+
+// A REFUSAL THE TOOL LOGS BEFORE A SEAT REGISTERS DOES NOT FAIL THE RUN'S INVARIANTS.
+//
+// universe m18, events 26 to 28: the harness brackets blue-synthesize into a sitting, the seat
+// tries `ingest` before `register`, the tool refuses and — the seat having a sitting — logs the
+// refusal under it, and the seat registers next. `verify` then failed the run on
+// `register-before-append`, naming the tool's own entry as the seat's first event. The sequence is
+// driven here as it happened, and the operator's `verify` is asked.
+func TestARefusalLoggedBeforeTheRegisterDoesNotFailVerify(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
+	runDir := newRun(t)
+	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# Report\n\nOne sentence.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	const agent = "agent_bracketed_synthesizer"
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.SittingOpen{
+			AgentId:   proto.String(agent),
+			AgentType: proto.String("frank-exchange-of-views:blue-synthesizer"),
+			SeatId:    proto.String("blue-synthesize"),
+		}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(seatenv.AgentVar, agent)
+
+	if _, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"); err == nil {
+		t.Fatal("ingest before register was accepted, so no refusal precedes the register and this drives nothing")
+	}
+	if got := toolRefusals(t, runDir); len(got) != 1 || !strings.HasPrefix(got[0], "blue-synthesize | ") {
+		t.Fatalf("want the one refusal logged under blue-synthesize, got %q", got)
+	}
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	t.Setenv(seatenv.AgentVar, "")
+	out, _ := run(t, "verify", "--run", runDir, "--seat-id", record.OperatorRole)
+	// THE VERDICT, NOT THE LABEL: verify prints every invariant's name whether it held or not.
+	if !strings.Contains(out, "[ok  ] register-before-append") {
+		t.Errorf("verify does not pass register-before-append over the tool's own entry:\n%s", out)
 	}
 }

@@ -65,6 +65,11 @@ func TestTheExitCodeAgreesWithTheAuditsItReports(t *testing.T) {
 	if report == "" {
 		t.Error("capture returned an empty report")
 	}
+	// THE HARVEST'S LINE REACHES THE REPORT. precedentLine has its own tests, and a test of the
+	// function is not a test of the call.
+	if !strings.Contains(report, "precedent harvest: no rulings this run") {
+		t.Errorf("a run with no ruling and no envelope claim does not say so in the report:\n%s", report)
+	}
 }
 
 // A RUN WITH NO WORKFLOW JOURNAL CAN BE CLOSED, AND IS NOT CALLED CLEAN FOR IT.

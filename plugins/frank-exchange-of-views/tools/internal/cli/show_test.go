@@ -133,8 +133,8 @@ func TestShowRecordsNothing(t *testing.T) {
 // --json on a read opts into a view's STRUCTURED form where one exists. `debate` is the one
 // view with both a markdown transcript and a JSON form; the audits count its sections from
 // the JSON instead of regexing the prose. On a view that is already JSON by name --json is
-// accepted and changes nothing — the same bytes are one form, not two — and on a markdown view
-// with no JSON form it is an error, because the tool cannot give what was asked for.
+// accepted and changes nothing — the same bytes are one form, not two. Every projection has a
+// JSON form, so the flag every page lists is refused on none of them.
 func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	runDir := seatRun(t)
 	mintGap(t, runDir, "debate-json", "read-surface")
@@ -210,12 +210,16 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	if got, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "--json"); err != nil || got != bareShow {
 		t.Errorf("a bare `show --json` must be the same bytes as a bare `show` (err=%v)", err)
 	}
-	// --json on a view with no JSON form is still refused, and `report` is the one that means it:
-	// it is prose by nature and its structured answer is a QUERY over sections, not a dump (#1086).
-	// avenues used to be named here and now HAS a form, so the assertion moved rather than
-	// being deleted — the rule is unchanged, the set it applies to shrank.
-	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "report", "--json"); err == nil {
-		t.Error("show report --json was accepted; it has no JSON form and must refuse")
+	// EVERY PROJECTION ANSWERS --json. `report` was the last that refused it, and the shared flag is
+	// on its page as on every other: TestShowReportJSONIsTheSameLinesAtHead holds what it answers.
+	for _, v := range seat.ViewNames() {
+		group, who := seat.GroupOf(v), "red-chair"
+		if group == "inquest" {
+			who = "judge"
+		}
+		if _, err := run(t, group, "--run", runDir, "--seat-id", who, v, "--json"); err != nil {
+			t.Errorf("%s %s --json was refused, and the flag is on that page: %v", group, v, err)
+		}
 	}
 	// AND THE ONE THAT NOW ANSWERS, checked here so the two halves cannot drift apart.
 	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "avenues", "--json"); err != nil {

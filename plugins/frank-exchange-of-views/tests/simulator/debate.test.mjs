@@ -611,7 +611,11 @@ test('every seat prompt carries the log clause, the speed clause and the record 
   // page-by-page walk `manual` replaced, and the `manual` fetch the constitution replaced.
   assert.ok(!/for EVERY group that page listed/.test(lens) && !lens.includes('<group> --help'), 'the lens still carries the page-by-page walk the manual replaced')
   assert.ok(!/manual\.txt/.test(lens) && !/ manual —/.test(lens) && !/IMMEDIATELY AFTER `register`/.test(lens), 'the lens is still told to fetch a manual its constitution already carries')
-  assert.ok(/KNOWN HARNESS LIMIT/.test(lens) && /SANCTIONED fallback/.test(lens), 'the Glob/Grep fallback is sanctioned everywhere via the speed clause')
+  // THE SPEED CLAUSE NAMES NO SEARCH TOOL AND FORBIDS NO SEARCH. The tool list is the harness's: a
+  // session with no Grep or Glob answers "No such tool available" to a seat told to use them, and a
+  // seat forbidden grep through the shell is then left with no search at all.
+  assert.ok(/KNOWN HARNESS LIMIT/.test(lens) && /search through the shell/.test(lens), 'the speed clause lost the search a seat always has: the shell')
+  assert.ok(!/\b(Grep|Glob)\b/.test(lens) && !/cat\/grep through/.test(lens), 'the speed clause names a search tool the session may not have, or forbids grep through the shell')
 })
 
 test('the record contract binds each seat to the id it hands the tool, petition sittings included', async () => {

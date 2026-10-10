@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // ONE SELECTOR VOCABULARY ACROSS THE THREE KITCHEN SINKS (gblock's ruling).
@@ -93,6 +94,49 @@ func (s Selector) Hits(text string) bool {
 	return s.re.MatchString(visibleText(text))
 }
 
+// InAnchorsOnly reports whether the selector misses this text as it reads and hits it as it is
+// printed — the match lies inside an anchor token, or runs across one.
+//
+// THE SELECTORS DO NOT SEE THE ANNOTATION LAYER, AND THE MISS MUST SAY SO. A seat holding an anchor
+// asks for it the way the report prints it: universe m18's chair quoted `gap:G-b1643c6b`, and its
+// synthesizer matched `cite:|proof:` to list every anchor of a kind. Both got "no line matches",
+// which is the answer a pattern the report does not hold gets. Matching the printed text instead
+// would answer them and break the word-hunt the selector exists for: a voice lens matching
+// `gap|proof|finding` would hit every anchored line in the report on the token's own kind word.
+// So the read stays what it is and its empty answer counts these lines and names the reads that
+// take an anchor.
+//
+// COMPUTED FROM THE TEXT, never guessed from the pattern's shape: whether a pattern "looks like"
+// an anchor is a regex about a regex, and this asks the report.
+func (s Selector) InAnchorsOnly(text string) bool {
+	if s.re == nil || s.re.MatchString(visibleText(text)) {
+		return false
+	}
+	return s.re.MatchString(strings.Join(strings.Fields(text), " "))
+}
+
+// anchorsOnlyNote is what a report selection that matched nothing says when n lines hold the match
+// inside an anchor token, and "" when none does.
+func anchorsOnlyNote(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d line(s) hold it INSIDE AN ANCHOR TOKEN only: --match and --quote read each line with its anchors out, "+
+		"so a pattern that names a token or an anchor id finds nothing. To read the passage at one anchor, pass --anchor with its id in place of the pattern. "+
+		"To list every anchor of a kind, read the view that resolves the kind: `show findings`, `show evidence` (citations and proofs), `show board` (gaps)", n)
+}
+
+// anchorsOnly counts the lines the selector hits only inside an anchor token.
+func anchorsOnly(lines []record.ReportLineJSON, sel Selector) int {
+	n := 0
+	for _, ln := range lines {
+		if sel.InAnchorsOnly(ln.Text) {
+			n++
+		}
+	}
+	return n
+}
+
 // visibleText is what a seat reads on the page: the annotation layer removed and whitespace runs
 // collapsed, matching what anchortext tolerates when it locates a quote.
 //
@@ -145,7 +189,15 @@ func SelectorOf(c *cobra.Command) (Selector, error) {
 				"has a metacharacter in it. Pass ONE: --match for a regex (an alternation of tells), --quote for "+
 				"text containing (), ., * or [] that a regex would read as syntax")
 	case lit != "":
-		return Selector{re: regexp.MustCompile("(?i)" + regexp.QuoteMeta(lit)), Literal: lit}, nil
+		// A QUOTE COPIED AS THE REPORT PRINTS IT CARRIES ITS ANCHORS, and the acting verbs read such
+		// a quote with every token out (Location). The view is the dry run for the act, so it reads
+		// the quote the same way. A quote that is nothing but anchor is left as typed: it selects no
+		// line, and the empty answer says where an anchor is read.
+		want := visibleText(lit)
+		if want == "" {
+			want = lit
+		}
+		return Selector{re: regexp.MustCompile("(?i)" + regexp.QuoteMeta(want)), Literal: lit}, nil
 	case rx != "":
 		re, err := regexp.Compile("(?i)" + rx)
 		if err != nil {
@@ -166,29 +218,54 @@ func SelectorOf(c *cobra.Command) (Selector, error) {
 // total, which is the seat's signal to narrow; a capped list would read as a narrow pattern that
 // found little. See the header of this file.
 func selectReportLines(body string, sel Selector) (string, int) {
-	lines := strings.Split(body, "\n")
-	heading, hits := "", 0
+	lines := record.ReportLines(body)
+	hits := hitLines(lines, sel)
 	var b strings.Builder
-	for i, ln := range lines {
-		if strings.HasPrefix(strings.TrimSpace(ln), "#") {
-			heading = strings.TrimSpace(ln)
-		}
-		if !sel.Hits(ln) || strings.TrimSpace(ln) == "" {
-			continue
-		}
-		hits++
-		if heading != "" {
-			fmt.Fprintf(&b, "%s\n", heading)
+	for _, ln := range hits {
+		if ln.Heading != "" {
+			fmt.Fprintf(&b, "%s\n", ln.Heading)
 		} else {
 			fmt.Fprintf(&b, "(before the first heading)\n")
 		}
-		fmt.Fprintf(&b, "  %d: %s\n\n", i+1, strings.TrimRight(ln, " "))
+		fmt.Fprintf(&b, "  %d: %s\n\n", ln.Line, strings.TrimRight(ln.Text, " "))
 	}
-	if hits > 0 {
+	if len(hits) > 0 {
 		fmt.Fprintf(&b, "_%d line(s) match %s, of %d in the report. Every match is above; nothing is ranked or cut._\n",
-			hits, sel.Describe(), len(lines))
+			len(hits), sel.Describe(), len(lines))
 	}
-	return b.String(), hits
+	return b.String(), len(hits)
+}
+
+// hitLines is the report lines the selector hits, blank lines out — the one selection both forms of
+// `show report` print.
+func hitLines(lines []record.ReportLineJSON, sel Selector) []record.ReportLineJSON {
+	hits := []record.ReportLineJSON{}
+	for _, ln := range lines {
+		if sel.Hits(ln.Text) && strings.TrimSpace(ln.Text) != "" {
+			hits = append(hits, ln)
+		}
+	}
+	return hits
+}
+
+// selectionBlock is the `selection` key a selected JSON read carries: what was asked, what it kept
+// and of how many, and that nothing was cut.
+func selectionBlock(sel Selector, kept, of int) map[string]any {
+	return map[string]any{"criterion": sel.Describe(), "matched": kept, "of": of, "complete": true}
+}
+
+// reportJSON is `show report --json`: lines at head, with the selection block when a selector chose
+// them.
+func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]any) ([]byte, error) {
+	doc := struct {
+		record.ReportJSON
+		Selection map[string]any `json:"selection,omitempty"`
+	}{record.ReportJSON{Head: head, Lines: lines}, selection}
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(b, '\n'), nil
 }
 
 // selectJSONArrays keeps only the entries of EVERY top-level array whose JSON text the selector hits,
@@ -235,8 +312,7 @@ func selectJSONArrays(body []byte, sel Selector) (out []byte, kept, of int) {
 	}
 	// `selection` appears ONLY when a selector was passed, and says what was kept of what there was.
 	// Without it a reader cannot tell a narrow pattern from a narrow board.
-	if sb, err := json.Marshal(map[string]any{"criterion": sel.Describe(), "matched": kept, "of": of,
-		"complete": true}); err == nil {
+	if sb, err := json.Marshal(selectionBlock(sel, kept, of)); err == nil {
 		doc["selection"] = sb
 	}
 	b, err := json.MarshalIndent(doc, "", "  ")

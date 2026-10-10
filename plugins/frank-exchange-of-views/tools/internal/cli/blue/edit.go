@@ -135,8 +135,9 @@ func newEdit() *cobra.Command {
 			}
 			// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
 			// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
-			// commonest is settleAbuttingAnchor's: blue placed a citation anchor against the span
-			// red located, so the recorded fix can no longer replace it cleanly.
+			// commonest is the transit check's: blue placed a citation anchor against the span red
+			// located, the accepted pair carries the run the gap's anchor stands in, and red's text
+			// has no word-for-word sentence to put the citation back on.
 			if accepting {
 				return nil, fmt.Errorf("blue edit --accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
 					"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
@@ -202,7 +203,7 @@ func newEdit() *cobra.Command {
 	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
-	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". An anchor of any kind typed into it is rejected")
+	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". An anchor standing at its end stays where it is unless the quote carries it")
 	flags.Text(c, flags.New, "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)

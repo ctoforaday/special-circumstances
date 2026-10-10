@@ -582,7 +582,11 @@ recorded as one.
 
 The tool matches your span across the invisible anchor layer and REFUSES a replacement that drops, duplicates or invents an anchor: an anchor of any kind may travel THROUGH your edit, never disappear in one.
 
-An anchor INSIDE the span you replace must be copied verbatim into the replacement. One at its edge is not inside: a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period falls outside, is preserved for you, and typing it into the replacement is refused as inventing one. You need not work out which — get it wrong either way and the refusal names the anchor and says which it wants.
+YOUR QUOTE DECIDES WHICH ANCHORS THE EDIT TOUCHES. An anchor your quote does not carry is outside the span and stays exactly where it stands. That covers the commonest place for one — the anchors at the END of a sentence, before its terminator: quote the sentence without them, write the replacement without them, and they stand after your new text, before the terminator, untouched. Typing one of them into the replacement without quoting it is refused, and the refusal names it.
+
+An anchor your quote carries, or one in the middle of the quoted text, is INSIDE the span and must be copied verbatim into the replacement, where its claim now stands. That is how an anchor at a sentence's end MOVES — onto an earlier sentence of a longer replacement, say: quote the sentence as `show report` prints it, anchors included, and write each one where it goes. Quoting one anchor of a run takes every anchor before it in that run into the span with it.
+
+Either way the record marks each anchor whose sentence your edit changed as reopened, so red reads the claim under it again.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 
@@ -607,7 +611,7 @@ Flags:
   -h, --help             help for edit
       --key string       → SHARED §11
       --new string       the text that span should become
-      --quote string     REQUIRED unless --accept — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. An anchor of any kind typed into it is rejected
+      --quote string     REQUIRED unless --accept — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. An anchor standing at its end stays where it is unless the quote carries it
       --reason string    → SHARED §12
 
 (Global Flags:) → SHARED §7
@@ -1150,7 +1154,11 @@ Flags:
 (Global Flags:) → SHARED §19
 ==============================================================================
 $ feov-record show report --help
-THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. Written by the opening synthesis and blue's `edit`
+THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
+
+--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 

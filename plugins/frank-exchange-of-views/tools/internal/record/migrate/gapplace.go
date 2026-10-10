@@ -128,23 +128,31 @@ func (p *placer) places(id, loc string) error {
 
 // edit gives an archived edit every gap anchor that now stands in or against its span, so it
 // renders, carries them and records the gaps whose sentence it changed.
+//
+// A gap anchor standing AGAINST the span is taken into it (the abutting shape). A live edit whose
+// quote stops before an anchor run leaves the run where it stands; an archived edit was written
+// against a report that held no gap anchor, so its quote says nothing about one, and the translation
+// places the gap with the sentence it was minted on — carry's rule — as it does for a gap anchor
+// inside the span.
 func (p *placer) edit(b *recordpb.BlueEdit) error {
 	text, err := reportproj.RenderFromRecord(p.dst)
 	if err != nil {
 		return nil
 	}
-	old := b.GetOld()
+	old, abuts := b.GetOld(), false
+	if !b.GetExactSpan() {
+		if re, ok := rewriteOld(text, old); ok {
+			old, abuts = re, true
+		}
+	}
 	start, end, ok := locate(text, old, b.GetExactSpan())
 	if !ok && b.GetExactSpan() {
 		return fmt.Errorf("migrate: this exact-span edit's old text no longer occurs in the report once the gaps' anchors stand in it, and migration rewrites no exact span: %q", old)
 	}
 	if !ok {
-		if old, ok = rewriteOld(text, old); ok {
-			start, end, ok = locate(text, old, false)
-		}
-		if !ok {
-			return fmt.Errorf("migrate: this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
-		}
+		return fmt.Errorf("migrate: this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
+	}
+	if abuts {
 		b.Old = proto.String(old)
 		p.census.Shapes["abutting"]++ // old given the anchor run that now abuts its span
 	}
