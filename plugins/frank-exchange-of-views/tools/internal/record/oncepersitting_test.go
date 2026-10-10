@@ -45,11 +45,9 @@ func words(types map[recordpb.EventType]bool) []string {
 // the stored sitting, a repair's acts being the sitting it repairs — which is what makes the
 // refusal's "this sitting" true.
 //
-// THE REPAIR ARM IS FORGED FOR THE CHAIR'S TWO ACTS, deliberately. checkRepair admits a repair only
-// from a blue seat, so `verdict` and `spot_check` cannot reach that shape through any verb; the row
-// holds the WINDOW rather than a reachable run, and the reachable half of their rule is the first
-// arm. The end-to-end proof on the shape a run can actually produce is the cli package's
-// TestASingletonActIsRefusedASecondTimeInsideARepair.
+// THE REPAIR ARM IS SEEDED, deliberately. No verb writes a register that names a repaired sitting,
+// so the row holds the WINDOW rather than a reachable run, and the reachable half of the rule is
+// the first arm.
 func TestTheOncePerSittingActsAreRefusedASecondTimeInOneSitting(t *testing.T) {
 	covered := map[recordpb.EventType]bool{}
 	for typ := range onceActs {

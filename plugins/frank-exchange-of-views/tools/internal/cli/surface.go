@@ -74,7 +74,7 @@ func CommandFlags() map[string][]string {
 //
 // So the composition lives here once and the callers read it, rather than each restating the same
 // role-keying and drifting apart again. The key rules are CommandPaths': one command mounted in
-// several trees keeps ONE key (`motion …`, `fetch`, `count-claims`), because those are one
+// several trees keeps ONE key (`motion …`, `fetch`), because those are one
 // contract however many seats can reach them.
 func commandsByPath() map[string]*cobra.Command {
 	out := map[string]*cobra.Command{}
@@ -123,13 +123,12 @@ func commandsByPath() map[string]*cobra.Command {
 // sharedAcrossSeats reports whether a typed path is ONE contract however many seats' trees mount
 // it, and so keeps one join key rather than one per role.
 //
-// `motion` is one object however many seats can reach it; `fetch`/`count-claims` are the operator
-// commands seats genuinely run — a lens reads blue's cached bytes, blue's claim_count is defined as
-// what count-claims prints; and `manual` is mounted on every surface and does the same thing on
-// each — prints that surface's help. Keying them per role would turn one contract into four rows
+// `motion` is one object however many seats can reach it; `fetch` is the operator command seats
+// genuinely run — a lens reads blue's cached bytes; and `manual` is mounted on every surface and
+// does the same thing on each — prints that surface's help. Keying them per role would turn one contract into four rows
 // nobody can keep in step.
 func sharedAcrossSeats(path string) bool {
-	return strings.HasPrefix(path, "motion") || path == "fetch" || path == "count-claims" || path == manualName
+	return strings.HasPrefix(path, "motion") || path == "fetch" || path == manualName
 }
 
 // walkSurface is THE walk of one surface: every command on it, groups and leaves alike, in TREE

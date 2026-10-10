@@ -65,9 +65,7 @@ const BIN_DIR = '/opt/feov/bin'
 const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_golden', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet', binDir: BIN_DIR }
 
 // A debate that reaches every seat class: round 1 FAILs with a docketed gap (so
-// the bench sits), blue responds, round 2 PASSes, assembly runs. claim_count is
-// chosen to give round 1 the full four citation slices and round 2 a small
-// delta, which is what exercises W2i's consolidated seat.
+// the bench sits), blue responds, round 2 PASSes, assembly runs.
 // THE VARIANT THAT SHIPS WAS NEVER RECORDED (#302).
 //
 // Every prompt in debate.js used to be built with `${binDir ? <record-mode> : <legacy>}`
@@ -90,8 +88,6 @@ const ARGS = { topic: 'the seat prompt contract', runDir: 'research/2026-01-01_g
 // record never permits PASS over one, but the terminal prompt is what this captures).
 async function fullRun(args = ARGS) {
   const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 200 })],
-    blueRespond: [blueEnv({ claim_count: 210 })],
     chair: [
       chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side'), party('blue-respond', 'G-00000001'), party('judge', 'G-00000001')], { head: 2, docket: ['G-00000001'] }) }),
       chairEnv({ plan: plan([party('red-lens-evidence', 'G-00000001'), party('red-lens-logic')], { head: 9 }) }),
@@ -154,37 +150,6 @@ test('the petition sitting prompt carries exactly its recorded contract', async 
   assert.ok(call, 'no petition sitting was dispatched — the bench was never asked this question')
   assertLossless('judge-petition', call.prompt)
   assertGolden(import.meta.url, 'prompt-judge-petition', goldenBody(call.prompt))
-})
-
-// THE SITTING-RECORD REPAIR IS A SEAT PROMPT TOO. It is dispatched only when a sitting did not attest
-// its record, so the full run never reaches it; this run does, and the golden holds the act it names
-// — registering as the repair of the last sitting — where the prompt-naming check reads every golden.
-test('the sitting-record repair prompt carries exactly its recorded contract', async () => {
-  const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()],
-    blueRespond: [blueEnv({ sitting_record_appended: false }), blueEnv()],
-  }))
-  await world.run(script, ARGS)
-  const call = world.calls.find((c) => c.opts.label.startsWith('blue-respond-sitting-record'))
-  assert.ok(call, 'blue was not re-prompted for its sitting record')
-  assertLossless('blue-respond-sitting-record', call.prompt)
-  assertGolden(import.meta.url, 'prompt-blue-respond-sitting-record', goldenBody(call.prompt))
-})
-
-// ONE RE-PROMPT, TWO SEATS. ensureSittingRecord is called for blue-synthesize as well, with what a
-// SYNTHESIS sitting owes, and that text had no golden at all — so it sat outside the prompt-naming
-// check, which reads the goldens and nothing else. The two prompts differ only in the seat and the
-// owed clause, which is exactly the pair a golden is for.
-test('the synthesis sitting-record repair prompt carries exactly its recorded contract', async () => {
-  const world = makeWorld(makeResponder({
-    chair: [chairEnv({ plan: plan([party('blue-respond', 'G-00000001')]) }), passChair()],
-    blueSynth: [blueEnv({ sitting_record_appended: false }), blueEnv()],
-  }))
-  await world.run(script, ARGS)
-  const call = world.calls.find((c) => c.opts.label.startsWith('blue-synthesize-sitting-record'))
-  assert.ok(call, 'blue-synthesize was not re-prompted for its sitting record')
-  assertLossless('blue-synthesize-sitting-record', call.prompt)
-  assertGolden(import.meta.url, 'prompt-blue-synthesize-sitting-record', goldenBody(call.prompt))
 })
 
 // binDir must actually REACH the prompt text, not merely be accepted by the arg gate. The gate

@@ -1,4 +1,4 @@
-prompt sha256: 404271b270266f35e2199e3b372d8cbdd2eb4802658cb8b070731c7be247e869
+prompt sha256: 3bba1c577985434a022ff243092847789b355fba9caec9c34e47c4a50e052511
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -15,10 +15,8 @@ An unlocatable quote is graded LOW through no fault of the source.
 Two claims resting on the same url are one source and two anchors, not two sources.
 REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains the word "report" (report_blue_synthesize.md was refused as surely as report.md) — draft to your scratchpad under a name WITHOUT that word that carries your seat id, then bash cp it to research/2026-01-01_golden/blue/report.md, the one path ingest reads (nothing waits there; a report.md anywhere else is not the report); a direct Write of the report path fails and wastes a round-trip.
 FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base.
-Do this ONCE; if it refuses, the tool records the refusal — log what you expected, and return sitting_record_appended honestly.
-Citing a source, proving a computation, counting claims and every later change read the frozen report, so each follows the freeze.
-Then recompute claim_count with the tool and relay the integer into the envelope; never hand-count it.
-RECORD THE SITTING, LAST, with WHY you organised it as you did — what you compacted, what you kept whole, what you retired and against what — and its claim_count as the reason; sitting_record_appended is TRUE only after that event exists.
+Do this ONCE; if it refuses, the tool records the refusal — log what you expected.
+Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze.
 AVENUES: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind — a line that answered what it set out to test is concluded, not abandoned: abandoned is a line that died.
 The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.

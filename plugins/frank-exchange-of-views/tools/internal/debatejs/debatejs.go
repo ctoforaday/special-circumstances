@@ -90,12 +90,12 @@ func OccasionOf(prompt string) string {
 }
 
 // Envelope is what a stubbed seat returns. debate.js branches on these fields — the verdict, the
-// gap list, the sitting record flags — so the backend supplying them decides which dispatch sites the
+// gap list — so the backend supplying them decides which dispatch sites the
 // capture run reaches at all.
 type Envelope map[string]any
 
 // Backend answers one dispatch. seatID is empty when the prompt carried no SEAT_ID (the frontier
-// and repair re-prompts); label is always set.
+// re-prompt); label is always set.
 type Backend func(seatID, label, prompt string) Envelope
 
 // Config is the run debate.js is driven through. These are the `args` a real workflow invocation

@@ -77,13 +77,6 @@ func withdrawnClaimsT(t *testing.T, evs []*record.Event) string {
 	return withdrawnClaims(f)
 }
 
-// revisionHistoryT is revisionHistory over evs as the write path stores them.
-func revisionHistoryT(t *testing.T, evs []*record.Event) string {
-	t.Helper()
-	f := famOf(t, evs)
-	return revisionHistory(f)
-}
-
 // logSectionT is logSection over evs as the write path stores them.
 func logSectionT(t *testing.T, evs []*record.Event) string {
 	t.Helper()

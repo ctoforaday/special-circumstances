@@ -151,31 +151,16 @@ type Identity struct {
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
 func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where string, err error) {
-	dispatch, _, where, err = registerSeat(id, runVia, false, occasion)
-	return dispatch, where, err
-}
-
-// RegisterRepair is RegisterSeat for a sitting-record repair: the register names the seat's latest
-// sitting as the one it repairs (repairs_sitting), and is refused unless that sitting owes what a
-// repair files (checkRepair). It returns the key of the register that opened the repaired sitting.
-// A repair is BLUE's, and blue owes no occasion — the flag is not on the bench's repair surface
-// because the bench has no repair at all. The empty word is what checkOccasion expects there.
-func RegisterRepair(id Identity, runVia string) (dispatch int, repairs string, err error) {
-	dispatch, repairs, _, err = registerSeat(id, runVia, true, "")
-	return dispatch, repairs, err
-}
-
-func registerSeat(id Identity, runVia string, repair bool, occasion string) (dispatch int, repairs, where string, err error) {
 	run, seatID := id.Run, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
-		return 0, "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
 	// THE ROSTER GATE, AND IT BELONGS HERE RATHER THAN AT EVERY VERB. Register is the one call
 	// that takes a seat's word for who it is; everything after it reads the binding this call
 	// writes. So this is where an id no dispatch could have produced has to be refused — after
 	// it, the wrong id is not a claim any more, it is the record.
 	if err := requireDispatchableSeat(run, seatID); err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 	// AND THE MEMBERSHIP HALF, which the roster gate says outright that it cannot reach. The shape
 	// check above admits any well-formed id; this refuses one whose FAMILY the attested agent
@@ -186,12 +171,12 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	// cast is synthesized — but once setup has written one, a seat outside it is refused here, at
 	// the door, rather than discovered later as a party the dispatch verb never named.
 	if member, hasCast, err := InCast(run, seatID); err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	} else if hasCast && !member {
-		return 0, "", "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
+		return 0, "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
 	}
 	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 	// THE OCCASION IS CHECKED HERE, WITH THE OTHER IDENTITY GATES, because it answers the half of
 	// identity the seat id stopped answering when the bench collapsed to one seat: who was asked is
@@ -199,7 +184,7 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	// see occasion.go.
 	occ, err := checkOccasion(seatID, occasion)
 	if err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
@@ -220,11 +205,11 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	// message no longer describes anything reachable. What remains is the half that still is:
 	// the directory has to EXIST, because a seat records into a run `setup` already made.
 	if !run.Valid() {
-		return 0, "", "", feov.Errorf(feov.MissingField,
+		return 0, "", feov.Errorf(feov.MissingField,
 			"record: this registration names no run — pass --run <runDir>, or run inside a dispatch that injects it")
 	}
 	if st, err := os.Stat(run.Dir()); err != nil || !st.IsDir() {
-		return 0, "", "", feov.Errorf(feov.NotFound,
+		return 0, "", feov.Errorf(feov.NotFound,
 			"record: no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
@@ -232,7 +217,7 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	// resolving here means the root is bound (and its pointer written) before any event exists.
 	db, err := openRun(run)
 	if err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 
 	// THERE IS NO POINTER FILE AND NO LOCK. Which sitting is live is a query (recordsql's
@@ -276,31 +261,19 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	if occ != nil {
 		reg.Occasion = occ.Enum()
 	}
-	// THE REPAIR IS NAMED HERE, NOT BY THE SEAT. The seat says it is repairing; which sitting it
-	// repairs is its latest, and checkRepair refuses the claim where the record does not bear it out.
-	if repair {
-		m, err := MergedEvents(run)
-		if err != nil {
-			return 0, "", "", err
-		}
-		if repairs, err = repairTarget(m.Events, m.At, seatID); err != nil {
-			return 0, "", "", err
-		}
-		reg.RepairsSitting = proto.String(repairs)
-	}
 	if _, err := recordpb.SetBody(ev, reg); err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 	// THE REGISTER IS NO LONGER A SPECIAL CASE. It used to be the one key deriveKey did not mint,
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
 	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
 		seatID).Scan(&dispatch); err != nil {
-		return 0, "", "", err
+		return 0, "", err
 	}
 	// THE TIER GATE FIRES AFTER THE WRITE, AND THAT ORDER IS THE POINT.
 	//
@@ -313,7 +286,7 @@ func registerSeat(id Identity, runVia string, repair bool, occasion string) (dis
 	// nothing with; it is the dispatch NUMBER, which is the thing that was actually being
 	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
 	// — there is no shard, so it is the record's location.
-	return dispatch, repairs, dbName, nil
+	return dispatch, dbName, nil
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.
@@ -749,10 +722,6 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		return err
 	}
 	switch b := body.(type) {
-	case *recordpb.Register:
-		if b.RepairsSitting != nil {
-			return requireRepairable(run, seatID, b.GetRepairsSitting())
-		}
 	case *recordpb.Correction:
 		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
 		// transaction as the replacement it names; one without the other is a strike with nothing
@@ -1000,8 +969,8 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
 	//
 	// None of these required anything, so the bare verb recorded an event with empty text and
-	// returned success — and two of them GATE THE SITTING. Measured: `blue friction` then
-	// `blue revision`, no flags, took a seat from two outstanding duties to `complete: true`,
+	// returned success — and two of them GATE THE SITTING. Measured: two of blue's
+	// free-text verbs, run with no flags, took a seat from two outstanding duties to `complete: true`,
 	// and the friction projection then read `total: 1, attested: 0` with `text: ""`. A channel
 	// reporting one entry that says nothing is worse than a channel reporting none, because the
 	// count is what an audit reads.

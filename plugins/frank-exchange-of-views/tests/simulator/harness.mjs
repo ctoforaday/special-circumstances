@@ -3,7 +3,7 @@
 // The Workflow harness evaluates the script body as async code with agent / parallel /
 // pipeline / log / phase / args / budget in scope. This harness reproduces that contract
 // so every control-flow branch — args parsing, the round loop, the contested docket,
-// deadlock, the safety ceiling, per-role model routing, the unresolved-sitting-record list — is
+// deadlock, the safety ceiling, per-role model routing — is
 // exercised with canned envelopes and no live agents.
 //
 // Founding regressions (each cost a live run to discover):
@@ -62,7 +62,7 @@ export function makeWorld(respond) {
 
 // Canned envelopes, schema-shaped.
 export const blueEnv = (over = {}) => ({
-  path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, sitting_record_appended: true,
+  path: 'blue/report.md', tldr: 'tldr', saturation_reached: true,
   manifest: ['G-00000001'],
   open_questions: [], ...over,
 })

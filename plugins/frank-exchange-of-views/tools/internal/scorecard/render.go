@@ -101,19 +101,6 @@ func headline(rows []Row, max int) []string {
 
 // ---- small value helpers (JS coercions) ----
 
-// num returns a numeric value (json.Number or float64) as float64; ok=false for a non-number,
-// mirroring JS `typeof x === 'number'`.
-func num(v any) (float64, bool) {
-	switch x := v.(type) {
-	case json.Number:
-		f, err := x.Float64()
-		return f, err == nil
-	case float64:
-		return x, true
-	}
-	return 0, false
-}
-
 // decodeJSONL decodes newline-delimited JSON objects, UseNumber to preserve numeric text, and
 // skips non-JSON lines (a run killed mid-append leaves a half-written final line).
 func decodeJSONL(body []byte) []map[string]any {

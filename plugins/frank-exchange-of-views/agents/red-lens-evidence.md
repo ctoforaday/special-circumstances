@@ -73,7 +73,7 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (on 21 pages):
+§2 (on 20 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -189,25 +189,24 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  close        close a gap with the verification you did THIS sitting, naming what you checked it against
-  corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
-  help         Help about any command
-  log          an entry for the operator who can retool you — what it asserts, said in the positive
-  mint         turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  near-match   screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  register     NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
-  regrade      move a grade on a gap that already exists, with the reason it moved
-  render-page  draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
-  reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
-  verify       judge a citation blue authored, when the anchor exists and you have read what it points at
+  close       close a gap with the verification you did THIS sitting, naming what you checked it against
+  corroborate go and find a source blue never cited, when the claim has no anchor but the source is obtainable
+  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
+  help        Help about any command
+  log         an entry for the operator who can retool you — what it asserts, said in the positive
+  mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  near-match  screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
+  register    NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
+  regrade     move a grade on a gap that already exists, with the reason it moved
+  render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
+  reproduce   re-run a recorded computation and judge whether it proves the sentence it is attached to
+  verify      judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  class        the gap-class registry: what KINDS of defect this run recognises
-  motion       file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+  class       the gap-class registry: what KINDS of defect this run recognises
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
   -h, --help             help for feov-record
@@ -356,17 +355,6 @@ Flags:
 (Enumerated values:) → SHARED §12
 
 (--confidence) → SHARED §13
-
-(Global Flags:) → SHARED §2
-==============================================================================
-$ feov-record count-claims --help
-count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.
-
-Usage:
-  feov-record count-claims [flags]
-
-Flags:
-  -h, --help   help for count-claims
 
 (Global Flags:) → SHARED §2
 ==============================================================================
@@ -986,7 +974,7 @@ FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it —
 
 WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair.
 
-`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named, and `found_closed` is each of them its lens closed before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position and no revision. An empty `found_closed` says every engaged gap was open when blue sat.
+`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named, and `found_closed` is each of them its lens closed before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position. An empty `found_closed` says every engaged gap was open when blue sat.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 

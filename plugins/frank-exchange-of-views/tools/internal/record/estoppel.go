@@ -233,11 +233,9 @@ func ProofAnswers(run Run, gapID string) bool {
 // same footing as fix_basis, proof_basis and verdict_basis.
 //
 // A retire used to record whatever it was told: nothing confirmed the claim had ever been in
-// the report, and nothing confirmed it had left. That mattered beyond tidiness — the
-// scorecard's additive-integrity detector computes unrecorded_claim_loss as the drop in
-// claim_count MINUS the retire events, so a retirement of a claim that was never there
-// subtracts from the accounted side and cancels real loss, blinding the one detector built to
-// catch silent deletion.
+// the report, and nothing confirmed it had left. That mattered beyond tidiness — the changelog
+// lists every retirement as a claim that left the report, so a retirement of a claim that was
+// never there is a removal the reader is told of and the report never had.
 const (
 	// RemovalVerified: the claim is absent from the report now AND appears in the old span of
 	// a recorded edit, so the record can SHOW it leaving.
@@ -297,41 +295,4 @@ func AnchorRetiredAt(run Run, id string) (event int64, claim string, found bool,
 		`SELECT r."event_id", r."claim" FROM "retire_anchors" ra JOIN "retire" r ON r."event_id" = ra."event_id"
 		 WHERE ra."value" = ? ORDER BY r."event_id" LIMIT 1`, id)
 	return event, c.String, found, err
-}
-
-// GapsAwaitingProof lists the OPEN gaps minted --check-kind computation that no proof answers,
-// in board order.
-//
-// It is the same join the close gate and the board projection use, exposed as a debt a seat can
-// be handed at the moment it matters. The gate is at the CHAIR's close, one seat and one epoch
-// after blue — the only seat that can discharge it — has finished its sitting.
-//
-// Measured: projecting check_kind moved `prove` from 0 uses across eighteen sittings to 1 across
-// nine. A seat reading "check_kind: computation" learns a property of the gap; it does not learn
-// that it owes a program, and only the second changes what the sitting produces.
-func GapsAwaitingProof(run Run) []string {
-	// The gap view answers the whole question — awaiting_proof IS this predicate, stated once
-	// in SQL — and minted_event is board order. Read errors fold into nil, as the board-read
-	// error did.
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return nil
-	}
-	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "awaiting_proof" ORDER BY "minted_event"`)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil
-		}
-		out = append(out, id)
-	}
-	if rows.Err() != nil {
-		return nil
-	}
-	return out
 }

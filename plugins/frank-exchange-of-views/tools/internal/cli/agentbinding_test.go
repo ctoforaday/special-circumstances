@@ -266,15 +266,15 @@ func TestABracketBoundSeatThatActsIsRegisteredAndCapped(t *testing.T) {
 	}
 }
 
-// THE TWO SURFACES WHOSE REGISTER CARRIES MORE THAN THE BINDING ARE STILL REFUSED, because what it
+// THE ONE SURFACE WHOSE REGISTER CARRIES MORE THAN THE BINDING IS STILL REFUSED, because what it
 // carries there cannot be supplied by anything but the seat:
 //
 //	bench   --occasion        which of its four questions this sitting answers
-//	blue    --repair-sitting  that this sitting completes the last one's record
 //
-// Registering either silently would have to INVENT the answer. The bench's four sittings would
-// become indistinguishable once the run is archived, and a blue repair would file against the wrong
-// sitting — so here the call is the seat's to spend, and the refusal names it.
+// Registering it silently would have to INVENT the answer: the bench's four sittings would become
+// indistinguishable once the run is archived — so here the call is the seat's to spend, and the
+// refusal names it. BLUE'S REGISTER CARRIES NOTHING BUT THE BINDING, so a blue seat acting first is
+// registered for it, as a lens and the chair are.
 func TestASurfaceWhoseRegisterCarriesMoreStillRefuses(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_on_a_bespoke_surface")
@@ -284,7 +284,6 @@ func TestASurfaceWhoseRegisterCarriesMoreStillRefuses(t *testing.T) {
 		argv []string
 	}{
 		{"judge", []string{"log", "--reason", "acting without having registered", "--type", "defect"}},
-		{"blue-respond", []string{"log", "--reason", "acting without having registered", "--type", "defect"}},
 	} {
 		argv := append(append([]string{}, w.argv...), "--run", runDir, "--seat-id", w.seat)
 		_, err := run(t, argv...)

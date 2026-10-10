@@ -133,7 +133,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	mint("G2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
 	mint("G3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 
-	owed := GapsAwaitingProof(mustRun(t, runDir))
+	owed := awaitingProofT(t, mustRun(t, runDir))
 	if len(owed) != 2 || owed[0] != "G1" || owed[1] != "G2" {
 		t.Fatalf("owed = %v, want the two computation gaps in board order", owed)
 	}
@@ -153,7 +153,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if owed := GapsAwaitingProof(mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G2" {
+	if owed := awaitingProofT(t, mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G2" {
 		t.Fatalf("after proving G1, owed = %v, want [G2]", owed)
 	}
 
@@ -167,7 +167,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 		}
 	}
 	if len(fromBoard) != 1 || !fromBoard["G2"] {
-		t.Fatalf("board says %v awaits proof, the debt query says [G2]", fromBoard)
+		t.Fatalf("board says %v awaits proof, the work list says [G2]", fromBoard)
 	}
 	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		if g.AwaitingProof != fromBoard[g.ID] {
@@ -185,7 +185,20 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if owed := GapsAwaitingProof(mustRun(t, runDir)); len(owed) != 0 {
+	if owed := awaitingProofT(t, mustRun(t, runDir)); len(owed) != 0 {
 		t.Errorf("a closed gap is still reported as owed: %v", owed)
 	}
+}
+
+// awaitingProofT is the open gaps the work list marks as awaiting a proof, in its order — the
+// item blue's list carries for each, which is where a seat reads the debt.
+func awaitingProofT(t *testing.T, run Run) []string {
+	t.Helper()
+	var out []string
+	for _, g := range mustWorkJSONT(t, run).Open {
+		if g.AwaitingProof {
+			out = append(out, g.ID)
+		}
+	}
+	return out
 }

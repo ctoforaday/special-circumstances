@@ -4,7 +4,7 @@ package report
 //
 // Measured on the two archived runs, 70–76% of the single assembled report.md was process
 // record — the debate transcript, the board in full, a friction log LARGER THAN THE ENTIRE
-// RESEARCH ARGUMENT (60–65 KB against 15 KB of analysis), revision history, cost. The research
+// RESEARCH ARGUMENT (60–65 KB against 15 KB of analysis), a change history, cost. The research
 // the run was commissioned to produce was 24–30% of the document it was delivered in. Six
 // audiences were unioned into one artifact, so no reader could be addressed and none could be
 // revised, linked or archived without the other five.
@@ -167,7 +167,6 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	runsec.add(recordVerification(fam))
 
 	var chg sections
-	chg.add(revisionHistory(fam))
 	chg.add(withdrawnClaims(fam))
 	chg.add(supersededAsks(evs))
 
@@ -192,7 +191,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		{File: FileRun, Nav: "Run", Title: "the run",
 			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: runsec.String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
-			Blurb: "the provenance of this report: every revision, every claim withdrawn, and any post-run repair", Body: chg.String()},
+			Blurb: "the provenance of this report: every claim blue retired from it, and every ask a later certification superseded", Body: chg.String()},
 	}
 
 	// THE EVIDENCE LAYER IS RESOLVED ACROSS THE SET, NOT WITHIN A DOCUMENT.

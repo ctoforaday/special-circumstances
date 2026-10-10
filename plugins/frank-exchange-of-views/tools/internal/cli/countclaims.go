@@ -13,18 +13,16 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// newCountClaims computes claim_count from blue's report deterministically. Like
-// verify/graph it is a root, read-only operator command, not a seat verb — it
-// takes no seat identity because counting a file is not an act on the record. It
-// serves two readers: the blue agent runs it live and relays the number into its
-// envelope (replacing a hand-count that diverged 2x between honest merges), and
-// capture recomputes it independently to arm the retire-vs-drop detector without
-// trusting the relayed figure. See internal/claimcount for the counting rule.
+// newCountClaims counts the report's claims deterministically. Like verify/graph it is a root,
+// read-only operator command, not a seat verb — it takes no seat identity because counting the
+// report is not an act on the record. IT IS THE ONE DEFINITION OF THE COUNT: no seat relays the
+// number and no envelope carries it, so a reader that wants it — the dashboard's tile, the mint
+// budget — counts the report on the record through internal/claimcount, as this does.
 func newCountClaims() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "count-claims",
 		Short:         "count the FOOTNOTED declarative claims in blue's report (read-only)",
-		Long:          "count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing. Blue uses it live to size its envelope figure; capture recomputes it independently.",
+		Long:          "count-claims prints the report's claim_count — the number of footnoted declarative claims, computed deterministically from the report on the record. It writes nothing, and it is the count's one definition: no seat relays the number.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

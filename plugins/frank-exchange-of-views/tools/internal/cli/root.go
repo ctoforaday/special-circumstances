@@ -72,7 +72,7 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 	case "chair":
 		return chair.Verbs(), "the red chair — runs the debate: dispatches, judges the board, carries, spot-checks."
 	case "blue":
-		return blue.Verbs(), "blue seats — revisions, manifest rows, directions. No board verbs at all."
+		return blue.Verbs(), "blue seats — the report and its edits, manifest rows, directions. No board verbs at all."
 	case "bench":
 		// "opinions" NAMED A VERB THE BENCH NO LONGER HAS. `bench opinion` is retired (#681) and
 		// the disposition is a docket motion's ruling, so the line offered a capability the
@@ -207,9 +207,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// winner would hand some seat a verb that does the other thing. The operator's read of the
 	// log is `ops log` for the same reason: `log` only ever writes.
 	//
-	// So the split is total. `fetch` and `count-claims` cross it because seats genuinely run them
-	// — a lens reads blue's cached source bytes, and blue's claim_count is defined as what
-	// count-claims prints — and neither name collides.
+	// So the split is total. `fetch` crosses it because seats genuinely run it — a lens reads
+	// blue's cached source bytes — and the name does not collide. `count-claims` does not cross:
+	// no seat is asked for the report's claim count, and a reader that wants it counts the report.
 	// NO IDENTITY IS NOT A MODE. It used to fall through to the operator surface, which made
 	// "nobody said who I am" a way of selecting a tree — and a tree nobody selects is one nobody
 	// can be refused from. The surface is scoped to whoever is asking, so there is nothing to show
@@ -236,8 +236,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		root.Long = InvokedAs() + " — " + short + "\n" + seat.LogFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
-		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
-		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+		root.AddCommand(newFetch()) // a lens reads the EXACT bytes blue read, from the run cache
 		// `manual` IS NOT ON A SEAT'S SURFACE, because a seat is already holding what it prints.
 		//
 		// scripts/agentgen writes every command's help into the seat's own constitution, so the
@@ -257,7 +256,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newVerify(),          // operator cross-check, not a seat role — read-only over the record
 			newGraph(),           // operator: render a run's actual behaviour from the record
 			newShowDiagnostics(), // operator: did the seats find their surface — exposure and use, as fields
-			newCountClaims(),     // operator/blue: deterministic claim_count over blue/report.md
+			newCountClaims(),     // operator: the report's claim count, counted from the report on the record
 			newFetch(),           // operator: cached, hash-verified web read — feeds the run source cache
 			newOCR(),             // operator: render a scan's pages so a seat can read what has no text layer
 			newSetup(),           // operator: build a research run's blackboard

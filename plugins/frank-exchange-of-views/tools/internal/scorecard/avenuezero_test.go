@@ -38,7 +38,7 @@ func TestAvenuesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
 	})
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
-	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, board, record.WhileRunning)
+	rows := blueRows(record.Run{}, []map[string]any{{}}, nil, board, record.WhileRunning)
 
 	r := rowByMetric(rows, "avenues")
 	if r == nil {

@@ -7,8 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 func fp(f float64) *float64 { return &f }
@@ -88,7 +94,7 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.TerminalVerdict = "VERIFIED"
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
-		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15}`},
+		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS"}`},
 		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","dispositions":[1]}`},
 		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
@@ -126,8 +132,9 @@ func TestRenderHTMLLive(t *testing.T) {
 
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
+		// A claim count a seat put in its envelope is not summarised: the count is the report's.
 		{`{"verdict":"FAIL","claim_count":15,"dispositions":[1]}`,
-			"verdict FAIL · 15 claims · 1 ruling"},
+			"verdict FAIL · 1 ruling"},
 		{`{"dispositions":[1,2]}`, "2 rulings"},
 		{`not json`, "not json"},
 		{`{}`, "{}"},
@@ -186,5 +193,54 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	}
 	if m.Generated != "2025-01-16T04:00:00.000Z" {
 		t.Errorf("generated should reflect injected --now, got %q", m.Generated)
+	}
+}
+
+// THE CLAIM TILE IS COUNTED FROM THE REPORT ON THE RECORD — `count-claims`' computation — and from
+// nothing a seat relayed. The journal here carries an envelope with a claim count of its own, and
+// the tile ignores it. With no frozen report there is nothing to count, and the tile says NOT
+// MEASURED rather than a zero that would read as a report citing nothing.
+func TestTheDashboardCountsClaimsFromTheReport(t *testing.T) {
+	journal := func(t *testing.T) string {
+		tr := t.TempDir()
+		if err := os.WriteFile(filepath.Join(tr, "journal.jsonl"),
+			[]byte(`{"agentId":"a","result":{"claim_count":99,"saturation_reached":true}}`+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return tr
+	}
+
+	runDir := recordtest.TmpRun(t)
+	run := runtest.Open(t, runDir)
+	if _, _, err := record.RegisterSeat(record.Identity{Run: run, SeatID: "blue-synthesize"}, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	base := "The sky is blue<!--cite:C-0000000a-->. Water is wet<!--cite:C-0000000b-->. Nobody cited this."
+	if _, err := record.Append(record.Identity{Run: run, SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
+		t.Fatal(err)
+	}
+	md, err := reportproj.RenderFromRecord(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := claimcount.Count(md)
+	if want != 2 {
+		t.Fatalf("the fixture's report holds %d counted claims, want 2 — the test would be vacuous", want)
+	}
+	m := BuildModel(run, journal(t), Config{}, 0)
+	if m.BlueClaims == nil || *m.BlueClaims != want {
+		t.Fatalf("the claim tile = %v, want %d — the report's count, not the envelope's 99", m.BlueClaims, want)
+	}
+	if h := RenderHTML(m); !strings.Contains(h, "<b>2</b><span>blue claims</span>") {
+		t.Errorf("the page does not print the report's count on the claim tile")
+	}
+
+	// No frozen report: not measured, whatever an envelope said.
+	bare := BuildModel(runtest.Open(t, recordtest.TmpRun(t)), journal(t), Config{}, 0)
+	if bare.BlueClaims != nil {
+		t.Fatalf("a record holding no report counts %d claims, want not measured", *bare.BlueClaims)
+	}
+	if h := RenderHTML(bare); !strings.Contains(h, "<b>not measured</b><span>blue claims</span>") {
+		t.Errorf("the page does not say the claim count is not measured")
 	}
 }

@@ -820,7 +820,7 @@ func avenues(fam record.Family, heading string, want func(string) bool) string {
 // it makes the report indistinguishable from one where the claim was never made.
 //
 // THE SITTING IT NAMES IS THE SITTING THE RECORD HOLDS THE RETIREMENT IN (fam.At): a retirement
-// filed in a sitting-record repair is shown under the sitting whose report it completes.
+// filed under a register that names a repaired sitting is shown under the sitting it names.
 func withdrawnClaims(fam record.Family) string {
 	var rows []string
 	for _, e := range fam.Events {
@@ -838,11 +838,10 @@ func withdrawnClaims(fam record.Family) string {
 			row += "\n  - superseded by: " + s
 		}
 		// A PHANTOM RETIREMENT IS WORSE THAN USELESS, and only the basis distinguishes one.
-		// The scorecard's additive-integrity detector computes unrecorded_claim_loss as the
-		// drop in claim_count MINUS the retire events, so a retirement of a claim that was
-		// never in the report subtracts from the accounted side and CANCELS real loss —
-		// blinding the one detector built to catch silent deletion. The field records whether
-		// the record can actually show the claim leaving; the reader could not see which.
+		// This list is the reader's account of what left the report, so a retirement of a
+		// claim that was never in it is a removal that did not happen, listed beside the real
+		// ones. The field records whether the record can actually show the claim leaving; the
+		// reader could not see which.
 		switch r.GetRemovalBasis() {
 		case record.RemovalVerified:
 			row += "\n  - basis: **verified** — the claim appears in the old span of a recorded edit, so the record shows it leaving."
@@ -1024,9 +1023,8 @@ func correctnessManifest(fam record.Family) string {
 	}
 	var rows []row
 	// THE SITTING EACH ROW IS FILED UNDER IS THE SITTING THE RECORD HOLDS IT IN (fam.At): a row
-	// filed in a sitting-record repair completes the record the repaired sitting owes, so it renders
-	// under that sitting — the one the closer bounds and the one the manifest's owed set is computed
-	// for.
+	// filed under a register that names a repaired sitting renders under the sitting it names —
+	// the one the closer bounds and the one the manifest's owed set is computed for.
 	// A CORRECTED ROW IS SHOWN STRUCK, beside the row that replaced it, and counted once: the
 	// heading counts the receipts that stand.
 	standing := 0
@@ -1510,29 +1508,6 @@ func logSection(fam record.Family) string {
 		out += "\nNo seat sat without filing, so the list above is every seat that spoke.\n"
 	}
 	return strings.TrimRight(out, "\n")
-}
-
-// revisionHistory is blue's per-epoch revision record folded into the report as
-// bottom-of-document provenance — how the report evolved epoch by epoch. Composed from revision
-// events; a run with no revisions omits it.
-func revisionHistory(fam record.Family) string {
-	var rows []string
-	for _, l := range fam.Listing() {
-		e := l.Event
-		w := fam.At.Of(e)
-		r, ok := recordpb.BodyAs[*recordpb.Revision](e)
-		if !ok {
-			continue
-		}
-		// Revision's one field is `text`; `--reason` is the flag, as everywhere else.
-		if t := strings.TrimSpace(r.GetText()); t != "" {
-			rows = append(rows, fmt.Sprintf("### Epoch %d — %s\n\n%s", w.Epoch, e.GetSeatId(), l.Markdown(t)))
-		}
-	}
-	if len(rows) == 0 {
-		return ""
-	}
-	return "## Report revision history\n\n" + strings.Join(rows, "\n\n")
 }
 
 // grade renders a grade that arrives WITHOUT a type — the JSON board view carries its four

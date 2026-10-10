@@ -34,13 +34,6 @@ package recordpb
 // nothing; the other reading folds two sittings into one and reads exactly like a record with one
 // fewer sitting. The SQL degrades the same way and by the same fact: `sitting_id` was stamped from
 // this function at the write, so no reader re-derives it and no reader can disagree with it.
-//
-// THE CLAIM CHECK ANSWERS THE OTHER WAY, DELIBERATELY — see record.checkRepair, which reads
-// RegisterIsReadable. Attribution reads a record that already exists and must invent nothing; the
-// claim check decides what goes ON the record, and admitting a repair against a register the tool
-// cannot read would put on it a repair of a sitting no reader can bound. So attribution fails OPEN
-// and the claim check fails CLOSED, and the difference is this paragraph rather than two spellings
-// that drifted.
 
 // AgentOpening is the harness agent id an opening event names, or "".
 //
@@ -98,12 +91,4 @@ func SittingRepairedBy(e *Event) (string, bool) {
 		return "", false
 	}
 	return b.GetRepairsSitting(), true
-}
-
-// RegisterIsReadable reports whether e's body decodes as the register it claims to be. It is the
-// claim check's half of the divergence above and has one caller: an attribution reader that asked
-// this would be inventing a sitting boundary out of a decode failure.
-func RegisterIsReadable(e *Event) bool {
-	_, ok := BodyAs[*Register](e)
-	return ok
 }

@@ -14,40 +14,15 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// forgedRegister is a register event with NO BODY.
-//
-// It has to be forged, and that is the point of it. recordpb.SetBody stamps the type from the body,
-// so no fixture helper can express the disagreement; recordsql.Insert refuses an event with no body;
-// and recordsql's loader refuses a `register` row whose body row is missing, so the shape cannot
-// come back out of a database either. The degradation rule opensASitting states is therefore about
-// a record this tree did not write — which is exactly the record no reader was ever compared on,
-// and why six copies of one predicate could answer it two different ways with every gate green.
-func forgedRegister(seat, key, ts string) *Event {
-	return &recordpb.Event{
-		SeatId: proto.String(seat),
-		Ts:     proto.String(ts),
-		Type:   recordpb.EventType_EVENT_TYPE_REGISTER.Enum(),
-		Key:    proto.String(key),
-	}
-}
-
-// forgedRegister stages one on the builder, for the tables that need the unreadable case.
-func (b *stage) forgedRegister(seat string) *stage {
-	b.n++
-	b.evs = append(b.evs, forgedRegister(seat, fmt.Sprintf("%s:%d", seat, b.n),
-		fmt.Sprintf("2026-01-01T00:00:%02dZ", b.n)))
-	return b
-}
-
 // THE CHAIR'S SPOT-CHECK WINDOW IS THE STORED SITTING, on a REPAIR, because that is where a
-// register-counting reader's two possible answers differ. No verb can reach a chair's repair
-// (checkRepair admits a blue role only), so the record is seeded; the write path stores the repair in
-// the sitting it repairs, and the window reads that, so it stays right if that gate ever moves.
+// register-counting reader's two possible answers differ. No verb writes a register that names a
+// repaired sitting, so the record is seeded; the write path stores the repair in the sitting it
+// repairs, and the window reads that.
 //
 // AN UNREADABLE REGISTER IS NOT ASKED OF ANY READER HERE, because no reader evaluates it: every
 // attribution reader takes the write path's answer (WindowIndex), and a register with no body cannot
 // reach the database to be loaded — Insert refuses it. The writer's half is
-// TestTheSQLAndGoReadingsOfWhatOpensASittingAgree; the claim check's is the test below.
+// TestTheSQLAndGoReadingsOfWhatOpensASittingAgree.
 func TestTheChairsSpotCheckWindowIsTheSittingItsRepairCompletes(t *testing.T) {
 	chair := []*Event{
 		recordtest.At(t, HarnessSeat, "harness:cast", &recordpb.Cast{SeatIds: []string{"red-chair", "red-lens-logic"}}),
@@ -60,42 +35,6 @@ func TestTheChairsSpotCheckWindowIsTheSittingItsRepairCompletes(t *testing.T) {
 	m := loadedT(t, chair...)
 	if g := passLensGateOf(m.Events, m.At.IDs(m.Events), m.At, nil); !g.covered["red-lens-logic"] {
 		t.Error("the chair's sitting reads as not covering red-lens-logic, but the spot-check is an act of the sitting its repair completes")
-	}
-}
-
-// THE CLAIM CHECK REFUSES A TARGET IT CANNOT READ, WHICH IS THE OTHER ANSWER AND IS MEANT TO BE
-// (#1040). Attribution invents nothing and lets an unreadable register open a sitting; a repair
-// CLAIM against that register would go on the record as a repair of a sitting nothing can bound, so
-// the write path refuses it — and refuses it on the claimUnfounded branch, because telling the seat
-// there is nothing to file would assert what the unreadable sitting owed.
-//
-// Only the seat can name one. The tool names the register in the seat's latest STORED sitting, and a
-// register with no body has none: it cannot reach the database (Insert refuses it). So the fixture
-// stays hand-built, with no index, and the claim check refuses on the body before it asks one.
-func TestTheRepairClaimCheckRefusesARegisterItCannotRead(t *testing.T) {
-	b := newStage(t)
-	b.cast(evLens, "red-chair", "blue-respond").ingest().register("red-chair").
-		dispatch(1, "blue-respond", "G1").forgedRegister("blue-respond")
-	key := b.lastKey()
-
-	for _, c := range []struct {
-		name string
-		call func() error
-	}{
-		{"named by the seat", func() error { return checkRepair(b.evs, WindowIndex{}, "blue-respond", key) }},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			err := c.call()
-			if err == nil {
-				t.Fatal("the repair was admitted against a register this binary cannot read")
-			}
-			if !strings.Contains(err.Error(), "whose body this binary cannot read") {
-				t.Fatalf("the refusal does not name the unreadable target:\n%v", err)
-			}
-			if strings.Contains(err.Error(), RepairNothingToFile) {
-				t.Errorf("the refusal puts the seat on the nothing-to-file branch, which asserts what the unreadable sitting owed:\n%v", err)
-			}
-		})
 	}
 }
 

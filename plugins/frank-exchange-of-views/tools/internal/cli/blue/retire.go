@@ -30,15 +30,14 @@ import (
 //
 // Splitting the two jobs: prose may now be compacted, merged and reorganized
 // freely, because a claim can only LEAVE through this verb. (Merging two cited
-// sentences carries both anchors, and claim_count counts attached citations, not
+// sentences carries both anchors, and the claim count is of attached citations, not
 // sentences — so a merge moves the count not at all.) Deletion stops being
 // something a rule forbids and becomes something the record shows — with what was
 // removed, why, and what (if anything) replaced it.
 //
 // That is strictly stronger than the prose rule it replaces. The old rule could
-// be broken silently by an edit; this one leaves a hole in the record that
-// capture detects, because claim_count falling further than the retire events
-// account for is arithmetic, not judgement.
+// be broken silently by an edit; here `edit` refuses a replacement that drops an
+// anchor, so a counted claim leaves only where a retire names the anchors it takes.
 //
 // AND IT IS HOW AN ANCHOR LEAVES. An edit may carry an anchor but never drop one,
 // so cutting an anchored sentence leaves the anchor BARE — no prose before it in
@@ -73,11 +72,9 @@ func newRetire() *cobra.Command {
 		// through the retire verb", the rule this comment above calls "strictly stronger
 		// than the prose rule it replaces", rested on the seat's word.
 		//
-		// A PHANTOM RETIRE IS WORSE THAN USELESS. The scorecard's additive-integrity
-		// detector computes unrecorded_claim_loss as (drop in claim_count) MINUS (retire
-		// events): a retirement of a claim that was never there subtracts from the
-		// accounted side and CANCELS REAL LOSS, blinding the one detector built to catch
-		// silent deletion.
+		// A PHANTOM RETIRE IS WORSE THAN USELESS. The changelog lists every retirement as a
+		// claim that left the report: one naming a claim that was never there is a removal
+		// the record asserts and the report never had.
 		claim := seat.Str(cmd, flags.Quote)
 		basis := record.RemovalAsserted
 		var stayed []keptAnchor

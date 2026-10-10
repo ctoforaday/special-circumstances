@@ -33,8 +33,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id judge --occasion docket
 exit 0
@@ -68,50 +67,43 @@ $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is rep
 exit 0
 stdout:
 manifest row recorded for GAP001 [key blue-respond:manifest_row:#1:GAP001]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded proof --corrects blue-respond:manifest_row:#1:GAP001 --correction-why the row lost its method
 exit 0
 stdout:
 manifest row recorded for GAP001 [key blue-respond:manifest_row:#1:GAP001~1]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason G1 is reproducible via the recorded proof --corrects blue-respond:manifest_row:#1:GAP001 --correction-why the row lost its method
 exit 0
 stdout:
 manifest row recorded for GAP001 [key blue-respond:manifest_row:#1:GAP001~1]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ avenue propose --run {RUN} --seat-id blue-respond --reason try the  method
 exit 0
 stdout:
 avenue AVENUE001 recorded (proposed): try the  method [key blue-respond:avenue:#1]
-1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ avenue move --run {RUN} --seat-id blue-respond --id AVENUE001 --as pursued --reason the method held
 exit 0
 stdout:
 avenue AVENUE001 moved to pursued [key blue-respond:avenue:#2]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ avenue propose --run {RUN} --seat-id blue-respond --reason try the recorded method --corrects blue-respond:avenue:#1 --correction-why a word was lost
 exit 0
 stdout:
 avenue AVENUE001 recorded (proposed): try the recorded method [key blue-respond:avenue:#1~1]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ motion grade file --run {RUN} --seat-id blue-respond --id GAP002 --dimension severity --proposed low --reason the consequence is bounded
 exit 0
 stdout:
 motion MOTION001 filed (grade)
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ motion grade rule --run {RUN} --seat-id red-chair --id MOTION001 --as rejected --reason the evidence does not  it
 exit 0
@@ -137,15 +129,13 @@ $ motion grade appeal --run {RUN} --seat-id blue-respond --id MOTION001 --reason
 exit 0
 stdout:
 motion MOTION001 appealed [key blue-respond:motion_appeal:#1]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ motion grade appeal --run {RUN} --seat-id blue-respond --id MOTION001 --reason pressing it on new grounds --corrects blue-respond:motion_appeal:#1 --correction-why a word was lost
 exit 0
 stdout:
 motion MOTION001 appealed [key blue-respond:motion_appeal:#1~1]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason verified at the  leaf
 exit 0

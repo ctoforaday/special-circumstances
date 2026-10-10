@@ -177,9 +177,9 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	}
 }
 
-// Blue retires a claim; the claim leaves ONLY through this verb. Capture compares the
-// claim_count fall against the retire events, so a retire that loses its reason or its
-// successor breaks the accounting that detects claims vanishing quietly.
+// Blue retires a claim; the claim leaves ONLY through this verb. The changelog lists each
+// retirement with why the claim went and what replaced it, so a retire that loses its reason or
+// its successor is a removal the reader cannot account for.
 func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond",

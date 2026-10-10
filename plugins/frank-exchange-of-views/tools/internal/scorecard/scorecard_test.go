@@ -4,6 +4,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -151,55 +152,29 @@ func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
 	}
 }
 
-func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
-	// The additive-integrity detector: a claim_count fall the retire EVENTS don't account for is
-	// substance leaving silently. Retires come from the RECORD (retire events on the board), NOT a
-	// BLUE_ENVELOPE `retired` field — that field never existed, so the old code counted zero and
-	// flagged every legitimate retirement as a violation.
-	results := []map[string]any{
-		{"claim_count": float64(10)},
-		{"claim_count": float64(5)},
-	}
-	// Four retire events, THREE units credited: claim_count counts attached citation anchors, so
-	// each citation anchor a retire took out is one unit of the fall — the retire that took two cited
-	// sentences out at once credits two. A retire of uncited prose, or one taking out only a
-	// finding, gap or proof anchor, removed nothing the count held — crediting it would cancel an
-	// unrelated real loss.
+// THE BLUE CARD SCORES NOTHING A SEAT RELAYED. Two rows read the envelopes: one subtracted the
+// record's retirements from the fall in a claim count blue typed into its envelope, the other
+// counted envelopes that did not attest their sitting record. No envelope carries either key, so a
+// card computed over envelopes that carry them anyway is the card computed over none — and neither
+// metric is on it.
+func TestTheBlueCardReadsNoRelayedCountAndNoAttestation(t *testing.T) {
 	retire := func(anchors ...string) *record.Event {
 		return recordtest.Event(t, "", &recordpb.Retire{Claim: proto.String("the claim"), Reason: proto.String("refuted"), Anchors: anchors})
 	}
-	board := famSeededT(t, []*record.Event{
-		retire("F-00000001", "C-00000001"),
-		retire(),
-		retire("F-00000002", "G-00000001", "P-00000001"),
-		retire("C-00000002", "C-00000003"),
-	})
-	r := rowByMetric(blueRows(record.Run{}, results, nil, board, record.WhileRunning), "unrecorded_claim_loss")
-	if r == nil || r.Value == nil {
-		t.Fatalf("row not computed: %+v", r)
+	board := famSeededT(t, []*record.Event{retire("C-00000001"), retire("C-00000002", "C-00000003")})
+	relayed := []map[string]any{
+		{"claim_count": float64(10), "sitting_record_appended": true},
+		{"claim_count": float64(5), "sitting_record_appended": false},
 	}
-	if v, _ := r.Value.(int); v != 2 { // drop 5, 3 citation anchors retired → max(0, 5-3)=2
-		t.Errorf("unrecorded_claim_loss = %v, want 2 (drop 5 − 3 citation anchors retired on the record)", r.Value)
+	with := blueRows(record.Run{}, relayed, nil, board, record.WhileRunning)
+	for _, gone := range []string{"unrecorded_claim_loss", "sitting_record_failures"} {
+		if r := rowByMetric(with, gone); r != nil {
+			t.Errorf("the blue card carries %s, a row over what an envelope relayed: %+v", gone, r)
+		}
 	}
-	if !strings.Contains(r.Note, "5 claim(s) lost across envelopes, 3 retired on the record (4 retire event(s)") {
-		t.Errorf("note = %q", r.Note)
-	}
-
-	// A `retired` field on the ENVELOPE must be IGNORED — the fix guards against the phantom-field
-	// source. No board + a bogus envelope `retired` → retires stays 0 → the whole drop is flagged.
-	phantom := []map[string]any{
-		{"claim_count": float64(10)},
-		{"claim_count": float64(7), "retired": []any{map[string]any{}, map[string]any{}}},
-	}
-	rp := rowByMetric(blueRows(record.Run{}, phantom, nil, nil, record.WhileRunning), "unrecorded_claim_loss")
-	if v, _ := rp.Value.(int); v != 3 {
-		t.Errorf("a phantom envelope `retired` field must not count: want lost=3 (drop 3 − 0), got %v", rp.Value)
-	}
-
-	// A single envelope → the not-computed note.
-	r1 := rowByMetric(blueRows(record.Run{}, []map[string]any{{"claim_count": float64(5)}}, nil, nil, record.WhileRunning), "unrecorded_claim_loss")
-	if r1.Value != nil {
-		t.Errorf("single envelope must not compute: %+v", r1)
+	without := blueRows(record.Run{}, []map[string]any{{}, {}}, nil, board, record.WhileRunning)
+	if !reflect.DeepEqual(with, without) {
+		t.Errorf("the card moved with the envelopes' claim_count and sitting_record_appended:\n with    %+v\n without %+v", with, without)
 	}
 }
 

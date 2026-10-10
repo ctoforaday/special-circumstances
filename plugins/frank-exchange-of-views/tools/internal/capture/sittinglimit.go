@@ -14,7 +14,7 @@ import (
 //
 // A stopped sitting WARNS rather than fails. The run is sound; what the reader needs is which
 // seat's work in which sitting ended at the limit rather than at the seat's own judgement, because
-// that sitting's position, revision or findings may stop short of what the seat would have filed.
+// that sitting's position or findings may stop short of what the seat would have filed.
 func SittingLimitAudit(run record.Run) Audit {
 	m, err := record.MergedEvents(run)
 	if err != nil {

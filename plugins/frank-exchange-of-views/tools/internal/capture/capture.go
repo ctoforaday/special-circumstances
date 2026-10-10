@@ -658,8 +658,8 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 // RecordParityAudit holds the sittings that owe the record something to the record. A POSITION is
 // owed by the seats record.SeatOwesPosition names — every chair sitting, and every sitting
 // blue-respond took for a dispatch that engaged it on a gap still open when it sat — and the state
-// of each is record.PositionSittings', the reading blue's work list blocks on. A blue-respond
-// sitting that owes also owes a REVISION (record.BlueSitting.Owes).
+// of each is record.PositionSittings', the reading blue's work list blocks on. The position is the
+// whole of what a sitting owes this audit.
 //
 // THIS AUDIT IS THE READER THAT REPORTS A POSITION THAT WAS NOT FILED. The transcript prints the
 // positions that were, and gives a sitting that holds none no section.
@@ -668,20 +668,17 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 // no item for it — its blocking items are the PASS gate's blockers and nothing else — so its
 // position is held by its prompt and by this audit.
 //
-// A SITTING THAT FOUND EVERY GAP CLOSED OWES NEITHER. The lenses sit before blue, so a lens can
+// A SITTING THAT FOUND EVERY GAP CLOSED OWES NONE. The lenses sit before blue, so a lens can
 // close a gap between the dispatch and blue's register, and blue then has nothing to answer.
 //
 // PER SITTING, NOT PER EPOCH. Blue sits only when the chair dispatches it, so an epoch count says
 // nothing about what blue owed: B7 had five chair sittings and three blue sittings, and red had
 // closed the gap before blue sat in two of them. "Blue epochs >= red epochs - 1" failed that run.
 //
-// THE REVISION IS COUNTED FROM `revision` EVENTS, never from a hand-authored file: a run once
-// carried a 6,847-byte CHANGELOG and one revision event, from one of three eligible seats (#268).
-//
 // THE SITTINGS ARE READ AFTER THE RUN (record.AfterTheRun). Capture reads a finished run, so no
 // sitting is still in flight and the end of the record closes every sitting nothing else closed: a
-// last sitting that filed no revision before the run ended filed none. B9's last blue sitting,
-// engaged on G4 still open, filed no revision, and its headless agent left no stop to close it.
+// last sitting that filed no position before the run ended filed none, though a headless agent
+// left no stop to close it.
 func RecordParityAudit(run record.Run) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
@@ -705,11 +702,6 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 	for _, p := range rows {
 		name := fmt.Sprintf("%s sitting %d ", p.Seat, p.Ordinal)
 		why := "the record cannot close it (" + p.Seat + " has not opened a sitting since and its agent's stop is not on the record)"
-		var missing []string
-		unresolved := p.State == record.PositionUnresolved
-		if p.State == record.PositionMissing || unresolved {
-			missing = append(missing, "no position")
-		}
 		if s := p.Blue; s != nil {
 			blues++
 			if len(s.Open) > 0 {
@@ -717,19 +709,14 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 			}
 			name = fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, ", p.Ordinal, strings.Join(s.Open, ", "))
 			why = "the record cannot close it (blue has not registered since and its agent's stop is not on the record)"
-			if slices.Contains(s.Owes(), recordpb.EventType_EVENT_TYPE_REVISION) {
-				missing = append(missing, "no revision")
-			}
-			unresolved = s.Unresolved
 		} else {
 			chairs++
 		}
-		switch {
-		case len(missing) == 0:
-		case unresolved:
-			unmeasured = append(unmeasured, fmt.Sprintf("%sshows %s so far — NOT MEASURED: %s", name, strings.Join(missing, " and "), why))
-		default:
-			short = append(short, fmt.Sprintf("%sfiled %s", name, strings.Join(missing, " and ")))
+		switch p.State {
+		case record.PositionUnresolved:
+			unmeasured = append(unmeasured, fmt.Sprintf("%sshows no position so far — NOT MEASURED: %s", name, why))
+		case record.PositionMissing:
+			short = append(short, name+"filed no position")
 		}
 	}
 	if len(short) > 0 {
@@ -739,7 +726,7 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: strings.Join(unmeasured, "; ")}
 	}
 	return Audit{Check: "record-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d chair sitting(s), each with its position; %d blue sitting(s) for a dispatch: %d owed an answer and each carries a position and a revision; %d found every gap it was engaged on closed first",
+		Detail: fmt.Sprintf("%d chair sitting(s), each with its position; %d blue sitting(s) for a dispatch: %d owed an answer and each carries its position; %d found every gap it was engaged on closed first",
 			chairs, blues, owed, blues-owed)}
 }
 

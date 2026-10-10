@@ -288,12 +288,11 @@ func requireBound(cmd *cobra.Command, s Context) error {
 // autoRegisters says whether this surface's `register` can be performed FOR the seat, and it asks
 // the surface rather than a list of roles — the fact lives once, where the difference is declared.
 //
-// A register carries the binding, and on two surfaces it carries one thing more, as a flag:
+// A register carries the binding, and on one surface it carries one thing more, as a flag:
 //
 //	bench   --occasion        which of its four questions this sitting answers. Only its prompt knows.
-//	blue    --repair-sitting  that this sitting completes the last one's record. Only the seat knows.
 //
-// Neither can be supplied by anything but the seat, so neither can be silent. Every other surface's
+// It can be supplied by nothing but the seat, so it cannot be silent. Every other surface's
 // register is the binding and nothing else, which is a fact the tool already holds — so the seat
 // spends a call telling the tool what the tool knows, and that call is what this removes.
 //
@@ -609,7 +608,7 @@ func markRequired(c *cobra.Command, verb string) {
 		}
 		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said
 		// REQUIRED and the parser accepted the command without it — the tool asserting a
-		// constraint nothing held. Measured: `blue friction` and `blue revision`, no flags,
+		// constraint nothing held. Measured: two of blue's free-text verbs, run with no flags,
 		// recorded empty events and took a seat from two outstanding duties to complete:true.
 		//
 		// The record layer refuses these too, and that is not a second reader of one rule: it
@@ -977,7 +976,6 @@ var ReasonIs = map[string]string{
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
-	"revision":     "what changed this sitting. " + flags.ReasonNotProcess,
 	"spot-check":   "what sampling the closure archive found. " + flags.ReasonNotProcess,
 	"certify":      "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
 	"declare":      "the holding: how the whole record is to be READ. " + flags.ReasonNotProcess,

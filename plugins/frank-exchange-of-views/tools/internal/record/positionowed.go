@@ -72,8 +72,7 @@ func positionStateOf(owed, filed, closed bool) PositionState {
 	return PositionUnresolved
 }
 
-// holdsPosition reports whether a sitting's acts hold a position — the one scan PositionSittings
-// and BlueSitting.Owes both make.
+// holdsPosition reports whether a sitting's acts hold a position.
 func holdsPosition(acts []*Event) bool {
 	for _, e := range acts {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
@@ -91,9 +90,8 @@ type PositionSitting struct {
 	// SittingID is the stored sitting the row is — what the work list holds against the seat's
 	// latest sitting.
 	SittingID int64
-	// Blue is, for blue-respond, the sitting as BlueSittings reads it: the gaps it found open and,
-	// while the sitting owes a revision too, the acts that hold one. Nil for the chair, whose every
-	// sitting owes a position and nothing else here.
+	// Blue is, for blue-respond, the sitting as BlueSittings reads it: the gaps it found open are
+	// what a finding about it names. Nil for the chair, whose every sitting owes a position.
 	Blue   *BlueSitting
 	State  PositionState
 	opened int64

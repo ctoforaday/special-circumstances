@@ -414,7 +414,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 	t.Parallel()
 	// THE FIELD, NOT THE FLAG. Every row said `reason` — the word a seat types — while the schema
 	// spells the prose field per verb: a halt stores `opinion`, a certification `statement`, a
-	// revision and a closing `text`. Read against a payload map the wrong name returned "" and the
+	// closing `text`. Read against a payload map the wrong name returned "" and the
 	// assertion compared "" to the file's content, so it failed honestly; read against the
 	// descriptor it names the field the record actually holds.
 	cases := []struct {
@@ -424,7 +424,6 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 	}{
 		{"bench", "halt", "judge-terminal", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
-		{"blue", "revision", "blue-lane-1", "text", recordpb.EventType_EVENT_TYPE_REVISION, nil},
 		{"chair", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},
 	}

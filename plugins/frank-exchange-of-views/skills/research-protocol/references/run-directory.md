@@ -27,7 +27,7 @@ research/<date>_<slug>/
 ├── avenues.md         # each avenue's fate, the path it took, its ruling and appeal
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # the log, the record's invariant check, and cost
-├── CHANGELOG.md       # this report's own provenance: revisions, retired claims, repairs
+├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/

@@ -14,8 +14,8 @@ import (
 
 // AN EDIT FILED IN A REPAIR IS THE REPAIRED SITTING'S (#1002, gblock 2026-09-18). Both forms of
 // this view attribute an edit to a sitting, so both follow the sitting the act belongs to rather
-// than the seat's turn count: blue's revision, filed by the re-prompt that exists to put it on the
-// record, is grouped under the sitting that owed it — one heading, not two.
+// than the seat's turn count: blue's edit, filed under a register that names the sitting it repairs,
+// is grouped under that sitting — one heading, not two.
 func TestARepairsEditIsGroupedUnderTheSittingItCompletes(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, []*record.Event{

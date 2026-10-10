@@ -32,8 +32,8 @@ import (
 // A sitting nothing has closed is read to the end of the record either way, which is what lets a
 // live sitting's work list see its own unreceipted edits — so Gaps is the same at either reading,
 // and while the run is running Unresolved says those sittings may yet hold more.
-// A dispatch blue never sat owes nothing: no register, no sitting, and a missing sitting is the
-// sitting-record audit's finding, not the manifest's.
+// A dispatch blue never sat owes nothing: no register, no sitting — and no row in capture's
+// record-parity audit either, which reads the sittings the record holds.
 func ManifestOwed(evs []*Event, win WindowIndex, when ReadWhen) ManifestOwing {
 	var o ManifestOwing
 	seen := map[string]bool{}
@@ -92,35 +92,10 @@ type BlueSitting struct {
 	opened     int64 // the place, in Live order, of the register that opened it
 }
 
-// Owes is what this sitting owed and did not file: a position and a revision, each missing one, for
-// a sitting that found a gap it was engaged on still open. It is THE ONE PREDICATE of an owing
-// sitting — capture's record-parity audit fails on it, and the register refuses a repair of a
-// sitting for which it is empty.
-func (s BlueSitting) Owes() []recordpb.EventType {
-	if len(s.Open) == 0 {
-		return nil
-	}
-	revision := false
-	for _, e := range s.Acts {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
-			revision = true
-		}
-	}
-	var owes []recordpb.EventType
-	// The position half is the scan PositionSittings makes of the same acts (holdsPosition).
-	if !holdsPosition(s.Acts) {
-		owes = append(owes, recordpb.EventType_EVENT_TYPE_POSITION)
-	}
-	if !revision {
-		owes = append(owes, recordpb.EventType_EVENT_TYPE_REVISION)
-	}
-	return owes
-}
-
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
-// reading of "what did this blue sitting owe": the manifest counts receipts off it, capture's
-// record-parity audit holds each owing sitting to a position and a revision, and blue's work list
-// asks it whether this sitting owes a revision. A dispatch blue never sat has no sitting here.
+// reading of "what did this blue sitting owe": the manifest counts receipts off it, and
+// PositionSittings — behind capture's record-parity audit and blue's work list — holds each
+// sitting that found an engaged gap open to a position. A dispatch blue never sat has no sitting here.
 //
 // ITS BOUNDS ARE THE SHARED ONES. The sitting begins where sittingFor says and ends where
 // sittingCloser says at when — blue's own next register, its agent's stop, or after the run the end

@@ -50,20 +50,12 @@ $ position --run {RUN} --seat-id blue-respond --reason blue's round position
 exit 0
 stdout:
 position recorded [key blue-respond:position:#0]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
 exit 0
 stdout:
 closing filed for GAP001 [key blue-respond:closing:#0:GAP001]
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · this sitting's revision is missing — a revision that is not on the record did not happen as far as the run is concerned (W1.7)
-
-$ revision --run {RUN} --seat-id blue-respond --reason repairs landed
-exit 0
-stdout:
-revision recorded — this sitting's changes are on the record [key blue-respond:revision:#0]
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ manifest-row --run {RUN} --seat-id blue-respond --id GAP001 --reason figures recomputed; check run: pass
@@ -184,14 +176,13 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"closing":{"gap_id":"GAP001","text":"red's closing"},"key":"red-chair:closing:#1:GAP001","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_POSITION"}
 {"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#0:GAP001","seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond:manifest_row:#0:GAP001","manifest_row":{"gap_id":"GAP001","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","reopens_on":"the figure recomputed from its source","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":15,"type":"EVENT_TYPE_MOTION_RULE"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":16,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"blue-respond:manifest_row:#0:GAP001","manifest_row":{"gap_id":"GAP001","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"GAP001","proposed":"GRADE_LOW"},"motion_id":"MOTION001","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION002","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_REMANDED","principle":"correctness over economy","reopens_on":"the figure recomputed from its source","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"MOTION002","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":14,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":15,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- avenues
@@ -205,7 +196,7 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md) · [Changelog](CHANGELOG.md)
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md)
 
 ---
 
