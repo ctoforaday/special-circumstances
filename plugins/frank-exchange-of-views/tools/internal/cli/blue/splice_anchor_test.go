@@ -3,6 +3,8 @@ package blue
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 )
 
 // A SENTENCE WHOSE ANCHOR PRECEDES ITS PERIOD SURVIVES AN EDIT INTACT (#525).
@@ -17,22 +19,17 @@ import (
 //
 // a doubled period AND red's marker displaced out of the sentence it annotates.
 //
-// # THE CONTRACT HERE IS NOT MAIN'S, AND THE DIFFERENCE IS AN OPERATOR DECISION
+// # THE QUOTE DECIDES (bluedoc.settleAbuttingAnchor)
 //
-// This arrived asserting that a quote which OMITS the trailing anchor applies anyway — the tool
-// stepping over the anchor run silently. That is the design this branch was explicitly told not to
-// build: markers "stay real, they stay in the edit stream", and a seat must never be shown "text
-// that is there one minute and gone the next".
+// An anchor run at the end of the quote that the quote does not carry is OUTSIDE the span: the edit
+// replaces the quoted text and the run stays where it stands, after the replacement and before the
+// terminator, byte for byte — tidySeam takes the terminator the replacement brings against it. A
+// quote that carries the run, as `show report` prints it, has it INSIDE the span: the transit check
+// then requires each anchor in --new, where the seat writes it.
 //
-// So the rule is THE QUOTE IS THE EVIDENCE OF INTENT (bluedoc.settleAbuttingAnchor). Quote the
-// sentence as `show report` PRINTS it — anchors included — and the span swallows the punctuation
-// run and the token, the anchor is required in --new, and the terminator travels with the
-// replacement instead of being stranded past the marker. Quote it WITHOUT the anchor and the edit
-// is refused, naming the token to carry. The operator accepted that this "prevents a class of
-// edit"; it is the cost of the marker being real.
-//
-// Every defect main put under test here is still under test — the doubled period, the orphaned
-// period, the abutting run — asked through this contract instead.
+// Smoke m18 measured the refusal this replaces: 37 of the run's 56 refusals were a quote that
+// stopped before the run on its sentence, and every first attempt among them quoted and rewrote
+// prose only.
 func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 	const anchored = "Intro.\n\nThe cost is rising over time<!--fx:F-00abc123-->. Volume grows steadily.\n"
 	const bare = "Intro.\n\nThe cost is rising over time. Volume grows steadily.\n"
@@ -66,6 +63,28 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 			"The cost is falling<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->.",
 			"Intro.\n\nThe cost is falling<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
 		}, {
+			"the sentence quoted without its anchor: the anchor stays before the terminator",
+			anchored, "The cost is rising over time.", "The cost is falling.",
+			"Intro.\n\nThe cost is falling<!--fx:F-00abc123-->. Volume grows steadily.\n",
+		}, {
+			"the same with no terminator on either side",
+			anchored, "The cost is rising over time", "The cost is falling",
+			"Intro.\n\nThe cost is falling<!--fx:F-00abc123-->. Volume grows steadily.\n",
+		}, {
+			"a run of several holding a gap anchor stays whole and in order",
+			"Intro.\n\nThe cost is rising over time<!--fx:F-00abc123--><!--gap:G-00e5e5e5--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
+			"The cost is rising over time.", "The cost is falling.",
+			"Intro.\n\nThe cost is falling<!--fx:F-00abc123--><!--gap:G-00e5e5e5--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
+		}, {
+			"a replacement of two sentences leaves the run at its end",
+			anchored, "The cost is rising over time.", "The cost is falling. Analysts disagree about why.",
+			"Intro.\n\nThe cost is falling. Analysts disagree about why<!--fx:F-00abc123-->. Volume grows steadily.\n",
+		}, {
+			"a quote that stops between two anchors carries the first and leaves the second",
+			"Intro.\n\nThe cost is rising over time<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
+			"The cost is rising over time<!--fx:F-00abc123-->", "The cost<!--fx:F-00abc123--> is falling",
+			"Intro.\n\nThe cost<!--fx:F-00abc123--> is falling<!--cite:C-00d4d4d4-->. Volume grows steadily.\n",
+		}, {
 			// The anchor is INSIDE the span here, so it must be reproduced and no seam rule
 			// applies. Included so a change that over-fires shows up as this case moving.
 			"a mid-sentence anchor is untouched",
@@ -86,43 +105,54 @@ func TestSpliceAroundAnAnchoredSentenceEnd(t *testing.T) {
 	}
 }
 
-// THE REFUSAL THAT SENT A SEAT IN A CIRCLE (#525).
+// ONE RULE AT EVERY ANCHOR POSITION (#525).
 //
-// Reproducing an anchor was MANDATORY when it sat inside the replaced span and REFUSED when it sat
-// just outside, and the seat could not see which — the trimmed trailing punctuation moves the
-// boundary under a quote that appeared to contain the anchor. Each refusal instructed the seat to
-// do what the other forbids. blue-respond in 2026-08-22_record-store-authority met this and
-// concluded the removal was impossible, arguing risk-acceptance on G1 instead.
-//
-// THE CIRCLE IS BROKEN FROM THE OTHER END HERE. main answered it by making the adjacent case
-// APPLY — the tool steps over the anchor and the seat never has to mention it. This branch was
-// told not to build that: the marker stays real and stays in the edit stream. So there is exactly
-// ONE instruction at every position — quote the sentence as `show report` prints it — and the span
-// follows the quote. Reproducing an adjacent anchor is not refused; it is how you edit the
-// sentence. There is no "which side am I on" left to answer, which is what ends the loop.
+// Reproducing an anchor is required when it sits inside the replaced span and refused when it sits
+// outside, and a quote's trimmed trailing punctuation puts the anchor at a sentence's end outside a
+// quote that appears to reach it. The seat need not work out which: the quote it wrote decides, and
+// each refusal that remains names the anchor and what to do with it.
 func TestOneInstructionHoldsAtEveryAnchorPosition(t *testing.T) {
 	const rep = "Intro.\n\nThe cost is rising over time<!--fx:F-00abc123-->. Volume grows steadily.\n"
 
-	// ADJACENT, QUOTED: the span follows the quote and the edit APPLIES. Under main's contract
-	// this exact call is the refused one, which is the whole of the divergence.
-	got, _, _, err := planEdit(rep, "The cost is rising over time<!--fx:F-00abc123-->.", "The cost is falling<!--fx:F-00abc123-->.")
+	// AT THE EDGE, QUOTED: the span follows the quote and the anchor goes where --new writes it.
+	got, _, _, err := planEdit(rep, "The cost is rising over time<!--fx:F-00abc123-->.", "The cost<!--fx:F-00abc123--> is falling.")
 	if err != nil {
 		t.Fatalf("quoting the sentence as printed was refused: %v", err)
 	}
-	if want := "Intro.\n\nThe cost is falling<!--fx:F-00abc123-->. Volume grows steadily.\n"; got != want {
+	if want := "Intro.\n\nThe cost<!--fx:F-00abc123--> is falling. Volume grows steadily.\n"; got != want {
 		t.Errorf("planEdit =\n  %q\nwant\n  %q", got, want)
 	}
 
-	// ADJACENT, NOT QUOTED: refused, and the refusal NAMES THE TOKEN TO CARRY. A seat that
-	// quoted the prose it read gets one actionable instruction rather than a prohibition.
-	_, _, _, err = planEdit(rep, "The cost is rising over time.", "The cost is falling.")
-	if err == nil {
-		t.Fatal("rewriting the text an anchor sits on, without the anchor, was accepted — it strands the reference")
+	// AT THE EDGE, NOT QUOTED: it applies, and the anchor stands where it stood.
+	got, applied, _, err := planEdit(rep, "The cost is rising over time.", "The cost is falling.")
+	if err != nil {
+		t.Fatalf("an edit whose quote stops before the anchor at its sentence's end was refused: %v", err)
 	}
-	for _, want := range []string{"stops just before it", "<!--fx:F-00abc123-->", "AS `show report` PRINTS IT"} {
+	if want := "Intro.\n\nThe cost is falling<!--fx:F-00abc123-->. Volume grows steadily.\n"; got != want || applied != "The cost is falling." {
+		t.Errorf("planEdit =\n  %q (applied %q)\nwant\n  %q, the replacement recorded as written", got, applied, want)
+	}
+	// The record still says the claim under it changed: reopened reads sentences, not spans.
+	if re := bluedoc.ReopenedAnchors(rep, got); len(re) != 1 || re[0] != "F-00abc123" {
+		t.Errorf("reopened = %v, want the anchor whose sentence the edit rewrote", re)
+	}
+
+	// AT THE EDGE, TYPED INTO --new WITHOUT BEING QUOTED: refused, saying it stays and how to move it.
+	_, _, _, err = planEdit(rep, "The cost is rising over time.", "The cost is falling<!--fx:F-00abc123-->.")
+	if err == nil {
+		t.Fatal("an anchor outside the span, typed into the replacement, was accepted — the report would hold it twice")
+	}
+	for _, want := range []string{"<!--fx:F-00abc123-->", "outside it", "Leave it out of the replacement", "quote it as `show report` prints it"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not carry %q:\n%v", want, err)
 		}
+	}
+
+	// A QUOTE THAT SKIPS THE FIRST ANCHOR OF A RUN AND CARRIES THE SECOND holds both, so dropping the
+	// first is refused by name.
+	const pair = "Intro.\n\nThe cost is rising over time<!--fx:F-00abc123--><!--cite:C-00d4d4d4-->. Volume grows steadily.\n"
+	_, _, _, err = planEdit(pair, "The cost is rising over time<!--cite:C-00d4d4d4-->", "The cost is falling<!--cite:C-00d4d4d4-->")
+	if err == nil || !strings.Contains(err.Error(), "<!--fx:F-00abc123-->") {
+		t.Errorf("a quote carrying only the second anchor of a run = %v, want a refusal naming the first", err)
 	}
 
 	// INSIDE the span: the generic message is correct and must survive, naming the token to copy.

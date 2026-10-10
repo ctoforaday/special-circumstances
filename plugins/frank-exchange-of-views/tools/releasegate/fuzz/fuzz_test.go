@@ -1232,7 +1232,7 @@ func (r *runner) mint(seatID string) string {
 				fixOld, fixNew = fixNew, fixOld
 			}
 			if strings.Contains(string(cur), fixOld) {
-				run := abuttingRun(cur, fixOld)
+				run := r.edgeRun(cur, fixOld)
 				args = append(args, "--quote", fixOld+run, "--new", fixNew+run)
 				anchored = true
 			}
@@ -1906,8 +1906,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if !strings.Contains(string(cur), oldSpan) {
 				return // an anchor landed mid-span; skip rather than force a mis-quote
 			}
-			// The anchors standing on the span are quoted as `show report` prints them and carried.
-			run := abuttingRun(cur, oldSpan)
+			// The anchors standing at the span's end are quoted and carried, or left out of both.
+			run := r.edgeRun(cur, oldSpan)
 			// THIS DRIVE NO LONGER CLAIMS TO ANSWER A GAP.
 			//
 			// It used to pick a random open gap for --answers, and the scenario oracle caught it
@@ -4905,7 +4905,7 @@ func (r *runner) counterEdit(seatID, gapID string) {
 	if !strings.Contains(string(cur), oldSpan) {
 		return
 	}
-	run := abuttingRun(cur, oldSpan)
+	run := r.edgeRun(cur, oldSpan)
 	r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
 		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").run()
 }
@@ -4928,8 +4928,18 @@ func (r *runner) proposalFor(gapID, cur string) (string, string, string) {
 	return gapID, old, fixNew
 }
 
-// abuttingRun is the anchor run standing right after span's first occurrence in cur, which an edit
-// of span quotes as `show report` prints it and carries into its replacement.
+// edgeRun is what an edit of span writes after it in both --quote and --new: half the time the
+// anchor run standing at its end, quoted as `show report` prints it and carried, and half the time
+// nothing — the quote stops before the run, which stays where it stands. Both are legal, so neither
+// may add a refusal.
+func (r *runner) edgeRun(cur, span string) string {
+	if r.coin(50) {
+		return ""
+	}
+	return abuttingRun(cur, span)
+}
+
+// abuttingRun is the anchor run standing right after span's first occurrence in cur.
 func abuttingRun(cur, span string) string {
 	i := strings.Index(cur, span)
 	if i < 0 {

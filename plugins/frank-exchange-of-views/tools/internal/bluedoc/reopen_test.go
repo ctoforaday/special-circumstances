@@ -3,8 +3,6 @@ package bluedoc
 import (
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // A REFERENCE WHOSE REFERENT MOVED IS REOPENED.
@@ -51,50 +49,43 @@ func TestReopenedAnchorsCatchesTextMovingUnderAReference(t *testing.T) {
 	}
 }
 
-// A QUOTE MAY NOT STOP JUST SHORT OF THE ANCHOR ON THE TEXT IT REPLACES.
+// THE QUOTE DECIDES WHICH ANCHORS THE SPAN HOLDS, anchor by anchor (settleAbuttingAnchor).
 //
-// The markers are the mechanism and they are VISIBLE for this reason: `show report` prints them
-// as they are, so a seat rewriting a sentence sees the token in it and copies it into --new the
-// way it copies every other character. An edit mimics how anyone edits a document — quote what is
-// there, write what should be there.
-//
-// The tolerance broke that. normalizeQuote skips annotation spans, so a quote omitting the marker
-// still matched, and the located span then ENDED BEFORE it: the transit guard never fired on a
-// whole-sentence edit, and the marker was left beside prose it was never placed against.
-func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
-	const tok = "<!--cite:C-00abc123-->"
-	report := "# H\n\nThe sky is blue and the grass is green" + tok + ".\n\nA second sentence with no anchor.\n"
-
-	// Quoting the sentence WITHOUT its anchor is refused, and the refusal names the token to carry.
-	_, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue and the grass is green.")
-	if err == nil {
-		t.Fatal("a quote that stops just before the anchor on its own sentence was accepted — the marker would be stranded beside rewritten prose")
-	}
-	if !strings.Contains(err.Error(), tok) {
-		t.Errorf("the refusal does not print the token the seat must carry: %v", err)
-	}
-
-	// A RUN of abutting anchors is named anchor by anchor, each by its kind.
-	run := "# H\n\nThe sky is blue<!--fx:F-000000a1--><!--cite:C-000000b2-->.\n"
-	_, _, err = LocateUniqueReplacing("blue edit", run, "The sky is blue.")
-	if err == nil || !strings.Contains(err.Error(), "carries "+anchor.Label("F-000000a1")+" and "+anchor.Label("C-000000b2")+",") {
-		t.Errorf("the refusal does not name each anchor of the run by its kind: %v", err)
-	}
-
-	// Quoting it WITH the anchor, as `show report` prints it, locates normally.
-	if _, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue and the grass is green"+tok+"."); err != nil {
-		t.Errorf("the sentence quoted AS PRINTED was refused: %v", err)
+// Attach places an anchor after a quote's last content character, so the anchors on a sentence stand
+// before its terminator — where a whole-sentence quote, its trailing punctuation trimmed, stops. An
+// anchor the quote does not carry is outside the span and the splice never touches it; one the quote
+// carries is inside, with every anchor of the run before it. Nothing here refuses: replay runs the
+// same locate on every recorded edit.
+func TestTheQuoteDecidesWhichAnchorsTheSpanHolds(t *testing.T) {
+	const a, b, g = "<!--fx:F-000000a1-->", "<!--cite:C-000000b2-->", "<!--gap:G-000000c3-->"
+	const body = "# H\n\nThe sky is blue"
+	for _, c := range []struct{ name, run, quote, held string }{
+		{"one anchor, the sentence quoted without it", a, "The sky is blue.", ""},
+		{"one anchor, the sentence quoted without it or its terminator", a, "The sky is blue", ""},
+		{"a run holding a gap anchor, quoted without it", a + g + b, "The sky is blue.", ""},
+		{"one anchor, quoted as printed", a, "The sky is blue" + a + ".", a},
+		{"a run, quoted whole", a + g + b, "The sky is blue" + a + g + b + ".", a + g + b},
+		{"a quote that stops between two anchors takes the first", a + b, "The sky is blue" + a, a},
+		{"a quote that carries only the second takes both: a span is one stretch of text", a + b, "The sky is blue" + b, a + b},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			report := body + c.run + ".\n\nA second sentence with no anchor.\n"
+			start, end, err := LocateUniqueReplacing("blue edit", report, c.quote)
+			if err != nil {
+				t.Fatalf("LocateUniqueReplacing = %v, want the span located", err)
+			}
+			if got, want := report[start:end], "The sky is blue"+c.held; got != want {
+				t.Errorf("the span is %q, want %q", got, want)
+			}
+		})
 	}
 
-	// A FRAGMENT that does not reach the anchor is still allowed — that is the class of edit the
-	// strict rule would otherwise cost, and the anchor keeps its position while `reopened` records
-	// that its sentence moved.
-	if _, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue"); err != nil {
-		t.Errorf("a fragment edit that does not touch the anchored text was refused: %v", err)
-	}
-
-	// And a sentence with no anchor is unaffected.
-	if _, _, err := LocateUniqueReplacing("blue edit", report, "A second sentence with no anchor."); err != nil {
-		t.Errorf("an unanchored sentence was refused: %v", err)
+	// A sentence with no anchor, and a fragment that stops short of one, locate as they are quoted.
+	report := body + a + ".\n\nA second sentence with no anchor.\n"
+	for _, q := range []string{"The sky", "A second sentence with no anchor."} {
+		start, end, err := LocateUniqueReplacing("blue edit", report, q)
+		if err != nil || strings.Contains(report[start:end], "<!--") {
+			t.Errorf("%q located %q, %v", q, report[start:end], err)
+		}
 	}
 }
