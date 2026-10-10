@@ -506,14 +506,21 @@ func TestFetchBinFixtureOutlastsTheFetchAHookDetached(t *testing.T) {
 	}
 	marks := t.TempDir()
 	finished := filepath.Join(marks, "finished")
+	started := false
 	t.Run("hook", func(t *testing.T) {
 		f := newFetchFixture(t, []string{"alpha"}, nil, nil)
+		started = true
 		path := toolPath(t, nil, map[string]string{"date": fmt.Sprintf("%q 0.5; : >%q; echo 2026-01-01T00:00:00Z", sleep, finished)})
 		if _, _, code := f.run(t, path, "hook", "PreToolUse"); code != 0 {
 			t.Fatalf("hook exited %d", code)
 		}
 		f.waitInstalled(t)
 	})
+	if !started {
+		// newFetchFixture skipped the subtest: this platform starts no fetch here, so there is
+		// nothing to outlast. Asserting the mark anyway reports a fetch that never ran as a leak.
+		t.Skip("the fixture does not drive fetch-bin.sh on this platform")
+	}
 	if _, err := os.Stat(finished); err != nil {
 		t.Fatalf("the test returned, and its directories were removed, while the fetch it started was still running: %v", err)
 	}
