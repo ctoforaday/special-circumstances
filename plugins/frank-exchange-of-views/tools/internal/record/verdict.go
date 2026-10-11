@@ -133,11 +133,25 @@ func verdictOf(run Run, r verdictReads) (verdict, why string, ok bool, err error
 			return "", "", false, err
 		}
 		plan := foldPlan(params, *r.plan)
+		// A CEILING OVER A REOPENED ANCHOR NAMES IT. The run ends on its term or its limits with a
+		// citation or proof nobody read against the sentence the report carries, and the reason is
+		// where a reader of the outcome learns which. No other blocker kind is named: the reason
+		// states why the run stopped, and the board states what else is open.
+		var named []string
+		for _, b := range plan.Blockers {
+			if b.Kind == BlockerReopened {
+				named = append(named, b.Subject)
+			}
+		}
+		standing := ""
+		if len(named) > 0 {
+			standing = "; reopened and unchecked: " + strings.Join(named, ", ")
+		}
 		switch {
 		case plan.EpochLimitReached:
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + coverage, true, nil
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing + coverage, true, nil
 		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + coverage, true, nil
+			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + standing + coverage, true, nil
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil

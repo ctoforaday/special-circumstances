@@ -1,7 +1,9 @@
 # A reopened citation or proof is owed to the evidence lens, and PASS waits on it
 
-> STATUS: **APPROVED by gblock on 2026-10-10, after plan-audit round 2 PASS; Part 1 only; the audit notes are required
-> tests** (§V.1). Part 2 is deferred (§III.6). No record change, epoch bump or migration.
+> STATUS: **IMPLEMENTED 2026-10-10 (Part 1), on `work/reopened-evidence-is-owed`.** Approved by gblock on 2026-10-10
+> after plan-audit round 2 PASS; the audit notes are required tests (§V.1) and each is in the tree. Measured: production
+> Go +299 −67 lines over 11 files (189 lines of code added, 29 removed; the rest is comment), `debate.js` +11 −4; the
+> fold is `internal/record/reopened.go`, 128 lines. Part 2 is deferred (§III.6). No record change, epoch bump or migration.
 
 Paths are relative to `plugins/frank-exchange-of-views/tools/` (`T`) unless they begin with `skills/`, `docs/`, `agents/`
 (under `plugins/frank-exchange-of-views/`), `scripts/` or `run-archive/`. Line numbers are at `5173997b`, `origin/main`

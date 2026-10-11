@@ -47,6 +47,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -259,6 +260,10 @@ type runner struct {
 	// positionsRefused counts the positions the tool REFUSED a seat that owes none
 	// (record.SeatOwesPosition) — a lane, the frontier, the synthesizer. The sweep gates it at zero.
 	positionsRefused int
+	// reopenedReadied counts the plans that readied the evidence lens for a reopened citation or
+	// proof and for nothing else (readiedForReopened). The sweep gates it at zero. reopenedPlans
+	// counts the plans holding a reopened blocker, whoever they readied.
+	reopenedReadied, reopenedPlans int
 	// positionAdmittedErr is the first position the tool ADMITTED from a seat that owes none. It
 	// fails the run: the verb is on the whole blue role's surface, and the refusal is what keeps a
 	// position off the record where only the bench and the chair read it.
@@ -1162,6 +1167,55 @@ func (r *runner) someCitation() string {
 	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
+// reopened returns every citation and proof the record holds as reopened and unchecked — each
+// anchor, and for a proof the sha256 its re-run takes.
+func (r *runner) reopened() []record.ProofRef {
+	b, ok := r.board()
+	if !ok {
+		return nil
+	}
+	ev := record.EvidenceJSONOf(b.Events, b.At)
+	sha := map[string]string{}
+	for _, p := range ev.Proofs {
+		sha[p.Anchor] = p.Sha256
+	}
+	var out []record.ProofRef
+	for _, it := range ev.Reopened {
+		out = append(out, record.ProofRef{Anchor: it.Anchor, Sha: sha[it.Anchor]})
+	}
+	return out
+}
+
+// readiedForReopened reports whether plan holds a reopened blocker, and whether it readies the
+// evidence lens for that AND FOR NOTHING ELSE: the lens is a party on no gap, and neither its
+// retirement state (a lens_ready blocker) nor a contradiction it read readies it. Read off the
+// plan's own fields, so the tally counts the reopened arm and never a lens that would have sat
+// anyway.
+func readiedForReopened(plan map[string]any) (held, alone bool) {
+	const lens = "red-lens-evidence"
+	party := false
+	parties, _ := plan["parties"].([]any)
+	for _, p := range parties {
+		m, _ := p.(map[string]any)
+		gaps, _ := m["gap_ids"].([]any)
+		party = party || (m["seat_id"] == lens && len(gaps) == 0)
+	}
+	reopened, otherwise := false, false
+	blockers, _ := plan["blockers"].([]any)
+	for _, b := range blockers {
+		m, _ := b.(map[string]any)
+		switch record.BlockerKind(fmt.Sprint(m["kind"])) {
+		case record.BlockerReopened:
+			reopened = true
+		case record.BlockerLensReady:
+			otherwise = otherwise || m["subject"] == lens
+		case record.BlockerContradiction:
+			otherwise = otherwise || m["owner"] == lens
+		}
+	}
+	return reopened, party && reopened && !otherwise
+}
+
 // mint records a gap as LENS seatID and returns the tool-assigned id. The first mint of a
 // run introduces the class; the rest reuse it. seatID is the lens that is sitting: the chair
 // has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
@@ -1951,6 +2005,11 @@ func (r *runner) extras(role, seatID string, open []string) {
 				set("--url", url).
 				set("--title", "fuzz source "+seatID).
 				on(50, "--quote", "fuzz cited claim "+seatID).
+				// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
+				// seeded sentence no edit touches, no checked citation is ever reopened, and the
+				// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
+				// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
+				on(25, "--quote", "across the whole sampled corpus").
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
 				on(50, "--reason", "fuzz: why this source backs the claim")
 			if r.coin(75) {
@@ -2102,6 +2161,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("chair", seatID)
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
+		if held, alone := readiedForReopened(plan); held {
+			r.mu.Lock()
+			r.reopenedPlans++
+			if alone {
+				r.reopenedReadied++
+			}
+			r.mu.Unlock()
+		}
 		// THE CHAIR RUNS THE DEBATE AND MINTS NOTHING (plans/roundless.md §III.B.3). Every act
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
@@ -2405,6 +2472,35 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// instead of earning it. Nothing would have noticed if reproduce returned garbage.
 			r.reproveOpenProofs(seatID)
 			if strings.HasPrefix(seatID, "red-lens") {
+				// A REOPENED CITATION OR PROOF IS CHECKED AGAIN, ONE OF THEM ON A COIN — so the sweep
+				// holds both ends: an anchor a later sitting clears, and one a lens sat for and left,
+				// which holds the PASS and ends the run naming it. A citation is verified at its
+				// anchor — read, or found `unreachable`, which clears nothing; a proof is re-run by
+				// the sha256 its row carries. The evidence lens alone drives it, as the seat whose
+				// work list holds the item: seven lenses each re-running a proof per sitting put
+				// the longest runs at the sweep's ten-minute limit.
+				//
+				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The lens is readied once
+				// per reopening, so an item its one sitting leaves holds the PASS for the rest of the
+				// run, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
+				if seatID == "red-lens-evidence" {
+					owed, results := r.reopened(), []string{"supports", "unreachable"}
+					if r.forceVerified {
+						results = results[:1]
+					} else if len(owed) > 0 {
+						owed = owed[r.rng.Intn(len(owed)):][:r.rng.Intn(2)]
+					}
+					for _, it := range owed {
+						if it.Sha != "" {
+							r.do("reproduce", seatID).set("--id", it.Sha).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+								set("--reason", "fuzz: read the script as the sentence now stands and re-ran it").run()
+						} else {
+							r.do("verify", seatID).set("--anchor", it.Anchor).set("--quote", "A § fuzz sentence to anchor findings.").
+								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
+								set("--reason", "fuzz: read the sentence as it now stands against its source").run()
+						}
+					}
+				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
 				// adjudicating a citation blue authored, and red corroborating a source it found
 				// itself. Falling back to --independent when blue has cited nothing keeps the
@@ -2604,6 +2700,10 @@ type outcome struct {
 	// positionsRefused is the positions the tool refused a seat that owes none
 	// (runner.positionsRefused).
 	positionsRefused int
+	// reopenedReadied is the plans that readied the evidence lens for a reopened citation or proof
+	// alone (runner.reopenedReadied), and reopenedPlans the plans that held a reopened blocker at
+	// all — what the zero of the first is read against.
+	reopenedReadied, reopenedPlans int
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
 	repeatsRefused int
@@ -3513,7 +3613,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
 		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
 		// the contradiction worth catching.
-		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 {
+		//
+		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. The evidence lens is readied once
+		// per reopening; one it sat for and left holds the PASS over a board with every gap
+		// closed, and the run ends UNVERIFIED naming it — the outcome the rule exists to give.
+		reopenedStands := slices.ContainsFunc(plan.Blockers, func(b record.PlanBlocker) bool { return b.Kind == record.BlockerReopened })
+		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 && !reopenedStands {
 			benchClosed := 0
 			for _, gOrd := range board.Gaps {
 				id := gOrd.ID
@@ -3551,6 +3656,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.mu.Lock()
 	res.avenueMoves = r.avenueMoves
 	res.positionsRefused = r.positionsRefused
+	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
 	res.repeatsRefused = r.repeatsRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
@@ -4220,6 +4326,7 @@ func TestFuzzDebate(t *testing.T) {
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
+	reopenedReadied, reopenedPlans := 0, 0 // plans that readied the evidence lens for a reopened citation or proof alone, of those holding one
 	repeatsRefused := 0                    // second acts refused in a sitting that holds one, naming the answering act
 	rulerFilingsRefused := 0               // filings refused the seat that rules their subject
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
@@ -4285,6 +4392,8 @@ func TestFuzzDebate(t *testing.T) {
 			estoppels += o.estoppels
 			avenueMoves += o.avenueMoves
 			positionsRefused += o.positionsRefused
+			reopenedReadied += o.reopenedReadied
+			reopenedPlans += o.reopenedPlans
 			repeatsRefused += o.repeatsRefused
 			rulerFilingsRefused += o.rulerFilingsRefused
 			for why, n := range o.estoppelMisses {
@@ -4319,6 +4428,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", avenueMoves, dcov["avenue"])
+	t.Logf("reopened readied: %d plan(s) readied the evidence lens for a reopened citation or proof alone (of %d holding a reopened blocker)", reopenedReadied, reopenedPlans)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -4384,6 +4494,13 @@ func TestFuzzDebate(t *testing.T) {
 		if avenueMoves == 0 {
 			t.Errorf("fuzz moved ZERO avenues by an id read from `avenue propose` across %d runs (with %d avenue events) — "+
 				"the propose result named no id the harness reads, or the tool refused every move; the avenue lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["avenue"])
+		}
+		// THE REOPENED GATE. A citation or proof whose sentence changed after its check readies the
+		// evidence lens through its own arm of the plan. The lens is also readied by its
+		// retirement state, so a drive that never left a checked anchor reopened behind a lens
+		// the head move no longer re-arms would leave the arm unreached behind a green sweep.
+		if reopenedReadied == 0 {
+			t.Errorf("fuzz readied the evidence lens for a reopened citation or proof ZERO times across %d runs (%d plan(s) held a reopened blocker) — no plan readied the lens for that alone, so the plan's reopened arm is unexercised (false green)", completed, reopenedPlans)
 		}
 		// THE POSITION-REFUSAL GATE. The `position` verb gate above is satisfied by the chair's and
 		// blue-respond's positions, so a drive that stopped typing it as a seat that owes none —

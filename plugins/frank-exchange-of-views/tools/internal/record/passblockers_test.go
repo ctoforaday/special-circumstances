@@ -38,6 +38,12 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"unraised contradiction", BlockerContradiction, true, true, func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green"))
 		}, false},
+		{"reopened citation", BlockerReopened, true, true, func(b *stage) {
+			// checked in the lens's last sitting, then its sentence changes; the head move's one
+			// re-arm sitting leaves it unchecked, so the lens is retired for good at the head.
+			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
+			b.sit(b.at(), evLens)
+		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},
 		{"stale area uncovered", BlockerStaleArea, true, true, func(b *stage) {

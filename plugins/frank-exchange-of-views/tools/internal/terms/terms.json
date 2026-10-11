@@ -956,6 +956,27 @@
           "resolution": "an avenue's `line` is its statement, the text `--reason` fills, and never a name for the avenue itself"
         }
       ]
+    },
+    {
+      "term": "reopened",
+      "definition": "A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and a PASS waits on it.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": [
+        {
+          "word": "reopen (a gap)",
+          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or proof"
+        },
+        {
+          "word": "`reopened` (the edit's field)",
+          "resolution": "an edit's `reopened` lists every anchor its sentence change touched, of any kind, and `show work`'s `edited_since` reads it; only a citation or proof among them, checked before the edit, is reopened"
+        }
+      ]
     }
   ]
 }

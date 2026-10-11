@@ -30,7 +30,8 @@ import (
 //
 // The run holds the joins the views make across families, because a missing family shows only
 // where an event of it changes the output: a verdict per epoch (debate), a finding that answers a
-// contradicting check and an edit that reopens an anchor (evidence), a mint crediting a finding
+// contradicting check, an edit that reopens an anchor and a retire that takes a reopened one out
+// of the report (evidence), a mint crediting a finding
 // (findings), a docket ruling settling a gap (board, debate, motions), a check backing an open gap's
 // anchor (board), and a ruled avenue (motions). It holds a CORRECTION of a correctable act in every
 // view that declares one, because the narrowed read loads corrections without being asked (eventsOfAt)
@@ -70,9 +71,12 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("P-00000001"), ProofSha: str("abc"), ProofBasis: str("basis")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofSha: str("abc"), Reproduced: proto.Bool(true),
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: str("ran")}),
-		// An edit that reopened the anchor (its text leaves G3's location where it is).
+		// An edit that reopened the anchor and the proof (its text leaves G3's location where it is),
+		// and a retire that takes the proof out of the report, so it owes no re-run.
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("elsewhere"), New: str("elsewhere, revised"),
-			Text: str("why"), Reopened: []string{"C-0a0a0a0a"}}),
+			Text: str("why"), Reopened: []string{"C-0a0a0a0a", "P-00000001"}}),
+		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the proof backed"), Reason: str("superseded"),
+			Anchors: []string{"P-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: str("red's position")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: str("blue's position")}),
@@ -218,8 +222,8 @@ func TestDebateJSONBytesCarriesEachEpochsRecordedVerdict(t *testing.T) {
 }
 
 // THE EVIDENCE VIEW READS THE ACTS ITS TWO LISTS ARE ABOUT, on the run path: a finding at the
-// contradicted claim answers it, and an edit that reopened an anchor lists it. Without them every
-// contradiction reads as unanswered and no anchor as moved — on every run.
+// contradicted claim answers it, and an edit that reopened a checked citation lists it. Without them
+// every contradiction reads as unanswered and no anchor as moved — on every run.
 func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 	dir := newRun(t)
 	str := proto.String
@@ -231,6 +235,9 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-00000001"), Url: str("https://example.org/c"), Sha256: str("abc"), Text: str("t"), Location: str("claim C")}),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Anchor: str("C-00000001"), Claim: str("claim C"), Text: str("it says so"),
+			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Old: str("x"), New: str("y"), Text: str("why"),
 			Reopened: []string{"C-00000001"}}),
 	)
@@ -245,8 +252,8 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0] != "claim B" {
 		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding at it", ej.UnansweredContradictions)
 	}
-	if len(ej.Reopened) != 1 || ej.Reopened[0] != "C-00000001" {
-		t.Errorf("reopened = %q, want [C-00000001] — a recorded edit reopened it", ej.Reopened)
+	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 6, LastCheck: 5}) {
+		t.Errorf("reopened = %+v, want C-00000001 at edit 6, last check 5 — a recorded edit reopened it after its check", ej.Reopened)
 	}
 }
 
