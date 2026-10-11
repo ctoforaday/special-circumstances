@@ -115,7 +115,7 @@ func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) erro
 	// and a --json that was quietly dropped would hand a machine consumer prose on a channel whose
 	// contract is that it parses.
 	if j, _ := cmd.Flags().GetBool(flags.JSON); j {
-		return feov.Errorf(feov.Validation, "%s: there is no JSON form — it prints help pages, which are text to read. Run it without the JSON flag", manualName)
+		return feov.Errorf(feov.Validation, "there is no JSON form — it prints help pages, which are text to read. Run it without the JSON flag")
 	}
 	// The surface's own page first: it carries what no command page does — what every inherited
 	// flag means, and the footer on what to do about a capability you cannot find.
@@ -157,7 +157,7 @@ func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) erro
 	// exactly like a surface that uses none.
 	reg, err := terms.Load()
 	if err != nil {
-		return fmt.Errorf("%s: the terms registry does not load, so this surface's words cannot be printed: %w", manualName, err)
+		return fmt.Errorf("the terms registry does not load, so this surface's words cannot be printed: %w", err)
 	}
 	if words := reg.ForSeat(RoleOfSeat(seatID)); len(words) > 0 {
 		fmt.Fprintln(w)
@@ -194,8 +194,8 @@ func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) erro
 		}
 	}
 	if len(failed) > 0 {
-		return fmt.Errorf("%s: %d of %d help pages did not run, and each is printed above with its error: %s",
-			manualName, len(failed), len(pages), strings.Join(failed, ", "))
+		return fmt.Errorf("%d of %d help pages did not run, and each is printed above with its error: %s",
+			len(failed), len(pages), strings.Join(failed, ", "))
 	}
 	return nil
 }
@@ -404,21 +404,13 @@ func selfExecHelp(argv []string) (string, error) {
 }
 
 // inProcessHelp builds the tree for the seat argv names and runs argv against it — what the binary
-// does around Execute, minus the process: the pre-parse refusal, the same ExecuteRoot, and the
-// error line Execute prints.
+// does around Execute, minus the process: Invoke, which is the binary's own sequence.
 func inProcessHelp(argv []string) (string, error) {
 	seatID := seatenv.SeatIDIn(argv)
 	root := NewRootFor(seatID)
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
-	root.SetArgs(argv)
-	err := refuseUnknownCommandFirst(root, append([]string{InvokedAs()}, argv...), seatID)
-	if err == nil {
-		err = ExecuteRoot(root)
-	}
-	if err != nil {
-		fmt.Fprintf(&out, "%s: %v\n", InvokedAs(), err)
-	}
+	_, err := Invoke(root, argv, seatID)
 	return out.String(), err
 }

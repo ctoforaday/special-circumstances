@@ -25,12 +25,11 @@ var ErrNoChange = errors.New("this edit changes nothing — the report would rea
 // anchor-only difference) gets the plain statement, because blaming the trim there would send the
 // seat after a cause it does not have.
 type NoChangeError struct {
-	Verb         string
 	TrailingOnly bool
 }
 
 func (e *NoChangeError) Error() string {
-	msg := fmt.Sprintf("%s: %v.", e.Verb, ErrNoChange)
+	msg := ErrNoChange.Error() + "."
 	if !e.TrailingOnly {
 		return msg
 	}
@@ -62,7 +61,7 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // A trimmed result that still doubles a terminator is RETURNED, not refused: that judgement is the
 // caller's (blue refuses it; mint does not ask). Only a no-op is an error here, because a no-op is
 // wrong for every caller — and an anchor the splice puts on a heading, which no placement may do.
-func PlanSplice(verb, report, old, new string) (next, applied string, exact bool, err error) {
+func PlanSplice(report, old, new string) (next, applied string, exact bool, err error) {
 	// An anchor on a heading in next that was on none in report is one this splice carried into a
 	// heading or made a heading around. One already on a heading, an archived carry, is not this
 	// edit's doing and refuses nothing, its heading rewritten or not.
@@ -70,22 +69,22 @@ func PlanSplice(verb, report, old, new string) (next, applied string, exact bool
 		was := headingAnchors(report)
 		for _, id := range headingAnchors(next) {
 			if err == nil && !slices.Contains(was, id) {
-				next, applied, exact, err = "", "", false, fmt.Errorf("%s: this edit puts %s on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it", verb, anchor.Token(id))
+				next, applied, exact, err = "", "", false, fmt.Errorf("this edit puts %s on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it", anchor.Token(id))
 			}
 		}
 	}()
-	start, end, err := bluedoc.LocateUniqueReplacing(verb, report, old)
+	start, end, err := bluedoc.LocateUniqueReplacing(report, old)
 	if err != nil {
 		return "", "", false, err
 	}
-	if applied, err = bluedoc.AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
+	if applied, err = bluedoc.AnchorsTransitUnchanged(report[start:end], new); err != nil {
 		// AN ANCHOR AT THE SPAN'S EDGE, TYPED INTO THE REPLACEMENT. The quote left it out, so it is
 		// outside the span and stays where it stands; the flat "introduces" reads as a prohibition
 		// to a seat that copied an anchor it can see against the sentence it is rewriting.
 		var typed *bluedoc.ErrAnchorIntroduced
 		if run, _ := bluedoc.AbuttingRun(report, end); errors.As(err, &typed) && strings.Contains(run, anchor.Token(typed.ID)) {
-			err = fmt.Errorf("%s: your replacement carries %s, and your quote stops just before it: that anchor stands at the edge of the span, outside it, and the edit leaves it exactly where it is — after your replacement, before the sentence's terminator. "+
-				"Leave it out of the replacement. To put it somewhere else in the new text, quote it as `show report` prints it and write it where it goes", verb, anchor.Token(typed.ID))
+			err = fmt.Errorf("your replacement carries %s, and your quote stops just before it: that anchor stands at the edge of the span, outside it, and the edit leaves it exactly where it is — after your replacement, before the sentence's terminator. "+
+				"Leave it out of the replacement. To put it somewhere else in the new text, quote it as `show report` prints it and write it where it goes", anchor.Token(typed.ID))
 		}
 		return "", "", false, err
 	}
@@ -95,7 +94,7 @@ func PlanSplice(verb, report, old, new string) (next, applied string, exact bool
 	}
 	if endsInTrimmedPunct(old) {
 		if ls, le, _, ok := bluedoc.LocateLiteral(report, old); ok {
-			if lnew, err := bluedoc.AnchorsTransitUnchanged(verb, report[ls:le], new); err == nil {
+			if lnew, err := bluedoc.AnchorsTransitUnchanged(report[ls:le], new); err == nil {
 				if lit := ApplySplice(report, ls, le, lnew); lit != report && DoubledTerminator(report, lit) == "" {
 					return lit, lnew, true, nil
 				}
@@ -103,7 +102,7 @@ func PlanSplice(verb, report, old, new string) (next, applied string, exact bool
 		}
 	}
 	if next == report {
-		return "", "", false, &NoChangeError{Verb: verb, TrailingOnly: stripTail(old) == stripTail(new)}
+		return "", "", false, &NoChangeError{TrailingOnly: stripTail(old) == stripTail(new)}
 	}
 	return next, applied, false, nil
 }

@@ -70,7 +70,7 @@ func newDispatch() *cobra.Command {
 			for _, w := range p.Occasions {
 				o, ok := record.OccasionOf(w)
 				if !ok {
-					return nil, fmt.Errorf("dispatch: the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
+					return nil, fmt.Errorf("the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
 				}
 				occasions = append(occasions, o)
 			}
@@ -85,7 +85,7 @@ func newDispatch() *cobra.Command {
 	c.Use = "dispatch next"
 	c.Args = func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 || args[0] != "next" {
-			return feov.Errorf(feov.Validation, "dispatch takes exactly one word, `next` — it computes who sits next from the board; there is nothing else to ask it for")
+			return feov.Errorf(feov.Validation, "takes exactly one word, `next` — it computes who sits next from the board; there is nothing else to ask it for")
 		}
 		return nil
 	}

@@ -44,7 +44,7 @@ func serveDashboard(out io.Writer, run record.Run, port int, render func() strin
 	// prevent (observed 2026-08-04: a server outlived its run and had to be killed by hand). A
 	// completed run is reviewed through the static snapshot, which needs no listening socket.
 	if _, err := os.Stat(runLiveMarker); err != nil {
-		return fmt.Errorf("dashboard --serve: this run is not live (no %s) — the served dashboard exists only for the duration of a run; for a finished run drop --serve and read the written %s",
+		return fmt.Errorf("--serve: this run is not live (no %s) — the served dashboard exists only for the duration of a run; for a finished run drop --serve and read the written %s",
 			runLiveMarker, filepath.Join(run.Dir(), "dashboard.html"))
 	}
 	secret, err := randToken()

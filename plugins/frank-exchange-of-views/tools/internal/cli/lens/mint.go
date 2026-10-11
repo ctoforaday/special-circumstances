@@ -49,7 +49,7 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			// The mint and its anchor are two appends; a retry finishes the pair at the location the
 			// mint stored.
-			if err := seat.PlaceOwed(s, run, "lens mint", prior, seat.Str(cmd, flags.Key)); err != nil {
+			if err := seat.PlaceOwed(s, run, prior, seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return mintResult{GapID: prior, Idempotent: true}, nil
@@ -106,7 +106,7 @@ func newMint() *cobra.Command {
 		// it is about, and the record CHECKS the reference. Leaving the instruction here
 		// would have made a seat spell one act two ways across the two verbs of one act, and
 		// the gap minted from such a finding would re-acquire the handle the finding shed.
-		about, aboutRefP, aerr := record.ResolveAbout("lens mint", run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
+		about, aboutRefP, aerr := record.ResolveAbout(run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
 		if aerr != nil {
 			return nil, aerr
 		}
@@ -114,7 +114,7 @@ func newMint() *cobra.Command {
 		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
 		// is not changed here — but a gap that claims both is claiming two.
 		if strings.TrimSpace(loc) != "" && about != nil {
-			return nil, fmt.Errorf("lens mint takes --quote OR --about, not both: a gap has one subject")
+			return nil, fmt.Errorf("takes --quote OR --about, not both: a gap has one subject")
 		}
 		// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
 		// once within one paragraph of the report as it stands. A gap is one sentence (R-4), and the
@@ -148,7 +148,7 @@ func newMint() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if err := bluedoc.ValidateProposal("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); err != nil {
+			if err := bluedoc.ValidateProposal(report, seat.Str(cmd, flags.Quote), fixNew); err != nil {
 				return nil, err
 			}
 			// A FIX THAT CHANGES NOTHING IS NOT VERIFIED. The pair can be distinct, present and legal
@@ -157,7 +157,7 @@ func newMint() *cobra.Command {
 			// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
 			// owns the splice and already imports bluedoc. Past ValidateProposal, its one other refusal
 			// is an anchor the fix puts on a heading, which stands as it is.
-			if _, _, _, err := reportproj.PlanSplice("lens mint", report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
+			if _, _, _, err := reportproj.PlanSplice(report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
 				return nil, fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
 			} else if err != nil {
 				return nil, err
@@ -170,7 +170,7 @@ func newMint() *cobra.Command {
 		if w := seat.Str(cmd, flags.CheckKind); w != "" {
 			ck, ok := record.CheckKindOf(w)
 			if !ok {
-				return nil, feov.Errorf(feov.Validation, "lens mint: %q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
+				return nil, feov.Errorf(feov.Validation, "%q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
 			}
 			p.CheckKind = &ck
 		}
@@ -202,7 +202,7 @@ func newMint() *cobra.Command {
 		if fam, berr := record.FamilyOf(run); berr == nil {
 			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
 				!contains(supersedes.Value(), prior) {
-				msg := fmt.Sprintf("lens mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
+				msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
 					prior, prior, prior, prescribed)
 				// The KIND is a field, not something a reader infers from the wording. The
 				// prose above is aimed at a seat and must stay editable; the count an
@@ -318,7 +318,7 @@ func (r mintResult) Human() string {
 // mintPlacementRefusal is finding's placement refusal, worded for a gap: one whose quote repeats
 // may name its section instead, and one about something not in the report names that.
 func mintPlacementRefusal(err error) error {
-	r := placementRefusal("lens mint", "gap", err)
+	r := placementRefusal("gap", err)
 	switch {
 	case errors.Is(err, anchortext.ErrAmbiguous):
 		return fmt.Errorf("%w; name its section with --about-kind section", r)

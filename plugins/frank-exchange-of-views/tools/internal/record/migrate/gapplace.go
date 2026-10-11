@@ -173,14 +173,14 @@ func locate(text, old string, exact bool) (int, int, bool) {
 		s, e, _, ok := bluedoc.LocateLiteral(text, old)
 		return s, e, ok
 	}
-	s, e, err := bluedoc.LocateUniqueReplacing("render", text, old)
+	s, e, err := bluedoc.LocateUniqueReplacing(text, old)
 	return s, e, err == nil
 }
 
 // rewriteOld is old as replay can locate it now that gap anchors stand in the report: the anchor run
 // abutting its span, put in place of old's own run after its last content character.
 func rewriteOld(text, old string) (string, bool) {
-	_, end, err := bluedoc.LocateUnique("render", text, old)
+	_, end, err := bluedoc.LocateUnique(text, old)
 	if err != nil {
 		return "", false
 	}

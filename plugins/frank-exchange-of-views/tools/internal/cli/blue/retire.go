@@ -81,7 +81,7 @@ func newRetire() *cobra.Command {
 		if md, rerr := reportproj.RenderFromRecord(run); rerr == nil {
 			if strings.Contains(md, claim) {
 				return nil, feov.Errorf(feov.Conflict,
-					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `edit` first, then retire the claim to say why it went and what replaced it",
+					"%q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `edit` first, then retire the claim to say why it went and what replaced it",
 					claim)
 			}
 			// Absent now. Whether it was ever THERE is a different question, and the record
@@ -158,19 +158,19 @@ func leftByTheCut(claim string, spans []record.EditSpan) map[string]int {
 // a marker re-attached to text backs that text now, and leaves only with it.
 func namedExits(md, id string, left map[string]int, spans []record.EditSpan) error {
 	if err := flags.AnchorID().Set(id); err != nil {
-		return fmt.Errorf("blue retire --anchor %s: %w", id, err)
+		return fmt.Errorf("--anchor %s: %w", id, err)
 	}
 	tok := anchor.Token(id)
 	if !strings.Contains(md, tok) {
-		return feov.Errorf(feov.Validation, "blue retire --anchor %s: the report holds no %s — name a marker that stands where the claim was", id, tok)
+		return feov.Errorf(feov.Validation, "--anchor %s: the report holds no %s — name a marker that stands where the claim was", id, tok)
 	}
 	i, ok := left[id]
 	if !ok {
-		return feov.Errorf(feov.Validation, "blue retire --anchor %s: no edit that took this claim out left %s on its own — `edit` the claim down to its markers first, then retire it naming the one that backed only it", id, tok)
+		return feov.Errorf(feov.Validation, "--anchor %s: no edit that took this claim out left %s on its own — `edit` the claim down to its markers first, then retire it naming the one that backed only it", id, tok)
 	}
 	for _, sp := range spans[i+1:] {
 		if strings.Contains(sp.New, tok) && claimcount.HasProse(sp.New) {
-			return feov.Errorf(feov.Validation, "blue retire --anchor %s: a later edit put %s back into prose — it backs that text now, and leaves only with it", id, tok)
+			return feov.Errorf(feov.Validation, "--anchor %s: a later edit put %s back into prose — it backs that text now, and leaves only with it", id, tok)
 		}
 	}
 	return nil

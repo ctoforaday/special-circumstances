@@ -9,11 +9,9 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -281,9 +279,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.Args = cobra.ArbitraryArgs
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface."+noSeatNote(seatID))
+			return seat.RefuseAndTeach(cmd, feov.MissingField, "you named no command, so nothing ran."+noSeatNote(seatID))
 		}
-		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0])+noSeatNote(seatID))
+		return seat.RefuseAndTeach(cmd, feov.Validation, unknownCommandRefusal(cmd.Root(), args[0])+noSeatNote(seatID))
 	}
 
 	teachUnknownSubcommand(root)
@@ -365,7 +363,7 @@ func teachUnknownSubcommand(root *cobra.Command) {
 				for i, a := range at {
 					holders[i] = "the " + a + "'s"
 				}
-				return seat.RefuseAndTeach(cmd, fmt.Sprintf("This act is %s `%s %s`, and it is not on your surface: you are %s. "+
+				return seat.RefuseAndTeach(cmd, feov.RoleViolation, fmt.Sprintf("This act is %s `%s %s`, and it is not on your surface: you are %s. "+
 					"That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to "+
 					"perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.",
 					strings.Join(holders, " and "), group.Name(), sub, seat.DispatchedAs(cmd)))
@@ -376,7 +374,7 @@ func teachUnknownSubcommand(root *cobra.Command) {
 					have = append(have, s.Name())
 				}
 			}
-			return seat.RefuseAndTeach(cmd, fmt.Sprintf("`%s` has no `%s` act on any seat's surface — yours has %s.",
+			return seat.RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf("`%s` has no `%s` act on any seat's surface — yours has %s.",
 				group.Name(), sub, strings.Join(have, ", ")))
 		}
 	}
@@ -411,11 +409,11 @@ func unknownCommandRefusal(root *cobra.Command, name string) string {
 		return fmt.Sprintf("%q is not on your surface — it is the %s seat's verb. That is a "+
 			"wrong-SEAT error, not a missing capability, so do not work around it: if the act is "+
 			"yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that "+
-			"holds it is named here. The commands below are everything you can run.",
+			"holds it is named here.",
 			name, strings.Join(at, " and "))
 	}
 	return fmt.Sprintf(
-		"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", name)
+		"no command named %q exists, on your surface or on any other seat's, so there is no seat to switch to.", name)
 }
 
 // refuseUnknownCommandFirst answers the WRONG COMMAND before cobra can answer the wrong flag.
@@ -478,7 +476,7 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	// NOBODY SAID WHO IS ASKING, so there is no surface to look this up in. Answered here rather
 	// than after parsing, because the flags belong to a command that could not have been found.
 	if RoleOfSeat(seatID) == "" {
-		return seat.RefuseAndTeach(root, "a command was named and the surface is scoped to whoever is asking."+noSeatNote(seatID))
+		return seat.RefuseAndTeach(root, feov.MissingField, "a command was named and the surface is scoped to whoever is asking."+noSeatNote(seatID))
 	}
 	for _, c := range root.Commands() {
 		if c.Name() == name || c.HasAlias(name) {
@@ -488,68 +486,60 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	// A WRONG-SEAT ERROR KEEPS ITS CODE. `--json` consumers branch on the KIND of failure, and
 	// this one is a role violation however the tree came to lack the verb; flattening it to a
 	// plain message makes "you are the wrong seat" indistinguishable from a typo.
-	taught := seat.RefuseAndTeach(root, unknownCommandRefusal(root, name)+noSeatNote(seatID))
+	wrong := unknownCommandRefusal(root, name) + noSeatNote(seatID)
 	if len(whereItLives(root, name)) > 0 {
-		return feov.Errorf(feov.RoleViolation, "%s", taught.Error())
+		return seat.RefuseAndTeach(root, feov.RoleViolation, wrong)
 	}
-	return taught
+	return seat.RefuseAndTeach(root, feov.Validation, wrong)
 }
 
 // Execute runs the CLI.
 func Execute() {
-	root := newRoot()
-	if err := refuseUnknownCommandNoted(root, os.Args, dispatchedSeat()); err != nil {
-		// THROUGH THE SAME EMITTER AS EVERY OTHER TOP-LEVEL REFUSAL. This branch printed a bare
-		// sentence, so `--json` callers got prose from the one path that answers before cobra —
-		// a channel whose entire contract is that it is machine-readable.
-		if !EmitTopLevelError(os.Stdout, os.Args, err) {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
-		}
-		os.Exit(2)
-	}
-	if err := ExecuteRoot(root); err != nil {
-		// A --json CALLER GETS JSON, INCLUDING WHEN THE FLAGS THEMSELVES ARE REFUSED.
-		//
-		// `seat.Emit` renders every refusal a HANDLER produces as a structured envelope. A
-		// refusal from flag PARSING never reaches it: pflag rejects the value and cobra returns
-		// the error straight out of Execute, so `--json merge mint --severity banana` printed a
-		// bare sentence on a channel whose entire contract is that it is machine-readable. A
-		// consumer parsing that channel gets a JSON error and cannot see which flag was wrong.
-		//
-		// It has been true since `GradeValue` shipped and nobody noticed, because the seats read
-		// the human line and the engine only parses the SUCCESS path. It surfaced when the id
-		// flags became typed: a case that used to fail inside the handler began failing at parse,
-		// and the same input changed channel shape without changing meaning.
-		//
-		// So the envelope is rendered here too. The verb and role are unknown at this point —
-		// parsing failed before cobra resolved which command owns the flag — and the envelope
-		// says so with empty fields rather than guessing a name from argv.
-		if EmitTopLevelError(os.Stdout, os.Args, err) {
-			os.Exit(2)
-		}
-		// Errors print bare, without cobra's usage dump: a validation refusal here
-		// is a TEACHING message a seat reads and acts on, and burying it under a
-		// flag listing is how it stops being read.
-		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
+	if _, err := Invoke(newRoot(), os.Args[1:], dispatchedSeat()); err != nil {
 		os.Exit(2)
 	}
 }
 
-// ExecuteRoot runs the tree and attaches the failing verb's own help to the refusals COBRA
-// raises — an unknown flag, a missing required flag, a flag group violated.
+// Invoke is everything the binary does with an argv short of exiting: the refusal that answers a
+// command nobody holds before cobra parses a flag, the tree, and — for a refusal from either — the
+// ONE renderer, handed the command that resolved. It returns that command with the error.
+//
+// Exported because a TEST HARNESS must reproduce the binary. One that drove the tree and rendered
+// for itself would measure a shape the binary does not produce; the in-process drivers (this
+// package's `run`, the release gate's, and `manual`'s) call this instead, so there is no second
+// copy of the sequence to keep in step.
+//
+// The refusal goes to the root's own writers — the process's stdout and stderr unless a harness
+// set others.
+func Invoke(root *cobra.Command, argv []string, seatID string) (*cobra.Command, error) {
+	root.SetArgs(argv)
+	leaf, err := root, refuseUnknownCommandNoted(root, append([]string{InvokedAs()}, argv...), seatID)
+	if err == nil {
+		leaf, err = ExecuteRoot(root)
+	}
+	if err != nil {
+		seat.RenderRefusal(root.OutOrStdout(), root.ErrOrStderr(), leaf, argv, err)
+	}
+	return leaf, err
+}
+
+// ExecuteRoot runs the tree and returns the command that resolved with its error. To the refusals
+// COBRA raises — an unknown flag, a missing required flag, a bad value, wrong arguments, a flag
+// group violated — it gives the code their producer implies and, on a seat verb, the verb's own
+// help.
 //
 // Those refusals name a flag word and stop: "required flag(s) \"verified-by\" not set" tells a
 // seat which word it missed and nothing about what the word wants or what else the verb takes.
 // The flag table is the answer, and cobra already renders it — so the diagnosis leads and cobra's
 // own help follows, which is the shape every other refusal in this tool has.
 //
-// It is scoped to SEAT VERBS and to errors the handler did not already answer. A handler's
-// refusal is a teaching message already (seat.Taught marks them), and an operator command's
-// refusals were never flag-shaped.
+// The help is scoped to SEAT VERBS and to errors nothing already answered. A handler's refusal is
+// a teaching message already (seat.Taught marks them), and an operator command's refusals were
+// never flag-shaped.
 //
-// Exported for the same reason EmitTopLevelError is: the test harness drives the tree directly,
-// and a fix living only in Execute() would be invisible to every test.
-func ExecuteRoot(root *cobra.Command) error {
+// THE REFUSAL IS LOGGED AS RETURNED, once its diagnosis is final: the log entry and the rendered
+// forms read the same sentence.
+func ExecuteRoot(root *cobra.Command) (*cobra.Command, error) {
 	// BEFORE COBRA DISPATCHES ANYTHING. --schema is not a verb and must answer even when the
 	// argv would otherwise be refused: setup runs it against a binary it does not yet trust,
 	// and a preflight that cannot get an answer out of a working binary is worse than no
@@ -558,62 +548,53 @@ func ExecuteRoot(root *cobra.Command) error {
 	for _, a := range os.Args[1:] {
 		if a == "--"+flags.Schema {
 			fmt.Fprintln(root.OutOrStdout(), record.EventSchema)
-			return nil
+			return root, nil
 		}
 	}
+	// A FLAG THAT DOES NOT PARSE IS ILL-FORMED INPUT, and cobra calls this for parse errors and for
+	// nothing else — so the code is set where the producer is known, not guessed from the text.
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return feov.Wrap(feov.Validation, err, "%s", err.Error())
+	})
 	cmd, err := root.ExecuteC()
+	if cmd == nil {
+		cmd = root
+	}
+	if err == nil {
+		return cmd, nil
+	}
+	if !seat.Taught(err) {
+		err = codeCobraRefusal(cmd, err)
+		if seat.RecordType(cmd) != "" {
+			err = seat.TeachCause(cmd, translateUnknownFlag(cmd, err.Error()), err)
+		}
+	}
 	noteRefusal(cmd, err)
-	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
+	return cmd, err
+}
+
+// codeCobraRefusal gives a refusal cobra raised AFTER parsing the code its producer implies: a
+// required flag left out is a missing field; a flag group violated, or arguments the command does
+// not take, are ill-formed input.
+//
+// THE PRODUCER IS ASKED AGAIN, not recognised by its wording. Each of cobra's three checks is
+// re-run on the resolved command and its message compared whole with the one returned — the same
+// function over the same flag state — so no shape of another module's text is assumed, and a
+// refusal none of them produced keeps the code it came with. An error nothing coded stays "error":
+// a network failure is not the caller's ill-formed input, and nothing here says it is.
+func codeCobraRefusal(cmd *cobra.Command, err error) error {
+	var coded *feov.Error
+	if errors.As(err, &coded) {
 		return err
 	}
-	return seat.RefuseAndTeach(cmd, translateUnknownFlag(cmd, err.Error()))
-}
-
-// EmitTopLevelError renders an error that never reached seat.Emit, and reports whether it did.
-//
-// Exported because the TEST HARNESS must reproduce the binary here. It drives root.Execute()
-// directly and returns the error, so a fix living only inside Execute() would be invisible to
-// every test — the harness would go on measuring a shape the binary does not produce, which is
-// the same defect one layer up from the one this fixes.
-func EmitTopLevelError(w io.Writer, argv []string, err error) bool {
-	// A HANDLER'S REFUSAL ARRIVES ALREADY RENDERED: seat.Emit wrote its envelope, with the verb and
-	// role this point no longer knows, and returned the error only so the call exits non-zero. A
-	// second envelope here would put two objects on a channel whose consumer parses one.
-	if seat.Enveloped(err) {
-		return true
+	same := func(e error) bool { return e != nil && e.Error() == err.Error() }
+	switch {
+	case same(cmd.ValidateRequiredFlags()):
+		return feov.Wrap(feov.MissingField, err, "%s", err.Error())
+	case same(cmd.ValidateFlagGroups()), same(cmd.ValidateArgs(cmd.Flags().Args())):
+		return feov.Wrap(feov.Validation, err, "%s", err.Error())
 	}
-	if !jsonRequested(argv) {
-		return false
-	}
-	// THE CODE IS THE ERROR'S OWN WHERE IT HAS ONE. Validation was hardcoded because everything
-	// reaching here was a parse refusal; a wrong-SEAT refusal now arrives here too, and it carries
-	// role_violation. A consumer branching on the kind of failure would otherwise be told a
-	// dispatch error is a typo.
-	code := feov.Validation
-	var coded *feov.Error
-	if errors.As(err, &coded) && coded.Code != "" {
-		code = coded.Code
-	}
-	_ = json.NewEncoder(w).Encode(struct {
-		OK    bool   `json:"ok"`
-		Code  string `json:"code"`
-		Error string `json:"error"`
-	}{OK: false, Code: string(code), Error: err.Error()})
-	return true
-}
-
-// jsonRequested reads --json off the RAW ARGV.
-//
-// It cannot come from the parsed flag set: this runs on the path where parsing FAILED, so the
-// flag may never have been bound. Scanning argv is the only source that survives that, and the
-// flag is a plain boolean with no value form to confuse it.
-func jsonRequested(argv []string) bool {
-	for _, a := range argv {
-		if a == "--json" || a == "--json=true" {
-			return true
-		}
-	}
-	return false
+	return err
 }
 
 // unknownFlagName pulls the flag word out of cobra's refusal. Cobra has no typed error for this,

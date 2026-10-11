@@ -39,7 +39,7 @@ func newGraph() *cobra.Command {
 			}
 			fam, err := record.FamilyOf(run)
 			if err != nil {
-				return fmt.Errorf("graph: %w", err)
+				return err
 			}
 			switch format {
 			case "", "mermaid":
@@ -47,7 +47,7 @@ func newGraph() *cobra.Command {
 			case "dot":
 				fmt.Fprint(cmd.OutOrStdout(), graph.Dot(fam))
 			default:
-				return feov.Errorf(feov.Validation, "graph: unknown --format %q (mermaid | dot)", format)
+				return feov.Errorf(feov.Validation, "unknown --format %q (mermaid | dot)", format)
 			}
 			return nil
 		},

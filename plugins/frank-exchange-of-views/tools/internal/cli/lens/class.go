@@ -108,7 +108,7 @@ func newClassNew() *cobra.Command {
 		}
 		md, ok := record.ClassMaterialOf(word)
 		if !ok {
-			return nil, fmt.Errorf("class new: %q is not a material default — always | never | by_grade", word)
+			return nil, fmt.Errorf("%q is not a material default — always | never | by_grade", word)
 		}
 		body := &recordpb.ClassNew{
 			Slug:            proto.String(seat.Str(cmd, flags.Class)),

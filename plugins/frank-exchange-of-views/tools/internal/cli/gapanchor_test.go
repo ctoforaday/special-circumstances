@@ -175,7 +175,7 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 			runDir := newRun(t)
 			writeReport(t, runDir, report)
 			err := c.act(t, runDir)
-			if err == nil || !strings.Contains(err.Error(), c.verb+": the quote ends in a section heading") {
+			if err == nil || !strings.Contains(err.Error(), "the quote ends in a section heading") {
 				t.Fatalf("refusal = %v, want %s to refuse the heading", err, c.verb)
 			}
 			if got := strings.Contains(err.Error(), "--about-kind section"); got != c.section {
@@ -208,7 +208,7 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 			writeReport(t, runDir, report)
 			registerBlue(t, runDir)
 			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1", "--quote", c.quote, "--new", c.new, "--reason", "r")
-			if want := "blue edit: this edit puts <!--fx:F-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
+			if want := "this edit puts <!--fx:F-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
 				t.Fatalf("refusal = %v, want %q", err, want)
 			}
 			if !strings.Contains(err.Error(), "keep the anchor on its sentence in the section's text") {
@@ -223,7 +223,7 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 		runDir := newRun(t)
 		writeReport(t, runDir, report)
 		_, err := mintQuote(t, runDir, "G", "The sieve", "--new", "## The sieve")
-		if err == nil || !strings.Contains(err.Error(), "lens mint: this edit puts <!--fx:F-0000bbbb--> on a section heading") {
+		if err == nil || !strings.Contains(err.Error(), "this edit puts <!--fx:F-0000bbbb--> on a section heading") {
 			t.Fatalf("refusal = %v, want lens mint to refuse the heading", err)
 		}
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {

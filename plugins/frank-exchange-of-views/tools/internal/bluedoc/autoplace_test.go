@@ -32,7 +32,7 @@ func TestAutoPlace(t *testing.T) {
 
 // An anchor dropped with no prose around it is refused as bare, not "on the sentence """.
 func TestTheDropRefusalSaysWhenTheAnchorIsBare(t *testing.T) {
-	_, err := AnchorsTransitUnchanged("blue edit", "<!--fx:F-aaaa1111-->", "Gone.")
+	_, err := AnchorsTransitUnchanged("<!--fx:F-aaaa1111-->", "Gone.")
 	if err == nil || !strings.Contains(err.Error(), anchor.Label("F-aaaa1111")+" bare of any sentence") {
 		t.Errorf("refusal = %v, want it to say the anchor is bare", err)
 	}
@@ -42,7 +42,7 @@ func TestTheDropRefusalSaysWhenTheAnchorIsBare(t *testing.T) {
 func TestTheDropRefusalNamesTheFirstAnchorLeftOut(t *testing.T) {
 	span := "One<!--fx:F-aaaa0001-->. Two<!--fx:F-aaaa0002-->. Three<!--fx:F-aaaa0003-->. Four<!--fx:F-aaaa0004-->."
 	for range 8 {
-		if _, err := AnchorsTransitUnchanged("blue edit", span, "Gone."); err == nil || !strings.Contains(err.Error(), anchor.Label("F-aaaa0001")+" on the sentence \"One.\"") {
+		if _, err := AnchorsTransitUnchanged(span, "Gone."); err == nil || !strings.Contains(err.Error(), anchor.Label("F-aaaa0001")+" on the sentence \"One.\"") {
 			t.Fatalf("refusal = %v, want it to name F-aaaa0001 on \"One.\"", err)
 		}
 	}

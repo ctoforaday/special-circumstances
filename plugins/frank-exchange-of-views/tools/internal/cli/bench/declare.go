@@ -57,7 +57,7 @@ func newDeclare() *cobra.Command {
 			return nil, err
 		}
 		if text == "" {
-			return nil, feov.Errorf(feov.MissingField, "bench declare requires --reason: the declaration IS the reasoning. A holding with no stated content binds nothing and teaches nobody, and this verb exists because the alternative was prose on a channel nothing reads")
+			return nil, feov.Errorf(feov.MissingField, "requires --reason: the declaration IS the reasoning. A holding with no stated content binds nothing and teaches nobody, and this verb exists because the alternative was prose on a channel nothing reads")
 		}
 		if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
 			return nil, err

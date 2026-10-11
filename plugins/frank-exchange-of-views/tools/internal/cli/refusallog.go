@@ -67,13 +67,19 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	}
 	// THE ANNOTATION LAYER IS NOT TEXT. A refusal may quote an anchor it could not resolve, and a live
 	// `<!--fx:…-->` in a log entry is a marker in a document that renders it.
-	why, _, _ := strings.Cut(strings.TrimSpace(anchortext.Visible(err.Error())), "\n")
+	// THE FIRST LINE, THEN the annotation layer out of it — in that order, because the reading that
+	// takes the layer out also folds line breaks, and a diagnosis several lines long would otherwise
+	// run on into its second paragraph.
+	why, _, _ := strings.Cut(strings.TrimSpace(seat.Diagnosis(err)), "\n")
+	why = anchortext.Visible(why)
 	if r := []rune(why); len(r) > 300 {
 		why = string(r[:300]) + "…"
 	}
+	// THE PATH AND THE SENTENCE ARE THE RENDERER'S OWN — seat.PathOf and seat.Diagnosis are what
+	// RenderRefusal prints — so the entry names the command once and says what the seat was told.
 	what := "a verb this surface does not have"
-	if cmd != cmd.Root() {
-		what = "`" + strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ") + "`"
+	if p := seat.PathOf(cmd); p != "" {
+		what = "`" + p + "`"
 	}
 	lt, src := recordpb.LogType_LOG_TYPE_REFUSAL, recordpb.LogSource_LOG_SOURCE_TOOL
 	_, _ = record.Append(record.Identity{Run: run, SeatID: seatID}, &recordpb.Log{

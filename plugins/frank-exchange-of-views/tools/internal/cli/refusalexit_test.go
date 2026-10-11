@@ -13,10 +13,9 @@ import (
 // A REFUSAL COMES BACK AS AN ERROR. IT DOES NOT EXIT.
 //
 // `RunE` returns an error precisely so a handler need not decide the process's fate, and Execute
-// already maps a returned error to exit 2 — but only AFTER EmitTopLevelError, which is what turns
-// a refusal into an envelope for a --json caller. root.go states that contract at length: "A --json
-// CALLER GETS JSON, INCLUDING WHEN THE FLAGS THEMSELVES ARE REFUSED… a bare sentence on a channel
-// whose entire contract is that it is machine-readable."
+// already maps a returned error to exit 2 — but only AFTER seat.RenderRefusal, which is what turns
+// a refusal into an envelope for a --json caller: every refusal leaves through it, including one
+// raised where the flags themselves did not parse.
 //
 // Three commands answered a bad argv by printing a usage line and calling os.Exit from inside
 // their RunE, so they were the remaining holes in that fix (#716): a consumer parsing the channel

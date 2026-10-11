@@ -45,10 +45,10 @@ func newProve() *cobra.Command {
 		}
 		location, script := seat.Location(cmd), seat.Str(cmd, flags.Script)
 		if strings.TrimSpace(location) == "" {
-			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
+			return nil, fmt.Errorf("requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
 		}
 		if strings.TrimSpace(script) == "" {
-			return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
+			return nil, fmt.Errorf("requires --script: the path (under the run directory) of the program that settles it")
 		}
 
 		// CRASH-RETRY AND KEY COLLISION LOOK IDENTICAL AT THE KEY, AND ARE OPPOSITE FACTS.
@@ -79,14 +79,14 @@ func newProve() *cobra.Command {
 				return nil, serr
 			}
 			if now != prior {
-				return nil, fmt.Errorf("blue prove: --key %q already names proof %s on this run, and %s hashes to %s — "+
+				return nil, fmt.Errorf("--key %q already names proof %s on this run, and %s hashes to %s — "+
 					"a key is one program's name, not a slot to reuse. This is not a retry: recording nothing here would "+
 					"leave you citing a proof of something else. Give this program its own --key",
 					seat.Str(cmd, flags.Key), prior[:12], script, now[:12])
 			}
 			// The proof and its anchor are two appends; a retry finishes the pair at the location
 			// the proof stored.
-			if err := seat.PlaceOwed(s, run, "blue prove", priorID, seat.Str(cmd, flags.Key)); err != nil {
+			if err := seat.PlaceOwed(s, run, priorID, seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return proveResult{SHA: prior, Idempotent: true, VoiceTells: tells}, nil
@@ -110,7 +110,7 @@ func newProve() *cobra.Command {
 		// Refused rather than graded, because the artifact is otherwise indistinguishable from a
 		// real negative result, and the seat is one edit away from a correct one.
 		if res.Failed != "" && !seat.Given(cmd, flags.ExpectError) {
-			return nil, fmt.Errorf("blue prove: %s ran to exit %d, but its output carries an ENVIRONMENT error, not a result:\n    %s\n"+
+			return nil, fmt.Errorf("%s ran to exit %d, but its output carries an ENVIRONMENT error, not a result:\n    %s\n"+
 				"A proof runs with the RUN DIRECTORY as its working directory (%s), not the repository root — a script that reaches for repo paths must resolve them itself. "+
 				"Fix the script and re-run; if capturing this failure IS the point (proving a path is absent, a command missing), say so with --expect-error and it is recorded as the result it is",
 				script, res.Exit, res.Failed, run.Dir())
@@ -169,7 +169,7 @@ func proofFields(cmd *cobra.Command, body *recordpb.Proof, why string) {
 	body.Text = proto.String(why)
 }
 
-func proveRefusal(err error) error { return anchortext.Refusal("blue prove", err) }
+func proveRefusal(err error) error { return anchortext.Refusal(err) }
 
 type proveResult struct {
 	Label      string `json:"proof_id,omitempty"`

@@ -538,7 +538,7 @@ func EvidenceAt(run Run, id string) (EvidenceAtJSON, error) {
 	// A WELL-FORMED ID NOTHING HERE IS AT — a finding's, a gap's, or a citation or proof this record
 	// does not hold. An id of the wrong shape, a proof's sha256 among them, never reaches this: the
 	// flag that takes the anchor refuses it (flags.AnchorID).
-	return EvidenceAtJSON{}, fmt.Errorf("show evidence: no source or proof is at anchor %q on this record (%d source(s), %d proof(s)). "+
+	return EvidenceAtJSON{}, fmt.Errorf("no source or proof is at anchor %q on this record (%d source(s), %d proof(s)). "+
 		"--anchor takes the id inside a citation or proof token in the report, exactly as it reads there; the bare projection lists every one with its anchor",
 		id, len(ev.Sources), len(ev.Proofs))
 }

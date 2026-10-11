@@ -18,7 +18,7 @@ func TestAReadAtAnAnchorRefusesASelector(t *testing.T) {
 		for _, sel := range [][]string{{"--match", "Costs"}, {"--quote", "Costs"}} {
 			args := append([]string{"show", "--run", runDir, "--seat-id", blueSeat, view, "--anchor", cite}, sel...)
 			_, err := run(t, args...)
-			if err == nil || !strings.Contains(err.Error(), "show "+view+": --anchor") || !strings.Contains(err.Error(), "pass one or the other") {
+			if err == nil || !strings.Contains(err.Error(), "--anchor reads") || !strings.Contains(err.Error(), "pass one or the other") {
 				t.Errorf("show %s --anchor with %s = %v, want the pair refused", view, sel[0], err)
 			}
 		}

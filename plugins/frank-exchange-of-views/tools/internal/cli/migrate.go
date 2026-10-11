@@ -36,7 +36,7 @@ func newMigrate() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if from == "" || to == "" {
-				return fmt.Errorf("migrate: --from and --to are both required — the source run, and the fresh directory the migration writes")
+				return fmt.Errorf("--from and --to are both required — the source run, and the fresh directory the migration writes")
 			}
 			accept := map[string]bool{}
 			for _, w := range acceptLoss {

@@ -400,16 +400,16 @@ func Of(cmd *cobra.Command) Context {
 // having supplied a run at all (the engine is not dispatching you). Collapsing them into
 // "--run is required" tells a seat that DID pass --run to pass it, which is the message that
 // sends it looking in the wrong place.
-func (c Context) RequireRun(verb string) (record.Run, error) {
+func (c Context) RequireRun() (record.Run, error) {
 	if c.RunErr != nil {
 		return record.Run{}, c.RunErr
 	}
 	if c.runDir == "" {
-		return record.Run{}, feov.Errorf(feov.MissingField, "%s: --run <runDir> is required", verb)
+		return record.Run{}, feov.Errorf(feov.MissingField, "--run <runDir> is required")
 	}
-	// The verb-named message above is kept for the UNSUPPLIED case, because "scorecard: --run
-	// is required" tells an operator which invocation to fix and record's own wording cannot.
-	// Everything past it is the same refusal Run() gives, for the same reason.
+	// The message above is kept for the UNSUPPLIED case — the renderer names the invocation it
+	// was raised on, which tells an operator which call to fix. Everything past it is the same
+	// refusal Run() gives, for the same reason.
 	return c.Run()
 }
 
@@ -438,9 +438,9 @@ type Msg struct {
 // Human renders Msg as itself.
 func (m Msg) Human() string { return m.Message }
 
-// okEnvelope / errEnvelope are the --json wire shape. verb and role come from the command's
+// okEnvelope is the --json wire shape of a success. verb and role come from the command's
 // position (not string-mashed into the message); the Result nests under "result" so the
-// envelope stays fully typed end to end. An error carries a `code` a consumer switches on.
+// envelope stays fully typed end to end. A refusal's shape is RefusalEnvelope.
 type okEnvelope struct {
 	Verb   string `json:"verb"`
 	Role   string `json:"role"`
@@ -450,14 +450,6 @@ type okEnvelope struct {
 	// See standing.go: it is what ends `show work` after an act, and it carries the verdict rather
 	// than the list because the list is 4-5 KB and the verdict is the question.
 	Standing *StandingJSON `json:"standing,omitempty"`
-}
-
-type errEnvelope struct {
-	Verb  string `json:"verb"`
-	Role  string `json:"role"`
-	OK    bool   `json:"ok"`
-	Code  string `json:"code"`
-	Error string `json:"error"`
 }
 
 func jsonMode(cmd *cobra.Command) bool {
@@ -770,7 +762,8 @@ func CheckFlagReferences(cmd *cobra.Command, runDir string) error {
 }
 
 // taught marks an error the HANDLER already answered — diagnosed in the verb's own words, with
-// whatever the seat needs next already in the sentence.
+// whatever the seat needs next already in the sentence. The words are the handler's and nothing is
+// added to them: the role and the command path are the renderer's, read from the command.
 //
 // It exists so the top level can tell those apart from the ones cobra raises BEFORE the handler
 // runs: an unknown flag, a missing required flag, a flag group violated. Those say only which
@@ -785,49 +778,24 @@ type taught struct{ error }
 
 func (t taught) Unwrap() error { return t.error }
 
-// Taught reports whether a verb's handler already answered this error.
+// Taught reports whether this error already answers itself: a verb's handler diagnosed it, or it
+// is a Refusal carrying its own page.
 func Taught(err error) bool {
 	var t taught
-	return errors.As(err, &t)
+	var r *Refusal
+	return errors.As(err, &t) || errors.As(err, &r)
 }
 
-// enveloped marks a refusal Emit has ALREADY WRITTEN as the --json envelope. It is still returned:
-// the call failed, so the process exits non-zero and the refusal log records it. The mark is what
-// tells the top level not to render it a second time.
+// Emit renders a verb's SUCCESS, and hands a failure back marked as the handler's own answer.
 //
-// RETURNING json's Encode error instead — nil, for a written envelope — swallows the refusal and its
-// exit code with it: every --json refusal of every verb exits 0, and the refusal log, which keys on
-// the returned error, records none of them.
-type enveloped struct{ taught }
-
-func (e enveloped) Unwrap() error { return e.taught }
-
-// Enveloped reports whether this refusal was already written as a --json envelope.
-func Enveloped(err error) bool {
-	var e enveloped
-	return errors.As(err, &e)
-}
-
-// Emit renders a verb's outcome. It is the ONE place both a success and a failure are
-// rendered, so they cannot disagree, and the ONE place a --json error's code is read — from
-// the error's own type via feov.CodeOf, with no switch on concrete error types. verb and
-// role come from the command's POSITION, not from string-mashing the message.
+// A refusal is not written here. Every refusal leaves the tool through RenderRefusal, which reads
+// the role and the verb from the command and the code from the error, so a handler's refusal and
+// one cobra raised before the handler ran are the same shape by construction. The error is
+// returned unchanged in its words: the role and the path are the renderer's to print.
 func Emit(cmd *cobra.Command, res Result, err error) error {
 	role := roleOf(cmd)
 	if err != nil {
-		// The ROLE leads the human message ("merge: close requires --id") — it names which
-		// contract is being held. Under --json the role is a field, the code is the machine
-		// handle a consumer branches on, and the message stays the clean domain sentence.
-		prefixed := taught{fmt.Errorf("%s: %w", role, err)}
-		if jsonMode(cmd) {
-			if werr := json.NewEncoder(cmd.OutOrStdout()).Encode(errEnvelope{
-				Verb: cmd.Name(), Role: role, Code: feov.CodeOf(err), Error: prefixed.Error(),
-			}); werr != nil {
-				return errors.Join(prefixed, werr)
-			}
-			return enveloped{prefixed}
-		}
-		return prefixed
+		return taught{err}
 	}
 	// WHERE THE SEAT NOW STANDS RIDES THE ACT. Computed once, here, for both forms — a seat reading
 	// the human line and a consumer parsing the envelope are answering the same question and must not

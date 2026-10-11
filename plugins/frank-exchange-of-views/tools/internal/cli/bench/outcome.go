@@ -51,12 +51,12 @@ func newOutcome() *cobra.Command {
 		if err != nil {
 			// Not a refusal of the verdict: the record could not be read to derive one, so the
 			// call is retried as it stands.
-			return nil, fmt.Errorf("outcome: the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
+			return nil, fmt.Errorf("the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
 		}
 		switch {
 		case ok && verdict != derived:
 			return nil, feov.Errorf(feov.Conflict,
-				"outcome: --as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
+				"--as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
 				verdict, derived, why)
 		case ok:
 			basis, basisWhy = record.VerdictDerived, why
@@ -66,7 +66,7 @@ func newOutcome() *cobra.Command {
 			// UNVERIFIED is the name of that. Any other word here is a claim the record would
 			// refuse if it could decide, arriving through the one gap where it cannot.
 			return nil, feov.Errorf(feov.Conflict,
-				"outcome: --as %s, but the record holds no terminal state to derive it from (%s). Only UNVERIFIED may be asserted over such a record — a run that ended before a halt, a PASS or the ceiling",
+				"--as %s, but the record holds no terminal state to derive it from (%s). Only UNVERIFIED may be asserted over such a record — a run that ended before a halt, a PASS or the ceiling",
 				verdict, why)
 		}
 
@@ -99,7 +99,7 @@ func newOutcome() *cobra.Command {
 		v, ok := record.RunOutcomeOf(verdict)
 		if !ok {
 			return nil, feov.Errorf(feov.Validation,
-				"bench outcome: %q is not a verdict this record can carry", verdict)
+				"%q is not a verdict this record can carry", verdict)
 		}
 		body := &recordpb.Outcome{Verdict: &v, VerdictBasis: proto.String(basis)}
 		if reason != "" {

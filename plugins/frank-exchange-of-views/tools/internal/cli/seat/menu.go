@@ -2,10 +2,11 @@ package seat
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
 // A REFUSAL SAYS WHAT WENT WRONG FIRST, THEN TEACHES THE SURFACE. Never a bare list, never help
@@ -62,66 +63,26 @@ func HelpText(c *cobra.Command) string {
 // RefuseAndTeach is the one shape: what went wrong, then what exists.
 //
 // `wrong` must be a complete diagnosis on its own — a seat that read only the first line should
-// already know what it did. The help is what it needs NEXT, not what tells it there was a problem.
-func RefuseAndTeach(c *cobra.Command, wrong string) error {
-	help := HelpText(c)
-	if strings.TrimSpace(help) == "" {
-		// Nothing to teach: say where to look rather than trail off.
-		return fmt.Errorf("%s\n\nRun `%s --help` for what is available", wrong, c.CommandPath())
-	}
-	return fmt.Errorf("%s\n\n%s", wrong, help)
-}
-
-// RefuseUnknownVerb is "that verb is not yours", diagnosed then taught.
-// RefuseUnknownVerb answers a verb this role does not have — saying WHICH of the two cases it is.
+// already know what it did, and it refers to no text after it: the page follows it in the human
+// form and is named, not printed, in the JSON one. The help is what the seat needs NEXT, not what
+// tells it there was a problem. `c` is the command whose page answers the refusal, which is the
+// failing leaf for a flag and the group or the root for a command that was not found under it.
 //
-// The message used to assert "it exists in this tool but not for you" unconditionally, which is
-// a claim about the rest of the tool that the function never checked. Caught by deleting a verb:
-// every call to the retired `blue confidence` came back insisting the verb existed somewhere,
-// and a seat reading that would go looking for a role that had it. A wrong-seat error and a
-// deleted capability want opposite responses from the seat — one is "use the right role", the
-// other is "this is gone, file a request if you needed it" — so the refusal has to know which
-// it is rather than guessing the flattering one.
-func RefuseUnknownVerb(c *cobra.Command, role, attempted string) error {
-	if elsewhere := roleWithVerb(c, attempted); elsewhere != "" {
-		return RefuseAndTeach(c, fmt.Sprintf(
-			"verb %q is outside the %s seat's role — it exists, on the %s seat, but not for you. That is a wrong-seat error rather than a missing capability. The verbs below are yours, and each one's own `--help` carries its flags.",
-			attempted, role, elsewhere))
-	}
-	// THE SEAT'S VERB IS `log`. The OPERATOR's read of the log is `ops log`, not a seat's verb,
-	// and there is no role prefix, so naming either sends a seat from one wrong address to
-	// another — at the exact moment it has lost a capability.
-	return RefuseAndTeach(c, fmt.Sprintf(
-		"no verb %q exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `log --type request --reason \"...\"` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.",
-		attempted))
+// The code is the refusal's KIND, stated where the refusal is raised: a consumer branches on it,
+// and nothing downstream supplies one for a refusal that came without.
+func RefuseAndTeach(c *cobra.Command, code feov.Code, wrong string) error {
+	return TeachCause(c, wrong, feov.Errorf(code, "%s", wrong))
 }
 
-// roleWithVerb finds the sibling role that DOES have this verb, or "" when nothing does. It walks
-// the live tree from the root rather than a list, so a verb added or deleted anywhere is answered
-// correctly without anyone remembering to update this.
-func roleWithVerb(c *cobra.Command, verb string) string {
-	root := c
-	for root.Parent() != nil {
-		root = root.Parent()
+// TeachCause is RefuseAndTeach over an error that already exists — cobra's own, coded by its
+// producer — which stays reachable beneath the refusal, so its code is the refusal's.
+func TeachCause(c *cobra.Command, wrong string, cause error) error {
+	lists := "what it takes, flag by flag"
+	switch {
+	case c == c.Root():
+		lists = "every command on this surface"
+	case c.HasAvailableSubCommands():
+		lists = "what it holds, each with what it is for"
 	}
-	for _, role := range root.Commands() {
-		if role == c {
-			continue
-		}
-		for _, v := range role.Commands() {
-			if v.Name() == verb || v.HasAlias(verb) {
-				return role.Name()
-			}
-		}
-	}
-	return ""
-}
-
-// RequireVerb is a role invoked with no verb at all.
-//
-// A usage error rather than a no-op: succeeding silently would let a mis-scripted seat believe it
-// recorded something.
-func RequireVerb(c *cobra.Command, role string) error {
-	return RefuseAndTeach(c, fmt.Sprintf(
-		"%s: a verb is required — you named a role and nothing else, so nothing was recorded. Pick one of the verbs below.", role))
+	return &Refusal{Diagnosis: wrong, Help: HelpText(c), Path: c.CommandPath(), Lists: lists, Cause: cause}
 }

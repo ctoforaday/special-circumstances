@@ -201,13 +201,13 @@ func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cob
 }
 
 // prose pulls the one prose field, refusing an empty one by name.
-func prose(cmd *cobra.Command, verb, why string) (string, error) {
+func prose(cmd *cobra.Command, why string) (string, error) {
 	text, err := seat.Reason(cmd)
 	if err != nil {
 		return "", err
 	}
 	if text == "" {
-		return "", feov.Errorf(feov.Validation, "motion %s requires --reason: %s", verb, why)
+		return "", feov.Errorf(feov.Validation, "requires --reason: %s", why)
 	}
 	return text, nil
 }

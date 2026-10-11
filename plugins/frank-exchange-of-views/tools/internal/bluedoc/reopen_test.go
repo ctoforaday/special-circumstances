@@ -70,7 +70,7 @@ func TestTheQuoteDecidesWhichAnchorsTheSpanHolds(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			report := body + c.run + ".\n\nA second sentence with no anchor.\n"
-			start, end, err := LocateUniqueReplacing("blue edit", report, c.quote)
+			start, end, err := LocateUniqueReplacing(report, c.quote)
 			if err != nil {
 				t.Fatalf("LocateUniqueReplacing = %v, want the span located", err)
 			}
@@ -83,7 +83,7 @@ func TestTheQuoteDecidesWhichAnchorsTheSpanHolds(t *testing.T) {
 	// A sentence with no anchor, and a fragment that stops short of one, locate as they are quoted.
 	report := body + a + ".\n\nA second sentence with no anchor.\n"
 	for _, q := range []string{"The sky", "A second sentence with no anchor."} {
-		start, end, err := LocateUniqueReplacing("blue edit", report, q)
+		start, end, err := LocateUniqueReplacing(report, q)
 		if err != nil || strings.Contains(report[start:end], "<!--") {
 			t.Errorf("%q located %q, %v", q, report[start:end], err)
 		}

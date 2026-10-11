@@ -56,7 +56,7 @@ func newClose() *cobra.Command {
 		// strand an epoch, and the check is a demand, not a safety property.
 		if kind, gerr := computationGapKind(run, seat.Str(cmd, flags.ID)); gerr == nil && kind {
 			if !record.ProofAnswers(run, seat.Str(cmd, flags.ID)) {
-				return nil, fmt.Errorf("lens close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+				return nil, fmt.Errorf("%s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. It is settled by blue's `prove --quote \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
 					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 			}
 		}
