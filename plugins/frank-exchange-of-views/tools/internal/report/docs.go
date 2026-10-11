@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -33,9 +32,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
-
-// emptied is a line that holds no more than block-quote and list markers and sentence punctuation.
-var emptied = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 
 // Doc is one document in a run's report set: the file it lands in, how the link bar and the
 // index name it, and the composed markdown body (no link bar, no title — Render adds those).
@@ -170,12 +166,12 @@ func assemble(run record.Run) ([]Doc, map[string]bool, error) {
 		//
 		// A LINE THE STRIP EMPTIES GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
 		// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ."
-		// in universe-m19's verified report. The line that goes is that husk (emptied): a list marker
+		// in universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker
 		// at most, and sentence punctuation. A line of symbols that held a token is content — a
 		// table's delimiter row, a row of marks, a rule, a line of code — and ships without the token.
 		lines := slices.DeleteFunc(strings.Split(collapseBlanks(docs[i].Body), "\n"), func(ln string) bool {
 			s := anchor.StripAssembled(ln)
-			return s != ln && emptied.MatchString(s)
+			return s != ln && anchor.Husk(s)
 		})
 		body := anchor.StripAssembled(strings.Join(lines, "\n"))
 		woven := weaveCitations(body, sources)

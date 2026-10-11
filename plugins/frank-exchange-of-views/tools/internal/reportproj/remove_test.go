@@ -23,6 +23,14 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 		{"a closer before the emptied sentence stays", "**One.** " + c + ". Two.\n", "**One.** Two.\n"},
 		{"an emptied first sentence keeps its list marker", "- " + c + ". Two.\n", "- Two.\n"},
 		{"an emptied ordered item keeps its number", "1. " + c + "\n", "1.\n"},
+		// A LINE OF SYMBOLS IS NOT A HUSK: it holds no letter and no digit, and it is content.
+		{"a table's delimiter row stays", "| a | b |\n| --- | --- |" + c + "\n| x | y |\n", "| a | b |\n| --- | --- |\n| x | y |\n"},
+		{"a row of marks stays", "| a | b |\n| --- | --- |\n| ✓ | ✗ |" + c + "\n", "| a | b |\n| --- | --- |\n| ✓ | ✗ |\n"},
+		{"a cell cut down to a dash stays", "| —" + c + " | ✓ |\n", "| — | ✓ |\n"},
+		{"a rule stays", "One.\n\n---" + c + "\n\nTwo.\n", "One.\n\n---\n\nTwo.\n"},
+		{"a line of code stays", "    }" + c + "\n", "    }\n"},
+		{"a sentence of symbols mid-line stays", "One. → " + c + ". Two.\n", "One. → . Two.\n"},
+		{"a quoted emptied bullet goes whole", "> - a.\n> - " + c + ".\n> - c.\n", "> - a.\n> - c.\n"},
 		{"the cut stays on the token's line", "<!--fx:F-00000002-->\n" + c + ". Two.\n", "<!--fx:F-00000002-->\nTwo.\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

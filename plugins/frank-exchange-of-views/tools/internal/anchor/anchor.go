@@ -179,6 +179,21 @@ var strippedToken = func() *regexp.Regexp {
 	return regexp.MustCompile(regexp.QuoteMeta(tokenOpen) + `(?:` + strings.Join(alt, "|") + `):[^>\n]*` + regexp.QuoteMeta(tokenClose))
 }()
 
+// husk is no more than block-quote and list markers and sentence punctuation.
+var husk = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
+
+// Husk reports whether s — a line, or a sentence's span, with the anchor that stood on it taken
+// out — is what an anchor leaves when the text it marked has gone: a list marker at most, and
+// sentence punctuation. A husk goes with its anchor; anything else is content and stays.
+//
+// ONE RULE, for both places an anchor leaves text: assembly stripping the tokens no reader sees,
+// and the replay of a retire. "No letter and no digit" was the rule at both and it is not this
+// one: a table's delimiter row, a row of marks, a cell cut down to a dash, a rule, a line of code
+// hold neither and are what their author wrote. A span that still holds another anchor is not a
+// husk either — the token is not punctuation — so several anchors leaving one line take it only
+// with the last.
+func Husk(s string) bool { return husk.MatchString(s) }
+
 // StripAssembled removes every token of a kind the assembly strips.
 func StripAssembled(md string) string { return strippedToken.ReplaceAllString(md, "") }
 
