@@ -1487,7 +1487,7 @@ jobs:
       - name: The vocabulary page is generated from the terms registry (a hand-kept copy drifts)
         run: go run ./vocabdoc -check
         working-directory: scripts
-      - name: Each agent definition carries the surface the tool renders (a seat must not be taught a surface the binary lacks)
+      - name: Each agent definition and preloaded skill matches its source and the surface the tool renders (a seat must not be taught a surface the binary lacks)
         run: go run ./agentgen -check
         working-directory: scripts
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)

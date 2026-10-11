@@ -1,7 +1,6 @@
 package surface
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,12 +18,13 @@ import (
 // where the verbs are. Removing the partial list is only safe alongside the instruction to go and
 // read the whole one; the strip without the directive leaves a seat with neither.
 //
-// THE COPIES ARE NO LONGER HAND-KEPT, and this gate changed shape when that happened. The duty is
-// authored once, at scripts/agentgen/src/fragments/surface-discovery.md; the bench and blue
-// definitions inline it at generation and the red skill is held byte-equal to it by the test
-// below. What remains here is the check generation cannot make — that the duty SAYS the four
-// things it exists to say, so a rewrite of the fragment cannot quietly drop one of them and
-// propagate the loss to every seat at once.
+// NO COPY IS HAND-KEPT. The duty is authored once, at
+// scripts/agentgen/src/fragments/surface-discovery.md; the bench and blue definitions and the red
+// seats' adversarial-audit skill each inline it at generation, and `agentgen -check` fails a stale
+// one. What this holds is what generation cannot — that the duty SAYS the things it exists to say,
+// so a rewrite of the fragment cannot quietly drop one of them and propagate the loss to every seat
+// at once — and that every seat is HANDED it: a source that loses its `@include` generates cleanly
+// and fails here.
 func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	// The load-bearing sentences, not the whole block: a gate pinning every byte fails on a
 	// typo fix and teaches people to update it without reading it.
@@ -78,72 +78,6 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 	}
 }
 
-// AND THE RED SEATS' COPY IS THE SAME BYTES AS THE ONE THAT IS GENERATED.
-//
-// Eight of the eleven constitutions — the seven lenses and the chair — take this duty from the
-// adversarial-audit SKILL rather than from their definition, because that is where their shared
-// duties live. agentgen writes agent definitions and does not write skills, so this one copy is
-// not generated, and prefer-generation's fallback applies: a guard, and a statement of why.
-//
-// Byte equality rather than a phrase list, because the failure this catches is the one that
-// already happened. When the fetch duty was replaced, the bench and blue definitions were
-// regenerated and the skill was not — so the two blue seats were told to read what they held
-// while every red seat was still told to go and fetch it, and the phrase gate above was satisfied
-// by the stale half. A per-phrase check cannot see a drift it has no phrase for; equality can.
-func TestTheRedSkillCarriesTheGeneratedDutyVerbatim(t *testing.T) {
-	// Glob, not a joined path: it REFUSES an empty match, so a renamed fragment fails here
-	// naming the pattern instead of leaving this gate reading a file that is not there.
-	found, err := repotree.Glob("scripts", "agentgen", "src", "fragments", "surface-discovery.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := found[0]
-	want, err := os.ReadFile(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	skill, err := repotree.Plugin("skills", "adversarial-audit", "SKILL.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(skill)
-	if err != nil {
-		t.Fatal(err)
-	}
-	i := bytes.Index(b, []byte("## Your surface comes from"))
-	if i < 0 {
-		t.Fatal("adversarial-audit/SKILL.md carries no surface-discovery duty at all — every red seat takes it from here")
-	}
-	// Bounded: a skill truncated mid-duty would otherwise panic here, and a gate that panics
-	// reports a crash where the answer is "the text was cut short".
-	got := b[i:min(i+len(want), len(b))]
-	if !bytes.Equal(got, want) {
-		t.Errorf("the red seats' copy of the surface-discovery duty has drifted from the authored one.\n\n"+
-			"authored at %s\nskill      at %s\n\nfirst difference at byte %d:\n  authored: %q\n  skill:    %q\n\n"+
-			"The bench and blue definitions inline this fragment at generation; the skill's copy is pasted, "+
-			"so a change to the duty has to be applied here by hand or red and blue are told different things.",
-			src, skill, firstDiff(got, want), excerpt(want, firstDiff(got, want)), excerpt(got, firstDiff(got, want)))
-	}
-}
-
-// firstDiff is where two byte slices part, so the failure above points at the edit rather than
-// printing two 1,200-byte blocks and leaving the reader to diff them.
-func firstDiff(a, b []byte) int {
-	for i := range a {
-		if i >= len(b) || a[i] != b[i] {
-			return i
-		}
-	}
-	return len(a)
-}
-
-func excerpt(b []byte, at int) string {
-	if at >= len(b) {
-		return "<end of text>"
-	}
-	return string(b[at:min(at+70, len(b))])
-}
-
 // AND IT STILL NAMES NO VERB. The directive is what replaces the list; a directive that grew a
 // list would be the thing it exists to remove, arriving through the same door.
 func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
@@ -191,11 +125,12 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 // "never compared".
 func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// THE LOG DUTY IS HAND-KEPT IN SEVERAL CARRIERS, so something has to hold them together.
+// THE LOG DUTY SAYS WHAT IT EXISTS TO SAY, in every constitution, and no carrier restates the verb.
 //
-// Same shape as the surface-discovery gate above and the same justification: the constitutions are
-// authored markdown the harness reads directly, so the text cannot be generated, and a guard is
-// what the rules allow when generation is impossible. What it holds is the DUTY and the account
+// Same shape as the surface-discovery gate above: the duty is authored in fragments every
+// constitution includes (scripts/agentgen/src/fragments/log-duty-*.md, log-what-it-is-for.md), so
+// the copies cannot part, and what generation cannot hold is the CONTENT. What this holds is the
+// DUTY and the account
 // owed when nothing cost you anything; what it refuses is any copy of what the log verb's help says on the
 // page a seat opens, and any retired duty — in the constitution AND in every prompt a seat is
 // handed, because a prompt that asks for "your log entry saying so" on a clean sitting contradicts

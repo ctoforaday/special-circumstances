@@ -161,21 +161,43 @@ func DebateJS() (string, error) {
 // text and is not this repository's to assert about here; those are covered by that plugin's own
 // gates.
 func ConstitutionText(agentPath string) (string, error) {
-	b, err := os.ReadFile(agentPath)
+	docs, err := ConstitutionDocuments(agentPath)
 	if err != nil {
 		return "", err
 	}
-	out := string(b)
-	for _, name := range declaredFEOVSkills(out) {
+	texts := make([]string, len(docs))
+	for i, d := range docs {
+		texts[i] = d.Text
+	}
+	return strings.Join(texts, "\n"), nil
+}
+
+// Document is one file of a seat's constitution: the agent definition (Skill empty), or a skill it
+// declares, by name.
+type Document struct {
+	Skill string
+	Text  string
+}
+
+// ConstitutionDocuments is ConstitutionText before the join: the agent file first, then each
+// frank-exchange-of-views skill it declares, in declaration order. For a reader that needs to know
+// WHICH file a passage came from — each has frontmatter of its own, and each has a source.
+func ConstitutionDocuments(agentPath string) ([]Document, error) {
+	b, err := os.ReadFile(agentPath)
+	if err != nil {
+		return nil, err
+	}
+	out := []Document{{Text: string(b)}}
+	for _, name := range declaredFEOVSkills(string(b)) {
 		p, err := Plugin("skills", name, "SKILL.md")
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		sb, err := os.ReadFile(p)
 		if err != nil {
-			return "", fmt.Errorf("%s declares skill %q and %s is unreadable: %w", agentPath, name, p, err)
+			return nil, fmt.Errorf("%s declares skill %q and %s is unreadable: %w", agentPath, name, p, err)
 		}
-		out += "\n" + string(sb)
+		out = append(out, Document{Skill: name, Text: string(sb)})
 	}
 	return out, nil
 }

@@ -306,6 +306,7 @@ func agentFacingFiles(t *testing.T) []string {
 	for _, glob := range [][]string{
 		{"scripts", "agentgen", "src", "*.md"},
 		{"scripts", "agentgen", "src", "fragments", "*.md"},
+		{"scripts", "agentgen", "src", "skills", "*", "SKILL.md"},
 	} {
 		m, err := repotree.Glob(glob...)
 		if err != nil {

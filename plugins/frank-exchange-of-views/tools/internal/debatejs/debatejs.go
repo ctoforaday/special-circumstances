@@ -26,12 +26,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja/ast"
+	"github.com/dop251/goja/parser"
 	"github.com/dop251/goja_nodejs/eventloop"
 )
 
@@ -54,6 +58,11 @@ type Dispatch struct {
 	// Occasion is what this sitting was convened to do — set for the BENCH only, whose four
 	// sittings share one seat id. Empty for every other seat, whose id already answers it.
 	Occasion string
+	// Site is the debate.js line of the agent() call that made this dispatch — the builder, where
+	// SeatID is the seat. One site dispatches several agent types (the lens site) and one agent
+	// type is dispatched from several sites (the bench), so neither answers "which builder wrote
+	// this prompt". Sites lists every one the script holds, by the same line.
+	Site int
 }
 
 // seatRe reads the seat id out of the prompt. recordClause writes `SEAT_ID: <id>.` into every
@@ -161,6 +170,72 @@ globalThis.pipeline = async function(items){ var st=Array.prototype.slice.call(a
 func wrap(src string) string {
 	s := strings.Replace(src, "export const meta", "const meta", 1)
 	return "globalThis.__result = (async () => {\n" + s + "\n})()"
+}
+
+// wrapLines is how many lines wrap puts above the script's first, so a line goja reports in the
+// wrapped source is that many past the line in debate.js.
+const wrapLines = 1
+
+// Sites lists the debate.js line of every agent() call in the script, ascending.
+//
+// READ FROM THE SYNTAX TREE OF THE SOURCE Capture RUNS, so "every place a prompt is built" is a
+// property of the script and never of what one drive happened to reach: a caller that must read
+// every prompt compares its dispatches' Site against this list, and a builder its backend stopped
+// reaching is named by line. A script holding no agent() call is an error — an empty list would
+// read as "every site covered".
+func Sites(scriptPath string) ([]int, error) {
+	b, err := os.ReadFile(scriptPath)
+	if err != nil {
+		return nil, fmt.Errorf("read debate.js at %s: %w", scriptPath, err)
+	}
+	prog, err := parser.ParseFile(nil, scriptPath, wrap(string(b)), 0)
+	if err != nil {
+		return nil, fmt.Errorf("parse debate.js at %s: %w", scriptPath, err)
+	}
+	seen := map[int]bool{}
+	callType := reflect.TypeOf((*ast.CallExpression)(nil))
+	var walk func(v reflect.Value)
+	walk = func(v reflect.Value) {
+		switch v.Kind() {
+		case reflect.Interface:
+			if !v.IsNil() {
+				walk(v.Elem())
+			}
+		case reflect.Pointer:
+			if v.IsNil() {
+				return
+			}
+			if v.Type() == callType {
+				c := v.Interface().(*ast.CallExpression)
+				if id, ok := c.Callee.(*ast.Identifier); ok && id.Name.String() == "agent" {
+					seen[prog.File.Position(int(c.Idx0())).Line-wrapLines] = true
+				}
+			}
+			// The tree's nodes are structs in goja's ast package; a pointer to anything else (the
+			// source file, a scope) is not syntax and is not followed.
+			if v.Elem().Kind() == reflect.Struct && v.Type().Elem().PkgPath() == callType.Elem().PkgPath() {
+				walk(v.Elem())
+			}
+		case reflect.Struct:
+			for i := 0; i < v.NumField(); i++ {
+				walk(v.Field(i))
+			}
+		case reflect.Slice:
+			for i := 0; i < v.Len(); i++ {
+				walk(v.Index(i))
+			}
+		}
+	}
+	walk(reflect.ValueOf(prog.Body))
+	if len(seen) == 0 {
+		return nil, fmt.Errorf("debate.js at %s holds no agent() call — the script dispatches nobody, or the call is no longer a plain `agent(…)`", scriptPath)
+	}
+	lines := make([]int, 0, len(seen))
+	for l := range seen {
+		lines = append(lines, l)
+	}
+	sort.Ints(lines)
+	return lines, nil
 }
 
 // programCache holds the COMPILED script, keyed by path and the file's modification time and
@@ -288,6 +363,10 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 					d.AgentType = optStr(o, "agentType")
 					d.Model = optStr(o, "model")
 					d.Phase = optStr(o, "phase")
+				}
+				// The innermost frame is this stub; the one under it is the script's call.
+				if st := vm.CaptureCallStack(2, nil); len(st) == 2 {
+					d.Site = st[1].Position().Line - wrapLines
 				}
 				got = append(got, d)
 				env := cfg.Backend(d.SeatID, d.Label, d.Prompt)

@@ -65,7 +65,7 @@ func TestNoBulletIsAuthoredTwice(t *testing.T) {
 		}
 		sort.Strings(fs)
 		t.Errorf("one bullet is authored in %d sources — %s\n\n  %.150s…\n\n"+
-			"Put it in src/fragments/ and `@include` it from each. Five copies of the log duty is how a "+
+			"Put it in src/fragments/ and `@include` it from each — an agent source and a skill source alike. Five copies of the log duty is how a "+
 			"retired rule went on being demanded after its type was deleted: the fix landed on one copy.",
 			len(fs), strings.Join(fs, ", "), bullet)
 	}

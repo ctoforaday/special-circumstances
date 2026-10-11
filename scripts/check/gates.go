@@ -234,7 +234,7 @@ var tools = []gate{
 	{id: "vocabdoc", kind: kindTool, dir: "scripts", args: []string{"run", "./vocabdoc", "-check"}, ciJob: "debate-sim",
 		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",
-		why: "each agent definition carries the verb surface the tool renders; a hand-edited or stale block teaches a seat a surface the binary does not have"},
+		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because
