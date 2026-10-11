@@ -2,6 +2,7 @@ package lens
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
@@ -75,6 +76,30 @@ func newReproduce() *cobra.Command {
 		if !known {
 			return nil, fmt.Errorf("%q is not a soundness this record can carry", soundness)
 		}
+		// A SOUND VERDICT OVER A RE-RUN THAT DID NOT REPRODUCE IS REFUSED, where the proof is recorded
+		// `reproducible`. The verdict and its reason are typed before the run, so on a failed run
+		// both are a judgement of output the seat has not seen: on universe-m20 a stored script
+		// that could not run for any red seat took five `sound` verdicts, two of them with a note
+		// saying the output matched. Refused, the seat reads what the script printed and calls
+		// again with what the run did.
+		//
+		// ONLY `reproducible`. A proof graded `observed` or `not_portable` is recorded as one whose
+		// output moves, and a re-run that differs is that proof behaving as recorded.
+		if !ok && snd == recordpb.Soundness_SOUNDNESS_SOUND {
+			proofs, err := record.RecordedProofs(run)
+			if err != nil {
+				return nil, err
+			}
+			for _, p := range proofs {
+				if p.SHA == sha && p.Basis == proof.Reproducible {
+					return nil, fmt.Errorf("the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, run now, did not print the recorded output.\n"+
+						"  recorded: %s\n  now:      %s\n"+
+						"Nothing is recorded. Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "+
+						"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
+						sha[:12], proof.Reproducible, strings.TrimSpace(truncateOutput(want)), strings.TrimSpace(truncateOutput(got)))
+				}
+			}
+		}
 		body := &recordpb.Reproduce{
 			ProofSha:   proto.String(sha),
 			Reproduced: proto.Bool(ok),
@@ -98,7 +123,7 @@ func newReproduce() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
+		return reproduceResult{SHA: sha, Reproduced: ok, Got: got, Recorded: want}, nil
 	}))
 	// A SHA, SHAPED. Registered as a plain string the page printed `string` and a gap id typed here was
 	// refused by the proof lookup rather than by its shape — the refusal named no kind.
@@ -119,14 +144,21 @@ func truncateOutput(s string) string {
 }
 
 type reproduceResult struct {
-	SHA      string `json:"sha256"`
-	Matches  bool   `json:"matches"`
-	Got      string `json:"got"`
-	Recorded string `json:"recorded"`
+	SHA string `json:"sha256"`
+	// Reproduced is whether the re-run printed the recorded output — the record's own word for it
+	// (Reproduce.reproduced, and `reproduced` on the proof's row in `show evidence`), on every
+	// result, true or false. It was `matches`: a lens on universe-m20 filtered the envelope for
+	// `ok`, `reproduced` and `sound`, read `ok: true` beside the nulls of two keys nothing
+	// carried, and took a failed re-run for a recorded success. The word a seat reaches for is the
+	// field now, the help page says where it sits, and a `sound` verdict over a failed re-run of a
+	// reproducible proof never reaches an `ok: true` at all.
+	Reproduced bool   `json:"reproduced"`
+	Got        string `json:"got"`
+	Recorded   string `json:"recorded"`
 }
 
 func (r reproduceResult) Human() string {
-	if r.Matches {
+	if r.Reproduced {
 		return "proof " + r.SHA[:12] + " REPRODUCES — re-running it gives the recorded output byte for byte"
 	}
 	return "proof " + r.SHA[:12] + " DOES NOT REPRODUCE.\n  recorded: " + r.Recorded + "\n  now:      " + r.Got +

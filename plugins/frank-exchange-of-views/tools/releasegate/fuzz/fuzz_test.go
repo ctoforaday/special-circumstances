@@ -5053,10 +5053,10 @@ func (r *runner) reproveOpenProofs(seatID string) {
 		}
 		var env struct {
 			Result struct {
-				Matches bool `json:"matches"`
+				Reproduced bool `json:"reproduced"`
 			} `json:"result"`
 		}
-		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Matches {
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Reproduced {
 			r.reproduced.add(id)
 		}
 	}
