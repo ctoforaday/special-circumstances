@@ -333,10 +333,11 @@ func tableCarries(vs []EnumValue, vd protoreflect.EnumValueDescriptor) bool {
 // TestEveryDeclaredValueIsAWordTheSchemaCarries refuses.
 func schemaEnumFor(t *testing.T, typ, key string) protoreflect.EnumDescriptor {
 	t.Helper()
-	md, ok := bodyDescriptorFor(typ)
+	body, ok := recordpb.BodyField(typ)
 	if !ok {
 		t.Fatalf("EnumFields names the event type %q, which the schema does not declare", typ)
 	}
+	md := body.Message()
 	fd := md.Fields().ByName(protoreflect.Name(key))
 	if fd == nil {
 		t.Fatalf("%s has no field %q — the table names a field the schema does not carry, so its "+
@@ -361,22 +362,6 @@ func schemaValue(ed protoreflect.EnumDescriptor, word string) (protoreflect.Enum
 		return vd, true
 	}
 	return recordpb.BySpelling(ed, strings.ToLower(word))
-}
-
-// bodyDescriptorFor resolves an event type's WORD to the body message the schema pairs with it,
-// through the `body` oneof — the one place that pairing is declared.
-func bodyDescriptorFor(typ string) (protoreflect.MessageDescriptor, bool) {
-	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
-	if od == nil {
-		return nil, false
-	}
-	for i := 0; i < od.Fields().Len(); i++ {
-		fd := od.Fields().Get(i)
-		if string(fd.Name()) == typ && fd.Message() != nil {
-			return fd.Message(), true
-		}
-	}
-	return nil, false
 }
 
 // THE DOCKET AXIS AND THE ARTIFACT AXIS ARE DIFFERENT, and for a long time one word carried both.

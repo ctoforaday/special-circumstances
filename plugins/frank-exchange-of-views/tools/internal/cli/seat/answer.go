@@ -10,18 +10,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// eventTypeOf resolves an event word to its type.
-func eventTypeOf(word string) (recordpb.EventType, bool) {
-	vs := recordpb.EventType(0).Descriptor().Values()
-	for i := 0; i < vs.Len(); i++ {
-		t := recordpb.EventType(vs.Get(i).Number())
-		if word != "" && recordpb.Word(t) == word {
-			return t, true
-		}
-	}
-	return 0, false
-}
-
 // keysOnKey annotates a verb with the key fields its act can be keyed on, where the event type it
 // records has more than one key shape.
 const keysOnKey = "feov.keys_on"
@@ -53,7 +41,7 @@ const AnswerLead = "IF WHAT YOU RECORDED WAS WRONG"
 // for it: that refusal would end by sending the seat nowhere, and the mount is where a new verb
 // finds out.
 func teachAnswer(c *cobra.Command) {
-	typ, ok := eventTypeOf(RecordType(c))
+	typ, ok := recordpb.EventTypeOf(RecordType(c))
 	if !ok || c.Annotations[answerTaughtKey] != "" {
 		return
 	}
@@ -86,7 +74,7 @@ func teachAnswer(c *cobra.Command) {
 // records, less the rows for a motion subject the verb does not rule and for a key field its act is
 // not keyed on.
 func AnswersFor(c *cobra.Command) []record.Answer {
-	typ, ok := eventTypeOf(RecordType(c))
+	typ, ok := recordpb.EventTypeOf(RecordType(c))
 	if !ok {
 		return nil
 	}

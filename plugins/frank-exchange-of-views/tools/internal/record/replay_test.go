@@ -966,11 +966,11 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 			continue
 		}
 		word := recordpb.Word(typ)
-		md, ok := bodyDescriptor(word)
+		body, ok := recordpb.BodyField(word)
 		if !ok {
 			continue
 		}
-		if inspect(word+" (empty body)", validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", typ, emptyBodyFor(t, md))) {
+		if inspect(word+" (empty body)", validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", typ, emptyBodyFor(t, body.Message()))) {
 			seen++
 		}
 	}

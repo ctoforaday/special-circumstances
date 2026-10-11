@@ -98,7 +98,7 @@ func eventsOfWord(t *testing.T, runDir, word string) []*record.Event {
 	if err != nil {
 		t.Fatal(err)
 	}
-	typ, ok := eventTypeWord(word)
+	typ, ok := recordpb.EventTypeOf(word)
 	if !ok {
 		t.Fatalf("%q is not an event type", word)
 	}
@@ -503,7 +503,7 @@ func TestEveryRefusedRepeatHasARow(t *testing.T) {
 	derived := map[string]bool{}
 	roleLeaves(func(role string, path []string, c *cobra.Command) {
 		word := seat.RecordType(c)
-		typ, ok := eventTypeWord(word)
+		typ, ok := recordpb.EventTypeOf(word)
 		if !ok || !record.RefusesARepeat(typ) {
 			return
 		}
@@ -518,17 +518,6 @@ func TestEveryRefusedRepeatHasARow(t *testing.T) {
 			t.Errorf("the derivation no longer reaches %s (derived: %v) — the key declarations or the walk moved", want, derived)
 		}
 	}
-}
-
-func eventTypeWord(word string) (recordpb.EventType, bool) {
-	vs := recordpb.EventType(0).Descriptor().Values()
-	for i := 0; i < vs.Len(); i++ {
-		t := recordpb.EventType(vs.Get(i).Number())
-		if word != "" && recordpb.Word(t) == word {
-			return t, true
-		}
-	}
-	return 0, false
 }
 
 // Each page's answer is one this file drives: the paragraph a verb's help ends with is compared,

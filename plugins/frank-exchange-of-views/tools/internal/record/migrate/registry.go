@@ -57,16 +57,6 @@ func (e LossError) Error() string {
 	return fmt.Sprintf("migrate: %q is untranslatable: %s", e.Word, e.Reason)
 }
 
-// bodyFieldFor resolves an old word against the CURRENT Event body oneof — the oneof field
-// name IS the word, which is the correspondence SetBody's own eventTypeOf leans on.
-func bodyFieldFor(word string) protoreflect.FieldDescriptor {
-	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
-	if od == nil {
-		return nil
-	}
-	return od.Fields().ByName(protoreflect.Name(word))
-}
-
 // newBody constructs a concrete instance of the body message a word names.
 func newBody(fd protoreflect.FieldDescriptor) proto.Message {
 	return (&recordpb.Event{}).ProtoReflect().NewField(fd).Message().Interface()
@@ -75,8 +65,9 @@ func newBody(fd protoreflect.FieldDescriptor) proto.Message {
 // identityBody is the default translation: the same word, fields matched by NAME against the
 // current body message, converted by the current field's own kind.
 func identityBody(old OldEvent) (proto.Message, error) {
-	fd := bodyFieldFor(old.Word)
-	if fd == nil {
+	// An old word resolves against the CURRENT vocabulary: the arm's name is the word.
+	fd, ok := recordpb.BodyField(old.Word)
+	if !ok {
 		return nil, fmt.Errorf("migrate: the current vocabulary does not declare %q (%s) and the registry has no entry for it — "+
 			"author a translation or rule it a loss; skipping it silently is the one answer this tool refuses to give",
 			old.Word, "old event")

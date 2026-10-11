@@ -159,7 +159,7 @@ func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*re
 			return nil, nil, err
 		}
 		w.ID = id
-		t, ok := eventTypeOf(typ)
+		t, ok := recordpb.EventTypeOf(typ)
 		if !ok {
 			return nil, nil, fmt.Errorf("recordsql: event %d has type %q, which the schema does not declare", id, typ)
 		}
@@ -210,7 +210,7 @@ func refuseUndeclaredTypes(db Querier) error {
 		if err := rows.Scan(&word); err != nil {
 			return err
 		}
-		if _, ok := eventTypeOf(word); !ok {
+		if _, ok := recordpb.EventTypeOf(word); !ok {
 			undeclared = append(undeclared, word)
 		}
 	}
@@ -228,15 +228,6 @@ func refuseUndeclaredTypes(db Querier) error {
 		"one: `--seat-id operator migrate --from <runDir> --to <freshDir>` re-drives every event "+
 		"through the current write path and says what it translated",
 		strings.Join(undeclared, ", "))
-}
-
-func eventTypeOf(word string) (recordpb.EventType, bool) {
-	ed := recordpb.EventType(0).Descriptor()
-	vd, ok := recordpb.BySpelling(ed, word)
-	if !ok {
-		return recordpb.EventType_EVENT_TYPE_UNSPECIFIED, false
-	}
-	return recordpb.EventType(vd.Number()), true
 }
 
 // tableBatch is one body table's whole contribution to the read: its descriptor walk done once,
@@ -269,9 +260,8 @@ func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
 	batches := map[string]*tableBatch{}
 	for i, ev := range evs {
 		evm := ev.ProtoReflect()
-		od := evm.Descriptor().Oneofs().ByName("body")
-		arm := od.Fields().ByName(protoreflect.Name(recordpb.Word(ev.GetType())))
-		if arm == nil || arm.Message() == nil {
+		arm, ok := recordpb.BodyField(recordpb.Word(ev.GetType()))
+		if !ok {
 			return fmt.Errorf("recordsql: no body message for %s", recordpb.Word(ev.GetType()))
 		}
 		arms[i] = arm

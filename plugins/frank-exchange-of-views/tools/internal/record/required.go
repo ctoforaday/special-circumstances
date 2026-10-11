@@ -47,10 +47,11 @@ import (
 // simply not marked — which is correct, and stated where that happens. A field an ARM requires is
 // marked on the verb that declares it fills that arm (seat.FillsArm), and on no other.
 func RequiredFields(typ string) []RequiredField {
-	md, ok := bodyDescriptor(typ)
+	body, ok := recordpb.BodyField(typ)
 	if !ok {
 		return nil
 	}
+	md := body.Message()
 	var out []RequiredField
 	for _, fd := range recordpb.RequiredOf(md) {
 		out = append(out, RequiredField{Key: string(fd.Name()), Flag: recordpb.FlagFor(fd)})
@@ -86,30 +87,15 @@ type RequiredField struct {
 // A verb declaring an arm its body does not have would be marked from nothing, silently; the
 // declaration is checked against this where it is read.
 func HasArm(typ, arm string) bool {
-	md, ok := bodyDescriptor(typ)
+	body, ok := recordpb.BodyField(typ)
 	if !ok {
 		return false
 	}
+	md := body.Message()
 	for i := 0; i < md.Oneofs().Len(); i++ {
 		if od := md.Oneofs().Get(i); !od.IsSynthetic() && od.Fields().ByName(protoreflect.Name(arm)) != nil {
 			return true
 		}
 	}
 	return false
-}
-
-// bodyDescriptor resolves an event type's WORD to the body message the `body` oneof pairs it with
-// — the one place that pairing is declared, and the same one recordsql derives the schema from.
-func bodyDescriptor(typ string) (protoreflect.MessageDescriptor, bool) {
-	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
-	if od == nil {
-		return nil, false
-	}
-	for i := 0; i < od.Fields().Len(); i++ {
-		fd := od.Fields().Get(i)
-		if string(fd.Name()) == typ && fd.Message() != nil {
-			return fd.Message(), true
-		}
-	}
-	return nil, false
 }
