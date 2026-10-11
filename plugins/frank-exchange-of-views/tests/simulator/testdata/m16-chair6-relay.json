@@ -31,6 +31,28 @@
     ],
     "docket": [],
     "remand_owed": [],
+    "exchanges": [
+      {
+        "gap_id": "G16",
+        "count": 0,
+        "unresolved": 0
+      },
+      {
+        "gap_id": "G17",
+        "count": 0,
+        "unresolved": 0
+      },
+      {
+        "gap_id": "G14",
+        "count": 0,
+        "unresolved": 0
+      },
+      {
+        "gap_id": "G15",
+        "count": 0,
+        "unresolved": 0
+      }
+    ],
     "pass_permitted": false,
     "ceiling": false,
     "max_epochs": 12,

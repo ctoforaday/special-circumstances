@@ -36,12 +36,16 @@ import (
 // and the later is the dispatch. Without this half a wrong gap
 // id or head reached a seat and every register still matched, so the relay read as faithful.
 //
-// THE LAST PLAN'S BENCH BLOCKERS AGAINST THE RECORD AT THE END OF THE CHAIR'S LAST SITTING. The
-// workflow convenes the terminal bench sitting off the last relayed plan's blockers the bench owns,
-// and no row records a blocker. So the relayed set is held to the record's own unruled bench-gavel
-// motions as they stood when the chair's last sitting ended — its last act, before the next seat's
-// opening. A blocker dropped or altered in the relay, or a motion filed after the plan was asked
-// for, departs here: the plan the chair relays is the one it asked for last.
+// RELAYED FIELDS NO ROW CARRIES AGAINST THE RECORD AT THE END OF THE CHAIR'S SITTING. The engine
+// branches on more of the plan than the rows record: its no-progress valve keys on the docket, the
+// exchange counts and the blockers; blue is told what the sitting docketed; the terminal bench
+// sitting is convened off the last plan's blockers the bench owns. So each relayed plan is held to
+// record.PlanFacts as the record stood when the chair sitting that relayed it ended — after its
+// last dispatch row, before the next seat's opening. A value dropped, added or altered in the
+// relay, or a motion filed or ruled after the plan was asked for, departs here: the plan the chair
+// relays is the one it asked for last. A plan with no parties has no rows and is the last one; its
+// blockers and its epoch limit are held the same way, at the end of the chair's last sitting.
+// relayedPlanFields classifies every field of the plan, and the detail's list renders from it.
 //
 // THE JOURNAL HOLDS ONE CHAIR RESULT PER CHAIR SITTING — the stated assumption the pairing rests on.
 // A resume that re-journals a cached chair result shifts the pairing by one and FAILs on the count,
@@ -65,7 +69,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	if journalPresent {
 		relays = relayedPlans(results)
 	} else {
-		notCompared = " — no workflow journal, so the relayed party fields (seat_id, gap_ids, occasions, head) and the last plan's bench blockers were NOT compared"
+		notCompared = noJournalNote()
 	}
 	groups := record.DispatchGroups(fam.Events, fam.At)
 	if len(groups) == 0 && len(relays) == 0 {
@@ -203,19 +207,28 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	findings = append(findings, unmeasured...)
 	compared := ""
 	if journalPresent {
+		facts, err := record.PlanFactsOf(run, fam.Events, fam.At)
+		if err != nil {
+			return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
+		}
 		if len(relays) != len(groups) {
 			findings = append(findings, fmt.Sprintf("the journal relays %d plan(s) with parties and the record holds %d chair sitting dispatch(es) — the pairing is unknown, so no relayed party field was compared", len(relays), len(groups)))
 		} else {
 			for k := range groups {
 				findings = append(findings, relayDepartures(k+1, relays[k], groups[k])...)
+				at := facts.At(chairSittingEnd(fam.Events, fam.At, groups[k].Last))
+				findings = append(findings, factDepartures(fmt.Sprintf("sitting %d", k+1), relays[k].plan, at, &groups[k])...)
 			}
-			compared = fmt.Sprintf("; %d relayed plan(s) matched their dispatch rows on parties, gap_ids, occasions and head", len(relays))
+			compared = fmt.Sprintf("; %d relayed plan(s) matched their dispatch rows and the record at the end of each chair sitting on %s", len(relays), comparedPlanFields())
 		}
-		if last, ok := lastRelayedPlan(results); ok {
-			if d := benchBlockerDepartures(last, fam.Events, fam.At); d != "" {
-				findings = append(findings, d)
-			} else {
-				compared += "; the last plan's bench blockers matched the record at the end of the chair's last sitting"
+		// THE LAST PLAN WITH NO PARTIES has no rows to pair with: the workflow read its exit off it.
+		if last, ok := lastRelayedPlan(results); ok && len(last["parties"].([]any)) == 0 {
+			if from := lastActOf(fam.Events, "red-chair"); from >= 0 {
+				d := factDepartures("the last plan", last, facts.At(chairSittingEnd(fam.Events, fam.At, from)), nil)
+				findings = append(findings, d...)
+				if len(d) == 0 {
+					compared += "; the last plan's blockers and max_epochs matched the record at the end of the chair's last sitting"
+				}
 			}
 		}
 	}
@@ -225,9 +238,16 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: strings.Join(findings, "; ") + notCompared}
 }
 
-// relayedPlan is one chair result's plan as the journal holds it: the head as relayed (raw, so a
-// value that is not an integer is reported as it stands) and each party in relay order.
+// noJournalNote is what the detail carries when there is no journal to compare relayed fields from.
+func noJournalNote() string {
+	return " — no workflow journal, so the relayed plan fields (" + comparedPlanFields() + ") were NOT compared"
+}
+
+// relayedPlan is one chair result's plan as the journal holds it: the plan itself, the head as
+// relayed (raw, so a value that is not an integer is reported as it stands) and each party in relay
+// order.
 type relayedPlan struct {
+	plan    map[string]any
 	head    any
 	parties []relayedParty
 }
@@ -251,7 +271,7 @@ func relayedPlans(results []map[string]any) []relayedPlan {
 		if !ok || len(ps) == 0 {
 			continue
 		}
-		rp := relayedPlan{head: plan["head"]}
+		rp := relayedPlan{plan: plan, head: plan["head"]}
 		for _, p := range ps {
 			pm, _ := p.(map[string]any)
 			party := relayedParty{seat: jsString(pm["seat_id"])}
@@ -292,7 +312,7 @@ func relayDepartures(sitting int, rp relayedPlan, g record.DispatchGroup) []stri
 	if !sameSet(relayedSeats, g.Parties) {
 		out = append(out, fmt.Sprintf("sitting %d: relayed parties %s, the dispatch rows name %s", sitting, setOf(relayedSeats), setOf(g.Parties)))
 	}
-	head, headOK := relayedHead(rp.head)
+	head, headOK := relayedInt(rp.head)
 	for _, seat := range g.Parties {
 		gaps, ok := relayed[seat]
 		if !ok {
@@ -325,47 +345,97 @@ func lastRelayedPlan(results []map[string]any) (map[string]any, bool) {
 	return nil, false
 }
 
-// benchBlockerDepartures holds the last relayed plan's bench-owned motion blockers to the record's
-// unruled bench-gavel motions at the end of the chair's last sitting: the first sitting another seat
-// opens after the chair's last act, or the end of the record. "" when they agree.
-func benchBlockerDepartures(plan map[string]any, evs []*record.Event, win record.WindowIndex) string {
-	last := -1
-	for i, e := range evs {
-		if e.GetSeatId() == "red-chair" {
-			last = i
+// lastActOf is the stream position of the seat's last event, or -1 when it has none.
+func lastActOf(evs []*record.Event, seat string) int {
+	for i := len(evs) - 1; i >= 0; i-- {
+		if evs[i].GetSeatId() == seat {
+			return i
 		}
 	}
-	if last < 0 {
-		return ""
-	}
-	end := len(evs)
-	for i := last + 1; i < len(evs); i++ {
+	return -1
+}
+
+// chairSittingEnd is where the chair sitting holding the event at `from` ended, as a length of the
+// stream: the first sitting another seat opens after it, or the end of the record. The chair's acts
+// after its last dispatch row — a closing, a motion, the plan asked for again — fall before it.
+func chairSittingEnd(evs []*record.Event, win record.WindowIndex, from int) int {
+	for i := from + 1; i < len(evs); i++ {
 		if seat, opens := win.Opens(evs[i]); opens && seat != "red-chair" {
-			end = i
-			break
+			return i
 		}
 	}
-	var onRecord, relayed []string
-	for _, b := range record.MotionBlockersOf(evs[:end], win) {
-		if record.SeatOwesOccasion(b.Owner) {
-			onRecord = append(onRecord, b.Subject)
-		}
-	}
+	return len(evs)
+}
+
+// factDepartures holds one relayed plan to the record's facts at the end of the chair sitting that
+// relayed it, naming the plan (`where`), the field, and the relayed and recorded values. g is the
+// dispatch group the plan pairs with, nil for the last plan when it names no party: that plan has
+// no rows, nobody sits on it, and its blockers and epoch limit are what the engine still reads.
+func factDepartures(where string, plan map[string]any, at record.PlanFacts, g *record.DispatchGroup) []string {
+	var out []string
+	const atEnd = "the record at the end of the chair's sitting holds"
+	held := record.RelayBlockerKinds()
+	var relayed, onRecord []string
 	bs, _ := plan["blockers"].([]any)
 	for _, x := range bs {
 		b, _ := x.(map[string]any)
-		if jsString(b["kind"]) == string(record.BlockerUnruledMotion) && record.SeatOwesOccasion(jsString(b["owner"])) {
-			relayed = append(relayed, jsString(b["subject"]))
+		if slices.Contains(held, record.BlockerKind(jsString(b["kind"]))) {
+			relayed = append(relayed, blockerName(jsString(b["kind"]), jsString(b["subject"]), jsString(b["owner"])))
 		}
 	}
-	if sameSet(relayed, onRecord) {
-		return ""
+	for _, b := range at.Blockers {
+		onRecord = append(onRecord, blockerName(string(b.Kind), b.Subject, b.Owner))
 	}
-	return fmt.Sprintf("the last plan relays bench-owned motions %s, and the record at the end of the chair's last sitting holds %s unruled — the terminal bench sitting is convened off the relayed set, so the plan relayed is the one the chair asks for last", setOf(relayed), setOf(onRecord))
+	if !sameSet(relayed, onRecord) {
+		out = append(out, fmt.Sprintf("%s: relayed blockers %s, %s %s — the plan relayed is the one the chair asks for last", where, setOf(relayed), atEnd, setOf(onRecord)))
+	}
+	if n, ok := relayedInt(plan["max_epochs"]); !ok || n != int64(at.MaxEpochs) {
+		out = append(out, fmt.Sprintf("%s: relayed max_epochs %s, the run's terms set %d", where, jsString(plan["max_epochs"]), at.MaxEpochs))
+	}
+	if g == nil {
+		return out
+	}
+	var docket []string
+	ds, _ := plan["docket"].([]any)
+	for _, d := range ds {
+		docket = append(docket, jsString(d))
+	}
+	if !sameSet(docket, at.Docketed) {
+		out = append(out, fmt.Sprintf("%s: relayed docket %s, %s %s docketed by the chair in it", where, setOf(docket), atEnd, setOf(at.Docketed)))
+	}
+	// THE ENTRIES ARE THE GAPS THE ROWS ENGAGE, each with the fold's count at the sitting's end.
+	var counts, counted []string
+	xs, _ := plan["exchanges"].([]any)
+	for _, x := range xs {
+		e, _ := x.(map[string]any)
+		counts = append(counts, fmt.Sprintf("%s: count %s, unresolved %s", jsString(e["gap_id"]), jsString(e["count"]), jsString(e["unresolved"])))
+	}
+	for _, seat := range g.Parties {
+		for _, gap := range g.PartyRows[seat].GapIDs {
+			e := at.ExchangesOn(gap)
+			counted = append(counted, fmt.Sprintf("%s: count %d, unresolved %d", e.GapID, e.Count, e.Unresolved))
+		}
+	}
+	if !sameSet(counts, counted) {
+		out = append(out, fmt.Sprintf("%s: relayed exchanges %s, %s %s", where, setOf(counts), atEnd, setOf(counted)))
+	}
+	// A PLAN THAT DISPATCHES IS NEITHER: the record permits a PASS, and is at its ceiling, only with
+	// nobody ready.
+	for _, f := range []string{"pass_permitted", "ceiling"} {
+		if v, ok := plan[f].(bool); !ok || v {
+			out = append(out, fmt.Sprintf("%s: relayed %s %s over a plan that dispatches — the record's is false wherever a party is named", where, f, jsString(plan[f])))
+		}
+	}
+	return out
 }
 
-// relayedHead reads the relayed head as the integer the plan prints; ok is false for anything else.
-func relayedHead(v any) (int64, bool) {
+// blockerName is one blocker as a departure names it.
+func blockerName(kind, subject, owner string) string {
+	return fmt.Sprintf("%s %q (%s)", kind, subject, owner)
+}
+
+// relayedInt reads a relayed number as the integer the plan prints; ok is false for anything else.
+func relayedInt(v any) (int64, bool) {
 	n, ok := v.(json.Number)
 	if !ok {
 		return 0, false

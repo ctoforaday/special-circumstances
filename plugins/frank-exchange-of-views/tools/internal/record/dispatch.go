@@ -44,6 +44,25 @@ type RemandOwed struct {
 	Direction string `json:"direction"`
 }
 
+// ExchangeCount is one gap's exchanges as the plan relays them: Count is the total had on the gap
+// (GapExchanges.Exchanges — monotone, never reset by a remand), and Unresolved is the engaged
+// sittings the record cannot close (GapExchanges.Unresolved), which are not counted and not zero. A
+// gap with no counted exchange and an unresolved sitting is NOT MEASURED, and the two fields say so
+// apart.
+type ExchangeCount struct {
+	GapID      string `json:"gap_id"`
+	Count      int    `json:"count"`
+	Unresolved int    `json:"unresolved"`
+}
+
+// exchangeCountOf is a gap's entry off the fold; x is nil for a gap no exchange fold names.
+func exchangeCountOf(gapID string, x *GapExchanges) ExchangeCount {
+	if x == nil {
+		return ExchangeCount{GapID: gapID}
+	}
+	return ExchangeCount{GapID: gapID, Count: x.Exchanges, Unresolved: x.Unresolved}
+}
+
 // Plan is what `feov-record dispatch next` computes FROM THE BOARD (plans/roundless.md §III.B.1).
 // The chair relays it; the workflow dispatches what it says; nothing in it is a seat's assertion.
 type Plan struct {
@@ -61,6 +80,11 @@ type Plan struct {
 	// duty lasts exactly as long as the exchange is owed — and it quotes THIS direction, the
 	// record's, never the bench envelope's account of its own ruling.
 	RemandOwed []RemandOwed `json:"remand_owed"`
+	// Exchanges is one entry per gap a party is engaged on, in the order the parties first name
+	// them. It is the engine's measure of movement that the head does not carry: a gap marching to
+	// impasse keeps its head and its parties while its count advances, so the engine's no-progress
+	// valve keys on these and capture holds each to the record.
+	Exchanges []ExchangeCount `json:"exchanges"`
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
@@ -209,7 +233,7 @@ func planReadsAt(q recordsql.Querier) (planReads, error) {
 // refuses as a missing array. B9's chair relayed a PASS-permitted plan verbatim, "parties": null, and
 // the engine aborted the run at the sitting that should have ended it.
 func emptyPlan() Plan {
-	return Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []RemandOwed{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
+	return Plan{Parties: []Party{}, Docket: []string{}, RemandOwed: []RemandOwed{}, Exchanges: []ExchangeCount{}, Why: []string{}, StaleAreas: []StaleArea{}, Blockers: []PlanBlocker{}}
 }
 
 // foldPlan folds the plan from the answers planReadsAt read, under the run's terms. It asks the record
@@ -408,7 +432,105 @@ func foldPlan(params Params, r planReads) Plan {
 		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
 	}
+	// AFTER THE LIMIT HAS EMPTIED THE PARTIES: an entry is a gap a party of THIS plan is engaged on.
+	seen := map[string]bool{}
+	for _, p := range plan.Parties {
+		for _, g := range p.GapIDs {
+			if !seen[g] {
+				seen[g] = true
+				plan.Exchanges = append(plan.Exchanges, exchangeCountOf(g, exch[g]))
+			}
+		}
+	}
 	return plan
+}
+
+// PlanFacts is what the record holds, at one point of its stream, of the plan fields no dispatch
+// row carries. Capture asks for it at the end of each chair sitting that relayed a plan and holds
+// the relay to it (capture.DispatchParityAudit).
+type PlanFacts struct {
+	// Blockers is the gate's list at the point, for the kinds a relay is held to (RelayBlockersOf).
+	Blockers []PlanBlocker
+	// Docketed is the gaps open at the point whose unruled docket motion the chair filed in the
+	// sitting it had open there — the plan's Docket, by the predicate the plan reads
+	// (docketedThisSitting).
+	Docketed []string
+	// MaxEpochs is the run's epoch limit, a term of the run.
+	MaxEpochs int
+	exchanges map[string]*GapExchanges
+}
+
+// ExchangesOn is the gap's entry as a plan computed at the point relays it (exchangeCountOf).
+func (f PlanFacts) ExchangesOn(gapID string) ExchangeCount {
+	return exchangeCountOf(gapID, f.exchanges[gapID])
+}
+
+// PlanFactsReader answers PlanFacts at any point of one record's stream.
+type PlanFactsReader struct {
+	evs      []*Event
+	ids      []int64
+	win      WindowIndex
+	params   Params
+	closedAt map[string]int64
+}
+
+// PlanFactsOf reads what PlanFacts needs beyond the stream: the run's terms, and where each closed
+// gap closed — the gap view's `closed_seq`, the events.id of the closure that stands.
+func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error) {
+	r := PlanFactsReader{evs: evs, ids: win.IDs(evs), win: win, closedAt: map[string]int64{}}
+	var err error
+	if r.params, err = RunParams(run); err != nil {
+		return r, err
+	}
+	err = readSnapshot(run, func(q recordsql.Querier) error {
+		if noRecord(q) {
+			return nil
+		}
+		rows, err := q.Query(`SELECT "gap_id", "closed_seq" FROM "gap" WHERE "closed_seq" IS NOT NULL`)
+		if err != nil {
+			return fmt.Errorf("record: asking the record where each closed gap closed: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var g string
+			var at int64
+			if err := rows.Scan(&g, &at); err != nil {
+				return err
+			}
+			r.closedAt[g] = at
+		}
+		return rows.Err()
+	})
+	return r, err
+}
+
+// At is the facts as the record stood with its first `end` events written. Every fold is handed
+// that prefix, so nothing written after it — a later epoch's avenue review, a ruling, a sitting —
+// is in the answer.
+func (r PlanFactsReader) At(end int) PlanFacts {
+	evs, ids := r.evs[:end], r.ids[:end]
+	f := PlanFacts{
+		Blockers:  RelayBlockersOf(evs, r.win),
+		MaxEpochs: r.params.MaxEpochs,
+		exchanges: exchangeFold(evs, ids, r.win, WhileRunning),
+	}
+	if end == 0 {
+		return f
+	}
+	at := ids[end-1]
+	_, registers := dispatchLedger(evs, ids, r.win)
+	for _, m := range motionsAt(evs, ids, r.win) {
+		if m == nil || m.Ruled() || m.GapID == "" || m.Subject != "docket" {
+			continue
+		}
+		if closed, ok := r.closedAt[m.GapID]; ok && closed <= at {
+			continue
+		}
+		if docketedThisSitting(evs, ids, registers[chairSeat], m.filed) && !slices.Contains(f.Docketed, m.GapID) {
+			f.Docketed = append(f.Docketed, m.GapID)
+		}
+	}
+	return f
 }
 
 // epochLimitHeldTheBench reports whether the chair sitting that opened the run's last epoch left

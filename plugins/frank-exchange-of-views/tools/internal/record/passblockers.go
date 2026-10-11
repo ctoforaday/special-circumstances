@@ -78,6 +78,15 @@ type blockerKind struct {
 	kind BlockerKind
 	// every: it holds every verdict, not only a PASS. Under a migration only these refuse.
 	every bool
+	// relayHeld: capture holds a relayed plan's blockers of this kind to the record at the end of
+	// the chair sitting that relayed it (RelayBlockersOf), and the engine's no-progress valve keys
+	// on them. It is true for a kind that meets BOTH conditions: the stream alone answers it, so it
+	// can be asked of the record as it stood at a past sitting's end; and no act of the chair's own
+	// sitting moves it other than a motion it files or rules, after which it asks for its plan
+	// again. The gap kinds and the lens kinds read SQL as it stands now. The avenue review is the
+	// chair's own act of the sitting that relays the plan: due when it asks, recorded before it
+	// ends, so a faithful relay would depart on it at every sitting.
+	relayHeld bool
 	// gloss is the help page's phrase for the kind.
 	gloss string
 	// item is the chair's work-list sentence for one blocker.
@@ -163,7 +172,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind:  BlockerContradiction,
+		kind: BlockerContradiction, relayHeld: true,
 		gloss: "a contradicting source no finding raises",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("red read a source that contradicts or does not support the claim %q and no finding raises it — PASS is refused until one does; %s raises it", b.Subject, ownerPhrase(b, "reader", contradictionReader))
@@ -190,7 +199,7 @@ var blockerKinds = []blockerKind{
 	// lens whichever lens made the outdated check: leaf-node verification is its area, and one
 	// owner is what lets dispatch ready one seat for every reopened anchor at once.
 	{
-		kind:  BlockerReopened,
+		kind: BlockerReopened, relayHeld: true,
 		gloss: "a citation or proof unchecked since its sentence changed",
 		item: func(b Blocker) string {
 			act := "reads it as it now stands against its source"
@@ -214,7 +223,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind:  BlockerNoReport,
+		kind: BlockerNoReport, relayHeld: true,
 		gloss: "no ingested report",
 		item:  func(Blocker) string { return "no report has been ingested — PASS is refused" },
 		refusal: func([]Blocker) string {
@@ -252,7 +261,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind:  BlockerUnruledMotion,
+		kind: BlockerUnruledMotion, relayHeld: true,
 		gloss: "an unruled motion",
 		item: func(b Blocker) string {
 			return "motion " + b.Subject + " (" + b.Detail + ") was filed and never ruled — PASS is refused while it stands"
@@ -353,6 +362,9 @@ func blockerGapsOfOpen(gaps []openGap) []blockerGap {
 
 // passBlockersOf is THE answer to "what holds a PASS", off the stream, its row ids, the open gaps
 // and the fresh-material set. The order is the kind table's, and within a kind the record's.
+//
+// TWO SETS OF ARMS. The stream alone answers eventBlockersOf's; the gap arms and the lens arms read
+// the open gaps and the fresh-material set, which are SQL as it stands now.
 func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, fresh map[string]bool) []Blocker {
 	var out []Blocker
 	for _, g := range gaps {
@@ -365,6 +377,34 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
+	out = append(out, eventBlockersOf(evs, ids, win)...)
+	if lg := passLensGateOf(evs, ids, win, fresh); lg.cast && lg.head != 0 {
+		for _, f := range lg.ready() {
+			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, Detail: readyReason(f), foldWhy: f.why})
+		}
+		for _, a := range lg.uncovered() {
+			out = append(out, Blocker{Kind: BlockerStaleArea, Subject: a.SeatID, Owner: chairSeat, Detail: fmt.Sprint(a.Pin)})
+		}
+	}
+	slices.SortStableFunc(out, func(a, b Blocker) int { return kindRank(a.Kind) - kindRank(b.Kind) })
+	return out
+}
+
+// kindRank is a kind's place in the table.
+func kindRank(k BlockerKind) int {
+	return slices.IndexFunc(blockerKinds, func(r blockerKind) bool { return r.kind == k })
+}
+
+// eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
+// contradiction no finding raises, a citation or proof unchecked since its sentence changed, no
+// ingested report, an unruled motion, an avenue review not yet recorded this epoch. ids is evs's
+// places, aligned with it.
+//
+// IT ANSWERS FOR THE STREAM IT IS HANDED. Asked of a prefix of the record, it says what held a PASS
+// when the record ended there: no arm asks the index for a seat's newest sitting, and the epoch is
+// the last one the prefix holds work in.
+func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
+	var out []Blocker
 	// ids IS evs's events.id, aligned with it — the place dispatchLedger and benchRegisters read
 	// sittings by, and the one a stored sitting is named by — so a blocker's `since` and the
 	// sitting it is compared with are places in one sequence.
@@ -374,22 +414,14 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE EVIDENCE LENS IS IN THE CAST. A blocker whose
 	// owner cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence`
 	// lists the anchor either way.
-	if slices.Contains(castOfEvents(evs), evidenceSeat) {
+	cast := castOfEvents(evs)
+	if slices.Contains(cast, evidenceSeat) {
 		for _, r := range reopenedEvidence(evs, win) {
 			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: evidenceSeat, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
 		}
 	}
-	if lg := passLensGateOf(evs, ids, win, fresh); lg.cast {
-		if lg.head == 0 {
-			out = append(out, Blocker{Kind: BlockerNoReport})
-		} else {
-			for _, f := range lg.ready() {
-				out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, Detail: readyReason(f), foldWhy: f.why})
-			}
-			for _, a := range lg.uncovered() {
-				out = append(out, Blocker{Kind: BlockerStaleArea, Subject: a.SeatID, Owner: chairSeat, Detail: fmt.Sprint(a.Pin)})
-			}
-		}
+	if cast != nil && reportHeadOf(evs, ids) == 0 {
+		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
 	if AvenueReviewDueOf(evs, win) {
@@ -418,17 +450,36 @@ func unruledMotionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker
 	return out
 }
 
-// MotionBlockersOf is the unruled-motion arm of the gate's list over a stream, as the plan relays
-// it. Capture holds a relayed plan's motion blockers to it, read off the record as it stood at the
-// end of the chair sitting that relayed the plan.
-func MotionBlockersOf(evs []*Event, win WindowIndex) []PlanBlocker {
-	seq := make([]int64, len(evs))
-	for i := range seq {
-		seq[i] = int64(i)
+// RelayBlockerKinds is the kinds a relayed plan's blockers are held to the record on, in table
+// order — the kinds the engine's no-progress valve keys on (blockerKind.relayHeld).
+func RelayBlockerKinds() []BlockerKind {
+	var out []BlockerKind
+	for _, r := range blockerKinds {
+		if r.relayHeld {
+			out = append(out, r.kind)
+		}
 	}
+	return out
+}
+
+// BlockerKinds is every kind of the table, in its order.
+func BlockerKinds() []BlockerKind {
+	out := make([]BlockerKind, 0, len(blockerKinds))
+	for _, r := range blockerKinds {
+		out = append(out, r.kind)
+	}
+	return out
+}
+
+// RelayBlockersOf is the gate's list over a stream, as the plan relays it, for the kinds a relay is
+// held to (RelayBlockerKinds). Capture hands it the record as it stood at the end of the chair
+// sitting that relayed a plan, and holds that plan's blockers of those kinds to the answer.
+func RelayBlockersOf(evs []*Event, win WindowIndex) []PlanBlocker {
 	var out []PlanBlocker
-	for _, b := range unruledMotionBlockers(evs, seq, win) {
-		out = append(out, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
+	for _, b := range eventBlockersOf(evs, win.IDs(evs), win) {
+		if kindOf(b.Kind).relayHeld {
+			out = append(out, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
+		}
 	}
 	return out
 }
