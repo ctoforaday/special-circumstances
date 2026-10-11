@@ -649,7 +649,12 @@ jobs:
       # which is why it may sit in the run line where rule-sweep's base ref may not.
       # The module suite runs the DEFAULT build everywhere — the engine's stub, the same
       # bytes a stackless dev box compiles; the real engine has its own step above.
-      - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
+      #
+      # -timeout=40m ON THE NIGHTLY, where the debate sweep runs: it outruns Go's default ten
+      # minutes per package, and the leg then fails on the clock with the sweep's own verdict
+      # unprinted. The release job's sweep step carries the same bound for the same reason; every
+      # other event keeps the default, where no package runs that long. Both arms are workflow literals, like the -short arms.
+      - run: go test ${{ github.event_name == 'schedule' && '-timeout=40m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship

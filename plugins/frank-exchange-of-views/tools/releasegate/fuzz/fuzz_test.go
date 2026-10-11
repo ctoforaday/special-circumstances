@@ -3549,9 +3549,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					res.err = "scenario PROVE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
 					return res
 				}
-				// A gap the BENCH closed is not red accepting anything: the terminal bench rules a
-				// docket standing at the exit, whatever its scenario had still to show.
-				if r.evaluated.has(id) && !g.Open && !g.ClosedByBench && !r.reproduced.has(id) {
+				// A gap ONLY the bench closed is not red accepting anything: the terminal bench rules
+				// a docket standing at the exit, whatever its scenario had still to show. The test is
+				// red's own closing body, not ClosedByBench — that flag follows the last closing
+				// event, so a ruling on a gap red had already closed would hide red's closure here.
+				if r.evaluated.has(id) && !g.Open && g.Closure != nil && !r.reproduced.has(id) {
 					res.err = "scenario PROVE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
 					return res
 				}
