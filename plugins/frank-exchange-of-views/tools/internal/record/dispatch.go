@@ -435,19 +435,16 @@ func epochLimitHeldTheBench(params Params, r planReads) bool {
 	}
 	ids := win.IDs(evs)
 	dispatches, registers := dispatchLedger(evs, ids, win)
-	chair := registers[chairSeat]
-	if len(chair) == 0 {
-		return false
-	}
 	benchOn := benchRegisters(evs, ids, win)
 	for _, m := range motionsAt(evs, ids, win) {
-		if m == nil || !m.Ruled() || m.ruled <= chair[len(chair)-1] {
+		if m == nil {
 			continue
 		}
-		if g, err := gavelOf(m.Subject); err != nil || g.seat != benchSeat {
+		// Ruled since the chair's last sitting opened: an unruled motion's place is 0, before any.
+		if _, chairSatSince := firstAfter(registers[chairSeat], m.ruled); chairSatSince {
 			continue
 		}
-		subj, _ := MotionSubjectEnum(m.Subject)
+		subj, _ := MotionSubjectEnum(m.Subject) // benchSittingFor holds the bench-ruled subjects only
 		switch benchSittingFor[subj] {
 		case recordpb.Occasion_OCCASION_PETITION:
 			if !benchSatOnOccasionSince(benchOn, recordpb.Occasion_OCCASION_PETITION, m.filed) {

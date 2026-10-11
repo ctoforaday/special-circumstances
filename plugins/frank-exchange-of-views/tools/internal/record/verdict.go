@@ -148,16 +148,13 @@ func verdictOf(run Run, r verdictReads) (verdict, why string, ok bool, err error
 			standing = "; reopened and unchecked: " + strings.Join(named, ", ")
 		}
 		switch {
-		case plan.EpochLimitReached:
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties still ready were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing + coverage, true, nil
-		case plan.Ceiling:
-			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + standing + coverage, true, nil
-		}
-		// THE LIMIT, READ AFTER THE EXIT. The plan above asks who is ready now; the terminal bench
+		// THE LIMIT IS READ AFTER THE EXIT TOO. The plan asks who is ready now; the terminal bench
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
 		// undispatched, its ruling leaves nobody ready (epochLimitHeldTheBench).
-		if epochLimitHeldTheBench(params, *r.plan) {
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the bench was ready at the chair's last sitting, was not dispatched, and ruled what stood at the exit", params.MaxEpochs) + standing + coverage, true, nil
+		case plan.EpochLimitReached || epochLimitHeldTheBench(params, *r.plan):
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing + coverage, true, nil
+		case plan.Ceiling:
+			return "CEILING", "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted" + standing + coverage, true, nil
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false, nil
