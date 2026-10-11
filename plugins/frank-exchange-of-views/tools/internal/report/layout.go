@@ -137,7 +137,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
-		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note and no reference is typed by hand."},
+		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record, blue's correctness manifest and the chair's spot-checks",
@@ -333,13 +333,48 @@ func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
 	}
 }
 
-// ComposedIn returns the first line of text that claims a section the report's text may not carry
-// (refused), as the text writes it, with that section's row: a heading that names one, or, before
-// the first heading, a line opening as one that ships without a heading does.
-func ComposedIn(text string) (line string, s Section, found bool) {
+// A claim is one place where text takes what is the tool's: the line or the label as the text
+// writes it, the row it belongs to, and the key two claims of the same thing share.
+type claim struct {
+	key, text string
+	row       Section
+}
+
+// added is the first claim now makes that was does not, counted by key.
+//
+// A WRITE IS REFUSED FOR WHAT IT ADDS, NOT FOR WHAT THE RECORD HOLDS. A record ingested before a
+// refusal existed, or migrated, holds claims no live write could make. Asked of the whole planned
+// document, the refusal fired on every edit of such a report, the one that takes a claim out
+// included, because a second claim still stood: no edit could be recorded at all. The text as it
+// stood is the allowance; an edit that leaves the report with no more of a claim than it had is
+// not the one that made it.
+func added(was, now []claim) (c claim, found bool) {
+	held := map[string]int{}
+	for _, c := range was {
+		held[c.key]++
+	}
+	for _, c := range now {
+		if held[c.key] == 0 {
+			return c, true
+		}
+		held[c.key]--
+	}
+	return claim{}, false
+}
+
+// ComposedIn returns the first line by which text claims a section the report's text may not
+// carry (refused) and was, the text as it stood, did not: a heading that names one, or, before the
+// first heading, a line opening as one that ships without a heading does. It is returned as the
+// text writes it, with that section's row.
+func ComposedIn(was, text string) (line string, s Section, found bool) {
+	c, found := added(composedClaims(was), composedClaims(text))
+	return c.text, c.row, found
+}
+
+func composedClaims(text string) (out []claim) {
 	preamble := true
 	eachLine(text, func(_, t string, fenced bool) {
-		if found || fenced {
+		if fenced {
 			return
 		}
 		key, isHeading := headingKey(t)
@@ -352,12 +387,12 @@ func ComposedIn(text string) (line string, s Section, found bool) {
 			}
 			if isHeading && key == normalizeHeading(row.Heading) ||
 				preamble && row.Line != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(row.Line)) {
-				line, s, found = t, row, true
+				out = append(out, claim{row.Heading, t, row})
 				return
 			}
 		}
 	})
-	return line, s, found
+	return out
 }
 
 // THE NOTES' LABELS ARE THE TOOL'S. The weave writes a citation's note as [^1], [^2] … in order of
@@ -381,14 +416,14 @@ var wovenNote = regexp.MustCompile(`(?i)\[\^p?[0-9]+\]`)
 // WovenNoteLabels names the weave's labels to a seat.
 var WovenNoteLabels = "`" + citationNote(1) + "`, `" + citationNote(2) + "` … for citations and `" + proofNote(1) + "`, `" + proofNote(2) + "` … for proofs"
 
-// NoteAside says where an aside goes that is neither a source nor a computation.
-const NoteAside = "An aside that is neither a source nor a computation is prose, or a parenthesis, where it applies."
-
 // WovenNotesRule is the rule on the pages of the verbs that write report text. The way in is the
 // Bibliography row's Path: the notes are that section's.
 var WovenNotesRule = "NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: " + WovenNoteLabels +
 	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded: " +
-	"it would ship beside the tool's note of the same label, and a reader is shown one of the two. " + notesRow().Path + " " + NoteAside
+	"it would ship beside the tool's note of the same label, and a reader is shown one of the two. " + notesRow().Path + " " + NoteInCode
+
+// NoteInCode says how text that is not a footnote carries such a label.
+const NoteInCode = "Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there."
 
 // notesRow is the row of the section the woven notes belong to.
 func notesRow() Section {
@@ -400,22 +435,25 @@ func notesRow() Section {
 	panic("report: the layout has no " + bibliographyHeading + " row")
 }
 
-// WovenNoteIn returns the first footnote label in text that is of the weave's shape, as the text
-// writes it, with the row of the section the notes belong to. Code is not read — a fenced block,
-// or a span in backticks: a label there is no footnote.
-func WovenNoteIn(text string) (label string, s Section, found bool) {
+// WovenNoteIn returns the first footnote label of the weave's shape that text carries and was, the
+// text as it stood, did not (added), as the text writes it, with the row of the section the notes
+// belong to. Code is not read — a fenced block, or a span in backticks: a label there is no
+// footnote.
+func WovenNoteIn(was, text string) (label string, s Section, found bool) {
+	c, found := added(wovenNotes(was), wovenNotes(text))
+	return c.text, c.row, found
+}
+
+func wovenNotes(text string) (out []claim) {
 	eachLine(text, func(_, t string, fenced bool) {
-		if found || fenced {
+		if fenced {
 			return
 		}
-		if m := wovenNote.FindString(reCodeSpan.ReplaceAllString(t, "")); m != "" {
-			label, found = m, true
+		for _, m := range wovenNote.FindAllString(reCodeSpan.ReplaceAllString(t, ""), -1) {
+			out = append(out, claim{strings.ToLower(m), m, notesRow()})
 		}
 	})
-	if found {
-		s = notesRow()
-	}
-	return label, s, found
+	return out
 }
 
 // blueText is the report's text, parted: every line of it is in exactly one of these.

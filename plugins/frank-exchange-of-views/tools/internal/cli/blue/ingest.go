@@ -77,7 +77,7 @@ func newIngest() *cobra.Command {
 			return nil, fmt.Errorf("reading the report to ingest at %s: %w", reportPath, err)
 		}
 		report := string(content)
-		if err := composedRefusal(report); err != nil {
+		if err := composedRefusal("", report); err != nil {
 			return nil, err
 		}
 
@@ -131,19 +131,21 @@ func init() {
 
 // composedRefusal refuses report text that claims what the tool writes: a section it composes
 // (report.ComposedIn, which reads the assembler's own table of sections), or a footnote label of
-// the shape the weave numbers its notes with (report.WovenNoteIn). It is asked of the document a write would
-// leave — the file ingest is about to freeze, the report an edit has planned — so a heading an
-// edit completes from parts is caught as one it writes whole. It refuses before anything is
-// recorded: the file stands and the edit is not on the stack.
+// the shape the weave numbers its notes with (report.WovenNoteIn). It is asked of the document a
+// write would leave — the file ingest is about to freeze, the report an edit has planned — against
+// the report as it stood (was; empty at ingest), so a heading an edit completes from parts is
+// caught as one it writes whole, and a claim the record already holds is not laid on the edit that
+// leaves it or takes it out. It refuses before anything is recorded: the file stands and the edit
+// is not on the stack.
 //
 // THE WRITE IS WHERE THE AUTHOR READS IT, AND THE REFUSAL SAYS WHERE THE CONTENT GOES. Assembly
 // composes these sections itself; text filed under one has no place of its own in the set, and
 // its author learns that from no later act. The row's Path is the way in: the act that puts
 // content of that kind on the record, or that no act of blue's does and whose does.
-func composedRefusal(doc string) error {
-	line, s, found := report.ComposedIn(doc)
+func composedRefusal(was, doc string) error {
+	line, s, found := report.ComposedIn(was, doc)
 	if !found {
-		return wovenNoteRefusal(doc)
+		return wovenNoteRefusal(was, doc)
 	}
 	return feov.Errorf(feov.Validation, "the report's text would carry %q, and %s is not the report's text to write: assembly composes it, in %s, from %s. "+
 		"NOTHING IS RECORDED by this call. HOW CONTENT REACHES IT: %s "+
@@ -157,16 +159,16 @@ func composedRefusal(doc string) error {
 // and the tool's ship under one label and a reader's renderer shows one of them, so the other is
 // lost with nothing on the record to say so; the write is the last place its author can be told.
 // The way in is the Bibliography row's Path, as it is for the section itself.
-func wovenNoteRefusal(doc string) error {
-	label, s, found := report.WovenNoteIn(doc)
+func wovenNoteRefusal(was, doc string) error {
+	label, s, found := report.WovenNoteIn(was, doc)
 	if !found {
 		return nil
 	}
 	return feov.Errorf(feov.Validation, "the report's text would carry the footnote label %q, and a label of that shape is assembly's to write: it numbers the report's notes %s, in %s, from %s. "+
 		"A note typed by hand under such a label ships beside the tool's note of the same label, and a reader is shown one of the two. "+
 		"NOTHING IS RECORDED by this call. HOW CONTENT REACHES IT: %s "+
-		"WHAT TO DO: take every reference of that shape, and the `[^…]:` line that defines it, out of the report's text. A source or a computation goes by the way above. %s",
-		label, report.WovenNoteLabels, s.File, s.From, s.Path, strings.TrimSuffix(report.NoteAside, "."))
+		"WHAT TO DO: take every reference of that shape this write adds, and the `[^…]:` line that defines it, out of the text. A source or a computation goes by the way above. %s",
+		label, report.WovenNoteLabels, s.File, s.From, s.Path, strings.TrimSuffix(report.NoteInCode, "."))
 }
 
 // voiceCensus renders the whole-document census as lines an author can act on.

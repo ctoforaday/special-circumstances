@@ -118,6 +118,9 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(out, "`ingest` and `edit` refuse one. The exception is a section of another document whose entry says that a section of that name in the report's text is the report's own.") {
+		t.Errorf("the assembled layout says the report's text carries no section the tool composes, and does not say which entries are the exception:\n%s", out)
+	}
 	if n := strings.Count(out, report.OwnInTheReport); n != 2 {
 		t.Errorf("the assembled layout says %q %d time(s), want once under each of Proofs and Motions:\n%s", report.OwnInTheReport, n, out)
 	}

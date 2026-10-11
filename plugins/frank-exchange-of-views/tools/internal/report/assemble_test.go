@@ -413,7 +413,7 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 	for n := 1; n < 2000; n += 7 {
 		for _, l := range []string{citationNote(n), proofNote(n)} {
 			for _, doc := range []string{"A claim" + l + ".\n", "A claim.\n\n" + l + ": a note.\n", "## TL;DR\n\n| a" + l + " | b |\n"} {
-				if got, s, found := WovenNoteIn(doc); !found || got != l || s.Heading != bibliographyHeading {
+				if got, s, found := WovenNoteIn("", doc); !found || got != l || s.Heading != bibliographyHeading {
 					t.Errorf("WovenNoteIn(%q) = %q in %q, %v; the weave writes %s", doc, got, s.Heading, found, l)
 				}
 			}
@@ -426,11 +426,11 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 		t.Fatalf("the weave wrote %d label(s), want a reference and a definition for each anchor:\n%s", len(labels), woven)
 	}
 	for _, l := range labels {
-		if got, _, found := WovenNoteIn(l); !found || got != l {
+		if got, _, found := WovenNoteIn("", l); !found || got != l {
 			t.Errorf("the weave wrote %s, and the write does not refuse it", l)
 		}
 	}
-	if got, _, _ := WovenNoteIn("A claim[^p3].\n"); got != "[^p3]" {
+	if got, _, _ := WovenNoteIn("", "A claim[^p3].\n"); got != "[^p3]" {
 		t.Errorf("a proof's label in lower case reads %q; a renderer folds a label's case", got)
 	}
 	for _, doc := range []string{
@@ -441,12 +441,12 @@ func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
 		"~~~\nA claim[^P1].\n~~~\n",
 		"Item [1], power 2^3, set [^0-9].\n",
 	} {
-		if l, _, found := WovenNoteIn(doc); found {
+		if l, _, found := WovenNoteIn("", doc); found {
 			t.Errorf("WovenNoteIn(%q) found %q; the weave writes no such label", doc, l)
 		}
 	}
-	if !strings.Contains(WovenNotesRule, notesRow().Path) || !strings.Contains(WovenNotesRule, NoteAside) {
-		t.Errorf("the rule on the help pages does not carry the Bibliography row's path and the aside's place: %s", WovenNotesRule)
+	if !strings.Contains(WovenNotesRule, notesRow().Path) || !strings.Contains(WovenNotesRule, NoteInCode) {
+		t.Errorf("the rule on the help pages does not carry the Bibliography row's path and the place of a label that is no footnote: %s", WovenNotesRule)
 	}
 }
 
@@ -460,13 +460,13 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		{"## Additional findings\n", "## Additional findings", "Additional findings"},
 		{"# t\n**outcome:** VERIFIED\n\n## TL;DR\nx\n", "**outcome:** VERIFIED", "Outcome"},
 	} {
-		line, s, found := ComposedIn(tc.doc)
+		line, s, found := ComposedIn("", tc.doc)
 		if !found || line != tc.line || s.Heading != tc.heading {
 			t.Errorf("ComposedIn(%q) = %q, %q, %v; want %q in %q", tc.doc, line, s.Heading, found, tc.line, tc.heading)
 		}
 	}
 	for _, s := range layout {
-		_, got, found := ComposedIn("## TL;DR\nx\n\n## " + s.Heading + "\ny\n")
+		_, got, found := ComposedIn("", "## TL;DR\nx\n\n## "+s.Heading+"\ny\n")
 		if found != s.refused() || found && got.Heading != s.Heading {
 			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s, a subject's heading too: %v", s.Heading, found, got.Heading, s.Composer, s.SubjectHeading)
 		}
@@ -478,7 +478,7 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		"## Alternatives considered and rejected\n",
 		"## Analysis\n\n**Outcome:** the test passes.\n",
 	} {
-		if line, _, found := ComposedIn(doc); found {
+		if line, _, found := ComposedIn("", doc); found {
 			t.Errorf("ComposedIn(%q) found %q; that text claims no section the tool composes", doc, line)
 		}
 	}
