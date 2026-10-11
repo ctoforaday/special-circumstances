@@ -30,6 +30,16 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 		{"a rule stays", "One.\n\n---" + c + "\n\nTwo.\n", "One.\n\n---\n\nTwo.\n"},
 		{"a line of code stays", "    }" + c + "\n", "    }\n"},
 		{"a sentence of symbols mid-line stays", "One. → " + c + ". Two.\n", "One. → . Two.\n"},
+		// THE WRAPPERS THAT HELD THE TEXT GO WITH IT: left in, the reader is shown "(.)", or the rule
+		// a renderer draws for "****".
+		{"an emptied parenthesis goes with its sentence", "One. (" + c + ".) Two.\n", "One. Two.\n"},
+		{"an emptied quotation goes with its sentence", "One. “" + c + ".” Two.\n", "One. Two.\n"},
+		{"a line of emptied emphasis goes whole", "One.\n\n**" + c + ".**\n\nTwo.\n", "One.\n\nTwo.\n"},
+		{"an emptied bullet in bold goes whole", "- a.\n- **" + c + "**\n- c.\n", "- a.\n- c.\n"},
+		{"an emptied parenthesis after a sentence goes", "**One.** (" + c + ")\n", "**One.**\n"},
+		{"a rule of asterisks stays", "One.\n\n***" + c + "\n\nTwo.\n", "One.\n\n***\n\nTwo.\n"},
+		{"a task's box stays", "- [ ] " + c + "\n", "- [ ]\n"},
+		{"a parenthesis emptied inside a sentence that still reads stays", "One (" + c + ") two.\n", "One () two.\n"},
 		{"a quoted emptied bullet goes whole", "> - a.\n> - " + c + ".\n> - c.\n", "> - a.\n> - c.\n"},
 		{"the cut stays on the token's line", "<!--fx:F-00000002-->\n" + c + ". Two.\n", "<!--fx:F-00000002-->\nTwo.\n"},
 	} {

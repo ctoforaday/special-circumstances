@@ -182,9 +182,18 @@ var strippedToken = func() *regexp.Regexp {
 // husk is no more than block-quote and list markers and sentence punctuation.
 var husk = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 
+// wrapper is a pair of brackets, quotation marks or emphasis markers around sentence punctuation
+// at most: what stood inside it has gone.
+var wrapper = regexp.MustCompile(`\([.,;:!?…]*\)|\[[.,;:!?…]*\]|\*[.,;:!?…]*\*|_[.,;:!?…]*_|"[.,;:!?…]*"|'[.,;:!?…]*'|“[.,;:!?…]*”|‘[.,;:!?…]*’`)
+
 // Husk reports whether s — a line, or a sentence's span, with the anchor that stood on it taken
-// out — is what an anchor leaves when the text it marked has gone: a list marker at most, and
-// sentence punctuation. A husk goes with its anchor; anything else is content and stays.
+// out — is what an anchor leaves when the text it marked has gone: a list marker at most,
+// sentence punctuation, and the wrappers that held the text — "()", "**.**", "(**.**)". A husk
+// goes with its anchor; anything else is content and stays.
+//
+// A WRAPPER IS A PAIR WITH NOTHING BETWEEN ITS HALVES, taken from the inside out, so a mark with
+// no partner is content: "***" and "* * *" are rules, "- [ ]" is a task's box, and a table row's
+// "|" pairs with nothing. Left in, "()" ships as "()" and "****" as a rule no author drew.
 //
 // ONE RULE, for both places an anchor leaves text: assembly stripping the tokens no reader sees,
 // and the replay of a retire. "No letter and no digit" was the rule at both and it is not this
@@ -192,7 +201,12 @@ var husk = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 // hold neither and are what their author wrote. A span that still holds another anchor is not a
 // husk either — the token is not punctuation — so several anchors leaving one line take it only
 // with the last.
-func Husk(s string) bool { return husk.MatchString(s) }
+func Husk(s string) bool {
+	for t := wrapper.ReplaceAllString(s, ""); t != s; t = wrapper.ReplaceAllString(s, "") {
+		s = t
+	}
+	return husk.MatchString(s)
+}
 
 // StripAssembled removes every token of a kind the assembly strips.
 func StripAssembled(md string) string { return strippedToken.ReplaceAllString(md, "") }

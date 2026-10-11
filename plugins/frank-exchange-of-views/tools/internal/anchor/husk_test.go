@@ -2,17 +2,21 @@ package anchor
 
 import "testing"
 
-// A HUSK IS A LIST MARKER AT MOST AND SENTENCE PUNCTUATION, and nothing else is: assembly and the
-// replay of a retire both delete what this calls a husk, so every line here that is not one is a
-// line of a report that one of them would otherwise take.
+// A HUSK IS A LIST MARKER AT MOST, SENTENCE PUNCTUATION AND THE WRAPPERS THAT HELD THE TEXT, and
+// nothing else is: assembly and the replay of a retire both delete what this calls a husk, so
+// every line here that is not one is a line of a report that one of them would otherwise take,
+// and every line here that is one is a line a reader would otherwise be shown — "()", or the
+// rule a renderer draws for "****".
 func TestAHuskIsMarkersAndSentencePunctuation(t *testing.T) {
-	for _, s := range []string{"", "   ", "- ", "- ?", "* .", "+ …", "> ", "> - .", ".", " . ", "?!", ";"} {
+	for _, s := range []string{"", "   ", "- ", "- ?", "* .", "+ …", "> ", "> - .", ".", " . ", "?!", ";",
+		"()", "(.)", "[]", "**", "**.**", "****", "__", "*.*", "_?_", `""`, "''", "“.”", "‘’", "(**.**)", "- **", "> - (“”).", "() **"} {
 		if !Husk(s) {
 			t.Errorf("Husk(%q) is false; a marker and sentence punctuation are what an anchor leaves", s)
 		}
 	}
 	for _, s := range []string{
-		"| --- | --- |", "|:---|---:|", "| ✓ | ✗ |", "| — | ✓ |", "---", "***", "    }", "→", "—", "()", "**", "- [ ]", "1.", "a",
+		"| --- | --- |", "|:---|---:|", "| ✓ | ✗ |", "| — | ✓ |", "---", "***", "    }", "→", "—", "- [ ]", "1.", "a",
+		"* * *", "* *", "- - -", "___", "(", ")", "*", "(a)", "**a**", "| () | ✓ |", "(]", "“", "( )", `"`,
 		"- " + Token("F-00000001"), Token("C-00000001") + ".",
 	} {
 		if Husk(s) {

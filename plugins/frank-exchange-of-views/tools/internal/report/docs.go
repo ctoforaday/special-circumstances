@@ -167,7 +167,7 @@ func assemble(run record.Run) ([]Doc, map[string]bool, error) {
 		// A LINE THE STRIP EMPTIES GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
 		// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ."
 		// in universe-m19's verified report. The line that goes is that husk (anchor.Husk): a list marker
-		// at most, and sentence punctuation. A line of symbols that held a token is content — a
+		// at most, sentence punctuation, and the brackets or emphasis that held the text. A line of symbols that held a token is content — a
 		// table's delimiter row, a row of marks, a rule, a line of code — and ships without the token.
 		lines := slices.DeleteFunc(strings.Split(collapseBlanks(docs[i].Body), "\n"), func(ln string) bool {
 			s := anchor.StripAssembled(ln)
