@@ -428,11 +428,10 @@ func TestARoundlessEraRecordMigratesClean(t *testing.T) {
 	}
 }
 
-// A RUN OLDER THAN THE TABLE IS REFUSED WITH ITS CAUSE. The schema is fixed at a run's creation
-// with no migration, so a database made before retires carried anchors has neither the
-// retire_anchors table nor the report_op branch that replays it — and the generic body walk reads
-// every Retire list table, so no retire recorded there could be read back by this binary. The
-// write must say that and record nothing, not fail on SQLite's bare "no such table".
+// A RUN OLDER THAN THE TABLE IS REFUSED WITH ITS CAUSE, AT THE OPEN. A record's schema is fixed
+// when its database is created, so one made before retires carried anchors has neither the
+// retire_anchors table nor the report_op branch that replays it. The process that opens it is told
+// so, with the way out, before any verb reads or writes — and records nothing.
 func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1")
 	label := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
@@ -451,18 +450,27 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 		}
 	}
 
+	// The handle this test's own setup cached passed the open's check before the schema was cut
+	// back; the process that meets an older run is one that has not opened it yet.
+	if err := recordsql.CloseUnder(runDir); err != nil {
+		t.Fatal(err)
+	}
+
 	_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "The sky is blue.", "--reason", "refuted")
 	if err == nil {
 		t.Fatal("a retire naming an anchor was recorded on a record with no table to hold it")
 	}
-	if msg := err.Error(); !strings.Contains(msg, "older binary") || !strings.Contains(msg, "retire_anchors") {
-		t.Errorf("the refusal does not name the cause:\n%s", msg)
+	for _, want := range []string{"older binary", "retire_anchors", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %s:\n%v", want, err)
+		}
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != 0 {
-		t.Errorf("%d retire event(s) recorded — the refused write must leave nothing behind", n)
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "type" = ?`, recordpb.Word(recordpb.EventType_EVENT_TYPE_RETIRE)).Scan(&n); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(readReport(t, runDir), tok) {
-		t.Error("the anchor left the report on a record with no way to replay its exit")
+	if n != 0 {
+		t.Errorf("%d retire event(s) recorded — the refused open must leave nothing behind", n)
 	}
 }
 
