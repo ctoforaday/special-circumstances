@@ -398,6 +398,18 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // finds is read through the run's cache so every later seat reads the same bytes.
   assert.ok(!/heredoc/.test(evidence) && !/curl/.test(evidence), 'the lens prompt contradicts its manual on heredocs or bypasses the shared source cache')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
+  // AN AVENUE THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The avenues print
+  // in the report beside the body, so the reader sees both halves. On universe-m21 two lenses filed
+  // eleven findings about approaches printed under two fates and minted none: the clause said "Both
+  // are findings", a finding about an avenue is on no seat's work list, and the report shipped the
+  // contradictions. The lens reads the avenue sections as they ship before it grades one.
+  for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
+    const p = firstPrompt(world, seat)
+    assert.ok(/YOU MINT A GAP ANCHORED TO THE AVENUE/.test(p) && /one approach on the record under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no avenue/.test(p),
+      `${seat} is not told that an avenue contradicting the report is a gap`)
+    assert.ok(/READ THOSE SECTIONS AS THEY SHIP, in the assembled form of the report, before you grade an avenue/.test(p), `${seat} is not told to read the avenue sections as they ship`)
+    assert.ok(/A finding about an avenue is a note: it is on no seat's work list/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an avenue contradiction as a finding`)
+  }
   assert.ok(!/STEELMAN DUTY/.test(evidence) && !/take slice|instance \d+ of/.test(evidence), 'the evidence seat verifies sources and owns no slice')
 
   // THE FULL RE-READ IS SCOPED TO THE KIND THAT ORDERS IT, and this is the measurement that put it

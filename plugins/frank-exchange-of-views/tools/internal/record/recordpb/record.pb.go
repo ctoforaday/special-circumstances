@@ -8075,11 +8075,11 @@ const file_record_proto_rawDesc = "" +
 	"\x19AVENUE_RULING_UNSPECIFIED\x10\x00\x12P\n" +
 	"\x16AVENUE_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12J\n" +
 	"\x1aAVENUE_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12`\n" +
-	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xe8\x03\n" +
+	"\x16AVENUE_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xdd\x04\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x96\x01\n" +
-	"\x11ABOUT_KIND_AVENUE\x10\x02\x1a\x7f\x8a\xb5\x18{an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12v\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x8b\x02\n" +
+	"\x11ABOUT_KIND_AVENUE\x10\x02\x1a\xf3\x01\x8a\xb5\x18\xee\x01an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor\x12v\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1ab\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
 	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +

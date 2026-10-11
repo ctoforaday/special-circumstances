@@ -91,3 +91,55 @@ func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 		t.Errorf("one anchor, two flag names: finding uses %q and mint uses %q", finding.Flag, gap.Flag)
 	}
 }
+
+// AN AVENUE THAT CONTRADICTS WHAT THE READER IS TOLD IS ANSWERED THROUGH A GAP, AND ONLY A GAP.
+//
+// The avenues print in the report beside the body, so an approach printed as declined that a
+// section carries is a contradiction on the reader's page. On universe-m21 two lenses filed eleven
+// findings about such avenues and minted none; a finding about an avenue is on no seat's work
+// list, blue's responding seat answers its list, and the report shipped the contradictions. The
+// gap anchored to the same avenue is on blue's list with what it is about, and `finding`'s own
+// page says which of the two reaches anybody.
+func TestAGapAboutAnAvenueReachesBlueAndAFindingAboutOneReachesNoWorkList(t *testing.T) {
+	runDir := seatRun(t)
+	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond", "--reason", "test primality by trial division"); err != nil {
+		t.Fatal(err)
+	}
+	avenue := ""
+	for _, e := range events(t, runDir) {
+		if a := e.GetAvenue(); a != nil {
+			avenue = a.GetAvenueId()
+		}
+	}
+	const lens = "red-lens-logic"
+	registerSeatOnce(t, runDir, lens)
+	const objection = "a section carries this approach and the avenue says it was never run"
+	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", lens, "--key", "F1", "--about-kind", "avenue", "--about", avenue,
+		"--reason", objection, "--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
+		t.Fatalf("a finding about an avenue was refused: %v", err)
+	}
+	work := func(seat string) string {
+		out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "--json", "work")
+		if err != nil {
+			t.Fatalf("%s's work list: %v", seat, err)
+		}
+		return out
+	}
+	seats := []string{"blue-respond", "red-chair", lens, lensSeat, "judge"}
+	for _, seat := range seats {
+		if w := work(seat); strings.Contains(w, objection) || strings.Contains(w, `"about_ref": "`+avenue+`"`) {
+			t.Errorf("a finding about an avenue is on %s's work list; `finding --help` says it reaches none:\n%s", seat, w)
+		}
+	}
+	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an avenue reaches no seat's work list") || !strings.Contains(h, "mint the gap") {
+		t.Errorf("`finding --help` does not say that a finding about an avenue reaches no work list and that the gap is what does:\n%s", h)
+	}
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "scope-creep", "--about-kind", "avenue", "--about", avenue,
+		"--problem", "The trial-division approach is listed as never run and a section reports its result.", "--check-kind", "document", "--check", "the avenue's fate and the section agree",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
+		t.Fatalf("a gap anchored to an avenue was refused: %v", err)
+	}
+	if w := work("blue-respond"); !strings.Contains(w, `"about_kind": "avenue"`) || !strings.Contains(w, `"about_ref": "`+avenue+`"`) {
+		t.Errorf("a gap anchored to an avenue is not on blue's work list with what it is about:\n%s", w)
+	}
+}

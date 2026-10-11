@@ -248,7 +248,7 @@ CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('avenue', 'an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('avenue', 'an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 

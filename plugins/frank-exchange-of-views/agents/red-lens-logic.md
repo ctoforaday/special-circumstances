@@ -127,7 +127,7 @@ how bad this is: low | low_medium | medium | medium_high | high | certain | real
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    avenue   an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
 §14 (on 3 pages):
@@ -375,7 +375,7 @@ Usage:
 
 Flags:
       --about string                    → SHARED §11
-      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it
+      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an avenue reaches no seat's work list: where an avenue's fate or reason contradicts what the report tells its reader, mint the gap, which anchors to the avenue the same way
   -h, --help                            help for finding
       --impact grade                    how bad the consequence is if it lands
       --key string                      your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. Only finding and mint take a handle: no other verb on this surface has this flag
