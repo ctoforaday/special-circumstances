@@ -34,7 +34,13 @@ var m19Reopened = []reopened{
 // sitting by the write path's own rule, so every reader below reads a record, not a slice.
 func m19At(t *testing.T, whole []*Event, n int) Run {
 	t.Helper()
-	dir := recordtest.RequireArchive(t, m19Archive)
+	return archiveAt(t, m19Archive, whole, n)
+}
+
+// archiveAt is the named archive as it stood after event n, replayed as m19At says.
+func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
+	t.Helper()
+	dir := recordtest.RequireArchive(t, archive)
 	for _, f := range []string{"record.db", "record.db-wal", "record.db-shm"} {
 		if err := os.Remove(filepath.Join(dir, "records", f)); err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
@@ -91,13 +97,13 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	chair := strings.Join(blockingItems(sittingOfRunT(t, run, "chair", "red-chair")), "\n")
 	for _, r := range m19Reopened {
-		if !strings.Contains(refusal.Error(), fact(r)) {
+		if !strings.Contains(refusal.Error(), fact(r)) || !strings.Contains(refusal.Error(), "clears it, whichever lens records it. "+reopenedOwed) {
 			t.Errorf("the PASS refusal does not state %q:\n%v", fact(r), refusal)
 		}
-		if !strings.Contains(chair, fact(r)+" — PASS is refused until "+evLens) {
+		if !strings.Contains(chair, fact(r)+" — PASS is refused until a lens checks it from a sitting opened after the edit, by re") || !strings.Contains(chair, reopenedOwed) {
 			t.Errorf("the chair's work list does not hold %q:\n%s", fact(r), chair)
 		}
-		if !slices.Contains(plan.Why, fact(r)+" — PASS is not permitted until "+evLens+" checks it") {
+		if !slices.Contains(plan.Why, fact(r)+" — PASS is not permitted until a lens checks it from a sitting opened after the edit. "+reopenedOwed) {
 			t.Errorf("the plan's reasons do not state %q: %q", fact(r), plan.Why)
 		}
 		at, err := EvidenceAt(run, r.anchor)
@@ -105,7 +111,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			t.Errorf("show evidence --anchor %s: reopened = %+v (%v), want edit %d, last check %d", r.anchor, at.Reopened, err, r.edit, r.lastCheck)
 		}
 	}
-	if !strings.Contains(chair, "re-runs it (`reproduce --id "+m19Reopened[2].sha+"`)") {
+	if !strings.Contains(chair, "by re-running it (`reproduce --id "+m19Reopened[2].sha+"`)") {
 		t.Errorf("the proof's item does not carry the sha its re-run takes:\n%s", chair)
 	}
 	var rows []reopened

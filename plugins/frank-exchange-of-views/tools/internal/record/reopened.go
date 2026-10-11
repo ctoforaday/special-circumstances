@@ -32,6 +32,13 @@ type reopened struct {
 // from a sitting already open when it landed may be of the sentence its seat read before the edit,
 // and the record cannot tell which; a check in no sitting says nothing about when it was read.
 //
+// ANY SEAT'S CHECK CLEARS; THE EVIDENCE LENS IS THE ONE READIED. A check is a reading of the
+// sentence against its source, and the write path lets every lens make one, so the fold reads
+// the sitting a check came from and never the seat: on universe-m20 the dark-side lens re-ran
+// P-9e198e9a seven seconds before the evidence lens did, and the anchor was checked from the
+// first. Who is ASKED is a separate fact and has one answer — the blocker's owner is the evidence
+// lens (passBlockersOf), which is the seat dispatch readies and whose work list blocks.
+//
 // A corrected re-run stands in its target's place (liveAt), so it reads at that place's id and
 // that place's sitting: a correction filed in a later sitting does not date the re-run it corrects.
 func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {

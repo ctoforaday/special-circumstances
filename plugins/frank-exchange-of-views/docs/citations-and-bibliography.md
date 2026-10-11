@@ -114,7 +114,8 @@ at the quoted sentence.
   `unbacked_citations` flags any divergence. When blue rewrites the sentence around an anchor, the
   anchor stays. A citation or proof red has checked is then **reopened**: the evidence view lists it
   under `reopened` with the edit and its last check, the evidence lens is readied to check it again,
-  and a PASS waits until a sitting opened after the edit has.
+  and a PASS waits until a lens — that one or another — has checked it from a sitting opened after
+  the edit.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it
