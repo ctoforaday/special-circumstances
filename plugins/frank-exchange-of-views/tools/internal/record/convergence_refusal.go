@@ -76,10 +76,10 @@ func convergenceOf(run Run) (Convergence, error) {
 // change no reader decision.
 //
 // IT STANDS ONLY WHERE A PASS IS THE CHAIR'S TO RECORD. While a blocker another seat must clear
-// holds the PASS — a petition the bench has not ruled, a contradiction no lens has raised — the
-// refusal's "or issue `--as PASS`" is false, and refusing the FAIL too left the chair able to record
-// no verdict at all (#1202). The chair's own items (the avenue review, the stale-area spot-check)
-// do not lift it: the refusal names them, and the PASS is the chair's once it has done them.
+// holds the PASS — a petition the bench has not ruled, a contradiction no lens has raised, a
+// citation or proof unchecked since its sentence changed — the refusal's "or issue `--as PASS`" is
+// false, and refusing the FAIL too left the chair able to record no verdict at all (#1202). The
+// chair's own items (the avenue review, the stale-area spot-check) do not lift it: the refusal names them, and the PASS is the chair's once it has done them.
 func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
 	var own []string
 	for _, b := range blockers {

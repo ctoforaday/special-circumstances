@@ -158,6 +158,26 @@ test('CEILING: nobody ready and every open material gap at its limit — the sta
   assert.ok(!/deadlock/i.test(asm) || /not a judged/i.test(asm), 'deadlock is per gap and on the record, not a run-level stamp')
 })
 
+// A CEILING over a reopened citation or proof names it in the reason the run ends on, and names no
+// other blocker; with none standing, each reason is the sentence it is without the rule. The
+// record's derived reason carries the same clause (TestACeilingReasonNamesOnlyAStandingReopenedAnchor).
+test('CEILING: the reason names a standing reopened citation or proof, and only that', async () => {
+  const ended = async (chair) => {
+    const world = makeWorld(makeResponder({ chair }))
+    await world.run(script, ARGS)
+    return world.logs.find((m) => m.startsWith('debate ended: CEILING')).replace(/^.*? chair sitting\(s\) — /, '')
+  }
+  const standing = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap'), blocker('C-706fda63', 'red-lens-evidence', 'reopened'), blocker('P-cd9f4c5a', 'red-lens-evidence', 'reopened')] }
+  const none = { blockers: [blocker('G-00000001', 'red-lens-logic', 'material_gap')] }
+  const limits = 'every open material gap is at its limit — remanded by the bench, given the one more exchange the remand grants, and remanded again'
+  const term = "epoch limit 4 reached — the run's term on chair sittings; the parties the board still readied were not dispatched"
+  const clause = '; reopened and unchecked: C-706fda63, P-cd9f4c5a'
+  assert.equal(await ended([chairEnv({ plan: ceilingPlan(none) })]), limits)
+  assert.equal(await ended([chairEnv({ plan: ceilingPlan(standing) })]), limits + clause)
+  assert.equal(await ended(toTheLimit(limitPlan(none))), term)
+  assert.equal(await ended(toTheLimit(limitPlan(standing))), term + clause)
+})
+
 test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons are the account', async () => {
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'] }) })] }))
   const out = await world.run(script, ARGS)

@@ -17,7 +17,8 @@ import (
 // dispatch next — the chair reads the board and the record says who sits (plans/roundless.md
 // §III.B.1). The verb computes readiness FROM THE BOARD: each lens's retirement state against the report head,
 // each open material gap below its limits, each docketed gap awaiting the bench, the seat that owes
-// another seat's PASS blocker (a petition's bench, a contradiction's lens). It records the
+// another seat's PASS blocker (a petition's bench, a contradiction's lens, the evidence lens for a
+// reopened citation or proof). It records the
 // decision as one dispatch event per party, under the chair, and prints the same plan for the
 // chair to relay. The workflow dispatches what the record says and nothing else.
 //
