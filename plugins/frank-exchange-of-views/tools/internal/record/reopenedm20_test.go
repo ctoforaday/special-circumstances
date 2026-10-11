@@ -50,7 +50,9 @@ func TestM20AnotherLensClearsWhatTheEvidenceLensIsReadiedFor(t *testing.T) {
 	}
 	// The evidence lens's work list blocks on it; the dark-side lens's, open since the same edit, does not.
 	owed := strings.Join(blockingItems(sittingOfRunT(t, run, "lens", evLens)), "\n")
-	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by re-running it (`reproduce --id ea091047a1ce", reopenedOwed} {
+	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by re-running it (`reproduce --id ea091047a1ce", reopenedOwed,
+		// Both facts, in the words a seat reads: who owes the check, and that the owner is not the only seat whose check clears.
+		evLens + " owes that check and is the seat readied for it", "another lens's check from such a sitting clears it as well"} {
 		if !strings.Contains(owed, want) {
 			t.Errorf("the evidence lens's work list does not say %q:\n%s", want, owed)
 		}

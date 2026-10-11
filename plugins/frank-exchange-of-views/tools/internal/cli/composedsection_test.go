@@ -214,6 +214,18 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if out, err := run(t, "show", "report", "--assembled", "--anchor", "F-00000aaa", "--run", runDir, "--seat-id", blueSeat); err == nil {
 		t.Errorf("--assembled with --anchor was answered:\n%s", out)
 	}
+	// A selector picks sections from the structured form: there it selects, and the bare form says so.
+	if out, err := run(t, "show", "report", "--assembled", "--match", "trial division", "--run", runDir, "--seat-id", blueSeat); err == nil || !strings.Contains(err.Error(), "--json form") {
+		t.Errorf("--assembled --match in the bare form: err %v\n%s", err, out)
+	}
+	if out, err := run(t, "show", "report", "--assembled", "--json", "--match", "trial division", "--run", runDir, "--seat-id", blueSeat); err != nil ||
+		!strings.Contains(out, `"heading": "Research areas"`) || strings.Contains(out, `"heading": "Risk matrix"`) {
+		t.Errorf("--assembled --json --match does not select the section that matches: %v\n%s", err, out)
+	}
+	// A section that ships as one line is that line.
+	if s := by["Title"]; s.Text != "# On 91" {
+		t.Errorf("the Title's text is %q, want the report's `# ` line alone", s.Text)
+	}
 }
 
 // M20 IS THE CASE: THIS BINARY REFUSES ITS INGEST, AND MIGRATES AND ASSEMBLES ITS RECORD WITH
@@ -279,6 +291,16 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	for _, d := range docs {
 		if d.File == report.FileReport {
 			shipped = d.Body
+		}
+	}
+	// The two sections a pass over the whole document writes ship here, and the layout says so.
+	view, err := report.Layout(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range view.Sections {
+		if (s.Heading == "Bibliography" || s.Heading == "Proofs") && (!s.Ships || !strings.HasPrefix(s.Text, "## "+s.Heading+"\n")) {
+			t.Errorf("m20 cites and proves, and the layout's %s row is ships=%v, text %.60q", s.Heading, s.Ships, s.Text)
 		}
 	}
 	for n := 1; n <= proofs; n++ {
