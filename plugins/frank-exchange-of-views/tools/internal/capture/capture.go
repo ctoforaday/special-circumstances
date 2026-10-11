@@ -26,7 +26,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1282,9 +1281,6 @@ type HarvestResult struct {
 	// source, and it is compared to Rulings, the same set on the record — a field rather than a
 	// sentence, so a reader compares numbers without parsing prose (facts-are-fields).
 	EnvelopeClaimed int
-	// EnvelopeUnmeasured is set when the journal's envelopes predate the disposition keys: the
-	// claim was not read, so EnvelopeClaimed's 0 is not a claim of zero (scorecard.LegacyNote).
-	EnvelopeUnmeasured string
 }
 
 var (
@@ -1441,11 +1437,7 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 	rulings := declarationsOnly(all)
 	onRecord := len(all) - len(rulings)
 	claimed := rulingsClaimedByEnvelopes(results)
-	unmeasured := ""
-	if k := scorecard.LegacyKeys(results); slices.Contains(k, "resolutions") {
-		unmeasured = scorecard.LegacyNote(k)
-	}
-	res := HarvestResult{Count: len(rulings), Rulings: onRecord, EnvelopeClaimed: claimed, EnvelopeUnmeasured: unmeasured}
+	res := HarvestResult{Count: len(rulings), Rulings: onRecord, EnvelopeClaimed: claimed}
 	if len(rulings) == 0 {
 		return res
 	}
@@ -1528,10 +1520,7 @@ func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, 
 // rulings the record holds beside how many the envelopes claim.
 func precedentLine(prec HarvestResult) string {
 	divergence := ""
-	switch {
-	case prec.EnvelopeUnmeasured != "":
-		divergence = " [the envelopes' claim: " + prec.EnvelopeUnmeasured + " — the record is the source]"
-	case prec.EnvelopeClaimed != prec.Rulings:
+	if prec.EnvelopeClaimed != prec.Rulings {
 		divergence = fmt.Sprintf(" [the record holds %d docket and petition ruling(s) and the envelopes claim %d — the record is the source, and this divergence is the finding]",
 			prec.Rulings, prec.EnvelopeClaimed)
 	}

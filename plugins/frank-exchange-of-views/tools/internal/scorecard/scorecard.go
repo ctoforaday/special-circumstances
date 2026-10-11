@@ -562,42 +562,6 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	return rows
 }
 
-// legacyEnvelopeKeys are the envelope keys the engine wrote before the disposition keys:
-// JUDGE_ENVELOPE's `resolutions` (now `dispositions`) and BLUE_ENVELOPE's `grade_disputes`
-// (now `grade_motions`).
-var legacyEnvelopeKeys = []string{"resolutions", "grade_disputes"}
-
-// LegacyKeys names which of those keys a journal's results carry, in a fixed order, and nothing
-// for a journal that holds none.
-//
-// A TRANSCRIPT IS NOT A RECORD, SO NOTHING TRANSLATES IT. migrate rewrites record.db; a captured
-// journal keeps the keys its engine wrote. Read under the current keys, an old journal's rulings
-// are simply absent, and every number computed from them reads as a bench that never sat. This
-// is how a reader tells that absence from a real one — and then says so instead of counting.
-func LegacyKeys(results []map[string]any) []string {
-	seen := map[string]bool{}
-	for _, r := range results {
-		for _, k := range legacyEnvelopeKeys {
-			if _, ok := r[k]; ok {
-				seen[k] = true
-			}
-		}
-	}
-	var out []string
-	for _, k := range legacyEnvelopeKeys {
-		if seen[k] {
-			out = append(out, k)
-		}
-	}
-	return out
-}
-
-// LegacyNote is the stated row for a number those keys held: the reader could not measure it,
-// and says which keys it found.
-func LegacyNote(keys []string) string {
-	return "not measured: this transcript's envelopes predate the disposition keys (" + strings.Join(keys, "/") + ")"
-}
-
 // docketRulings are the bench's live docket rulings on the record: every docket motion with a
 // ruling that stands. The record refuses a disposition outside the vocabulary at the write, so
 // each word here is one the reader knows.
