@@ -792,7 +792,7 @@ What it did instead, from `none-arithmetic-r1`:
     ERR · ERR · blue show · blue close-gap · ERR · blue manifest-row · blue position ·
     blue friction · blue revision · …
 
-`blue close-gap` does not exist. The refusal answered with the surface — `RefuseUnknownVerb` embeds
+`blue close-gap` does not exist. The refusal answered with the surface — `RefuseAndTeach` embeds
 cobra's own help — and the seat's next four acts are real verbs it had not used before.
 
 **The attribution to the refusal is withdrawn.** Two of those four — `friction` and `revision` — are

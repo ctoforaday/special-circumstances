@@ -73,7 +73,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		// as, an agent with no register is registered first or refused, and the refusal renders in
 		// the envelope every verb's does. The filer id is what found_by, estoppel and the bench read.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			basis, err := prose(cmd, "file", "the ASK in your own words — a motion with no argument is a demand, and the ruler has nothing to rule on")
+			basis, err := prose(cmd, "the ASK in your own words — a motion with no argument is a demand, and the ruler has nothing to rule on")
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +93,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			// a oneof, so a grade's fields cannot be written onto a petition at all.
 			subj, ok := record.MotionSubjectEnum(subject)
 			if !ok {
-				return nil, feov.Errorf(feov.Validation, "motion %s file: %q is not a motion subject", subject, subject)
+				return nil, feov.Errorf(feov.Validation, "%q is not a motion subject", subject)
 			}
 			body := &recordpb.Motion{
 				MotionId: proto.String(id),
@@ -104,11 +104,11 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
 				dim, known := record.GradeDimensionOf(seat.Str(cmd, flags.Dimension))
 				if !known {
-					return nil, feov.Errorf(feov.Validation, "motion grade file: %q is not a grade dimension", seat.Str(cmd, flags.Dimension))
+					return nil, feov.Errorf(feov.Validation, "%q is not a grade dimension", seat.Str(cmd, flags.Dimension))
 				}
 				prop, known := record.GradeOf(seat.Str(cmd, flags.Proposed))
 				if !known {
-					return nil, feov.Errorf(feov.Validation, "motion grade file: %q is not a grade", seat.Str(cmd, flags.Proposed))
+					return nil, feov.Errorf(feov.Validation, "%q is not a grade", seat.Str(cmd, flags.Proposed))
 				}
 				body.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 					GapId:     proto.String(seat.Str(cmd, flags.ID)),
@@ -118,7 +118,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				cls, known := record.PetitionClassOf(seat.Str(cmd, flags.Class))
 				if !known {
-					return nil, feov.Errorf(feov.Validation, "motion petition file: %q is not a petition class", seat.Str(cmd, flags.Class))
+					return nil, feov.Errorf(feov.Validation, "%q is not a petition class", seat.Str(cmd, flags.Class))
 				}
 				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
@@ -133,7 +133,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 				// reader can act on.
 				//
 				// Loud here, because the alternative is a record that looks written.
-				return nil, feov.Errorf(feov.Conflict, "motion %s file: this binary knows the subject and has no filing arm for it — the schema and the CLI have diverged, and writing the motion would record an ask with no substance", subject)
+				return nil, feov.Errorf(feov.Conflict, "this binary knows the subject and has no filing arm for it — the schema and the CLI have diverged, and writing the motion would record an ask with no substance")
 			}
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				body.Relief = proto.String(r)
@@ -264,7 +264,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			// No runtime gavel check: this verb exists only in the gavel-holder's tree
 			// (NewCommandFor), so a seat that cannot rule this subject cannot name the command —
 			// the same boundary the verb set draws everywhere else.
-			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
+			opinion, err := prose(cmd, "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
 			if err != nil {
 				return nil, err
 			}
@@ -283,25 +283,25 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
 				v, ok := enumOf[recordpb.GradeRuling](recordpb.GradeRuling(0).Descriptor(), word)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "motion grade rule: --as %q is not a ruling on a grade motion", word)
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a grade motion", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Grade{Grade: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 				v, ok := enumOf[recordpb.PetitionRuling](recordpb.PetitionRuling(0).Descriptor(), word)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "motion petition rule: --as %q is not a ruling on a petition", word)
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
 				v, ok := enumOf[recordpb.AvenueRuling](recordpb.AvenueRuling(0).Descriptor(), word)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "motion avenue rule: --as %q is not a ruling on a direction", word)
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a direction", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Avenue{Avenue: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "motion docket rule: --as %q is not a disposition", word)
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a disposition", word)
 				}
 				dr := &recordpb.DocketRuling{
 					Disposition: &d,
@@ -329,7 +329,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				// The ruling half of the same silence: no arm leaves Ruling nil, `rulingWord`
 				// returns "", and record.go refuses — but naming the SUBJECT rather than the
 				// word is what tells the reader the binary is behind its own schema.
-				return nil, feov.Errorf(feov.Conflict, "motion %s rule: this binary knows the subject and has no ruling arm for it — the schema and the CLI have diverged", subject)
+				return nil, feov.Errorf(feov.Conflict, "this binary knows the subject and has no ruling arm for it — the schema and the CLI have diverged")
 			}
 			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
@@ -337,7 +337,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			if w := seat.Str(cmd, flags.Binds); w != "" {
 				b, ok := enumOf[recordpb.RulingBinds](recordpb.RulingBinds(0).Descriptor(), w)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "motion %s rule: %q is not an addressee the relief can bind", subject, w)
+					return nil, feov.Errorf(feov.Validation, "%q is not an addressee the relief can bind", w)
 				}
 				body.Binds = &b
 			}

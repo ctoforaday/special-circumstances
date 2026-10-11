@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -81,7 +82,11 @@ func failureEntry(tool string, input json.RawMessage, errText string) (string, b
 	}
 	// THE RECORD TOOL'S OWN REFUSAL, in either of its forms: the human line it prints under its own
 	// name, or the JSON envelope --json gets. It is already on the log as a `refusal`.
-	if strings.HasPrefix(first, hookgate.RecordBin+": ") || strings.HasPrefix(first, `{"ok":false`) {
+	//
+	// THE ENVELOPE IS DECODED, by the declaration the tool writes it from — never matched on its
+	// opening bytes. A prefix recognises whatever happens to start that way and stops recognising
+	// the tool's own refusal the day a key is added in front.
+	if _, own := feov.DecodeRefusal(first); own || strings.HasPrefix(first, hookgate.RecordBin+": ") {
 		return "", false
 	}
 	var ti struct {

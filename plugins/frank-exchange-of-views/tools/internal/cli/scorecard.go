@@ -40,7 +40,7 @@ func newScorecard() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Resolved so the injected run reaches reads too, not only writes.
-			run, rerr := seat.Of(cmd).RequireRun("scorecard")
+			run, rerr := seat.Of(cmd).RequireRun()
 			if rerr != nil {
 				return rerr
 			}
@@ -48,7 +48,7 @@ func newScorecard() *cobra.Command {
 			cards := scorecard.Cards
 			if cmd.Flags().Changed(flags.Card) {
 				if !isCard(card) {
-					// RETURNED, NOT EXITED: Execute renders a refusal through EmitTopLevelError, so
+					// RETURNED, NOT EXITED: Execute renders a refusal through seat.RenderRefusal, so
 					// a --json caller gets an envelope naming the bad flag.
 					return feov.Errorf(feov.Validation, "--%s %q is not a scorecard: the cards are %s (omit --%s to print all three). usage: %s scorecard --run <dir> [--%s red|blue|bench]",
 						flags.Card, card, cardList(), flags.Card, InvokedAs(), flags.Card)

@@ -96,7 +96,7 @@ func (m spliceMut) apply(text string) (string, error) {
 		}
 		return ApplySplice(text, start, end, m.new), nil
 	}
-	start, end, err := bluedoc.LocateUniqueReplacing("render", text, m.old)
+	start, end, err := bluedoc.LocateUniqueReplacing(text, m.old)
 	if err != nil {
 		return "", err
 	}

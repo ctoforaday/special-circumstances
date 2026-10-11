@@ -127,7 +127,7 @@ func checkedPage(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) erro
 	page, _ := cmd.Flags().GetInt(flags.Page)
 	if len(pages) == 0 {
 		if given {
-			return feov.Errorf(feov.Validation, "lens verify: --page names a page image, and citation %s has no pages — its text is not a quote located in an OCR reading, so there is no image to check", body.GetAnchor())
+			return feov.Errorf(feov.Validation, "--page names a page image, and citation %s has no pages — its text is not a quote located in an OCR reading, so there is no image to check", body.GetAnchor())
 		}
 		return nil
 	}
@@ -136,21 +136,21 @@ func checkedPage(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) erro
 		if seat.Str(cmd, flags.As) == recordpb.Word(recordpb.SourceOutcome_SOURCE_OUTCOME_UNREACHABLE) {
 			return nil
 		}
-		return feov.Errorf(feov.Validation, "lens verify: citation %s quotes OCR text found on PDF %s, and the reading may be what is wrong — draw one of those pages with `render-page --sha %s --page %d`, check the image, and pass that page as --page", body.GetAnchor(), pageList(pages), sha, pages[0])
+		return feov.Errorf(feov.Validation, "citation %s quotes OCR text found on PDF %s, and the reading may be what is wrong — draw one of those pages with `render-page --sha %s --page %d`, check the image, and pass that page as --page", body.GetAnchor(), pageList(pages), sha, pages[0])
 	}
 	if !containsPage(pages, page) {
-		return feov.Errorf(feov.Validation, "lens verify: --page %d is not a page citation %s's quote was found on (PDF %s) — check one of those", page, body.GetAnchor(), pageList(pages))
+		return feov.Errorf(feov.Validation, "--page %d is not a page citation %s's quote was found on (PDF %s) — check one of those", page, body.GetAnchor(), pageList(pages))
 	}
 	img, err := os.ReadFile(fetchcache.PageImagePath(run, sha, page))
 	if err != nil {
-		return feov.Errorf(feov.Validation, "lens verify: no image of page %d is on disk — draw it first with `render-page --sha %s --page %d`", page, sha, page)
+		return feov.Errorf(feov.Validation, "no image of page %d is on disk — draw it first with `render-page --sha %s --page %d`", page, sha, page)
 	}
 	rec, had, err := fetchcache.ReadReadingRecord(run, sha)
 	if err != nil {
 		return err
 	}
 	if !had || page > len(rec.RenderShas) {
-		return feov.Errorf(feov.Validation, "lens verify: the reading citation %s was located in is gone from the cache — `fetch --url %s` re-derives it", body.GetAnchor(), cite.GetUrl())
+		return feov.Errorf(feov.Validation, "the reading citation %s was located in is gone from the cache — `fetch --url %s` re-derives it", body.GetAnchor(), cite.GetUrl())
 	}
 	body.Page = proto.Int32(int32(page))
 	body.PageRenderSha = proto.String(fetchcache.Sha(img))
@@ -270,7 +270,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	if w := seat.Str(cmd, flags.As); w != "" {
 		o, ok := record.SourceOutcomeOf(w)
 		if !ok {
-			return nil, feov.Errorf(feov.Validation, "lens verify: %q is not a source outcome this record can carry", w)
+			return nil, feov.Errorf(feov.Validation, "%q is not a source outcome this record can carry", w)
 		}
 		body.Outcome = &o
 		// SILENCE IN AN ABSTRACT IS NOT SILENCE IN THE WORK. `absent` says the claim is not in the
@@ -279,7 +279,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// the same rule the retraction stamp below keeps.
 		if o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT {
 			if e, _, ok, lerr := fetchcache.Lookup(run, body.GetUrl()); lerr == nil && ok && e.WithoutBody() {
-				return nil, feov.Errorf(feov.Validation, "lens verify: the copy of %s this run holds is %s — %s. "+
+				return nil, feov.Errorf(feov.Validation, "the copy of %s this run holds is %s — %s. "+
 					"Its silence is not the work's, so absent cannot be established from it; record what the copy does "+
 					"establish, or find a copy that carries the body", body.GetUrl(), e.Completeness, e.CompletenessReason)
 			}
@@ -288,7 +288,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	if w := seat.Str(cmd, flags.Confidence); w != "" {
 		cf, ok := record.ConfidenceOf(w)
 		if !ok {
-			return nil, feov.Errorf(feov.Validation, "lens verify: %q is not a confidence this record can carry", w)
+			return nil, feov.Errorf(feov.Validation, "%q is not a confidence this record can carry", w)
 		}
 		body.Confidence = &cf
 	}
@@ -344,7 +344,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		} else if prior != "" {
 			// The corroboration and its anchor are two appends; a retry finishes the pair at the
 			// claim the corroboration stored.
-			if err := seat.PlaceOwed(s, run, "lens corroborate", prior, ""); err != nil {
+			if err := seat.PlaceOwed(s, run, prior, ""); err != nil {
 				return nil, err
 			}
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
@@ -420,9 +420,9 @@ func corroborateRefusal(err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
 		return feov.Errorf(feov.Validation,
-			"lens corroborate: the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
+			"the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
 	case errors.Is(err, anchortext.ErrInFence):
-		return feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
+		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — corroborate a prose sentence, not code")
 	}
-	return anchortext.Refusal("lens corroborate", err)
+	return anchortext.Refusal(err)
 }

@@ -13,7 +13,7 @@ import (
 // `sitting.open` and `sitting.complete`, and `sitting` is a real top-level key.
 //
 // What the six actually did was read a description shouting STRUCTURED JSON, reach for the
-// tool's `--json` flag, and receive a REFUSAL — `{"ok":false,"code":…,"error":…}` at exit 2 —
+// tool's `--json` flag, and receive a REFUSAL — an object with `"ok":false` at exit 2 —
 // which parses exactly as well as the projection does. Piped into python, the refusal's advice
 // never arrived; it surfaced as a missing key.
 //

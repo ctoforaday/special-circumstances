@@ -49,7 +49,7 @@ func newEdit() *cobra.Command {
 			return nil, err
 		}
 		if strings.TrimSpace(reason) == "" {
-			return nil, fmt.Errorf("blue edit requires --reason: why this change (the argument red re-audits against)")
+			return nil, fmt.Errorf("requires --reason: why this change (the argument red re-audits against)")
 		}
 		oldStr := seat.Str(cmd, flags.Quote)
 		newStr := seat.Str(cmd, flags.New)
@@ -78,29 +78,29 @@ func newEdit() *cobra.Command {
 		}
 		if accepting {
 			if gapID == "" {
-				return nil, fmt.Errorf("blue edit --accept needs --answers: the gap whose prescribed fix you are accepting")
+				return nil, fmt.Errorf("--accept needs --answers: the gap whose prescribed fix you are accepting")
 			}
 			if oldStr != "" || newStr != "" {
-				return nil, fmt.Errorf("blue edit --accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
+				return nil, fmt.Errorf("--accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
 			}
 			loc, fix, found, err := record.Proposal(run, gapID, peek)
 			if err != nil {
 				return nil, err
 			}
 			if !found {
-				return nil, fmt.Errorf("blue edit --accept: no gap %s on the board", gapID)
+				return nil, fmt.Errorf("--accept: no gap %s on the board", gapID)
 			}
 			if strings.TrimSpace(fix) == "" {
-				return nil, fmt.Errorf("blue edit --accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
+				return nil, fmt.Errorf("--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
 			}
 			oldStr, newStr = loc, fix
 		}
 
 		if oldStr == "" {
-			return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
+			return nil, fmt.Errorf("requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
 		}
 		if oldStr == newStr {
-			return nil, fmt.Errorf("blue edit: --old and --new are identical — no change to make")
+			return nil, fmt.Errorf("--old and --new are identical — no change to make")
 		}
 		key := seat.Str(cmd, flags.Key)
 
@@ -130,7 +130,7 @@ func newEdit() *cobra.Command {
 			// but a gap minted before it did can still carry one, and calling it stale would send blue
 			// to hunt for a change in the report that never happened.
 			if accepting && errors.Is(err, reportproj.ErrNoChange) {
-				return nil, fmt.Errorf("blue edit --accept: the fix recorded on %s changes nothing — applied to the report as it stands, "+
+				return nil, fmt.Errorf("--accept: the fix recorded on %s changes nothing — applied to the report as it stands, "+
 					"it leaves every byte where it is (%w). There is nothing to accept. If the defect red named is still there, write the "+
 					"edit yourself with --quote and --new; if it is not, argue that on the gap", gapID, err)
 			}
@@ -140,7 +140,7 @@ func newEdit() *cobra.Command {
 			// located, the accepted pair carries the run the gap's anchor stands in, and red's text
 			// has no word-for-word sentence to put the citation back on.
 			if accepting {
-				return nil, fmt.Errorf("blue edit --accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
+				return nil, fmt.Errorf("--accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
 					"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
 			}
 			return nil, err
@@ -241,12 +241,12 @@ func planEdit(report, old, new string) (string, string, bool, error) {
 	// the one red actually flagged — becomes uneditable, while the unanchored one edits fine. And
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
 	// not a corner. PlanSplice runs AnchorsTransitUnchanged on whichever span it takes.
-	next, applied, exact, err := reportproj.PlanSplice("blue edit", report, old, new)
+	next, applied, exact, err := reportproj.PlanSplice(report, old, new)
 	if err != nil {
 		return "", "", false, err
 	}
 	if dropped := droppedMarker(report, next); dropped != "" {
-		return "", "", false, fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
+		return "", "", false, fmt.Errorf("internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
 	return next, applied, exact, nil
 }
@@ -280,7 +280,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 	// Here and not in PlanSplice: `lens mint` checks a prescription before the gap's anchor stands,
 	// and the pair --accept sends carries that run (record.Proposal), so it is never stay-put.
 	// A literal span holds the terminator, and a run past a terminator is on no sentence of the span.
-	if start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old); err == nil && !exact {
+	if start, end, err := bluedoc.LocateUniqueReplacing(report, old); err == nil && !exact {
 		if run, punct := bluedoc.AbuttingRun(report, end); run != "" && punct == 0 && claimcount.HasProse(applied) {
 			at := start + len(applied)
 			for _, sp := range anchor.Sentences(report[:start] + applied + report[end:]) {
@@ -291,7 +291,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 				for _, id := range anchor.IDs(run) {
 					labels = append(labels, anchor.Label(id))
 				}
-				return "", "", false, fmt.Errorf("blue edit: your quote stops before %s. An anchor the quote leaves out stays where it stands, on the text that precedes it, "+
+				return "", "", false, fmt.Errorf("your quote stops before %s. An anchor the quote leaves out stays where it stands, on the text that precedes it, "+
 					"and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. "+
 					"To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes",
 					strings.Join(labels, ", "))
@@ -299,7 +299,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 		}
 	}
 	if run := reportproj.DoubledTerminator(report, planned); run != "" {
-		return "", "", false, fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
+		return "", "", false, fmt.Errorf("this replacement would leave %q in the report — a punctuation run the document did not have. "+
 			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --quote names stops SHORT of the "+
 			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
 			"how a repair makes the document strictly worse while reading as applied. The quote as written, punctuation included, "+
@@ -327,7 +327,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 // kept as it was all apply — the last is how a seat says the run belongs where it stands: reword
 // the sentence in one edit, add the others in a second that keeps it.
 func bunchedRun(report, old, applied string, exact bool) (run []string, was int, now []string) {
-	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
+	start, end, err := bluedoc.LocateUniqueReplacing(report, old)
 	if exact {
 		start, end, _, _ = bluedoc.LocateLiteral(report, old)
 	} else if err != nil {
@@ -391,7 +391,7 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 		return string(r)
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "blue edit: your replacement holds %d sentences where the text it replaces holds %d, and it carries the %d anchors that stood at the end of that text to the end of its last sentence. "+
+	fmt.Fprintf(&b, "your replacement holds %d sentences where the text it replaces holds %d, and it carries the %d anchors that stood at the end of that text to the end of its last sentence. "+
 		"An anchor belongs on the sentence that holds its claim, and a run at a sentence's end does not say which sentence that is now. What each one marks, from the record:\n", len(now), was, len(ids))
 	for _, id := range ids {
 		about := ""

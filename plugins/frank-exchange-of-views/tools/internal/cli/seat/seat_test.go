@@ -180,7 +180,7 @@ func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
 
 	// RequireRun answers the refusal itself, not a generic "required": a seat that DID pass
 	// --run and is told to pass --run looks somewhere it has no power.
-	got, err := s.RequireRun("show")
+	got, err := s.RequireRun()
 	if err == nil {
 		t.Fatalf("RequireRun returned %q with no error", got)
 	}
@@ -192,7 +192,7 @@ func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
 	}
 
 	// And the ordinary empty case still says what it always said.
-	empty, err := Context{}.RequireRun("show")
+	empty, err := Context{}.RequireRun()
 	if err == nil || !strings.Contains(err.Error(), "--run <runDir> is required") {
 		t.Errorf("Context{}.RequireRun = (%q, %v), want the missing-run message", empty, err)
 	}

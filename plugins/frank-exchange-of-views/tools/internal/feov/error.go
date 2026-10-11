@@ -11,8 +11,8 @@
 // that does not exist, a seat acting out of role, a required field left off — earn a code.
 // The enum below IS the taxonomy; it grows here and nowhere else.
 //
-// This is a LEAF package (imports only fmt/errors) so both record (which raises) and the CLI
-// edge (which reads) can import it without a cycle.
+// This is a LEAF package (it imports the standard library only) so record (which raises), the
+// CLI edge (which reads) and the hooks (which recognise a refusal) can import it without a cycle.
 package feov
 
 import (

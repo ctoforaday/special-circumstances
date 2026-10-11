@@ -228,13 +228,11 @@ func tracked(bin string, args ...string) ([]byte, error) {
 // inproc drives the SAME cobra tree in this process, reproducing what the binary does around it.
 //
 // It is not a shortcut past the tool: NewRootFor resolves the seat's tree exactly as newRoot does,
-// ExecuteRoot is the function main() calls, and EmitTopLevelError is the envelope a refusal that
-// never reached seat.Emit gets. Both are exported for precisely this reason, and internal/cli's own
-// harness has driven the tree this way — under t.Parallel — since before this sweep existed.
+// and cli.Invoke is what main() calls — the refusal that answers a command nobody holds, the tree,
+// and the one renderer a refusal leaves through. It is exported for precisely this reason, and
+// internal/cli's own harness drives the tree the same way, under t.Parallel.
 //
-// WHAT IT DOES NOT REPRODUCE, stated so nobody reads it as equivalent: refuseUnknownCommandFirst
-// (unexported, and only answers argv naming a command that does not exist — which a read-only
-// sweep never sends) and os.Exit.
+// WHAT IT DOES NOT REPRODUCE, stated so nobody reads it as equivalent: os.Exit.
 //
 // THE os.Exit CAVEAT USED TO BE AN EXCLUSION AND IS NOW A RULE ABOUT THE PRODUCT. `dashboard` and
 // `scorecard` answered a bad argv by printing a usage line and exiting from inside their cobra
@@ -249,11 +247,7 @@ func inproc(args ...string) ([]byte, error) {
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
-	root.SetArgs(args)
-	err := cli.ExecuteRoot(root)
-	if err != nil {
-		cli.EmitTopLevelError(&out, args, err)
-	}
+	_, err := cli.Invoke(root, args, seatOfArgs(args))
 	noteInProc(args, err, out.Bytes())
 	return out.Bytes(), err
 }

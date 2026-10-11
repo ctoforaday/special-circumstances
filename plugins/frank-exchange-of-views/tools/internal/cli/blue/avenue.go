@@ -147,7 +147,7 @@ func newAvenueMove() *cobra.Command {
 		}
 		st, known := record.AvenueStatusOf(seat.Str(cmd, flags.As))
 		if !known {
-			return nil, feov.Errorf(feov.Validation, "blue avenue: %q is not a fate an avenue can take", seat.Str(cmd, flags.As))
+			return nil, feov.Errorf(feov.Validation, "%q is not a fate an avenue can take", seat.Str(cmd, flags.As))
 		}
 		body := &recordpb.Avenue{
 			AvenueId:         proto.String(id),

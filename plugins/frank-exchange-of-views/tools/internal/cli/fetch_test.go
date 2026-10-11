@@ -209,8 +209,8 @@ func TestFetchFailureIsANonZeroErrorNotALogEntry(t *testing.T) {
 	if err == nil {
 		t.Fatal("fetch of an unreachable URL returned nil error")
 	}
-	if !strings.Contains(err.Error(), "fetch:") {
-		t.Errorf("error = %v, want a fetch-prefixed message", err)
+	if !strings.Contains(err.Error(), "host unreachable") {
+		t.Errorf("error = %v, want the fetch failure itself", err)
 	}
 	// fetch takes no seat and writes no event — so nothing (least of all a log entry) is
 	// on the record. The records dir is never even created by a bare read.

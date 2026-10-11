@@ -27,8 +27,12 @@ func TestAFailedCallBecomesTheSeatsFailureEntry(t *testing.T) {
 			[]string{"`Read` failed on `/run/references/catechism_template.md`", "File does not exist."}},
 		{"the record tool's own refusal is its entry, not this", "Bash", `{"command":"feov-record avenue move --key AV1"}`,
 			"Exit code 2\nfeov-record: unknown flag: --key", nil},
-		{"and its --json refusal too", "Bash", `{"command":"feov-record --json mint"}`,
-			"Exit code 2\n{\"ok\":false,\"code\":\"validation\",\"error\":\"…\"}", nil},
+		{"another tool's JSON failure is a failure", "Bash", `{"command":"some-tool --json"}`,
+			"Exit code 2\n{\"ok\":false}",
+			[]string{"`Bash` failed on `some-tool --json`", `{"ok":false}`}},
+		{"and so is an object that is not the envelope the record tool writes", "Bash", `{"command":"some-tool --json"}`,
+			"Exit code 2\n{\"ok\":false,\"code\":\"validation\",\"error\":\"x\"}",
+			[]string{"`Bash` failed on `some-tool --json`"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, ok := failureEntry(tc.tool, json.RawMessage(tc.input), tc.err)

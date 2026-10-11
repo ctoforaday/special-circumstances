@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -17,6 +18,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -89,6 +92,14 @@ func cutPrefix(s, p string) (string, bool) {
 
 func run(t *testing.T, args ...string) (stdout string, err error) {
 	t.Helper()
+	stdout, _, err = runSeen(t, args...)
+	return stdout, err
+}
+
+// runSeen is run with the stderr the binary would have written: the one line a refusal is in its
+// human form. A refusal's --json form is on stdout, as the binary puts it.
+func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
+	t.Helper()
 	// Output goes through cmd.OutOrStdout(), so a buffer set on the root captures every
 	// verb's stdout — no os.Stdout swap, no pipe. Errors are returned (SilenceErrors), so
 	// stderr carries nothing the tests read.
@@ -114,29 +125,40 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	}
 	seatID := testDispatchedSeat(args)
 	root := NewRootFor(seatID)
-	var out bytes.Buffer
+	var out, errOut bytes.Buffer
 	root.SetOut(&out)
-	root.SetErr(&out)
-	root.SetArgs(args)
-	// THE HARNESS REPRODUCES THE BINARY, and this pre-check is part of it: Execute runs
-	// refuseUnknownCommandFirst before cobra parses anything, so a command named by a caller with
-	// no identity is answered about the identity rather than about its flags.
-	if err = refuseUnknownCommandNoted(root, append([]string{"feov-record"}, args...), seatID); err == nil {
-		err = ExecuteRoot(root)
-	}
-	// THE HARNESS REPRODUCES THE BINARY. A flag-PARSE refusal never reaches seat.Emit, so
-	// Execute() renders it as a --json envelope itself; a harness that skipped that step would
-	// measure a wire shape the binary does not produce.
+	root.SetErr(&errOut)
+	// THE HARNESS REPRODUCES THE BINARY by calling what the binary calls: Invoke is the pre-parse
+	// refusal, the tree and the one renderer, in the binary's own order, so a refusal here is in
+	// the shape and on the stream the binary gives it.
+	leaf, err := Invoke(root, args, seatID)
 	assertRefusalSpeaksToItsSeat(t, seatID, root, err)
 	if err != nil {
-		EmitTopLevelError(&out, args, err)
-	} else {
+		// BOTH FORMS. The envelope's sentence is not the human one where a help page is named
+		// instead of printed, so it is read against the receiving seat's tree as well.
+		assertRefusalSpeaksToItsSeat(t, seatID, root, errors.New(seat.EnvelopeOf(leaf, err).Error))
+	}
+	assertRefusalNamesItsCommandOnce(t, leaf, err)
+	if err == nil {
 		refuseAnUnreadReason(t, root, args)
 	}
-	// The error is STILL RETURNED. The binary exits 2 whether or not it rendered an envelope, so
-	// "this call failed" stays true for the tests that assert a refusal; the envelope is an
-	// additional rendering, not a substitute for the failure.
-	return out.String(), err
+	// The error is STILL RETURNED. The binary exits 2 whenever it rendered a refusal, so "this call
+	// failed" stays true for the tests that assert one.
+	return out.String(), errOut.String(), err
+}
+
+// assertRefusalNamesItsCommandOnce reads a refusal `run` returned against the command that
+// resolved: its diagnosis starts at what is wrong, never at the role or the path the renderer
+// already prints (refusalonce_test.go).
+func assertRefusalNamesItsCommandOnce(t *testing.T, leaf *cobra.Command, err error) {
+	t.Helper()
+	if err == nil || leaf == nil {
+		return
+	}
+	if head := ownHeadOf(leaf, seat.Diagnosis(err)); head != "" {
+		t.Errorf("the refusal of `%s` opens with %q, which the renderer already prints from the command — "+
+			"the diagnosis starts at what is wrong.\n\nrefusal: %v", leaf.CommandPath(), head, seat.Diagnosis(err))
+	}
 }
 
 // seedBlueReport writes a blue/report.md whose prose contains the quoted sentences
@@ -261,7 +283,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-evidence"}, "lens: --run <runDir> is required"},
+		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-evidence"}, "--run <runDir> is required"},
 		// WITHOUT AN IDENTITY THERE IS NO TREE, so the refusal is about the identity rather
 		// than about the verb. That is the contract now: the surface is scoped to whoever is
 		// asking, and nothing can be shown — or refused — until that is answered.
@@ -271,12 +293,12 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		// them measures whichever refusal fires first rather than the one it is named for.
 		{"lens mint without --run", []string{"mint", "--seat-id", "red-lens-evidence",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--severity", "medium", "--likelihood", "medium",
-			"--class", "x", "--problem", "p"}, "lens: --run <runDir> is required"},
+			"--class", "x", "--problem", "p"}, "--run <runDir> is required"},
 		{"mint with no identity at all", []string{"mint", "--run", "X",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--severity", "medium", "--likelihood", "medium",
 			"--class", "x", "--problem", "p"}, "--seat-id IS REQUIRED HERE"},
 		{"blue log without --run", []string{"log", "--seat-id", "blue-lane-1", "--type", "defect",
-			"--reason", "what got in the way"}, "blue: --run <runDir> is required"},
+			"--reason", "what got in the way"}, "--run <runDir> is required"},
 		{"opinion with no identity at all", []string{"opinion", "--run", "X",
 			"--id", "G1", "--as", "remanded", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},

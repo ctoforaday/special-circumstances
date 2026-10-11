@@ -148,7 +148,7 @@ func Log() *cobra.Command {
 		// a second.
 		lt, ok := record.LogTypeOf(word)
 		if !ok {
-			return nil, fmt.Errorf("record: %q is not a log type this record can carry", word)
+			return nil, fmt.Errorf("%q is not a log type this record can carry", word)
 		}
 		// NO SEAT-SIDE FACET CHECK HERE EITHER. The invariant that holds for every writer — a
 		// tool-only word carries source=TOOL — lives at the record's write path, where the
@@ -181,7 +181,7 @@ func Position(key string) *cobra.Command {
 		// the refusal names are the predicate's, so it never points at one the write path refuses.
 		if !record.SeatOwesPosition(s.SeatID) {
 			return nil, feov.Errorf(feov.RoleViolation,
-				"position is the act of %s — the seats that argue before the bench. A %s sitting files none: it argues in what it writes, and nothing is owed here",
+				"a position is the act of %s — the seats that argue before the bench. A %s sitting files none: it argues in what it writes, and nothing is owed here",
 				record.PositionSeats(), s.SeatID)
 		}
 		text, err := Reason(cmd)
@@ -379,8 +379,9 @@ func viewIsJSONByName(name string) bool {
 // stdout, which a pipeline reads as data unless it checks `ok`. So the note says both halves — the
 // flag is harmless on success, and the error it can still get parses — rather than "changes
 // nothing", which an independent review measured false on the error path.
-const jsonByNameWarning = "\n\nTHIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. " +
-	"On an ERROR it prints a JSON envelope ({\"ok\":false,…}) on stdout, so a pipeline must check `ok` before reading keys."
+var jsonByNameWarning = "\n\nTHIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. " +
+	"On an ERROR it prints a JSON envelope on stdout — one object whose keys are " + strings.Join(feov.RefusalKeys(), ", ") +
+	", with `ok` false — so a pipeline must check `ok` before reading keys."
 
 // ShapeOf is the value a projection's documented OUTPUT tree is generated from, or nil for a view
 // with no JSON form. Exported so a test can hold what the view EMITS to that same type — the
@@ -484,8 +485,8 @@ func viewGroup(inquest bool) *cobra.Command {
 	c.Args = cobra.ArbitraryArgs
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
-			return RefuseAndTeach(cmd, fmt.Sprintf(
-				"no projection named %q. The ones below are the whole set, and each names the verb that fills it.", args[0]))
+			return RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf(
+				"no projection named %q — this reads one projection at a time, and each is listed with the verb that fills it.", args[0]))
 		}
 		// The seat's own default — its pending work and whether the sitting is finished.
 		return renderView(cmd, "")
@@ -593,7 +594,7 @@ func evidenceAt(run record.Run, id string) ([]byte, error) {
 	if at.Proof != nil {
 		file, script, output, err := proof.Stored(run.Dir(), at.Proof.Sha256)
 		if err != nil {
-			return nil, fmt.Errorf("show evidence: %w", err)
+			return nil, err
 		}
 		at.Proof.ScriptFile, at.Proof.Script, at.Proof.RecordedOutput = file, string(script), string(output)
 	}
@@ -612,7 +613,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// could record all sitting and then be told its board did not exist. Measured with the
 	// identity injected: register and two write verbs all succeeded; `show`
 	// demanded the flag.
-	run, rerr := Of(cmd).RequireRun(role)
+	run, rerr := Of(cmd).RequireRun()
 	if rerr != nil {
 		return rerr
 	}
@@ -627,7 +628,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// 0, which is precisely the failure the paragraph above describes. A guard is only a guard
 	// at the point the request arrives.
 	if scope := Str(cmd, flags.ID); scope != "" && want != "changes" && want != "" {
-		return fmt.Errorf("%s show: --id scopes `show changes` and nothing else; `show %s` has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
+		return fmt.Errorf("--id scopes `show changes` and nothing else; the %s view has no scoped form, and answering it unscoped would hand you a different question's answer", want)
 	}
 	if want == "" {
 		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
@@ -657,7 +658,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// it asked for two forms at once.
 	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON && viewIsJSONByName(want) {
 		if f, _ := cmd.Flags().GetString(flags.Format); f == "markdown" || f == "md" {
-			return feov.Errorf(feov.Validation, "%s show: show %s --json asks for the JSON this view already is, and --format %s asks for its markdown — pass one", role, want, f)
+			return feov.Errorf(feov.Validation, "--json asks for the JSON the %s view already is, and --format %s asks for its markdown — pass one", want, f)
 		}
 	} else if asJSON {
 		switch want {
@@ -702,7 +703,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		// contract test's own comment records a stale name surviving in a list like this
 		// while the assertion read as coverage.
 		case "":
-			return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
+			return RefuseAndTeach(showGroup(cmd), feov.MissingField, "name a projection — this reads one at a time, and each is listed with the verb that fills it.")
 		// THE REPORT'S JSON IS ITS OWN LINES, selected by the flags its markdown takes, so it is
 		// served where those flags are read — the report arm below. It was the one view the shared
 		// --json flag was advertised on and refused: 13 refusals on universe m18 and 7 on m17,
@@ -712,7 +713,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		default:
 			// EVERY PROJECTION HAS A JSON FORM, so nothing in the table reaches this; a view added
 			// without one is refused by name rather than answered in a form the seat did not ask for.
-			return fmt.Errorf("%s show: show %s has no --json form", role, want)
+			return fmt.Errorf("the %s view has no --json form", want)
 		}
 	}
 
@@ -764,7 +765,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			cmd.OutOrStdout().Write(arc)
 			return nil
 		default:
-			return feov.Errorf(feov.Validation, "show board: unknown --format %q (json | markdown) — "+
+			return feov.Errorf(feov.Validation, "unknown --format %q (json | markdown) — "+
 				"name one of the two; an unrecognised format is refused rather than rendered as the default, where a typo would be invisible", f)
 		}
 		b, err := record.BoardJSONBytes(run)
@@ -824,7 +825,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if sel, serr := SelectorOf(cmd); serr != nil {
 				return serr
 			} else if sel.Active() {
-				return feov.Errorf(feov.Validation, "show report: --anchor reads the report at one anchor, and --match/--quote select lines from the whole report — pass one or the other")
+				return feov.Errorf(feov.Validation, "--anchor reads the report at one anchor, and --match/--quote select lines from the whole report — pass one or the other")
 			}
 			// AN ANCHOR THAT LEFT WITH ITS CLAIM IS NOT STALE. `retire` takes a bare anchor out
 			// of the report on the record; saying "stale reference or another run" of it would send
@@ -835,7 +836,7 @@ func renderView(cmd *cobra.Command, want string) error {
 					return err
 				}
 				if found {
-					return fmt.Errorf("show report: anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (blue's `retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
+					return fmt.Errorf("anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (blue's `retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
 						a, claim, ev)
 				}
 			}
@@ -855,7 +856,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		// is simply that long — the same shape as `--format banana` rendering JSON and exiting
 		// 0, one branch up.
 		if cmd.Flags().Changed(flags.Window) {
-			return feov.Errorf(feov.Validation, "show report: --window sizes a window and there is no window without --anchor <id>. "+
+			return feov.Errorf(feov.Validation, "--window sizes a window and there is no window without --anchor <id>. "+
 				"Either name the anchor you are reading at, or drop --window and take the whole report")
 		}
 		// SELECTED LINES, WITH WHAT IT TAKES TO CITE THEM. A seat hunting an undiscovered defect has
@@ -909,7 +910,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if sel, serr := SelectorOf(cmd); serr != nil {
 				return serr
 			} else if sel.Active() {
-				return feov.Errorf(feov.Validation, "show evidence: --anchor reads the one entry at an anchor, and --match/--quote select entries from the table — pass one or the other")
+				return feov.Errorf(feov.Validation, "--anchor reads the one entry at an anchor, and --match/--quote select entries from the table — pass one or the other")
 			}
 			b, err := evidenceAt(run, a)
 			if err != nil {
@@ -953,7 +954,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		return WriteSelected(cmd, b)
 	}
 	if want == "" {
-		return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
+		return RefuseAndTeach(showGroup(cmd), feov.MissingField, "name a projection — this reads one at a time, and each is listed with the verb that fills it.")
 	}
 	known := false
 	for _, v := range views {
@@ -967,7 +968,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		// leaving it to guess which one holds what it wants. The menu is COBRA'S — every view
 		// is a real subcommand with its own Short, so the framework already renders this list
 		// and renders it the same way everywhere.
-		return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: unknown view %q. Each below names the verb that fills it", role, want))
+		return RefuseAndTeach(showGroup(cmd), feov.Validation, fmt.Sprintf("unknown view %q — each view is listed with the verb that fills it.", want))
 	}
 
 	scope := Str(cmd, flags.ID)
@@ -1163,7 +1164,7 @@ func AppendPlaced(s Context, act proto.Message, id, loc string) error {
 //
 // Its refusal is its own, never the verb's first-call wording: that wording teaches a seat to fix
 // --quote, and a retry places the stored location whatever --quote says.
-func PlaceOwed(s Context, run record.Run, verb, id, key string) error {
+func PlaceOwed(s Context, run record.Run, id, key string) error {
 	loc, err := record.UnplacedLocation(run, id)
 	if err != nil || loc == "" {
 		return err
@@ -1176,10 +1177,10 @@ func PlaceOwed(s Context, run record.Run, verb, id, key string) error {
 		if key != "" {
 			repeats, anew = fmt.Sprintf("under --key %q", key), fmt.Sprintf(", under a --key other than %q", key)
 		}
-		return fmt.Errorf("%s: the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
+		return fmt.Errorf("the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
 			"A call %s repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. "+
 			"The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote%s",
-			verb, anchor.Kind(id), loc, state, repeats, anew)
+			anchor.Kind(id), loc, state, repeats, anew)
 	}); err != nil {
 		return err
 	}

@@ -32,7 +32,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ log --run {RUN} --seat-id blue-respond --reason no PDF extraction
 exit 2
 stderr:
-feov-record: required flag(s) "type" not set
+feov-record: log: required flag(s) "type" not set
 
 an entry for the operator who can retool you — what it asserts, said in the positive
 

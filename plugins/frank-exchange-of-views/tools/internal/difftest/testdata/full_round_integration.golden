@@ -13,7 +13,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ verify --run {RUN} --seat-id red-lens-evidence --quote claim one --title https://example.invalid/a --trust high --access-date 2026-07-18
 exit 2
 stderr:
-feov-record: unknown flag: --title
+feov-record: verify: unknown flag: --title
 
 judge a citation blue authored, when the anchor exists and you have read what it points at
 

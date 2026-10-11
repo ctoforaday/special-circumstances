@@ -1,7 +1,7 @@
 $ feov-record 
 exit 2
 stderr:
-feov-record: you named no command, so nothing ran. The commands below are the whole surface.
+feov-record: you named no command, so nothing ran.
 
 --seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
 

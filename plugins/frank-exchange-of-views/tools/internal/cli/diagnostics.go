@@ -80,7 +80,7 @@ func newShowDiagnostics() *cobra.Command {
 			}
 			if traj == "" {
 				return feov.Errorf(feov.NotFound,
-					"ops diagnostics: no trajectory found for %s, and it is what carries the help a seat RECEIVED — "+
+					"no trajectory found for %s, and it is what carries the help a seat RECEIVED — "+
 						"the record says what a seat wrote, never what it was shown. Pass --trajectory <path>", run.Dir())
 			}
 			report, err := diagnose(run, traj, sitting)
@@ -103,7 +103,7 @@ func newShowDiagnostics() *cobra.Command {
 				// REFUSED, not rendered as the default. An unknown --format that quietly emits
 				// JSON is the plausible-zero shape wearing a rendering hat: the caller asked for
 				// something the tool does not have and got something that parses.
-				return feov.Errorf(feov.Validation, "ops diagnostics: unknown --format %q (json | markdown)", format)
+				return feov.Errorf(feov.Validation, "unknown --format %q (json | markdown)", format)
 			}
 		},
 	}
@@ -196,14 +196,14 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	if seatID == "" {
 		sort.Strings(registered)
 		return out, feov.Errorf(feov.MissingField,
-			"ops diagnostics: --sitting names whose sitting this trajectory is. A run's record carries every seat "+
+			"--sitting names whose sitting this trajectory is. A run's record carries every seat "+
 				"the BUILD registered (%s), and only one of them sat; reporting them all would credit the rest with "+
 				"an exposure of zero they were never given the chance to earn",
 			strings.Join(dedupeSeats(registered), ", "))
 	}
 	if !slices.Contains(registered, seatID) {
 		return out, feov.Errorf(feov.NotFound,
-			"ops diagnostics: %q has no register in this run, and this report reads registered seats only", seatID)
+			"%q has no register in this run, and this report reads registered seats only", seatID)
 	}
 
 	for _, id := range ids {
@@ -225,7 +225,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 		}
 		if sv.ToolUnrecognised() {
 			return out, feov.Errorf(feov.Validation,
-				"ops diagnostics: the trajectory has %d shell calls and none of them invoke %q, so every survey figure "+
+				"the trajectory has %d shell calls and none of them invoke %q, so every survey figure "+
 					"would read as a seat that ran nothing. Either this trajectory is not a sitting with this tool, or the "+
 					"tool was built under another name", sv.BashCalls, toolName())
 		}

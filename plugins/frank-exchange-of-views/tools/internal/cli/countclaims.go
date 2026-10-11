@@ -40,7 +40,7 @@ func newCountClaims() *cobra.Command {
 			}
 			md, err := reportproj.RenderFromRecord(run)
 			if err != nil {
-				return feov.Errorf(feov.MissingField, "count-claims: cannot read the report: %v", err)
+				return feov.Errorf(feov.MissingField, "cannot read the report: %v", err)
 			}
 			n := claimcount.Count(md)
 

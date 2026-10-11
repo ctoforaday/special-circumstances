@@ -113,7 +113,7 @@ func standingAfter(cmd *cobra.Command) *StandingJSON {
 	if seatID == "" || role == record.OperatorRole {
 		return nil
 	}
-	run, err := Of(cmd).RequireRun(role)
+	run, err := Of(cmd).RequireRun()
 	if err != nil {
 		return &StandingJSON{Unreadable: err.Error()}
 	}

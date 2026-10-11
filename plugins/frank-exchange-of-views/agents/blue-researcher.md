@@ -282,7 +282,7 @@ Global Flags:
       --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
 
 §12 (on 4 pages):
-THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope ({"ok":false,…}) on stdout, so a pipeline must check `ok` before reading keys.
+THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
 §13 (on 2 pages):
 select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut

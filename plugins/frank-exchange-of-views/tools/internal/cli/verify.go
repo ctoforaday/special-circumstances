@@ -41,7 +41,7 @@ func newVerify() *cobra.Command {
 			}
 			fam, err := record.FamilyOf(run)
 			if err != nil {
-				return fmt.Errorf("verify: %w", err)
+				return err
 			}
 			checks := verify.Run(fam)
 			stats := verify.Compute(fam)
@@ -59,7 +59,7 @@ func newVerify() *cobra.Command {
 			}
 
 			if failed := verify.Failed(checks); len(failed) > 0 {
-				return feov.Errorf(feov.Validation, "verify: %d invariant(s) failed", len(failed))
+				return feov.Errorf(feov.Validation, "%d invariant(s) failed", len(failed))
 			}
 			return nil
 		},

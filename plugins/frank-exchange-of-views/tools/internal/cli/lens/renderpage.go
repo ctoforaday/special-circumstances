@@ -34,10 +34,10 @@ func newRenderPage() *cobra.Command {
 			return nil, err
 		}
 		if !ok {
-			return nil, feov.Errorf(feov.Validation, "lens render-page: no cached document has sha %s in %s — take the sha from `show evidence` or the fetch summary", sha, fetchcache.Dir(run))
+			return nil, feov.Errorf(feov.Validation, "no cached document has sha %s in %s — take the sha from `show evidence` or the fetch summary", sha, fetchcache.Dir(run))
 		}
 		if fetchcache.MediaType(entry.ContentType) != "application/pdf" {
-			return nil, feov.Errorf(feov.Validation, "lens render-page: only a PDF has pages, and sha %s is %s", sha, fetchcache.ContentTypeOrUnknown(entry.ContentType))
+			return nil, feov.Errorf(feov.Validation, "only a PDF has pages, and sha %s is %s", sha, fetchcache.ContentTypeOrUnknown(entry.ContentType))
 		}
 		body, err := fetchcache.Read(run, sha)
 		if err != nil {
@@ -54,7 +54,7 @@ func newRenderPage() *cobra.Command {
 		}
 		path, renderSha, _, err := fetchcache.RenderOnePage(run, sha, body, page, dpi)
 		if errors.Is(err, fetchcache.ErrPageOutOfRange) {
-			return nil, feov.Errorf(feov.Validation, "lens render-page: %v", err)
+			return nil, feov.Errorf(feov.Validation, "%v", err)
 		}
 		if err != nil {
 			return nil, err

@@ -1,7 +1,7 @@
 $ mint --seat-id red-lens-evidence
 exit 2
 stderr:
-feov-record: required flag(s) "check", "check-kind", "class", "impact", "likelihood", "severity" not set
+feov-record: mint: required flag(s) "check", "check-kind", "class", "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -100,7 +100,7 @@ Flags:
 $ not-a-verb --run {RUN} --seat-id red-chair
 exit 2
 stderr:
-feov-record: no command named "not-a-verb" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: no command named "not-a-verb" exists, on your surface or on any other seat's, so there is no seat to switch to.
 
 feov-record — the red chair — runs the debate: dispatches, judges the board, carries, spot-checks.
 

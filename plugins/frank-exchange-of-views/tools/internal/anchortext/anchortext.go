@@ -323,21 +323,21 @@ var (
 )
 
 // Refusal is the refusal a placing verb gives for LocateOnce's ambiguity, crossing and word-split
-// sentinels and for ErrOnHeading, prefixed with the verb, so every placer teaches them in the same
+// sentinels and for ErrOnHeading, so every placer teaches them in the same
 // words. ErrMisQuote and ErrInFence, which each verb words for its own quote, come back unchanged.
 //
 // None advises one placement per site: an anchor names one place, and a quote that occurs twice is
 // made unique by the text before it in its paragraph.
-func Refusal(verb string, err error) error {
+func Refusal(err error) error {
 	switch {
 	case errors.Is(err, ErrAmbiguous):
-		return fmt.Errorf("%s: %w in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored", verb, err)
+		return fmt.Errorf("%w in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored", err)
 	case errors.Is(err, ErrCrossesParagraph):
-		return fmt.Errorf("%s: %w, and an anchor sits in one passage: quote text inside one paragraph", verb, err)
+		return fmt.Errorf("%w, and an anchor sits in one passage: quote text inside one paragraph", err)
 	case errors.Is(err, ErrSplitsWord):
-		return fmt.Errorf("%s: %w", verb, err)
+		return err
 	case errors.Is(err, ErrOnHeading):
-		return fmt.Errorf("%s: %w, and an anchor sits on prose, never on a heading: quote a sentence of the section's text", verb, err)
+		return fmt.Errorf("%w, and an anchor sits on prose, never on a heading: quote a sentence of the section's text", err)
 	}
 	return err
 }

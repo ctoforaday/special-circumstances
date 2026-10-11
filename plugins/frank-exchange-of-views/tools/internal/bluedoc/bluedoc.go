@@ -36,13 +36,13 @@ var ErrMisQuote = errors.New("the quoted span was not found in report.md — quo
 
 // LocateUnique resolves the one span `old` names, or explains why it cannot.
 //
-// verb prefixes every message, because the seat's only teacher is the error text and a
-// chair seat told "blue edit: …" learns the wrong command.
+// No message names a command: whichever verb reached this is printed by the tool's renderer,
+// from the command that resolved, so the same refusal reads true on every seat that gets it.
 //
 // AMBIGUITY IS REFUSED, NOT GUESSED. Taking the first of several matches silently edits a
 // site the author may not have meant — and blue is explicitly told to propagate corrections
 // to every site stating a claim, so repeated text is the EXPECTED shape of a real report.
-func LocateUnique(verb, report, old string) (int, int, error) {
+func LocateUnique(report, old string) (int, int, error) {
 	// AN EDIT MAY CROSS A PARAGRAPH BREAK; an anchor may not. Sharing one rule made this verb's
 	// own two refusals jointly unsatisfiable — see anchortext.SpanScope for the measurement.
 	start, end, err := anchortext.LocateOnce(report, old, anchortext.CrossParagraphs)
@@ -50,11 +50,11 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 	case nil:
 		return start, end, nil
 	case anchortext.ErrMisQuote:
-		return 0, 0, fmt.Errorf("%s: %w", verb, ErrMisQuote)
+		return 0, 0, ErrMisQuote
 	case anchortext.ErrAmbiguous:
-		return 0, 0, fmt.Errorf("%s: your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)", verb)
+		return 0, 0, fmt.Errorf("your quoted span appears MORE THAN ONCE in report.md, so the target is ambiguous — quote more surrounding context to pick out the one site you mean (to change every site, make one edit per site)")
 	}
-	return 0, 0, fmt.Errorf("%s: %w. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb, anchortext.ErrSplitsWord)
+	return 0, 0, fmt.Errorf("%w. Editing letters rather than language produces one-byte ops that carry no meaning on the record", anchortext.ErrSplitsWord)
 }
 
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
@@ -64,8 +64,8 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 // minting a gap about any already-anchored sentence was refused, with a message that spoke of
 // "the text you are replacing". Caught by reading a regenerated golden that had recorded
 // `minted G1` turning into `exit 2`, which is what the read-every-diff rule is for.
-func LocateUniqueReplacing(verb, report, old string) (int, int, error) {
-	start, end, err := LocateUnique(verb, report, old)
+func LocateUniqueReplacing(report, old string) (int, int, error) {
+	start, end, err := LocateUnique(report, old)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -152,7 +152,7 @@ func settleAbuttingAnchor(report, quoted string, end int) int {
 //
 // Anchors are placed by the tool, never typed into a replacement, and leave only by retire.
 // Transit is not authorship: the tool checks the bytes, so nothing is delegated to the model.
-func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
+func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 	newText = AutoPlace(oldSpan, newText)
 	count := func(s string) map[string]int {
 		m := map[string]int{}
@@ -173,16 +173,15 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
 			if s := nearestSentence(newText, sent); s != "" {
 				near = fmt.Sprintf(" — its nearest sentence there reads %q", s)
 			}
-			return "", fmt.Errorf("%s: your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
-				"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor",
-				verb, anchor.Label(id), on, anchor.Token(id), near)
+			return "", fmt.Errorf("your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
+				"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", anchor.Label(id), on, anchor.Token(id), near)
 		case got != want:
-			return "", fmt.Errorf("%s: %s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", verb, anchor.Label(id), want, got)
+			return "", fmt.Errorf("%s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", anchor.Label(id), want, got)
 		}
 	}
 	for id, got := range n {
 		if o[id] == 0 {
-			return "", &ErrAnchorIntroduced{Verb: verb, ID: id, Count: got}
+			return "", &ErrAnchorIntroduced{ID: id, Count: got}
 		}
 	}
 	return newText, nil
@@ -198,13 +197,12 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) (string, error) {
 // its instruction meets the other. A caller holding the surrounding document can tell the two
 // apart and say so; this type is what lets it.
 type ErrAnchorIntroduced struct {
-	Verb  string
 	ID    string
 	Count int
 }
 
 func (e *ErrAnchorIntroduced) Error() string {
-	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by the tool, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
+	return fmt.Sprintf("your replacement introduces %s, which was not in the span it replaces — anchors are placed by the tool, never typed into a replacement (got %d occurrence(s))", anchor.Label(e.ID), e.Count)
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it
@@ -239,22 +237,21 @@ const MaxProposalGrowth = 120
 // cannot be written from memory of what the report probably says. That forced read is the
 // point: all three of the smoke's round-2 gaps were contradictions between blue's new text
 // and text red never re-read before prescribing.
-func ValidateProposal(verb, report, old, new string) error {
+func ValidateProposal(report, old, new string) error {
 	if old == new {
-		return fmt.Errorf("%s: the proposed old and new text are identical — there is no change to propose", verb)
+		return fmt.Errorf("the proposed old and new text are identical — there is no change to propose")
 	}
 	// REPLACING: red's proposal is text blue will apply verbatim, so it owes the same duty an
 	// edit does — carry the anchors on the span it rewrites.
-	start, end, err := LocateUniqueReplacing(verb, report, old)
+	start, end, err := LocateUniqueReplacing(report, old)
 	if err != nil {
 		return err
 	}
-	if _, err := AnchorsTransitUnchanged(verb, report[start:end], new); err != nil {
+	if _, err := AnchorsTransitUnchanged(report[start:end], new); err != nil {
 		return err
 	}
 	if grew := utf8.RuneCountInString(new) - utf8.RuneCountInString(old); grew > MaxProposalGrowth {
-		return fmt.Errorf("%s: a concrete proposal may add at most %d characters to the span it replaces, and this adds %d — that size is a substantive ADDITION, which is blue's to author. State it as prose in --fix instead: red says what is wrong and what must be true, blue writes the report",
-			verb, MaxProposalGrowth, grew)
+		return fmt.Errorf("a concrete proposal may add at most %d characters to the span it replaces, and this adds %d — that size is a substantive ADDITION, which is blue's to author. State it as prose in --fix instead: red says what is wrong and what must be true, blue writes the report", MaxProposalGrowth, grew)
 	}
 	return nil
 }

@@ -41,7 +41,7 @@ func TestSchemaFlagPrintsTheEpochSetupCompares(t *testing.T) {
 	saved := os.Args
 	os.Args = []string{"feov-record", "--schema"}
 	defer func() { os.Args = saved }()
-	if err := ExecuteRoot(root); err != nil {
+	if _, err := ExecuteRoot(root); err != nil {
 		t.Fatalf("--schema returned an error; setup treats a non-zero exit as an unrunnable binary: %v", err)
 	}
 

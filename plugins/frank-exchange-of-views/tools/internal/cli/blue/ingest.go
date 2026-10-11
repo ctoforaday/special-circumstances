@@ -47,7 +47,7 @@ func newIngest() *cobra.Command {
 
 		// AUTHOR-ONLY.
 		if s.SeatID != authorSeat {
-			return nil, fmt.Errorf("blue ingest is for the report's author (%s) only — a %s seat does not freeze the base. Change the report through `edit`", authorSeat, s.SeatID)
+			return nil, fmt.Errorf("this act is the report's author's (%s) only — a %s seat does not freeze the base. Change the report through `edit`", authorSeat, s.SeatID)
 		}
 
 		// WRITE-ONCE — refuse-and-redirect if a base already exists (record-state, not a marker).
@@ -56,7 +56,7 @@ func newIngest() *cobra.Command {
 			return nil, err
 		}
 		if already {
-			return nil, fmt.Errorf("blue ingest: this run's report is already ingested — the base is frozen and cannot be re-ingested or overwritten. Make every change through `edit`, which appends to the diff-stack")
+			return nil, fmt.Errorf("this run's report is already ingested — the base is frozen and cannot be re-ingested or overwritten. Make every change through `edit`, which appends to the diff-stack")
 		}
 
 		reportPath := filepath.Join(run.Dir(), "blue", "report.md")
@@ -69,10 +69,10 @@ func newIngest() *cobra.Command {
 			if _, serr := os.Stat(filepath.Join(run.Dir(), "report.md")); serr == nil {
 				stray = fmt.Sprintf(" A report.md exists at the run root (%s): that is the assembler's path, not this one — move it here.", filepath.Join(run.Dir(), "report.md"))
 			}
-			return nil, fmt.Errorf("blue ingest: there is no report at %s — ingest freezes that one file, so write the synthesized report there first.%s", reportPath, stray)
+			return nil, fmt.Errorf("there is no report at %s — ingest freezes that one file, so write the synthesized report there first.%s", reportPath, stray)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("blue ingest: reading the report to ingest at %s: %w", reportPath, err)
+			return nil, fmt.Errorf("reading the report to ingest at %s: %w", reportPath, err)
 		}
 		report := string(content)
 
@@ -97,7 +97,7 @@ func newIngest() *cobra.Command {
 		}
 		rendered, err := reportproj.RenderFromRecord(run)
 		if err != nil {
-			return nil, fmt.Errorf("blue ingest: rendering the freshly-ingested base: %w — the file is UNTOUCHED", err)
+			return nil, fmt.Errorf("rendering the freshly-ingested base: %w — the file is UNTOUCHED", err)
 		}
 		if err := VerifyReproduction(report, rendered); err != nil {
 			// The base is on the record but the render did not reproduce it. The file is KEPT; the
@@ -107,7 +107,7 @@ func newIngest() *cobra.Command {
 
 		// Proven. Remove the file — from here the record is the only truth.
 		if err := os.Remove(reportPath); err != nil {
-			return nil, fmt.Errorf("blue ingest: the base is recorded and verified, but removing the file failed: %w — remove blue/report.md by hand; the record is authoritative", err)
+			return nil, fmt.Errorf("the base is recorded and verified, but removing the file failed: %w — remove blue/report.md by hand; the record is authoritative", err)
 		}
 
 		return ingestResult{

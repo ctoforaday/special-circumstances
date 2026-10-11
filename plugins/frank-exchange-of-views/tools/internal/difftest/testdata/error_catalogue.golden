@@ -1,6 +1,6 @@
 ── mint without acceptance check
 exit 2
-feov-record: required flag(s) "check", "check-kind", "impact", "likelihood", "severity" not set
+feov-record: mint: required flag(s) "check", "check-kind", "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -75,7 +75,7 @@ Global Flags:
 
 ── mint without class
 exit 2
-feov-record: required flag(s) "class", "impact", "likelihood", "severity" not set
+feov-record: mint: required flag(s) "class", "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -150,7 +150,7 @@ Global Flags:
 
 ── mint with unknown class
 exit 2
-feov-record: required flag(s) "impact", "likelihood", "severity" not set
+feov-record: mint: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -225,7 +225,7 @@ Global Flags:
 
 ── class-new missing definition
 exit 2
-feov-record: required flag(s) "impact", "likelihood", "severity" not set
+feov-record: mint: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -300,7 +300,7 @@ Global Flags:
 
 ── class-new unknown neighbor
 exit 2
-feov-record: required flag(s) "impact", "likelihood", "severity" not set
+feov-record: mint: required flag(s) "impact", "likelihood", "severity" not set
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -375,7 +375,7 @@ Global Flags:
 
 ── mint with bad grade
 exit 2
-feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
+feov-record: mint: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -450,15 +450,15 @@ Global Flags:
 
 ── mint with dangling supersedes
 exit 2
-feov-record: lens: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused
+feov-record: mint: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused
 
 ── close unknown gap
 exit 2
-feov-record: lens: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
+feov-record: close: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 ── close without id
 exit 2
-feov-record: required flag(s) "id", "reason" not set
+feov-record: close: required flag(s) "id", "reason" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -515,7 +515,7 @@ Global Flags:
 
 ── close without anchor
 exit 2
-feov-record: required flag(s) "reason", "verified-against", "verified-by", "verified-with" not set
+feov-record: close: required flag(s) "reason", "verified-against", "verified-by", "verified-with" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -572,7 +572,7 @@ Global Flags:
 
 ── regression close without successor
 exit 2
-feov-record: required flag(s) "reason" not set
+feov-record: close: required flag(s) "reason" not set
 
 close a gap with the verification you did THIS sitting, naming what you checked it against
 
@@ -629,7 +629,7 @@ Global Flags:
 
 ── regrade without basis
 exit 2
-feov-record: required flag(s) "reason" not set
+feov-record: regrade: required flag(s) "reason" not set
 
 move a grade on a gap that already exists, with the reason it moved
 
@@ -676,23 +676,23 @@ Global Flags:
 
 ── docket rule without the gavel
 exit 2
-feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is ruled by one seat, and that seat is never its filer — that asymmetry is the mechanism, not an obstacle
+feov-record: motion docket: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (chair). A motion is ruled by one seat, and that seat is never its filer — that asymmetry is the mechanism, not an obstacle
 
 ── grade motion filed by the chair, which rules it
 exit 2
-feov-record: a grade motion is ruled by the chair seat, so `file` is not on your surface; you are red-chair (chair). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The bench, blue and lens seats file one. To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.
+feov-record: motion grade: a grade motion is ruled by the chair seat, so `file` is not on your surface; you are red-chair (chair). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The bench, blue and lens seats file one. To contest a gap's grade yourself, file `motion docket file` on the gap, which the bench rules.
 
 ── docket motion filed by the bench, which rules it
 exit 2
-feov-record: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one.
+feov-record: motion docket: a docket motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one.
 
 ── petition filed by the bench, which rules it
 exit 2
-feov-record: a petition motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one. Where the run itself must stop, `halt` is yours.
+feov-record: motion petition: a petition motion is ruled by the bench seat, so `file` is not on your surface; you are judge (bench). The seat that rules a subject files nothing on it, because a motion its own ruler filed is one no other seat can rule. The blue, chair and lens seats file one. Where the run itself must stop, `halt` is yours.
 
 ── verdict in the wrong case
 exit 2
-feov-record: invalid argument "pass" for "--as" flag: --as must be one of PASS|FAIL (got "pass") — "pass" differs from "PASS" only in case, and a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+feov-record: verdict: invalid argument "pass" for "--as" flag: --as must be one of PASS|FAIL (got "pass") — "pass" differs from "PASS" only in case, and a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
     PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
@@ -734,7 +734,7 @@ Global Flags:
 
 ── verdict outside the set
 exit 2
-feov-record: invalid argument "banana" for "--as" flag: --as must be one of PASS|FAIL (got "banana") — a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
+feov-record: verdict: invalid argument "banana" for "--as" flag: --as must be one of PASS|FAIL (got "banana") — a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
     PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
     FAIL  a material defect still stops you — a FAIL over a converged board is refused
@@ -776,7 +776,7 @@ Global Flags:
 
 ── outcome in the wrong case
 exit 2
-feov-record: invalid argument "ceiling" for "--as" flag: --as must be one of VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
+feov-record: outcome: invalid argument "ceiling" for "--as" flag: --as must be one of VERIFIED|CEILING|HALTED|UNVERIFIED (got "ceiling") — "ceiling" differs from "CEILING" only in case, and the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the "this is NOT a judged failure to verify" caveat the stamp exists to carry
 
     VERIFIED    red passed the board and the bench agrees the question was answered
     CEILING     every open material gap reached its limit — at impasse after the one more exchange the bench's remand granted, and remanded again — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so
@@ -830,7 +830,7 @@ Global Flags:
 
 ── petition ruling outside the set
 exit 2
-feov-record: invalid argument "halt" for "--as" flag: --as must be one of granted|denied (got "halt") — the ruling is what BINDS the coming seats, and every downstream reader switches on it; an unrecognized verdict reads as no ruling at all, so a refusal silently becomes permission
+feov-record: motion petition rule: invalid argument "halt" for "--as" flag: --as must be one of granted|denied (got "halt") — the ruling is what BINDS the coming seats, and every downstream reader switches on it; an unrecognized verdict reads as no ruling at all, so a refusal silently becomes permission
 
     granted  the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow
     denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
@@ -879,7 +879,7 @@ Global Flags:
 
 ── closure class near-miss
 exit 2
-feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere|moot (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
+feov-record: close: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere|moot (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
     repaired                  the repair was verified at the leaf and nothing regressed
     repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
@@ -944,7 +944,7 @@ Global Flags:
 
 ── a lens closing as the bench's remand
 exit 2
-feov-record: invalid argument "remanded" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere|moot (got "remanded") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
+feov-record: close: invalid argument "remanded" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere|moot (got "remanded") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
     repaired                  the repair was verified at the leaf and nothing regressed
     repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
@@ -1009,7 +1009,7 @@ Global Flags:
 
 ── grade motion dimension outside the set
 exit 2
-feov-record: invalid argument "banana" for "--dimension" flag: --dimension must be one of severity|likelihood|impact|complexity (got "banana") — the ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing
+feov-record: motion grade file: invalid argument "banana" for "--dimension" flag: --dimension must be one of severity|likelihood|impact|complexity (got "banana") — the ruling is matched to the filing on (gap, dimension) and the gap's grade is then read AT that dimension: an axis outside the four matches no ruling and reads no grade, so the motion is filed against nothing
 
     severity    how bad the defect is in itself
     likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
@@ -1059,7 +1059,7 @@ Global Flags:
 
 ── verification outcome outside the set
 exit 2
-feov-record: unknown flag: --title
+feov-record: verify: unknown flag: --title
 
 judge a citation blue authored, when the anchor exists and you have read what it points at
 
@@ -1123,7 +1123,7 @@ Global Flags:
 
 ── verification names no citation
 exit 2
-feov-record: required flag(s) "anchor" not set
+feov-record: verify: required flag(s) "anchor" not set
 
 judge a citation blue authored, when the anchor exists and you have read what it points at
 
@@ -1187,7 +1187,7 @@ Global Flags:
 
 ── verification with no stated confidence
 exit 2
-feov-record: unknown flag: --independent
+feov-record: verify: unknown flag: --independent
 
 judge a citation blue authored, when the anchor exists and you have read what it points at
 
@@ -1251,7 +1251,7 @@ Global Flags:
 
 ── verification of nothing
 exit 2
-feov-record: required flag(s) "anchor", "as", "confidence", "quote", "reason" not set
+feov-record: verify: required flag(s) "anchor", "as", "confidence", "quote", "reason" not set
 
 judge a citation blue authored, when the anchor exists and you have read what it points at
 
@@ -1315,7 +1315,7 @@ Global Flags:
 
 ── verification confidence outside the set
 exit 2
-feov-record: invalid argument "banana" for "--confidence" flag: --confidence must be one of high|medium|low (got "banana") — CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.
+feov-record: verify: invalid argument "banana" for "--confidence" flag: --confidence must be one of high|medium|low (got "banana") — CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.
 
 It is NOT a property of the source and NOT a support scale — how well the source backs the claim is --outcome, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail
 
@@ -1385,7 +1385,7 @@ Global Flags:
 
 ── petition class outside the set
 exit 2
-feov-record: invalid argument "banana" for "--class" flag: --class must be one of integrity|safety|ethical|constitutional (got "banana") — the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine
+feov-record: motion petition file: invalid argument "banana" for "--class" flag: --class must be one of integrity|safety|ethical|constitutional (got "banana") — the class is what the seat is ASKING the bench to sit on, and the bench is convened per class; a fifth is a petition heard under whichever standard the ruling seat happened to imagine
 
     integrity       proceeding would require asserting what you believe false, or burying a real finding
     safety          proceeding would create or conceal a hazard
@@ -1456,7 +1456,7 @@ Flags:
 
 ── verb outside the lens role
 exit 2
-feov-record: "verdict" is not on your surface — it is the chair seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
+feov-record: "verdict" is not on your surface — it is the chair seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
 
 feov-record — red lens seats — findings, source verification and corroboration, proof re-runs; mints its own gaps against its budget and, as the originator, regrades and closes them.
 
@@ -1502,7 +1502,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── verb outside the blue role
 exit 2
-feov-record: "close" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
+feov-record: "close" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
 
 feov-record — blue seats — the report and its edits, manifest rows, directions. No board verbs at all.
 
@@ -1547,7 +1547,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── verb outside the bench role
 exit 2
-feov-record: "mint" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
+feov-record: "mint" is not on your surface — it is the lens seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here.
 
 feov-record — the bench — rulings, halt, certification. Never originates.
 
@@ -1589,7 +1589,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── unknown verb
 exit 2
-feov-record: no command named "frobnicate" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: no command named "frobnicate" exists, on your surface or on any other seat's, so there is no seat to switch to.
 
 feov-record — the red chair — runs the debate: dispatches, judges the board, carries, spot-checks.
 
@@ -1655,47 +1655,47 @@ Flags:
 
 ── a mint quoting a sentence that repeats
 exit 2
-feov-record: lens: lens mint: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored; name its section with --about-kind section
+feov-record: mint: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored; name its section with --about-kind section
 
 ── a mint quoting across a blank line
 exit 2
-feov-record: lens: lens mint: the quote's one match in the report runs across a blank line, and an anchor sits in one passage: quote text inside one paragraph
+feov-record: mint: the quote's one match in the report runs across a blank line, and an anchor sits in one passage: quote text inside one paragraph
 
 For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes
 
 ── a mint quoting inside a word
 exit 2
-feov-record: lens: lens mint: your span starts or ends inside a word — quote whole words
+feov-record: mint: your span starts or ends inside a word — quote whole words
 
 For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes
 
 ── a mint quoting a heading
 exit 2
-feov-record: lens: lens mint: the quote ends in a section heading, and an anchor sits on prose, never on a heading: quote a sentence of the section's text; for a gap about the whole section, name the section with --about-kind section
+feov-record: mint: the quote ends in a section heading, and an anchor sits on prose, never on a heading: quote a sentence of the section's text; for a gap about the whole section, name the section with --about-kind section
 
 ── a finding quoting a sentence that repeats
 exit 2
-feov-record: lens: lens finding: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
+feov-record: finding: the quote occurs more than once in the report, and an anchor needs one place: quote the sentence with the text before it in its paragraph, so the quote occurs once — a quote may not cross a blank line. A sentence that stands alone as its paragraph and repeats verbatim elsewhere cannot be anchored
 
 ── a retry whose stored location the report no longer holds
 exit 2
-feov-record: lens: lens finding: the finding this call repeats is on the record without its anchor, and the location it stored, "A sentence the report held.", does not place: the report no longer holds it where an anchor can stand. A call under --key "F-owed" repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote, under a --key other than "F-owed"
+feov-record: finding: the finding this call repeats is on the record without its anchor, and the location it stored, "A sentence the report held.", does not place: the report no longer holds it where an anchor can stand. A call under --key "F-owed" repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote, under a --key other than "F-owed"
 
 ── an edit leaving out an anchor whose sentence it rewrites
 exit 2
-feov-record: blue: blue edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
 
 ── an edit leaving out an anchor whose sentence it repeats
 exit 2
-feov-record: blue: blue edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
 
 ── an edit carrying an anchor onto a heading
 exit 2
-feov-record: blue: blue edit: this edit puts <!--fx:FINDING002--> on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it
+feov-record: edit: this edit puts <!--fx:FINDING002--> on a section heading, and an anchor sits on prose, never on a heading: keep the anchor on its sentence in the section's text and write the heading without it
 
 ── an edit ending its own sentence before an anchor its quote leaves out
 exit 2
-feov-record: blue: blue edit: your quote stops before finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
+feov-record: edit: your quote stops before finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
 
 ── repeat target: the lens regrades GAP001
 exit 0
@@ -1704,7 +1704,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a second regrade of a gap in one sitting
 exit 2
-feov-record: lens: record: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+feov-record: regrade: record: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair sits and states its position
 exit 0
@@ -1715,7 +1715,7 @@ position recorded
 
 ── a second position in one sitting
 exit 2
-feov-record: chair: record: red-chair has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+feov-record: position: record: red-chair has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair's spot-check
 exit 0
@@ -1726,7 +1726,7 @@ spot-check: nothing to sample, recorded with its reason
 
 ── a second spot-check in one sitting
 exit 2
-feov-record: chair: record: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+feov-record: spot-check: record: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair's verdict
 exit 0
@@ -1736,7 +1736,7 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ── a second verdict in one sitting
 exit 2
-feov-record: chair: record: red-chair has already recorded a verdict this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it; the record is append-only and both stay visible
+feov-record: verdict: record: red-chair has already recorded a verdict this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it; the record is append-only and both stay visible
 
 ── repeat target: blue's closing on GAP001
 exit 0
@@ -1745,7 +1745,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a second closing on a gap in one sitting
 exit 2
-feov-record: blue: record: blue-respond has already recorded a closing on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+feov-record: closing: record: blue-respond has already recorded a closing on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: blue's manifest row for GAP001
 exit 0
@@ -1754,7 +1754,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a second manifest row for a gap in one sitting
 exit 2
-feov-record: blue: record: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+feov-record: manifest-row: record: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the lens closes GAP001
 exit 0
@@ -1779,7 +1779,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 
 ── a second carry of a gap in one sitting
 exit 2
-feov-record: chair: record: red-chair has already recorded a close on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and both stay visible
+feov-record: carry: record: red-chair has already recorded a close on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and both stay visible
 
 ── bunch target: a finding on a plain sentence
 exit 0
@@ -1793,7 +1793,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── an edit carrying a run of anchors to the end of a longer replacement
 exit 2
-feov-record: blue: blue edit: your replacement holds 2 sentences where the text it replaces holds 1, and it carries the 2 anchors that stood at the end of that text to the end of its last sentence. An anchor belongs on the sentence that holds its claim, and a run at a sentence's end does not say which sentence that is now. What each one marks, from the record:
+feov-record: edit: your replacement holds 2 sentences where the text it replaces holds 1, and it carries the 2 anchors that stood at the end of that text to the end of its last sentence. An anchor belongs on the sentence that holds its claim, and a run at a sentence's end does not say which sentence that is now. What each one marks, from the record:
   finding <!--fx:FINDING004-->: the count two is not shown
   finding <!--fx:FINDING003-->: the word plain is unsupported
 Your replacement's sentences:
