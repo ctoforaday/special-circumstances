@@ -131,5 +131,12 @@ func Retain(db *sql.DB, lim SweepLimits, now time.Time) (int64, error) {
 	if _, err := db.Exec(`DELETE FROM session WHERE ingested_last < ?`, cut); err != nil {
 		return total, fmt.Errorf("catalogue: retention (session): %w", err)
 	}
+	// AN OFFSET ROW BELONGS TO A SESSION ROW. Left behind, it names a transcript the store can say
+	// nothing about: Closure's queue is file_offset rows whose session has no closed_at — which an
+	// absent session row satisfies — so the expired session is pending at every SessionStart with
+	// nothing to read and nothing to mark, and `find` stats and counts its path for ever.
+	if _, err := db.Exec(`DELETE FROM file_offset WHERE session_id NOT IN (SELECT session_id FROM session)`); err != nil {
+		return total, fmt.Errorf("catalogue: retention (file_offset): %w", err)
+	}
 	return total, nil
 }

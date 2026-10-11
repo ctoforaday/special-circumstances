@@ -117,20 +117,27 @@ func TestRetentionDeletesOnlyPastTheWindow(t *testing.T) {
 	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('NEW','/p',?,?)`, fresh, fresh)
 	db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES('OLD',0,?,'Bash','ok')`, old)
 	db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES('NEW',0,?,'Bash','ok')`, fresh)
+	// Each session's transcript has an offset row; the expired session's must go with it, or the
+	// store keeps naming a transcript it holds nothing about (Closure queues it for ever, find
+	// counts its path for ever).
+	db.Exec(`INSERT INTO file_offset(path,session_id,agent_id,offset,size,head_sha) VALUES('/p/OLD.jsonl','OLD','',10,10,'x')`)
+	db.Exec(`INSERT INTO file_offset(path,session_id,agent_id,offset,size,head_sha) VALUES('/p/NEW.jsonl','NEW','',10,10,'x')`)
 
 	if _, err := Retain(db, DefaultLimits(), now); err != nil {
 		t.Fatal(err)
 	}
-	var sessions, acts int
+	var sessions, acts, offsets int
 	db.QueryRow(`SELECT count(*) FROM session`).Scan(&sessions)
 	db.QueryRow(`SELECT count(*) FROM act`).Scan(&acts)
-	if sessions != 1 || acts != 1 {
-		t.Errorf("after retention: %d sessions / %d acts, want 1/1 — only the expired row goes", sessions, acts)
+	db.QueryRow(`SELECT count(*) FROM file_offset`).Scan(&offsets)
+	if sessions != 1 || acts != 1 || offsets != 1 {
+		t.Errorf("after retention: %d sessions / %d acts / %d offsets, want 1/1/1 — only the expired session's rows go", sessions, acts, offsets)
 	}
-	var left string
+	var left, leftPath string
 	db.QueryRow(`SELECT session_id FROM act`).Scan(&left)
-	if left != "NEW" {
-		t.Errorf("retention kept %q, want NEW", left)
+	db.QueryRow(`SELECT path FROM file_offset`).Scan(&leftPath)
+	if left != "NEW" || leftPath != "/p/NEW.jsonl" {
+		t.Errorf("retention kept act %q and offset %q, want NEW's", left, leftPath)
 	}
 }
 
