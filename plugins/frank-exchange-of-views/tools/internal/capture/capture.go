@@ -577,7 +577,7 @@ func repoRootOf(run record.Run) string {
 // STRAY is that its parent is not a run: no `inputs/run-config.json`, no `blue/`. Nothing set it
 // up; something wrote into it.
 //
-// Measured (#358): during research/2026-08-10_dual-read-vs-migration a seat whose shell cwd was
+// Measured (#358): during a research run of 2026-08-10 a seat whose shell cwd was
 // the `tools/` directory resolved the relative `research/<slug>/` from there, and the tool built
 // a whole second blackboard — the lane's entire 13.7 KB draft, its own shards, clock and locks —
 // while the real run's `blue/candidates/` stayed empty for the run. TWO shards of one seat class

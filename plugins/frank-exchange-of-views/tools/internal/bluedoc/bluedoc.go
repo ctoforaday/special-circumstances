@@ -5,9 +5,9 @@
 // present, unique, must not split a word, and must not change which anchors exist.
 // With #267 stage 3 red may attach a CONCRETE proposed fix to a gap, and a proposal red
 // cannot state legally is a proposal blue cannot apply — so the same checks have to run at
-// mint time, in the chair role.
+// mint time, in the lens role.
 //
-// The alternative was `internal/cli/merge` importing `internal/cli/blue`, which makes two
+// The alternative is `internal/cli/lens` importing `internal/cli/blue`, which makes two
 // role packages depend on each other for a rule that belongs to neither: it belongs to the
 // DOCUMENT. A second copy of the checks was never an option — the anchor invariant is the
 // one thing standing between an edit and the anchors the record placed, and this repo has
@@ -60,7 +60,7 @@ func LocateUnique(report, old string) (int, int, error) {
 // LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
 //
 // THE ANCHOR RULE BELONGS TO REPLACEMENT, NOT TO LOCATION. Baked into LocateUnique it also fired
-// on `merge mint --quote`, which names the sentence a defect LIVES AT and rewrites nothing — so
+// on `lens mint --quote`, which names the sentence a defect LIVES AT and rewrites nothing — so
 // minting a gap about any already-anchored sentence was refused, with a message that spoke of
 // "the text you are replacing". Caught by reading a regenerated golden that had recorded
 // `minted G1` turning into `exit 2`, which is what the read-every-diff rule is for.

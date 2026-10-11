@@ -824,7 +824,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// The same key rule as blue_edit's --answers: a proof may name the gap it settles,
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
-		// `computation` gap can be closed ONLY by one that names it (see merge close).
+		// `computation` gap can be closed ONLY by one that names it (see `lens close`).
 		if err := requireGap(run, b.GetAnswers(), "blue's `prove`", "--answers"); err != nil {
 			return err
 		}

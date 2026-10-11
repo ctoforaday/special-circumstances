@@ -475,7 +475,7 @@ type Handler func(Context, *cobra.Command) (Result, error)
 //
 // A verb and an event type stopped being 1:1 the moment the verbs that carried TWO CONTRACTS
 // were split into the two verbs they already were — `lens verify` and `lens corroborate` both
-// write a `verify`, `merge close` and `chair carry` both write a `close`. The record's
+// write a `verify`, `lens close` and `chair carry` both write a `close`. The record's
 // required-field table is keyed by event type, so the lookup needs the event, not the word.
 func Records(c *cobra.Command, eventType string) *cobra.Command {
 	annotate(c, recordsKey, eventType)
@@ -956,7 +956,7 @@ var ReasonIs = map[string]string{
 // ProseRequired registers the prose channel AND says so, for a verb whose argument is
 // unconditional even though the FIELD's is not.
 //
-// `merge close` is the case. `Close.prose` cannot carry `required: true` — that refuses before
+// `lens close` is the case. `Close.prose` cannot carry `required: true` — that refuses before
 // validate runs and so refused a CARRY, which restates an argument an earlier epoch already made.
 // Dropping the annotation fixed the carry and silently unmarked close: cobra stopped refusing and
 // the help stopped saying REQUIRED, on a verb whose argument is the whole point. Marking it by
@@ -1016,7 +1016,7 @@ func Str(cmd *cobra.Command, name string) string {
 // nothing at all". Every field on this schema is `optional` precisely to keep those apart, and the
 // write path was throwing the distinction away on the way in.
 //
-// MEASURED, and the foreign keys are what found it: `merge close` set `successor` unconditionally,
+// MEASURED, and the foreign keys are what found it: `lens close` set `successor` unconditionally,
 // so an ordinary closure stored `successor = ”` — and once successor referenced `mint.gap_id`,
 // every close in the tool failed with `FOREIGN KEY constraint failed`, because no gap is named ”.
 // Before the constraint existed the same rows were written and simply read as a closure whose

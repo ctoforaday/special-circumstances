@@ -15,7 +15,7 @@ import (
 // what it does NOT build is a Board: no event bag, no counts, no board-wide derived state.
 //
 // It is the one assembly of the family (plans/board-as-views.md wave 3); the markdown renders
-// and their oracle read it in place of BoardState.
+// and their oracle read it.
 //
 // IT TAKES THE WHOLE-RECORD READ ITS CALLER ALREADY HOLDS (m), not a read of its own. Every caller
 // also renders the stream, and a windowed read ranks every sitting on the record however narrow its

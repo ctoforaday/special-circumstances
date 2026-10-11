@@ -36,18 +36,10 @@ import (
 //
 // NOT EVERY SET IS HERE, and that is deliberate:
 //
-// BOTH CLOSURE SETS ARE NOW CLOSED (#342). This comment used to explain why they were not:
-// "`merge close`'s closure_class is likewise open, and its candidate values are not yet
-// consistent across the suite (the PASS refusal names `not_a_defect`, the red-auditor
-// prompt names `evidence-rebutted`). Closing it before that is resolved would refuse honest
-// closures."
-//
-// That inconsistency is what #342 resolved, and it was worse than the note recorded — FOUR
-// vocabularies for one concept: the record's close classes, the bench's dispositions, the
-// envelope's `class` enum (which declared `rebuttal_accepted` and `risk_argued`, words no
-// other surface used), and the prose in prompts (`evidence-rebutted`, `risk-accepted`). One
-// concept, four spellings, and no mechanism could see them disagree because every set was
-// open.
+// BOTH CLOSURE SETS ARE CLOSED (#342): the lens's close classes and the bench's dispositions are
+// one schema vocabulary. An open set is how one concept comes to be spelled four ways — the
+// record's classes, the bench's dispositions, an envelope enum and the prose of a prompt — with no
+// mechanism able to see them disagree.
 // DispositionRemanded is the ONE bench disposition that does not end a gap: it sends the gap back
 // to the debate for one more exchange between its minting lens and blue, on the research direction
 // the ruling states (remandStageOf says what a remand still owes).
@@ -61,7 +53,7 @@ const DispositionRemanded = "remanded"
 
 // Dispositions is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
 //
-// `merge close` (red closes on verified repair) and `motion docket rule` (the bench closes on
+// `lens close` (red closes on verified repair) and `motion docket rule` (the bench closes on
 // judgement) are different acts with different evidence bars, and they stay different verbs.
 // What they must not have is different WORDS for the same outcome: before this, a reader had
 // to know which verb produced a closure before it could interpret the word, and four surfaces
@@ -293,12 +285,8 @@ var EnumFields = map[string][]EnumField{
 	// question — the lines are generated onto the page from the record, so blue cannot cut them —
 	// and the surviving question, whether the body delivered the research, is an ORDINARY GAP with
 	// the grade vocabulary it already has. The review carries prose and nothing else.
-	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
-	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any
-	// more — the verbs are gone. Their READ paths are permanent (record/compat.go), but a reader
-	// does not re-validate: a record written in 2026 under a set that has since changed is still
-	// the record. The motion sets that replaced them are keyed on (subject, key), which this map
-	// cannot express, and live in record/motion.go.
+	// THE MOTION SETS ARE NOT HERE (#344): they are keyed on (subject, key), which this map cannot
+	// express, and live in record/motion.go.
 	"close": {{
 		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,
 		// Optional per this file's own rule: closing a SET is not the same decision as making

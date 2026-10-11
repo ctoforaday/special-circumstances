@@ -13,7 +13,7 @@
 //
 // Unit tests cannot see this class, because each one exercises a single reader against a fixture
 // built to that reader's expectations. The oracle inverts that: it derives the ground truth ONCE,
-// from the raw event walk — deliberately not through record.BoardState, whose reduction is itself
+// from the raw event walk — deliberately not through record.FamilyOf, whose assembly is itself
 // a reader under test — and then holds every projection to it, and to each other.
 //
 // # What a violation is

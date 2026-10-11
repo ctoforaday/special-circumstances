@@ -261,7 +261,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	body.Claim = proto.String(seat.Location(cmd))
 	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
 	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
-	// same defect that made `merge close` write `successor = ''` and fail every closure once the
+	// same defect that made `lens close` write `successor = ''` and fail every closure once the
 	// reference existed. Here nothing refuses it, so it simply reached every reader as a fact.
 	body.AccessDate = seat.OptStr(cmd, flags.AccessDate)
 	// BOTH WORDS ARE REFUSED RATHER THAN ZEROED. `refutes` and `absent` are the negative half this

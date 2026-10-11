@@ -1,9 +1,8 @@
 # red scorecard — the numbers this card's seats are measured against
 
 Computed at capture from git-tracked run artifacts, appended run over run.
-Setup mirrors this file into the next run's inputs/, and the engine puts the
-headline numbers into the prompts of the seats this card measures — the visibility
-loop, without which a clause is measured and still invisible to the seat it governs.
+It is the operator's corpus, read by a human and by the next reader of these runs;
+no run stages it and no seat's prompt carries it.
 
 CLASSES: BENCHMARK — optimize this · DIAGNOSTIC — this explains you; optimizing it is a defect · DETECTOR — a loss-condition tripwire; any nonzero is a finding · MEASURE — recorded, not targeted
 

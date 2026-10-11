@@ -234,7 +234,7 @@ func adoptRoot(absRun, root string) (string, error) {
 // rootPointerPath keys the pointer by a hash of the run's absolute path.
 //
 // The hash is not obfuscation — it is that a run directory is an arbitrarily deep path and a
-// cache filename is not. Mirrors internal/cli/merge's run-mirror, which keys the same way.
+// cache filename is not. The run-mirror (record/mirror.go) keys the same way.
 // cacheDirFn is indirected so tests resolve against a temp directory. Without the seam a test
 // run would leave pointers in the developer's real cache, and one stale pointer there outlives
 // the test that wrote it — resolving a LATER run to a deleted temp root.

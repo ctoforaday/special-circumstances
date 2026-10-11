@@ -134,20 +134,6 @@ const speedClause = ` SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 // that reaches for another role's verbs is refused. The tool's --help IS the
 // seat's record contract: everything listed is permitted, anything absent does
 // not exist for that seat and is a REQUEST for the log rather than something to work around.
-// W2h — the visibility loop's last leg: each scorecard's headline numbers, IN
-// the prompt of the seats it measures.
-//
-// A number computed at capture and filed in feov-memory is measured and still
-// invisible; the clause it instruments stays exactly as dead as "confidence
-// self-graded" was. The numbers arrive as an ARGUMENT rather than a path because
-// this script is sandboxed and cannot read files — setup prints the arg ready to
-// pass, so the value a seat sees is the same value the dashboard and the human
-// see, parsed from one rendered file.
-//
-// Classes travel with the numbers on purpose. A benchmark says optimize me; a
-// DIAGNOSTIC says this explains you and optimizing it is a defect — red driving
-// its grade stability up is stubbornness, not rigour, and a bare number invites
-// exactly that.
 // AVENUES (rulebook audit item 3). think-around-problem mandates
 // exploring genuinely distinct alternatives; terse-communication forbids
 // narrating them. Required, invisible, unverifiable — the same dead-letter shape

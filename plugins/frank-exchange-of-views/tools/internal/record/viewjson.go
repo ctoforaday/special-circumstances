@@ -30,7 +30,7 @@ import (
 // human verification pass — but as the same state in the form the consumer actually needs.
 //
 // THE INVARIANT THAT KEEPS THIS HONEST: this file and render.go both derive from
-// BoardState. Neither reads the other's output. Two renderings of one replay cannot drift;
+// the record. Neither reads the other's output. Two renderings of one replay cannot drift;
 // a renderer that parsed the markdown back into JSON would be exactly the second reader of
 // one artifact this tool exists to eliminate, and it would drift on the first prose change.
 
@@ -123,7 +123,7 @@ type GapJSON struct {
 	Problem string           `json:"problem"`
 	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
 	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
-	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
+	// find it; mint was accepting --reason and discarding it. See cli/lens/mint.go.
 	MintReason     string `json:"mint_reason"`
 	RequiredFix    string `json:"required_fix"`
 	AcceptanceGate string `json:"acceptance_check"`
@@ -580,7 +580,7 @@ func listValuesByEvent(db recordsql.Querier, table string) (map[int64][]string, 
 // open few. The work list is the once-per-turn read: open gaps carry their grades + a
 // TRUNCATED problem synopsis (enough to recognise, not the whole record — the ledger/board
 // views still serve the full prose when a seat needs it), and closed gaps collapse to
-// {id, location, class}. Like every other JSON view it derives from BoardState.
+// {id, location, class}. Like every other JSON view it derives from the record.
 type WorkJSON struct {
 	// Sitting answers "may I end my turn" on the read a seat already does first. A separate
 	// command would be a second way to ask a question this view should have been answering.
@@ -1351,9 +1351,8 @@ type FindingsJSON struct {
 	} `json:"counts"`
 }
 
-// FindingsJSONOf projects the record's finding events. Like BoardJSONOf it derives from
-// BoardState — never from the markdown — so the two renderings of one replay cannot drift.
-// FindingsJSONOf projects finding events. It takes the EVENTS, not a Board: the findings view
+// FindingsJSONOf projects the record's finding events — never the markdown — so the two
+// renderings of one replay cannot drift. It takes the EVENTS, not a Board: the findings view
 // renders one family of acts and never read gap state — the board-shaped signature made every
 // caller pay a full fold for a stream filter. A caller holding merged events passes them; the
 // run path (FindingsJSONBytes) fetches exactly the finding family.
@@ -1456,7 +1455,7 @@ type LogEntryJSON struct {
 	Struck *Struck `json:"struck,omitempty"`
 }
 
-// LogJSONOf projects the record's log events — from BoardState, never the markdown. Events, not a
+// LogJSONOf projects the record's log events — from the record, never the markdown. Events, not a
 // Board, for the reason FindingsJSONOf states.
 func LogJSONOf(evs []*Event, win WindowIndex) LogJSON {
 	out := LogJSON{Log: []LogEntryJSON{}}
@@ -1515,7 +1514,7 @@ func LogJSONBytes(run Run) ([]byte, error) { return logView.jsonBytes(run) }
 // board/findings/friction JSON views removed. The section counts (and, for scorecards, the
 // section TEXT) are position, closing and docket-ruling events; served here they are read, not parsed.
 //
-// It derives from BoardState like the other JSON views — never from debate.md — so the two
+// It derives from the record like the other JSON views — never from debate.md — so the two
 // renderings of one replay cannot drift.
 type DebateJSON struct {
 	Epochs []DebateEpochJSON `json:"epochs"`
