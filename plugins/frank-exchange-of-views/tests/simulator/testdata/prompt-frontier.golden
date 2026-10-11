@@ -1,4 +1,4 @@
-prompt sha256: 1bbc53a5ea2d68e14b7261130524a6a51e17c25fb3f7b48bfd4a3e78eed34265
+prompt sha256: 4403ff630ee934d3545cdd57ae3c312e0aa68487484f89ed8c41e6a315928e7c
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A AVENUE — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
@@ -20,8 +20,8 @@ THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT.
 Your whole surface — every command you may run, each under a header naming it and followed by the help it prints — is part of your own configuration, in front of you before you act.
 READ IT BEFORE YOU CHOOSE, not the one entry for the verb you already picked, and read it before you have decided what to do: deciding first is what makes the reading pointless.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id frontier <command> --help.
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
-Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes.
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS — A COMMAND, OR A FLAG ON THAT COMMAND'S OWN PAGE.
+Do not work from memory, do not carry a name from a previous sitting or a flag from another command's page, and do not assume a command is named after the thing it writes.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.

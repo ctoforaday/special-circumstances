@@ -32,59 +32,11 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ log --run {RUN} --seat-id blue-respond --reason no PDF extraction
 exit 2
 stderr:
-feov-record: log: required flag(s) "type" not set
+feov-record: log: requires --type
 
-an entry for the operator who can retool you — what it asserts, said in the positive
-
-An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
-
-SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading.
-
-EVERY REFUSAL YOU GET, AND EVERY CALL OF YOURS THAT FAILS, IS ALREADY HERE: the tool records each refusal it gives you, with the flags you typed and never their values, and each tool call of yours that fails — a jq, a Read, a script — with what it was aimed at. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours: something taught you to expect it, and that is what the operator retools. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
-
-THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting where nothing cost you anything writes no entry.
-
-YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
-
-A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where the sitting DID things. One with no acts is not: the harness brackets it with your identity, so that you ran is on the record. Deriving the clean case from the emptiness beats asserting it. Your work list says which case you are in, by not asking.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with 'log', as a request — a missing
-capability is a fact about the tooling, and the log is how it reaches the operator
-who can retool you.
-
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
-
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
-
-IF WHAT YOU RECORDED WAS WRONG, say so in a new log entry.
-
-Usage:
-  feov-record log [flags]
-
-Flags:
-  -h, --help                           help for log
-      --reason string                  REQUIRED — the entry: what you concluded about the tooling
       --type defect|request|friction   REQUIRED — what this entry asserts
 
-Enumerated values:
-  --type
-    defect    something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on
-    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair
-    friction  Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+Run `feov-record log --help` for what it takes, flag by flag.
 
 $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --likelihood high --impact medium --quote A claim sits under S2. --reason unfounded leap
 exit 0
@@ -98,7 +50,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond:position:#1","position":{"text":"first pass"},"seat_id":"blue-respond","ts":4,"type":"EVENT_TYPE_POSITION"}
-{"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `log` with --reason: required flag(s) \"type\" not set","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":5,"type":"EVENT_TYPE_LOG"}
+{"key":"blue-respond:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `log` with --reason: requires --type","type":"LOG_TYPE_REFUSAL"},"seat_id":"blue-respond","ts":5,"type":"EVENT_TYPE_LOG"}
 {"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-logic:finding:FINDING001","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
