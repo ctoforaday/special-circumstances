@@ -71,13 +71,15 @@ Counted over the 45 packages the gate races today (text match, so a floor):
 | `internal/record` | 408 | 0 | 4 files |
 | `internal/fetchcache` | 143 | 0 | 2 files, 22 test HTTP servers |
 | `internal/record/recordsql` | 57 | 0 | 3 files |
-| 40 others | 175 | 0 | 0 |
+| `internal/sittingcap` | 1 | 0 | 1 file |
+| 39 others | 174 | 0 | 0 |
 
 Prototype, 2026-10-11, load ~3: racing only the tests in test files that start a goroutine — 104
 tests in five packages — took 122 s, 60 s, 23 s, 58 s and 2 s per package, all green, zero races.
 
 And the whole-graph gate does not do what it is trusted to do: the ONE `go` statement in shipped
-code, `go watchAndShutdown(srv, run)`, is executed by no test. The only test that calls
+code, `go watchAndShutdown(srv, run)` (`dashboard_serve.go:76`, with `ListenAndServeTLS` two lines
+below it), is executed by no test. The only test that calls
 `serveDashboard` (`TestServeRefusesWhenTheRunIsNotLive`) takes the refusal path above it. Eighteen
 minutes of race detection per pull request have never raced it.
 
@@ -90,8 +92,13 @@ minutes of race detection per pull request have never raced it.
 - Gate set: `scripts/check/gates.go`, mirrored against `.github/workflows/hooks.yml` by
   `scripts/check/parity_test.go`. `scripts/golden`'s go leg is `go test -count=1 ./...`, which
   `check` subsumes under the module's `:test` gate (#626).
-- Constraints: `-count=1` stays on every suite gate (`noCache`). The race scope stays the shipped
-  binary's import graph (ruling 2026-09-03). No test is removed, skipped or made `-short`.
+- Constraints: `-count=1` stays on every suite gate (`noCache`). The race gate's subject stays the
+  shipped binary's import graph; ruling 3 changes which TESTS in it are raced on a pull request.
+  No test is removed, skipped or made `-short`.
+- Part R adds one dependency to the `scripts` module, `golang.org/x/tools/go/packages`, for typed
+  syntax trees; nothing in a plugin imports it.
+- Parts A and B change no shipped file. Part R changes one, `internal/cli/dashboard_serve.go`, to
+  give its test two seams; behaviour is unchanged and no `version` moves.
 - "Shard" already names the sharded-JSONL storage era in FEOV (`shardarchive_test.go`,
   `TestShardEraArchivesMigrate`). This plan says **split**; the tool is `testsplit` (census:
   `git grep -il testsplit` hits three files, each the substring of `TestSplit…`, none a concept).
@@ -179,14 +186,17 @@ the helper, not for the package.
 
 ```
 scripts/
-  racescope/main.go            [NEW]     derives the race set, runs it, enforces the coverage rule
+  racescope/main.go            [NEW]     derives the race set, races it, proves the starts ran
   racescope/main_test.go       [NEW]
   internal/racescope/starts.go [NEW]     the table of library calls that run caller code on another goroutine
   check/gates.go               [MODIFY]  feov-record:race invokes racescope; raceScope's comment restated
   check/main.go                [MODIFY]  expandScope moves to scripts/internal/racescope
   check/parity_test.go         [MODIFY]  the race-scope and race-bound assertions read the new invocation
-.github/workflows/hooks.yml    [MODIFY]  feov-record (ubuntu) race step; a scheduled whole-graph race step
+.github/workflows/hooks.yml         [MODIFY]  feov-record (ubuntu) race step
+.github/workflows/race-nightly.yml  [NEW]     the whole-graph race, on schedule and on dispatch, its own workflow
+.github/workflows/nightly-alarm.yml [MODIFY]  watches race-nightly as well as hooks
 plugins/frank-exchange-of-views/tools/internal/cli/
+  dashboard_serve.go           [MODIFY]  the bind address and the watcher's interval become package variables
   dashboard_serve_test.go      [MODIFY]  a test that runs the served dashboard to its self-teardown
 ```
 
@@ -206,16 +216,29 @@ makes one, runs under the race detector on every pull request.* Not every test i
    `ListenAndServe*`, `time.AfterFunc`, `signal.Notify`, `context.AfterFunc`, `(*errgroup.Group).Go`,
    `(*sync.WaitGroup).Go`. Each row carries its reason.
 3. **The race set is derived.** A `Test`, `Fuzz` or `Example` function is in it when a start is
-   reachable from it through calls to functions declared in the same package's test files
-   (resolved by `go/types`). A test in it by declaration carries the directive
-   `//racescope:covers <start>` above the function — for a test that exists to drive a start in
-   SOURCE, which test-file reachability cannot see.
-4. The set runs per package as `go test -race -count=1 -timeout D -coverpkg=<scope>
-   -coverprofile=… -run '^(a|b|…)$' <pkg>`, packages in parallel as `go test` does it.
-5. **Enforcement.** For every start found in a non-test file of the scope, the statement's count in
-   the merged profile must be non-zero. A start no raced test executed fails the gate and is named
-   with its file and line. A `//racescope:covers` directive naming a start that does not exist
-   fails too.
+   reachable from it through DIRECT calls to functions declared anywhere in the module — its own
+   test files, another package's helpers, shipped source — each call resolved by `go/types`. A
+   call through a function value or an interface is not followed (see below). This reaches
+   `internal/seatprobe/build.go:349` (`go srv.Serve`) from the five `cli` tests that call
+   `seatprobe.Build`, and `internal/debatejs/debatejs.go:256` from `capture/relayfields_test.go`,
+   none of which starts a goroutine in its own file. A test in the set by declaration carries
+   `//racescope:covers <file>:<function>` above it — for a test that drives a start it reaches
+   only through a function value, as the dashboard's is reached through the command dispatcher.
+4. **The verdict run carries no coverage.** The set runs per package as `go test -race -count=1
+   -json -timeout D -run '^(a|b|…)$' <pkg>`. Every selected name must come back with a `pass`,
+   `fail` or `skip` event; a name with none — an `Example` with no `// Output:` is one — fails the
+   gate as *not measured*.
+5. **The evidence run carries no race detector.** The same set runs again as `go test -count=1
+   -covermode=set -coverpkg=<every module-local package the set's binaries link> -coverprofile=…`.
+   For every start found in a non-test file of those packages, the statement's count must be
+   non-zero; one that is not fails the gate and is named with its file and line. A directive
+   naming a start that does not exist fails too, and so does a profile that is missing or does not
+   parse.
+
+   The two runs are separate because measured together they are wrong: `-coverprofile` under
+   `-race` forces atomic counters, and the detector treats each as a happens-before edge. Probe,
+   go1.27.1, three runs each (`~/.claude/scratch/racescope-audit/probe`): plain `-race` reports the
+   planted race 3 of 3; the same test with `-coverpkg -coverprofile` reports it 0 of 3.
 6. The gate prints the set's size per package and the starts it proved, so a set that shrinks is a
    number that moved.
 
@@ -224,14 +247,25 @@ command reaches every verb through cobra's dispatch, so a sound call graph selec
 and the gain is gone. Source starts are few (one today), so each is covered by a declared test and
 the coverage rule refuses a missing or wrong declaration.
 
-**The backstop.** The scheduled nightly run races the WHOLE graph, as the pull-request gate does
-today, with `-timeout=60m`. It is where a start this tool's table does not know — a library that
-runs our callback on its own goroutine — would still surface, and the reason the table can be
-finite. A nightly red is filed and the table gains its row.
+**The backstop is its own workflow.** `race-nightly.yml` races the WHOLE graph — the command the
+pull-request gate runs today, `-timeout=30m` per package unchanged — on `schedule` and on
+`workflow_dispatch`, ubuntu only. It is where a start this tool cannot see would still surface: a
+library that runs our callback on its own goroutine and is not in the table, or a start reached
+only through a function value. It is NOT a step in `hooks`: the scheduled `hooks` run has been red
+24 of its last 40 (#855), its `feov-record` matrix cancels the ubuntu leg when Windows fails, and
+the race step is then skipped — a backstop there does not execute, and its red would be
+indistinguishable from the standing one. `nightly-alarm.yml` gains `race-nightly` in its
+`workflows:` list, so a red opens its own issue; the fix for one is a table row or a directive.
+`check` declares the gate and skips it locally with that reason, and `parity_test.go` reads the
+second workflow file for it.
 
 **The first red is real.** `dashboard_serve.go:76` is uncovered today, so the gate is red until
-`dashboard_serve_test.go` gains a test that serves a live run on a loopback port, ends the run,
-and observes the server close. That test is part of this change.
+`dashboard_serve_test.go` gains a test that serves a live run, requests the page WHILE the watcher
+is polling, ends the run, and observes the server close — so `render` on a connection goroutine
+overlaps `runHasEnded` on the watcher's, which is the race this code could have. `serveDashboard`
+binds `0.0.0.0` and ticks every three seconds; both become package variables (as `runLiveMarker`
+already is) so the test listens on loopback only and does not wait three seconds. That is the one
+shipped-source edit in this plan.
 
 **Not changed:** the other three modules race `./...` in seconds to two minutes and keep doing so;
 `feov-record:race-runhandle` keeps its one named test; Windows runs no FEOV race leg today and
@@ -253,11 +287,12 @@ Command: `git grep -nE 'go test -race|raceScope|raceTimeout|expandScope|depsScop
 
 | Consumer | Changes? |
 |---|---|
-| `hooks.yml:691` `xargs go test -race -timeout=30m` (feov-record) | Yes — the tool; a scheduled-only step keeps the whole-graph form |
+| `hooks.yml:691` `xargs go test -race -timeout=30m` (feov-record), and the comment block above it (`hooks.yml:663-683`) | Yes — the tool; the whole-graph form moves to `race-nightly.yml` |
 | `hooks.yml:311, 910, 1191` (other modules, `./...`), `hooks.yml:712` (narrow leg) | No |
-| `check/gates.go`: `raceScope`, `depsScopePrefix`, `raceTimeout`, `narrowRace`, the `:race` gate | Yes for FEOV's entry and its comment; `narrowRace` no |
+| `check/gates.go`: `raceScope` and its comment (`gates.go:128-148`), `depsScopePrefix`, `raceTimeout`, `narrowRace`, the `:race` gate; a new declared gate for the nightly | Yes for FEOV's entry and its comment; `narrowRace` no |
 | `check/main.go`: `expandScope`, `runGate`'s default branch | `expandScope` moves; `runGate` gains the tool kind for this gate |
-| `check/parity_test.go`: `TestRaceScopesMatchTheWorkflow`, `TestEveryModuleRaceLegCarriesTheBound`, `TestExpandScopeDerivesTheModuleLocalGraph`, `TestTheNarrowRaceLegsAreDeclared` | First three yes; the last no |
+| `check/parity_test.go`: `TestRaceScopesMatchTheWorkflow` (line 164 asserts the string `xargs go test -race`, which would stay green on the nightly copy — rewritten to assert the tool line in `hooks.yml` and the whole-graph line in `race-nightly.yml`), `TestEveryModuleRaceLegCarriesTheBound`, `TestExpandScopeDerivesTheModuleLocalGraph`, `TestTheNarrowRaceLegsAreDeclared` | First three yes; the last no |
+| Prose stating the old scope, found by reading rather than by the token search: `internal/fetchcache/pdfextract.go:130-131` ("that is CI's race leg") | Restated |
 | `releasegate/fuzz/runhandlerace_test.go:24` (cites the 2026-09-03 scope rule) | Comment restated: the carve-out stands, the rule it is carved from is this one |
 | `CLAUDE.md` "Verification", `docs/local-development.md` | Read both; edit only where a stated command or claim changes |
 
@@ -273,7 +308,7 @@ scripts/
   testsplit/main_test.go        [NEW]
   internal/testsplit/table.go   [NEW]     which packages are split, per module, each with its reason
   check/gates.go                [MODIFY]  FEOV's :test and :race gates invoke testsplit
-  check/main.go                 [MODIFY]  expandScope moves to the tool; subsumeGoldenLegs unchanged
+  check/main.go                 [MODIFY]  uses expandScope from scripts/internal/racescope (moved there by Part R)
   check/parity_test.go          [MODIFY]  race-scope and cache assertions read the new invocation
   golden/main.go                [MODIFY]  FEOV's go leg invokes testsplit
 .github/workflows/hooks.yml     [MODIFY]  feov-record (ubuntu) test and race steps; goldens job
@@ -377,11 +412,12 @@ approved.
 | R9 | `go test -c` skips the vet that `go test` runs by default | M × L | The `:vet` gates cover every module; §V.9 confirms by planting a vet failure |
 | R11 | Split processes and the unsplit `go test` together oversubscribe the box and a timing-sensitive test (`fetchcache`'s pacing) goes red | M × M | `-p max(1, NumCPU − N)` on the unsplit path; §V.6's ten runs |
 | R12 | Without a split row, `migrate` under `-race` alone keeps the local gate over B1 (35% of 2,183–2,662 s exceeds 600 s) | H × M | Ruling 2: B1 is restated from Part A's measurement; the choice then is dealing the sweeps to one process, or accepting the restated figure |
-| R13 | A library call that runs our code on another goroutine is missing from the table, so its tests leave the pull-request race set | M × H | The nightly whole-graph race; each table row is asserted by a fixture in `main_test.go`; a nightly red adds the row |
-| R14 | A start reached only through a function value or interface in test code is missed by test-file reachability | M × M | Same nightly backstop; the gate prints the set, so a test known to be concurrent and absent is visible in review |
-| R15 | Coverage under `-race` attributes counts to the wrong statement, or the profile is not written when a package fails | L × H | §V.R3 plants a start and expects it named; a missing or unparsable profile is an error, never an empty one |
+| R13 | A library call that runs our code on another goroutine is missing from the table, so its tests leave the pull-request race set | M × H | `race-nightly.yml`, which runs and alarms on its own; each table row is asserted by a fixture in `main_test.go`; a nightly red adds the row |
+| R14 | A start reached only through a function value or interface is missed by direct-call reachability | M × M | In source: step 5 refuses an unexecuted start, so the miss is loud. In test code: the nightly; the gate prints the set, so a concurrent test that is absent is visible in review |
+| R15 | The evidence run takes a different path from the verdict run, so a start counted as executed was not raced | L × M | Same tests, same `-run` expression, both `-count=1`; the directive names the test that owns each source start, and §V.R3(c) removes it |
+| R19 | Coverage instrumentation hides the race it is meant to witness | measured | Steps 4 and 5 are separate runs; §V.R3(g) plants a race and expects the gate red |
 | R16 | The new dashboard test is timing-sensitive (a 3-second ticker, a real listener) and flakes under load | M × M | The ticker interval becomes a package variable the test shortens, as `runLiveMarker` already is; ten runs under `-race` at load before merge |
-| R17 | The nightly whole-graph race is itself over its timeout, so the backstop is red for the wrong reason | M × M | `-timeout=60m`; after Part A `migrate` is the measured figure from PR #1321's CI; if still over, the nightly races `migrate` separately |
+| R17 | The nightly whole-graph race is red for a reason that is not a race (a package over the 30-minute bound, a load flake) | M × M | Its own workflow, so it is not hostage to #855; after Part A `migrate` is the measured figure from PR #1321's CI and `cli` is 846 s, both inside the bound; a timeout there is read as a timeout, never as a race |
 | R18 | A real race exists today in code the scoped gate drops | L × H | By construction such code runs on one goroutine in its tests; the nightly run is the check on that argument, and the first scoped run is compared against a same-commit whole-graph run (§V.R5) |
 | R10 | Another session's PR changes `migrate` tests or `hooks.yml` under this one (a new archive is in flight on `fix/m20-smoke-findings`) | H × L | `telepathy touched` on each file before editing; main merged in before the final CI |
 
@@ -419,10 +455,15 @@ R3. **Mutation checks.** (a) Add `go func(){}()` to a source function no raced t
     next set. (c) Remove the directive from the new dashboard test → red, `dashboard_serve.go`
     named. (d) Point a directive at a start that does not exist → red. (e) Delete one row of the
     table → the fixture test for that row red. (f) Make the profile unwritable → error, not green.
+    (g) Plant an unsynchronised write shared by two goroutines in a raced test → the gate red with
+    `WARNING: DATA RACE`; this is the check that the verdict run carries no coverage. (h) Remove
+    the request from the dashboard test → still green on step 5, so the overlap is asserted by the
+    test itself (it fails if the page was not served before the run ended).
 R4. The new dashboard test alone, ten times under `-race` at load → ten greens.
 R5. **Real data.** On the pull request's commit, every test in the scoped set has the verdict it
     has in R1's whole-graph run, and R1 reports zero `WARNING: DATA RACE`. First CI run: the race
-    step's seconds (→ R1) and the nightly step exercised once by `workflow_dispatch`.
+    step's seconds (→ R1). `race-nightly.yml` is run once by `workflow_dispatch` after merge and
+    its conclusion read; it cannot run from the pull request's branch before that.
 R6. `go -C scripts run ./check` before each push; read the FAIL COUNT. A workflow edit needs CI's
     `qlty`/`actionlint` before any green claim.
 
@@ -462,5 +503,5 @@ Ruled by gblock, 2026-10-11:
 3. **The race gate is scoped per test, and the scope is enforced** (Part R). Asked as "it should
    only cover things that actually spawn goroutines"; chosen over per-package scoping and over
    leaving the scope. This replaces the 2026-09-03 rule that the gate races the whole shipped
-   import graph on every pull request; that form moves to the nightly run. Part R is built before
+   import graph on every pull request; that form moves to a nightly workflow of its own. Part R is built before
    Part B, and Part B is written only if the measurement after R still calls for it.
