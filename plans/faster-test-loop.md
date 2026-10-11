@@ -254,9 +254,11 @@ Every command starts with `unset $(env | grep -o '^FEOV_[A-Z_]*')`. `T` is
 **Both parts:** `go -C scripts run ./check` before each push; the auditor gate
 (`/prosthetic-conscience:plan-audit`) on this document before any code.
 
-### Forks for the human
+### Rulings
 
-1. **Does CI adopt `testsplit`, or only the local gate?** Recommended: both. Local-only leaves CI at
-   24 minutes and makes `check` and the workflow two command lines.
-2. **Order.** Recommended: Part A alone first, its own pull request, measured in CI before Part B
-   is written — A may move `cli` onto the critical path and change B's numbers.
+Ruled by gblock, 2026-10-11:
+
+1. **CI adopts `testsplit` as well as the local gate.** `check`, `golden` and the workflow call one
+   command line.
+2. **Part A ships alone, and is measured in CI before Part B is written.** Part B's targets (B1–B3)
+   are re-read against that measurement and restated in this document if they move.
