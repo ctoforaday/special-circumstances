@@ -1,6 +1,7 @@
 package report
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -123,4 +124,64 @@ func TestFootnoteLabelsAreNotIdLinked(t *testing.T) {
 		t.Errorf("the footnote label was turned into a link to somewhere else:\n%s", got)
 	}
 	_ = ev
+}
+
+// ONE PAGE, ONE ELEMENT PER FOOTNOTE ID. Every document with a citation numbers a note 1, and the
+// documents are tabs of one page: the second tab's marker and entry under "fn-1" were the first
+// tab's to the browser, so the entry's way back and the marker's way down led to a hidden tab.
+// Each tab's notes link among themselves, and the label a reader sees is the one written.
+func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
+	docs := []Doc{
+		{File: FileReport, Nav: "Report", Body: "## Fn 1\n\nA claim[^1], again[^1], a proof[^P1] and an aside[^scope].\n\n[^1]: The first source.\n[^P1]: The computation.\n[^scope]: Of the naturals.\n"},
+		{File: FileDebate, Nav: "Debate", Body: "A position[^1] on the proof[^P1].\n\n[^1]: Another source.\n[^P1]: The computation.\n"},
+		{File: FileRun, Nav: "Run", Body: "A third[^1].\n\n[^1]: A third source.\n"},
+	}
+	html := RenderSite("# T", docs, record.Family{})
+	arts := regexp.MustCompile(`(?s)<article[^>]*data-doc="([^"]+)"[^>]*>(.*?)</article>`).FindAllStringSubmatch(html, -1)
+	if len(arts) != len(docs) {
+		t.Fatalf("the page holds %d article(s), want %d", len(arts), len(docs))
+	}
+	seen := map[string]string{}
+	for _, a := range arts {
+		here := map[string]bool{}
+		for _, m := range regexp.MustCompile(` id="([^"]+)"`).FindAllStringSubmatch(a[2], -1) {
+			if in, dup := seen[m[1]]; dup {
+				t.Errorf("id %q is an element of %s and of %s", m[1], in, a[1])
+			}
+			seen[m[1]], here[m[1]] = a[1], true
+		}
+		for _, m := range regexp.MustCompile(`href="#(fn[^"]*)"`).FindAllStringSubmatch(a[2], -1) {
+			if !here[m[1]] {
+				t.Errorf("%s links to #%s, which is no element of that tab", a[1], m[1])
+			}
+		}
+	}
+	for doc, wants := range map[string][]string{
+		FileReport: {`<h2 id="fn-1">`, `id="fnref-1-2" href="#fn-1-2"`, `<li id="fn-1-2">The first source.`, `href="#fnref-1-2"`, `<li id="fn-P1">`, `<li id="fn-scope">`,
+			`<a class="cite" href="#fn-1-2" title="1 — The first source.">[1]</a>`, `<span class="fnlabel" data-nolink>1</span>`},
+		FileDebate: {`id="fnref-1-3" href="#fn-1-3"`, `<li id="fn-1-3">Another source.`, `href="#fnref-1-3"`, `id="fnref-P1-2" href="#fn-P1-2" title="P1 — The computation."`, `<li id="fn-P1-2">`, `<span class="fnlabel" data-nolink>P1</span>`},
+		FileRun:    {`id="fnref-1-4" href="#fn-1-4"`, `<li id="fn-1-4">A third source.`},
+	} {
+		for _, a := range arts {
+			if a[1] != doc {
+				continue
+			}
+			for _, w := range wants {
+				if !strings.Contains(a[2], w) {
+					t.Errorf("%s does not carry %s:\n%s", doc, w, a[2])
+				}
+			}
+		}
+	}
+}
+
+// AN ID WITH A COUNT IS AN ID TOO: the second "A" is "a-2", and a heading that reads "A 2" is not
+// given that id again.
+func TestACountedIdIsNotGivenOutTwice(t *testing.T) {
+	html := mdToHTML("## A\n\n## A\n\n## A 2\n\n## A\n", FileReport, anchors{}, map[string]int{})
+	for _, id := range []string{"a", "a-2", "a-2-2", "a-3"} {
+		if n := strings.Count(html, `<h2 id="`+id+`">`); n != 1 {
+			t.Errorf("%d heading(s) carry id %q, want one:\n%s", n, id, html)
+		}
+	}
 }
