@@ -33,8 +33,15 @@
 # second would read as one more comment about the first.
 name: nightly-alarm
 
+# `workflow_run` runs with this repository's token whatever branch the watched run was on,
+# which is why a linter calls the trigger dangerous: a job that checked out or executed
+# anything from the triggering run would hand that token to it. THIS JOB DOES NEITHER. It
+# checks out nothing, runs nothing the watched run produced, and reads four facts about it
+# (url, id, sha, branch) through `env`, never interpolated into the script. Its token can
+# write issues and nothing else. The finding is answered here rather than suppressed and
+# forgotten: adding a checkout or an artifact download to this job reopens it.
 on:
-  workflow_run:
+  workflow_run:  # zizmor: ignore[dangerous-triggers]
     workflows: [hooks, race-nightly]
     types: [completed]
 
