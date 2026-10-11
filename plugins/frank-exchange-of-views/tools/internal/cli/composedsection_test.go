@@ -37,7 +37,7 @@ func refusesTheSection(t *testing.T, out string, err error, want ...string) {
 		t.Fatalf("report text carrying a section the tool composes was recorded:\n%s", out)
 	}
 	msg := err.Error() + "\n" + out
-	for _, w := range append(want, "NOTHING IS RECORDED", "HOW CONTENT REACHES IT", "`show report --assembled`") {
+	for _, w := range append(want, "NOTHING IS RECORDED", "HOW CONTENT REACHES IT", "WHAT TO DO: take that line and what stands under it out", "`show report --assembled`") {
 		if !strings.Contains(msg, w) {
 			t.Errorf("the refusal does not say %q:\n%s", w, msg)
 		}

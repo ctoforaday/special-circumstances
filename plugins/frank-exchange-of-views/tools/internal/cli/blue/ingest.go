@@ -141,8 +141,9 @@ func composedRefusal(doc string) error {
 		return nil
 	}
 	return feov.Errorf(feov.Validation, "the report's text would carry %q, and %s is not the report's text to write: assembly composes it, in %s, from %s. "+
-		"HOW CONTENT REACHES IT: %s NOTHING IS RECORDED by this call. Take that line and what stands under it out of the report's text, "+
-		"and put what it says where the way in above takes it, or, where it is the report's own argument, under a heading of the report's own. "+
+		"NOTHING IS RECORDED by this call. HOW CONTENT REACHES IT: %s "+
+		"WHAT TO DO: take that line and what stands under it out of the report's text. What it says goes by the way above and by no other; "+
+		"only an argument of the report's own, which that way does not carry, stays in the text, under a heading of the report's own. "+
 		"`show report --assembled` lists every section of the assembled set with who composes it and how content reaches it",
 		line, s.Heading, s.File, s.From, s.Path)
 }
