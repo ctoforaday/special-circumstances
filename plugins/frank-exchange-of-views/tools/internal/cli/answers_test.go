@@ -157,11 +157,6 @@ func tail(row string) string {
 	return "The first stands. If it was wrong, say so in " + row + "; the record is append-only and both stay visible"
 }
 
-// unansweredTail is what the refusal ends with when the row says nothing answers the first.
-func unansweredTail(row string) string {
-	return "The first stands. If it was wrong, nothing answers it: " + row
-}
-
 // endsWithRow holds a refusal to the row this file drives.
 func (d drive) endsWithRow(refusal, row string) {
 	d.t.Helper()
@@ -190,7 +185,7 @@ const (
 	rowBacking     = "a verification of the citation this corroboration placed, at your next sitting"
 	rowClose       = "a docket motion on the gap"
 	rowGradeRule   = "a docket motion on the gap"
-	rowDocketRule  = "the ruling is your last word on that motion, and the gap comes before you again only in a docket motion another seat files"
+	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition    = "a declaration"
 	rowAvenue      = "a move of the avenue"
 	rowReproduce   = "a new re-run of the proof, whose reason says which earlier re-run it replaces"
@@ -224,14 +219,11 @@ func (d drive) docketMotion(what, seatID string) {
 // answerDrive is one row of the table, driven. helps names every help page that states the row, as
 // "<role> <path>"; TestEveryHelpAnswerIsAdmitted fails a page whose answer no drive here covers.
 type answerDrive struct {
-	name string
-	row  string
-	// unanswered marks a row that says nothing answers the act, which a page and a refusal render
-	// without "say so in".
-	unanswered bool
-	when       string // set where a page states two rows
-	helps      []string
-	drive      func(d drive)
+	name  string
+	row   string
+	when  string // set where a page states two rows
+	helps []string
+	drive func(d drive)
 }
 
 func answerDrives() []answerDrive {
@@ -397,18 +389,23 @@ func answerDrives() []answerDrive {
 			d.docketMotion("the ruler's docket motion, the gap closed", "red-chair")
 			d.docketMotion("the filer's docket motion, the gap closed", "blue-respond")
 		}},
-		{name: "a ruling on a docket motion", row: rowDocketRule, unanswered: true, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
+		{name: "a ruling on a docket motion", row: rowDocketRule, helps: []string{"bench motion docket rule"}, drive: func(d drive) {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
 			rule := func(text string) []string {
 				return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
 					"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", text}
 			}
 			d.admitted("the ruling", "judge", rule("one more exchange")...)
-			// NOTHING ANSWERS IT: the refusal says so and names no act, and the bench's own docket
-			// motion — what the row once named — is refused, as is a second ruling.
-			if r := d.refused("a second ruling", "judge", rule("again")...); !strings.HasSuffix(r, unansweredTail(rowDocketRule)) {
-				d.t.Fatalf("the refusal does not end with the row this test drives (%q):\n%s", rowDocketRule, r)
+			d.endsWithRow(d.refused("a second ruling", "judge", rule("again")...), rowDocketRule)
+			// "a declaration": the bench's is admitted in the sitting that ruled.
+			before := d.admitted("the board as the ruling left it", "blue-respond", "show", "board")
+			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on that docket motion was wrong, and this is how G1 is to be read")
+			// "which moves no gap": the board is as the ruling left it, the ruling still answers that
+			// motion, and the bench's own docket motion is refused.
+			if after := d.admitted("the board after the declaration", "blue-respond", "show", "board"); after != before || !strings.Contains(after, `"open": true`) {
+				d.t.Fatalf("the declaration moved the board:\nbefore\n%s\nafter\n%s", before, after)
 			}
+			d.endsWithRow(d.refused("a second ruling after the declaration", "judge", rule("again")...), rowDocketRule)
 			if r := d.refused("the bench's own docket motion", "judge", "motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide again"); !strings.Contains(r, "is ruled by the bench seat") {
 				d.t.Fatalf("the bench's docket motion is refused for another reason than its gavel:\n%s", r)
 			}
@@ -564,9 +561,6 @@ func TestEveryHelpAnswerIsAdmitted(t *testing.T) {
 			return
 		case 1:
 			expect = seat.AnswerLead + ", say so in " + rows[0].row + "."
-			if rows[0].unanswered {
-				expect = seat.AnswerLead + ", nothing answers it: " + rows[0].row + "."
-			}
 		default:
 			// A page that states two rows says which acts each is for; the table's order is the
 			// key fields' order.
