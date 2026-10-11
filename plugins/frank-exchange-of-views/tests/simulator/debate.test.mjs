@@ -405,10 +405,15 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // contradictions. The lens reads the avenue sections as they ship before it grades one.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
     const p = firstPrompt(world, seat)
-    assert.ok(/YOU MINT A GAP ANCHORED TO THE AVENUE/.test(p) && /one approach on the record under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no avenue/.test(p),
+    assert.ok(/that is a candidate gap, anchored to the avenue/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no avenue/.test(p),
       `${seat} is not told that an avenue contradicting the report is a gap`)
-    assert.ok(/READ THOSE SECTIONS AS THEY SHIP, in the assembled form of the report, before you grade an avenue/.test(p), `${seat} is not told to read the avenue sections as they ship`)
-    assert.ok(/A finding about an avenue is a note: it is on no seat's work list/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an avenue contradiction as a finding`)
+    assert.ok(/read them in the report's assembled form before you grade an avenue/.test(p), `${seat} is not told to read the avenue sections as they ship`)
+    assert.ok(/A contradiction left as a finding ships: a finding about an avenue is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an avenue contradiction as a finding`)
+    // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch spends a
+    // lens's budget — one mint, in a smoke — on a duplicate row, against the same prompt's "not on
+    // nitpicks"; and the lens that filed findings on universe-m21 had judged by the answer alone.
+    assert.ok(/weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer/.test(p) && !/YOU MINT A GAP/.test(p),
+      `${seat} is told to mint whatever the mismatch changes for a reader`)
   }
   assert.ok(!/STEELMAN DUTY/.test(evidence) && !/take slice|instance \d+ of/.test(evidence), 'the evidence seat verifies sources and owns no slice')
 
@@ -438,7 +443,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
-    'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
+    'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)

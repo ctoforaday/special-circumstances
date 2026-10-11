@@ -377,7 +377,7 @@ Usage:
 
 Flags:
       --about string                    → SHARED §11
-      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an avenue reaches no seat's work list: where an avenue's fate or reason contradicts what the report tells its reader, mint the gap, which anchors to the avenue the same way
+      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an avenue reaches no seat's work list; a gap anchors to an avenue the same way, and a material one is on blue's
   -h, --help                            help for finding
       --impact grade                    how bad the consequence is if it lands
       --key string                      your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. Only finding and mint take a handle: no other verb on this surface has this flag

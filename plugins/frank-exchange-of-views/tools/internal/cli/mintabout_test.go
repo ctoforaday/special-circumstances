@@ -131,7 +131,7 @@ func TestAGapAboutAnAvenueReachesBlueAndAFindingAboutOneReachesNoWorkList(t *tes
 			t.Errorf("a finding about an avenue is on %s's work list; `finding --help` says it reaches none:\n%s", seat, w)
 		}
 	}
-	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an avenue reaches no seat's work list") || !strings.Contains(h, "mint the gap") {
+	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an avenue reaches no seat's work list; a gap anchors to an avenue the same way, and a material one is on blue's") {
 		t.Errorf("`finding --help` does not say that a finding about an avenue reaches no work list and that the gap is what does:\n%s", h)
 	}
 	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "scope-creep", "--about-kind", "avenue", "--about", avenue,
