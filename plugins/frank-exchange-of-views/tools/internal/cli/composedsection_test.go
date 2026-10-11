@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -36,7 +37,7 @@ func refusesTheSection(t *testing.T, out string, err error, want ...string) {
 		t.Fatalf("report text carrying a section the tool composes was recorded:\n%s", out)
 	}
 	msg := err.Error() + "\n" + out
-	for _, w := range append(want, "NOTHING IS RECORDED", "HOW CONTENT REACHES IT") {
+	for _, w := range append(want, "NOTHING IS RECORDED", "HOW CONTENT REACHES IT", "`show report --assembled`") {
 		if !strings.Contains(msg, w) {
 			t.Errorf("the refusal does not say %q:\n%s", w, msg)
 		}
@@ -135,6 +136,83 @@ func TestEveryActTheLayoutNamesIsACommand(t *testing.T) {
 	}
 	if acts < 20 {
 		t.Errorf("read %d act(s) off the layout's paths; the rows name more than that, so this check is not reading them", acts)
+	}
+}
+
+// THE ASSEMBLED LAYOUT IS WHAT ASSEMBLY SHIPS, read before a report exists and after.
+func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
+	runDir := newRun(t)
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+		t.Fatal(err)
+	}
+	// Before any report is ingested — when the seat about to write one asks.
+	out, err := run(t, "show", "report", "--assembled", "--run", runDir, "--seat-id", "blue-synthesize")
+	if err != nil {
+		t.Fatalf("the assembled layout before any report: %v\n%s", err, out)
+	}
+	order := []string{"report.md", "Title (no heading", "Outcome (no heading", "## TL;DR", "## Analysis", "## Risk matrix", "## Research areas",
+		"## Future research directions", "## Alternatives considered", "## Open questions", "## Additional findings — NOT IN THE SET", "## Bibliography — NOT IN THE SET",
+		"docket.md", "## The board", "run.md", "## How this run was conducted"}
+	at := 0
+	for _, h := range order {
+		i := strings.Index(out[at:], h)
+		if i < 0 {
+			t.Fatalf("the layout does not list %q after %q:\n%s", h, out[:at], out)
+		}
+		at += i
+	}
+	for _, want := range []string{"composed by: tool, from the open gaps on the board", "how content reaches it: No act of blue's adds a row",
+		"composed by: blue, from the section of this name in the report's text, lifted whole", "`avenue move`"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the layout does not say %q:\n%s", want, out)
+		}
+	}
+
+	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Appendix: the divisions\n\n91 / 7 = 13.\n")
+	registerBlue(t, runDir)
+	if out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", blueSeat, "--reason", "whether trial division to 9 settles it",
+		"--method", "trial division", "--hypothesis", "a factor below 10 exists"); err != nil {
+		t.Fatalf("avenue propose: %v\n%s", err, out)
+	}
+	out, err = run(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)
+	if err != nil {
+		t.Fatalf("--assembled --json: %v\n%s", err, out)
+	}
+	var got report.LayoutJSON
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("--assembled --json is not the layout: %v\n%s", err, out)
+	}
+	docs, err := report.AssembleAll(runtest.Open(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	shipped := ""
+	for _, d := range docs {
+		if d.File == report.FileReport {
+			shipped = d.Body
+		}
+	}
+	by := map[string]report.LayoutSection{}
+	for _, s := range got.Sections {
+		by[s.Heading] = s
+		// What the view calls a section's text is in the document assembly made, byte for byte.
+		if s.File == report.FileReport && s.Ships && s.Heading != "Title" && !strings.Contains(shipped, s.Text) {
+			t.Errorf("the layout's text for %q is not in the assembled report.md:\n%s", s.Heading, s.Text)
+		}
+	}
+	if s := by["Research areas"]; !s.Ships || !strings.Contains(s.Text, "whether trial division to 9 settles it") || s.Composer != report.Tool {
+		t.Errorf("Research areas does not carry the avenue just proposed: %+v", s)
+	}
+	if s := by["Additional findings"]; !s.Ships || len(s.AuthoredHeadings) != 1 || s.AuthoredHeadings[0] != "Appendix: the divisions" || !strings.Contains(s.Text, "91 / 7 = 13.") {
+		t.Errorf("Additional findings does not carry the report's own section: %+v", s)
+	}
+	if s := by["Bibliography"]; s.Ships || s.Text != "" || s.Path == "" {
+		t.Errorf("a run that cites nothing ships no bibliography, and the row still says how content reaches it: %+v", s)
+	}
+
+	// One window is not a set of sections.
+	if out, err := run(t, "show", "report", "--assembled", "--anchor", "F-00000aaa", "--run", runDir, "--seat-id", blueSeat); err == nil {
+		t.Errorf("--assembled with --anchor was answered:\n%s", out)
 	}
 }
 

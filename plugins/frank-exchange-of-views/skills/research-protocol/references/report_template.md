@@ -81,7 +81,7 @@
                                               when the report's text holds nothing more. A [RECORD] heading of this
                                               template written into the report's text is refused when the report is
                                               frozen and at every edit; the refusal says how content reaches that
-                                              section. -->
+                                              section, and the report view's assembled form lists it for all of them. -->
 
 ## Bibliography                          <!-- [RECORD] COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
                                               not type a note or a reference by hand: assembly weaves every invisible
