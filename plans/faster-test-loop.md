@@ -53,7 +53,7 @@ The naive answers are more cores (already tried: the critical path is single-thr
 timeout (already tried: 10 → 30 minutes; the gate now fails at 30). Part A removes work outright, at
 the cost of one test helper. Part B converts cores into wall clock without rewriting 900 tests, at
 the cost of one dev tool and two workflow lines. Measured in a prototype with eight processes, all
-green: `cli` 77 s → 21.7 s, `migrate` 205 s → 48.1 s.
+green: `cli` 77 s → 21.7 s.
 
 ## II. Technical Context
 
@@ -80,21 +80,36 @@ plugins/frank-exchange-of-views/tools/internal/record/migrate/
   archiveonce_ext_test.go  [NEW]     package migrate_test: migrateArchive, moved here, body replaced
   shardarchive_test.go     [MODIFY]  migrateArchive leaves this file
   findingarea_test.go      [MODIFY]  line 27 reads the store
-  remaplists_test.go       [MODIFY]  lines 336, 380 read the store
-  testmain_test.go         [MODIFY]  removes the store's directory after m.Run
+  remaplists_test.go       [MODIFY]  line 336 reads the store; line 380 stays a direct call
+  testmain_test.go         [MODIFY]  removes the store's directory before the process exits
 ```
 
 **Design.** A package-level store keyed by tarball name holds, per archive, a `sync.Once`, the
 migrated directory (under one `os.MkdirTemp` root owned by `TestMain`), the `*Manifest`, and the
 error. The first caller extracts and runs the real `Migrate(src, dst, Entries(), Options{})`, then
-closes every handle. Every caller, the first included, receives **its own copy** of the migrated
+calls `recordsql.CloseUnder` on the destination — `Migrate` leaves that handle in
+`recordsql.openCache`, keyed by absolute path, and a copy taken under an open handle is not the
+record. Every caller, the first included, receives **its own copy** of the migrated
 directory under `t.TempDir()` and opens that. A test that writes to its record therefore cannot
 reach another test's, and no call site has to be audited for writes. The manifest is returned as a
-copy for the same reason.
+copy for the same reason. Each copy registers a `CloseUnder` cleanup on its own directory, which is
+what the orphaned-handle guard and Windows' temp-directory removal require. A copy's manifest keeps
+the store's absolute `source_path`; no helper caller reads it (auditor's census, round 1).
+
+**The store answers "this archive, migrated" and nothing else.** It holds one migration per
+archive, so a test whose claim is agreement BETWEEN migrations never reads it: handed two copies
+of one migration it compares a result with itself and is green forever.
+`TestTwoMigrationsOfOneSourceMintTheSameIds` (`remaplists:374-402`) is that test and keeps its two
+direct `Migrate` calls, as `archive:36,118` and `classmaterial:341` do.
+
+The store's directory is created on the first migration, not at start-up, so a `-test.list` run
+creates nothing. `recordtest.Main` ends in `os.Exit`, which skips deferred calls; the removal
+therefore runs between `m.Run` and that exit, and `testmain_test.go` is where it is wired.
 
 `TestEveryArchivedRunMigrates` keeps its meaning: every tarball still goes through `Migrate`, and
-its refusals are read from the stored manifest. A new test asserts A2 — after the sweeps, the
-store's migration count equals the number of tarballs in `run-archive`, each at 1.
+its refusals are read from the stored manifest. A new test asserts A2 and drives the store itself,
+so it holds under `-run` and in any process of a split: it asks the helper for every tarball in
+`run-archive`, twice, then asserts the store migrated each exactly once.
 
 **Alternatives rejected.**
 
@@ -116,14 +131,16 @@ grep -nE 'migrateArchive\(t|archivedRuns\(t\)|Glob\(filepath.Join\(dir, "\*|(mig
 | Site | Changes? |
 |---|---|
 | `migrateArchive` callers (19): `archivedgaps:25,98,118` `prechange:14` `remanded:17` `classmaterial:36,62,72,84,291` `benchoccasion:27` `reopenedm19:17` `everyarchive:23` `schemaepoch:22` `everyrender:47` `seatturncarry:109` `gapplace:401` `shardarchive:24,43` | No edit; each now receives a copy of the once-migrated record |
-| In-package sweeps: `findingarea:27`, `remaplists:336,380` | Yes — read the store instead of calling `Migrate` |
+| In-package sweeps: `findingarea:27`, `remaplists:336` | Yes — read the store instead of calling `Migrate` |
+| `remaplists:380` (`TestTwoMigrationsOfOneSourceMintTheSameIds`, two migrations of b9 compared) | No — needs two real migrations |
 | Sweep enumerators: `archivedRuns` (`remaplists:96`), three `Glob` sites (`benchoccasion:20`, `everyarchive:16`, `everyrender:39`) | No |
 | Direct `Migrate` on a synthetic or chained source: `classmaterial:141,227,246,341` `correction:112,157,179,195` `gapplace:144,216` `seatturncarry:48` | No — not an archive, or deliberately a second migration |
 | Direct `Migrate` on one archive: `archive:36,118,240,291` `repairregister:75` `avenuerename:57` | No — see scope note |
 | Other packages extracting an archive: `internal/cli/prechange_test.go:18`, `internal/record/classmaterial_test.go:274` | No — they extract, they do not migrate |
+| Other packages migrating an archive: `internal/cli/composedsection_test.go:241` (m20) — found by `git grep -nE 'migrate\.Migrate\(' -- '*_test.go'` outside the package | No — one call, another process; see scope note |
 
 **Scope note.** The full concept — "no archive is migrated twice in one process" — would also route
-the six direct single-archive calls. They are left: `archive:36,118` migrate the same run twice on
+the six direct single-archive calls in the package and the one in `internal/cli`. They are left: `archive:36,118` migrate the same run twice on
 purpose to compare the results, and the rest cost about a second each. A2 is therefore stated for
 the helper, not for the package.
 
@@ -150,22 +167,40 @@ runs the WHOLE scope it is given, so no package can fall between two invocations
    a table row naming no package is an error.
 3. Unsplit packages run as one `go test -count=1 [-race] -timeout D <pkgs>`, concurrently with:
 4. Each split package: `go test -c`, then `<bin> -test.list '.*'`; `Test`, `Fuzz` and `Example`
-   names are dealt round-robin into N lists; each list runs as `<bin> -test.count=1 -test.v
-   -test.timeout D -test.run '^(a|b|…)$'` with the package directory as its working directory.
-5. **Every listed name must come back with a top-level verdict.** A name with no `--- PASS`,
-   `--- FAIL` or `--- SKIP` line fails the run as *not measured*. A process that exits non-zero
-   fails the run and its output is printed whole.
+   names are dealt round-robin into N lists; each list runs as `<bin> -test.count=1
+   -test.v=test2json -test.timeout D -test.run '^(a|b|…)$'`, piped through `go tool test2json`,
+   with the package directory as its working directory and the caller's environment passed
+   through unchanged (`UPDATE_GOLDENS`, `FEOV_RELEASE_GATE`).
+5. **Every listed name must come back with a top-level verdict, read from the JSON event's
+   `Action` field** — never scraped from a `--- PASS` line, which a test printing without a
+   trailing newline hides. A name with no `pass`, `fail` or `skip` event fails the run as *not
+   measured*. A process that exits non-zero fails the run and its output is printed whole. The
+   tool prints the count of each verdict per package, so a test that starts skipping is a number
+   that moved.
 6. `N` defaults to `min(8, NumCPU/2)`, at least 1; `-n 1` is the serial behaviour and is the
    comparison arm for §V.
 
-The table (`internal/testsplit`) starts with three FEOV rows — `internal/cli`, `internal/record`,
-`internal/record/migrate` — each carrying its measured serial seconds. It is a tuning table, not a
+The table (`internal/testsplit`) starts with two FEOV rows — `internal/cli` and `internal/record` —
+each carrying its measured serial seconds. `internal/record/migrate` has **no row**: Part A's store
+is per process, so dealing its sweeps across N processes migrates every archive N times and
+cancels Part A inside the split. Whether it ever needs a row is read from Part A's CI measurement
+(ruling 2); a row would need the sweeps dealt to one process, which is a design change stated then,
+not assumed now. It is a tuning table, not a
 derived carrier: a missing row costs time and never coverage, because step 3 runs whatever step 4
 does not. The tool prints each package's wall clock, so the next slow serial package is visible in
 every report.
 
 `check`, `golden` and the workflow all call the same command line; `parity_test.go` asserts the
-workflow's line against the gate's args. Windows keeps `go test -short ./...` on pull requests: it is
+workflow's line against the gate's args. `-count=1` is inside the tool on both paths (steps 3 and
+4), and `main_test.go` asserts it on each — the gate's args no longer show it, so
+`TestEverySuiteGateDefeatsTheTestCache` reads the tool's argv builder instead of the gate's. The
+scheduled run's `-timeout=40m` and `FEOV_RELEASE_GATE=1` (`hooks.yml:657-659`) carry over as the
+tool's `-timeout` and the passed-through environment. `golden`'s recording leg (`-update`,
+`-review`) uses the same invocation with `UPDATE_GOLDENS` in the environment.
+
+Prose that states the old invocation and is rewritten with it: `scripts/golden/main.go:124`,
+`scripts/internal/goldenmods/goldenmods.go:4`, `scripts/check/main.go:85`, and the `noCache`
+comment in `scripts/check/gates.go`. Windows keeps `go test -short ./...` on pull requests: it is
 262 s, off the critical path, and the tool is still built to run there (`.exe`, no shell).
 
 **Alternatives rejected.**
@@ -208,6 +243,7 @@ approved.
 |---|---|---|---|
 | R1 | A copied record differs from a freshly migrated one (WAL not folded, a sibling file missed) | M × H | The store closes every handle before the first copy and copies every file in the directory; §V.3 compares the full suite's results against the serial, uncached baseline; `TestEveryArchivedRunRenders`' byte-pinned golden is the tripwire |
 | R2 | The copy costs what the migration did | L × M | A1 is the gate; measured before the rest of Part A is written |
+| R1b | A test that compares migrations is routed to the store and compares one result with itself | M × H | The rule above; §V.4(d) makes an id depend on the destination and expects `TestTwoMigrationsOfOneSourceMintTheSameIds` red |
 | R3 | A failed migration is cached and every later test reports the same error | L × L | Intended: one cause, stated once per caller with the archive's name |
 | R4 | Two processes of one package collide on state outside `t.TempDir()` (a fixed path, a port, a cache directory) — a concurrency no package has with itself today | M × H | Prototype was green once for `cli` and `migrate`; `record` and every `-race` arm are unmeasured. §V.6 runs each split package ten times at N=8 before merge; a collision is fixed at its source, never by lowering N |
 | R5 | A test silently runs in no process | L × H | Step 5: every listed name needs a verdict; §V.7 deletes a name from a list and expects red |
@@ -232,15 +268,22 @@ Every command starts with `unset $(env | grep -o '^FEOV_[A-Z_]*')`. `T` is
 4. **Mutation checks.** (a) Make the store return archive X's directory for archive Y → at least
    `TestEveryArchivedRunRenders` red. (b) Make the store skip one tarball → the A2 test red.
    (c) Make copy-out hand back the shared directory → a writing test (`classmaterial`) turns a later
-   reader red, or A2's isolation assertion does.
+   reader red, or A2's isolation assertion does. (d) Make a minted id depend on the destination
+   directory → `TestTwoMigrationsOfOneSourceMintTheSameIds` red. (e) Remove the `CloseUnder`
+   before the first copy → the orphaned-handle guard or the render golden red.
 5. **Real data.** The 19 archives are captured runs, not synthetic fixtures; step 2 is the driveable
    check on them. After merge, read `internal/record/migrate`'s line in the CI race step → A3.
 
 **Part B**
 
-6. `go -C scripts run ./testsplit -module $T -n 8` and the same with `-race -deps ./cmd/feov-record`,
-   ten times each, on a quiet box → ten greens each. → B1, B2 against `-n 1` runs interleaved.
-7. **Mutation checks.** (a) Drop one name from a list → *not measured*, red. (b) Plant a failing
+6. Baseline, before any edit, from today's command: `go -C $T test -count=1 -json ./...` and the
+   race step's `go test -race -count=1 -json <shipped graph>`. Then `go -C scripts run ./testsplit
+   -module $T -n 8` and the same with `-race -deps ./cmd/feov-record`, ten times each, on a quiet
+   box → ten greens each, and **every test name's verdict, `skip` included, equals the baseline's**
+   in both arms. → B1, B2 against the baseline runs, interleaved.
+7. **Mutation checks.** (a) Drop one name from a list → *not measured*, red. (e) Remove `-count=1`
+   from the unsplit path → `main_test.go` red. (f) Run `golden -review` through the tool after
+   editing one help line → the golden is rewritten, proving the environment reaches the test. (b) Plant a failing
    test in a split package → red, its output printed. (c) Name a package in the table that is not in
    scope → error. (d) Give `-deps` a target that resolves to nothing → error.
 8. `go -C scripts run ./check` on a quiet box: read the FAIL COUNT and each FEOV gate's seconds.
