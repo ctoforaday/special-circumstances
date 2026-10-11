@@ -8,10 +8,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
-// NO SEAT IS TOLD THAT A REPORT OWES A HEADING.
+// NO SEAT IS TOLD THAT A REPORT'S ARGUMENT OWES A HEADING.
 //
 // The report's structure is its author's: the sections of its argument ship as the body under the
-// headings their author gave them. The template once held "Technical foundations" and "Analysis"
+// headings their author gave them. The three surfaces the synthesis prompt asks blue to write —
+// TL;DR, The Catechism, Open questions — are that seat's duty and no more: no write refuses a
+// report for lacking one and no lens audits one by name. The template once held "Technical foundations" and "Analysis"
 // as slots, blue's prompts listed them, the logic lens's constitution named "template compliance"
 // as a thing it audits, and assembly wrote "Additional findings" above whatever fitted neither.
 // On universe-m21 the report's sections named the reader's questions, as the synthesis prompt
@@ -27,7 +29,7 @@ func TestNoSeatIsToldAReportOwesAHeading(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, told := range []string{"template compliance", "echnical foundations", "## Analysis", "foundations, analysis", "Additional findings"} {
+		for _, told := range []string{"template compliance", "echnical foundations", "## Analysis", "foundations, analysis", "foundations / analysis", "Additional findings"} {
 			if strings.Contains(string(b), told) {
 				t.Errorf("%s says %q: a heading required of a report, or an audit of the report against a template", pluginRel(t, path), told)
 			}
