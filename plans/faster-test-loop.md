@@ -43,7 +43,7 @@ Measured on the same box in one session, arms interleaved, suite run solo for th
 | R1 | CI race step, `feov-record (ubuntu)` | 1,081 s | at most 300 s |
 | R2 | Local `feov-record:race` gate, load ≤ 10 | red by timeout | green, at most 300 s |
 | R3 | Concurrency starts in the shipped graph executed under `-race` | not measured; at least one is executed by no test | every one, asserted by the gate |
-| R4 | Tests raced, of those in the five packages that start goroutines | 1,193 of 1,193 | the derived set (prototype: 104), printed by the gate |
+| R4 | Tests raced | every test in the 45 packages | the derived set, printed by the gate per package (file-level prototype: 104 tests in five packages; the rule above adds `capture` and the `seatprobe.Build` callers) |
 | B1 | Local `feov-record:race` gate, 16 cores, load ≤ 10 | red by timeout | green, under the 30-minute bound; 600 s is the aim and is restated from Part A's measurement (R12) |
 | B2 | Local `feov-record:test` gate | 378 s (peer, 4 cores) / 215 s | at most 90 s |
 | B3 | CI `feov-record (ubuntu)` job | 1,459 s | at most 780 s |
@@ -216,14 +216,27 @@ makes one, runs under the race detector on every pull request.* Not every test i
    `ListenAndServe*`, `time.AfterFunc`, `signal.Notify`, `context.AfterFunc`, `(*errgroup.Group).Go`,
    `(*sync.WaitGroup).Go`. Each row carries its reason.
 3. **The race set is derived.** A `Test`, `Fuzz` or `Example` function is in it when a start is
-   reachable from it through DIRECT calls to functions declared anywhere in the module — its own
-   test files, another package's helpers, shipped source — each call resolved by `go/types`. A
-   call through a function value or an interface is not followed (see below). This reaches
-   `internal/seatprobe/build.go:349` (`go srv.Serve`) from the five `cli` tests that call
-   `seatprobe.Build`, and `internal/debatejs/debatejs.go:256` from `capture/relayfields_test.go`,
-   none of which starts a goroutine in its own file. A test in the set by declaration carries
-   `//racescope:covers <file>:<function>` above it — for a test that drives a start it reaches
-   only through a function value, as the dashboard's is reached through the command dispatcher.
+   reachable from it by these edges and no others:
+   - a DIRECT call, resolved by `go/types`, to a function declared in a `_test.go` file of any
+     package in the module, or in a non-test file of a module package OUTSIDE the shipped scope —
+     the test-support packages (`seatprobe`, `debatejs`, `recordtest`, `runtest`, `testbuild`);
+   - the body of a function literal counts as the body of the declaration that encloses it, so a
+     `go` statement inside a closure, a `t.Run` body or a handler literal selects its test.
+
+   Reachability does NOT enter non-test files of the shipped scope. `serveDashboard` is called
+   from a literal inside `newDashboard()` (`dashboard.go:34,60`), which `root.go:262` calls
+   directly; followed into source, every `cli` test that builds the root command would reach
+   `dashboard_serve.go:76` and the set would be all of `cli`. A start in shipped source is owned
+   instead by a declared test — `//racescope:covers <file>:<function>` above it — and by step 5,
+   which refuses a start no raced test executed.
+
+   This rule reaches `seatprobe/build.go:349` (`go srv.Serve`) from the five `cli` tests that
+   call `seatprobe.Build`, `debatejs/debatejs.go:256` from `capture/relayfields_test.go`, and the
+   six test starts that sit inside literals (`cli/adversarial_test.go:237`,
+   `cli/refusalexit_test.go:60`, `record/motionguards_test.go:438`,
+   `record/recordsql/windowrace_test.go:48`, `fetchcache/corpus_cgo_test.go:70`,
+   `fetchcache/httpfetcher_test.go:225`). A call through a function VALUE or an interface is not
+   followed; that residue is R14.
 4. **The verdict run carries no coverage.** The set runs per package as `go test -race -count=1
    -json -timeout D -run '^(a|b|…)$' <pkg>`. Every selected name must come back with a `pass`,
    `fail` or `skip` event; a name with none — an `Example` with no `// Output:` is one — fails the
@@ -242,10 +255,16 @@ makes one, runs under the race detector on every pull request.* Not every test i
 6. The gate prints the set's size per package and the starts it proved, so a set that shrinks is a
    number that moved.
 
-**Why a static call graph into source is not used.** Every `cli` test that executes the root
-command reaches every verb through cobra's dispatch, so a sound call graph selects all 478 tests
-and the gain is gone. Source starts are few (one today), so each is covered by a declared test and
-the coverage rule refuses a missing or wrong declaration.
+**Why reachability stops at shipped source.** Every `cli` test that builds or executes the root
+command reaches every verb — by direct calls through command construction, and through cobra's
+dispatch — so a call graph that enters source selects all 478 tests and the gain is gone. Starts
+in step 5's scope are few (four today: `dashboard_serve.go:76` and `:78`, `seatprobe/build.go:349`,
+`debatejs/debatejs.go:256`), so each is proved executed and a missing or wrong declaration is
+refused.
+
+**The residue, stated.** A start reached only through a function value, or made by a library call
+the table does not list, is NOT raced on the pull request. It is raced by the nightly, so a race
+there is found at most a day after merge instead of before it.
 
 **The backstop is its own workflow.** `race-nightly.yml` races the WHOLE graph — the command the
 pull-request gate runs today, `-timeout=30m` per package unchanged — on `schedule` and on
@@ -255,9 +274,13 @@ only through a function value. It is NOT a step in `hooks`: the scheduled `hooks
 24 of its last 40 (#855), its `feov-record` matrix cancels the ubuntu leg when Windows fails, and
 the race step is then skipped — a backstop there does not execute, and its red would be
 indistinguishable from the standing one. `nightly-alarm.yml` gains `race-nightly` in its
-`workflows:` list, so a red opens its own issue; the fix for one is a table row or a directive.
-`check` declares the gate and skips it locally with that reason, and `parity_test.go` reads the
-second workflow file for it.
+`workflows:` list, and its issue search, title and body are keyed on the workflow that failed:
+today it searches one marker ("nightly is red"), finds #855, and would file a race red there as a
+comment about `FEOV_RELEASE_GATE`. A `race-nightly` red lands in an issue of its own that names
+the workflow; the fix for one is a table row or a directive. The workflow reproduces the
+`feov-record` job's setup (Go 1.27, `GOTOOLCHAIN=local`, cgo, the OCR C-stack cache). `check`
+declares the gate and skips it locally with that reason; `parity_test.go`'s `workflow(t)` reads
+one path today (`:39`) and reads both, so `TestEveryModuleRaceLegCarriesTheBound` sweeps both.
 
 **The first red is real.** `dashboard_serve.go:76` is uncovered today, so the gate is red until
 `dashboard_serve_test.go` gains a test that serves a live run, requests the page WHILE the watcher
@@ -455,6 +478,9 @@ R3. **Mutation checks.** (a) Add `go func(){}()` to a source function no raced t
     next set. (c) Remove the directive from the new dashboard test → red, `dashboard_serve.go`
     named. (d) Point a directive at a start that does not exist → red. (e) Delete one row of the
     table → the fixture test for that row red. (f) Make the profile unwritable → error, not green.
+    (i) Move a test's `go` statement inside a function literal → the test stays in the set.
+    (j) Fail `race-nightly` once by dispatch on a branch carrying a planted race → an issue that is
+    not #855 and names the workflow.
     (g) Plant an unsynchronised write shared by two goroutines in a raced test → the gate red with
     `WARNING: DATA RACE`; this is the check that the verdict run carries no coverage. (h) Remove
     the request from the dashboard test → still green on step 5, so the overlap is asserted by the
@@ -463,7 +489,10 @@ R4. The new dashboard test alone, ten times under `-race` at load → ten greens
 R5. **Real data.** On the pull request's commit, every test in the scoped set has the verdict it
     has in R1's whole-graph run, and R1 reports zero `WARNING: DATA RACE`. First CI run: the race
     step's seconds (→ R1). `race-nightly.yml` is run once by `workflow_dispatch` after merge and
-    its conclusion read; it cannot run from the pull request's branch before that.
+    its conclusion read; it cannot run from the pull request's branch before that, so the
+    backstop is unproven until that dispatch and the plan says so here.
+R7. First run of the gate: a selected `Example` with no `// Output:` is red as *not measured*;
+    each is given its output or leaves the set by losing its start, never by exemption.
 R6. `go -C scripts run ./check` before each push; read the FAIL COUNT. A workflow edit needs CI's
     `qlty`/`actionlint` before any green claim.
 
@@ -489,7 +518,7 @@ R6. `go -C scripts run ./check` before each push; read the FAIL COUNT. A workflo
 11. `FEOV_RELEASE_GATE=1 go -C $T test ./releasegate/fuzz/` — unchanged by this plan; run once to
     confirm nothing in the harness depended on the suite's process layout.
 
-**Both parts:** `go -C scripts run ./check` before each push; the auditor gate
+**All parts:** `go -C scripts run ./check` before each push; the auditor gate
 (`/prosthetic-conscience:plan-audit`) on this document before any code.
 
 ### Rulings
