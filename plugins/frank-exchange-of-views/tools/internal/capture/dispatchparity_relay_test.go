@@ -16,9 +16,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// noJournalNote is what the detail carries when there is no journal to compare relayed fields from.
-const noJournalNote = " — no workflow journal, so the relayed party fields (seat_id, gap_ids, occasions, head) and the last plan's bench blockers were NOT compared"
-
 // row is one dispatch row a fixture records: the seat, the head it pins and the gaps it engages.
 type row struct {
 	seat      string
@@ -64,13 +61,20 @@ func relayRecord(t *testing.T, groups ...[]row) record.Run {
 }
 
 // chairResult is a chair envelope's result as the workflow journals it: the relayed plan beside the
-// envelope's other fields.
+// envelope's other fields. The plan is the one the verb prints for these parties on the fixture's
+// record: an exchanges entry per engaged gap with nothing counted, no epoch limit, nothing docketed
+// and nothing holding a PASS that a relay is held to.
 func chairResult(head int64, parties ...row) map[string]any {
-	ps := []any{}
+	ps, xs := []any{}, []any{}
+	seen := map[string]bool{}
 	for _, p := range parties {
 		gs := []any{}
 		for _, g := range p.gaps {
 			gs = append(gs, g)
+			if !seen[g] {
+				seen[g] = true
+				xs = append(xs, map[string]any{"gap_id": g, "count": 0, "unresolved": 0})
+			}
 		}
 		party := map[string]any{"seat_id": p.seat, "gap_ids": gs}
 		if len(p.occasions) > 0 {
@@ -83,7 +87,8 @@ func chairResult(head int64, parties ...row) map[string]any {
 		ps = append(ps, party)
 	}
 	return map[string]any{
-		"plan": map[string]any{"head": head, "parties": ps, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}, "blockers": []any{}},
+		"plan": map[string]any{"head": head, "parties": ps, "docket": []any{}, "remand_owed": []any{}, "exchanges": xs, "pass_permitted": false, "ceiling": false,
+			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}},
 	}
 }
 
@@ -185,7 +190,7 @@ func TestFaithfulRelayFieldsPass(t *testing.T) {
 	lens := map[string]any{"findings": []any{}}
 	js := journalOf(t, chairResult(2, lensesRows...), lens, chairResult(2, blueRows...), chairResult(2))
 	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) matched their dispatch rows on parties, gap_ids, occasions and head") {
+	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) matched their dispatch rows and the record at the end of each chair sitting on head, parties[].seat_id, parties[].gap_ids, parties[].occasions, docket, exchanges[].gap_id, exchanges[].count, exchanges[].unresolved, pass_permitted, ceiling, max_epochs, blockers[].kind, blockers[].subject, blockers[].owner (blockers of kind contradiction, reopened, no_report, unruled_motion)") {
 		t.Fatalf("a faithful relay = %s: %s", a.Verdict, a.Detail)
 	}
 }
@@ -193,7 +198,7 @@ func TestFaithfulRelayFieldsPass(t *testing.T) {
 func TestNoJournalStatesFieldsNotCompared(t *testing.T) {
 	run := relayRecord(t, lensesRows, blueRows)
 	a := DispatchParityAudit(run, nil, false)
-	if a.Verdict != "PASS" || !strings.HasSuffix(a.Detail, noJournalNote) || strings.Contains(a.Detail, "matched") {
+	if a.Verdict != "PASS" || !strings.HasSuffix(a.Detail, noJournalNote()) || strings.Contains(a.Detail, "matched") {
 		t.Fatalf("no journal must run the register half and say the relayed fields were not compared = %s: %s", a.Verdict, a.Detail)
 	}
 }
@@ -216,12 +221,13 @@ func TestRelayedOccasionsDisagreeingWithDispatchRowFail(t *testing.T) {
 	}
 }
 
-// THE LAST PLAN'S BENCH BLOCKERS ARE HELD TO THE RECORD AT THE END OF THE CHAIR'S LAST SITTING. No row
+// THE LAST PLAN'S BLOCKERS ARE HELD TO THE RECORD AT THE END OF THE CHAIR'S LAST SITTING. No row
 // records a blocker, and the workflow convenes the terminal bench off the relayed set — so a chair
 // that asked for its plan, then filed a petition, and relayed the plan it asked for first has
 // relayed a stale one, and a chair that drops a blocker in the relay has altered it. A plan asked
-// for after the filing agrees with the record.
-func TestTheLastPlansBenchBlockersAreHeldToTheRecord(t *testing.T) {
+// for after the filing agrees with the record. The last plan names no party, so it has no rows: its
+// blockers and its epoch limit are what is held.
+func TestTheLastPlansBlockersAreHeldToTheRecord(t *testing.T) {
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
 		n++
@@ -257,15 +263,17 @@ func TestTheLastPlansBenchBlockersAreHeldToTheRecord(t *testing.T) {
 	}{
 		{"asked before the filing", final(), true},
 		{"a blocker altered in the relay", final(map[string]any{"kind": "unruled_motion", "subject": "M9", "owner": "judge"}), true},
+		{"a chair-owned blocker added in the relay", final(petition, map[string]any{"kind": "unruled_motion", "subject": "M2", "owner": "red-chair"}), true},
 		{"asked after the filing", final(petition), false},
+		{"a blocker of a kind no relay is held on", final(petition, map[string]any{"kind": "stale_area", "subject": "red-lens-voice", "owner": "red-chair"}), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			a := DispatchParityAudit(run, journalOf(t, chairResult(2, lensRows...), c.last), true)
-			got := strings.Contains(a.Detail, "and the record at the end of the chair's last sitting holds [M1] unruled")
-			if got != c.departed {
+			got := strings.Contains(a.Detail, `the last plan: relayed blockers`) && strings.Contains(a.Detail, `the record at the end of the chair's sitting holds [unruled_motion "M1" (judge)]`)
+			if got != c.departed || (a.Verdict == "FAIL") != c.departed {
 				t.Fatalf("departure reported = %v, want %v: %s: %s", got, c.departed, a.Verdict, a.Detail)
 			}
-			if !c.departed && !strings.Contains(a.Detail, "the last plan's bench blockers matched the record") {
+			if !c.departed && !strings.Contains(a.Detail, "the last plan's blockers and max_epochs matched the record") {
 				t.Fatalf("an agreeing relay does not say it was compared: %s", a.Detail)
 			}
 		})

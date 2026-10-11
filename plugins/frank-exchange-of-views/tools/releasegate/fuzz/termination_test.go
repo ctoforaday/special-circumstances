@@ -43,7 +43,8 @@ type move struct {
 func (m move) terminal() bool { return m.pass || m.ceiling || m.stall || m.halt }
 
 // noProgressEpochs is the oracle's statement of debate.js's no-progress valve (NO_PROGRESS_EPOCHS):
-// that many identical plans in a row, and the loop stops UNVERIFIED at the sitting that repeats.
+// that many plans in a row the same on every field the valve reads — the fields capture holds to the
+// record, never the reasons — and the loop stops UNVERIFIED at the sitting that repeats.
 // It is the expectation the oracle holds the script to, so a script that changes the constant or
 // drops the valve fails here by name rather than passing on a schedule that happens not to repeat.
 const noProgressEpochs = 3
@@ -109,7 +110,7 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 	if docket == nil {
 		docket = []any{}
 	}
-	return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "pass_permitted": pass, "ceiling": ceiling,
+	return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
 		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": []any{}}
 }
 
@@ -244,7 +245,7 @@ func TestTheDispatchLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
 		verdicts[out.Verdict]++
 
 		// The terminating move is the first terminal one, or the ceiling stand-in past the schedule —
-		// unless the no-progress valve stops the loop first: noProgressEpochs identical plans in a
+		// unless the no-progress valve stops the loop first: noProgressEpochs plans the valve reads as the same in a
 		// row end it UNVERIFIED at the sitting that repeats. engage serves the same plan every
 		// sitting, and so do both bench moves (the same bytes); fresh mints a new id each sitting.
 		term, sittings := move{name: "ceiling", ceiling: true}, len(sched)+1

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -187,7 +187,7 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench has sat since it was filed/.test(asm), 'the reason reaches the stamp')
 })
 
-// ── the no-progress valve: a plan that repeats identically stops the debate ─────────────────
+// ── the no-progress valve: a plan the same on every field capture compares stops the debate ──
 //
 // The B5 loop (2026-09-11): the voice lens was readied alone at head 144 for eleven epochs, because
 // it never registered and so never sat. The chair's stub here repeats that plan well past the
@@ -197,7 +197,7 @@ const NO_PROGRESS_EPOCHS = 3
 const b5Plan = () => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, why: ['red-lens-voice: active, never sat — audits the report at head 144'] }) })
 const repeated = (make, n) => Array.from({ length: n }, make)
 
-test('NO PROGRESS: a plan identical for NO_PROGRESS_EPOCHS epochs stops the debate UNVERIFIED, naming the stuck parties and the head', async () => {
+test('NO PROGRESS: a plan the same for NO_PROGRESS_EPOCHS epochs stops the debate UNVERIFIED, naming the stuck parties and the head', async () => {
   const world = makeWorld(makeResponder({ chair: [...repeated(b5Plan, 9), passChair()] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
@@ -214,19 +214,47 @@ test('NO PROGRESS: a plan identical for NO_PROGRESS_EPOCHS epochs stops the deba
     'nobody sits after the stop but the assembly, which is the bench')
 })
 
-test('a plan that changes keeps going — the head moving, the exchange count in the reasons advancing, or a repeat that is not consecutive', async () => {
+test('a plan that changes keeps going — the head moving, an exchange count advancing, or a repeat that is not consecutive', async () => {
   const heads = [2, 3, 4, 5, 6].map((head) => chairEnv({ plan: plan([party('red-lens-voice')], { head }) }))
   const moving = await makeWorld(makeResponder({ chair: [...heads, passChair()] })).run(script, ARGS)
   assert.deepEqual([moving.verdict, moving.epochs, moving.termination.no_progress], ['VERIFIED', 6, null])
 
   // k and k-max bound this march; the valve must not cut it short at a head that does not move.
-  const march = [0, 1, 2, 3].map((n) => chairEnv({ plan: plan([party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')], { head: 9, why: [`G-00000001: open, material, ${n} exchange(s) (0 stalled) — below its limits`] }) }))
+  // The reasons are the same at every sitting: the count is what marches.
+  const marchers = [party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')]
+  const march = [0, 1, 2, 3].map((n) => chairEnv({ plan: plan(marchers, { head: 9, exchanges: exchanges(marchers, n), why: ['G-00000001: open, material — below its limits'] }) }))
   const marching = await makeWorld(makeResponder({ chair: [...march, passChair()] })).run(script, ARGS)
   assert.deepEqual([marching.verdict, marching.epochs], ['VERIFIED', 5])
+
+  // A sitting the record cannot close is not a count of zero, and it moves the plan as a count does.
+  const unclosed = [0, 1, 0, 1].map((unresolved) => chairEnv({ plan: plan(marchers, { head: 9, exchanges: [{ gap_id: 'G-00000001', count: 0, unresolved }] }) }))
+  const measuring = await makeWorld(makeResponder({ chair: [...unclosed, passChair()] })).run(script, ARGS)
+  assert.deepEqual([measuring.verdict, measuring.epochs], ['VERIFIED', 5])
 
   const other = chairEnv({ plan: plan([party('red-lens-evidence')], { head: 144 }) })
   const broken = await makeWorld(makeResponder({ chair: [b5Plan(), b5Plan(), other, b5Plan(), b5Plan(), passChair()] })).run(script, ARGS)
   assert.deepEqual([broken.verdict, broken.epochs], ['VERIFIED', 6])
+})
+
+// THE REASONS ARE PROSE, AND THE VALVE DOES NOT READ THEM. Nothing can recompute `why` from the
+// record, so a chair that rewords it each sitting would otherwise keep a stuck run spending: the
+// plan below is the same on every field capture holds to the record, and it stops.
+test('NO PROGRESS: a plan whose reasons alone change is the same plan', async () => {
+  const reworded = [0, 1, 2, 3, 4, 5].map((n) => chairEnv({ plan: plan([party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')], { head: 9, why: [`G-00000001: open, material, ${n} exchange(s) (0 stalled) — below its limits`] }) }))
+  const out = await makeWorld(makeResponder({ chair: [...reworded, passChair()] })).run(script, ARGS)
+  assert.deepEqual([out.verdict, out.epochs, out.termination.no_progress && out.termination.no_progress.epochs], ['UNVERIFIED', NO_PROGRESS_EPOCHS, NO_PROGRESS_EPOCHS])
+})
+
+// A BLOCKER OF A KIND CAPTURE DOES NOT HOLD TO THE RECORD IS NOT READ EITHER; one of a kind it does
+// hold moves the plan.
+test('the valve keys on the blockers capture holds to the record, and on no other kind', async () => {
+  const stuck = (b) => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, blockers: [b] }) })
+  const unheld = [0, 1, 2, 3].map((n) => stuck(blocker(`G-0000000${n}`, 'red-lens-logic', 'material_gap')))
+  const stopped = await makeWorld(makeResponder({ chair: [...unheld, passChair()] })).run(script, ARGS)
+  assert.deepEqual([stopped.verdict, stopped.epochs], ['UNVERIFIED', NO_PROGRESS_EPOCHS])
+  const held = [0, 1, 2, 3].map((n) => stuck(blocker(`M-0000000${n}`, 'judge')))
+  const moving = await makeWorld(makeResponder({ chair: [...held, passChair()] })).run(script, ARGS)
+  assert.deepEqual([moving.verdict, moving.epochs], ['VERIFIED', 5])
 })
 
 // ── the epoch limit: a run TERM, and the record's word, like the carried ceiling ────────────
@@ -959,6 +987,8 @@ const relayEnds = async (env) => {
 // m16 (2026-10-08): chair sitting 6 relayed a plan it had rebuilt by hand, with `occasions: []` on
 // both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
 // there, 42 minutes in. The envelope below is that sitting's plan, verdict and notes, off its transcript.
+// `exchanges` is the one field written into it here: the plan carries an entry per engaged gap, and
+// the sitting's transcript states no count for any of the four.
 test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and blue — is accepted by the schema and dispatches its parties', async () => {
   const env = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
   assert.deepEqual(env.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
@@ -1007,7 +1037,7 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
   const full = () => chairEnv({
     plan: plan(
       [party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001', 'G-00000002'), { seat_id: 'judge', gap_ids: ['G-00000002'], occasions: ['petition', 'docket'] }],
-      { docket: ['G-00000002'], remand_owed: [{ gap_id: 'G-00000001', direction: 'find the primary source' }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M-00000001', 'judge')], why: ['G-00000001: open'], max_epochs: 12 }),
+      { docket: ['G-00000002'], remand_owed: [{ gap_id: 'G-00000001', direction: 'find the primary source' }], exchanges: [{ gap_id: 'G-00000001', count: 2, unresolved: 1 }, { gap_id: 'G-00000002', count: 3, unresolved: 0 }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M-00000001', 'judge')], why: ['G-00000001: open'], max_epochs: 12 }),
     verdict: null, notes: 'n',
   })
   const paths = []

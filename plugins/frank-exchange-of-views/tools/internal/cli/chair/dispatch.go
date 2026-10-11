@@ -63,6 +63,19 @@ func newDispatch() *cobra.Command {
 				return nil, fmt.Errorf("docketing %s at impasse: %w", g, err)
 			}
 		}
+		// THE BLOCKERS PRINTED ARE THE GATE'S LIST AS THE RECORD STANDS ONCE THE DOCKET IS FILED. The
+		// plan above was folded before the filing, so its list lacks the motions just written, each
+		// an unruled motion whose gavel is the bench's. The workflow convenes the terminal bench off
+		// the relayed blockers and capture holds them to the record at the end of this sitting: a
+		// chair relaying this answer without asking again would relay a list the record had
+		// already moved past, by the verb's own act.
+		if len(plan.ToFile) > 0 {
+			filed, err := record.PlanDispatch(run)
+			if err != nil {
+				return nil, err
+			}
+			plan.Blockers = filed.Blockers
+		}
 		for _, p := range plan.Parties {
 			// THE OCCASIONS ARE RECORDED, NOT ONLY PRINTED: the workflow routes the bench on the
 			// plan's copy, and a copy with nothing on the record to hold it to could be dropped or

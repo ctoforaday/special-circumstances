@@ -872,14 +872,14 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	var env struct {
 		OK     bool           `json:"ok"`
 		Result map[string]any `json:"result"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
@@ -950,7 +950,7 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 	r.maybePetition(seatID)
 	// THE PLAN RELAYED IS THE ONE ASKED FOR LAST. The chair ruled grade motions and may have just
 	// filed a petition since its first ask, and the workflow reads what still stands at the end of
-	// the sitting off the relayed plan — capture holds the last one to the record there. Asked
+	// the sitting off the relayed plan — capture holds every relayed plan to the record there. Asked
 	// again with nothing changed, the verb records nothing new.
 	r.planThisSitting = r.dispatchNext(seatID)
 	e := map[string]any{"plan": r.planThisSitting}

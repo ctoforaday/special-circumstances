@@ -102,6 +102,17 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	if m.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET || m.GetDocket().GetGapId() != "G1" || !strings.Contains(m.GetBasis(), "impasse") {
 		t.Errorf("the docket motion = %+v, want a docket filing on G1 stating impasse", m)
 	}
+	// THE BLOCKERS PRINTED ARE THE GATE'S LIST WITH THE DOCKET FILED. The verb files the motion after
+	// it folds the plan; the motion is an unruled one whose gavel is the bench's, and the workflow
+	// and capture both read the relayed list as the record at the end of the sitting. A chair
+	// relaying this answer has asked once, and the record has not moved since.
+	filed := record.PlanBlocker{Kind: record.BlockerUnruledMotion, Subject: m.GetMotionId(), Owner: "judge"}
+	if !slices.Contains(plan.Blockers, filed) {
+		t.Errorf("blockers = %+v, want the docket motion the verb filed among them: %+v", plan.Blockers, filed)
+	}
+	if want := []record.ExchangeCount{{GapID: "G1", Count: 2, Unresolved: 2}}; !slices.Equal(plan.Exchanges, want) {
+		t.Errorf("exchanges = %+v, want %+v — the docketed gap's count, on the bench's party", plan.Exchanges, want)
+	}
 	// Asked again with nothing changed: the plan still says this sitting docketed G1 — the chair
 	// relays the plan it asks for last — the bench is still the only party, no second motion is
 	// filed, and no second dispatch row is written.
@@ -115,6 +126,9 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	rows2, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 1 || len(rows2) != len(rows) {
 		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v motions=%d rows %d -> %d", plan2, len(motions), len(rows), len(rows2))
+	}
+	if !slices.Equal(plan2.Blockers, plan.Blockers) || !slices.Equal(plan2.Exchanges, plan.Exchanges) {
+		t.Errorf("asked again with nothing changed, the blockers or the exchanges moved: %+v / %+v, then %+v / %+v", plan.Blockers, plan.Exchanges, plan2.Blockers, plan2.Exchanges)
 	}
 }
 
@@ -227,7 +241,7 @@ func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
 		if len(parties) != wantParties {
 			t.Errorf("the relay names %d parties, want %d: %s", len(parties), wantParties, a)
 		}
-		for _, f := range []string{"head", "docket", "remand_owed", "pass_permitted", "stale_areas", "ceiling", "max_epochs", "epoch_limit_reached", "blockers", "why"} {
+		for _, f := range []string{"head", "docket", "remand_owed", "exchanges", "pass_permitted", "stale_areas", "ceiling", "max_epochs", "epoch_limit_reached", "blockers", "why"} {
 			if _, ok := relay.(map[string]any)[f]; !ok {
 				t.Errorf("the relay carries no %q — the workflow refuses a plan without it: %s", f, a)
 			}

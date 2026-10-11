@@ -74,8 +74,9 @@ named as the reason). The bounds are the run's terms, recorded at setup: the exc
 impasse (k-max), the floor of the gaps a lens may mint (mint-budget), which the record raises
 with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs — and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
-plan identical for three chair sittings in a row — the same parties readied against the same
-head for the same reasons — is a loop nothing on the board is moving, and the engine ends the run
+plan the same for three chair sittings in a row — the same parties readied against the same
+head, with the same docket, exchange counts and standing blockers — is a loop nothing on the board
+is moving, and the engine ends the run
 UNVERIFIED naming the stuck parties and the head. Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
