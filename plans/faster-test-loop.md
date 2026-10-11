@@ -40,8 +40,8 @@ Measured on the same box in one session, arms interleaved, suite run solo for th
 | A1 | `go test -count=1 ./internal/record/migrate/` wall | 205 s (load ~10) | at most 35% of an interleaved baseline run |
 | A2 | Migrations per archive per test process through the helper | 7–9 | exactly 1, asserted by a test |
 | A3 | CI `internal/record/migrate` under `-race` | 1,012 s | at most 400 s |
-| R1 | CI race step, `feov-record (ubuntu)` | 1,081 s | at most 300 s |
-| R2 | Local `feov-record:race` gate, load ≤ 10 | red by timeout | green, at most 300 s |
+| R1 | CI race step, `feov-record (ubuntu)` | 1,081 s | at most 300 s — an aim from a one-run, file-level prototype; the gate is two runs over a somewhat larger set, so the first CI run restates it |
+| R2 | Local `feov-record:race` gate, load ≤ 10 | red by timeout | green, at most 300 s, restated the same way |
 | R3 | Concurrency starts in the shipped graph executed under `-race` | not measured; at least one is executed by no test | every one, asserted by the gate |
 | R4 | Tests raced | every test in the 45 packages | the derived set, printed by the gate per package (file-level prototype: 104 tests in five packages; the rule above adds `capture` and the `seatprobe.Build` callers) |
 | B1 | Local `feov-record:race` gate, 16 cores, load ≤ 10 | red by timeout | green, under the 30-minute bound; 600 s is the aim and is restated from Part A's measurement (R12) |
@@ -74,8 +74,8 @@ Counted over the 45 packages the gate races today (text match, so a floor):
 | `internal/sittingcap` | 1 | 0 | 1 file |
 | 39 others | 174 | 0 | 0 |
 
-Prototype, 2026-10-11, load ~3: racing only the tests in test files that start a goroutine — 104
-tests in five packages — took 122 s, 60 s, 23 s, 58 s and 2 s per package, all green, zero races.
+File-level prototype, 2026-10-11, load ~3: racing only the tests in test files that start a
+goroutine — 104 tests in five packages, fewer than the rule in §III selects — took 122 s, 60 s, 23 s, 58 s and 2 s per package, all green, zero races.
 
 And the whole-graph gate does not do what it is trusted to do: the ONE `go` statement in shipped
 code, `go watchAndShutdown(srv, run)` (`dashboard_serve.go:76`, with `ListenAndServeTLS` two lines
@@ -217,7 +217,8 @@ makes one, runs under the race detector on every pull request.* Not every test i
    `(*sync.WaitGroup).Go`. Each row carries its reason.
 3. **The race set is derived.** A `Test`, `Fuzz` or `Example` function is in it when a start is
    reachable from it by these edges and no others:
-   - a DIRECT call, resolved by `go/types`, to a function declared in a `_test.go` file of any
+   - a DIRECT call, resolved by `go/types`, to a function or to a method on a concrete receiver
+     declared in a `_test.go` file of any
      package in the module, or in a non-test file of a module package OUTSIDE the shipped scope —
      the test-support packages (`seatprobe`, `debatejs`, `recordtest`, `runtest`, `testbuild`);
    - the body of a function literal counts as the body of the declaration that encloses it, so a
@@ -252,8 +253,10 @@ makes one, runs under the race detector on every pull request.* Not every test i
    `-race` forces atomic counters, and the detector treats each as a happens-before edge. Probe,
    go1.27.1, three runs each (`~/.claude/scratch/racescope-audit/probe`): plain `-race` reports the
    planted race 3 of 3; the same test with `-coverpkg -coverprofile` reports it 0 of 3.
-6. The gate prints the set's size per package and the starts it proved, so a set that shrinks is a
-   number that moved.
+6. The gate prints, per package, the set's size, the count of each verdict and the NAME of every
+   selected test that skipped, and the starts it proved. A concurrency test that skips on its
+   environment is unraced, as it is today; printed by name it is a line a reviewer reads, and a set
+   that shrinks is a number that moved.
 
 **Why reachability stops at shipped source.** Every `cli` test that builds or executes the root
 command reaches every verb — by direct calls through command construction, and through cobra's
@@ -274,7 +277,9 @@ only through a function value. It is NOT a step in `hooks`: the scheduled `hooks
 24 of its last 40 (#855), its `feov-record` matrix cancels the ubuntu leg when Windows fails, and
 the race step is then skipped — a backstop there does not execute, and its red would be
 indistinguishable from the standing one. `nightly-alarm.yml` gains `race-nightly` in its
-`workflows:` list, and its issue search, title and body are keyed on the workflow that failed:
+`workflows:` list, fires on a dispatched `race-nightly` run as well as a scheduled one (its
+condition today is `event == 'schedule'`, line 43), and its issue search, title and body are keyed
+on the workflow that failed:
 today it searches one marker ("nightly is red"), finds #855, and would file a race red there as a
 comment about `FEOV_RELEASE_GATE`. A `race-nightly` red lands in an issue of its own that names
 the workflow; the fix for one is a table row or a directive. The workflow reproduces the
@@ -301,7 +306,7 @@ gains none.
 | Race only packages that start goroutines | Measured: drops `migrate`, keeps `cli` and `record` whole — 1,081 s → about 846 s |
 | A hand-kept list of concurrency tests | Stale the day a goroutine is added; a miss is silent |
 | A naming convention (`*_race_test.go`) | The same list, spelled in filenames, with nothing to refuse a miss |
-| Select by static call graph | Selects everything through the command dispatcher (above) |
+| A call graph that enters shipped source, or follows function values | Selects all of `cli` through command construction and dispatch |
 | Select by per-test coverage of the plain suite | Go has no per-test coverage; running 1,193 tests one process each costs more than it saves |
 | Keep the whole graph, make it faster (Part B) | Pays to race code that cannot race, and still never executes the one start in shipped code |
 
@@ -479,8 +484,9 @@ R3. **Mutation checks.** (a) Add `go func(){}()` to a source function no raced t
     named. (d) Point a directive at a start that does not exist → red. (e) Delete one row of the
     table → the fixture test for that row red. (f) Make the profile unwritable → error, not green.
     (i) Move a test's `go` statement inside a function literal → the test stays in the set.
-    (j) Fail `race-nightly` once by dispatch on a branch carrying a planted race → an issue that is
-    not #855 and names the workflow.
+    (j) AFTER merge — `workflow_run` reads the alarm from the default branch — dispatch
+    `race-nightly` on a branch carrying a planted race → an issue that is not #855 and names the
+    workflow; the branch is deleted after.
     (g) Plant an unsynchronised write shared by two goroutines in a raced test → the gate red with
     `WARNING: DATA RACE`; this is the check that the verdict run carries no coverage. (h) Remove
     the request from the dashboard test → still green on step 5, so the overlap is asserted by the
