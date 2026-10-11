@@ -223,15 +223,15 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// there; the path, the seat that last moved it and red's ruling were removed from it as debate,
 	// so they must land in a document a reader of the archived set can open — or they are data dead
 	// in the record. Q2 was recorded straight as `abandoned`, with no `pursued` step, and the
-	// report's tag must not claim a pursuit the record does not hold.
+	// report's tag is the fate its seat recorded.
 	avenueDoc := read(FileAvenues)
 	for _, want := range []string{"## pursued (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
 		if !strings.Contains(avenueDoc, want) {
 			t.Errorf("avenues.md missing %q\n---\n%s", want, avenueDoc)
 		}
 	}
-	if !strings.Contains(got, "rewrite the cache lock-free** [abandoned before pursuit]") {
-		t.Errorf("an avenue abandoned with no pursued step must say so in report.md, not claim a pursuit:\n%s", got)
+	if !strings.Contains(got, "rewrite the cache lock-free** [abandoned] —") {
+		t.Errorf("an avenue abandoned with no pursued step carries the plain fate in report.md:\n%s", got)
 	}
 	if !strings.Contains(index, "[Avenues](avenues.md)") {
 		t.Errorf("README.md does not name avenues.md — a document the index omits is one nobody opens\n---\n%s", index)

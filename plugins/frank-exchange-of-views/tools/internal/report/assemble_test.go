@@ -143,10 +143,11 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	}
 }
 
-// THE FATE WORD MUST NOT CLAIM A HISTORY THE RECORD DOES NOT HOLD. `abandoned` reads as "tried,
-// then died", and `move` accepts abandoning straight from `proposed` — once each in #861's B and
-// B3, both real attempts whose seat skipped the `pursued` move. The row says which it was.
-func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
+// THE ROW'S TAG IS THE FATE THE SEAT RECORDED, WHATEVER PATH LED TO IT. `abandoned` means tried and
+// died, and a seat that abandons straight from `proposed` chose that word for a line it ran — on
+// universe-m21 a hypothesis a computed result refuted, printed as "[abandoned before pursuit]"
+// beside the proof that computes it. `concluded` straight from `proposed` gets the plain tag too.
+func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("sieve to the square root")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("the bound is 9, so the sieve adds nothing")}),
@@ -157,8 +158,11 @@ func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
 	if !strings.Contains(alt, "**sieve to the square root** [abandoned] —") {
 		t.Errorf("a line pursued and then abandoned keeps the plain tag:\n%s", alt)
 	}
-	if !strings.Contains(alt, "**check a computer-algebra system** [abandoned before pursuit] —") {
-		t.Errorf("a line abandoned with no pursued step must say so:\n%s", alt)
+	if !strings.Contains(alt, "**check a computer-algebra system** [abandoned] —") {
+		t.Errorf("a line abandoned straight from proposed carries the fate its seat recorded:\n%s", alt)
+	}
+	if strings.Contains(alt, "before pursuit") {
+		t.Errorf("the row says something about the path that no seat recorded:\n%s", alt)
 	}
 }
 

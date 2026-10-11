@@ -66,9 +66,8 @@
                                               opposite of its fate. -->
 
 ## Alternatives considered               <!-- [RECORD] avenues DECLINED (weighed, not taken) and ABANDONED (tried, died) —
-                                              each with its reason (the counter), in the subject's terms. A line abandoned
-                                              with no `pursued` step on the record is tagged [abandoned before pursuit], so
-                                              the tag never claims a pursuit the record does not hold. Who proposed a
+                                              each with its reason (the counter), in the subject's terms. The tag is the
+                                              fate its seat recorded, whatever path led to it. Who proposed a
                                               line, the path its status took and red's ruling are the debate,
                                               not the subject: they render in avenues.md and judgments.md. -->
 

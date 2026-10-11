@@ -732,7 +732,7 @@ Use "feov-record show [command] --help" for more information about a command.
 $ feov-record show avenues --help
 the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],ever_pursued,seat_id,ruling}]}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 

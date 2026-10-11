@@ -668,14 +668,10 @@ func avenues(a *assembly, s Section) string {
 		if a.Status != "pursued" {
 			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
 		}
-		// `abandoned` READS AS "TRIED, THEN DIED", and the tag must not claim a pursuit the record
-		// does not hold. `move` accepts abandoning a line straight from `proposed`, and a seat that
-		// skips the `pursued` step leaves a line that was attempted but never marked taken (#861: once
-		// each in B and B3). The row says exactly that, rather than relabelling a real negative result
-		// as `declined` or refusing the move.
-		if a.Status == "abandoned" && !a.EverPursued {
-			status = " [abandoned before pursuit]"
-		}
+		// THE TAG IS THE FATE THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
+		// abandoned straight from `proposed` was tried and died by the fate's own meaning, exactly as
+		// one concluded straight from `proposed` was followed to its end; a missing `pursued` step is
+		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
 		row := fmt.Sprintf("- **%s**%s%s%s", a.Line, method, status, reason)
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`

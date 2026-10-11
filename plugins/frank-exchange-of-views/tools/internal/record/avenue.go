@@ -52,13 +52,11 @@ type Avenue struct {
 	Reason     string   // the reason attached to the CURRENT status
 	Epoch      int      // the epoch the current status was set in
 	History    []string // "r0 pursued", "r2 abandoned" …
-	// EverPursued is whether any event on the line recorded `pursued`. The fate word alone implies a
-	// history it does not carry: `abandoned` reads as "tried, then died", and nothing in `move`
-	// refuses abandoning a line straight from `proposed` — measured once each in #861's B and B3,
-	// both genuine attempts whose seat skipped the `pursued` move. Derived here, from the events,
-	// so the report can say exactly what the record holds (`[abandoned before pursuit]`).
-	EverPursued bool
-	SeatID      string // who last moved it — attribution the one-line row has always carried
+	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "tried, and it
+	// died" by the enum's own meaning, and `concluded` is a line followed to its end; a seat reaches
+	// either straight from `proposed`, so the absence of a `pursued` step says how many moves the
+	// seat recorded and nothing about whether the line was taken. History holds the path.
+	SeatID string // who last moved it — attribution the one-line row has always carried
 	// Ruling, RulingWhy and RuledEpoch are the line's FIRST ruling that stands, all three from
 	// that one act: the rule the write enforces and motion_answers states.
 	Ruling     string // red's fate, if ruled
@@ -156,11 +154,6 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// declined/abandoned carries an underscore. AvenueRuling's words do (`out_of_scope`,
 			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())
-			// A CONCLUDED LINE WAS TAKEN: it ends a pursuit, so it is one whether or not the seat
-			// recorded `pursued` on the way.
-			if st := t.GetStatus(); st == recordpb.AvenueStatus_AVENUE_STATUS_PURSUED || st == recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED {
-				a.EverPursued = true
-			}
 			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()
 			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 		case *recordpb.MotionRule:
@@ -316,11 +309,8 @@ type AvenueJSON struct {
 	Reason  string   `json:"reason,omitempty"`
 	Epoch   int      `json:"epoch"`
 	History []string `json:"history,omitempty"`
-	// EverPursued distinguishes "tried, then died" from "abandoned before it was ever tried" —
-	// which the fate word alone cannot, and which `move` does not refuse.
-	EverPursued bool   `json:"ever_pursued"`
-	SeatID      string `json:"seat_id"`
-	Ruling      string `json:"ruling,omitempty"`
+	SeatID  string   `json:"seat_id"`
+	Ruling  string   `json:"ruling,omitempty"`
 }
 
 // AvenuesJSON is the wire form of the exploration space.
@@ -336,7 +326,7 @@ func AvenuesJSONOf(evs []*Event, win WindowIndex) AvenuesJSON {
 		out.Avenues = append(out.Avenues, AvenueJSON{
 			ID: a.ID, Line: a.Line, Hypothesis: a.Hypothesis, Method: a.Method,
 			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
-			EverPursued: a.EverPursued, SeatID: a.SeatID, Ruling: a.Ruling,
+			SeatID: a.SeatID, Ruling: a.Ruling,
 		})
 	}
 	return out
