@@ -286,6 +286,8 @@ A docket ruling cannot carry a holding: `motion docket rule` needs a motion to a
 
 Do not bury a holding in a ruling's opinion text, the channel least likely to be read.
 
+A ruling of yours that was wrong, on a docket motion or on a petition, is said here too: the ruling stands and no gap moves, and the declaration states how the record is to be read beside it.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -457,8 +459,8 @@ rule on a docket motion — this verb is the bench seat's, and it appears only o
 
 (X=$(cat <<'EOF') → SHARED §4
 
-IF WHAT YOU RECORDED WAS WRONG, nothing answers it: the ruling is your last word on that motion, and
-the gap comes before you again only in a docket motion another seat files.
+IF WHAT YOU RECORDED WAS WRONG, say so in a declaration, which moves no gap: the gap comes before
+you again only in a docket motion another seat files.
 
 Usage:
   feov-record motion docket rule [flags]

@@ -38,10 +38,6 @@ type superseder struct {
 	whole string
 	// when says which acts of a verb the row is for, where one verb's help states two rows.
 	when string
-	// none is a row for an act NOTHING answers: the statement of that, rendered where an answering
-	// act would be named. It is a row rather than an absence because the seat that repeats the act
-	// is otherwise left to look for an answer that does not exist.
-	none string
 }
 
 // supersederKey is what decides the answer: the event type — and, for a ruling, the motion's
@@ -70,11 +66,13 @@ const (
 //
 // A RULING'S ROW IS THE RULER'S, the one seat that can repeat it — and the ruler files nothing on
 // the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. The
-// chair answers its own ruling on a grade by putting the gap before the bench. The bench holds no
-// such act for a ruling on a docket motion: nothing sits above it, and its row says so. What a
-// seat that DISAGREES with a grade ruling does — a docket motion on the gap, or a new grade motion
-// while the gap is open — reaches that seat through its prompt and the `motion` pages, since the
-// record refuses it neither.
+// chair answers its own ruling on a grade by putting the gap before the bench. Nothing sits above
+// the bench, so it answers its own ruling on a docket motion as it answers one on a petition, in a
+// declaration: a holding every seat is given, which moves no gap — the gap is before the bench
+// again when another seat files a docket motion on it, and the row says so. What a seat that
+// DISAGREES with a grade ruling does — a docket motion on the gap, or a new grade motion while the
+// gap is open — reaches that seat through its prompt and the `motion` pages, since the record
+// refuses it neither.
 var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_AVENUE}:                             {act: "a move of the avenue"},
 	{typ: recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW}:                      {act: "a new review of the avenues", own: true},
@@ -87,8 +85,8 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                                {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MANIFEST_ROW}:                       {act: "a new manifest row for the gap", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectGrade}: {act: "a docket motion on the gap"},
-	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {none: "the ruling is your last word on that motion, " +
-		"and the gap comes before you again only in a docket motion another seat files"},
+	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
+		"the gap comes before you again only in a docket motion another seat files"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_OUTCOME}:                               {act: "a new outcome", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_POSITION}:                              {act: "a new position", own: true},
@@ -112,21 +110,14 @@ type Answer struct {
 	Subject recordpb.MotionSubject
 	// Keyed is the key field the row is for; empty when the type has one row for all.
 	Keyed string
-	// Act completes "say so in …" — or, on a row for an act nothing answers, IS the statement that
-	// nothing does (Unanswered).
+	// Act completes "say so in …".
 	Act string
-	// Unanswered marks a row whose act no act answers.
-	Unanswered bool
 	// When says which acts of a verb the row is for, where one verb's help states two rows.
 	When string
 }
 
-// Clause is the row as a sentence part, after "if it was wrong, …": the act to say so in, or that
-// nothing answers it.
+// Clause is the row as a sentence part, after "if it was wrong, …": the act to say so in.
 func (a Answer) Clause() string {
-	if a.Unanswered {
-		return "nothing answers it: " + a.Act
-	}
 	return "say so in " + a.Act
 }
 
@@ -148,7 +139,7 @@ func AnswerTo(typ recordpb.EventType, body proto.Message) (Answer, bool) {
 	if !ok {
 		return Answer{}, false
 	}
-	return Answer{Subject: k.subject, Keyed: string(k.keyed), Act: row.render(typ, field), Unanswered: row.none != "", When: row.when}, true
+	return Answer{Subject: k.subject, Keyed: string(k.keyed), Act: row.render(typ, field), When: row.when}, true
 }
 
 // AnswersTo is every row the table holds for a type, in a stable order — what a verb's help reads,
@@ -167,7 +158,7 @@ func AnswersTo(typ recordpb.EventType) []Answer {
 			if field == "" {
 				field = typeKeyField(typ)
 			}
-			out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), Unanswered: row.none != "", When: row.when})
+			out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when})
 		}
 	}
 	return out
@@ -186,9 +177,6 @@ func subjectOrder() []recordpb.MotionSubject {
 
 // render words a row for an act keyed on field ("" for a numbered or singleton act).
 func (s superseder) render(typ recordpb.EventType, field protoreflect.Name) string {
-	if s.none != "" {
-		return s.none
-	}
 	if s.whole != "" {
 		return s.whole
 	}
@@ -215,9 +203,6 @@ func SupersedingAnswer(typ recordpb.EventType, body proto.Message) string {
 	a, ok := AnswerTo(typ, body)
 	if !ok {
 		return ""
-	}
-	if a.Unanswered {
-		return "The first stands. If it was wrong, " + a.Clause()
 	}
 	return "The first stands. If it was wrong, " + a.Clause() + "; the record is append-only and both stay visible"
 }
