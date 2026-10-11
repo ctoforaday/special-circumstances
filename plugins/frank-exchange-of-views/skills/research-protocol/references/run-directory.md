@@ -20,7 +20,7 @@ research/<date>_<slug>/
 │                      # a seat never opens one: the report is read through the record tool, and the rest
 │                      # are projections the tool serves live from the same record.
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
-├── report.md          # the research — verdict, Catechism, foundations, analysis, risks, open questions
+├── report.md          # the research — verdict, Catechism, the argument, risks, open questions
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled

@@ -625,6 +625,12 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
     'the synthesis prompt restates the verbs\' report content rule instead of pointing at it')
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
+  // THE REPORT'S SECTIONS ARE ITS AUTHOR'S TO NAME. The prompt listed "technical foundations,
+  // analysis" among what blue authors, the same prompt asks that each section name the reader's
+  // question, and on universe-m21 the report had neither heading: it shipped a "not authored"
+  // line under each and a gap for lacking them.
+  assert.ok(/the sections of your argument under headings you choose/.test(synth) && !/technical foundations|Additional findings/i.test(synth),
+    'the synthesis prompt names a heading the report owes, or one the tool writes above its sections')
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
   // THE SYNTHESIZER RECORDS NO AVENUE, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
   // approaches are the frontier's and the lanes', who did the work. Handed the lanes' avenue
