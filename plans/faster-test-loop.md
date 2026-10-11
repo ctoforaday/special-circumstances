@@ -40,7 +40,7 @@ Measured on the same box in one session, arms interleaved, suite run solo for th
 | A1 | `go test -count=1 ./internal/record/migrate/` wall | 205 s (load ~10) | at most 35% of an interleaved baseline run |
 | A2 | Migrations per archive per test process through the helper | 7–9 | exactly 1, asserted by a test |
 | A3 | CI `internal/record/migrate` under `-race` | 1,012 s | at most 400 s |
-| B1 | Local `feov-record:race` gate, 16 cores, load ≤ 10 | red by timeout | green, at most 600 s |
+| B1 | Local `feov-record:race` gate, 16 cores, load ≤ 10 | red by timeout | green, under the 30-minute bound; 600 s is the aim and is restated from Part A's measurement (R12) |
 | B2 | Local `feov-record:test` gate | 378 s (peer, 4 cores) / 215 s | at most 90 s |
 | B3 | CI `feov-record (ubuntu)` job | 1,459 s | at most 780 s |
 | B4 | Tests executed | the package's `-test.list` | the same set, every name with a verdict |
@@ -82,6 +82,8 @@ plugins/frank-exchange-of-views/tools/internal/record/migrate/
   findingarea_test.go      [MODIFY]  line 27 reads the store
   remaplists_test.go       [MODIFY]  line 336 reads the store; line 380 stays a direct call
   testmain_test.go         [MODIFY]  removes the store's directory before the process exits
+plugins/frank-exchange-of-views/tools/internal/record/recordtest/
+  recordtest.go            [MODIFY]  a variant of Main that runs a function after m.Run, before the guard
 ```
 
 **Design.** A package-level store keyed by tarball name holds, per archive, a `sync.Once`, the
@@ -103,8 +105,11 @@ of one migration it compares a result with itself and is green forever.
 direct `Migrate` calls, as `archive:36,118` and `classmaterial:341` do.
 
 The store's directory is created on the first migration, not at start-up, so a `-test.list` run
-creates nothing. `recordtest.Main` ends in `os.Exit`, which skips deferred calls; the removal
-therefore runs between `m.Run` and that exit, and `testmain_test.go` is where it is wired.
+creates nothing. `recordtest.Main` runs `m.Run`, the orphaned-handle guard and `os.Exit` in one function
+(`recordtest.go:183-198`), so a deferred removal never runs. `recordtest` gains a variant that
+takes a function and runs it after `m.Run` and BEFORE `CheckOrphanedHandles`; `Main` keeps its
+signature, so its other callers do not change. The order is the point: the store's directory is
+removed first, so a handle the store left open is one the guard then reports.
 
 `TestEveryArchivedRunMigrates` keeps its meaning: every tarball still goes through `Migrate`, and
 its refusals are read from the stored manifest. A new test asserts A2 and drives the store itself,
@@ -122,7 +127,7 @@ so it holds under `-run` and in any process of a split: it asks the helper for e
 | Cache across processes on disk | A stale cache is a green that tested old code — the defect `noCache` exists to stop |
 
 **Consumer census** — the contract changed is `migrateArchive`'s behaviour (signature unchanged) and
-the three in-package sweep calls. Command, run in the package directory:
+the two in-package sweep calls. Command, run in the package directory:
 
 ```
 grep -nE 'migrateArchive\(t|archivedRuns\(t\)|Glob\(filepath.Join\(dir, "\*|(migrate\.|[^a-zA-Z.])Migrate\(' *_test.go
@@ -165,7 +170,8 @@ runs the WHOLE scope it is given, so no package can fall between two invocations
    derivation `expandScope` performs today). An empty scope is an error.
 2. Every package the table names for that module MUST be in the scope when the scope is `./...`;
    a table row naming no package is an error.
-3. Unsplit packages run as one `go test -count=1 [-race] -timeout D <pkgs>`, concurrently with:
+3. Unsplit packages run as one `go test -count=1 -json [-race] -timeout D -p P <pkgs>`, with
+   `P = max(1, NumCPU − N)` so the two paths do not oversubscribe the box, concurrently with:
 4. Each split package: `go test -c`, then `<bin> -test.list '.*'`; `Test`, `Fuzz` and `Example`
    names are dealt round-robin into N lists; each list runs as `<bin> -test.count=1
    -test.v=test2json -test.timeout D -test.run '^(a|b|…)$'`, piped through `go tool test2json`,
@@ -193,7 +199,9 @@ every report.
 `check`, `golden` and the workflow all call the same command line; `parity_test.go` asserts the
 workflow's line against the gate's args. `-count=1` is inside the tool on both paths (steps 3 and
 4), and `main_test.go` asserts it on each — the gate's args no longer show it, so
-`TestEverySuiteGateDefeatsTheTestCache` reads the tool's argv builder instead of the gate's. The
+`TestEverySuiteGateDefeatsTheTestCache` reads the tool's argv builder instead of the gate's. That
+builder lives in `scripts/internal/testsplit`, beside the table, because a test in `scripts/check`
+cannot import package `main`. The
 scheduled run's `-timeout=40m` and `FEOV_RELEASE_GATE=1` (`hooks.yml:657-659`) carry over as the
 tool's `-timeout` and the passed-through environment. `golden`'s recording leg (`-update`,
 `-review`) uses the same invocation with `UPDATE_GOLDENS` in the environment.
@@ -245,12 +253,14 @@ approved.
 | R2 | The copy costs what the migration did | L × M | A1 is the gate; measured before the rest of Part A is written |
 | R1b | A test that compares migrations is routed to the store and compares one result with itself | M × H | The rule above; §V.4(d) makes an id depend on the destination and expects `TestTwoMigrationsOfOneSourceMintTheSameIds` red |
 | R3 | A failed migration is cached and every later test reports the same error | L × L | Intended: one cause, stated once per caller with the archive's name |
-| R4 | Two processes of one package collide on state outside `t.TempDir()` (a fixed path, a port, a cache directory) — a concurrency no package has with itself today | M × H | Prototype was green once for `cli` and `migrate`; `record` and every `-race` arm are unmeasured. §V.6 runs each split package ten times at N=8 before merge; a collision is fixed at its source, never by lowering N |
+| R4 | Two processes of one package collide on state outside `t.TempDir()` (a fixed path, a port, a cache directory) — a concurrency no package has with itself today | M × H | Prototype was green once for `cli`; `record` and every `-race` arm are unmeasured. §V.6 runs each split package ten times at N=8 before merge; a collision is fixed at its source, never by lowering N |
 | R5 | A test silently runs in no process | L × H | Step 5: every listed name needs a verdict; §V.7 deletes a name from a list and expects red |
 | R6 | A hidden order dependency between tests | M × M | Same ten runs; round-robin keeps relative order inside a process |
 | R7 | N race-instrumented processes exhaust memory on a 4-core runner | M × M | Default N is 2 there; §V.8 reads peak RSS from the first CI run |
 | R8 | Workflow, `check` and `golden` drift onto three command lines | M × M | One tool, one table; parity asserts the workflow line against the gate args |
 | R9 | `go test -c` skips the vet that `go test` runs by default | M × L | The `:vet` gates cover every module; §V.9 confirms by planting a vet failure |
+| R11 | Split processes and the unsplit `go test` together oversubscribe the box and a timing-sensitive test (`fetchcache`'s pacing) goes red | M × M | `-p max(1, NumCPU − N)` on the unsplit path; §V.6's ten runs |
+| R12 | Without a split row, `migrate` under `-race` alone keeps the local gate over B1 (35% of 2,183–2,662 s exceeds 600 s) | H × M | Ruling 2: B1 is restated from Part A's measurement; the choice then is dealing the sweeps to one process, or accepting the restated figure |
 | R10 | Another session's PR changes `migrate` tests or `hooks.yml` under this one (a new archive is in flight on `fix/m20-smoke-findings`) | H × L | `telepathy touched` on each file before editing; main merged in before the final CI |
 
 ## V. Verification Plan
@@ -270,7 +280,9 @@ Every command starts with `unset $(env | grep -o '^FEOV_[A-Z_]*')`. `T` is
    (c) Make copy-out hand back the shared directory → a writing test (`classmaterial`) turns a later
    reader red, or A2's isolation assertion does. (d) Make a minted id depend on the destination
    directory → `TestTwoMigrationsOfOneSourceMintTheSameIds` red. (e) Remove the `CloseUnder`
-   before the first copy → the orphaned-handle guard or the render golden red.
+   before the first copy → the orphaned-handle guard red, because the store's directory is removed
+   before the guard runs. The render golden is NOT the detector: with no writer left, the database
+   and its write-ahead log copy consistently.
 5. **Real data.** The 19 archives are captured runs, not synthetic fixtures; step 2 is the driveable
    check on them. After merge, read `internal/record/migrate`'s line in the CI race step → A3.
 
@@ -283,7 +295,9 @@ Every command starts with `unset $(env | grep -o '^FEOV_[A-Z_]*')`. `T` is
    in both arms. → B1, B2 against the baseline runs, interleaved.
 7. **Mutation checks.** (a) Drop one name from a list → *not measured*, red. (e) Remove `-count=1`
    from the unsplit path → `main_test.go` red. (f) Run `golden -review` through the tool after
-   editing one help line → the golden is rewritten, proving the environment reaches the test. (b) Plant a failing
+   editing one help line → the golden is rewritten, proving the environment reaches the unsplit
+   path. (g) `main_test.go` runs a fixture package whose test fails unless a variable set by the
+   caller is visible → proves it for the split path. (b) Plant a failing
    test in a split package → red, its output printed. (c) Name a package in the table that is not in
    scope → error. (d) Give `-deps` a target that resolves to nothing → error.
 8. `go -C scripts run ./check` on a quiet box: read the FAIL COUNT and each FEOV gate's seconds.
