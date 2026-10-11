@@ -11,19 +11,23 @@
 //
 // # What it does
 //
-//		go run ./racescope -module <dir> -deps ./cmd/<binary>
+//	go run ./racescope -module <dir> -deps ./cmd/<binary>
 //
-//	 1. The scope is the binary's module-local import graph (internal/racescope.Scope).
-//	 2. Concurrency starts are found by syntax tree and type information: a `go` statement, or a
-//	    call to a row of internal/racescope.Table.
-//	 3. The race set is DERIVED: a Test, Fuzz or Example function of a scope package is in it
-//	    when a start is reachable from it by direct calls through test files and through the
-//	    non-test files of packages outside the scope (derive.go states the edges). A start in
-//	    shipped source is owned by the test that carries `//racescope:covers <file>:<function>`.
-//	 4. The verdict run races the set, with no coverage.
-//	 5. The evidence run executes the set again with no race detector and a coverage profile,
-//	    and every start in a non-test file must have been executed. One that was not fails the
-//	    gate, named by file and line.
+// The scope is the binary's module-local import graph (internal/racescope.Scope).
+//
+// Concurrency starts are found by syntax tree and type information: a `go` statement, or a
+// call to a row of internal/racescope.Table.
+//
+// The race set is DERIVED: a Test, Fuzz or Example function of a scope package is in it when a
+// start is reachable from it by direct calls through test files and through the non-test files
+// of packages outside the scope (derive.go states the edges). A start in shipped source is
+// owned by the test that carries `//racescope:covers <file>:<function>`.
+//
+// The verdict run races the set, with no coverage.
+//
+// The evidence run executes the set again with no race detector and a coverage profile, and
+// every start in a non-test file must have been executed. One that was not fails the gate,
+// named by file and line.
 //
 // The two runs are separate because measured together they are wrong; run.go says why.
 //
