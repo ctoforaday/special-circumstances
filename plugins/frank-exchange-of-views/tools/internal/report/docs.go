@@ -70,14 +70,15 @@ func Files() []string { return append([]string(nil), docOrder...) }
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.
 func AssembleAll(run record.Run) ([]Doc, error) {
-	docs, _, err := assemble(run)
+	docs, _, err := assemble(run, "")
 	return docs, err
 }
 
 // assemble is AssembleAll, with the headings of the rows it composed a section for: what the
 // assembled layout reads to tell a section the table placed from a line of the report's text
-// that opens as one does.
-func assemble(run record.Run) ([]Doc, map[string]bool, error) {
+// that opens as one does. The body opens under no heading of the table's, so the layout passes a
+// mark line to stand before and after it; the set that ships is assembled with none.
+func assemble(run record.Run, bodyMark string) ([]Doc, map[string]bool, error) {
 	blue, err := blueReport(run)
 	if err != nil {
 		return nil, nil, err
@@ -105,7 +106,11 @@ func assemble(run record.Run) ([]Doc, map[string]bool, error) {
 			body[s.File] = &sections{}
 		}
 		if s.compose != nil {
-			composed[s.Heading] = body[s.File].add(s.block(a))
+			block := s.block(a)
+			if s.embeds && bodyMark != "" && block != "" {
+				block = bodyMark + "\n" + block + "\n" + bodyMark
+			}
+			composed[s.Heading] = body[s.File].add(block)
 		}
 	}
 	// avenues.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a line by
@@ -116,7 +121,7 @@ func assemble(run record.Run) ([]Doc, map[string]bool, error) {
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
-			Blurb: "the research: the verdict and what it means, the Catechism, the foundations, the analysis, the risks, the open questions"},
+			Blurb: "the research: the verdict and what it means, the Catechism, the argument, the risks, the open questions"},
 		// THE FILE KEEPS ITS NAME AND THE DOCUMENT GETS A TRUE ONE. `docket.md` is a published
 		// URL — the shipped READMEs, the skill, the bench's constitution and the site's link
 		// rewriter all name it — so renaming the file buys consistency in a string no machine
@@ -214,9 +219,8 @@ func Title(run record.Run) string {
 }
 
 // blueReport renders the report's text from the record. A run with no base ingested has none, and
-// assembles with each of blue's sections flagged missing. A report the record HOLDS and cannot
-// replay is an error: assembled as though blue wrote nothing, the set would say five sections were
-// never authored and ship without a word of the report.
+// assembles with none of blue's sections. A report the record HOLDS and cannot replay is an error:
+// assembled as though blue wrote nothing, the set would ship without a word of the report.
 func blueReport(run record.Run) (string, error) {
 	have, err := reportproj.BaseIngested(run)
 	if err == nil && have {

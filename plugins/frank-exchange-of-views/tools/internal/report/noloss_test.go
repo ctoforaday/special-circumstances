@@ -20,9 +20,10 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 	cases := map[string]string{
 		"no headings at all":              "one paragraph.\n\nand another.\n",
 		"text before the title":           "prose before the title.\n# T\n**Verdict:** a preamble line\n\n## TL;DR\nx.\n",
-		"a lifted heading twice":          "# T\n\n## Analysis\nfirst.\n\n## Analysis\nsecond.\n\n##  analysis (in full)\nthird.\n",
+		"a lifted heading twice":          "# T\n\n## Open questions\nfirst.\n\n## Open questions\nsecond.\n\n##  open questions (in full)\nthird.\n",
 		"a lifted heading, other case":    "# T\n\n## ANALYSIS\nupper.\n\n## tl;dr\nlower.\n",
-		"an anchored heading":             "# T\n\n## Analysis" + fx + "\nanchored heading.\n",
+		"an anchored heading":             "# T\n\n## The Catechism" + fx + "\nanchored heading.\n",
+		"a section named as the body's row": "# T\n\n## TL;DR\nx.\n\n## " + bodyHeading + "\na section of that name.\n\n## Technical foundations\ny.\n",
 		"an empty section":                "# T\n\n## Analysis\n\n## Open questions\n\n## Appendix\n",
 		"a heading in a fence":            "# T\n\n## Analysis\n```\n## Risk matrix\n# not a title\n```\nafter the fence.\n",
 		"a tilde fence in a tick fence":   "# T\n\n## Analysis\n```\n~~~\n## Open questions\n```\nafter.\n",

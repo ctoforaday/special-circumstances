@@ -3,13 +3,12 @@
 // The report is f(event log, blue/report.md). Nothing is authored at assembly; two classes
 // of content are combined:
 //
-//   - BLUE-AUTHORED, RED-AUDITED, LIFTED VERBATIM: the title, the TL;DR, the Catechism, the
-//     technical foundations, the analysis, the open questions. These are synthesis surfaces,
-//     and a synthesis surface authored at assembly is authored AFTER red's last audit — the
-//     run-5 catechism defect (6/7 answers regressed) and, unfixed until now, the TL;DR that
-//     nothing ever checked. They live inside blue/report.md, which red re-reads in full every
-//     epoch, so moving them there makes them audited. The assembler copies them; it never
-//     writes them. A missing one is FLAGGED, never filled in.
+//   - BLUE-AUTHORED, RED-AUDITED, SHIPPED VERBATIM: the title, the TL;DR, the Catechism, the
+//     report's own sections, the open questions. A synthesis surface authored at assembly is
+//     authored AFTER red's last audit — the run-5 catechism defect (6/7 answers regressed) and
+//     the TL;DR that nothing ever checked. They live inside blue/report.md, which red re-reads
+//     in full every epoch, so moving them there makes them audited. The assembler copies them;
+//     it never writes them. A missing one is never filled in: it ships nothing (layout.go).
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
 //     matrix (the board), the three research areas (avenue events by fate), the red

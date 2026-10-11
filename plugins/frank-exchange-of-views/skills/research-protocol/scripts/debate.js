@@ -154,7 +154,7 @@ const AVENUE_SECTIONS = 'Research areas holds each avenue that is proposed, purs
 // the table's order, and TestBluesPromptsNameTheSectionsTheToolComposes fails this list when it
 // and the table differ. The table's SubjectHeading rows are not in it: the tool composes those
 // sections in other documents, and a section of that name in the report is the report's own.
-const TOOL_COMPOSED = ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Additional findings', 'Bibliography', 'The board', 'The debate', 'How this run was conducted', "The verdict's basis", 'Log (what the run told the operator)', 'Record verification', 'Claims retired', 'Superseded bench statements']
+const TOOL_COMPOSED = ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Bibliography', 'The board', 'The debate', 'How this run was conducted', "The verdict's basis", 'Log (what the run told the operator)', 'Record verification', 'Claims retired', 'Superseded bench statements']
   .map((h) => `\`## ${h}\``).join(', ')
 // WHAT THE REPORT HOLDS OF THE APPROACHES, for the two seats that write the report's text and
 // record none of them there: the synthesizer, which merges the drafts, and blue's responding seat.

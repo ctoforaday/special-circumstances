@@ -39,7 +39,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Open questions",
 		"Does the eviction path hold under a clock step?",
 		"",
-		// A section of the report's own, which ships under "Additional findings".
+		// A section of the report's own, written after one the table lifts: it ships in the body.
 		"## Appendix: eviction traces",
 		"Three traces of the eviction path.",
 		"",
@@ -295,7 +295,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	for _, s := range layout {
 		// The fixture runs no computation, cites and retires nothing, certifies once, and its title
 		// is short.
-		if s.File == FileEvidence || s.File == FileChangelog || s.Heading == "Bibliography" || s.Line != "" {
+		if s.File == FileEvidence || s.File == FileChangelog || s.Heading == "Bibliography" || s.Line != "" || s.embeds {
 			continue
 		}
 		if !shipped[s.File+"\x00"+normalizeHeading(s.Heading)] {
@@ -310,15 +310,23 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	})
 	for _, s := range layout {
-		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" {
+		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" && !s.embeds {
 			wantOrder = append(wantOrder, normalizeHeading(s.Heading))
 		}
 	}
 	if strings.Join(order, "|") != strings.Join(wantOrder, "|") {
 		t.Errorf("report.md's sections ship as %v, and the table's order is %v", order, wantOrder)
 	}
-	if !strings.Contains(got, "## Additional findings\n\n## Appendix: eviction traces\nThree traces of the eviction path.") {
-		t.Errorf("the report's own section did not ship under Additional findings:\n%s", got)
+	// THE REPORT'S OWN SECTIONS ARE THE BODY: in the order written, under their author's headings
+	// and no other, after the Catechism and before the first section the tool composes.
+	body := "## Technical foundations\nThe invalidation protocol is single-writer.\n\n## Analysis\nFrom single-writer it follows that reads never observe a torn value.\n\n## Appendix: eviction traces\nThree traces of the eviction path.\n\n## Risk matrix\n"
+	if at := strings.Index(got, body); at < 0 || at < strings.Index(got, "## The Catechism") {
+		t.Errorf("the report's own sections do not ship as the body, whole and in the order written, between the Catechism and the risk matrix:\n%s", got)
+	}
+	for _, not := range []string{"## Additional findings", "not authored", "blue/report.md"} {
+		if strings.Contains(got, not) {
+			t.Errorf("report.md carries %q: a heading or a line of the tool's about the report's own text", not)
+		}
 	}
 
 	// Fate is not crossed: the pursued avenue is an expansion, not an alternative.
@@ -472,9 +480,9 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 }
 
 // A REPORT THE RECORD HOLDS AND CANNOT REPLAY FAILS THE ASSEMBLY. Assembled as though blue wrote
-// nothing, the set would say five sections were never authored and ship without a word of the
-// report, under a title that says there is none. A run with no report ingested is the other
-// case, and assembles with each of blue's sections flagged missing.
+// nothing, the set would ship without a word of the report, under a title that says there is
+// none. A run with no report ingested is the other case, and assembles with none of blue's
+// sections: a section nobody wrote ships nothing, and no line stands in the document for it.
 func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	runDir := newRun(t)
 	run := runtest.Open(t, runDir)
@@ -486,8 +494,13 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a run with no report ingested does not assemble: %v", err)
 	}
-	if !strings.Contains(docs[0].Body, `has no "## TL;DR" section`) {
-		t.Errorf("a run with no report ingested does not flag blue's sections missing:\n%s", docs[0].Body)
+	for _, not := range []string{"TL;DR", "The Catechism", "Open questions", "not authored", "blue/report.md"} {
+		if strings.Contains(docs[0].Body, not) {
+			t.Errorf("a run with no report ingested ships %q in report.md: a line for a section nobody wrote\n%s", not, docs[0].Body)
+		}
+	}
+	if !strings.Contains(docs[0].Body, "## Risk matrix") {
+		t.Errorf("a run with no report ingested does not ship the sections the tool composes:\n%s", docs[0].Body)
 	}
 
 	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {

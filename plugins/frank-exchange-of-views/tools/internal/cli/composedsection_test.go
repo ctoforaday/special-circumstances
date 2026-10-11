@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -150,8 +151,9 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the assembled layout before any report: %v\n%s", err, out)
 	}
-	order := []string{"report.md", "Title (no heading", "Outcome (no heading", "## TL;DR", "## Analysis", "## Risk matrix", "## Research areas",
-		"## Future research directions", "## Alternatives considered", "## Open questions", "## Additional findings — NOT IN THE SET", "## Bibliography — NOT IN THE SET",
+	order := []string{"report.md", "Title (no heading", "Outcome (no heading", "## TL;DR — NOT IN THE SET", "## The Catechism — NOT IN THE SET",
+		"The report's own sections (no heading of the tool's: each section ships under the heading its author gave it) — NOT IN THE SET", "## Risk matrix", "## Research areas",
+		"## Future research directions", "## Alternatives considered", "## Open questions — NOT IN THE SET", "## Bibliography — NOT IN THE SET",
 		"docket.md", "## The board", "run.md", "## How this run was conducted"}
 	at := 0
 	for _, h := range order {
@@ -162,7 +164,10 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		at += i
 	}
 	for _, want := range []string{"composed by: tool, from the open gaps on the board", "how content reaches it: No act of blue's adds a row",
-		"composed by: blue, from the section of this name in the report's text, lifted whole", "`avenue move`"} {
+		"composed by: blue, from the section of this name in the report's text, lifted whole", "`avenue move`",
+		// A section the report does not have ships nothing, and this is where a seat reads that.
+		"A report with no section of this name ships without one.",
+		"composed by: blue, from every part of the report's text that no other row places, whole and in the order written", "assembly writes none above it"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the layout does not say %q:\n%s", want, out)
 		}
@@ -203,8 +208,16 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if s := by["Research areas"]; !s.Ships || !strings.Contains(s.Text, "whether trial division to 9 settles it") || s.Composer != report.Tool {
 		t.Errorf("Research areas does not carry the avenue just proposed: %+v", s)
 	}
-	if s := by["Additional findings"]; !s.Ships || len(s.AuthoredHeadings) != 1 || s.AuthoredHeadings[0] != "Appendix: the divisions" || !strings.Contains(s.Text, "91 / 7 = 13.") {
-		t.Errorf("Additional findings does not carry the report's own section: %+v", s)
+	if s := by["The report's own sections"]; !s.Ships || len(s.AuthoredHeadings) != 1 || s.AuthoredHeadings[0] != "Appendix: the divisions" || !strings.HasPrefix(s.Text, "## Appendix: the divisions\n") || !strings.Contains(s.Text, "91 / 7 = 13.") {
+		t.Errorf("the body does not carry the report's own section under its author's heading: %+v", s)
+	}
+	for _, h := range []string{"Technical foundations", "Analysis", "Additional findings"} {
+		if _, row := by[h]; row || strings.Contains(shipped, h) {
+			t.Errorf("the layout holds a row %q, or report.md names it: no heading is required of a report and none is written above its sections", h)
+		}
+	}
+	if strings.Contains(shipped, "not authored") {
+		t.Errorf("report.md carries a line about a section the report does not have:\n%s", shipped)
 	}
 	if s := by["Bibliography"]; s.Ships || s.Text != "" || s.Path == "" {
 		t.Errorf("a run that cites nothing ships no bibliography, and the row still says how content reaches it: %+v", s)
@@ -234,7 +247,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 // universe-m20 is the first archive whose report carries a heading the tool composes. The refusal
 // is the verbs'; migrate replays the record's events, so the archive comes forward with nothing
 // refused and the heading still in its report. Assembly keeps no list of headings to leave out:
-// the text blue filed there ships under "Additional findings" with every anchor it carries, and
+// the text blue filed there ships in the body with every anchor it carries, and
 // the proof footnotes run P1 to P9 with none missing (the shipped m20 report ran P1 to P7, P9).
 func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 	to := recordtest.TmpRun(t)
@@ -302,6 +315,22 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 		if (s.Heading == "Bibliography" || s.Heading == "Proofs") && (!s.Ships || !strings.HasPrefix(s.Text, "## "+s.Heading+"\n")) {
 			t.Errorf("m20 cites and proves, and the layout's %s row is ships=%v, text %.60q", s.Heading, s.Ships, s.Text)
 		}
+		// The body stands before the tool's sections and holds a section under one of their names.
+		// The body's row has the report's; the tool's row has the tool's.
+		switch s.Heading {
+		case "The report's own sections":
+			if !slices.Contains(s.AuthoredHeadings, "Alternatives considered") || !strings.Contains(s.Text, "### Weighed and rejected") {
+				t.Errorf("the body's row does not hold the report's own `## Alternatives considered`: %v", s.AuthoredHeadings)
+			}
+		case "Alternatives considered":
+			if !s.Ships || !strings.HasPrefix(s.Text, "## Alternatives considered\n") || strings.Contains(s.Text, "### Weighed and rejected") {
+				t.Errorf("the tool's Alternatives considered row is given the report's own section of that name: %.200q", s.Text)
+			}
+		}
+	}
+	// THE ORDER A READER MEETS IT IN: the argument before the record's account of it.
+	if body, tool := strings.Index(shipped, "### Weighed and rejected"), strings.LastIndex(shipped, "## Alternatives considered\n"); body < 0 || body > tool || strings.Contains(shipped, "## Additional findings") {
+		t.Errorf("m20's own sections do not ship before the sections the tool composes, or ship under a heading of the tool's")
 	}
 	for n := 1; n <= proofs; n++ {
 		if ref := "[^P" + string(rune('0'+n)) + "]"; !strings.Contains(shipped, ref) {
