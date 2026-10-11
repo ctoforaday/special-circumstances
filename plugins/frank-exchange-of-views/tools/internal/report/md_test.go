@@ -187,3 +187,15 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 		}
 	}
 }
+
+// A LINE THAT OPENS WITH AN ANCHOR TAG AND GOES ON KEEPS WHAT FOLLOWS THE TAG. The bare tag is the
+// composer's (evidence.md, one per proof); the same opening on a line of the report's own text
+// rendered the tag and none of the words after it.
+func TestALineOpeningWithAnAnchorTagKeepsItsText(t *testing.T) {
+	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{})
+	for _, want := range []string{`<a id="P-deadbeef"></a>`, `<a id="here"></a>the words after the tag.`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the rendering does not carry %q:\n%s", want, html)
+		}
+	}
+}
