@@ -3327,6 +3327,36 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 		}
 	}
+	// THE ASSEMBLED LAYOUT, for every role and in both forms, over whatever record the sweep reached.
+	// The layout assembles the set and slices it by the table's rows, so each claim it makes is
+	// checked against the other: a section it says ships carries text, one it says does not carries
+	// none, and the report's own text holds no section the tool composes — the write refuses one,
+	// and a generator here that wrote one would have its ingest or edit refused.
+	for _, sid := range []string{"blue-respond", "red-lens-evidence", "red-chair", "judge"} {
+		if out, err := drive(bin, "show", "report", "--assembled", "--run", runDir, "--seat-id", sid); err != nil || !strings.Contains(string(out), "## Risk matrix") {
+			res.err = sid + " show report --assembled failed, or lists no risk matrix:\n" + truncate(string(out))
+			return res
+		}
+		out, err := drive(bin, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", sid)
+		var layout reportdoc.LayoutJSON
+		if err != nil || json.Unmarshal(out, &layout) != nil || len(layout.Sections) != len(reportdoc.Sections()) {
+			res.err = sid + " show report --assembled --json is not the layout, a row for each section of the table:\n" + truncate(string(out))
+			return res
+		}
+		for _, sec := range layout.Sections {
+			if sec.Ships != (sec.Text != "") || sec.Path == "" || sec.From == "" {
+				res.err = fmt.Sprintf("%s show report --assembled --json: section %q ships=%v with %d byte(s) of text, from %q, path %q",
+					sid, sec.Heading, sec.Ships, len(sec.Text), sec.From, sec.Path)
+				return res
+			}
+		}
+	}
+	if text, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
+		if line, _, found := reportdoc.ComposedIn(string(text)); found {
+			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
+			return res
+		}
+	}
 	// A PROOF READ AT ITS ANCHOR CARRIES THE STORED SCRIPT — the read a lens makes before it
 	// judges one. Every role, for the reason above: the projection is defined once. The script is
 	// compared to the proof store's own bytes, because an exit-0 read with an empty `script` is a
@@ -5053,10 +5083,10 @@ func (r *runner) reproveOpenProofs(seatID string) {
 		}
 		var env struct {
 			Result struct {
-				Matches bool `json:"matches"`
+				Reproduced bool `json:"reproduced"`
 			} `json:"result"`
 		}
-		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Matches {
+		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Reproduced {
 			r.reproduced.add(id)
 		}
 	}

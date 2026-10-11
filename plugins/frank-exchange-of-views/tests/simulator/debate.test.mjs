@@ -587,7 +587,17 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
   assert.ok(/AVENUES/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
-  assert.ok(/what you weighed and rejected are three things a reader needs/.test(synth))
+  // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL. The sentence here read "alternatives reach
+  // the reader under their own headings" with no actor, among imperatives to blue, and the
+  // synthesizer wrote those headings. The prompt says who composes the three sections, which fate
+  // lands under which, and that blue writes none of them; and its list of the tool's sections
+  // names all three and the bibliography.
+  assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(synth) && /You write none of those three headings in the report/.test(synth))
+  assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(synth))
+  for (const h of ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Bibliography']) {
+    assert.ok(synth.includes('Do NOT write any of') && synth.includes('`## ' + h + '`'), 'the synthesis prompt does not name ## ' + h + ' among the sections assembly composes')
+  }
+  assert.ok(!/reach the reader under their own headings|left for a later run/.test(synth), 'the synthesis prompt cues blue to head a section of its own with the avenues')
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of
   // 39 results carried the literal "not computed", which the verb's own help concedes — the rows

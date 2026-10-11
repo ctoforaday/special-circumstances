@@ -24,7 +24,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 			"G1": {ID: "G1", Open: false, Closure: &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED)}},
 		},
 	}
-	got := recordVerification(b.famT(t))
+	got := sectionBlock(t, "Record verification", &assembly{fam: b.famT(t)})
 	// THE HEADING IS CHECKED AS A WHOLE LINE, not as a prefix (#447). `HasPrefix` was satisfied
 	// by "## Record verification (injected)" — so a rename of the section a human actually reads
 	// passed here, and passed the golden suite too, because no golden covered the assembled

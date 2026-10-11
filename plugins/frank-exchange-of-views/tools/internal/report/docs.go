@@ -23,16 +23,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
+
+// emptied is a line that holds no more than block-quote and list markers and sentence punctuation.
+var emptied = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 
 // Doc is one document in a run's report set: the file it lands in, how the link bar and the
 // index name it, and the composed markdown body (no link bar, no title — Render adds those).
@@ -71,109 +74,52 @@ func Files() []string { return append([]string(nil), docOrder...) }
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.
 func AssembleAll(run record.Run) ([]Doc, error) {
-	blue := blueReport(run)
+	docs, _, err := assemble(run)
+	return docs, err
+}
 
+// assemble is AssembleAll, with the headings of the rows it composed a section for: what the
+// assembled layout reads to tell a section the table placed from a line of the report's text
+// that opens as one does.
+func assemble(run record.Run) ([]Doc, map[string]bool, error) {
+	blue, err := blueReport(run)
+	if err != nil {
+		return nil, nil, err
+	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: board: %w", err)
+		return nil, nil, fmt.Errorf("assemble: board: %w", err)
 	}
 	bj, err := record.BoardJSONOfRun(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: board json: %w", err)
+		return nil, nil, fmt.Errorf("assemble: board json: %w", err)
 	}
 	evs := fam.Events
-	outcome := outcomeOf(evs)
 
-	_, question := heading(blue)
-
-	// report.md — THE RESEARCH. What the run was asked for, and nothing about how it was run except
-	// the one fact that bears on trusting it: the verdict's basis. What ANSWERED the seats used to
-	// be the second such fact; it is envelope, and lives in run.md.
-	var r sections
-	r.add(outcomeStamp(outcome))
-	// THE STAMP IS THE WHOLE VERDICT HERE: the word, and its basis as state — "(derived from the
-	// record)" or "(asserted by the bench)". Every sentence that explains it is ENVELOPE and lives in
-	// run.md's verdict-basis section. gblock, 2026-09-10: a halted run's gloss, "Move it out of
-	// report.md"; CEILING's, "Move it out like HALTED"; the basis, "State on the stamp, prose to
-	// run.md". The gloss used to follow the stamp as "the one thing about the run a reader of the
-	// subject genuinely needs", but every word of it narrated the run.
-	if question != "" {
-		r.add(question)
+	// EVERY SECTION SHIPS BECAUSE THE TABLE HAS A ROW FOR IT, in the row's document and the row's
+	// place (layout.go). report.md is THE RESEARCH: what the run was asked for, and of how it was
+	// run only the stamp — the outcome's word and its basis as state. Every sentence explaining a
+	// verdict, what answered the seats, the board in full and the transcript are envelope, and
+	// their rows put them in the documents behind it.
+	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(blue)}
+	body := map[string]*sections{}
+	composed := map[string]bool{}
+	for _, s := range layout {
+		if body[s.File] == nil {
+			body[s.File] = &sections{}
+		}
+		if s.compose != nil {
+			composed[s.Heading] = body[s.File].add(s.block(a))
+		}
 	}
-	// WHAT ANSWERED THE SEATS IS ENVELOPE, NOT RESEARCH (gblock, 2026-09-10), so it is composed into
-	// run.md below rather than here. It sat in this document "in the same breath" as the verdict;
-	// but the measured-model table is a fact about the run, report.md holds research prose and tool
-	// markers only, and its tool-authored heading was the one voice tell no run could remove from
-	// this document (#792, §V item 3).
-	// "READ THIS FIRST" IS GONE, and it was a mistake rather than a section that drifted.
-	//
-	// It never knew whose voice it was in. It opened the research document with the bench's
-	// certification prose, a ranked dump of board rows and the run's disputes — process and
-	// procedure — where a reader who came for the answer needed the opposite thing: a warning, in
-	// the REPORT's own voice, that some fact is disputed or some assumption is load-bearing and
-	// thin. Those belong in the prose that makes the claim, written by its author, where the
-	// sentence they qualify actually is.
-	//
-	// Everything it carried has a truer home. The verdict's meaning rides the stamp. The open
-	// board is docket.md, which is the board in full. The bench's terminal statement is the
-	// judicial record. None of it needed a preamble, and a preamble is what made it unreadable.
-	r.add(sectionOr(blue, "TL;DR"))
-	r.add(sectionOr(blue, "The Catechism"))
-	r.add(sectionOr(blue, "Technical foundations"))
-	r.add(sectionOr(blue, "Analysis"))
-	r.add(riskMatrix(bj))
-	// THREE DESCRIPTIVE AREAS, and every avenue lands in exactly one.
-	r.add(avenues(fam, "Research areas", accepted))
-	r.add(avenues(fam, "Future research directions", deferred))
-	r.add(avenues(fam, "Alternatives considered", rejected))
-	r.add(sectionOr(blue, "Open questions"))
-	// The embed carries ONLY blue content not already composed above — its lifted synthesis
-	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
-	// If nothing genuinely additional survives, the section is omitted rather than left empty.
-	if extra := blueEmbed(blue); extra != "" {
-		// THE HEADING NAMED THE AUTHOR, in the one document where attribution is forbidden. What
-		// survives here is content, and the reader wants to know what it IS, not which seat wrote it.
-		r.add("## Additional findings\n\n" + extra)
-	}
-
-	var docket sections
-	docket.add(boardSection(fam))
-
-	var deb sections
-	deb.add(debate(fam))
-
-	var jud sections
-	jud.add(motions(fam))
-
-	// avenues.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a
-	// line by its final fate (the fate word is subject content: `abandoned` means it was tried and
-	// died), and stopped carrying who moved it, the epoch-by-epoch path, and the ruling beside it,
-	// because those are the debate. Shipping only the query view would have left the path in no
-	// document a reader of the archived set can open, so it ships here — the SAME rendering
-	// `show avenues` prints (view.AvenueBody), not a second account of it.
+	// avenues.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a line by
+	// its final fate and carries neither who moved it, the path it took nor the ruling beside it,
+	// because those are the debate. It is the SAME rendering `show avenues` prints
+	// (view.AvenueBody), whole, not a section of the table and not a second account.
 	inq := view.AvenueBody(evs, fam.At)
 
-	var runsec sections
-	// FIRST, because it is the fact about the run a reader of the verdict most needs: what actually
-	// answered each seat, measured from each seat's own trajectory. A PASS from a tier nobody
-	// configured is not the PASS the run was set up to produce (#589).
-	runsec.add(conduct(run, fam))
-	// THE VERDICT'S BASIS, for every outcome, and the ONLY place any verdict's gloss lives: report.md
-	// carries the stamp and its basis as state, and every sentence explaining either is here.
-	// For EVERY run, including one with no outcome — verdictGloss(nil) is where "the bench never ran
-	// `bench outcome`" is said, now that report.md's stamp carries only the state NONE.
-	runsec.add("## The verdict's basis\n\n" + verdictGloss(outcome))
-	runsec.add(logSection(fam))
-	// The record's own invariant check, rendered for the human the report is for. See
-	// recordVerification: a section, never a gate.
-	runsec.add(recordVerification(fam))
-
-	var chg sections
-	chg.add(withdrawnClaims(fam))
-	chg.add(supersededAsks(evs))
-
 	docs := []Doc{
-		{File: FileReport, Nav: "Report", Title: "", Body: r.String(),
+		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
 			Blurb: "the research: the verdict and what it means, the Catechism, the foundations, the analysis, the risks, the open questions"},
 		// THE FILE KEEPS ITS NAME AND THE DOCUMENT GETS A TRUE ONE. `docket.md` is a published
 		// URL — the shipped READMEs, the skill, the bench's constitution and the site's link
@@ -181,19 +127,19 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		// reads. The nav, title and blurb are what a human reads beside the heading, and all
 		// three said this was red's when three parties write into it.
 		{File: FileDocket, Nav: "Board", Title: "the board",
-			Blurb: "the board all three parties wrote: every gap red minted and how each was closed, blue's correctness manifest for the repairs it made, and red's archive spot-checks", Body: docket.String()},
+			Blurb: "the board all three parties wrote: every gap red minted and how each was closed, blue's correctness manifest for the repairs it made, and red's archive spot-checks", Body: body[FileDocket].String()},
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
-			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
+			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: body[FileDebate].String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
-			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: jud.String()},
+			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: body[FileJudgments].String()},
 		{File: FileAvenues, Nav: "Avenues", Title: "avenues",
 			Blurb: "every avenue the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it and red's ruling", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
-			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: runsec.String()},
+			Blurb: "how the machinery behaved: what the seats logged, the record's own invariant check, and what the run cost", Body: body[FileRun].String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
-			Blurb: "the provenance of this report: every claim blue retired from it, and every ask a later certification superseded", Body: chg.String()},
+			Blurb: "the provenance of this report: every claim blue retired from it, and every ask a later certification superseded", Body: body[FileChangelog].String()},
 	}
 
 	// THE EVIDENCE LAYER IS RESOLVED ACROSS THE SET, NOT WITHIN A DOCUMENT.
@@ -205,11 +151,11 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: cited sources: %w", err)
+		return nil, nil, fmt.Errorf("assemble: cited sources: %w", err)
 	}
 	proofs, err := record.RecordedProofs(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: recorded proofs: %w", err)
+		return nil, nil, fmt.Errorf("assemble: recorded proofs: %w", err)
 	}
 
 	used := map[string]bool{}
@@ -222,17 +168,23 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		// the record-derived findings/transcript sections, and only a final-output strip
 		// catches those. No raw marker ships (the leak fix).
 		//
-		// A LINE THE STRIP EMPTIES GOES WHOLE. A bullet an edit cut down to its finding anchors, which
-		// no retire took, is tokens and a terminator; stripped, it printed "- ." in universe-m19's
-		// verified report. A line that held a stripped token and holds no prose and no other anchor
-		// without it is the husk reportproj.RemoveAnchorAt takes at a retire.
+		// A LINE THE STRIP EMPTIES GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
+		// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ."
+		// in universe-m19's verified report. The line that goes is that husk (emptied): a list marker
+		// at most, and sentence punctuation. A line of symbols that held a token is content — a
+		// table's delimiter row, a row of marks, a rule, a line of code — and ships without the token.
 		lines := slices.DeleteFunc(strings.Split(collapseBlanks(docs[i].Body), "\n"), func(ln string) bool {
 			s := anchor.StripAssembled(ln)
-			return s != ln && len(anchor.IDs(s)) == 0 && !claimcount.HasProse(s)
+			return s != ln && emptied.MatchString(s)
 		})
 		body := anchor.StripAssembled(strings.Join(lines, "\n"))
-		body = collapseBlanks(weaveCitations(body, sources))
-		body, hit := weaveProofRefs(body, proofs)
+		woven := weaveCitations(body, sources)
+		// The weave writes the notes and the bibliography when the document cites, and returns
+		// it as it came when it does not.
+		if docs[i].File == FileReport {
+			composed[bibliographyHeading] = woven != body
+		}
+		body, hit := weaveProofRefs(collapseBlanks(woven), proofs)
 		for _, label := range hit {
 			used[label] = true
 		}
@@ -244,6 +196,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	for i := range docs {
 		if docs[i].File == FileEvidence {
 			docs[i].Body = evidenceDoc(run, proofs, used)
+			composed[evidenceHeading] = docs[i].Body != ""
 		}
 	}
 
@@ -254,35 +207,44 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		}
 		out = append(out, d)
 	}
-	return out, nil
+	return out, composed, nil
 }
 
 // Title returns the run's short title — the H1 every document in the set opens with.
 func Title(run record.Run) string {
-	t, _ := heading(blueReport(run))
+	blue, _ := blueReport(run)
+	t, _ := heading(part(blue).title)
 	return t
 }
 
-// blueReport renders the report projection (#709), or "" on any error — no base ingested yet, an
-// unreadable record. The callers here compose the whole document set best-effort; a missing report
-// yields an empty blue section, never a failed assembly.
-func blueReport(run record.Run) string {
-	md, err := reportproj.RenderFromRecord(run)
-	if err != nil {
-		return ""
+// blueReport renders the report's text from the record. A run with no base ingested has none, and
+// assembles with each of blue's sections flagged missing. A report the record HOLDS and cannot
+// replay is an error: assembled as though blue wrote nothing, the set would say five sections were
+// never authored and ship without a word of the report.
+func blueReport(run record.Run) (string, error) {
+	have, err := reportproj.BaseIngested(run)
+	if err == nil && have {
+		var md string
+		if md, err = reportproj.RenderFromRecord(run); err == nil {
+			return md, nil
+		}
 	}
-	return md
+	if err != nil {
+		err = fmt.Errorf("assemble: the report's text: %w", err)
+	}
+	return "", err
 }
 
 // sections accumulates the composed blocks of one document, dropping the empties. It is the
 // invariant "no heading ships without a body" expressed as the only way to add one.
 type sections struct{ parts []string }
 
-func (s *sections) add(block string) {
+func (s *sections) add(block string) bool {
 	if strings.TrimSpace(block) == "" {
-		return
+		return false
 	}
 	s.parts = append(s.parts, strings.TrimRight(block, "\n"))
+	return true
 }
 
 func (s *sections) String() string { return strings.Join(s.parts, "\n\n") }
@@ -409,7 +371,6 @@ func supersededAsks(evs []*record.Event) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("## Superseded bench statements\n\n")
 	b.WriteString("The LAST statement that stands is the one the report carries; these are the ones it replaced, or that the bench struck and corrected, in the order they were made.\n\n")
 	for i, s := range rows {
 		fmt.Fprintf(&b, "%d. %s\n\n", i+1, s)

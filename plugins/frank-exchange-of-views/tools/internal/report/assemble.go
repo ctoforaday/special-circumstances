@@ -156,7 +156,7 @@ func weaveCitations(md string, sources []record.Source) string {
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
 		}
 	}
-	out.WriteString("\n## Bibliography\n\n")
+	out.WriteString("\n## " + bibliographyHeading + "\n\n")
 	for _, line := range bib {
 		out.WriteString(line + "\n")
 	}
@@ -305,85 +305,10 @@ func Assemble(run record.Run) (Assembled, error) {
 	return Assembled{Report: path, Documents: len(docs) + 2, Verdict: outcomeWord(outcomeOf(fam.Events))}, nil
 }
 
-// blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
-// synthesis surfaces are dropped (they appear at the top), and the sections blue must never
-// author — the risk matrix, the board, the debate, a verdict, and now the footnotes /
-// bibliography — are dropped as fabrication (the tool composes those from the record; blue
-// cannot know red's findings or the run's outcome, and citations are tool-managed, woven from
-// the cite events at assembly). What survives is genuinely ADDITIONAL blue content. Empty
-// output means blue authored only what it should; the caller then omits the embed entirely
-// rather than lift-AND-embed the same sections twice.
-func blueEmbed(blue string) string {
-	drop := map[string]bool{
-		// lifted to the top verbatim
-		"tl;dr": true, "the catechism": true, "technical foundations": true,
-		"analysis": true, "open questions": true,
-		// tool-owned — composed from the record, never blue's to author. Footnotes /
-		// bibliography are now tool-composed too (woven from the cite events), so a
-		// blue-authored one is dropped rather than shipped alongside the composed one.
-		"risk matrix": true, "the expansions": true, "expansions": true,
-		"alternatives considered": true, "the board": true,
-		"the debate": true, "blue team report": true, "verdict": true,
-		"footnotes": true, "bibliography": true,
-		// Composed from the retire events. A blue-authored one would be a SECOND account of
-		// what left the report, written by the party that removed it — the record already
-		// carries the claim, the reason and the successor, checked at the write.
-		"claims withdrawn": true,
-		// Composed from each seat's own trajectory, and the one section a seat provably cannot
-		// author: a seat reads the run's CONFIGURATION and never learns what replied to it.
-		// Blue authoring this would ship the unmeasured premise beside the measured one, in
-		// the same document, and the reader would have no way to tell which is which — which
-		// is nearly what happened (#589), minus the measured half.
-		"how this run was conducted": true,
-	}
-	var out []string
-	fence, keep, inPreamble := false, false, true
-	for _, ln := range strings.Split(blue, "\n") {
-		t := strings.TrimSpace(ln)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			fence = !fence
-			if keep {
-				out = append(out, ln)
-			}
-			continue
-		}
-		if !fence && strings.HasPrefix(t, "## ") {
-			inPreamble = false
-			keep = !drop[normalizeHeading(strings.TrimPrefix(t, "## "))]
-			if keep {
-				out = append(out, ln)
-			}
-			continue
-		}
-		if inPreamble {
-			// Preamble before the first "## ": drop blue's H1 title (lifted) and any Outcome or Verdict
-			// line (blue cannot author a verdict — #79), keep any genuine prose.
-			if strings.HasPrefix(t, "# ") || strings.HasPrefix(strings.ToLower(t), "**verdict:") || strings.HasPrefix(strings.ToLower(t), "**outcome:") {
-				continue
-			}
-			out = append(out, ln)
-			continue
-		}
-		if keep {
-			out = append(out, ln)
-		}
-	}
-	return strings.TrimSpace(strings.Join(out, "\n"))
-}
-
-// normalizeHeading folds a heading to a comparison key: lowercase, single-spaced, and with a
-// trailing "(in full)" stripped — so "The Board (in full)" matches "the board".
-func normalizeHeading(h string) string {
-	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
-	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
-}
-
-// titleOr lifts blue's H1 (the "# <Topic> — research report" line), or flags it missing.
-func titleOr(blue string) string {
-	for _, ln := range strings.Split(blue, "\n") {
-		if t := strings.TrimSpace(ln); strings.HasPrefix(t, "# ") {
-			return t
-		}
+// titleOr is blue's H1 (the "# <Topic> — research report" line), or a line flagging it missing.
+func titleOr(h1 string) string {
+	if h1 != "" {
+		return h1
 	}
 	return "# _(blue/report.md has no title — not authored here)_"
 }
@@ -403,8 +328,8 @@ const titleLimit = 80
 // THE CUT IS AT A PUNCTUATION BOUNDARY BLUE ITSELF WROTE, never mid-clause: a colon, an
 // em-dash clause, or a sentence end. A title truncated at N characters would read as a defect;
 // one cut at the author's own boundary reads as a title.
-func heading(blue string) (title, question string) {
-	h1 := titleOr(blue)
+func heading(h1 string) (title, question string) {
+	h1 = titleOr(h1)
 	full := strings.TrimSpace(strings.TrimPrefix(h1, "# "))
 	// The suffix is a convention of the template, not part of the subject.
 	subject := strings.TrimSpace(strings.TrimSuffix(full, " — research report"))
@@ -435,49 +360,7 @@ func heading(blue string) (title, question string) {
 		}
 		short = strings.Join(w, " ") + "…"
 	}
-	return "# " + short, "**Question:** " + subject
-}
-
-// section returns the "## heading" block verbatim (heading included), or "" if absent. It
-// tracks fenced code blocks so a "## " line inside ``` or ~~~ is not read as a heading.
-func section(md, heading string) string {
-	lines := strings.Split(md, "\n")
-	start, end := -1, len(lines)
-	fence := false
-	for i, ln := range lines {
-		t := strings.TrimSpace(ln)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			fence = !fence
-			continue
-		}
-		if fence {
-			continue
-		}
-		if start < 0 {
-			// Case-insensitive: blue titled sections "## Technical Foundations" while the
-			// template says "## Technical foundations". An exact match declared a present
-			// section absent and dropped it — the union invariant lost to a capital letter.
-			if strings.EqualFold(t, "## "+heading) {
-				start = i
-			}
-		} else if strings.HasPrefix(t, "## ") {
-			end = i
-			break
-		}
-	}
-	if start < 0 {
-		return ""
-	}
-	return strings.TrimRight(strings.Join(lines[start:end], "\n"), " \t\n")
-}
-
-// sectionOr copies blue's section verbatim, or says in one line that it is missing — NEVER
-// authoring a replacement (the union-copy invariant, made structural).
-func sectionOr(blue, heading string) string {
-	if s := section(blue, heading); s != "" {
-		return s
-	}
-	return fmt.Sprintf("## %s\n\n_(blue/report.md has no \"## %s\" section — not authored here; blue owns this surface and red audits it.)_", heading, heading)
+	return "# " + short, questionLine + " " + subject
 }
 
 // outcomeOf returns the LAST terminal outcome event's body, or nil if none was recorded.
@@ -511,9 +394,9 @@ func outcomeStamp(o *recordpb.Outcome) string {
 		// STATE ONLY (gblock, 2026-09-10), in the same shape as every other stamp: a word, then its
 		// basis in parentheses. The act that was missing — `bench outcome` never ran — is a fact about
 		// the run, and run.md's verdict-basis section says it.
-		return "**Outcome:** NONE (no terminal outcome on the record)"
+		return outcomeLine + " NONE (no terminal outcome on the record)"
 	}
-	return "**Outcome:** " + outcomeWord(o) + basisState(o.GetVerdictBasis())
+	return outcomeLine + " " + outcomeWord(o) + basisState(o.GetVerdictBasis())
 }
 
 // basisState is the verdict's basis as STATE — the one fact about how the verdict was reached that
@@ -631,7 +514,6 @@ func gradeWord(g recordpb.Grade) string {
 
 func riskMatrix(bj record.BoardJSON) string {
 	var b strings.Builder
-	b.WriteString("## Risk matrix\n\n")
 	b.WriteString("| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |\n")
 	b.WriteString("|---|---|---|---|---|\n")
 	if len(bj.Open) == 0 {
@@ -741,6 +623,8 @@ func truncateRunes(s string, n int) string {
 // rather than a heading that describes the omission.
 //
 // `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
+//
+// The sentence a seat reads is written from these three predicates: AvenueSections, in layout.go.
 func accepted(status string) bool {
 	return status == "pursued" || status == "concluded" || status == "proposed"
 }
@@ -762,7 +646,8 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // itself stays, because it is subject content: `abandoned` means the line was tried and died. What a reader of the report
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
-func avenues(fam record.Family, heading string, want func(string) bool) string {
+func avenues(a *assembly, s Section) string {
+	fam, want := a.fam, s.fate
 	var rows []string
 	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
 		if !want(a.Status) {
@@ -809,7 +694,7 @@ func avenues(fam record.Family, heading string, want func(string) bool) string {
 	if len(rows) > 0 {
 		body = strings.Join(rows, "\n")
 	}
-	return "## " + heading + "\n\n" + body
+	return body
 }
 
 // withdrawnClaims renders the claims blue REMOVED from the report, from the retire events.
@@ -853,7 +738,7 @@ func withdrawnClaims(fam record.Family) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return "## Claims retired\n\n_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
+	return "_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
 // provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.
@@ -975,7 +860,7 @@ func boardSection(fam record.Family) string {
 		}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "## The board\n\n### Open gaps (%d)\n\n", len(open))
+	fmt.Fprintf(&b, "### Open gaps (%d)\n\n", len(open))
 	if len(open) == 0 {
 		b.WriteString("_(none open)_\n")
 	} else {
@@ -1444,7 +1329,6 @@ func debate(fam record.Family) string {
 	}
 
 	var b strings.Builder
-	b.WriteString("## The debate\n\n")
 	if len(parts) == 0 {
 		b.WriteString("_(no debate on the record)_")
 	} else {
@@ -1491,7 +1375,7 @@ func logSection(fam record.Family) string {
 	if len(rows) == 0 && len(attested) == 0 {
 		return ""
 	}
-	out := "## Log (what the run told the operator)\n\n"
+	out := ""
 	if len(rows) > 0 {
 		out += strings.Join(rows, "\n") + "\n"
 	} else {
@@ -1570,12 +1454,11 @@ func recordVerification(fam record.Family) string {
 	if len(checks) == 0 {
 		// Not reachable today, and said out loud rather than rendered as a clean board: an
 		// empty check set and a sound record must never be the same output.
-		return "## Record verification\n\nNo invariants ran, so this run's record is **unverified**. " +
+		return "No invariants ran, so this run's record is **unverified**. " +
 			"That is not the same as sound."
 	}
 
 	var b strings.Builder
-	b.WriteString("## Record verification\n\n")
 	b.WriteString("Computed by replaying the event record, not reported by any seat. " +
 		"These are the invariants that must hold if the record is internally consistent.\n\n")
 

@@ -26,8 +26,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
@@ -75,6 +77,9 @@ func newIngest() *cobra.Command {
 			return nil, fmt.Errorf("reading the report to ingest at %s: %w", reportPath, err)
 		}
 		report := string(content)
+		if err := composedRefusal(report); err != nil {
+			return nil, err
+		}
 
 		// THE VOICE CENSUS, over the WHOLE BASE. This is the largest authored artifact in a run —
 		// 16,874 characters on the measured one — and until #873 it was the only report text that
@@ -116,6 +121,31 @@ func newIngest() *cobra.Command {
 			VoiceTells: census,
 		}, nil
 	})
+}
+
+func init() { seat.HelpValues["ComposedHeadings"] = strings.Join(report.ComposedHeadings(), ", ") }
+
+// composedRefusal refuses report text that claims a section the tool composes (report.ComposedIn,
+// which reads the assembler's own table of sections). It is asked of the document a write would
+// leave — the file ingest is about to freeze, the report an edit has planned — so a heading an
+// edit completes from parts is caught as one it writes whole. It refuses before anything is
+// recorded: the file stands and the edit is not on the stack.
+//
+// THE WRITE IS WHERE THE AUTHOR READS IT, AND THE REFUSAL SAYS WHERE THE CONTENT GOES. Assembly
+// composes these sections itself; text filed under one has no place of its own in the set, and
+// its author learns that from no later act. The row's Path is the way in: the act that puts
+// content of that kind on the record, or that no act of blue's does and whose does.
+func composedRefusal(doc string) error {
+	line, s, found := report.ComposedIn(doc)
+	if !found {
+		return nil
+	}
+	return feov.Errorf(feov.Validation, "the report's text would carry %q, and %s is not the report's text to write: assembly composes it, in %s, from %s. "+
+		"NOTHING IS RECORDED by this call. HOW CONTENT REACHES IT: %s "+
+		"WHAT TO DO: take that line and what stands under it out of the report's text. What it says goes by the way above and by no other; "+
+		"only an argument of the report's own, which that way does not carry, stays in the text, under a heading of the report's own. "+
+		"`show report --assembled` lists every section of the assembled set with who composes it and how content reaches it",
+		line, s.Heading, s.File, s.From, s.Path)
 }
 
 // voiceCensus renders the whole-document census as lines an author can act on.

@@ -32,8 +32,9 @@ Research that survives an adversary.
   with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
   read what each one marks on the record before you place it. The record lists each anchor
   whose sentence an edit changed. A citation or proof among them is REOPENED — the reference
-  stands, its referent moved, so its check is stale rather than refuted — and the evidence lens
-  checks it again before a PASS.
+  stands, its referent moved, so its check is stale rather than refuted. The evidence lens owes
+  the new check and is readied for it; a check by any lens from a sitting opened after the edit
+  clears it, and a PASS waits until one does.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
 
@@ -89,8 +90,8 @@ in it opens with a link bar to the others.
 `report.md` is the research: verdict stamp (the word alone — its argument opens *Read this
 first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
 adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded
-likelihood × impact × complexity, including risk-accepted items with rationale) → the three
-avenue sections → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
+likelihood × impact × complexity, including risk-accepted items with rationale) → **the three
+avenue sections, Research areas, Future research directions and Alternatives considered** (composed by the tool from the avenues on the record, one row per avenue under the heading its fate names; blue records each avenue and what became of it, and writes none of the three into the report) → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in

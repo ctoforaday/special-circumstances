@@ -11,7 +11,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
+
+// The pages of the two acts that write an avenue print whose the report's avenue sections are, from
+// the assembler's own sentence.
+func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule }
 
 // avenue: an avenue, and what became of it.
 //

@@ -139,10 +139,15 @@ func mdToHTML(md, file string, anchor anchors) string {
 		}
 
 		// An explicit anchor the composer placed (evidence.md does this per proof). It is a
-		// definition, so it registers, and it renders as itself.
+		// definition, so it registers, and it renders as itself. A line that opens with one and
+		// goes on is the report's own HTML, and the whole line passes through.
 		if m := reAnchorTag.FindStringSubmatch(t); m != nil {
 			flushPara()
-			b.WriteString(`<a id="` + escape(m[1]) + `"></a>` + "\n")
+			if t == `<a id="`+m[1]+`"></a>` {
+				b.WriteString(`<a id="` + escape(m[1]) + `"></a>` + "\n")
+			} else {
+				b.WriteString(ln + "\n")
+			}
 			if _, ok := anchor[m[1]]; !ok {
 				anchor[m[1]] = file + "#" + m[1]
 			}

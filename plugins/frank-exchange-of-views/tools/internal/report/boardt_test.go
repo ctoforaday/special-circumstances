@@ -81,5 +81,5 @@ func withdrawnClaimsT(t *testing.T, evs []*record.Event) string {
 func logSectionT(t *testing.T, evs []*record.Event) string {
 	t.Helper()
 	f := famOf(t, evs)
-	return logSection(f)
+	return sectionBlock(t, "Log (what the run told the operator)", &assembly{fam: f})
 }

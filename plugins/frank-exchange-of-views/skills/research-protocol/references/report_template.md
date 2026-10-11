@@ -29,8 +29,6 @@
 # report.md — THE RESEARCH
 
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
-**Question:** <the full brief>           <!-- [RECORD] the rest of blue's H1, as a field rather than a heading -->
-
 **Outcome:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
                                               <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
                                               STATE in parentheses, and nothing else: a field a reader can skim, badge
@@ -40,6 +38,8 @@
                                               2026-09-10). The BENCH's words are judgments.md's, never this
                                               document's. -->
 
+**Question:** <the full brief>           <!-- [BLUE] blue's H1 in full, when it runs past 80 characters: a field rather
+                                              than a heading -->
 
 ## TL;DR                                 <!-- [BLUE] 3–6 sentences: the answer, the confidence, the sharpest caveat -->
 
@@ -55,7 +55,9 @@
 |---|---|---|---|---|
 | <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
-## Research areas                        <!-- [RECORD] avenues PURSUED — a research topic followed, and what it yielded -->
+## Research areas                        <!-- [RECORD] avenues PROPOSED, PURSUED and CONCLUDED — a research topic taken
+                                              on, and what it yielded. A row that is not `pursued` carries its status,
+                                              so a line still undecided or followed to its end says so. -->
 
 ## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not rejected: worth taking and not by THIS
                                               run. --reason says what a later run should pick it up FOR. It reaches the
@@ -73,13 +75,17 @@
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
 
 ## Additional findings
-                                         <!-- [BLUE] whatever blue authored that is genuinely ADDITIONAL — union, not summary.
-                                              Its lifted surfaces and any tool-owned section it wrongly authored are dropped,
-                                              and the section is omitted entirely when nothing survives. -->
+                                         <!-- [RECORD] the heading; [BLUE] everything under it: every part of the
+                                              report's text that is not one of the lifted surfaces above, whole and in
+                                              the order written, each section under its author's own heading. Omitted
+                                              when the report's text holds nothing more. A [RECORD] heading of this
+                                              template written into the report's text is refused when the report is
+                                              frozen and at every edit; the refusal says how content reaches that
+                                              section, and the report view's assembled form lists it for all of them. -->
 
 ## Bibliography                          <!-- [RECORD] COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
-                                              not author a "## Footnotes" section either: assembly drops a blue-authored one
-                                              and weaves every invisible <!--cite:--> anchor into the visible [^N] refs.
+                                              not type a note or a reference by hand: assembly weaves every invisible
+                                              <!--cite:--> anchor into the visible [^N] refs.
                                               Cite with the tool. Each [^N] note is the source's full entry, with the PDF
                                               page for a quote from OCR text; the Bibliography lists each source once, with
                                               no page. PER DOCUMENT: a footnote definition cannot cross a file

@@ -545,7 +545,7 @@ An avenue is one approach the research could take on the question — proposed b
 
 ## reopened
 
-A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and a PASS waits on it.
+A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and is the seat readied for it, a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 **Delivered to:** lens, chair, blue, operator
 

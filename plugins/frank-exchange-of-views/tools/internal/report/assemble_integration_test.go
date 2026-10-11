@@ -23,9 +23,6 @@ func TestAssembleEndToEnd(t *testing.T) {
 
 	blue := strings.Join([]string{
 		"# Whether the cache is coherent — research report",
-		// Blue authors a stale verdict in the preamble — it cannot know the outcome (#79);
-		// the embed must strip it rather than park it beside the tool's authoritative stamp.
-		"**Outcome:** UNVERIFIED (Round 0)",
 		"",
 		"## TL;DR",
 		"The cache is coherent under the documented invariants; one edge case is unproven.",
@@ -42,15 +39,9 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Open questions",
 		"Does the eviction path hold under a clock step?",
 		"",
-		// Blue OVER-AUTHORS a tool-owned section — it must be dropped from the embed
-		// (fabrication), not duplicated below the tool's composed version.
-		"## Risk Matrix",
-		"blue's fabricated risk row that the tool must not echo.",
-		"",
-		// Blue hand-authors footnotes — DROPPED now (citations are tool-composed from the
-		// cite events; a blue-authored bibliography is fabrication).
-		"## Footnotes",
-		"[^cache]: a citation blue tried to hand-author.",
+		// A section of the report's own, which ships under "Additional findings".
+		"## Appendix: eviction traces",
+		"Three traces of the eviction path.",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -110,6 +101,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add("blue-respond", &recordpb.Avenue{
 		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
+	})
+	add("blue-respond", &recordpb.Avenue{
+		AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED),
+		Line: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
 	})
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
@@ -268,14 +263,62 @@ func TestAssembleEndToEnd(t *testing.T) {
 		t.Errorf("evidence.md was written for a run with no proofs — an empty heading standing in for a document")
 	}
 
-	// Blue over-authored a Risk Matrix, a stale verdict, and hand-authored footnotes; none may
-	// be echoed. The tool's "## Risk matrix" is authoritative; blue's fabricated row / stale
-	// verdict / hand-authored citation must not appear anywhere. With no cite events on the
-	// record, no "## Bibliography" is composed either.
-	for _, forbidden := range []string{"blue's fabricated risk row", "UNVERIFIED (Round 0)", "a citation blue tried to hand-author", "## Bibliography"} {
-		if strings.Contains(got, forbidden) {
-			t.Errorf("blue's fabricated/duplicated content leaked into the report (%q)\n---\n%s", forbidden, got)
+	// With no cite events on the record, no "## Bibliography" is composed.
+	if strings.Contains(got, "## Bibliography") {
+		t.Errorf("a bibliography was composed for a run that cites nothing\n---\n%s", got)
+	}
+
+	// EVERY SECTION ASSEMBLY SHIPS HAS A ROW, AND SHIPS IN ITS ROW'S PLACE. Read off the assembled
+	// documents: a "## " heading in any of them is a row's, or stands in the report's own text.
+	// avenues.md is not read: it is `show avenues`' rendering, under headings that carry a count.
+	rows := map[string]bool{}
+	for _, s := range layout {
+		rows[s.File+"\x00"+normalizeHeading(s.Heading)] = true
+	}
+	shipped := map[string]bool{}
+	for _, f := range Files() {
+		b, err := os.ReadFile(filepath.Join(runDir, f))
+		if err != nil || f == FileAvenues {
+			continue
 		}
+		eachLine(string(b), func(ln, tr string, fenced bool) {
+			key, ok := headingKey(tr)
+			if !ok || fenced {
+				return
+			}
+			shipped[f+"\x00"+key] = true
+			if !rows[f+"\x00"+key] && !strings.Contains(blue, ln) {
+				t.Errorf("%s ships %q and the layout has no row for it: the write does not refuse it, the layout view does not list it, and no help page names it", f, ln)
+			}
+		})
+	}
+	for _, s := range layout {
+		// The fixture runs no computation, cites and retires nothing, certifies once, and its title
+		// is short.
+		if s.File == FileEvidence || s.File == FileChangelog || s.Heading == "Bibliography" || s.Line != "" {
+			continue
+		}
+		if !shipped[s.File+"\x00"+normalizeHeading(s.Heading)] {
+			t.Errorf("the fixture does not compose %q into %s, so the check above did not read it", s.Heading, s.File)
+		}
+	}
+	// In the row's place: report.md's headings are the table's, in the table's order.
+	var order, wantOrder []string
+	eachLine(got, func(_, tr string, fenced bool) {
+		if key, ok := headingKey(tr); ok && !fenced && rows[FileReport+"\x00"+key] {
+			order = append(order, key)
+		}
+	})
+	for _, s := range layout {
+		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" {
+			wantOrder = append(wantOrder, normalizeHeading(s.Heading))
+		}
+	}
+	if strings.Join(order, "|") != strings.Join(wantOrder, "|") {
+		t.Errorf("report.md's sections ship as %v, and the table's order is %v", order, wantOrder)
+	}
+	if !strings.Contains(got, "## Additional findings\n\n## Appendix: eviction traces\nThree traces of the eviction path.") {
+		t.Errorf("the report's own section did not ship under Additional findings:\n%s", got)
 	}
 
 	// Fate is not crossed: the pursued avenue is an expansion, not an alternative.
@@ -425,5 +468,51 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	}
 	if spread < 2 {
 		t.Errorf("footnote references reached only %d document(s) — the cross-file case this test exists for was never exercised:\n%v", spread, carrying)
+	}
+}
+
+// A REPORT THE RECORD HOLDS AND CANNOT REPLAY FAILS THE ASSEMBLY. Assembled as though blue wrote
+// nothing, the set would say five sections were never authored and ship without a word of the
+// report, under a title that says there is none. A run with no report ingested is the other
+// case, and assembles with each of blue's sections flagged missing.
+func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
+	runDir := newRun(t)
+	run := runtest.Open(t, runDir)
+	id := record.Identity{Run: run, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	docs, err := AssembleAll(run)
+	if err != nil {
+		t.Fatalf("a run with no report ingested does not assemble: %v", err)
+	}
+	if !strings.Contains(docs[0].Body, `has no "## TL;DR" section`) {
+		t.Errorf("a run with no report ingested does not flag blue's sections missing:\n%s", docs[0].Body)
+	}
+
+	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := record.Append(id, &recordpb.BlueEdit{EditKey: proto.String("e1"), Old: proto.String("a span the report never held"),
+		New: proto.String("another"), Text: proto.String("a reason")}); err != nil {
+		t.Fatal(err)
+	}
+	if docs, err := AssembleAll(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
+		t.Fatalf("assembly of a report that does not replay: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
+	}
+
+	// A report the record cannot READ is the same failure: two bases is a record no replay starts from.
+	twice := runtest.Open(t, newRun(t))
+	id = record.Identity{Run: twice, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if docs, err := AssembleAll(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
+		t.Fatalf("assembly of a report the record cannot read: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
 }

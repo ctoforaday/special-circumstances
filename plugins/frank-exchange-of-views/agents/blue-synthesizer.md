@@ -152,7 +152,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
-  - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and a PASS waits on it.
+  - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and is the seat readied for it, a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 SHARED BY THE COMMANDS BELOW — each block is printed ONCE here, and every page it was lifted from carries a marker line ending `→ SHARED §n` exactly where it was:
 §1 (on 13 pages):
@@ -262,7 +262,9 @@ An open avenue — proposed or pursued — owes this before your sitting ends; r
 
 The fate is not the point; the account of what changed it is — an avenue abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
 
-THE REASON IS PRINTED IN THE REPORT, beside the avenue. Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
+THE REASON IS PRINTED IN THE REPORT, on the avenue's own row, in the section the fate you give it here puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+
+Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -299,7 +301,9 @@ The tool assigns the id. It starts as `proposed` — the state that OWES a move 
 
 You may propose one AT ANY POINT in a run, not only at the start: an avenue that occurs to you in your third sitting is exactly the one a later run needs.
 
-WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, under Research areas, Future research directions or Alternatives considered. So write it as research prose for a reader of the SUBJECT — the question the avenue asks, not a log of what you did to ask it. No provenance or attribution tags, no notes to another seat, no narration of the run: "whether 91's factorisation follows from a divisibility test short of trial division" is a line, "ran this lane's slice against the last avenue and grepped the repo" is a diary. Who moved it, the path it took and red's ruling are already on the record, and ship in avenues.md.
+WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, as this avenue's row in the section its fate puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+
+So write it as research prose for a reader of the SUBJECT — the question the avenue asks, not a log of what you did to ask it. No provenance or attribution tags, no notes to another seat, no narration of the run: "whether 91's factorisation follows from a divisibility test short of trial division" is a line, "ran this lane's slice against the last avenue and grepped the repo" is a diary. Who moved it, the path it took and red's ruling are already on the record, and ship in avenues.md.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -411,13 +415,15 @@ An anchor your quote carries, or one in the middle of the quoted text, is INSIDE
 
 A RUN AT A SENTENCE'S END DOES NOT SAY WHICH PART OF THE SENTENCE EACH ANCHOR MARKS. When your replacement holds more sentences than the text it replaces, write each anchor your quote carries after the sentence that now holds its claim. A replacement that carries two or more anchors from the end of that text to the end of its own last sentence is refused, and the refusal prints what the record says each one marks beside your sentences, numbered. Where every one of them does belong on the last sentence, make the change in two edits: reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word.
 
-Either way the record lists each anchor whose sentence your edit changed. A citation or proof among them is reopened, and the evidence lens checks it again before a PASS.
+Either way the record lists each anchor whose sentence your edit changed. A citation or proof among them is reopened: the evidence lens owes a check of it as it now stands and is readied for one, a check by any lens from a sitting opened after your edit clears it, and a PASS waits until one does.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 
 REPAIRING PUNCTUATION. Because of that trim, a repair confined to the trailing punctuation — dropping a stray period, changing a terminator — would land on the span without it. When the trimmed span would change nothing, or would leave the old terminator standing beside the new one, the tool uses your quote exactly as written instead, punctuation included — provided it occurs byte-for-byte exactly once in the report. So quote the punctuation as the report prints it, anchors and spacing included; this works at the end of the document too.
 
 AN EDIT THAT CHANGES NOTHING IS REFUSED, and nothing is recorded: the refusal says whether the punctuation trim was the cause. The same holds when taking red's fix — a prescription that would leave the report as it is is refused as changing nothing, which is different from a prescription the report has moved away from.
+
+NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, Motions, Proofs, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. An edit that would leave one of them in the report as a `## ` heading, or an `**Outcome:**` line above the first heading, is refused and nothing is recorded. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. `show report` has an assembled form that gives the same for every section before you write.
 
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
 
@@ -472,6 +478,8 @@ WRITE-ONCE. A second ingest is refused and points you at `edit`; the frozen base
 AUTHOR-ONLY. Only the seat that wrote the report freezes it; any other seat is refused.
 
 IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with `log` as a defect — a tooling failure no edit can fix, with no diff for you to apply.
+
+NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, Motions, Proofs, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. A report that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is frozen: the file stands for you to fix, and the one ingest a run gets is unspent. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. `show report` has an assembled form that gives the same for every section before you write.
 
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
 
@@ -830,7 +838,7 @@ Flags:
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.
 
-A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` or a `reproduce` from a sitting opened after `edit` removes the row; a verify `--as unreachable` does not. A PASS waits while a row stands.
+A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` or a `reproduce` from a sitting opened after `edit` removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.
 
 TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `<!--cite:C-…-->` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.
 
@@ -881,9 +889,13 @@ Flags:
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
 
---json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from
+--json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.
+
+THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, Motions, Proofs, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. Blue's `ingest` and `edit` refuse report text that carries one. --assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`.
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
+
+OUTPUT WITH --assembled --json: {sections:[{file,heading,line,composer,from,path,ships,authored_headings:[string],text}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -894,6 +906,7 @@ Usage:
 
 Flags:
       --anchor id     read the report AT one anchor id (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
+      --assembled     read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it
   -h, --help          help for report
       --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else

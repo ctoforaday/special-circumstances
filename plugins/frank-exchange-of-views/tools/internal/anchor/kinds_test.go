@@ -152,4 +152,8 @@ func TestReplaceAndStripAssembled(t *testing.T) {
 	if got, want := StripAssembled("A<!--fx:F-00000001--> b<!--fx:…--><!--cite:C-00000002--><!--gap:G-00000001-->."), "A b<!--cite:C-00000002-->."; got != want {
 		t.Errorf("StripAssembled = %q, want %q", got, want)
 	}
+	// An opener with no close on its line takes nothing after it.
+	if in := "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"; StripAssembled(in) != in {
+		t.Errorf("StripAssembled took text across a line end: %q", StripAssembled(in))
+	}
 }

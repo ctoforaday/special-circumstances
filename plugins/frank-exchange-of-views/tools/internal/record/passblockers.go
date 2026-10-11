@@ -116,6 +116,11 @@ func reopenedFact(b Blocker) string {
 	return fmt.Sprintf("%s's sentence changed at edit %d and no sitting opened since has checked it (its last check is event %d)", b.Subject, b.since, b.lastCheck)
 }
 
+// reopenedOwed is the other sentence every wording of a reopened blocker states: whose the check
+// is. The evidence lens owes it — dispatch readies that seat and its work list blocks on the
+// anchor — and it is not the only seat whose check clears: the fold reads no seat.
+const reopenedOwed = evidenceSeat + " owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
+
 // planHold is the plan's verdict on a blocker, by its owner: the chair's own is cleared in its
 // sitting and leaves pass_permitted standing, so its line must not say a PASS is not permitted;
 // another seat's holds pass_permitted false, and the line says so.
@@ -189,15 +194,20 @@ var blockerKinds = []blockerKind{
 	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the evidence
 	// lens whichever lens made the outdated check: leaf-node verification is its area, and one
 	// owner is what lets dispatch ready one seat for every reopened anchor at once.
+	//
+	// THE OWNER IS WHO IS READIED, NOT WHO ALONE MAY CLEAR. Any lens's check from a sitting opened
+	// after the edit clears the blocker (reopenedEvidence), so each wording says both: the check
+	// that clears it, and the seat that owes it and is readied for it.
 	{
 		kind:  BlockerReopened,
 		gloss: "a citation or proof unchecked since its sentence changed",
 		item: func(b Blocker) string {
-			act := "reads it as it now stands against its source"
+			act := "reading it as it now stands against its source"
 			if b.Detail != "" {
-				act = "re-runs it (`reproduce --id " + b.Detail + "`)"
+				act = "re-running it (`reproduce --id " + b.Detail + "`)"
 			}
-			return fmt.Sprintf("%s — PASS is refused until %s %s", reopenedFact(b), evidenceSeat, act)
+			return fmt.Sprintf("%s — PASS is refused until a lens checks it from a sitting opened after the edit, by %s. %s",
+				reopenedFact(b), act, reopenedOwed)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -206,11 +216,12 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d citation(s) or proof(s) are unchecked since their sentence changed:\n  %s\n"+
 				"Each check on the record is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
-				"A `verify` (any result but `unreachable`) or a `reproduce` from a sitting opened after the edit clears it. It is owed by %s; PASS waits for it, and `--as FAIL` does not",
-				len(bs), strings.Join(named, "\n  "), evidenceSeat)
+				"A `verify` (any result but `unreachable`) or a `reproduce` from a sitting opened after the edit clears it, whichever lens records it. "+
+				"%s; PASS waits for the check, and `--as FAIL` does not",
+				len(bs), strings.Join(named, "\n  "), reopenedOwed)
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("%s — %s", reopenedFact(b), planHold(b, "PASS is not permitted until "+evidenceSeat+" checks it"))
+			return fmt.Sprintf("%s — %s", reopenedFact(b), planHold(b, "PASS is not permitted until a lens checks it from a sitting opened after the edit. "+reopenedOwed))
 		},
 	},
 	{
