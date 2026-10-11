@@ -317,7 +317,7 @@ func sectionBlock(t *testing.T, heading string, a *assembly) string {
 func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 	var named []string
 	for _, s := range layout {
-		if s.Composer == Tool && s.Line == "" {
+		if s.refused() && s.Line == "" {
 			named = append(named, "`## "+s.Heading+"`")
 		}
 	}
@@ -333,9 +333,9 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 		// inside it. Every `## ` heading the prompt names is a row of the table, the wrapper it
 		// forbids beside them, or one of the report's own it tells blue to write.
 		for _, m := range regexp.MustCompile("`## ([^`]+)`").FindAllStringSubmatch(prompt, -1) {
-			row := slices.ContainsFunc(layout, func(s Section) bool { return s.Heading == m[1] })
+			row := slices.ContainsFunc(layout, func(s Section) bool { return s.Heading == m[1] && (s.refused() || s.Composer == Blue) })
 			if !row && m[1] != "Blue team report" {
-				t.Errorf("the %s prompt names `## %s`, which is no section of the table", seat, m[1])
+				t.Errorf("the %s prompt names `## %s`, which is no section of the table that the tool refuses or the report lifts", seat, m[1])
 			}
 		}
 		for _, s := range layout {
@@ -379,6 +379,77 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 	}
 }
 
+// WHICH HEADINGS THE REPORT'S TEXT MAY NOT CARRY IS A RULING, written out here so a row that
+// changes sides is seen. Refused: every heading composed into report.md, where the report's own
+// would stand beside the tool's, and each section of another document that is an account of the
+// run. Not refused: Proofs and Motions, composed into other documents under names a subject uses.
+func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
+	refused := []string{"Outcome", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
+		"Additional findings", "Bibliography", "The board", "The debate", "How this run was conducted", "The verdict's basis",
+		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements"}
+	if got := RefusedHeadings(); !slices.Equal(got, refused) {
+		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)
+	}
+	own := map[string]string{"Proofs": FileEvidence, "Motions": FileJudgments}
+	for _, s := range layout {
+		if file, ok := own[s.Heading]; s.SubjectHeading != ok || ok && s.File != file {
+			t.Errorf("row %q in %s: SubjectHeading is %v", s.Heading, s.File, s.SubjectHeading)
+		}
+		// In report.md the report's own section would stand beside the tool's, and a section of
+		// the report's own has no refusal for the field to lift.
+		if s.SubjectHeading && (s.File == FileReport || s.Composer != Tool) {
+			t.Errorf("row %q is marked a subject's heading too, and it is composed by %s in %s", s.Heading, s.Composer, s.File)
+		}
+	}
+	if want := "Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: " + OwnInTheReport + "."; SubjectHeadingsNote != want {
+		t.Errorf("the note on the help pages reads\n  %s\nwant\n  %s", SubjectHeadingsNote, want)
+	}
+}
+
+// THE NOTE LABELS THE WRITE REFUSES ARE THE ONES THE WEAVE WRITES, every one and no other: a label
+// the weave can write and the write lets through is a hand note that can meet the tool's, and a
+// label the write refuses and the weave never writes is a footnote of the report's own turned away.
+func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
+	for n := 1; n < 2000; n += 7 {
+		for _, l := range []string{citationNote(n), proofNote(n)} {
+			for _, doc := range []string{"A claim" + l + ".\n", "A claim.\n\n" + l + ": a note.\n", "## TL;DR\n\n| a" + l + " | b |\n"} {
+				if got, s, found := WovenNoteIn("", doc); !found || got != l || s.Heading != bibliographyHeading {
+					t.Errorf("WovenNoteIn(%q) = %q in %q, %v; the weave writes %s", doc, got, s.Heading, found, l)
+				}
+			}
+		}
+	}
+	// The weave itself, over a citation and a proof: every label in what it returns is one.
+	woven, _ := weaveProofRefs(weaveCitations("One<!--cite:C-00000001-->. Two<!--proof:P-00000001-->.\n", nil), nil)
+	labels := regexp.MustCompile(`\[\^[^\]]*\]`).FindAllString(woven, -1)
+	if len(labels) != 4 {
+		t.Fatalf("the weave wrote %d label(s), want a reference and a definition for each anchor:\n%s", len(labels), woven)
+	}
+	for _, l := range labels {
+		if got, _, found := WovenNoteIn("", l); !found || got != l {
+			t.Errorf("the weave wrote %s, and the write does not refuse it", l)
+		}
+	}
+	if got, _, _ := WovenNoteIn("", "A claim[^p3].\n"); got != "[^p3]" {
+		t.Errorf("a proof's label in lower case reads %q; a renderer folds a label's case", got)
+	}
+	for _, doc := range []string{
+		"A claim[^scope].\n\n[^scope]: an aside.\n",
+		"A claim[^a1], another[^1a], a third[^P], a fourth[^Px1], a fifth[^note-2].\n",
+		"The class `[^1]` and the class `[^P2]`.\n",
+		"```\n[^1]: quoted output\n```\n",
+		"~~~\nA claim[^P1].\n~~~\n",
+		"Item [1], power 2^3, set [^0-9].\n",
+	} {
+		if l, _, found := WovenNoteIn("", doc); found {
+			t.Errorf("WovenNoteIn(%q) found %q; the weave writes no such label", doc, l)
+		}
+	}
+	if !strings.Contains(WovenNotesRule, notesRow().Path) || !strings.Contains(WovenNotesRule, NoteInCode) {
+		t.Errorf("the rule on the help pages does not carry the Bibliography row's path and the place of a label that is no footnote: %s", WovenNotesRule)
+	}
+}
+
 // THE REFUSAL READS A HEADING AS THE ASSEMBLER DOES — the same key, the same fences — and finds
 // only what the tool composes.
 func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
@@ -389,15 +460,15 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		{"## Additional findings\n", "## Additional findings", "Additional findings"},
 		{"# t\n**outcome:** VERIFIED\n\n## TL;DR\nx\n", "**outcome:** VERIFIED", "Outcome"},
 	} {
-		line, s, found := ComposedIn(tc.doc)
+		line, s, found := ComposedIn("", tc.doc)
 		if !found || line != tc.line || s.Heading != tc.heading {
 			t.Errorf("ComposedIn(%q) = %q, %q, %v; want %q in %q", tc.doc, line, s.Heading, found, tc.line, tc.heading)
 		}
 	}
 	for _, s := range layout {
-		_, got, found := ComposedIn("## TL;DR\nx\n\n## " + s.Heading + "\ny\n")
-		if found != (s.Composer == Tool) || found && got.Heading != s.Heading {
-			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s", s.Heading, found, got.Heading, s.Composer)
+		_, got, found := ComposedIn("", "## TL;DR\nx\n\n## "+s.Heading+"\ny\n")
+		if found != s.refused() || found && got.Heading != s.Heading {
+			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s, a subject's heading too: %v", s.Heading, found, got.Heading, s.Composer, s.SubjectHeading)
 		}
 	}
 	for _, doc := range []string{
@@ -407,7 +478,7 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		"## Alternatives considered and rejected\n",
 		"## Analysis\n\n**Outcome:** the test passes.\n",
 	} {
-		if line, _, found := ComposedIn(doc); found {
+		if line, _, found := ComposedIn("", doc); found {
 			t.Errorf("ComposedIn(%q) found %q; that text claims no section the tool composes", doc, line)
 		}
 	}

@@ -15,7 +15,7 @@ import (
 // Assembly composes each document by walking `layout` in order, so a section ships because it has
 // a row and in the place its row has. The same rows are what blue's ingest and edit refuse in the
 // report's text (ComposedIn), what `show report --assembled` prints (Layout), what the help pages
-// of those verbs list (ComposedHeadings), and what the lists in blue's dispatch prompts are held
+// of those verbs list (RefusedHeadings), and what the lists in blue's dispatch prompts are held
 // to. A section added to the report is added here and nowhere else.
 //
 // THE REPORT'S TEXT CARRIES NO SECTION THE TOOL COMPOSES. universe-m20's synthesizer wrote a
@@ -23,6 +23,14 @@ import (
 // hand copy out in silence, with a proof, two gaps and thirteen findings anchored in it. The
 // write refuses that heading now, and each refusal carries its row's Path: how content does
 // reach the section, or that no act of the refused seat's does and who fills it.
+//
+// ONE FIELD SAYS WHICH OF THE TOOL'S HEADINGS IS NOT REFUSED (SubjectHeading), and why. A heading
+// composed into report.md is refused because the report would carry two sections of one name. A
+// heading composed into another document is refused when what stands under it is an account of
+// the run its author cannot know — the board, the debate, the verdict's basis. "Proofs" and
+// "Motions" are neither: a section of that name in the report's text meets no section of the
+// tool's in report.md, ships whole and once under "Additional findings", and is what a report
+// on a theorem or on a legislature calls a section of its own.
 
 // Who composes a section.
 const (
@@ -47,6 +55,11 @@ type Section struct {
 	// Path is how content reaches the section, in whole sentences: the act and the seat whose act
 	// it is, or that no seat's act does.
 	Path string
+	// SubjectHeading marks a section the tool composes in ANOTHER document under a name a report's
+	// own subject uses for a section. The report's text may carry a heading of that name: it is
+	// the report's own section, placed where every section of the report's own is. Every other
+	// heading the tool composes is refused in the report's text.
+	SubjectHeading bool
 
 	// embeds marks the section that carries the report's own sections under their own headings.
 	embeds bool
@@ -124,23 +137,23 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
-		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note and no reference is typed by hand."},
+		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record, blue's correctness manifest and the chair's spot-checks",
-		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and its `close` and `regrade` move them; blue's `manifest-row` adds a manifest row and the chair's `spot-check` a spot-check.",
+		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and the lens's `close` and `regrade` move them; blue's `manifest-row` adds a manifest row and the chair's `spot-check` a spot-check.",
 		compose: func(a *assembly, _ Section) string { return boardSection(a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts and rulings on the record, sitting by sitting",
 		Path:    "Blue's and the chair's `position` and `closing`, the chair's `verdict`, and the bench's rulings and `certify`.",
 		compose: func(a *assembly, _ Section) string { return debate(a.fam) }},
-	{File: FileJudgments, Heading: "Motions", Composer: Tool,
+	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
 		From:    "the motions on the record, each with its ruling",
 		Path:    "A seat files one with `motion grade file`, `motion docket file` or `motion petition file`, and the seat that hears it answers with `motion grade rule`, `motion docket rule` or `motion petition rule`.",
 		compose: func(a *assembly, _ Section) string { return motions(a.fam) }},
 	// avenues.md is not a section of this table: it is the rendering `show avenues` prints
 	// (view.AvenueBody), whole, under headings that carry each fate's count.
-	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool,
+	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
 		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
@@ -243,24 +256,43 @@ var AvenueSectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the aven
 // audits a hand copy of a composed section as the reader's text unless it is told the section is
 // the tool's.
 var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
-	strings.Join(ComposedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
+	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
 
-// ComposedHeadings is the headings of the sections the tool composes, in the table's order — the
-// ones the report's text may not carry.
-func ComposedHeadings() []string {
+// refused is whether the report's text may not claim the section: the tool composes it, and its
+// name is not one the report's subject shares (SubjectHeading).
+func (s Section) refused() bool { return s.Composer == Tool && !s.SubjectHeading }
+
+// RefusedHeadings is the headings the report's text may not carry, in the table's order.
+func RefusedHeadings() []string {
 	var out []string
 	for _, s := range layout {
-		if s.Composer == Tool {
+		if s.refused() {
 			out = append(out, s.Heading)
 		}
 	}
 	return out
 }
+
+// OwnInTheReport finishes a sentence about a SubjectHeading section, wherever one is described:
+// what a section of that name in the report's text is.
+const OwnInTheReport = "a section of that name in the report's text is the report's own, and ships whole in " + FileReport + " under Additional findings"
+
+// SubjectHeadingsNote names the sections the tool composes in other documents under a name the
+// report's text may use, on the pages that list the refused ones.
+var SubjectHeadingsNote = func() string {
+	var parts []string
+	for _, s := range layout {
+		if s.Composer == Tool && s.SubjectHeading {
+			parts = append(parts, s.Heading+" in "+s.File)
+		}
+	}
+	return "Assembly also composes " + strings.Join(parts, " and ") + ", and those names are not refused: " + OwnInTheReport + "."
+}()
 
 // HEADINGS ARE READ ONE WAY, by every reader here: the composer that lifts blue's sections, the
 // refusal at the write, and the view that slices the assembled document.
@@ -301,13 +333,48 @@ func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
 	}
 }
 
-// ComposedIn returns the first line of text that claims a section the tool composes, as the text
-// writes it, with that section's row: a heading that names one, or, before the first heading, a
-// line opening as one that ships without a heading does.
-func ComposedIn(text string) (line string, s Section, found bool) {
+// A claim is one place where text takes what is the tool's: the line or the label as the text
+// writes it, the row it belongs to, and the key two claims of the same thing share.
+type claim struct {
+	key, text string
+	row       Section
+}
+
+// added is the first claim now makes that was does not, counted by key.
+//
+// A WRITE IS REFUSED FOR WHAT IT ADDS, NOT FOR WHAT THE RECORD HOLDS. A record ingested before a
+// refusal existed, or migrated, holds claims no live write could make. Asked of the whole planned
+// document, the refusal fired on every edit of such a report, the one that takes a claim out
+// included, because a second claim still stood: no edit could be recorded at all. The text as it
+// stood is the allowance; an edit that leaves the report with no more of a claim than it had is
+// not the one that made it.
+func added(was, now []claim) (c claim, found bool) {
+	held := map[string]int{}
+	for _, c := range was {
+		held[c.key]++
+	}
+	for _, c := range now {
+		if held[c.key] == 0 {
+			return c, true
+		}
+		held[c.key]--
+	}
+	return claim{}, false
+}
+
+// ComposedIn returns the first line by which text claims a section the report's text may not
+// carry (refused) and was, the text as it stood, did not: a heading that names one, or, before the
+// first heading, a line opening as one that ships without a heading does. It is returned as the
+// text writes it, with that section's row.
+func ComposedIn(was, text string) (line string, s Section, found bool) {
+	c, found := added(composedClaims(was), composedClaims(text))
+	return c.text, c.row, found
+}
+
+func composedClaims(text string) (out []claim) {
 	preamble := true
 	eachLine(text, func(_, t string, fenced bool) {
-		if found || fenced {
+		if fenced {
 			return
 		}
 		key, isHeading := headingKey(t)
@@ -315,17 +382,78 @@ func ComposedIn(text string) (line string, s Section, found bool) {
 			preamble = false
 		}
 		for _, row := range layout {
-			if row.Composer != Tool {
+			if !row.refused() {
 				continue
 			}
 			if isHeading && key == normalizeHeading(row.Heading) ||
 				preamble && row.Line != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(row.Line)) {
-				line, s, found = t, row, true
+				out = append(out, claim{row.Heading, t, row})
 				return
 			}
 		}
 	})
-	return line, s, found
+	return out
+}
+
+// THE NOTES' LABELS ARE THE TOOL'S. The weave writes a citation's note as [^1], [^2] … in order of
+// first appearance (weaveCitations) and a proof's as [^P1], [^P2] … in record order
+// (weaveProofRefs), into the text as it stands and beside whatever that text already holds. A
+// footnote typed by hand under a label of that shape ships next to the tool's note of the same
+// label: markdown resolves a label to one definition and report.html lists one entry for it, so
+// a reader gets one of the two notes and no sign of the other. A reference typed with no
+// definition reads as the tool's note for whichever source or proof comes to hold that number.
+// The write refuses the label (WovenNoteIn). A footnote under a label of any other shape is the
+// report's own: it ships as written and resolves to its own definition in both tiers.
+
+// citationNote and proofNote are the labels the weave writes.
+func citationNote(n int) string { return fmt.Sprintf("[^%d]", n) }
+func proofNote(n int) string    { return fmt.Sprintf("[^P%d]", n) }
+
+// wovenNote reads a footnote label of the weave's shape, in a reference or in a definition. Case
+// is folded, as a markdown renderer folds a label's.
+var wovenNote = regexp.MustCompile(`(?i)\[\^p?[0-9]+\]`)
+
+// WovenNoteLabels names the weave's labels to a seat.
+var WovenNoteLabels = "`" + citationNote(1) + "`, `" + citationNote(2) + "` … for citations and `" + proofNote(1) + "`, `" + proofNote(2) + "` … for proofs"
+
+// WovenNotesRule is the rule on the pages of the verbs that write report text. The way in is the
+// Bibliography row's Path: the notes are that section's.
+var WovenNotesRule = "NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: " + WovenNoteLabels +
+	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded: " +
+	"it would ship beside the tool's note of the same label, and a reader is shown one of the two. " + notesRow().Path + " " + NoteInCode
+
+// NoteInCode says how text that is not a footnote carries such a label.
+const NoteInCode = "Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there."
+
+// notesRow is the row of the section the woven notes belong to.
+func notesRow() Section {
+	for _, s := range layout {
+		if s.Heading == bibliographyHeading {
+			return s
+		}
+	}
+	panic("report: the layout has no " + bibliographyHeading + " row")
+}
+
+// WovenNoteIn returns the first footnote label of the weave's shape that text carries and was, the
+// text as it stood, did not (added), as the text writes it, with the row of the section the notes
+// belong to. Code is not read — a fenced block, or a span in backticks: a label there is no
+// footnote.
+func WovenNoteIn(was, text string) (label string, s Section, found bool) {
+	c, found := added(wovenNotes(was), wovenNotes(text))
+	return c.text, c.row, found
+}
+
+func wovenNotes(text string) (out []claim) {
+	eachLine(text, func(_, t string, fenced bool) {
+		if fenced {
+			return
+		}
+		for _, m := range wovenNote.FindAllString(reCodeSpan.ReplaceAllString(t, ""), -1) {
+			out = append(out, claim{strings.ToLower(m), m, notesRow()})
+		}
+	})
+	return out
 }
 
 // blueText is the report's text, parted: every line of it is in exactly one of these.
@@ -338,9 +466,9 @@ type blueText struct {
 // part splits the report's text among the rows that place it. NOTHING IS LEFT OVER: the title
 // line, the first section under each lifted heading, and the rest, which ships whole under
 // "Additional findings" — a second section under a lifted heading, text before the first heading
-// and a section under a heading the tool composes included. The last cannot be written by a live
-// seat; a record migrated from before the refusal can hold one, and ships it there with every
-// anchor it carries.
+// and a section under a heading the tool composes included. Of the last, a live seat writes only
+// one under a SubjectHeading; a record migrated from before the refusal can hold any, and ships it
+// there with every anchor it carries.
 func part(blue string) blueText {
 	lifts := map[string]bool{}
 	for _, s := range layout {

@@ -38,7 +38,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"[^1]: the source. https://example.invalid/a",
 	}, "\n")
 
-	got := mdToHTML(md, FileReport, anchors{})
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{})
 	for _, want := range []string{
 		`<h1 id="title">Title</h1>`,
 		"<strong>bold</strong>", "<em>italic</em>", "<code>code</code>",
@@ -71,7 +71,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 // text is quoted from a repository; either can contain a tag, and a report that renders it is
 // a report that can be written into.
 func TestMarkupInProseIsEscaped(t *testing.T) {
-	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{})
+	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{})
 	if strings.Contains(got, "<script>") {
 		t.Errorf("a tag in prose reached the document unescaped:\n%s", got)
 	}
@@ -84,8 +84,8 @@ func TestMarkupInProseIsEscaped(t *testing.T) {
 // link to it. This is the join a seven-file markdown set cannot express.
 func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 	anchor := anchors{}
-	docket := mdToHTML("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor)
-	report := mdToHTML("The board still carries G-00000001 at close.\n", FileReport, anchor)
+	docket := mdToHTML("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor, map[string]int{})
+	report := mdToHTML("The board still carries G-00000001 at close.\n", FileReport, anchor, map[string]int{})
 
 	if anchor["G-00000001"] == "" {
 		t.Fatalf("the defining heading did not register an anchor: %v", anchor)
@@ -120,7 +120,7 @@ func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
 // Hard breaks survive. The composers use them to keep a gap's four facts on four lines; a
 // renderer that drops them re-fuses exactly what they were added to separate.
 func TestHardBreaksSurvive(t *testing.T) {
-	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{})
+	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{})
 	if strings.Count(got, "<br>") != 2 {
 		t.Errorf("hard breaks were dropped, so four facts render as one sentence:\n%s", got)
 	}
@@ -133,7 +133,7 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 	md := "First claim[^zulu]. Second claim[^alpha], and zulu again[^zulu].\n\n" +
 		"[^alpha]: A, defined first. https://example.invalid/a\n" +
 		"[^zulu]: Z, defined second. https://example.invalid/z\n"
-	got := mdToHTML(md, FileReport, anchors{})
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{})
 	for _, want := range []string{
 		`<a class="cite" id="fnref-zulu" href="#fn-zulu" title="zulu — Z, defined second. https://example.invalid/z">[1]</a>`,
 		`<a class="cite" id="fnref-alpha" href="#fn-alpha" title="alpha — A, defined first. https://example.invalid/a">[2]</a>`,
@@ -165,8 +165,8 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 		for form, md := range map[string]string{"heading": "### " + tc.definedAs + "\n\nsomething\n", "list item": "- " + tc.definedAs + "\n"} {
 			t.Run(tc.id+" in a "+form, func(t *testing.T) {
 				anchor := anchors{}
-				mdToHTML(md, FileDocket, anchor)
-				report := mdToHTML("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor)
+				mdToHTML(md, FileDocket, anchor, map[string]int{})
+				report := mdToHTML("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor, map[string]int{})
 
 				if !strings.HasPrefix(anchor[tc.id], FileDocket+"#") {
 					t.Fatalf("%s defined no anchor — the report will not link it anywhere: %v", tc.id, anchor)
@@ -181,7 +181,7 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 	// stands in an anchor, and a word that begins like an id is a word.
 	for _, text := range []string{"C-0000aaa1 — a source", "G20 — the summit", "G-5e10a3c — seven", "G-5e10a3c2f — nine"} {
 		anchor := anchors{}
-		mdToHTML("### "+text+"\n", FileDocket, anchor)
+		mdToHTML("### "+text+"\n", FileDocket, anchor, map[string]int{})
 		if len(anchor) != 0 {
 			t.Errorf("%q defined an anchor: %v", text, anchor)
 		}
@@ -192,7 +192,7 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 // composer's (evidence.md, one per proof); the same opening on a line of the report's own text
 // rendered the tag and none of the words after it.
 func TestALineOpeningWithAnAnchorTagKeepsItsText(t *testing.T) {
-	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{})
+	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{})
 	for _, want := range []string{`<a id="P-deadbeef"></a>`, `<a id="here"></a>the words after the tag.`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the rendering does not carry %q:\n%s", want, html)

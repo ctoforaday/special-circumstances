@@ -7,7 +7,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -139,9 +138,11 @@ func Place(text, location, id string) (string, error) {
 //
 // An edit may carry an anchor but never drop one, so a claim edited away leaves its anchor BARE;
 // `blue retire` records the claim's reason AND the bare anchors that exit with it, and this is
-// the replay of that exit. The anchor goes, and so does the husk it was holding open: an emptied
-// line (a `- ?` bullet, a paragraph that was only the anchor), or the emptied sentence and its
-// stray terminator mid-line. Loud when the anchor is not there: the retire validated its presence at
+// the replay of that exit. The anchor goes, and so does the husk it was holding open (anchor.Husk,
+// the rule assembly strips by): an emptied line (a `- ?` bullet, a paragraph that was only the
+// anchor), or the emptied sentence and its stray terminator mid-line. A line or a sentence of
+// symbols — a table's delimiter row, a row of marks, a cell an edit cut down to a dash — is what
+// its author wrote, and stays without the token. Loud when the anchor is not there: the retire validated its presence at
 // the write, so an absent one means the record no longer describes a real sequence.
 type removeMut struct{ id string }
 
@@ -156,10 +157,10 @@ func (m removeMut) apply(text string) (string, error) {
 
 func (m removeMut) describe() string { return fmt.Sprintf("remove %s", anchor.Token(m.id)) }
 
-// RemoveAnchorAt removes the anchor token at text[i:i+n] and tidies what it leaves: a line with
-// no prose and no other anchor goes whole (with a blank-line run it opened collapsed), and a
-// sentence left empty goes with its terminator and the whitespace that set it apart. Anything still
-// carrying prose or another anchor is left exactly as it stands minus the token — the removal is
+// RemoveAnchorAt removes the anchor token at text[i:i+n] and tidies what it leaves: a line left a
+// husk goes whole (with a blank-line run it opened collapsed), and a sentence left a husk goes
+// with its terminator and the whitespace that set it apart. Anything still carrying content or
+// another anchor is left exactly as it stands minus the token — the removal is
 // order-independent across several anchors exiting one sentence, because only the LAST of them
 // finds it empty. Every cut stays on the token's line.
 func RemoveAnchorAt(text string, i, n int) string {
@@ -180,7 +181,7 @@ func RemoveAnchorAt(text string, i, n int) string {
 	ss, se, le = max(ss, ls), min(se, le)-n, le-n
 	text = text[:i] + text[i+n:]
 	line := text[ls:le]
-	if !claimcount.HasProse(line) && len(claimcount.ProtectedAnchorIDs(line)) == 0 {
+	if anchor.Husk(line) {
 		end := le
 		if end < len(text) {
 			end++ // the line's own newline goes with it
@@ -189,7 +190,7 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return collapseNewlinesAt(text[:ls]+text[end:], ls)
 	}
-	if seg := text[ss:se]; claimcount.HasProse(seg) || len(claimcount.ProtectedAnchorIDs(seg)) > 0 {
+	if seg := text[ss:se]; !anchor.Husk(seg) {
 		// Only the token went; close the whitespace seam it held open — the space an edit left
 		// between the anchor and the next sentence, or a doubled space mid-line.
 		switch {
@@ -204,10 +205,10 @@ func RemoveAnchorAt(text string, i, n int) string {
 		}
 		return text
 	}
-	// Emptied: after prose on its line it takes the space before it, so "One. <c>. Two." reads
+	// Emptied: after content on its line it takes the space before it, so "One. <c>. Two." reads
 	// "One. Two."; at the head of the line's content it takes the space after it, keeping a list
 	// marker.
-	if head := text[ls:ss]; claimcount.HasProse(head) || len(claimcount.ProtectedAnchorIDs(head)) > 0 {
+	if head := text[ls:ss]; !anchor.Husk(head) {
 		for ss > ls && (text[ss-1] == ' ' || text[ss-1] == '\t') {
 			ss--
 		}

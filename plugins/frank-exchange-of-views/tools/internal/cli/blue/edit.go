@@ -145,7 +145,7 @@ func newEdit() *cobra.Command {
 			}
 			return nil, err
 		}
-		if err := composedRefusal(planned); err != nil {
+		if err := composedRefusal(peek, planned); err != nil {
 			return nil, err
 		}
 

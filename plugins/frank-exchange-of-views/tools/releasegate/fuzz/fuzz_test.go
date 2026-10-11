@@ -3352,8 +3352,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 	if text, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		if line, _, found := reportdoc.ComposedIn(string(text)); found {
+		if line, _, found := reportdoc.ComposedIn("", string(text)); found {
 			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
+			return res
+		}
+		if label, _, found := reportdoc.WovenNoteIn("", string(text)); found {
+			res.err = "the report's text carries the footnote label " + label + ", one the weave writes, past the refusal at the write"
 			return res
 		}
 	}

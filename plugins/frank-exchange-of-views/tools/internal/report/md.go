@@ -58,11 +58,16 @@ type anchors map[string]string
 
 // mdToHTML renders one document. It records every anchor it defines into anchor, keyed by the
 // record id, valued as "<file>#<elementID>".
-func mdToHTML(md, file string, anchor anchors) string {
+//
+// seen counts the ids given out, ACROSS THE SET: the documents are tabs of one page, a fragment
+// resolves to the first element of that id on the page, and a hidden tab's element is no place
+// to scroll to. The report's own "## Proofs" and evidence.md's are "proofs" and "proofs-2", and
+// the note each of two documents numbers 1 is "fn-1" in the first and "fn-1-2" in the second
+// (noteIDs).
+func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 	lines := strings.Split(md, "\n")
 	var b strings.Builder
 	var foot []string
-	seen := map[string]int{}
 
 	slug := func(text string) string {
 		s := strings.ToLower(strings.TrimSpace(stripInline(text)))
@@ -71,11 +76,7 @@ func mdToHTML(md, file string, anchor anchors) string {
 		if s == "" {
 			s = "section"
 		}
-		seen[s]++
-		if n := seen[s]; n > 1 {
-			s = fmt.Sprintf("%s-%d", s, n)
-		}
-		return s
+		return uniqueID(seen, s)
 	}
 	// define records "this element is where id lives", first definition winning: a heading
 	// that introduces G3 is its home, and the twenty later mentions are references to it.
@@ -270,8 +271,36 @@ func mdToHTML(md, file string, anchor anchors) string {
 		// to find it by its own name.
 		b.WriteString("<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(foot, "\n") + "\n</ol></section>\n")
 	}
-	return numberCitations(b.String())
+	return noteIDs(numberCitations(b.String()), seen)
 }
+
+// uniqueID is id the first time the set asks for it, and id with a count after that.
+func uniqueID(seen map[string]int, id string) string {
+	seen[id]++
+	if n := seen[id]; n > 1 {
+		return uniqueID(seen, fmt.Sprintf("%s-%d", id, n))
+	}
+	return id
+}
+
+// noteIDs makes one document's footnote ids the set's: a label an earlier document also numbered
+// takes a count, in the entry's id, the marker's and every link between the two. Every document
+// with a citation has a note 1, and proofs are numbered run-wide, so the same label recurs across
+// the tabs by construction. The label a reader sees, and the title on the marker, stay as written.
+func noteIDs(html string, seen map[string]int) string {
+	suffix := map[string]string{}
+	return reNoteID.ReplaceAllStringFunc(html, func(s string) string {
+		m := reNoteID.FindStringSubmatch(s)
+		if _, ok := suffix[m[2]]; !ok {
+			suffix[m[2]] = strings.TrimPrefix(uniqueID(seen, "fn-"+m[2]), "fn-"+m[2])
+		}
+		return m[1] + "-" + m[2] + suffix[m[2]] + `"`
+	})
+}
+
+// reNoteID is a footnote id where this package writes one: an entry's id, a marker's, or a link to
+// either. A heading whose slug reads "fn-1" is not one.
+var reNoteID = regexp.MustCompile(`(<li id="fn|<a class="cite" id="fnref|href="#fn|href="#fnref)-([^"]+)"`)
 
 // numberCitations renders the citation layer the way a reader of arXiv or PubMed expects:
 // in-text markers become bracketed NUMBERED links — [1], [2] — assigned in order of first
