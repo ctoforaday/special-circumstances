@@ -132,7 +132,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					}
 					// AND EVERY FLAG THE REFUSAL NAMES MUST EXIST. Checked HERE as well as in
 					// TestNoRefusalNamesAFlagThatDoesNotExist because that one invokes each verb bare
-					// and therefore only ever sees cobra's "required flag(s) not set" — the record
+					// and therefore only ever sees the missing-flag refusal ("requires --x") — the record
 					// layer's teaching messages, which are the ones that name flags in prose, are
 					// reached only by satisfying the earlier refusals, which is what this loop does.
 					// Measured: renaming `mint requires --problem` to `--problem-statement` left the

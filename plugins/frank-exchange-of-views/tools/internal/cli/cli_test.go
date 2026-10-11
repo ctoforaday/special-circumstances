@@ -854,8 +854,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if err == nil {
 			t.Fatal("a position with no reason was recorded — an empty position is a duty discharged by nothing")
 		}
-		// Cobra names the flag without dashes ("required flag(s) \"reason\" not set"), which is
-		// the framework's phrasing and still names the way in.
+		// The refusal names the flag owed and carries its usage line ("requires --reason").
 		all := out + err.Error()
 		if !strings.Contains(all, "reason") {
 			t.Errorf("the refusal does not name the flag that fixes it:\n%s", all)

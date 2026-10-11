@@ -16,8 +16,9 @@ naming it and followed by the help it prints. Read it before you have decided wh
 decide. A command's own help is still there for a re-check before you run it.
 
 
-**A name you did not read in the help this sitting is a guess.** Do not work from memory, do not
-carry a name from an earlier sitting, and do not assume a command is named after the thing it writes.
+**A name you did not read in the help this sitting is a guess — a command, or a flag on that
+command's own page.** Do not work from memory, do not carry a name from an earlier sitting or a
+flag from another command's page, and do not assume a command is named after the thing it writes.
 
 What you hold is the WHOLE surface, not a slice. There is nothing here to go and find elsewhere,
 and no page of it to fetch.
@@ -115,7 +116,7 @@ THE LOG IS FOR WHATEVER COST YOU A CALL, A GUESS OR AN ACT: a refusal; a verb, f
 
 <!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->
 
-Your surface — the bench surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A name you did not read here is a guess.
+Your surface — the bench surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A command you did not read here is a guess, and so is a flag you did not read under that command's own header.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.

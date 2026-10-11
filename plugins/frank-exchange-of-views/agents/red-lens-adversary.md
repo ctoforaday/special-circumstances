@@ -24,7 +24,7 @@ Say what you CONCLUDED, never what you did: the record already holds every act o
 
 <!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->
 
-Your surface — the lens surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A name you did not read here is a guess.
+Your surface — the lens surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A command you did not read here is a guess, and so is a flag you did not read under that command's own header.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
@@ -91,7 +91,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§5 (on 9 pages):
+§5 (on 8 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §6 (on 2 pages):
@@ -380,10 +380,10 @@ Flags:
       --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it
   -h, --help                            help for finding
       --impact grade                    how bad the consequence is if it lands
-      --key string                      your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id
+      --key string                      your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade                how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --quote string                    REQUIRED unless --about-kind/--about name the subject — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. The finding anchor is placed there
-      --reason string                   → SHARED §5
+      --reason string                   REQUIRED — the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                  → SHARED §12
 
 (Enumerated values:) → SHARED §13
@@ -465,7 +465,7 @@ Flags:
       --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
   -h, --help                                     help for mint
       --impact grade                             REQUIRED — how bad the consequence is if it lands
-      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice
+      --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)

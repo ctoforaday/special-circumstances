@@ -44,7 +44,8 @@ import (
 //
 // The help is its one reader: seat.markRequired turns each key into the flag a seat types and
 // marks it REQUIRED, so a verb whose schema requires a field it does not offer a flag for is
-// simply not marked — which is correct, and stated where that happens.
+// simply not marked — which is correct, and stated where that happens. A field an ARM requires is
+// marked on the verb that declares it fills that arm (seat.FillsArm), and on no other.
 func RequiredFields(typ string) []RequiredField {
 	md, ok := bodyDescriptor(typ)
 	if !ok {
@@ -53,6 +54,14 @@ func RequiredFields(typ string) []RequiredField {
 	var out []RequiredField
 	for _, fd := range recordpb.RequiredOf(md) {
 		out = append(out, RequiredField{Key: string(fd.Name()), Flag: recordpb.FlagFor(fd)})
+	}
+	// AND EACH ARM'S OWN, TAGGED WITH THE ARM. A docket ruling's reasoning fields are required of
+	// the `docket` arm of a ruling and of no other subject's, so they are listed under that arm's
+	// name and a reader marks them only on the verb that fills it.
+	for _, arm := range recordpb.ArmsOf(md) {
+		for _, fd := range recordpb.RequiredOf(arm.Message()) {
+			out = append(out, RequiredField{Key: string(fd.Name()), Flag: recordpb.FlagFor(fd), Arm: string(arm.Name())})
+		}
 	}
 	return out
 }
@@ -67,6 +76,26 @@ func RequiredFields(typ string) []RequiredField {
 type RequiredField struct {
 	Key  string // the field the record holds
 	Flag string // the word a seat types
+	// Arm is the oneof arm whose message requires the field — `docket` for a docket ruling's
+	// `principle` — and "" for a field the body itself requires. A body owes an arm's fields only
+	// when it fills that arm.
+	Arm string
+}
+
+// HasArm says whether an event type's body has a oneof arm of that name, whatever the arm holds.
+// A verb declaring an arm its body does not have would be marked from nothing, silently; the
+// declaration is checked against this where it is read.
+func HasArm(typ, arm string) bool {
+	md, ok := bodyDescriptor(typ)
+	if !ok {
+		return false
+	}
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		if od := md.Oneofs().Get(i); !od.IsSynthetic() && od.Fields().ByName(protoreflect.Name(arm)) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // bodyDescriptor resolves an event type's WORD to the body message the `body` oneof pairs it with

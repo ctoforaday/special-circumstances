@@ -195,7 +195,7 @@ func renderSurface(bin, seat, role string) ([]byte, error) {
 	}
 	head := fmt.Sprintf("Your surface — the %s surface, rendered from the record tool's own `manual`. "+
 		"Every command you may run is below, each under a header naming it and followed by the help it prints. "+
-		"A name you did not read here is a guess.", role)
+		"A command you did not read here is a guess, and so is a flag you did not read under that command's own header.", role)
 	return append([]byte(head+"\n"), lines[1]...), nil
 }
 

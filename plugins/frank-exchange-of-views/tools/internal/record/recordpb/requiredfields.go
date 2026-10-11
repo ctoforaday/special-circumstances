@@ -126,3 +126,25 @@ func RequiredOf(md protoreflect.MessageDescriptor) []protoreflect.FieldDescripto
 	}
 	return out
 }
+
+// ArmsOf lists the MESSAGE arms of a message's own oneofs — `MotionRule.ruling.docket` — in
+// declaration order. An arm's required fields bind only a body that fills that arm, so they are
+// asked of the arm (RequiredOf on its message) and never folded into the body's own list.
+//
+// SYNTHETIC ONEOFS ARE SKIPPED: every proto3 `optional` field is one. An enum arm holds no
+// fields and is skipped with them.
+func ArmsOf(md protoreflect.MessageDescriptor) []protoreflect.FieldDescriptor {
+	var out []protoreflect.FieldDescriptor
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		od := md.Oneofs().Get(i)
+		if od.IsSynthetic() {
+			continue
+		}
+		for j := 0; j < od.Fields().Len(); j++ {
+			if fd := od.Fields().Get(j); fd.Kind() == protoreflect.MessageKind {
+				out = append(out, fd)
+			}
+		}
+	}
+	return out
+}

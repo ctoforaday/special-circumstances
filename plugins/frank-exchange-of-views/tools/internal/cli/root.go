@@ -14,11 +14,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -285,6 +285,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	}
 
 	teachUnknownSubcommand(root)
+	// THE HANDLE'S OWN LINE SAYS WHICH VERBS TAKE ONE, from this tree: a handle described on three
+	// verbs and bounded on none was carried to a fourth.
+	seat.NameTakers(root, flags.Key, "a handle")
 	enumhelp.Install(root)
 	return root
 }
@@ -525,17 +528,18 @@ func Invoke(root *cobra.Command, argv []string, seatID string) (*cobra.Command, 
 
 // ExecuteRoot runs the tree and returns the command that resolved with its error. To the refusals
 // COBRA raises — an unknown flag, a missing required flag, a bad value, wrong arguments, a flag
-// group violated — it gives the code their producer implies and, on a seat verb, the verb's own
-// help.
+// group violated — it gives the code their producer implies and the answer the command tree holds.
 //
-// Those refusals name a flag word and stop: "required flag(s) \"verified-by\" not set" tells a
-// seat which word it missed and nothing about what the word wants or what else the verb takes.
-// The flag table is the answer, and cobra already renders it — so the diagnosis leads and cobra's
-// own help follows, which is the shape every other refusal in this tool has.
+// Cobra's own sentences name a flag word and stop: which word was missed, and nothing about what
+// the word wants or what else the verb takes. Two of them are answered in a few lines, on every
+// command under the root: required flags left out get each missing flag's own usage line
+// (seat.RefuseMissingFlags), and a flag the verb does not have gets the verbs on this surface that
+// do take it beside this verb's own flags (seat.RefuseUnknownFlag). Each names the verb's
+// `--help` and prints none of it.
 //
-// The help is scoped to SEAT VERBS and to errors nothing already answered. A handler's refusal is
-// a teaching message already (seat.Taught marks them), and an operator command's refusals were
-// never flag-shaped.
+// The rest — a bad value, wrong arguments, a flag group violated — get the verb's whole page on a
+// SEAT VERB, the diagnosis leading: the answer there is the flag table itself. A handler's refusal
+// is a teaching message already (seat.Taught marks them).
 //
 // THE REFUSAL IS LOGGED AS RETURNED, once its diagnosis is final: the log entry and the rendered
 // forms read the same sentence.
@@ -564,24 +568,52 @@ func ExecuteRoot(root *cobra.Command) (*cobra.Command, error) {
 		return cmd, nil
 	}
 	if !seat.Taught(err) {
-		err = codeCobraRefusal(cmd, err)
-		if seat.RecordType(cmd) != "" {
-			err = seat.TeachCause(cmd, translateUnknownFlag(cmd, err.Error()), err)
-		}
+		err = answerCobraRefusal(cmd, err)
 	}
 	noteRefusal(cmd, err)
 	return cmd, err
+}
+
+// answerCobraRefusal gives a refusal cobra raised its code and its answer, by producer.
+func answerCobraRefusal(cmd *cobra.Command, err error) error {
+	missing := isMissingRequired(cmd, err)
+	err = codeCobraRefusal(cmd, err)
+	var unknown *pflag.NotExistError
+	switch {
+	case cmd == cmd.Root():
+		// No verb resolved, so there is no verb's flags to answer with.
+		return err
+	case missing:
+		if short := seat.RefuseMissingFlags(cmd, err); short != nil {
+			return short
+		}
+	case errors.As(err, &unknown):
+		said, answered := translateUnknownFlag(cmd, unknown.GetSpecifiedName(), unknown.Error())
+		return seat.RefuseUnknownFlag(cmd, unknown.GetSpecifiedName(), said, answered, err)
+	}
+	if seat.RecordType(cmd) != "" {
+		return seat.TeachCause(cmd, err.Error(), err)
+	}
+	return err
+}
+
+// isMissingRequired says whether an error is cobra's refusal of required flags left out.
+//
+// THE PRODUCER IS ASKED AGAIN, not recognised by its wording: cobra's check is re-run on the
+// resolved command and its message compared whole with the one returned — the same function over
+// the same flag state — so no shape of another module's text is assumed.
+func isMissingRequired(cmd *cobra.Command, err error) bool {
+	again := cmd.ValidateRequiredFlags()
+	return again != nil && again.Error() == err.Error()
 }
 
 // codeCobraRefusal gives a refusal cobra raised AFTER parsing the code its producer implies: a
 // required flag left out is a missing field; a flag group violated, or arguments the command does
 // not take, are ill-formed input.
 //
-// THE PRODUCER IS ASKED AGAIN, not recognised by its wording. Each of cobra's three checks is
-// re-run on the resolved command and its message compared whole with the one returned — the same
-// function over the same flag state — so no shape of another module's text is assumed, and a
-// refusal none of them produced keeps the code it came with. An error nothing coded stays "error":
-// a network failure is not the caller's ill-formed input, and nothing here says it is.
+// Each of cobra's checks is asked again, as isMissingRequired asks the first, and a refusal none
+// of them produced keeps the code it came with. An error nothing coded stays "error": a network
+// failure is not the caller's ill-formed input, and nothing here says it is.
 func codeCobraRefusal(cmd *cobra.Command, err error) error {
 	var coded *feov.Error
 	if errors.As(err, &coded) {
@@ -589,19 +621,13 @@ func codeCobraRefusal(cmd *cobra.Command, err error) error {
 	}
 	same := func(e error) bool { return e != nil && e.Error() == err.Error() }
 	switch {
-	case same(cmd.ValidateRequiredFlags()):
+	case isMissingRequired(cmd, err):
 		return feov.Wrap(feov.MissingField, err, "%s", err.Error())
 	case same(cmd.ValidateFlagGroups()), same(cmd.ValidateArgs(cmd.Flags().Args())):
 		return feov.Wrap(feov.Validation, err, "%s", err.Error())
 	}
 	return err
 }
-
-// unknownFlagName pulls the flag word out of cobra's refusal. Cobra has no typed error for this,
-// so the message is the only carrier; the pattern is anchored to the whole phrase rather than
-// scanning for a `--` so an unrelated message that happens to quote a flag cannot trigger a
-// suggestion.
-var unknownFlagName = regexp.MustCompile(`^unknown flag: --([A-Za-z0-9_-]+)`)
 
 // translateUnknownFlag answers the seat's ACTUAL mistake when it typed the record's word for a
 // field instead of the flag's.
@@ -618,23 +644,22 @@ var unknownFlagName = regexp.MustCompile(`^unknown flag: --([A-Za-z0-9_-]+)`)
 //
 // A key with no entry falls through untouched, because flags.FlagForPayloadKey reports the miss
 // instead of hyphenating a guess — a suggested spelling the parser rejects is worse than none.
-func translateUnknownFlag(cmd *cobra.Command, msg string) string {
-	m := unknownFlagName.FindStringSubmatch(msg)
-	if m == nil {
-		return msg
-	}
-	name, ok := flags.FlagForPayloadKey(m[1])
-	if !ok || name == m[1] {
-		return msg
+//
+// `typed` is the flag word as the parser read it (pflag's NotExistError carries it as a field) and
+// `msg` the parser's sentence; translated says whether the sentence now names the flag to type.
+func translateUnknownFlag(cmd *cobra.Command, typed, msg string) (said string, translated bool) {
+	name, ok := flags.FlagForPayloadKey(typed)
+	if !ok || name == typed {
+		return msg, false
 	}
 	// THE MAP IS GLOBAL AND PAYLOAD KEYS ARE NOT, which its own comment says plainly. `line` maps
 	// to --reason, and a verb with no --reason would be told to type one. The suggestion is
 	// therefore made only when the FAILING VERB actually has that flag — which turns a global
 	// table into a per-verb answer without a second table to keep.
 	if cmd == nil || cmd.Flags().Lookup(name) == nil {
-		return msg
+		return msg, false
 	}
 	return fmt.Sprintf("%s — the record stores that field as `%s`, and the flag that sets it is --%s. "+
 		"The field name and the flag word are not always the same; the flag is what you type.",
-		msg, m[1], name)
+		msg, typed, name), true
 }
