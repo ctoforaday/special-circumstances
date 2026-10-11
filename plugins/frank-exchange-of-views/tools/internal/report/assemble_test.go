@@ -45,9 +45,9 @@ func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
 		t.Errorf("a fenced heading was mistaken for a real one, or a missing section was authored: %q", got)
 	}
 	// ONE READING OF A HEADING, for the lift and for everything else that reads one: case, runs
-	// of whitespace, an anchor on the heading line and a trailing "(in full)" do not make a
-	// present section absent.
-	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--fx:F-00000aaa-->", "## Open questions (in full)"} {
+	// of whitespace, an anchor on the heading line, the note reference the weave leaves where a
+	// citation's stood and a trailing "(in full)" do not make a present section absent.
+	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--fx:F-00000aaa-->", "## Open questions[^2]", "## Open questions (in full)"} {
 		if got := lift(&assembly{blue: part("intro\n" + h + "\n\nwhat remains.\n")}, row("Open questions")); !strings.Contains(got, "what remains") {
 			t.Errorf("%q: a present section was declared absent: %q", h, got)
 		}

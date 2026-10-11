@@ -16,11 +16,6 @@ import (
 // and slices what assembly made by the rows of `layout`, so the view cannot describe a report
 // other than the one that ships.
 
-// AssembledNote is ComposedNote and the way to the assembled form, on the page that prints the
-// report's text.
-var AssembledNote = ComposedNote + " --assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
-	"With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`."
-
 // LayoutSection is one row of the assembled layout, for the run it was asked of.
 type LayoutSection struct {
 	File    string `json:"file"`

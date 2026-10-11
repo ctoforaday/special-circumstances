@@ -238,11 +238,14 @@ var AvenueSections = func() string {
 var AvenueSectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: " + AvenueSections +
 	". They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record."
 
-// ComposedNote is what the page that prints the report's text says about what ships: a seat
-// reading that text reads the authored part of report.md, and audits a hand copy of a composed
-// section as the reader's text unless it is told the section is the tool's.
-var ComposedNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
-	strings.Join(ComposedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one."
+// AssembledNote is what the page that prints the report's text says about what ships, and the
+// way to the assembled form: a seat reading that text reads the authored part of report.md, and
+// audits a hand copy of a composed section as the reader's text unless it is told the section is
+// the tool's.
+var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
+	strings.Join(ComposedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
+	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
+	"With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }

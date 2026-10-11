@@ -223,17 +223,16 @@ func Title(run record.Run) string {
 // never authored and ship without a word of the report.
 func blueReport(run record.Run) (string, error) {
 	have, err := reportproj.BaseIngested(run)
-	if err == nil && !have {
-		return "", nil
-	}
-	md := ""
-	if err == nil {
-		md, err = reportproj.RenderFromRecord(run)
+	if err == nil && have {
+		var md string
+		if md, err = reportproj.RenderFromRecord(run); err == nil {
+			return md, nil
+		}
 	}
 	if err != nil {
-		return "", fmt.Errorf("assemble: the report's text: %w", err)
+		err = fmt.Errorf("assemble: the report's text: %w", err)
 	}
-	return md, nil
+	return "", err
 }
 
 // sections accumulates the composed blocks of one document, dropping the empties. It is the
