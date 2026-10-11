@@ -452,10 +452,12 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 		return out, nil
 	}
 	// EVERY COLUMN IS CHECKED BEFORE THE SELECT, because SQLite will not refuse a missing one here.
-	// A double-quoted identifier that names no column is read as a STRING LITERAL, so on a run
-	// created before a field existed the query succeeds and every row carries the column's own
-	// name as its value — a string field would read back as its name, a bool as false, and nothing
-	// would say so. The write path has no such trap (an INSERT column list must resolve).
+	// A double-quoted identifier that names no column is read as a STRING LITERAL, so the query
+	// succeeds and every row carries the column's own name as its value — a string field reads
+	// back as its name, a bool as false, and nothing says so. The write path has no such trap (an
+	// INSERT column list must resolve). The open holds a record to this binary's columns
+	// (requireDeclaredSchema), so a miss here is not an older run and the error says only what
+	// is missing.
 	if have, err := columnsOf(db, table); err == nil && len(have) > 0 {
 		var absent []string
 		for _, c := range cols {
@@ -464,14 +466,13 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 			}
 		}
 		if len(absent) > 0 {
-			return nil, olderColumns(db, table, absent,
-				fmt.Errorf("recordsql: reading %s: the table has no column %s", table, strings.Join(absent, ", ")))
+			return nil, fmt.Errorf("recordsql: reading %s: the table has no column %s", table, strings.Join(absent, ", "))
 		}
 	}
 	q := `SELECT "event_id", ` + join(cols, ", ") + fmt.Sprintf(" FROM %q", table)
 	rows, err := db.Query(q)
 	if err != nil {
-		return nil, olderRun(db, table, cols, fmt.Errorf("recordsql: reading %s: %w", table, err))
+		return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -496,7 +497,7 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 func scanLists(db Querier, table string) (map[int64][]any, error) {
 	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
 	if err != nil {
-		return nil, olderSchema(db, table, err)
+		return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
 	}
 	defer rows.Close()
 	out := map[int64][]any{}
@@ -516,24 +517,6 @@ type queryRower interface {
 	QueryRow(query string, args ...any) *sql.Row
 }
 
-// olderSchema names the fact behind a failure on a RELATION this binary's schema has and the
-// database does not: the run was created by an older binary. A view counts — `sittings` is one,
-// and the write path reads it for every event.
-//
-// A run's schema is fixed when its database is created — ensureSchema applies it once, and there
-// is no migration, on purpose — so every table added since is missing from an older run, and the
-// generic body walk reads and writes every list table of a message. Without this the reader got
-// SQLite's "no such table: retire_anchors", which names neither the cause nor the way out. Asked
-// of sqlite_master only on the error path, so a current database pays nothing. A column added to
-// an existing table is olderColumns' case: the table exists.
-func olderSchema(q queryRower, table string, err error) error {
-	var n int
-	if qerr := q.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?`, table).Scan(&n); qerr == nil && n == 0 {
-		return fmt.Errorf("recordsql: this run's record has no %q table — %s: %w", table, olderRunAdvice, err)
-	}
-	return err
-}
-
 // Querier is what both a *sql.DB and a *sql.Tx offer a read: the record's handle, or one read
 // transaction a projection asks every question of, so that all its answers come off one snapshot.
 type Querier interface {
@@ -541,16 +524,8 @@ type Querier interface {
 	rowsQuerier
 }
 
-// olderRun asks both questions of a failed read or write on a body table: is the table missing,
-// and if it is there, is a column this binary declares missing from it.
-func olderRun(q Querier, table string, cols []string, err error) error {
-	if older := olderSchema(q, table, err); older != err {
-		return older
-	}
-	return olderColumns(q, table, cols, err)
-}
-
-// olderRunAdvice is the cause and the way out, shared by the missing-table and missing-column cases.
+// olderRunAdvice is the cause and the way out for a record behind this binary, given at the open
+// (requireDeclaredSchema) — the one place an older binary is the cause.
 // newerRunAdvice is olderRunAdvice's MIRROR, and it names a different remedy because it is a
 // different mistake. The record is ahead of the binary, so there is nothing to migrate: the binary is
 // the stale party and must be replaced by the one the run was set up with.
@@ -575,36 +550,6 @@ const olderRunAdvice = "it was created by an older binary than this one, " +
 	"write path into a fresh run, leaves the source untouched, and writes what it translated to " +
 	"<freshDir>/inputs/migration.json; continue in <freshDir>"
 
-// olderColumns is olderSchema's other half: the table is there, and a column THIS BINARY declares
-// on it is not — a field added to an existing message since the run was created, as
-// `blue_edit.exact_span` was. SQLite says only "no such column", which names neither cause nor
-// way out. A missing column this binary does NOT declare keeps SQLite's own error: that is a
-// defect in the read, not an older run. The declared set comes from this binary's schema applied
-// to a scratch in-memory database — the schema itself, not a second copy of it — and only on the
-// error path.
-func olderColumns(q rowsQuerier, table string, cols []string, err error) error {
-	have, qerr := columnsOf(q, table)
-	if qerr != nil || len(have) == 0 {
-		return err
-	}
-	want, werr := declaredColumns(table)
-	if werr != nil {
-		return err
-	}
-	var older []string
-	for _, c := range cols {
-		name := strings.Trim(c, `"`)
-		if !have[name] && want[name] {
-			older = append(older, fmt.Sprintf("%q", name))
-		}
-	}
-	if len(older) == 0 {
-		return err
-	}
-	return fmt.Errorf("recordsql: this run's %q table has no %s column — %s: %w",
-		table, strings.Join(older, ", "), olderRunAdvice, err)
-}
-
 // rowsQuerier is what both a *sql.DB and a *sql.Tx offer for a many-row question.
 type rowsQuerier interface {
 	Query(query string, args ...any) (*sql.Rows, error)
@@ -625,23 +570,6 @@ func columnsOf(q rowsQuerier, table string) (map[string]bool, error) {
 		out[n] = true
 	}
 	return out, rows.Err()
-}
-
-func declaredColumns(table string) (map[string]bool, error) {
-	schema, err := Schema()
-	if err != nil {
-		return nil, err
-	}
-	mem, err := sql.Open(driverName(), ":memory:")
-	if err != nil {
-		return nil, err
-	}
-	defer mem.Close()
-	mem.SetMaxOpenConns(1) // one connection is one in-memory database
-	if _, err := mem.Exec(schema); err != nil {
-		return nil, err
-	}
-	return columnsOf(mem, table)
 }
 
 // wordAt is a discriminator column read back: TEXT, or NULL when the oneof was never filed.

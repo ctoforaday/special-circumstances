@@ -11,43 +11,85 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// A TABLE THIS BINARY HAS AND THE RUN DOES NOT IS NAMED AS AN OLDER RUN. The schema is fixed at a
-// run's creation with no migration, so a list table added since is missing from an older run, and
-// the reader used to surface SQLite's bare "no such table". A table that exists and fails for
-// another reason keeps its own error.
-func TestAMissingTableIsNamedAsAnOlderRun(t *testing.T) {
+// olderRunWants is what the open's refusal of a record behind this binary names: the cause and the
+// way out, spelled as the operator types it.
+var olderRunWants = []string{"older binary", "`--seat-id operator migrate --from <runDir> --to <freshDir>`"}
+
+// reopened releases the cached handle and opens the record again: a cache hit never reaches the
+// open's schema check, and a second process is what meets a record it did not create.
+func reopened(t *testing.T, path string) error {
+	t.Helper()
+	if err := Close(path); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Open(path)
+	return err
+}
+
+// notBlamedOnAnOlderRun fails a post-open error that names an older binary or sends the operator
+// to migrate: the open already held this record to the declared schema.
+func notBlamedOnAnOlderRun(t *testing.T, what string, err error) {
+	t.Helper()
+	for _, not := range []string{"older binary", "migrate"} {
+		if err != nil && strings.Contains(err.Error(), not) {
+			t.Errorf("%s was blamed on an older run (%q): %v", what, not, err)
+		}
+	}
+}
+
+// A TABLE THIS BINARY DECLARES AND THE RECORD LACKS IS AN OLDER RUN AT THE OPEN, AND ONLY THERE. The
+// open holds every record this binary did not create to its declared schema, so a table that goes
+// missing under a handle that passed that check has some other cause, and the read returns SQLite's
+// error under the table's name rather than sending the operator to `migrate`.
+func TestAMissingTableIsAnOlderRunAtTheOpenAndAPlainErrorAfterIt(t *testing.T) {
 	// tmpRun, not t.TempDir: Open caches the handle, and Windows refuses to remove an open file.
-	db, err := Open(filepath.Join(tmpRun(t), "record.db"))
+	path := filepath.Join(tmpRun(t), "record.db")
+	db, err := Open(path)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`DROP TABLE "retire_anchors"`); err != nil {
 		t.Fatal(err)
 	}
 	_, err = scanLists(db, "retire_anchors")
-	if err == nil || !strings.Contains(err.Error(), "older binary") || !strings.Contains(err.Error(), "retire_anchors") {
-		t.Errorf("reading a list table the run lacks: %v — want the older-binary cause named", err)
+	for _, want := range []string{"reading retire_anchors", "no such table"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("reading a list table dropped under an open handle: %v — want %q", err, want)
+		}
 	}
-	// ...and the way out: the repository's migrate command, spelled as the operator types it.
-	if err == nil || !strings.Contains(err.Error(), "`--seat-id operator migrate --from <runDir> --to <freshDir>`") {
-		t.Errorf("the older-run message does not name the migrate invocation: %v", err)
-	}
+	notBlamedOnAnOlderRun(t, "a table dropped under a handle the open already checked", err)
 	// Unquoted: SQLite reads a double-quoted unknown identifier as a string literal, not an error.
-	if _, err := scanTable(db, "retire", []string{`no_such_column`}); err == nil || strings.Contains(err.Error(), "older binary") {
-		t.Errorf("a failure on a table that exists was blamed on an older run: %v", err)
+	_, err = scanTable(db, "retire", []string{`no_such_column`})
+	if err == nil {
+		t.Error("a read naming a column no table has returned rows")
+	}
+	notBlamedOnAnOlderRun(t, "a failure on a table that exists", err)
+
+	err = reopened(t, path)
+	for _, want := range append([]string{`"retire_anchors"`, "has no", "table"}, olderRunWants...) {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("opening a record that lacks a declared table: %v — want %s named", err, want)
+		}
 	}
 }
 
-// A COLUMN THIS BINARY DECLARES AND THE RUN'S TABLE LACKS IS AN OLDER RUN TOO. `blue_edit` exists
-// in every run; `exact_span` was added to it later, so a run created before that reads and writes
-// through a table one column short, and SQLite said only "no such column".
-func TestAMissingDeclaredColumnIsNamedAsAnOlderRun(t *testing.T) {
-	db, err := Open(filepath.Join(tmpRun(t), "record.db"))
+// A COLUMN THIS BINARY DECLARES AND THE RECORD'S TABLE LACKS IS AN OLDER RUN AT THE OPEN, AND ONLY
+// THERE. After it, the read still refuses the column by name before the SELECT — SQLite reads the
+// quoted name as a string literal and hands back the column's own name as every row's value — and
+// the write returns SQLite's error; neither names an older binary.
+func TestAMissingDeclaredColumnIsAnOlderRunAtTheOpenAndAPlainErrorAfterIt(t *testing.T) {
+	path := filepath.Join(tmpRun(t), "record.db")
+	db, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// SQLite refuses to drop a column a view reads, so the views go first — this database only
-	// has to be the older table's shape, not a whole older run.
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{})); err != nil {
+		t.Fatal(err)
+	}
+	// SQLite refuses to drop a column a view reads, so the views go first.
 	rows, err := db.Query(`SELECT name FROM sqlite_master WHERE type = 'view'`)
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +109,7 @@ func TestAMissingDeclaredColumnIsNamedAsAnOlderRun(t *testing.T) {
 		}
 	}
 	// Rebuilt without the column rather than DROP COLUMN, which SQLite refuses while a CHECK
-	// constraint names it — exactly the table an older binary created: every column but the new one.
+	// constraint names it: every column but the one under test.
 	cols, err := columnsOf(db, "blue_edit")
 	if err != nil {
 		t.Fatal(err)
@@ -87,27 +129,39 @@ func TestAMissingDeclaredColumnIsNamedAsAnOlderRun(t *testing.T) {
 			t.Fatalf("%s: %v", stmt, err)
 		}
 	}
-	// THE VIEWS COME BACK, because an older run HAS them — its own, built from its own schema. They
-	// were dropped only so the table could be rebuilt beneath them, and the write path reads one of
-	// them (`sittings`) for every event: without this the envelope fails first and the body column
-	// this test is about is never reached.
+	// THE VIEWS COME BACK, as this binary defines them. They were dropped only so the table could be
+	// rebuilt beneath them; the write path reads one of them (`sittings`) for every event, and the
+	// open below must meet the missing column alone.
 	if _, err := db.Exec(ViewsDDL); err != nil {
 		t.Fatal(err)
 	}
 	_, err = scanTable(db, "blue_edit", []string{`"exact_span"`})
-	for _, want := range []string{"older binary", `"exact_span"`, `"blue_edit"`, "`--seat-id operator migrate --from <runDir> --to <freshDir>`"} {
+	for _, want := range []string{"reading blue_edit", "the table has no column", `"exact_span"`} {
 		if err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("reading a declared column the run lacks: %v — want %s named", err, want)
+			t.Errorf("reading a column the table lacks: %v — want %s named", err, want)
 		}
 	}
-	// A column the binary does NOT declare is a defect in the read, not an older run.
-	if _, err := scanTable(db, "blue_edit", []string{`no_such_column`}); err == nil || strings.Contains(err.Error(), "older binary") {
-		t.Errorf("an undeclared column was blamed on an older run: %v", err)
+	notBlamedOnAnOlderRun(t, "a read of a column missing under a handle the open already checked", err)
+	// A column the binary does not declare reads the same way.
+	_, err = scanTable(db, "blue_edit", []string{`no_such_column`})
+	if err == nil {
+		t.Error("a read naming a column no table has returned rows")
 	}
-	// THE WRITE PATH MEETS THE SAME TABLE: an edit that records exact_span into an older run.
-	_, err = Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{ExactSpan: proto.Bool(true)}))
-	if err == nil || !strings.Contains(err.Error(), "older binary") || !strings.Contains(err.Error(), `"exact_span"`) {
-		t.Errorf("writing a declared column the run lacks: %v — want the older-binary cause named", err)
+	notBlamedOnAnOlderRun(t, "an undeclared column", err)
+	// THE WRITE PATH MEETS THE SAME TABLE.
+	_, err = Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_BLUE_EDIT, &recordpb.BlueEdit{ExactSpan: proto.Bool(true)}))
+	for _, want := range []string{"recording a blue_edit", "exact_span"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("writing a column the table lacks: %v — want %s named", err, want)
+		}
+	}
+	notBlamedOnAnOlderRun(t, "a write of a column missing under a handle the open already checked", err)
+
+	err = reopened(t, path)
+	for _, want := range append([]string{`"blue_edit"`, `"exact_span"`, "has no", "column"}, olderRunWants...) {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("opening a record whose table lacks a declared column: %v — want %s named", err, want)
+		}
 	}
 }
 

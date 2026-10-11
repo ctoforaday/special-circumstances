@@ -830,8 +830,7 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error
 				`SELECT max(e."id") FROM "events" e JOIN "sitting_open" o ON o."event_id" = e."id"
 				  WHERE o."agent_id" = ? AND o."seat_id" = ? AND e."sitting_id" = e."id"`,
 				agent, seat).Scan(&bracket); err != nil {
-				return 0, nil, olderSchema(tx, "sitting_open",
-					fmt.Errorf("recordsql: asking whether %s was already bracketed into a sitting: %w", agent, err))
+				return 0, nil, fmt.Errorf("recordsql: asking whether %s was already bracketed into a sitting: %w", agent, err)
 			}
 			if bracket.Valid {
 				return id, bracket.Int64, nil
@@ -842,8 +841,7 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error
 	var open sql.NullInt64
 	if err := tx.QueryRow(
 		`SELECT max("id") FROM "sittings" WHERE "seat_id" = ?`, ev.GetSeatId()).Scan(&open); err != nil {
-		return 0, nil, olderSchema(tx, "sittings",
-			fmt.Errorf("recordsql: asking which sitting of %s this act joins: %w", ev.GetSeatId(), err))
+		return 0, nil, fmt.Errorf("recordsql: asking which sitting of %s this act joins: %w", ev.GetSeatId(), err)
 	}
 	if !open.Valid {
 		return id, nil, nil
@@ -868,8 +866,7 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 		id, ev.GetSeatId(), ev.GetTs(),
 		recordpb.Word(ev.GetType()), nullable(ev.GetKey()), sitting,
 	); err != nil {
-		return 0, olderRun(tx, "events", []string{`"sitting_id"`},
-			fmt.Errorf("recordsql: recording the event: %w", err))
+		return 0, fmt.Errorf("recordsql: recording the event: %w", err)
 	}
 
 	body, ok := recordpb.Body(ev)
@@ -930,7 +927,7 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 	stmt := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)", table,
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
-		return olderRun(tx, table, cols, fmt.Errorf("recordsql: recording a %s: %w", table, err))
+		return fmt.Errorf("recordsql: recording a %s: %w", table, err)
 	}
 
 	for _, fd := range lists {
@@ -941,7 +938,7 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 				fmt.Sprintf("INSERT INTO %q (\"event_id\", \"ord\", \"value\") VALUES (?, ?, ?)", lt),
 				eventID, i, listValue(fd, l.Get(i)),
 			); err != nil {
-				return olderSchema(tx, lt, fmt.Errorf("recordsql: recording %s.%s: %w", table, fd.Name(), err))
+				return fmt.Errorf("recordsql: recording %s.%s: %w", table, fd.Name(), err)
 			}
 		}
 	}
@@ -985,7 +982,7 @@ func insertArm(tx *sql.Tx, eventID int64, table string, m protoreflect.Message) 
 	stmt := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)", table,
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
-		return olderRun(tx, table, cols, fmt.Errorf("recordsql: recording a %s: %w", table, err))
+		return fmt.Errorf("recordsql: recording a %s: %w", table, err)
 	}
 	return nil
 }
