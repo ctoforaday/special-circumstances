@@ -317,7 +317,7 @@ func sectionBlock(t *testing.T, heading string, a *assembly) string {
 func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 	var named []string
 	for _, s := range layout {
-		if s.Composer == Tool && s.Line == "" {
+		if s.refused() && s.Line == "" {
 			named = append(named, "`## "+s.Heading+"`")
 		}
 	}
@@ -333,9 +333,9 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 		// inside it. Every `## ` heading the prompt names is a row of the table, the wrapper it
 		// forbids beside them, or one of the report's own it tells blue to write.
 		for _, m := range regexp.MustCompile("`## ([^`]+)`").FindAllStringSubmatch(prompt, -1) {
-			row := slices.ContainsFunc(layout, func(s Section) bool { return s.Heading == m[1] })
+			row := slices.ContainsFunc(layout, func(s Section) bool { return s.Heading == m[1] && (s.refused() || s.Composer == Blue) })
 			if !row && m[1] != "Blue team report" {
-				t.Errorf("the %s prompt names `## %s`, which is no section of the table", seat, m[1])
+				t.Errorf("the %s prompt names `## %s`, which is no section of the table that the tool refuses or the report lifts", seat, m[1])
 			}
 		}
 		for _, s := range layout {
@@ -379,6 +379,33 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 	}
 }
 
+// WHICH HEADINGS THE REPORT'S TEXT MAY NOT CARRY IS A RULING, written out here so a row that
+// changes sides is seen. Refused: every heading composed into report.md, where the report's own
+// would stand beside the tool's, and each section of another document that is an account of the
+// run. Not refused: Proofs and Motions, composed into other documents under names a subject uses.
+func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
+	refused := []string{"Outcome", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
+		"Additional findings", "Bibliography", "The board", "The debate", "How this run was conducted", "The verdict's basis",
+		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements"}
+	if got := RefusedHeadings(); !slices.Equal(got, refused) {
+		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)
+	}
+	own := map[string]string{"Proofs": FileEvidence, "Motions": FileJudgments}
+	for _, s := range layout {
+		if file, ok := own[s.Heading]; s.SubjectHeading != ok || ok && s.File != file {
+			t.Errorf("row %q in %s: SubjectHeading is %v", s.Heading, s.File, s.SubjectHeading)
+		}
+		// In report.md the report's own section would stand beside the tool's, and a section of
+		// the report's own has no refusal for the field to lift.
+		if s.SubjectHeading && (s.File == FileReport || s.Composer != Tool) {
+			t.Errorf("row %q is marked a subject's heading too, and it is composed by %s in %s", s.Heading, s.Composer, s.File)
+		}
+	}
+	if want := "Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: " + OwnInTheReport + "."; SubjectHeadingsNote != want {
+		t.Errorf("the note on the help pages reads\n  %s\nwant\n  %s", SubjectHeadingsNote, want)
+	}
+}
+
 // THE REFUSAL READS A HEADING AS THE ASSEMBLER DOES — the same key, the same fences — and finds
 // only what the tool composes.
 func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
@@ -396,8 +423,8 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 	}
 	for _, s := range layout {
 		_, got, found := ComposedIn("## TL;DR\nx\n\n## " + s.Heading + "\ny\n")
-		if found != (s.Composer == Tool) || found && got.Heading != s.Heading {
-			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s", s.Heading, found, got.Heading, s.Composer)
+		if found != s.refused() || found && got.Heading != s.Heading {
+			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s, a subject's heading too: %v", s.Heading, found, got.Heading, s.Composer, s.SubjectHeading)
 		}
 	}
 	for _, doc := range []string{

@@ -116,8 +116,8 @@ func TestSiblingLinksBecomeTabSwitches(t *testing.T) {
 // read as a reference to somewhere else.
 func TestFootnoteLabelsAreNotIdLinked(t *testing.T) {
 	anchor := anchors{}
-	ev := mdToHTML("### P1 — the computation\n", FileEvidence, anchor)
-	rep := mdToHTML("A claim[^P1].\n\n[^P1]: the computation.\n", FileReport, anchor)
+	ev := mdToHTML("### P1 — the computation\n", FileEvidence, anchor, map[string]int{})
+	rep := mdToHTML("A claim[^P1].\n\n[^P1]: the computation.\n", FileReport, anchor, map[string]int{})
 	got := linkIDs(rep, anchor, FileReport)
 	if strings.Contains(got, `<span class="fnlabel" data-nolink><a`) {
 		t.Errorf("the footnote label was turned into a link to somewhere else:\n%s", got)

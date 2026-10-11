@@ -58,11 +58,15 @@ type anchors map[string]string
 
 // mdToHTML renders one document. It records every anchor it defines into anchor, keyed by the
 // record id, valued as "<file>#<elementID>".
-func mdToHTML(md, file string, anchor anchors) string {
+//
+// seen counts the slug ids given out, ACROSS THE SET: the documents are tabs of one page, a
+// fragment resolves to the first element of that id on the page, and a hidden tab's element is
+// no place to scroll to. The report's own "## Proofs" and evidence.md's are "proofs" and
+// "proofs-2".
+func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 	lines := strings.Split(md, "\n")
 	var b strings.Builder
 	var foot []string
-	seen := map[string]int{}
 
 	slug := func(text string) string {
 		s := strings.ToLower(strings.TrimSpace(stripInline(text)))

@@ -15,7 +15,7 @@ import (
 // Assembly composes each document by walking `layout` in order, so a section ships because it has
 // a row and in the place its row has. The same rows are what blue's ingest and edit refuse in the
 // report's text (ComposedIn), what `show report --assembled` prints (Layout), what the help pages
-// of those verbs list (ComposedHeadings), and what the lists in blue's dispatch prompts are held
+// of those verbs list (RefusedHeadings), and what the lists in blue's dispatch prompts are held
 // to. A section added to the report is added here and nowhere else.
 //
 // THE REPORT'S TEXT CARRIES NO SECTION THE TOOL COMPOSES. universe-m20's synthesizer wrote a
@@ -23,6 +23,14 @@ import (
 // hand copy out in silence, with a proof, two gaps and thirteen findings anchored in it. The
 // write refuses that heading now, and each refusal carries its row's Path: how content does
 // reach the section, or that no act of the refused seat's does and who fills it.
+//
+// ONE FIELD SAYS WHICH OF THE TOOL'S HEADINGS IS NOT REFUSED (SubjectHeading), and why. A heading
+// composed into report.md is refused because the report would carry two sections of one name. A
+// heading composed into another document is refused when what stands under it is an account of
+// the run its author cannot know — the board, the debate, the verdict's basis. "Proofs" and
+// "Motions" are neither: a section of that name in the report's text meets no section of the
+// tool's in report.md, ships whole and once under "Additional findings", and is what a report
+// on a theorem or on a legislature calls a section of its own.
 
 // Who composes a section.
 const (
@@ -47,6 +55,11 @@ type Section struct {
 	// Path is how content reaches the section, in whole sentences: the act and the seat whose act
 	// it is, or that no seat's act does.
 	Path string
+	// SubjectHeading marks a section the tool composes in ANOTHER document under a name a report's
+	// own subject uses for a section. The report's text may carry a heading of that name: it is
+	// the report's own section, placed where every section of the report's own is. Every other
+	// heading the tool composes is refused in the report's text.
+	SubjectHeading bool
 
 	// embeds marks the section that carries the report's own sections under their own headings.
 	embeds bool
@@ -128,19 +141,19 @@ var layout = []Section{
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
 		From:    "the gaps and findings on the record, blue's correctness manifest and the chair's spot-checks",
-		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and its `close` and `regrade` move them; blue's `manifest-row` adds a manifest row and the chair's `spot-check` a spot-check.",
+		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and the lens's `close` and `regrade` move them; blue's `manifest-row` adds a manifest row and the chair's `spot-check` a spot-check.",
 		compose: func(a *assembly, _ Section) string { return boardSection(a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts and rulings on the record, sitting by sitting",
 		Path:    "Blue's and the chair's `position` and `closing`, the chair's `verdict`, and the bench's rulings and `certify`.",
 		compose: func(a *assembly, _ Section) string { return debate(a.fam) }},
-	{File: FileJudgments, Heading: "Motions", Composer: Tool,
+	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
 		From:    "the motions on the record, each with its ruling",
 		Path:    "A seat files one with `motion grade file`, `motion docket file` or `motion petition file`, and the seat that hears it answers with `motion grade rule`, `motion docket rule` or `motion petition rule`.",
 		compose: func(a *assembly, _ Section) string { return motions(a.fam) }},
 	// avenues.md is not a section of this table: it is the rendering `show avenues` prints
 	// (view.AvenueBody), whole, under headings that carry each fate's count.
-	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool,
+	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
 		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
@@ -243,24 +256,43 @@ var AvenueSectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the aven
 // audits a hand copy of a composed section as the reader's text unless it is told the section is
 // the tool's.
 var AssembledNote = "THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: " +
-	strings.Join(ComposedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
+	strings.Join(RefusedHeadings(), ", ") + ". Blue's `ingest` and `edit` refuse report text that carries one. " +
 	"--assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. " +
 	"With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`."
 
 // Sections is the table's rows, in shipping order.
 func Sections() []Section { return append([]Section(nil), layout...) }
 
-// ComposedHeadings is the headings of the sections the tool composes, in the table's order — the
-// ones the report's text may not carry.
-func ComposedHeadings() []string {
+// refused is whether the report's text may not claim the section: the tool composes it, and its
+// name is not one the report's subject shares (SubjectHeading).
+func (s Section) refused() bool { return s.Composer == Tool && !s.SubjectHeading }
+
+// RefusedHeadings is the headings the report's text may not carry, in the table's order.
+func RefusedHeadings() []string {
 	var out []string
 	for _, s := range layout {
-		if s.Composer == Tool {
+		if s.refused() {
 			out = append(out, s.Heading)
 		}
 	}
 	return out
 }
+
+// OwnInTheReport finishes a sentence about a SubjectHeading section, wherever one is described:
+// what a section of that name in the report's text is.
+const OwnInTheReport = "a section of that name in the report's text is the report's own, and ships whole in " + FileReport + " under Additional findings"
+
+// SubjectHeadingsNote names the sections the tool composes in other documents under a name the
+// report's text may use, on the pages that list the refused ones.
+var SubjectHeadingsNote = func() string {
+	var parts []string
+	for _, s := range layout {
+		if s.Composer == Tool && s.SubjectHeading {
+			parts = append(parts, s.Heading+" in "+s.File)
+		}
+	}
+	return "Assembly also composes " + strings.Join(parts, " and ") + ", and those names are not refused: " + OwnInTheReport + "."
+}()
 
 // HEADINGS ARE READ ONE WAY, by every reader here: the composer that lifts blue's sections, the
 // refusal at the write, and the view that slices the assembled document.
@@ -301,9 +333,9 @@ func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
 	}
 }
 
-// ComposedIn returns the first line of text that claims a section the tool composes, as the text
-// writes it, with that section's row: a heading that names one, or, before the first heading, a
-// line opening as one that ships without a heading does.
+// ComposedIn returns the first line of text that claims a section the report's text may not carry
+// (refused), as the text writes it, with that section's row: a heading that names one, or, before
+// the first heading, a line opening as one that ships without a heading does.
 func ComposedIn(text string) (line string, s Section, found bool) {
 	preamble := true
 	eachLine(text, func(_, t string, fenced bool) {
@@ -315,7 +347,7 @@ func ComposedIn(text string) (line string, s Section, found bool) {
 			preamble = false
 		}
 		for _, row := range layout {
-			if row.Composer != Tool {
+			if !row.refused() {
 				continue
 			}
 			if isHeading && key == normalizeHeading(row.Heading) ||
@@ -338,9 +370,9 @@ type blueText struct {
 // part splits the report's text among the rows that place it. NOTHING IS LEFT OVER: the title
 // line, the first section under each lifted heading, and the rest, which ships whole under
 // "Additional findings" — a second section under a lifted heading, text before the first heading
-// and a section under a heading the tool composes included. The last cannot be written by a live
-// seat; a record migrated from before the refusal can hold one, and ships it there with every
-// anchor it carries.
+// and a section under a heading the tool composes included. Of the last, a live seat writes only
+// one under a SubjectHeading; a record migrated from before the refusal can hold any, and ships it
+// there with every anchor it carries.
 func part(blue string) blueText {
 	lifts := map[string]bool{}
 	for _, s := range layout {

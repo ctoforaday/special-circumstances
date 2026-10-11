@@ -123,7 +123,10 @@ func newIngest() *cobra.Command {
 	})
 }
 
-func init() { seat.HelpValues["ComposedHeadings"] = strings.Join(report.ComposedHeadings(), ", ") }
+func init() {
+	seat.HelpValues["RefusedHeadings"] = strings.Join(report.RefusedHeadings(), ", ")
+	seat.HelpValues["SubjectHeadingsNote"] = report.SubjectHeadingsNote
+}
 
 // composedRefusal refuses report text that claims a section the tool composes (report.ComposedIn,
 // which reads the assembler's own table of sections). It is asked of the document a write would

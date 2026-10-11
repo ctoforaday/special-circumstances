@@ -66,8 +66,9 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 	// one-pass render can only link backwards, which is the half of the joins nobody needs.
 	anchor := anchors{}
 	bodies := make([]string, len(docs))
+	slugs := map[string]int{}
 	for i, d := range docs {
-		bodies[i] = mdToHTML(d.Body, d.File, anchor)
+		bodies[i] = mdToHTML(d.Body, d.File, anchor, slugs)
 	}
 	files := map[string]bool{}
 	for _, d := range docs {

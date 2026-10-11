@@ -161,12 +161,14 @@ const speedClause = ` SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 // (tools/internal/report/layout.go), written there from the three avenue rows, and
 // TestBluesPromptsNameTheSectionsTheToolComposes fails a prompt that says it differently.
 const AVENUE_SECTIONS = 'Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned'
-// THE SECTIONS ASSEMBLY COMPOSES FROM THE RECORD, named to blue wherever blue is told what its
-// report holds. One list for both prompts, because a seat reads such a list as the whole of it.
-// It is the assembler's table of sections (report.layout, tools/internal/report/layout.go) in the
-// table's order: the tool refuses a report that carries one of these headings, and
-// TestBluesPromptsNameTheSectionsTheToolComposes fails this list when it and the table differ.
-const TOOL_COMPOSED = ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Additional findings', 'Bibliography', 'The board', 'The debate', 'Motions', 'Proofs', 'How this run was conducted', "The verdict's basis", 'Log (what the run told the operator)', 'Record verification', 'Claims retired', 'Superseded bench statements']
+// THE SECTIONS ASSEMBLY COMPOSES FROM THE RECORD THAT THE REPORT MAY NOT CARRY, named to blue
+// wherever blue is told what its report holds. One list for both prompts, because a seat reads
+// such a list as the whole of it. It is the rows of the assembler's table of sections
+// (report.layout, tools/internal/report/layout.go) whose heading the tool refuses in a report, in
+// the table's order, and TestBluesPromptsNameTheSectionsTheToolComposes fails this list when it
+// and the table differ. The table's SubjectHeading rows are not in it: the tool composes those
+// sections in other documents, and a section of that name in the report is the report's own.
+const TOOL_COMPOSED = ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Additional findings', 'Bibliography', 'The board', 'The debate', 'How this run was conducted', "The verdict's basis", 'Log (what the run told the operator)', 'Record verification', 'Claims retired', 'Superseded bench statements']
   .map((h) => `\`## ${h}\``).join(', ')
 const avenueClause = binDir
   ? ` AVENUES: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind — a line that answered what it set out to test is concluded, not abandoned: abandoned is a line that died. The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived. THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU. At assembly it composes three sections of the report from the avenues on the record: ${AVENUE_SECTIONS}. That gives the reader what was followed, what was deferred and what was rejected as three things, not one list of winners. Your part is the record: you put each approach on it and say what became of it. You write none of those three headings in the report, and no list of the approaches considered and their fates under any other heading: a report that carries one of those headings is refused, and a hand copy elsewhere is a second account nothing checks against the record. The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took. Recording what you considered and declined is what makes "explore the alternatives" checkable instead of self-attested.`

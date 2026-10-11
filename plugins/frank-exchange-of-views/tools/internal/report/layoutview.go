@@ -27,6 +27,9 @@ type LayoutSection struct {
 	Path     string `json:"path"`
 	// Ships is whether the set assembled from the record as it stands carries the section.
 	Ships bool `json:"ships"`
+	// OwnInReport is set for a section the tool composes in another document under a name the
+	// report's text may use: a section of that name there is the report's own.
+	OwnInReport bool `json:"own_in_report,omitempty"`
 	// AuthoredHeadings is the headings of the report's own sections that ship inside this one.
 	AuthoredHeadings []string `json:"authored_headings,omitempty"`
 	// Text is the section as it ships: anchors resolved, notes numbered.
@@ -70,7 +73,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 	}
 	var out LayoutJSON
 	for i, s := range layout {
-		row := LayoutSection{File: s.File, Heading: s.Heading, Line: strings.TrimSpace(s.Line), Composer: s.Composer, From: s.From, Path: s.Path}
+		row := LayoutSection{File: s.File, Heading: s.Heading, Line: strings.TrimSpace(s.Line), Composer: s.Composer, From: s.From, Path: s.Path, OwnInReport: s.SubjectHeading}
 		if start := starts[i]; start >= 0 {
 			lines := rendered[s.File]
 			end := len(lines)
@@ -123,7 +126,7 @@ func opens(lines []string, from int, s Section) int {
 func (l LayoutJSON) Markdown() string {
 	var b strings.Builder
 	b.WriteString("THE REPORT SET AS ASSEMBLY SHIPS IT, from the record as it stands — each section in shipping order, who composes it, and how content reaches it. " +
-		"The report's text carries no section the tool composes: blue's `ingest` and `edit` refuse one.\n")
+		"The report's text carries no section the tool composes: blue's `ingest` and `edit` refuse one. The exception is a section of another document whose entry says that a section of that name in the report's text is the report's own.\n")
 	file := ""
 	for _, s := range l.Sections {
 		if s.File != file {
@@ -139,6 +142,9 @@ func (l LayoutJSON) Markdown() string {
 			ships = " — NOT IN THE SET as the record stands"
 		}
 		fmt.Fprintf(&b, "\n  %s%s\n    composed by: %s, from %s\n    how content reaches it: %s\n", name, ships, s.Composer, s.From, s.Path)
+		if s.OwnInReport {
+			fmt.Fprintf(&b, "    in the report's text: this entry is the tool's section, in %s; %s\n", s.File, OwnInTheReport)
+		}
 		if len(s.AuthoredHeadings) > 0 {
 			fmt.Fprintf(&b, "    holds the report's own sections: %s\n", strings.Join(s.AuthoredHeadings, "; "))
 		}
