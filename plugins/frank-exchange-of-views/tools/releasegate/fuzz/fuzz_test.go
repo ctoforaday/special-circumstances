@@ -220,8 +220,16 @@ type runner struct {
 	// runHandle is runDir RESOLVED, filled by the constructor and never written again. It is
 	// the one field mu does not guard, and deliberately so: it is immutable after construction,
 	// which is what makes it safe to read from the concurrent seats above.
-	runHandle  record.Run
-	rng        *lockedRand
+	runHandle record.Run
+	rng       *lockedRand
+
+	// progress is when a command of this run last finished (UnixNano) — what driveDebate's stall
+	// tripwire reads. Atomic: every seat's goroutine writes it.
+	progress atomic.Int64
+	// maxEpochs is the epoch limit this run's config states; zero is setup's default, which every
+	// run but the forced-limit seed's carries.
+	maxEpochs int
+
 	registered map[string]bool
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
@@ -955,6 +963,7 @@ func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]an
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
+	r.progress.Store(time.Now().UnixNano())
 	noteExec(args, err, out)
 	if err != nil {
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
@@ -2311,9 +2320,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		r.extras("bench", seatID, nil)
-		// THE TERMINAL SITTING RULES WHAT STILL STANDS whose gavel is the bench's: the petitions.
+		// THE TERMINAL SITTING RULES WHAT STILL STANDS whose gavel is the bench's: the petitions,
+		// and the docket motions — a gap docketed at the sitting that reached the epoch limit was
+		// dispatched to nobody, and `bench outcome` refuses while its motion stands.
 		if debatejs.OccasionOf(prompt) == "terminal" {
 			r.rulePending(seatID, "terminal")
+			r.ruleStandingDockets(seatID)
 		}
 		// THE BENCH RULES ON WHAT HAPPENED, not on a coin. A gap reaches the docket because
 		// its scenario left it open, and the scenario says why: a LOST dispute is a contest
@@ -2658,6 +2670,11 @@ type outcome struct {
 	epochs    int            // how many chair sittings it ran (coverage signal)
 	why       string         // the plan's first stated reason at exit — what UNVERIFIED and CEILING are made of
 	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
+
+	// epochLimit is the debate ending at the run's epoch limit — the last plan's
+	// epoch_limit_reached, as debate.js returns it — which is CEILING by the run's term.
+	epochLimit bool
+
 	// #256 citation axis: the fetch -> cache -> cite -> anchor chain leaves TWO artifacts a
 	// `cite` event alone does not prove — a cached source file and an INVISIBLE anchor spliced
 	// into blue/report.md. `cite` is already in verbsWithEvents but is satisfied by red's
@@ -2778,6 +2795,12 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 	})
 }
 
+// stallAfter is how long a run may go without one of its commands finishing before driveDebate
+// calls it stuck. A command is one invocation of the binary — well under a second on a quiet box —
+// and the seats of a run finish several a second between them, so three minutes of none is a
+// stuck run at any load this box has been measured at.
+const stallAfter = 3 * time.Minute
+
 // driveDebate runs the wrapped debate.js once under goja with r as the seat backend. It returns the
 // fulfilled result map (nil unless the debate settled fulfilled) and a non-empty settledErr for any
 // preamble error, rejection, hang, or panic. Shared by the sweep (runOne) and the halt test — the
@@ -2799,9 +2822,20 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
 	// already been reached. One mint per lens and two exchanges per gap reach impasse, the
 	// docket, the ceiling and the pass in a few epochs — the shape `/research --smoke` runs.
+	//
+	// THE EPOCH LIMIT IS SETUP'S DEFAULT, READ FROM WHERE SETUP READS IT. Every run setup creates
+	// carries one, and a config that states none is held to none (record.RunParams): without it
+	// the computation lens — whose mint budget grows with blue's proofs — carried some seeds to
+	// 21–28 chair sittings, past the per-run budget on a loaded box, and no run of the sweep ever
+	// took the epoch-limit exit a real run can.
+	maxEpochs := record.DefaultParams.MaxEpochs
+	if r.maxEpochs > 0 {
+		maxEpochs = r.maxEpochs
+	}
 	_ = os.MkdirAll(filepath.Join(r.runDir, "inputs"), 0o755)
 	_ = os.WriteFile(filepath.Join(r.runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":3,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25}`), 0o644)
+		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":3,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":%d}`,
+			maxEpochs), 0o644)
 
 	// STARTED, NOT Run(). `loop.Run` returns once the JS job queue drains, which was correct
 	// while agent() resolved inline — the whole debate settled inside one call. Phase 3 (#630)
@@ -2868,16 +2902,28 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		}
 	})
 
-	// THE HANG IS STILL DETECTED, and now it is the only thing this wait can mean. The bound is
-	// generous because a production-shaped run drives 270 invocations of a real binary; it is a
-	// stuck-run tripwire, not a performance assertion.
-	select {
-	case msg := <-done:
-		if msg != "" {
-			return nil, msg
+	// THE HANG IS STILL DETECTED, and now it is the only thing this wait can mean. It is a
+	// stuck-run tripwire, not a performance assertion, so it measures PROGRESS and not the clock:
+	// a run is stuck when no command of its own has finished for stallAfter. A ten-minute budget
+	// per run read a slow run as a stuck one — a 22-epoch run took 607s at a load of 25 on four
+	// cores — and a run's wall clock is the box's load as much as the run's own work. A run that
+	// keeps finishing commands without settling is bounded by its epoch limit, and past that by
+	// the package's -timeout.
+	r.progress.Store(time.Now().UnixNano())
+	stalled := time.NewTicker(5 * time.Second)
+	defer stalled.Stop()
+	for settled := false; !settled; {
+		select {
+		case msg := <-done:
+			if msg != "" {
+				return nil, msg
+			}
+			settled = true
+		case <-stalled.C:
+			if idle := time.Since(time.Unix(0, r.progress.Load())); idle > stallAfter {
+				return nil, fmt.Sprintf("debate never settled (hang): no command of the run finished for %s", idle.Round(time.Second))
+			}
 		}
-	case <-time.After(10 * time.Minute):
-		return nil, "debate never settled (hang)"
 	}
 
 	// READ THE RESULT BACK ON THE LOOP. Touching the Runtime from this goroutine is the one
@@ -3000,6 +3046,23 @@ const estoppelSeed = 2
 // `outcome --as VERIFIED` then fails the enum census as a missing word.
 const verifiedSeed = 3
 
+// limitSeed is the one seed whose run is FORCED to the epoch-limit exit: its config states a limit
+// of forcedEpochLimit where every other run states setup's default. At the chair's second sitting
+// every lens has sat once and none has retired, so the plan readies them, the limit dispatches
+// nobody, and the run ends CEILING by its term — on every sweep, not on a draw.
+//
+// MEASURED under setup's default of 12: 5, 9, 3, 6, 1 and 2 runs in 40 ended at the limit across
+// six sweeps, so a floor on the drawn runs alone finds none about once in fifty. Those drawn exits
+// are the deep ones — a gap docketed at the last sitting, a petition standing — and the sweep
+// prints their count; the gate holds the forced one.
+//
+// IT IS PAST THE SIX SEEDS THE RACE VARIANT RUNS (FUZZ_N=6). A run cut to two sittings drives a
+// sixth less of everything else, and at six runs `blue retire` succeeds as few as once.
+const limitSeed = 7
+
+// forcedEpochLimit is the epoch limit limitSeed's run is set up with.
+const forcedEpochLimit = 2
+
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
@@ -3045,6 +3108,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
+	if seed == limitSeed {
+		r.maxEpochs = forcedEpochLimit
+	}
 
 	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
 	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
@@ -3087,6 +3153,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if why, ok := term["why"].([]any); ok && len(why) > 0 {
 			res.why = fmt.Sprint(why[0])
 		}
+		res.epochLimit, _ = term["epoch_limit_reached"].(bool)
 	}
 	if r.passBlockersErr != "" {
 		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
@@ -3482,7 +3549,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					res.err = "scenario PROVE: " + id + " has no proof answering it — the computation the scenario specified left no artifact red could re-run"
 					return res
 				}
-				if r.evaluated.has(id) && !g.Open && !r.reproduced.has(id) {
+				// A gap the BENCH closed is not red accepting anything: the terminal bench rules a
+				// docket standing at the exit, whatever its scenario had still to show.
+				if r.evaluated.has(id) && !g.Open && !g.ClosedByBench && !r.reproduced.has(id) {
 					res.err = "scenario PROVE: " + id + " was CLOSED without its proof reproducing — red accepted a computation on somebody's word, which is the one thing re-running exists to prevent"
 					return res
 				}
@@ -3598,6 +3667,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 				// a reader to notice.
 				recorded = strings.ToUpper(recordpb.Word(o.GetVerdict()))
 			}
+		}
+		// EVERY RUN ENDS WITH AN OUTCOME ON THE RECORD, AND IT IS THE ENGINE'S WORD. The assembly's
+		// `bench outcome` is refused when the record derives another verdict or a bench-owned
+		// motion stands, and this driver discards that refusal: a run that ended with no outcome
+		// event was reported only when a later oracle happened to trip over the unstamped report.
+		if recorded != verdict {
+			res.err = fmt.Sprintf("outcome oracle: debate.js ended the run %s and the record's outcome is %q — the assembly's `bench outcome` was refused, or recorded another word", verdict, recorded)
+			return res
 		}
 		if recorded == "VERIFIED" && !permitted {
 			res.err = fmt.Sprintf("verdict oracle: the run recorded VERIFIED over a board that does not permit a PASS (%d gap(s) open, material or not) — a pass over unfinished work", openCount)
@@ -4313,6 +4390,9 @@ func TestFuzzDebate(t *testing.T) {
 	var completed int
 	verdicts := map[string]int{}
 	epochHist := map[int]int{}
+	// limitExits is the runs the epoch limit ended: CEILING by the run's term. limitForced is
+	// whether limitSeed's run was one of them.
+	limitExits, limitForced := 0, false
 	whyHist := map[string]int{} // verdict → first stated reason, with the gap id folded
 	dcov := map[string]int{}
 	citeAnchors, cacheFiles := 0, 0        // dialectic-event coverage across all runs (proves the fuzz emits them)
@@ -4339,7 +4419,10 @@ func TestFuzzDebate(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
+			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
+			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "")
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -4376,6 +4459,10 @@ func TestFuzzDebate(t *testing.T) {
 				verifiedVerdict, verifiedWhy = o.verdict, o.why
 			}
 			epochHist[o.epochs]++
+			if o.epochLimit {
+				limitExits++
+				limitForced = limitForced || o.seed == limitSeed
+			}
 			if o.why != "" {
 				whyHist[o.verdict+" ← "+gapIDPat.ReplaceAllString(o.why, "G-<id>")]++
 			}
@@ -4427,6 +4514,7 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
+	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", avenueMoves, dcov["avenue"])
 	t.Logf("reopened readied: %d plan(s) readied the evidence lens for a reopened citation or proof alone (of %d holding a reopened blocker)", reopenedReadied, reopenedPlans)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
@@ -4486,6 +4574,14 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if cacheFiles == 0 {
 			t.Errorf("fuzz cached ZERO sources across %d runs — `fetch`/`blue cite` never populated <run>/cache (false green); the fetch path is unexercised", completed)
+		}
+		// THE EPOCH-LIMIT GATE. Every run setup creates carries an epoch limit, and the exit it
+		// makes — nobody dispatched at the last sitting, the terminal bench ruling what stands,
+		// CEILING derived from the term — is one no other gate here notices going undriven: the
+		// CEILING word is written by the carried ceiling too.
+		if !limitForced {
+			t.Errorf("the forced epoch-limit run on seed %d did not end at its limit of %d (%d run(s) of %d ended at a limit) — the exit a real run takes when its term runs out is unexercised (false green); epochs=%v",
+				limitSeed, forcedEpochLimit, limitExits, completed, epochHist)
 		}
 		// THE AVENUE-MOVE GATE. A proposed line is moved by the id its propose result printed, and
 		// the reader of that result is a pattern: one that matches nothing leaves every proposal
@@ -5572,6 +5668,36 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 		"--as", disposition, "--principle", "correctness", "--tension", "cost",
 		"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
 	_, _ = r.exec(args...)
+}
+
+// ruleStandingDockets is the terminal bench ruling every docket motion that stands unruled at the
+// exit, each with a disposition that ends it: the terminal prompt names them and says nothing can
+// be remanded — there is no next sitting to remand it to.
+func (r *runner) ruleStandingDockets(seatID string) {
+	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID)
+	if err != nil {
+		return // recorded by noteExec; the outcome oracle names the run that ends over it
+	}
+	var page struct {
+		Motions []struct {
+			ID      string `json:"id"`
+			Subject string `json:"subject"`
+			Ruled   bool   `json:"ruled"`
+		} `json:"motions"`
+	}
+	if json.Unmarshal([]byte(out), &page) != nil {
+		return
+	}
+	for _, m := range page.Motions {
+		if m.Subject != "docket" || m.Ruled {
+			continue
+		}
+		disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+		_, _ = r.exec("motion", "docket", "rule", "--seat-id", seatID, "--id", m.ID,
+			"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
+			"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
+			"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
+	}
 }
 
 // forcedWhyClause renders the forced run's exit reason when it has one. Split out because the

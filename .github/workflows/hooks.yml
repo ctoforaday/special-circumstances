@@ -1667,6 +1667,11 @@ jobs:
       # nothing — the same plausible zero the run-handle step refuses, answered the same
       # way. Only a frank-exchange-of-views tag runs this; the other plugins' releases
       # have no fuzz sweep to hold.
+      #
+      # -timeout=40m: a test timeout catches a HANG, and Go's default of ten minutes is the
+      # sweep's own length on a busy runner — forty debates of up to twelve chair sittings.
+      # A stuck debate is named by the sweep's own tripwire (no command finished for three
+      # minutes), long before this bound.
       - name: The debate sweeps hold at the release boundary
         if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
         working-directory: ${{ steps.plugin.outputs.dir }}
@@ -1674,7 +1679,7 @@ jobs:
         env:
           FEOV_RELEASE_GATE: "1"
         run: |
-          out=$(go test -v -count=1 ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
+          out=$(go test -v -count=1 -timeout=40m ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
           echo "$out" | grep -E "^(--- |ok)" | tail -30
           grep -q '^--- PASS: TestFuzzDebate' <<<"$out" || {
             echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
