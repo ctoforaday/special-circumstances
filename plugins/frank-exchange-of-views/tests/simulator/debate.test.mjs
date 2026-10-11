@@ -308,6 +308,12 @@ test('a petition standing at the exit: the terminal sitting rules it, and its ha
   assert.equal(out2.verdict, 'CEILING')
   assert.equal(out2.petitions.length, 1)
   assert.equal(out2.petitions[0].ruling, 'denied')
+  // THE STAMP IS THE LAST PLAN'S, WHATEVER THE TERMINAL SITTING RULED. The engine reads the record
+  // only through the chair's plan, so the assembly is told CEILING by the epoch limit after the
+  // ruling that left nobody ready — the word `bench outcome` must then derive from the record.
+  const stamp = firstPrompt(ruled, 'judge · assemble')
+  assert.ok(/it is CEILING/.test(stamp) && /epoch limit 2 reached/.test(stamp) && /Record it as the run's outcome — CEILING/.test(stamp), stamp.slice(0, 900))
+  assert.equal(out2.termination.epoch_limit_reached, true)
 })
 
 // ── the seats' contracts ────────────────────────────────────────────────────────────────────

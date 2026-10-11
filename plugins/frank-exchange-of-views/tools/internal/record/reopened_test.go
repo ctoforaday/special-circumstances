@@ -400,7 +400,7 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 // none standing, each reason is the sentence it is without this rule.
 func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 	const (
-		term   = "epoch limit 2 reached — the run's term; the parties still ready were not dispatched and PASS is not permitted"
+		term   = "epoch limit 2 reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted"
 		limits = "every open material gap is at its limit — remanded again after the one more exchange its remand granted — nobody is ready and PASS is not permitted"
 	)
 	why := func(b *stage, maxEpochs string) string {
