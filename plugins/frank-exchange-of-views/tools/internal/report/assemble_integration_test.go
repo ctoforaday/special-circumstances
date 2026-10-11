@@ -500,4 +500,19 @@ func TestAssemblyRefusesAReportItCannotReplay(t *testing.T) {
 	if docs, err := AssembleAll(run); err == nil || !strings.Contains(err.Error(), "the report's text") {
 		t.Fatalf("assembly of a report that does not replay: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
 	}
+
+	// A report the record cannot READ is the same failure: two bases is a record no replay starts from.
+	twice := runtest.Open(t, newRun(t))
+	id = record.Identity{Run: twice, SeatID: "blue-synthesize"}
+	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String("# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if docs, err := AssembleAll(twice); err == nil || !strings.Contains(err.Error(), "the report's text") {
+		t.Fatalf("assembly of a report the record cannot read: err %v, %d document(s) — it ships as though blue wrote nothing", err, len(docs))
+	}
 }

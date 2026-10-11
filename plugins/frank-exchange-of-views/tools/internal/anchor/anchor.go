@@ -166,8 +166,9 @@ func Replace(s string, repl func(token, id string) string) string {
 }
 
 // strippedToken is a token of a kind the assembly strips, whatever stands between its tag and its
-// close: a seat that copies a token into record prose may elide its id ("<!--fx:…-->"), and the
-// assembled report ships no such token either.
+// close ON ITS LINE: a seat that copies a token into record prose may elide its id
+// ("<!--fx:…-->"), and the assembled report ships no such token either. A token is one line's;
+// an opener with no close on its line is text, and the strip takes none of the lines after it.
 var strippedToken = func() *regexp.Regexp {
 	var alt []string
 	for _, k := range kinds {
@@ -175,7 +176,7 @@ var strippedToken = func() *regexp.Regexp {
 			alt = append(alt, regexp.QuoteMeta(k.tag))
 		}
 	}
-	return regexp.MustCompile(regexp.QuoteMeta(tokenOpen) + `(?:` + strings.Join(alt, "|") + `):[^>]*` + regexp.QuoteMeta(tokenClose))
+	return regexp.MustCompile(regexp.QuoteMeta(tokenOpen) + `(?:` + strings.Join(alt, "|") + `):[^>\n]*` + regexp.QuoteMeta(tokenClose))
 }()
 
 // StripAssembled removes every token of a kind the assembly strips.

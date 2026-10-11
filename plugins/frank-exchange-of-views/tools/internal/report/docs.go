@@ -23,16 +23,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
+
+// emptied is a line that holds no more than block-quote and list markers and sentence punctuation.
+var emptied = regexp.MustCompile(`^[ \t>]*(?:[-*+][ \t]+)?[.,;:!?… \t]*$`)
 
 // Doc is one document in a run's report set: the file it lands in, how the link bar and the
 // index name it, and the composed markdown body (no link bar, no title — Render adds those).
@@ -156,13 +159,14 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		// the record-derived findings/transcript sections, and only a final-output strip
 		// catches those. No raw marker ships (the leak fix).
 		//
-		// A LINE THE STRIP EMPTIES GOES WHOLE. A bullet an edit cut down to its finding anchors, which
-		// no retire took, is tokens and a terminator; stripped, it printed "- ." in universe-m19's
-		// verified report. A line that held a stripped token and holds no prose and no other anchor
-		// without it is the husk reportproj.RemoveAnchorAt takes at a retire.
+		// A LINE THE STRIP EMPTIES GOES WHOLE, AND ONLY THAT LINE. A bullet an edit cut down to its
+		// finding anchors, which no retire took, is tokens and a terminator; stripped, it printed "- ."
+		// in universe-m19's verified report. The line that goes is that husk (emptied): a list marker
+		// at most, and sentence punctuation. A line of symbols that held a token is content — a
+		// table's delimiter row, a row of marks, a rule, a line of code — and ships without the token.
 		lines := slices.DeleteFunc(strings.Split(collapseBlanks(docs[i].Body), "\n"), func(ln string) bool {
 			s := anchor.StripAssembled(ln)
-			return s != ln && len(anchor.IDs(s)) == 0 && !claimcount.HasProse(s)
+			return s != ln && emptied.MatchString(s)
 		})
 		body := anchor.StripAssembled(strings.Join(lines, "\n"))
 		body = collapseBlanks(weaveCitations(body, sources))
@@ -203,10 +207,14 @@ func Title(run record.Run) string {
 // replay is an error: assembled as though blue wrote nothing, the set would say five sections were
 // never authored and ship without a word of the report.
 func blueReport(run record.Run) (string, error) {
-	if _, have, _, err := record.ReportProjection(run); err != nil || !have {
+	have, err := reportproj.BaseIngested(run)
+	if err == nil && !have {
 		return "", nil
 	}
-	md, err := reportproj.RenderFromRecord(run)
+	md := ""
+	if err == nil {
+		md, err = reportproj.RenderFromRecord(run)
+	}
 	if err != nil {
 		return "", fmt.Errorf("assemble: the report's text: %w", err)
 	}
