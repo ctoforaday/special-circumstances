@@ -323,7 +323,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				err := invoke(f)
 				if p.fullIsRefused {
 					// The clean set is refused too, so a refusal is THIS flag's only when it is a
-					// different one that names the flag — cobra's "required flag(s) not set" against
+					// different one that names the flag — the missing-flag refusal ("requires --page") against
 					// the verb's own "no such document".
 					isThisFlag := err != nil && (fullErr == nil || err.Error() != fullErr.Error()) && refusalNames(err, f.Name)
 					if isThisFlag && !marked {
@@ -349,7 +349,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 
 // refusalNames says whether a refusal names the flag AS A FLAG — `--id`, not the letters "id"
 // inside "valid". It reads the same `--flag` token helpcontract_test.go's assertNamedFlagsExist
-// reads; cobra's own `required flag(s) "id" not set`, which quotes the bare name; and cobra's
+// reads (the missing-flag refusal names `--id` that way); a quoted bare name; and cobra's
 // group refusals, which list bare names in brackets — `at least one of the flags in the group
 // [quote anchor] is required`.
 func refusalNames(err error, flag string) bool {

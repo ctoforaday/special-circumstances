@@ -30,7 +30,9 @@ import (
 type Refusal struct {
 	// Diagnosis is complete on its own: what was wrong and what to do, referring to no text after it.
 	Diagnosis string
-	// Help is the page of the command at Path, or "" when that command renders none.
+	// Help is the page of the command at Path. It is "" for a refusal that answers in a few lines
+	// and names the page instead — a flag left out, a flag the verb does not have — and then both
+	// forms carry the same text.
 	Help string
 	// Path is the command path whose page Help is — the leaf for a flag refusal, a group or the
 	// root for a command that was not found under it.

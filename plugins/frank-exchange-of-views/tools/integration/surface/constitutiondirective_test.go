@@ -38,6 +38,10 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 		// line here and send the seat after a document it was already given.
 		"already in your configuration",
 		"A name you did not read in the help this sitting is a guess",
+		// AND A FLAG IS A NAME. The sentence spoke of commands only, and two seats asked
+		// separately read it as covering verbs and not the flags on a verb they had listed: one
+		// carried a handle flag to a verb with none, one a problem flag to the verb beside it.
+		"flag from another command's page",
 	}
 	// AND THE CONSEQUENCE OF ABSENCE IS THE TOOL'S TO STATE, on the page where absence is
 	// discovered. All four constitutions used to carry "what is not listed does not exist for

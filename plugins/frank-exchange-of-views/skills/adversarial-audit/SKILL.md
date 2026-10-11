@@ -17,8 +17,9 @@ naming it and followed by the help it prints. Read it before you have decided wh
 decide. A command's own help is still there for a re-check before you run it.
 
 
-**A name you did not read in the help this sitting is a guess.** Do not work from memory, do not
-carry a name from an earlier sitting, and do not assume a command is named after the thing it writes.
+**A name you did not read in the help this sitting is a guess — a command, or a flag on that
+command's own page.** Do not work from memory, do not carry a name from an earlier sitting or a
+flag from another command's page, and do not assume a command is named after the thing it writes.
 
 What you hold is the WHOLE surface, not a slice. There is nothing here to go and find elsewhere,
 and no page of it to fetch.

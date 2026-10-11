@@ -1,4 +1,4 @@
-prompt sha256: 2ef66eeade61157d6fc93f015ebdf6f2689f80b5d291ede6bdfd342a74f15301
+prompt sha256: c574963edad8cf7328a334048ffa58341f207980ffff915d3f747f3bf60c1f3a
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -41,8 +41,8 @@ THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT.
 Your whole surface — every command you may run, each under a header naming it and followed by the help it prints — is part of your own configuration, in front of you before you act.
 READ IT BEFORE YOU CHOOSE, not the one entry for the verb you already picked, and read it before you have decided what to do: deciding first is what makes the reading pointless.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id blue-synthesize <command> --help.
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
-Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes.
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS — A COMMAND, OR A FLAG ON THAT COMMAND'S OWN PAGE.
+Do not work from memory, do not carry a name from a previous sitting or a flag from another command's page, and do not assume a command is named after the thing it writes.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.

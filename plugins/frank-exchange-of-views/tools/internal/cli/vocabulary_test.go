@@ -177,6 +177,11 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 				if seat.Supplied(c, key) != "" {
 					continue
 				}
+				// An arm's field is owed by the verb that fills that arm, and by no other verb
+				// writing the same type: `motion grade rule` owes no docket ruling's principle.
+				if rf.Arm != "" && seat.Arm(c) != rf.Arm {
+					continue
+				}
 				t.Run(path+"/"+flag, func(t *testing.T) {
 					f := c.Flags().Lookup(flag)
 					if f == nil {

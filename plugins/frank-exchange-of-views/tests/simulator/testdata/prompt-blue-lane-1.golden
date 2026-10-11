@@ -1,4 +1,4 @@
-prompt sha256: 3802a92b4cfbbc3a4ebe294a9bb70351e0883d6256e4ae379e4f755e40b29086
+prompt sha256: 147f7c552f5ed4dee917ec3bd48a62333eaec3929dbd34b15eacb253690dc001
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `avenues` projection — where each carries an id and its hypothesis,.
@@ -26,8 +26,8 @@ THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT.
 Your whole surface — every command you may run, each under a header naming it and followed by the help it prints — is part of your own configuration, in front of you before you act.
 READ IT BEFORE YOU CHOOSE, not the one entry for the verb you already picked, and read it before you have decided what to do: deciding first is what makes the reading pointless.
 A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id blue-lane-1 <command> --help.
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS.
-Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes.
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS — A COMMAND, OR A FLAG ON THAT COMMAND'S OWN PAGE.
+Do not work from memory, do not carry a name from a previous sitting or a flag from another command's page, and do not assume a command is named after the thing it writes.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.

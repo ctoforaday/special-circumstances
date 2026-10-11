@@ -13,67 +13,10 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 $ verify --run {RUN} --seat-id red-lens-evidence --quote claim one --title https://example.invalid/a --trust high --access-date 2026-07-18
 exit 2
 stderr:
-feov-record: verify: unknown flag: --title
+feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
+This verb's flags: --access-date, --anchor, --as, --confidence, --page, --quote, --reason.
 
-judge a citation blue authored, when the anchor exists and you have read what it points at
-
-THIS VERB JUDGES A CITATION THAT EXISTS: a claim with NO citation is never verified as `absent`.
-
-A CITATION WITH PAGES QUOTES OCR TEXT, and the reading may be what is wrong. Draw one of its pages with `render-page`, read the image, and name that page: the tool refuses a verification of such a citation that names no checked page, and records the image's hash. An unreachable outcome needs no page when no image could be drawn.
-
-Nor is an unevidenced claim automatically a finding: if a source exists and you can reach it, `corroborate` goes and gets it and answers whether the claim is true in the WORLD; `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with 'log', as a request — a missing
-capability is a fact about the tooling, and the log is how it reaches the operator
-who can retool you.
-
-FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
-your text, and records whatever the command printed — or nothing — in its place. Pass every
-free-text value by capturing it first with a QUOTED heredoc, then give the flag the variable:
-
-  X=$(cat <<'EOF'
-  your text — backticks, apostrophes and $ signs are all literal here
-  EOF
-  )
-  … "$X"
-
-IF WHAT YOU RECORDED WAS WRONG, say so in a new verification of the citation at your next sitting (a
-sitting holds one per --anchor, and this sitting's stands).
-
-Usage:
-  feov-record verify [flags]
-
-Flags:
-      --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
-      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
-      --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
-  -h, --help                         help for verify
-      --page int                     for a citation with pages: the page whose image you checked, drawn first with render-page
-      --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-
-Enumerated values:
-  --as
-    supports              you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows
-    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
-    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
-    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
-
-  --confidence
-    high    you read the source at the leaf and would defend this determination as it stands
-    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
-    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+Run `feov-record verify --help` for what it takes, flag by flag.
 
 $ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --likelihood medium --impact high --quote A claim sits under S2. --reason citation does not support
 exit 0
@@ -139,7 +82,7 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_LOG"}
 {"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_HIGH","likelihood":"GRADE_MEDIUM","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_REGISTER"}

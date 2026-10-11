@@ -284,7 +284,7 @@ THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT. Your w
 
 A single command's own page is still there when you want to re-check one: "${binDir}/feov-record" --seat-id ${seatId} <command> --help.
 
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS. Do not work from memory, do not carry a name from a previous sitting, and do not assume a command is named after the thing it writes. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one, and this prompt names the JOB, never the flags.
+A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS — A COMMAND, OR A FLAG ON THAT COMMAND'S OWN PAGE. Do not work from memory, do not carry a name from a previous sitting or a flag from another command's page, and do not assume a command is named after the thing it writes. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one, and this prompt names the JOB, never the flags.
 
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open. The .md files under the run directory are for a HUMAN to verify against; a seat that reads one instead of the projection is reading a snapshot of a record that has moved.
 

@@ -187,6 +187,8 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 	// that a field the record requires is marked REQUIRED in their help, which is the one place a
 	// seat reads what it must supply.
 	seat.Records(c, "motion")
+	// The filing fills the oneof arm named for its subject — see newRule.
+	seat.FillsArm(c, subject)
 	// THE MOTION ID IS ASSIGNED BY THE TOOL on a filing — a seat that chose its own would collide
 	// with another seat's, which is the join #312 exists to make reliable. Declared at the verb
 	// that does the assigning.
@@ -356,14 +358,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		switch f {
 		case flags.Final:
 			c.Flags().Bool(f, false, ruleFlagHelp[f])
-		case flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled:
-			// Required by DocketRuling's schema — a NESTED message, which markRequired's walk of
-			// the body's own fields does not reach — so the marker is written here. The refusal
-			// stays the schema's, at the write: it says what the field is FOR, which cobra's
-			// "required flag(s) not set" cannot, and it comes after the motion's subject is
-			// established, which a parse-time refusal would pre-empt.
-			flags.Text(c, f, ruleFlagHelp[f])
-			seat.SaysRequired(c, f)
 		default:
 			flags.Text(c, f, ruleFlagHelp[f])
 		}
@@ -371,8 +365,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
 	}
-	// The record type, for the contract gate — see newFile.
+	// The record type, for the contract gate — see newFile. AND THE ARM: the ruling this verb
+	// writes fills the oneof arm named for its subject, so what that arm's message requires — a
+	// docket ruling's principle, tension, review flag and what it settles — is marked REQUIRED on
+	// this page from the schema, and on no other subject's `rule`.
 	seat.Records(c, "motion_rule")
+	seat.FillsArm(c, subject)
 	return c
 }
 

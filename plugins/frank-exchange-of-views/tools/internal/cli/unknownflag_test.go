@@ -64,3 +64,93 @@ func TestTheSuggestionIsNotMadeForAFlagTheVerbDoesNotHave(t *testing.T) {
 		t.Errorf("log was told to type --complexity, which it does not have:\n%s", err.Error()+out)
 	}
 }
+
+// A FLAG CARRIED FROM A SIBLING VERB IS ANSWERED FROM THE TREE, IN A FEW LINES.
+//
+// Measured on the 2026-10-09 smoke: blue typed `retire --key` four times in one batch, having used
+// `--key` on fourteen edits, and a lens typed `finding --problem` twice, fourteen seconds after
+// `near-match --problem` was accepted. Each refusal was the verb's whole page — 3 506 bytes per
+// retire, 9 029 for the two findings — and none said the one thing the seat had wrong: the flag
+// is a real one, on the verbs beside this one.
+//
+// The refusal says which verbs on the ASKING SEAT's surface take the flag, what this verb takes,
+// and where the page is. It is the same text in both forms, under 1 KB, and it accepts nothing:
+// the call is refused and the verb writes no event.
+func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
+	runDir := actFixture(t)
+	for _, tc := range []struct {
+		name, seat string
+		args       []string
+		verb, role string
+		// writes is the event type the verb writes when it runs, "" for a verb that writes none.
+		writes string
+		says   []string
+		silent []string
+	}{
+		{name: "a handle on a verb with none", seat: "blue-respond",
+			args: []string{"retire", "--key", "R1", "--quote", "a claim that is no longer in the report.", "--reason", "r"},
+			verb: "retire", role: "blue", writes: "retire",
+			says: []string{"unknown flag: --key", "On this surface `cite`, `edit` and `prove` take it.",
+				"This verb's flags: --anchor, --new, --quote, --reason.", "`" + InvokedAs() + " retire --help`"},
+			silent: []string{"`finding`", "`mint`"}}, // the lens's verbs take a handle too, and are not blue's
+		{name: "the neighbour's problem flag", seat: "red-lens-evidence",
+			args: []string{"finding", "--quote", "§1 first — a finding sits in sec 1 here.", "--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "r", "--problem", "p"},
+			verb: "finding", role: "lens", writes: "finding",
+			says: []string{"unknown flag: --problem", "On this surface `mint` and `near-match` take it.",
+				"This verb's flags: --about, --about-kind, --impact, --key, --likelihood, --quote, --reason, --severity.", "`" + InvokedAs() + " finding --help`"}},
+		{name: "a flag nothing takes", seat: "red-lens-evidence",
+			args: []string{"close", "--nonesuch", "x"},
+			verb: "close", role: "lens", writes: "close",
+			says: []string{"unknown flag: --nonesuch", "no verb on this surface takes it", "This verb's flags: --as, --id,", "`" + InvokedAs() + " close --help`"}},
+		{name: "the operator's surface", seat: "operator",
+			args: []string{"graph", "--nonesuch", "x"},
+			verb: "graph", role: "",
+			says: []string{"unknown flag: --nonesuch", "This verb's flags: --format.", "`" + InvokedAs() + " graph --help`"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			written := func() int {
+				if tc.writes == "" {
+					return 0
+				}
+				return len(eventsOfWord(t, runDir, tc.writes))
+			}
+			before := written()
+			args := append(append([]string{}, tc.args...), "--run", runDir, "--seat-id", tc.seat)
+			stdout, stderr, err := runSeen(t, args...)
+			if err == nil {
+				t.Fatal("a flag the verb does not have was accepted")
+			}
+			if stdout != "" {
+				t.Errorf("the refusal wrote to stdout: %s", stdout)
+			}
+			for _, w := range tc.says {
+				if !strings.Contains(stderr, w) {
+					t.Errorf("the refusal does not say %q:\n%s", w, stderr)
+				}
+			}
+			for _, w := range tc.silent {
+				if strings.Contains(stderr, w) {
+					t.Errorf("the refusal names %s, which is not on this seat's surface:\n%s", w, stderr)
+				}
+			}
+			if len(stderr) >= 1024 || strings.Contains(stderr, "\nUsage:") || strings.Contains(stderr, "\nFlags:") {
+				t.Errorf("the refusal is %d bytes or carries the page — it is a few lines and names the page:\n%s", len(stderr), stderr)
+			}
+
+			jsonOut, _, err := runSeen(t, append(args, "--json")...)
+			if err == nil {
+				t.Fatal("--json: a flag the verb does not have was accepted")
+			}
+			env := decodeEnvelope(t, jsonOut)
+			if env.Verb != tc.verb || env.Role != tc.role || env.Code != "validation" || env.OK {
+				t.Errorf("envelope verb %q role %q code %q ok %v, want %q %q validation false", env.Verb, env.Role, env.Code, env.OK, tc.verb, tc.role)
+			}
+			if human := strings.TrimSuffix(strings.TrimPrefix(stderr, InvokedAs()+": "+tc.verb+": "), "\n"); env.Error != human {
+				t.Errorf("the two forms differ.\n human: %s\n  json: %s", human, env.Error)
+			}
+			if n := written() - before; n != 0 {
+				t.Errorf("the refused calls wrote %d %s event(s) — a flag the verb does not have must not reach the verb", n, tc.writes)
+			}
+		})
+	}
+}

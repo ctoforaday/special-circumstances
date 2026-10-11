@@ -602,8 +602,11 @@ Three things changed under the instrument since the first run, and each moves wh
   names in an appended block, against names woven through the shipped prose.
 - Four verbs were split into eight (`verify`/`corroborate`, `close`/`carry`, and two subgroups), so
   the denominator grew: blue offered 18 verbs then and 23 acts now.
-- Cobra now teaches on refusal for pre-handler errors too (`ExecuteRoot` + `seat.Taught`), so a
-  missing required flag returns the verb's own help rather than a bare usage line.
+- Cobra now teaches on refusal for pre-handler errors too (`ExecuteRoot` + `seat.Taught`): a
+  missing required flag is answered with each missing flag's own usage line, and a flag the verb
+  does not have with the verbs on the seat's surface that do take it and this verb's own flags —
+  a few lines naming the verb's `--help`. A bad value, wrong arguments and a flag-group
+  violation return the verb's own help under the diagnosis.
 
 ## Two quantities, kept apart
 

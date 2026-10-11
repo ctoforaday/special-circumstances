@@ -504,6 +504,7 @@ func Supplies(c *cobra.Command, key, why string) *cobra.Command {
 
 const (
 	recordsKey  = "feov.records"
+	armKey      = "feov.arm"
 	suppliesKey = "feov.supplies."
 )
 
@@ -572,13 +573,42 @@ func markTree(c *cobra.Command) {
 // command built by New carries the annotation, so the empty string is a fact, not a miss.
 func RecordType(c *cobra.Command) string { return c.Annotations[recordsKey] }
 
+// FillsArm declares which arm of its body's oneof a verb fills — `docket` on `motion docket rule`
+// — so the fields that arm's message requires are marked REQUIRED on this verb's page and on no
+// other verb writing the same record type.
+func FillsArm(c *cobra.Command, arm string) *cobra.Command {
+	if c.Annotations == nil {
+		c.Annotations = map[string]string{}
+	}
+	c.Annotations[armKey] = arm
+	return c
+}
+
+// Arm is the oneof arm a verb declared it fills, or "".
+func Arm(c *cobra.Command) string { return c.Annotations[armKey] }
+
 func markRequired(c *cobra.Command, verb string) {
+	// A declared arm the body does not have marks nothing and says nothing — a programming error,
+	// refused at construction like a flag Require was never given.
+	if arm := Arm(c); arm != "" && !record.HasArm(verb, arm) {
+		panic("seat.FillsArm: `" + c.CommandPath() + "` declares the arm `" + arm + "`, and a " + verb + " has no such arm")
+	}
 	for _, rf := range record.RequiredFields(verb) {
 		key := rf.Key
 		f := c.Flags().Lookup(rf.Flag)
 		if f == nil {
 			// The field is set by the verb rather than typed by the seat. Nothing to
 			// annotate, and nothing wrong: not every payload key has a flag.
+			continue
+		}
+		if rf.Arm != "" {
+			// REQUIRED OF ONE ARM, so marked only on the verb that fills it — and marked, not
+			// enforced at the parse: the write refuses an arm's missing field with what the field
+			// is FOR, after the handler has established the motion's subject, which a parse-time
+			// refusal would pre-empt.
+			if Arm(c) == rf.Arm {
+				mark(f)
+			}
 			continue
 		}
 		if c.Annotations[suppliesKey+key] != "" {
@@ -766,14 +796,14 @@ func CheckFlagReferences(cmd *cobra.Command, runDir string) error {
 // added to them: the role and the command path are the renderer's, read from the command.
 //
 // It exists so the top level can tell those apart from the ones cobra raises BEFORE the handler
-// runs: an unknown flag, a missing required flag, a flag group violated. Those say only which
-// flag word was wrong, and the flag table is the answer to that — so the top level attaches the
-// command's own help to them, and to nothing else.
+// runs: an unknown flag, a missing required flag, a bad value, a flag group violated. Those say
+// only which flag word was wrong, and the command tree holds the answer — so the top level gives
+// it to them, and to nothing else: a few lines for a flag left out or not the verb's, the
+// command's own help for the rest.
 //
-// A FIELD, NOT A PATTERN. The alternative was matching cobra's message text ("required flag(s)
-// ... not set"), which is a string shape from another module: it fails silently the day cobra
-// rewords it, and a refusal that quietly stops teaching reads exactly like one that never needed
-// to (see [[facts-are-fields]]).
+// A FIELD, NOT A PATTERN. The alternative was matching cobra's message text, which is a string
+// shape from another module: it fails silently the day cobra rewords it, and a refusal that
+// quietly stops teaching reads exactly like one that never needed to (see [[facts-are-fields]]).
 type taught struct{ error }
 
 func (t taught) Unwrap() error { return t.error }
@@ -910,6 +940,7 @@ func Prose(c *cobra.Command) *cobra.Command {
 var ReasonIs = map[string]string{
 	"propose":      "the avenue — research prose for a reader of the SUBJECT, printed in the report word for word",
 	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the avenue",
+	"finding":      "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
 	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
 	"prove":        "the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",
 	"manifest-row": "the receipt: what you checked, and what checking it showed",
@@ -938,9 +969,11 @@ func ProseRequired(c *cobra.Command) *cobra.Command {
 }
 
 // SaysRequired writes the REQUIRED marker on flags whose refusal DELIBERATELY lives in the verb's
-// own handler ("finding requires --reason: …" names what the prose is FOR, which cobra's "required
-// flag(s) not set" cannot) or in validate's field checks. It changes no enforcement; a flag whose
-// refusal may be cobra's takes Require instead, which writes both halves.
+// own handler ("requires --reason: …" in the handler's words for what the prose is FOR, said after
+// whatever the handler establishes first) or in validate's field checks. It changes no
+// enforcement; a flag whose refusal may be the parser's takes Require instead, which writes both
+// halves. A field an ARM of the body requires is not written here: markRequired marks it from the
+// schema on the verb that declares the arm (FillsArm).
 //
 // Measured before it existed: twenty-two flags across every seat surface refused when omitted
 // and rendered with no marker, and the m13/m14 seats paid one call each to learn what the help

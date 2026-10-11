@@ -59,6 +59,9 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		verb, path, role, code string
 		// teaches: the refusal carries a help page in its human form and names it in the JSON one.
 		teaches bool
+		// short: the refusal answers a flag in a few lines — the same text in both forms, under
+		// 1 KB, naming the page and printing none of it.
+		short bool
 		// logged: the tool writes this refusal to the log — of the seat named, or of logSeat where
 		// the record binds the agent to another.
 		logged  bool
@@ -94,19 +97,19 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 
 		// Cobra's refusals, each coded by its producer.
 		{kind: "unknown flag", seat: lens, args: []string{"close", "--nonesuch", "x"},
-			verb: "close", path: "close", role: "lens", code: "validation", teaches: true, logged: true},
+			verb: "close", path: "close", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "unknown flag", seat: blue, args: []string{"retire", "--key", "k1"},
-			verb: "retire", path: "retire", role: "blue", code: "validation", teaches: true, logged: true},
+			verb: "retire", path: "retire", role: "blue", code: "validation", short: true, logged: true},
 		{kind: "unknown flag", seat: chair, args: []string{"verdict", "--nonesuch", "x"},
-			verb: "verdict", path: "verdict", role: "chair", code: "validation", teaches: true, logged: true},
+			verb: "verdict", path: "verdict", role: "chair", code: "validation", short: true, logged: true},
 		{kind: "unknown flag", seat: bench, args: []string{"declare", "--nonesuch", "x"},
-			verb: "declare", path: "declare", role: "bench", code: "validation", teaches: true, logged: true},
+			verb: "declare", path: "declare", role: "bench", code: "validation", short: true, logged: true},
 		{kind: "unknown flag on the operator's surface", seat: "operator", args: []string{"graph", "--nonesuch", "x"},
-			verb: "graph", path: "graph", role: "", code: "validation"},
+			verb: "graph", path: "graph", role: "", code: "validation", short: true},
 		{kind: "missing required flag", seat: lens, args: []string{"close", "--id", "G-0000beef"},
-			verb: "close", path: "close", role: "lens", code: "missing_field", teaches: true, logged: true},
+			verb: "close", path: "close", role: "lens", code: "missing_field", short: true, logged: true},
 		{kind: "missing required flag", seat: bench, args: []string{"outcome"},
-			verb: "outcome", path: "outcome", role: "bench", code: "missing_field", teaches: true, logged: true},
+			verb: "outcome", path: "outcome", role: "bench", code: "missing_field", short: true, logged: true},
 		{kind: "bad value", seat: lens, args: []string{"finding", "--quote", "q", "--reason", "r", "--severity", "banana"},
 			verb: "finding", path: "finding", role: "lens", code: "validation", teaches: true, logged: true},
 		{kind: "wrong arguments", seat: lens, args: []string{"near-match", "extra"},
@@ -220,6 +223,10 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			}
 			pointer := "--help` for "
 			switch {
+			case r.short:
+				if !strings.Contains(env.Error, pointer) || env.Error != human || strings.Contains(human, "\nUsage:") || strings.Contains(human, "\nFlags:") || len(stderr) >= 1024 {
+					t.Errorf("a flag refusal is a few lines naming the page, the same in both forms (%d bytes).\n human: %s\n  json: %s", len(stderr), clipTo(human, 1200), clipTo(env.Error, 1200))
+				}
 			case r.teaches && !strings.Contains(env.Error, pointer):
 				t.Errorf("the human form carries a help page and the envelope does not name the `--help` that prints it: %s", clipTo(env.Error, 300))
 			case r.teaches && !strings.Contains(human, "\nUsage:") && !strings.Contains(human, "\nFlags:") && !strings.Contains(human, "--seat-id IS REQUIRED"):

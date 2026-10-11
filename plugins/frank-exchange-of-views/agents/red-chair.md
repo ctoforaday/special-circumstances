@@ -23,7 +23,7 @@ Say what you CONCLUDED, never what you did: the record already holds every act o
 
 <!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->
 
-Your surface — the chair surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A name you did not read here is a guess.
+Your surface — the chair surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A command you did not read here is a guess, and so is a flag you did not read under that command's own header.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.

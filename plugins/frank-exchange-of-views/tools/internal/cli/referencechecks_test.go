@@ -75,7 +75,7 @@ var referenceChecks = []struct {
 		extra:         []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
 	{verb: []string{"mint"}, flag: "--quote", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
-		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
+		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--severity", "high", "--reason", "r"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
