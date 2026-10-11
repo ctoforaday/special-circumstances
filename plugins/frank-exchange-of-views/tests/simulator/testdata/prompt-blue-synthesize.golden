@@ -1,4 +1,4 @@
-prompt sha256: a5d1b71ea998f6f84275a5170c485c3ff35655989a5dc1ac636138395ce89e4d
+prompt sha256: 0977efb91787abc329498ddb2e3b0c807fe2bf7b4e5c908ea0398f3b7dd1cdae
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -19,15 +19,18 @@ REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains t
 FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base.
 Do this ONCE; if it refuses, the tool records the refusal — log what you expected.
 Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze.
-AVENUES: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind — a line that answered what it set out to test is concluded, not abandoned: abandoned is a line that died.
-The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
+AVENUES: each approach the research took or weighed is on the record once — with the hypothesis that would be true if it paid off, and later with the fate it ACTUALLY had and what changed your mind.
+The fate says what happened to the approach: one you ran that answered what it set out to test is concluded; one you ran that died is abandoned; declined is ONLY an approach you weighed and did not run.
+NO FATE IS OWED AN ENTRY.
+A sitting that weighed nothing and set it down has no declined avenue, and that record is complete: an approach thought up, or run, so that there is one to decline is a false entry, and a declined line whose reason reports a result is one too.
+The hypothesis is what makes the account honest, and a dead end you really reached is worth its line: one on the record is one the next run does not re-walk.
 THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU.
 At assembly it composes three sections of the report from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned.
 That gives the reader what was followed, what was deferred and what was rejected as three things, not one list of winners.
 Your part is the record: you put each approach on it and say what became of it.
 You write none of those three headings in the report, and no list of the approaches considered and their fates under any other heading: a report that carries one of those headings is refused, and a hand copy elsewhere is a second account nothing checks against the record.
 The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
-Recording what you considered and declined is what makes "explore the alternatives" checkable instead of self-attested.
+Recording each approach with the fate it had is what makes "explore the alternatives" checkable instead of self-attested.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if an instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench ON THE RECORD (class, basis, relief) — the bench hears it at the next chair sitting, before any party of that epoch sits; never sanctioned, and it does not pause your duties.
 LOG (blue-synthesize), on the record: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
 The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.

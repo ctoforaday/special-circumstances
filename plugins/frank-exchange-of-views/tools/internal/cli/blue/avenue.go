@@ -32,7 +32,7 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 //
 // THREE STATUSES, each answering a different question:
 //
-//	declined   considered, not taken     — was the rejection REASONED, or decoration?
+//	declined   considered, never run     — was the rejection REASONED, or decoration?
 //	abandoned  pursued, then died        — what killed it? (the negative result)
 //	pursued    became the report's spine — does the report reflect it honestly?
 //

@@ -614,7 +614,14 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  assert.ok(/AVENUES/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
+  // AN APPROACH IS RECORDED WITH THE FATE IT HAD, AND NO FATE IS OWED AN ENTRY. A prompt that asks
+  // for "what you considered and declined" is read as asking for a declined avenue: on universe-m21
+  // a lane with nothing it had weighed and set down ran a check, then proposed and declined it four
+  // seconds later, and the report printed one approach as concluded and as declined.
+  assert.ok(/AVENUES/.test(synth) && /NO FATE IS OWED AN ENTRY/.test(synth) && /declined is ONLY an approach you weighed and did not run/.test(synth),
+    'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
+  assert.ok(!/not only the one you took/.test(synth) && !/considered and declined is what makes/.test(synth) && !/dead ends matter most/.test(synth),
+    'the avenue clause presses for a declined or abandoned entry')
   // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL. The sentence here read "alternatives reach
   // the reader under their own headings" with no actor, among imperatives to blue, and the
   // synthesizer wrote those headings. The prompt says who composes the three sections, which fate

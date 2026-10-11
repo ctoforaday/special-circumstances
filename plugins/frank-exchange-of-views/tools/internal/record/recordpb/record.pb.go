@@ -843,6 +843,12 @@ const (
 	// not that they failed", and the report listed every successful line as a dead end.
 	AvenueStatus_AVENUE_STATUS_CONCLUDED AvenueStatus = 6
 	AvenueStatus_AVENUE_STATUS_DEFERRED  AvenueStatus = 3
+	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
+	// on universe-m21 a lane ran a check, then proposed the approach and declined it with the
+	// check's result as the reason, and the report printed it as rejected beside the section that
+	// carries it. The record holds no link from a proof or a section to an avenue, so no write can
+	// tell a declined line that was run from one that was not; the fate's own meaning is where the
+	// seat is told.
 	AvenueStatus_AVENUE_STATUS_DECLINED  AvenueStatus = 4
 	AvenueStatus_AVENUE_STATUS_ABANDONED AvenueStatus = 5
 )
@@ -8041,14 +8047,15 @@ const file_record_proto_rawDesc = "" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
 	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12\xb8\x01\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\xbc\t\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\xc0\n" +
+	"\n" +
 	"\fAvenueStatus\x12\x1d\n" +
 	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12\x9a\x01\n" +
 	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x1a~\x8a\xb5\x18zyou intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move\x12\xb5\x01\n" +
 	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a\x99\x01\x8a\xb5\x18\x94\x01you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end\x12\xf2\x01\n" +
 	"\x17AVENUE_STATUS_CONCLUDED\x10\x06\x1a\xd4\x01\x8a\xb5\x18\xcf\x01you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this\x12\x86\x02\n" +
-	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x85\x01\n" +
-	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\xb1\x01\n" +
+	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x89\x02\n" +
+	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1a\xec\x01\x8a\xb5\x18\xe7\x01you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if it answered what it set out to test, `abandoned` if it died\x12\xb1\x01\n" +
 	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8e\x01you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it*\xc2\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +

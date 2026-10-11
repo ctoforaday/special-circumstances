@@ -430,7 +430,13 @@ enum AvenueStatus {
   // not that they failed", and the report listed every successful line as a dead end.
   AVENUE_STATUS_CONCLUDED = 6 [(means) = "you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this"];
   AVENUE_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet"];
-  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why"];
+  // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
+  // on universe-m21 a lane ran a check, then proposed the approach and declined it with the
+  // check's result as the reason, and the report printed it as rejected beside the section that
+  // carries it. The record holds no link from a proof or a section to an avenue, so no write can
+  // tell a declined line that was run from one that was not; the fate's own meaning is where the
+  // seat is told.
+  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if it answered what it set out to test, `abandoned` if it died"];
   AVENUE_STATUS_ABANDONED = 5 [(means) = "you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it"];
 }
 
