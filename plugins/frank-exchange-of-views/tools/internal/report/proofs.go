@@ -103,7 +103,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 	num, _ := proofNumbers(proofs)
 
 	var b strings.Builder
-	b.WriteString("## Proofs\n\n")
+	b.WriteString("## " + evidenceHeading + "\n\n")
 	b.WriteString("Each of these is a computation this run ran, with the exact script and its output.\n")
 	b.WriteString("`reproducible` means the same script produced identical output on two consecutive runs;\n")
 	b.WriteString("`observed` means the output moved between them, which makes it a measurement of a system\n")

@@ -74,17 +74,25 @@ func Files() []string { return append([]string(nil), docOrder...) }
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.
 func AssembleAll(run record.Run) ([]Doc, error) {
+	docs, _, err := assemble(run)
+	return docs, err
+}
+
+// assemble is AssembleAll, with the headings of the rows it composed a section for: what the
+// assembled layout reads to tell a section the table placed from a line of the report's text
+// that opens as one does.
+func assemble(run record.Run) ([]Doc, map[string]bool, error) {
 	blue, err := blueReport(run)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: board: %w", err)
+		return nil, nil, fmt.Errorf("assemble: board: %w", err)
 	}
 	bj, err := record.BoardJSONOfRun(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: board json: %w", err)
+		return nil, nil, fmt.Errorf("assemble: board json: %w", err)
 	}
 	evs := fam.Events
 
@@ -95,12 +103,13 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// their rows put them in the documents behind it.
 	a := &assembly{run: run, fam: fam, bj: bj, outcome: outcomeOf(evs), blue: part(blue)}
 	body := map[string]*sections{}
+	composed := map[string]bool{}
 	for _, s := range layout {
 		if body[s.File] == nil {
 			body[s.File] = &sections{}
 		}
 		if s.compose != nil {
-			body[s.File].add(s.compose(a, s))
+			composed[s.Heading] = body[s.File].add(s.block(a))
 		}
 	}
 	// avenues.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a line by
@@ -142,11 +151,11 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: cited sources: %w", err)
+		return nil, nil, fmt.Errorf("assemble: cited sources: %w", err)
 	}
 	proofs, err := record.RecordedProofs(run)
 	if err != nil {
-		return nil, fmt.Errorf("assemble: recorded proofs: %w", err)
+		return nil, nil, fmt.Errorf("assemble: recorded proofs: %w", err)
 	}
 
 	used := map[string]bool{}
@@ -169,8 +178,13 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 			return s != ln && emptied.MatchString(s)
 		})
 		body := anchor.StripAssembled(strings.Join(lines, "\n"))
-		body = collapseBlanks(weaveCitations(body, sources))
-		body, hit := weaveProofRefs(body, proofs)
+		woven := weaveCitations(body, sources)
+		// The weave writes the notes and the bibliography when the document cites, and returns
+		// it as it came when it does not.
+		if docs[i].File == FileReport {
+			composed[bibliographyHeading] = woven != body
+		}
+		body, hit := weaveProofRefs(collapseBlanks(woven), proofs)
 		for _, label := range hit {
 			used[label] = true
 		}
@@ -182,6 +196,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	for i := range docs {
 		if docs[i].File == FileEvidence {
 			docs[i].Body = evidenceDoc(run, proofs, used)
+			composed[evidenceHeading] = docs[i].Body != ""
 		}
 	}
 
@@ -192,7 +207,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		}
 		out = append(out, d)
 	}
-	return out, nil
+	return out, composed, nil
 }
 
 // Title returns the run's short title — the H1 every document in the set opens with.
@@ -225,11 +240,12 @@ func blueReport(run record.Run) (string, error) {
 // invariant "no heading ships without a body" expressed as the only way to add one.
 type sections struct{ parts []string }
 
-func (s *sections) add(block string) {
+func (s *sections) add(block string) bool {
 	if strings.TrimSpace(block) == "" {
-		return
+		return false
 	}
 	s.parts = append(s.parts, strings.TrimRight(block, "\n"))
+	return true
 }
 
 func (s *sections) String() string { return strings.Join(s.parts, "\n\n") }
@@ -356,7 +372,6 @@ func supersededAsks(evs []*record.Event) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("## Superseded bench statements\n\n")
 	b.WriteString("The LAST statement that stands is the one the report carries; these are the ones it replaced, or that the bench struck and corrected, in the order they were made.\n\n")
 	for i, s := range rows {
 		fmt.Fprintf(&b, "%d. %s\n\n", i+1, s)

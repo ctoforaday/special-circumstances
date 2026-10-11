@@ -291,12 +291,18 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 // avenueSection renders the avenue section under heading, through its row.
 func avenueSection(t *testing.T, fam record.Family, heading string) string {
 	t.Helper()
+	return sectionBlock(t, heading, &assembly{fam: fam})
+}
+
+// sectionBlock is the section under heading as assembly places it, through its row.
+func sectionBlock(t *testing.T, heading string, a *assembly) string {
+	t.Helper()
 	for _, s := range layout {
-		if s.Heading == heading && s.fate != nil {
-			return avenues(&assembly{fam: fam}, s)
+		if s.Heading == heading && s.compose != nil {
+			return s.block(a)
 		}
 	}
-	t.Fatalf("no avenue section %q in the layout", heading)
+	t.Fatalf("no composed section %q in the layout", heading)
 	return ""
 }
 

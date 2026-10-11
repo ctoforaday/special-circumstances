@@ -75,7 +75,6 @@ func conduct(run record.Run, fam record.Family) string {
 	sort.Strings(order)
 
 	var b strings.Builder
-	b.WriteString("## How this run was conducted\n\n")
 	b.WriteString("_Composed from the record, never from the run's configuration: these are the models that ANSWERED, " +
 		"measured at each seat's own first turn. A run can be configured for one tier and served by another, and a seat " +
 		"cannot see which — it reads the request._\n\n")

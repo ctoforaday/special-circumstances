@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -33,7 +34,9 @@ const (
 type Section struct {
 	// File is the document of the set the section ships in.
 	File string
-	// Heading names the section. It ships as "## <Heading>" unless Line is set.
+	// Heading names the section. It ships as "## <Heading>" unless Line is set: assembly writes
+	// that line above a section the tool composes (block), and the report's own carries its
+	// author's.
 	Heading string
 	// Line is how a section with no heading opens: it ships as one line that starts with this.
 	Line string
@@ -49,8 +52,17 @@ type Section struct {
 	embeds bool
 	// fate, on an avenue section, is which avenue statuses it holds.
 	fate func(status string) bool
-	// compose renders the section; nil for one a later pass over the whole document writes.
+	// compose renders the section's body; nil for one a later pass over the whole document writes.
 	compose func(a *assembly, s Section) string
+}
+
+// block is the section as assembly places it, or "" for one this run has nothing under.
+func (s Section) block(a *assembly) string {
+	text := s.compose(a, s)
+	if s.Composer == Tool && s.Line == "" && strings.TrimSpace(text) != "" {
+		return "## " + s.Heading + "\n\n" + text
+	}
+	return text
 }
 
 // assembly is what one assembly of the set reads: the record once, and the report's text parted
@@ -71,6 +83,11 @@ const (
 	liftedFrom   = "the section of this name in the report's text, lifted whole"
 	liftedPath   = blueTextPath + " A report with no section of this name ships a line saying so in its place."
 	noSeatPath   = "No seat's act reaches it."
+
+	// The two sections a pass over the whole document writes, after the rows are composed: the
+	// weave (weaveCitations) and the evidence document (evidenceDoc) write these headings.
+	bibliographyHeading = "Bibliography"
+	evidenceHeading     = "Proofs"
 )
 
 var layout = []Section{
@@ -102,15 +119,10 @@ var layout = []Section{
 	// THE HEADING NAMES WHAT THE TEXT IS, not which seat wrote it: this is the one document where
 	// attribution is forbidden. The section is omitted when the report's text holds nothing more.
 	{File: FileReport, Heading: "Additional findings", Composer: Tool, embeds: true,
-		From: "every part of the report's text that no row above lifts, whole and in the order written, each section under the heading its author gave it",
-		Path: "The report's text, under a heading of its own: the opening synthesis writes the section and blue's `edit` adds or amends one. Assembly writes this heading above them; the report's text does not carry it.",
-		compose: func(a *assembly, s Section) string {
-			if a.blue.rest == "" {
-				return ""
-			}
-			return "## " + s.Heading + "\n\n" + a.blue.rest
-		}},
-	{File: FileReport, Heading: "Bibliography", Composer: Tool,
+		From:    "every part of the report's text that no row above lifts, whole and in the order written, each section under the heading its author gave it",
+		Path:    "The report's text, under a heading of its own: the opening synthesis writes the section and blue's `edit` adds or amends one. Assembly writes this heading above them; the report's text does not carry it.",
+		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
+	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
 		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note and no reference is typed by hand."},
 
@@ -128,7 +140,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return motions(a.fam) }},
 	// avenues.md is not a section of this table: it is the rendering `show avenues` prints
 	// (view.AvenueBody), whole, under headings that carry each fate's count.
-	{File: FileEvidence, Heading: "Proofs", Composer: Tool,
+	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
 		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
@@ -142,7 +154,7 @@ var layout = []Section{
 	{File: FileRun, Heading: "The verdict's basis", Composer: Tool,
 		From:    "the outcome on the record",
 		Path:    noSeatPath + " It explains the outcome the bench records with `outcome`.",
-		compose: func(a *assembly, s Section) string { return "## " + s.Heading + "\n\n" + verdictGloss(a.outcome) }},
+		compose: func(a *assembly, _ Section) string { return verdictGloss(a.outcome) }},
 	{File: FileRun, Heading: "Log (what the run told the operator)", Composer: Tool,
 		From:    "the log entries on the record",
 		Path:    "Any seat's `log`: a fact about the run or its tooling goes there.",
@@ -252,8 +264,8 @@ func ComposedHeadings() []string {
 //
 // A line opens a section when, outside a code fence, it starts with "## " once its surrounding
 // whitespace is trimmed. Two headings name the same section when they agree after their anchors
-// are taken out, case is folded, runs of whitespace are single spaces and a trailing "(in full)"
-// is dropped. A fence opens and closes on a line starting ``` or ~~~.
+// and the note references assembly weaves from them are taken out, case is folded, runs of
+// whitespace are single spaces and a trailing "(in full)" is dropped. A fence opens and closes on a line starting ``` or ~~~.
 func headingKey(trimmed string) (string, bool) {
 	if !strings.HasPrefix(trimmed, "## ") {
 		return "", false
@@ -261,9 +273,12 @@ func headingKey(trimmed string) (string, bool) {
 	return normalizeHeading(strings.TrimPrefix(trimmed, "## ")), true
 }
 
+// noteRef is a footnote reference, as the weave writes one where a citation or proof anchor stood.
+var noteRef = regexp.MustCompile(`\[\^[^\]]+\]`)
+
 // normalizeHeading folds a heading to its comparison key.
 func normalizeHeading(h string) string {
-	h = anchor.Replace(h, func(string, string) string { return "" })
+	h = noteRef.ReplaceAllString(anchor.Replace(h, func(string, string) string { return "" }), "")
 	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
 	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
 }

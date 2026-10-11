@@ -46,8 +46,13 @@ type LayoutJSON struct {
 // Layout is the report set as assembly ships it from the record as it stands: every row of the
 // table in shipping order, and what each holds. It assembles the set and slices the result, so
 // what it prints is what ships.
+//
+// A ROW SHIPS WHEN ASSEMBLY COMPOSED IT, never because a line of the document reads as its
+// opening: a line of the report's own text can open as a section's does. The document is read
+// only for where a composed row's text begins — the first line that opens it after the row
+// before it — and a row's text runs to the next row that ships.
 func Layout(run record.Run) (LayoutJSON, error) {
-	docs, err := AssembleAll(run)
+	docs, composed, err := assemble(run)
 	if err != nil {
 		return LayoutJSON{}, err
 	}
@@ -56,26 +61,32 @@ func Layout(run record.Run) (LayoutJSON, error) {
 	for _, d := range docs {
 		rendered[d.File] = strings.Split(render(d, title, docs), "\n")
 	}
+	starts := make([]int, len(layout))
+	at := map[string]int{} // per file: the line after the one the previous row opened on
+	for i, s := range layout {
+		starts[i] = -1
+		// The title is the head render writes on every document.
+		if lines := rendered[s.File]; lines != nil && (composed[s.Heading] || s.compose == nil && s.Line != "") {
+			if starts[i] = opens(lines, at[s.File], s); starts[i] < 0 {
+				return LayoutJSON{}, fmt.Errorf("report: assembly composed %q for %s and the document does not open it", s.Heading, s.File)
+			}
+			at[s.File] = starts[i] + 1
+		}
+	}
 	var out LayoutJSON
-	at := map[string]int{} // per file: the line the previous row's section opened on
 	for i, s := range layout {
 		row := LayoutSection{File: s.File, Heading: s.Heading, Line: strings.TrimSpace(s.Line), Composer: s.Composer, From: s.From, Path: s.Path}
-		lines := rendered[s.File]
-		if start := opens(lines, at[s.File], s); start >= 0 {
+		if start := starts[i]; start >= 0 {
+			lines := rendered[s.File]
 			end := len(lines)
-			for _, next := range layout[i+1:] {
-				if next.File != s.File {
-					continue
-				}
-				if n := opens(lines, start+1, next); n >= 0 {
-					end = n
-					break
+			for j := i + 1; j < len(layout) && end == len(lines); j++ {
+				if layout[j].File == s.File && starts[j] >= 0 {
+					end = starts[j]
 				}
 			}
 			if s.Line != "" {
 				end = start + 1
 			}
-			at[s.File] = start + 1
 			row.Ships = true
 			row.Text = strings.TrimSpace(strings.Join(lines[start:end], "\n"))
 			if s.embeds {
@@ -91,23 +102,22 @@ func Layout(run record.Run) (LayoutJSON, error) {
 	return out, nil
 }
 
-// opens is the first line at or after from on which s opens, or -1.
+// opens is the line at or after from on which s opens: the first, or for a section a pass over
+// the whole document writes after the rows, the last; -1 when none does.
 func opens(lines []string, from int, s Section) int {
 	found := -1
 	n := 0
 	eachLine(strings.Join(lines, "\n"), func(_, t string, fenced bool) {
 		i := n
 		n++
-		if found >= 0 || fenced || i < from {
+		if fenced || i < from || found >= 0 && s.compose != nil {
 			return
 		}
 		if s.Line != "" {
-			if strings.HasPrefix(t, s.Line) {
+			if found < 0 && strings.HasPrefix(t, s.Line) {
 				found = i
 			}
-			return
-		}
-		if key, ok := headingKey(t); ok && key == normalizeHeading(s.Heading) {
+		} else if key, ok := headingKey(t); ok && key == normalizeHeading(s.Heading) {
 			found = i
 		}
 	})

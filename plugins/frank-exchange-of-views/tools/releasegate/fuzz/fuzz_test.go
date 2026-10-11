@@ -66,7 +66,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/debatejs"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
@@ -3339,8 +3338,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			return res
 		}
 		out, err := drive(bin, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", sid)
-		var layout report.LayoutJSON
-		if err != nil || json.Unmarshal(out, &layout) != nil || len(layout.Sections) != len(report.Sections()) {
+		var layout reportdoc.LayoutJSON
+		if err != nil || json.Unmarshal(out, &layout) != nil || len(layout.Sections) != len(reportdoc.Sections()) {
 			res.err = sid + " show report --assembled --json is not the layout, a row for each section of the table:\n" + truncate(string(out))
 			return res
 		}
@@ -3353,7 +3352,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 	if text, err := drive(bin, "show", "report", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		if line, _, found := report.ComposedIn(string(text)); found {
+		if line, _, found := reportdoc.ComposedIn(string(text)); found {
 			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
 			return res
 		}

@@ -156,7 +156,7 @@ func weaveCitations(md string, sources []record.Source) string {
 			bib = append(bib, "- "+bibliographyEntry(s.URL, sources))
 		}
 	}
-	out.WriteString("\n## Bibliography\n\n")
+	out.WriteString("\n## " + bibliographyHeading + "\n\n")
 	for _, line := range bib {
 		out.WriteString(line + "\n")
 	}
@@ -514,7 +514,6 @@ func gradeWord(g recordpb.Grade) string {
 
 func riskMatrix(bj record.BoardJSON) string {
 	var b strings.Builder
-	b.WriteString("## Risk matrix\n\n")
 	b.WriteString("| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |\n")
 	b.WriteString("|---|---|---|---|---|\n")
 	if len(bj.Open) == 0 {
@@ -648,7 +647,7 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
 func avenues(a *assembly, s Section) string {
-	fam, heading, want := a.fam, s.Heading, s.fate
+	fam, want := a.fam, s.fate
 	var rows []string
 	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
 		if !want(a.Status) {
@@ -695,7 +694,7 @@ func avenues(a *assembly, s Section) string {
 	if len(rows) > 0 {
 		body = strings.Join(rows, "\n")
 	}
-	return "## " + heading + "\n\n" + body
+	return body
 }
 
 // withdrawnClaims renders the claims blue REMOVED from the report, from the retire events.
@@ -739,7 +738,7 @@ func withdrawnClaims(fam record.Family) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return "## Claims retired\n\n_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
+	return "_Substance leaves this report only through blue's `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
 // provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.
@@ -861,7 +860,7 @@ func boardSection(fam record.Family) string {
 		}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "## The board\n\n### Open gaps (%d)\n\n", len(open))
+	fmt.Fprintf(&b, "### Open gaps (%d)\n\n", len(open))
 	if len(open) == 0 {
 		b.WriteString("_(none open)_\n")
 	} else {
@@ -1330,7 +1329,6 @@ func debate(fam record.Family) string {
 	}
 
 	var b strings.Builder
-	b.WriteString("## The debate\n\n")
 	if len(parts) == 0 {
 		b.WriteString("_(no debate on the record)_")
 	} else {
@@ -1377,7 +1375,7 @@ func logSection(fam record.Family) string {
 	if len(rows) == 0 && len(attested) == 0 {
 		return ""
 	}
-	out := "## Log (what the run told the operator)\n\n"
+	out := ""
 	if len(rows) > 0 {
 		out += strings.Join(rows, "\n") + "\n"
 	} else {
@@ -1456,12 +1454,11 @@ func recordVerification(fam record.Family) string {
 	if len(checks) == 0 {
 		// Not reachable today, and said out loud rather than rendered as a clean board: an
 		// empty check set and a sound record must never be the same output.
-		return "## Record verification\n\nNo invariants ran, so this run's record is **unverified**. " +
+		return "No invariants ran, so this run's record is **unverified**. " +
 			"That is not the same as sound."
 	}
 
 	var b strings.Builder
-	b.WriteString("## Record verification\n\n")
 	b.WriteString("Computed by replaying the event record, not reported by any seat. " +
 		"These are the invariants that must hold if the record is internally consistent.\n\n")
 
