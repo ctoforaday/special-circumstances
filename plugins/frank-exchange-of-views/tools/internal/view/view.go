@@ -666,8 +666,8 @@ func debateMD(in Input) []byte {
 		for _, l := range re {
 			// THE SWITCH IS ON THE BODY. Every arm reaches straight for a field, so binding the
 			// message and the type in one step removes the pair that could disagree. An event with
-			// NO body names none of these verbs — BoardState has already announced it as an
-			// anomaly — so it is skipped here exactly as a non-matching type was.
+			// NO body names none of these verbs, so it is skipped here exactly as a non-matching
+			// type is.
 			body, ok := recordpb.Body(l.Event)
 			if !ok {
 				continue

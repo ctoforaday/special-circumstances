@@ -153,7 +153,7 @@ func blueClaimsOf(run record.Run) *int {
 }
 
 // BuildModel gathers the run's instruments — the Go port of buildModel. It reads the record
-// IN-PROCESS (BoardState → the JSON views) rather than spawning the tool; nowMs is injected
+// IN-PROCESS (package record's JSON views) rather than spawning the tool; nowMs is injected
 // (the CLI defaults it to the real clock) so tests are deterministic.
 func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64) Model {
 	// Config: file (setup) then non-empty CLI overrides.

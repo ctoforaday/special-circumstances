@@ -17,11 +17,7 @@ import (
 // one seat in one epoch would have been a guess. A motion has an id, so an ask and its answer are
 // one row.
 //
-// It reads through record.Motions, which is now the only vocabulary. This used to go through an
-// `AllMotions` dual-read that also translated the pre-collapse `dispute`/`petition`/`avenue-rule`
-// events, so an archived record would not render NOTHING and look exactly like a run that had no
-// disputes and no petitions. That compatibility layer is gone — see the note above record.Motions
-// for why its premise did not hold and what it costs if that judgement was wrong.
+// It reads through record.Motions, the one read of the one motion vocabulary.
 func motions(fam record.Family) string {
 	ms := record.MotionsOf(fam.Events, fam.At)
 	if len(ms) == 0 {

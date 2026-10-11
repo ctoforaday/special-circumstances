@@ -157,7 +157,7 @@ type Gap struct {
 	// Closure and BenchClosure are the CLOSING EVENT'S BODY, and they are two fields because a
 	// closure arrives as one of two different messages.
 	//
-	// `merge close` writes a Close (a closure_class, an anchor triple, a successor, a
+	// `lens close` writes a Close (a closure_class, an anchor triple, a successor, a
 	// carried-from); the bench writes a DocketRuling on a motion (a disposition, a principle, what
 	// it settles) and closes the gap when that disposition is not `remanded`. The old map-shaped payload let
 	// one field hold either, which is why every reader downstream spells the same question twice —
@@ -191,18 +191,16 @@ type Gap struct {
 
 // NeedsComputation reports whether this gap's acceptance check is one PROSE CANNOT SETTLE.
 //
-// It is the rule that decides whether a gap can close at all, and it was written out as a bare
-// literal comparison at estoppel.go:279, sitting.go:212 and cli/merge/close.go:159 — three chances
-// to disagree about one rule, in three packages, with nothing able to see them drift. Under the
-// schema each of those becomes the same enum compare, which is the moment to place it once.
+// It is the rule that decides whether a gap can close at all, placed once: a bare literal
+// comparison written out at each site that asks is as many chances to disagree about one rule,
+// across packages, with nothing able to see them drift.
 //
-// IT DOES NOT ASK WHETHER THE GAP IS OPEN, and callers must keep that condition themselves.
-// Two of the three sites read `!g.Open || g.Mint == nil || <this>`; openness is about whether the
-// debt is still owed, this is about what would discharge it, and folding them together would make
-// a closed computation gap indistinguishable from a document one.
+// IT DOES NOT ASK WHETHER THE GAP IS OPEN, and callers must keep that condition themselves:
+// openness is about whether the debt is still owed, this is about what would discharge it, and
+// folding them together would make a closed computation gap indistinguishable from a document one.
 //
 // A nil gap or a gap with no mint answers false: GetCheckKind on an absent Mint is the
-// UNSPECIFIED zero, which is what the `g.Mint == nil` guards at those sites already meant.
+// UNSPECIFIED zero.
 // GradeAt returns the gap's grade on ONE axis, and whether that axis is one this binary knows.
 //
 // THE SECOND RETURN IS LOAD-BEARING. A dimension added to the enum and not added here would
@@ -359,10 +357,9 @@ type Observation struct {
 	Finding *recordpb.Finding
 }
 
-// THE FOLD IS GONE (plans/board-as-views.md wave 7). The Board struct and BoardState were
-// the last Go replay of the record; every reader now derives from the gap view, the typed
-// loader and the family (GapStates/FamilyOf), and the consistency oracle holds THAT assembly
-// to its own raw walk. Gap survives: it is the family's per-gap shape, filled by GapStates.
+// NO GO FOLD OF THE RECORD EXISTS (plans/board-as-views.md wave 7). Every reader derives from
+// the gap view, the typed loader and the family (GapStates/FamilyOf), and the consistency oracle
+// holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by GapStates.
 
 func allGapIDs(run Run) (map[string]bool, error) {
 	db, err := openRunForRead(run)

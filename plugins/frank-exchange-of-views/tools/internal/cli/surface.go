@@ -159,7 +159,7 @@ func walkSurface(root *cobra.Command, fn func(path []string, c *cobra.Command)) 
 }
 
 // CommandReferences returns, per command path, each flag that carries an EXISTENCE CHECK and the
-// entity type that flag names — "merge close" -> {"id": "gap-id", "superseded-by": "gap-id"}.
+// entity type that flag names — "lens close" -> {"id": "gap-id", "superseded-by": "gap-id"}.
 //
 // THE THIRD EDGE OF THE SURFACE GRAPH (#535). CommandPaths says what verbs exist, CommandRecords
 // what each writes to the record; this says what each must POINT AT that already exists. A verb

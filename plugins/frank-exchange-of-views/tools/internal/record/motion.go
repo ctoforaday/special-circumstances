@@ -15,21 +15,15 @@ import (
 
 // ONE ADJUDICATION MECHANISM, WITH AN ID (#344).
 //
-// The propose→rule exchange was implemented three times, with three vocabularies and no shared
-// identity:
+// A direction, a governance petition, a grade dispute and a docket question are ONE propose→rule
+// exchange. A motion has an ID: the ask and its answer join on it, once, and one renderer serves
+// every subject.
 //
-//	directions   blue avenue      -> merge avenue-rule       key `ruling`
-//	governance   <seat> petition  -> bench petition-rule      key `ruling`
-//	grades       blue dispute     -> merge dispute-respond    key `response`
-//
-// Two spellings of one concept, three renderers, and nothing tying an ask to its answer. That is
-// the direct cause of a defect class fixed one instance at a time: #315 found the petition FILING
-// unrendered while the avenue RULING was found unrendered SEPARATELY in the same sweep, because
-// nothing said they were the same mechanism. #312 is the same root — `petition-rule` joins on
-// `(petitioner, class)` with no id, which is why the report renders filings and rulings side by
-// side rather than joined: pairing two filings by one seat in one epoch would be a guess.
-//
-// A motion has an ID. The ask and its answer join on it, once, and one renderer serves all three.
+// The shape it rules out is one exchange per subject, each with its own vocabulary and no shared
+// identity: nothing ties an ask to its answer, a filing goes unrendered in one exchange while a
+// ruling goes unrendered in another (#315) because nothing says they are the same mechanism, and
+// an answer joined on `(seat, class)` with no id (#312) can only be rendered beside its ask —
+// pairing two filings by one seat in one epoch is a guess.
 
 // MotionSubjects are what a motion can be ABOUT. Each carries its own required payload and its
 // own ruler, which is why the CLI subgroups them rather than taking a --on flag: cobra cannot
@@ -49,7 +43,7 @@ var MotionVerdicts = map[string][]EnumValue{
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
 	"avenue":   evsOf(recordpb.AvenueRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
-	// the same words `merge close` uses, which is what "one vocabulary, whichever verb closed it"
+	// the same words `lens close` uses, which is what "one vocabulary, whichever verb closed it"
 	// means. Copying the words here would be the second list that drifts, and an August draft of
 	// this change did exactly that: it printed a set taken from the bench's CONSTITUTION rather
 	// than from the code, and got it wrong in both directions.
@@ -256,21 +250,17 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 	}
 	proposals := map[string]proposal{}
 
-	// TWO PASSES, FOR THE REASON compat.go SPELLS OUT, AND I WROTE THE BUG HERE ANYWAY.
+	// TWO PASSES, SO THE JOIN DOES NOT DEPEND ON THE ORDER THE EVENTS ARRIVE IN.
 	//
-	// Each seat writes its own shard and replay orders by TIMESTAMP across all of them, so the
-	// shards interleave and A RULING CAN REPLAY BEFORE ITS FILING — the bench rules a petition blue
-	// filed, and the two events live in different shards. A single pass that files-then-rules drops
-	// every ruling that lands first, silently: the motion still renders, as an ask nobody answered.
+	// A single pass that files-then-rules drops every ruling it meets ahead of its filing,
+	// silently: the motion still renders, as an ask nobody answered. The prose gate (#320) is what
+	// catches that — "judge-petition/motion-rule prose absent from report", on 25 of 60 seeds
+	// when a ruling could replay first.
 	//
-	// I documented exactly this in compat.go after the fixture caught it, and then shipped the same
-	// single pass in the function compat.go exists to be the legacy twin of. What caught it was the
-	// prose gate (#320) — "judge-petition/motion-rule prose absent from report" on 25 of 60 seeds —
-	// not the reasoning that had already been written down one file over.
-	// A PASS OF ITS OWN, for the same interleaving reason: blue proposes the avenue and the chair
-	// rules it, so the two live in different shards and the ruling can replay first. Gathered
-	// inside pass 1 this map was read before it was filled, and a direction motion came out with
-	// no filer, no epoch and no ask — rendering as an answer to a question nobody asked.
+	// THE PROPOSALS GET A PASS OF THEIR OWN, for the same reason: blue proposes the avenue and the
+	// chair rules it. Gathered inside the pass that reads the rulings, this map is read before it
+	// is filled, and a direction motion comes out with no filer, no epoch and no ask — rendering as
+	// an answer to a question nobody asked.
 	for _, e := range evs {
 		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
 		// A MOVE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
@@ -378,10 +368,6 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				// 45 rulings — so the report's "N motions received no ruling" would have been
 				// dominated by lines nobody was ever going to rule on, and the one signal that
 				// message exists to carry (a sitting that did not happen) would have drowned in it.
-				//
-				// compat.go builds the legacy direction motion the same way, from `avenue-rule`.
-				// One shape for both vocabularies, which is what makes the dual-read a translation
-				// rather than a second model.
 				m := &Motion{ID: id, Subject: "avenue", Fields: map[string]string{"avenue_id": id}}
 				if p, ok := proposals[id]; ok {
 					m.Filer, m.Epoch, m.Sitting, m.Basis = p.filer, p.epoch, p.sitting, p.basis
@@ -586,24 +572,3 @@ func MotionVerdictEnum(subject string) EnumField {
 		Why: "the ruling is what BINDS the coming seats, and every downstream reader switches on it; an unrecognized verdict reads as no ruling at all, so a refusal silently becomes permission",
 	}
 }
-
-// THE DUAL-READ IS GONE, and this is where it was.
-//
-// Before the motion collapse (#344) the three exchanges were written as `dispute`/`dispute-respond`,
-// `petition`/`petition-rule` and `avenue`/`avenue-rule`. `compat.go` translated those retired shapes
-// through an `AllMotions` seam so a stored pre-collapse record would not render `0 filed / 0 ruled`
-// — a plausible zero indistinguishable from a run that genuinely had no disputes.
-//
-// That reasoning was sound and its PREMISE was not. It declared itself permanent on the grounds
-// that "stored runs are re-read" and that installing projects hold records this repo cannot see.
-// Checked 2026-08-16 rather than assumed: the only records anywhere carrying the retired types were
-// `internal/record/testdata/pre-motion-run` and `pre-motion-real-run` — two fixtures created to
-// exercise the dual-read — plus one research run referenced solely in code comments. The
-// compatibility code's entire evidence base was the fixtures written to justify it.
-//
-// Two sessions reached that conclusion independently on the same instruction and deleted it in
-// parallel; the chair kept `Motions` as the single read and dropped the `AllMotions` seam with it.
-//
-// THE COST IF THE PREMISE IS WRONG, stated rather than left to be discovered: a record written
-// before #344 renders an empty motions section and `0 filed / 0 ruled`, exactly the plausible zero
-// compat.go existed to prevent.

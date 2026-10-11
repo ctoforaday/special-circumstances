@@ -214,7 +214,7 @@ func gapFlowMermaid(f record.Family) string {
 		}
 		// A hole is a genuine defect, not merely a quiet gap: a dispute nobody answered, or a
 		// TORN closure — closed with no recorded reason (no closure_class, no disposition). A
-		// merge close that carries its closure_class is NOT a hole, even with no disposition.
+		// `lens close` that carries its closure_class is NOT a hole, even with no disposition.
 		hole := (pg.motionsFiled > 0 && pg.motionsRuled == 0) || (!g.Open && reason == "")
 		if hole {
 			class = "hole"

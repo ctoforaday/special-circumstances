@@ -7,7 +7,7 @@ package recordsql
 // The schema comes from the descriptors because it IS the proto, restated. A projection is not:
 // "which gaps are still open" is a QUESTION about the record, and questions are authored. So these
 // are written, and they are written HERE rather than in each reader — which is the actual defect
-// being removed. `BoardState` folds the event stream in Go and every consumer folds it again a
+// these views remove. A fold of the event stream written in Go is one every consumer folds again a
 // little differently: the closure index, the worklist, the scorecard's denominator, the dashboard's
 // counts. That is where `filed > ruled` came to compute `0 > 0` forever and where a dispute counter
 // sat at zero through every run, because a fold nobody can see is a fold nobody checks.
@@ -23,7 +23,7 @@ package recordsql
 // Making it an enum was the price of this join, and the join is the smaller half of what it bought.
 // `closes` is now an annotation ON each value, so the vocabulary table carries it as a NOT NULL
 // column and a value added without answering the question fails at build. The predicate is a
-// SELECT, the schema refuses a partly-annotated set, and `merge close` may not write `remanded`
+// SELECT, the schema refuses a partly-annotated set, and `lens close` may not write `remanded`
 // because the CHECK is expanded from the same annotation.
 //
 // # What a gap being closed by BOTH arms means here

@@ -255,7 +255,7 @@ func scalarField(fd protoreflect.FieldDescriptor) (col string, checks []string, 
 	}
 	if fd.Kind() == protoreflect.EnumKind {
 		fks = append(fks, fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(\"value\")", fd.Name(), EnumTableName(fd.Enum())))
-		// A column may reach only PART of its vocabulary — `merge close` may close and may not
+		// A column may reach only PART of its vocabulary — `lens close` may close and may not
 		// carry. The admitted words are expanded from the values' own facet annotation, so the
 		// constraint and the Go refusal beside it read the same declaration.
 		if facet := Opts(fd).GetSubset(); facet != "" {

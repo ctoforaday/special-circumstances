@@ -1134,7 +1134,7 @@ func (AvenueRuling) EnumDescriptor() ([]byte, []int) {
 // The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote never was: an
 // avenue id either names a line this run proposed or it does not.
 //
-// IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `merge mint` took
+// IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `lens mint` took
 // `--quote` and told the seat, in its own help, to "quote the sentence where it SHOULD be — that
 // is how a lens finding anchors an omission". Naming this after the finding would leave the seat
 // spelling one act two ways across two verbs, which is a worse failure for the reader of the help
@@ -3162,7 +3162,7 @@ type Mint struct {
 	// mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
 	//
 	// `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
-	// answers and a bench weighs. cli/merge/mint.go stores it only when the two DIFFER, so a mint
+	// answers and a bench weighs. `lens mint` stores it only when the two DIFFER, so a mint
 	// that passed its problem through --reason does not carry it twice.
 	//
 	// IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
