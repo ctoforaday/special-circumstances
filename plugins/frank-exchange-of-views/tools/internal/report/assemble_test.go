@@ -6,6 +6,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"google.golang.org/protobuf/proto"
 	"os"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -326,6 +328,15 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 		prompt := strings.ReplaceAll(renderedPrompt(t, seat), "\n", " ")
 		if !strings.Contains(prompt, list) {
 			t.Errorf("the %s prompt does not name the sections the tool composes as the table has them: %s", seat, list)
+		}
+		// AND NOTHING ELSE AS THE TOOL'S: a heading appended to the list leaves the table's list
+		// inside it. Every `## ` heading the prompt names is a row of the table, the wrapper it
+		// forbids beside them, or one of the report's own it tells blue to write.
+		for _, m := range regexp.MustCompile("`## ([^`]+)`").FindAllStringSubmatch(prompt, -1) {
+			row := slices.ContainsFunc(layout, func(s Section) bool { return s.Heading == m[1] })
+			if !row && m[1] != "Blue team report" {
+				t.Errorf("the %s prompt names `## %s`, which is no section of the table", seat, m[1])
+			}
 		}
 		for _, s := range layout {
 			if s.Composer == Tool && s.Line != "" && !strings.Contains(prompt, "`"+s.Line+"`") {
