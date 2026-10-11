@@ -163,6 +163,38 @@ func TestSessionStartRunsTheSweepAndMarksRetention(t *testing.T) {
 	}
 }
 
+// THE DAILY PASS LOOKS AT THE DISK. A transcript the store read and the client has since removed is
+// recorded as gone by the first SessionStart of the day — the call site, which a test of MarkGone
+// alone would not miss. The session is this hook's own, so it is live and retention spares its row.
+func TestSessionStartRecordsATranscriptGoneFromDisk(t *testing.T) {
+	sid := "sess-gone"
+	home, store := fixtureHome(t, sid, "Read")
+	dir := t.TempDir()
+	tp := filepath.Join(home, ".claude", "projects", "-w", sid+".jsonl")
+	in := `{"session_id":"` + sid + `","transcript_path":` + strconv.Quote(tp) + `,"cwd":` + strconv.Quote(dir) + `}`
+	if _, stderr, code := call(t, in, dir, okStat(9), "-event", "Stop"); code != 0 {
+		t.Fatalf("Stop exited %d: %s", code, stderr)
+	}
+	if err := os.Remove(tp); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, code := call(t, in, dir, okStat(9), "-event", "SessionStart"); code != 0 {
+		t.Fatalf("SessionStart exited %d: %s", code, stderr)
+	}
+	db, err := sql.Open("sqlite", store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var gone sql.NullInt64
+	if err := db.QueryRow(`SELECT gone_at FROM v_transcript WHERE path = ?`, tp).Scan(&gone); err != nil {
+		t.Fatalf("the store no longer names the transcript it read: %v", err)
+	}
+	if !gone.Valid {
+		t.Error("SessionStart's daily pass left a removed transcript unmarked")
+	}
+}
+
 // registration is one session's row as the registration left it.
 type registration struct {
 	projectDir, bridge string

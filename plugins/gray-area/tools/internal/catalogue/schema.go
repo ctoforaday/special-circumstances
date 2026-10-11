@@ -76,7 +76,13 @@ CREATE TABLE IF NOT EXISTS file_offset (
     agent_id  TEXT NOT NULL DEFAULT '',
     offset    INTEGER NOT NULL,
     size      INTEGER NOT NULL,
-    head_sha  TEXT NOT NULL
+    head_sha  TEXT NOT NULL,
+    -- gone_at is WHEN THE STORE NOTICED THE FILE WAS NO LONGER ON DISK (MarkGone), and NULL while
+    -- it was there at the last look. The client expires transcript files on its own clock and the
+    -- rows read from one outlive it, so without this a session whose transcript is gone and one
+    -- whose transcript is a path away read the same. It is when the store LOOKED, not when the
+    -- file went: the look is once a UTC day and at every backfill. A file found again at a later look clears it.
+    gone_at   INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS act (
@@ -153,8 +159,8 @@ CREATE INDEX IF NOT EXISTS act_ts     ON act (ts);
 CREATE INDEX IF NOT EXISTS act_session_ts ON act (session_id, ts);
 
 -- THE PUBLISHED CONTRACT. Callers query these, never the tables above.
--- first_act/last_act are NULL for a session with no acts — a real state (a session that only
--- spoke), and distinct from a session whose acts are simply old.
+-- first_act/last_act are NULL for a session with no acts the store holds — a session that only
+-- spoke, or one whose acts are past the window while newer words keep its row.
 DROP VIEW IF EXISTS v_session;
 CREATE VIEW IF NOT EXISTS v_session AS
     SELECT s.session_id, s.project_dir, s.cwd,
@@ -172,6 +178,11 @@ CREATE VIEW IF NOT EXISTS v_thought AS
     SELECT session_id, agent_id, prompt_id, block_seq, ts, text FROM thought;
 CREATE VIEW IF NOT EXISTS v_skip AS
     SELECT session_id, agent_id, prompt_id, reason, at FROM skip;
+-- One row per transcript FILE the store has read. agent_id is '' for a session's own transcript.
+-- size is the file's size at the last read; gone_at is NULL while the file was on disk at the
+-- store's last look.
+CREATE VIEW IF NOT EXISTS v_transcript AS
+    SELECT path, session_id, agent_id, size, gone_at FROM file_offset;
 `
 
 // UserVersion is the shape this binary writes. Open refuses a database written by a NEWER one:
@@ -195,16 +206,22 @@ CREATE VIEW IF NOT EXISTS v_skip AS
 // the store with it. The rebuild costs every closed_at marker, so each session closed before the
 // next boot can read as cut off once — candidates a human filters (plans/restart-recovery.md,
 // Accepted costs).
-const UserVersion = 5
+//
+// WHY 6. file_offset gains gone_at, and v_transcript publishes it. The rebuild this triggers
+// costs what every rebuild costs, and here it is the very population the column is for: rows
+// whose transcript is already gone cannot be backfilled, so the store begins recording absence
+// from the transcripts that exist on the day of the upgrade.
+const UserVersion = 6
 
 // ViewColumns is the contract §V.6 pins, restated here so a test can compare against a
 // declaration rather than against the DDL it is testing.
 var ViewColumns = map[string][]string{
-	"v_session": {"session_id", "project_dir", "cwd", "first_act", "last_act", "ingested_first", "ingested_last", "closed_at", "capture_build", "bridge_session_id"},
-	"v_action":  {"session_id", "agent_id", "seq", "ts", "tool", "target", "outcome"},
-	"v_word":    {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "role", "text", "source", "provisional", "attribution"},
-	"v_thought": {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "text"},
-	"v_skip":    {"session_id", "agent_id", "prompt_id", "reason", "at"},
+	"v_session":    {"session_id", "project_dir", "cwd", "first_act", "last_act", "ingested_first", "ingested_last", "closed_at", "capture_build", "bridge_session_id"},
+	"v_action":     {"session_id", "agent_id", "seq", "ts", "tool", "target", "outcome"},
+	"v_word":       {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "role", "text", "source", "provisional", "attribution"},
+	"v_thought":    {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "text"},
+	"v_skip":       {"session_id", "agent_id", "prompt_id", "reason", "at"},
+	"v_transcript": {"path", "session_id", "agent_id", "size", "gone_at"},
 }
 
 // Outcome values for act.outcome.

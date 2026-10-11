@@ -212,7 +212,13 @@ func sweep(in hookInput, r *report) {
 	}
 	now := time.Now()
 	if catalogue.DueForRetention(db, now) {
-		if _, err := catalogue.Retain(db, lim, now); err != nil {
+		// THE DAILY LOOK AT THE DISK rides the daily half: a stat per transcript the store names is
+		// cheap, and a day is finer than the client's own cleanup, which runs when a client starts.
+		if _, err := catalogue.MarkGone(db, now); err != nil {
+			r.fail(stageRetention, fmt.Sprintf("catalogue gone transcripts: %v (capture unaffected)", err))
+			return
+		}
+		if _, err := catalogue.Retain(db, lim, now, live); err != nil {
 			r.fail(stageRetention, fmt.Sprintf("catalogue retention: %v (capture unaffected)", err))
 			return
 		}

@@ -71,7 +71,7 @@ Every verb takes `--help`, and each one's help states what that verb cannot tell
 for a complete one.
 
 `sql` is read-only and the views are the published contract: **`v_session`, `v_action`, `v_word`,
-`v_thought`, `v_skip`**. Write your own query rather than asking for a verb — the questions worth
+`v_thought`, `v_skip`, `v_transcript`**. Write your own query rather than asking for a verb — the questions worth
 asking are not knowable in advance, which is why the surface is SQL and not a menu. `sql --help`
 prints the columns of each view, generated from the schema rather than retyped beside it.
 
@@ -109,6 +109,13 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   evidence of nothing but the client's settings.
 - **A session that predates capture contributes nothing** until `backfill` has read it. Absence of
   rows is not absence of work.
+- **The store keeps a month, by each record's own time, and the client expires transcript FILES on
+  a clock of its own** (`cleanupPeriodDays`, measured from a file's last write). A session older
+  than a month reads from its oldest KEPT act, not its first. A session can be in the store and
+  gone from disk: `v_transcript.gone_at` records when the store noticed, `session` says how many
+  of a session's files are gone, and `find` cannot search them. The store looks once a UTC day and
+  at every `backfill`, so BEFORE reading a NULL `gone_at` as "the transcript is there", YOU MUST
+  check the path — a file that went since the last look is not yet marked.
 - **An upgrade can rebuild the store EMPTY.** When a gray-area update changes the store's shape,
   the next open rebuilds it rather than migrating it, and it holds only what the hooks have read
   since. Every read verb then prints `telepathy: the store was rebuilt at … and has not been

@@ -26,7 +26,17 @@ a file that was REWRITTEN is detected and re-read from the beginning.
 It is also the remedy after an upgrade. A gray-area update that changes the
 store's shape rebuilds it EMPTY on the next open, and every read verb warns until
 a backfill has completed; this re-reads the transcripts that still exist and
-clears the warning. Sessions whose transcripts are gone do not come back.`,
+clears the warning. Sessions whose transcripts are gone do not come back.
+
+A transcript read from the top — one the store holds no offset for, as after a
+rebuild, or one that was rewritten — is read whatever its age, and the store
+keeps a month by each record's own time: records older than that are read in and
+removed again by the next day's prune, and a session whose every record is that
+old goes with them.
+
+It also looks for every transcript the store names, and records the ones no
+longer on disk (v_transcript.gone_at). Their rows are kept: they are then the
+only record of those files.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if env.Store == "" {
@@ -62,9 +72,17 @@ clears the warning. Sessions whose transcripts are gone do not come back.`,
 				return fmt.Errorf("the backfill completed but its marker could not be written, "+
 					"so a rebuild warning will not clear: %w", err)
 			}
+			gone, err := catalogue.MarkGone(db, env.Now())
+			if err != nil {
+				return err
+			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "backfilled %d transcripts, %.0f MB in %.1fs\n  %d acts, %d words, %d thoughts\n",
 				len(files), float64(read)/1e6, env.Now().Sub(start).Seconds(), acts, words, thoughts)
+			if gone > 0 {
+				fmt.Fprintf(out, "  %d transcript(s) the store names are gone from disk — their rows are kept, and "+
+					"v_transcript says which\n", gone)
+			}
 			if skipped > 0 {
 				// SAID AT THE POINT OF INGEST, not left to whoever queries v_skip later. This is
 				// the single largest population the projection drops, and on the measured corpus

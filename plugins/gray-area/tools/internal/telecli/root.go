@@ -78,8 +78,16 @@ then is not evidence, and telepathy warns until telepathy backfill has run. A
 'lost' session is inferred from the store and the boot time, not measured: it is a
 candidate for a human, and the resume attempt is the check.
 
-The five views ARE the contract, and telepathy sql reads them directly:
-v_session, v_action, v_word, v_thought, v_skip.`
+THE STORE KEEPS A MONTH, BY EACH RECORD'S OWN TIME, and the client expires
+transcript FILES on a clock of its own (cleanupPeriodDays, measured from a file's
+last write). So a session older than a month reads here from its oldest KEPT act,
+not its first, and a session can be whole on disk and partial here, or here and
+gone from disk. The store records that last case — v_transcript.gone_at, and a
+line under telepathy session — from a look it takes once a UTC day and at every
+backfill, so a file that went since the last look is not yet marked.
+
+The six views ARE the contract, and telepathy sql reads them directly:
+v_session, v_action, v_word, v_thought, v_skip, v_transcript.`
 
 // usageError marks a refusal that is the CALLER's phrasing rather than a fact about the world, so
 // Execute can exit 2 for it and 1 for everything else. Conflating the two makes a script unable to

@@ -52,7 +52,7 @@ telepathy agents              who is running, in which worktree, doing what — 
 telepathy touched <path>      is anyone else acting on this file
 telepathy session <id>        one session's calls and errors, by tool
 telepathy find <term>         search every local transcript: who, when, where, and the text
-telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip
+telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip / v_transcript
 telepathy backfill            read the existing corpus in; safe to repeat
 ```
 
@@ -81,6 +81,52 @@ next open rather than migrating it (the store is derived), so an empty or thin a
 an upgrade is not evidence of anything; every `telepathy` read verb warns on stderr until
 `telepathy backfill` has run, and sessions whose transcripts are gone do not come back. A file
 that is not recognised as a catalogue — a mistyped `--store` — is refused and never written.
+
+**Two things expire, on two clocks.** The client deletes transcript *files*; the store deletes
+its own *rows*. Both default to thirty days, and nothing else about them is shared — neither
+knows the other ran.
+
+| | the client's transcripts | the store |
+|---|---|---|
+| what expires | a whole file | each act, word, thought and skip on its own; a session row with its last one |
+| measured from | the file's last write (`mtime`) — never a timestamp inside it | the record's own transcript timestamp |
+| window | `cleanupPeriodDays` in the client's settings, default 30 | 30 days, fixed |
+| runs | when a client starts | once a UTC day, at a `SessionStart` |
+
+The client's side is its own rule, read from client 2.1.296 and checked against this box's disk;
+a later client may move it. A main transcript takes its `<session>/` folder — every subagent and
+workflow transcript under it — when it goes, and a subagent transcript is never swept while its
+parent exists, whatever its own age. An empty transcript with no session folder is kept. Because
+the measure is the last write, one new turn in a resumed session renews the whole file, first
+record included.
+
+The store's side is transcript time throughout. A session row goes when its newest act, word,
+thought or skip is past the window — the same last sign of life `agents --lost` reads — and a
+session with no records goes a window after it registered. When the store READ a session decides
+nothing: a backfill stamps every session it reads with the wall clock, and a row kept by that
+stamp is a session the store lists and can say nothing about. A session the client advertises as
+running is never expired, whatever its records say.
+
+What follows from the two clocks not agreeing:
+
+- **A long session is whole on disk and partial here.** Its transcript survives as long as it is
+  written to; the store keeps the last thirty days of it. `first_act` is the oldest act the store
+  still HOLDS, not when the session began.
+- **A session can be here and gone from disk, and the store says so.** The rows outlive the file
+  for as long as their own timestamps allow — on purpose: they are then the only record. Once a
+  UTC day, and at every `backfill`, the store looks for each transcript it names and records the
+  ones that are gone: `v_transcript.gone_at` is when it noticed, `telepathy session` says how many
+  of a session's files are gone, and `find`, which reads the files, counts them out. `gone_at` is
+  when the store LOOKED, not when the file went, and a file that went since the last look is not
+  yet marked.
+- **A backfill brings back nothing the window would not keep.** After a rebuild it reads every
+  surviving transcript from the top, so records older than the window are read in — and the next
+  day's prune removes them, and any session that holds nothing newer.
+- **Raising `cleanupPeriodDays` lengthens what `find` can search and what a backfill can re-read.**
+  It does not lengthen what the store keeps.
+- **A rebuild forgets what is gone.** A shape change rebuilds the store empty and a backfill
+  refills it from the transcripts that exist, so rows whose file had already expired do not come
+  back, and neither does the record that it had.
 
 **A hook that fails says so where you look.** Every capture hook exits 0 — a broken store must never
 cost a session its turn — and a hook's stderr at exit 0 reaches only the client's debug log. So each
@@ -147,8 +193,8 @@ Interrupts are `user` at top level and `lead` in a seat's transcript. Messages d
 signature and no text — 15,503 of them across 99 sessions here, against 248 thoughts stored, and
 none with text since 2026-09-08. They are recorded as `thinking-empty` skips rather than dropped,
 so "reasoning withheld" and "did not reason" stop being the same zero. `v_session` likewise now
-separates `first_act`/`last_act`, which is the session's own span, from `ingested_first`/
-`ingested_last`, which is only when this store saw it — the old `first_seen`/`last_seen` invited
+separates `first_act`/`last_act`, which is the span of the session's acts the store still holds,
+from `ingested_first`/`ingested_last`, which is only when this store saw it — the old `first_seen`/`last_seen` invited
 exactly that confusion and got it. Its `bridge_session_id` is `''` where capture never saw a cloud
 id, which is not the same as a session that had none.
 
