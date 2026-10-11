@@ -332,11 +332,7 @@ var strayID = regexp.MustCompile(`\b([GQM]\d+|[fcp]-[0-9a-f]{8}|[a-z]+(?:-[a-z]+
 // `logic-F1`) and name nothing on the record.
 func TestNoOldIdSurvivesMigration(t *testing.T) {
 	for _, name := range archivedRuns(t) {
-		toDir := recordtest.TmpRun(t)
-		res, err := Migrate(recordtest.ExtractArchive(t, name), toDir, Entries(), Options{})
-		if err != nil {
-			t.Fatalf("migrate %s: %v", name, err)
-		}
+		res, toDir := MigratedArchive(t, name)
 		run, err := record.OpenRun(toDir)
 		if err != nil {
 			t.Fatal(err)

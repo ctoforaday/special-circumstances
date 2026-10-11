@@ -8,7 +8,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -23,10 +22,7 @@ func TestEveryFindingIdPrintsItsArea(t *testing.T) {
 	finding := regexp.MustCompile(`\b` + anchor.IDPattern("finding") + `\b( \((?:` + strings.Join(record.LensAreas, "|") + `)\))?`)
 	named, seatsWords := 0, 0
 	for _, name := range archivedRuns(t) {
-		toDir := recordtest.TmpRun(t)
-		if _, err := Migrate(recordtest.ExtractArchive(t, name), toDir, Entries(), Options{}); err != nil {
-			t.Fatalf("migrate %s: %v", name, err)
-		}
+		_, toDir := MigratedArchive(t, name)
 		run, err := record.OpenRun(toDir)
 		if err != nil {
 			t.Fatal(err)

@@ -13,6 +13,7 @@ import (
 
 	_ "modernc.org/sqlite" // the module's own driver; opened directly, never through recordsql.Open
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
@@ -131,7 +132,7 @@ func (s *SQLiteSource) Events() ([]OldEvent, error) {
 }
 
 func tableForWord(word string) string {
-	if fd := bodyFieldFor(word); fd != nil {
+	if fd, ok := recordpb.BodyField(word); ok {
 		return recordsql.TableName(fd.Message())
 	}
 	return word

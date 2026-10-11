@@ -120,11 +120,11 @@ func recordTypeOf(t *testing.T, args []string) recordpb.EventType {
 	if w, ok := map[string]string{"avenue": "avenue"}[word]; ok {
 		word = w
 	}
-	vd, ok := recordpb.BySpelling(recordpb.EventType(0).Descriptor(), strings.ReplaceAll(word, "-", "_"))
+	typ, ok := recordpb.EventTypeOf(strings.ReplaceAll(word, "-", "_"))
 	if !ok {
 		t.Fatalf("%q maps to %q, which is not an event type the schema declares — the verb->event mapping above is stale", args[0], word)
 	}
-	return recordpb.EventType(vd.Number())
+	return typ
 }
 
 // payloadOfLast renders the event's payload as stable text, dropping the fields that differ by
