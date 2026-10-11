@@ -111,6 +111,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
 	})
+	add("blue-respond", &recordpb.Avenue{
+		AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED),
+		Line: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
+	})
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
 	// the filing, so the ruling alone would be a disposition of nothing.
@@ -277,6 +281,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("blue's fabricated/duplicated content leaked into the report (%q)\n---\n%s", forbidden, got)
 		}
 	}
+
+	composedHeadingsAreNamedToBlue(t, blue, got, "## Risk matrix", "## Research areas", "## Future research directions", "## Alternatives considered")
 
 	// Fate is not crossed: the pursued avenue is an expansion, not an alternative.
 	alt := got[strings.Index(got, "## Alternatives considered"):]

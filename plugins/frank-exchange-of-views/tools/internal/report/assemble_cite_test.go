@@ -125,6 +125,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Proof. https://ex/coherence (accessed 2026-08-03)") {
 		t.Errorf("composed bibliography missing:\n%s", got)
 	}
+	composedHeadingsAreNamedToBlue(t, blue, got, "## Bibliography")
 	if strings.Contains(got, "blue's own hand-typed footnote") {
 		t.Error("blue's hand-authored footnote leaked through (must be dropped)")
 	}

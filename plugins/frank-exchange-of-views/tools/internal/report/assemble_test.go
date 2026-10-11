@@ -3,7 +3,9 @@ package report
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"google.golang.org/protobuf/proto"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -249,6 +251,78 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 				"caught exactly that when `proposed` was excluded)", status, got, want)
 		case got[0] != want:
 			t.Errorf("status %q rendered under %q, want %q", status, got[0], want)
+		}
+		// AND THE SENTENCE A SEAT READS SAYS THE SAME. AvenueSections is printed on the pages of
+		// the acts that write an avenue, on the page that prints the report and in blue's prompts;
+		// it names each heading and then the fates it holds, so a status belongs to the clause that
+		// opens at its heading.
+		heading := map[string]string{"research": "Research areas", "future": "Future research directions", "alternatives": "Alternatives considered"}
+		said := ""
+		for name, h := range heading {
+			from := strings.Index(AvenueSections, h)
+			if from < 0 {
+				t.Fatalf("AvenueSections does not name %q: %s", h, AvenueSections)
+			}
+			clause := AvenueSections[from+len(h):]
+			for _, other := range heading {
+				if i := strings.Index(clause, other); i >= 0 {
+					clause = clause[:i]
+				}
+			}
+			if strings.Contains(clause, status) {
+				said += name
+			}
+		}
+		if said != want {
+			t.Errorf("AvenueSections puts %q under %q and the assembler under %q: %s", status, said, want, AvenueSections)
+		}
+	}
+}
+
+// composedHeadingsAreNamedToBlue fails for every "## " heading in an assembled report.md that
+// blue's own text does not carry and blue's dispatch prompts do not name.
+//
+// EVERY SECTION ASSEMBLY COMPOSES INTO THE REPORT IS NAMED TO BLUE AS THE TOOL'S. The prompts'
+// list of them is read as the whole of it: on universe-m20 it named the risk matrix, the board and
+// the debate, blue wrote "## Alternatives considered" by hand, and assembly dropped it with a
+// proof and fifteen other anchors in it. The composer is code and the list is prose in debate.js,
+// which no generator writes and which runs with no import step, so the two are held together
+// here: the headings are read off the ASSEMBLED document, never a second list of them, and the
+// prompts off their rendered goldens, which the simulator suite holds to debate.js.
+//
+// A heading composed only when the record holds something the caller's fixture lacks is not
+// read; the callers between them compose the risk matrix, the three avenue sections and the
+// bibliography.
+func composedHeadingsAreNamedToBlue(t *testing.T, blue, reportMd string, wantRead ...string) {
+	t.Helper()
+	prompts := map[string]string{}
+	for _, seat := range []string{"blue-synthesize", "blue-respond"} {
+		prompts[seat] = renderedPrompt(t, seat)
+	}
+	read := map[string]bool{}
+	for _, ln := range strings.Split(reportMd, "\n") {
+		// Blue's own surfaces are not composed: lifted where blue wrote them, and a one-line
+		// placeholder under the same heading where it did not.
+		if !strings.HasPrefix(ln, "## ") || strings.Contains(blue, ln) || ln == "## Additional findings" ||
+			strings.Contains(sectionOr("", strings.TrimPrefix(ln, "## ")), "not authored here") && strings.Contains(reportMd, sectionOr("", strings.TrimPrefix(ln, "## "))) {
+			continue
+		}
+		read[ln] = true
+		for seat, prompt := range prompts {
+			if !strings.Contains(prompt, "`"+ln+"`") {
+				t.Errorf("assembly composes %q into report.md and the %s prompt does not name it among the sections that are the tool's", ln, seat)
+			}
+		}
+	}
+	for _, h := range wantRead {
+		if !read[h] {
+			t.Errorf("the fixture no longer composes %q, so this check did not read it", h)
+		}
+	}
+	// The avenue rule reaches the seats that write the report in the assembler's own sentence.
+	for _, seat := range []string{"blue-synthesize", "blue-lane-1"} {
+		if !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
+			t.Errorf("the %s prompt does not state which fate lands under which heading as the assembler does (AvenueSections)", seat)
 		}
 	}
 }
@@ -516,6 +590,9 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 		"## TL;DR", "lifted to the top.", "",
 		"## Analysis", "also lifted.", "",
 		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
+		"## Research areas", "a hand copy of the avenues.", "", // tool-owned — dropped, as its two siblings are
+		"## Future Research Directions", "a second hand copy.", "",
+		"## Alternatives considered", "a third hand copy.", "",
 		"## The Board", "blue cannot know red's findings.", "", // tool-owned — dropped
 		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
 		"## Footnotes", "[^a]: a citation blue tried to author.", "", // DROPPED — citations are tool-composed now
@@ -528,7 +605,7 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "**Outcome:**", "(asserted by blue)", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "hand copy", "blue cannot know", "[to be filled]", "**Verdict:**", "**Outcome:**", "(asserted by blue)", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
 		if strings.Contains(got, dropped) {
 			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
 		}
@@ -801,4 +878,18 @@ func TestAGapClosedBeforeBlueSatIsNotChargedToBlue(t *testing.T) {
 	if !strings.Contains(got, "G2") {
 		t.Errorf("G2 was open when blue sat and closed after — its missing row left the list:\n%s", got)
 	}
+}
+
+// renderedPrompt is a seat's dispatch prompt as the simulator suite renders and pins it.
+func renderedPrompt(t *testing.T, seat string) string {
+	t.Helper()
+	path, err := repotree.Plugin("tests", "simulator", "testdata", "prompt-"+seat+".golden")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the rendered %s prompt: %v", seat, err)
+	}
+	return string(b)
 }

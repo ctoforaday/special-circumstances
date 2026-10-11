@@ -322,6 +322,7 @@ func blueEmbed(blue string) string {
 		// bibliography are now tool-composed too (woven from the cite events), so a
 		// blue-authored one is dropped rather than shipped alongside the composed one.
 		"risk matrix": true, "the expansions": true, "expansions": true,
+		"research areas": true, "future research directions": true,
 		"alternatives considered": true, "the board": true,
 		"the debate": true, "blue team report": true, "verdict": true,
 		"footnotes": true, "bibliography": true,
@@ -741,6 +742,26 @@ func truncateRunes(s string, n int) string {
 // rather than a heading that describes the omission.
 //
 // `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
+//
+// AvenueSections is that rule as a seat reads it, and AvenueSectionsRule the paragraph the pages
+// of the acts that write an avenue print. TestEveryAvenueStatusLandsWhereItsFateSays holds the
+// sentence to the three predicates below, status by status.
+const AvenueSections = "Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned"
+
+// AvenueSectionsRule says whose those sections are. A seat told only that its words are "printed
+// in the report under" them writes the section too: on universe-m20 blue kept a hand copy of all
+// three for the whole run, and red audited the copy as the reader's text.
+const AvenueSectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: " + AvenueSections +
+	". They are not the report's text to write. A section by one of those names written into the report does not ship, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record."
+
+// ComposedSectionsNote is what the page that prints the report says about the sections that are
+// not in it: a seat reading the report's text reads the authored part of report.md, and audits a
+// hand copy of a composed section as the reader's text unless it is told the section is the tool's.
+const ComposedSectionsNote = "THIS IS THE REPORT'S AUTHORED TEXT, NOT THE ASSEMBLED report.md. Assembly composes further sections from the record and none of them is in what this prints: " +
+	"the Risk matrix, from the open gaps (`show board`); the three avenue sections, from the avenues (`show avenues`) — " + AvenueSections +
+	"; and the Bibliography with its footnotes, from the citations and proofs (`show evidence`). " +
+	"A section by one of those names in this text is a hand copy: it does not ship, and the tool's own section stands under that heading in what the reader gets."
+
 func accepted(status string) bool {
 	return status == "pursued" || status == "concluded" || status == "proposed"
 }

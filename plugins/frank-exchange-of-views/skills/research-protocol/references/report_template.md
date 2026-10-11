@@ -55,7 +55,9 @@
 |---|---|---|---|---|
 | <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
-## Research areas                        <!-- [RECORD] avenues PURSUED — a research topic followed, and what it yielded -->
+## Research areas                        <!-- [RECORD] avenues PROPOSED, PURSUED and CONCLUDED — a research topic taken
+                                              on, and what it yielded. A row that is not `pursued` carries its status,
+                                              so a line still undecided or followed to its end says so. -->
 
 ## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not rejected: worth taking and not by THIS
                                               run. --reason says what a later run should pick it up FOR. It reaches the
