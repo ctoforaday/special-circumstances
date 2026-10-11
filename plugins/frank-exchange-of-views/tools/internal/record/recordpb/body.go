@@ -20,7 +20,7 @@ import (
 //
 // The correspondence it relies on (oneof field `motion_rule` <-> `EVENT_TYPE_MOTION_RULE`) is the
 // one TestEveryEventTypeHasABodyAndViceVersa pins as SETS at build time. This function checks the
-// pair per event, which is the per-write half that test's header names.
+// pair per event through EventTypeOf, which is the per-write half that test's header names.
 func SetBody(ev *Event, body proto.Message) (EventType, error) {
 	if ev == nil {
 		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("recordpb: SetBody on a nil event")
@@ -41,9 +41,14 @@ func SetBody(ev *Event, body proto.Message) (EventType, error) {
 		if fd.Message() == nil || fd.Message().FullName() != want.FullName() {
 			continue
 		}
-		typ, err := eventTypeOf(fd)
-		if err != nil {
-			return EventType_EVENT_TYPE_UNSPECIFIED, err
+		// The arm's name is the type's word. An arm with no type must fail loudly here rather
+		// than write an UNSPECIFIED type nothing switches on.
+		typ, ok := EventTypeOf(string(fd.Name()))
+		if !ok {
+			return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf(
+				"recordpb: the `body` oneof carries %s but EventType has no EVENT_TYPE_%s — nothing could stamp "+
+					"that type, so every reader switching on `type` would skip the body silently",
+				fd.Name(), strings.ToUpper(string(fd.Name())))
 		}
 		ev.ProtoReflect().Set(fd, protoreflect.ValueOfMessage(body.ProtoReflect()))
 		ev.Type = typ.Enum()
@@ -58,22 +63,38 @@ func SetBody(ev *Event, body proto.Message) (EventType, error) {
 		want.Name(), od.Fields().Len())
 }
 
-// eventTypeOf resolves a oneof body field to its EventType value.
+// EventTypeOf resolves an event type's WORD — `motion_rule` — to its EventType, exactly: the zero's
+// spelling, a louder spelling and a hyphenated one all resolve nothing.
 //
-// The spelling correspondence is the schema's, not a hand-kept map: oneof field `motion_rule`
-// upper-cased is the enum suffix `MOTION_RULE`. A hand-kept map would be a THIRD carrier of a fact
-// two already hold, and the one most likely to be forgotten when a body is added — which is the
-// case that must fail loudly rather than write an UNSPECIFIED type nothing switches on.
-func eventTypeOf(fd protoreflect.FieldDescriptor) (EventType, error) {
-	name := "EVENT_TYPE_" + strings.ToUpper(string(fd.Name()))
-	vd := EventType(0).Descriptor().Values().ByName(protoreflect.Name(name))
-	if vd == nil {
-		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf(
-			"recordpb: the `body` oneof carries %s but EventType has no %s — nothing could stamp "+
-				"that type, so every reader switching on `type` would skip the body silently",
-			fd.Name(), name)
+// IT IS THE ONE WORD → TYPE LOOKUP. The word is three things at once — the spelling of the enum
+// value, the name of its arm of the `body` oneof, and the text `events.type` stores — and a reader
+// starting from any of them calls this. The correspondence is the schema's, not a hand-kept map: a
+// map would be a further carrier of a fact two already hold, and the one most likely to be
+// forgotten when a body is added.
+func EventTypeOf(word string) (EventType, bool) {
+	vd, ok := BySpelling(EventType(0).Descriptor(), word)
+	if !ok {
+		return EventType_EVENT_TYPE_UNSPECIFIED, false
 	}
-	return EventType(vd.Number()), nil
+	return EventType(vd.Number()), true
+}
+
+// BodyField resolves an event type's WORD to the arm of Event's `body` oneof that carries it — the
+// one place the word ↔ body pairing is declared, and the one word → body lookup. The arm's
+// `Message()` is the body's descriptor; `NewField` on an event mints the concrete body.
+//
+// A field of the envelope that is no arm (`seat_id`) resolves nothing, as does a word the schema
+// does not declare.
+func BodyField(word string) (protoreflect.FieldDescriptor, bool) {
+	od := (&Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	if od == nil {
+		return nil, false
+	}
+	fd := od.Fields().ByName(protoreflect.Name(word))
+	if fd == nil || fd.Message() == nil {
+		return nil, false
+	}
+	return fd, true
 }
 
 // BodyAs reads the body and asserts it is exactly T, keeping NO BODY and WRONG TYPE

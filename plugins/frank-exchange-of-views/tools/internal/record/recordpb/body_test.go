@@ -109,6 +109,61 @@ func TestBodyReportsAbsenceRatherThanAnEmptyMessage(t *testing.T) {
 	}
 }
 
+// ONE LOOKUP EACH WAY, AND EVERY WORD OF THE VOCABULARY GOES THROUGH IT. An event type's word
+// names its EventType and its arm of the `body` oneof; every reader that starts from the word
+// calls these two, so a word one of them cannot resolve is a word no reader can.
+func TestEveryEventWordResolvesToItsTypeAndItsBodyField(t *testing.T) {
+	vals := pb.EventType(0).Descriptor().Values()
+	var words int
+	for i := 0; i < vals.Len(); i++ {
+		typ := pb.EventType(vals.Get(i).Number())
+		if typ == pb.EventType_EVENT_TYPE_UNSPECIFIED {
+			continue
+		}
+		words++
+		word := pb.Word(typ)
+		if got, ok := pb.EventTypeOf(word); !ok || got != typ {
+			t.Errorf("EventTypeOf(%q) = %v, %v; want %v", word, got, ok, typ)
+		}
+		fd, ok := pb.BodyField(word)
+		if !ok {
+			t.Errorf("BodyField(%q) resolves nothing — an event of that type has no body to read", word)
+			continue
+		}
+		if string(fd.Name()) != word || fd.Message() == nil || fd.ContainingOneof() == nil || fd.ContainingOneof().Name() != "body" {
+			t.Errorf("BodyField(%q) = %s, which is not that word's message arm of the `body` oneof", word, fd.FullName())
+		}
+	}
+
+	arms := (&pb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body").Fields()
+	if arms.Len() != words {
+		t.Errorf("the `body` oneof has %d arms and EventType %d words", arms.Len(), words)
+	}
+	for i := 0; i < arms.Len(); i++ {
+		name := string(arms.Get(i).Name())
+		if fd, ok := pb.BodyField(name); !ok || fd != arms.Get(i) {
+			t.Errorf("BodyField(%q) does not return the arm of that name", name)
+		}
+		if _, ok := pb.EventTypeOf(name); !ok {
+			t.Errorf("EventTypeOf(%q) resolves nothing for a declared body arm", name)
+		}
+	}
+}
+
+// A NO-MATCH IS A REFUSAL, never the zero type made to look like an answer or a field of the
+// envelope. `seat_id` is a field of Event and no body; `unspecified` spells the zero, which names
+// no event; the lookup is exact, so a louder or hyphenated spelling is another word.
+func TestAWordThatNamesNoEventResolvesNothing(t *testing.T) {
+	for _, word := range []string{"", "unspecified", "seat_id", "no_such_event", "MINT", "motion-rule"} {
+		if got, ok := pb.EventTypeOf(word); ok || got != pb.EventType_EVENT_TYPE_UNSPECIFIED {
+			t.Errorf("EventTypeOf(%q) = %v, %v; want the zero and false", word, got, ok)
+		}
+		if fd, ok := pb.BodyField(word); ok || fd != nil {
+			t.Errorf("BodyField(%q) = %v, %v; want nil and false", word, fd, ok)
+		}
+	}
+}
+
 func dynamicOf(t *testing.T, full string) proto.Message {
 	t.Helper()
 	mt, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(full))

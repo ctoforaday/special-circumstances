@@ -217,11 +217,11 @@ func oneASitting(typ recordpb.EventType, field protoreflect.Name) (held bool, pe
 	case field == "" || defines[typ]:
 		return false, ""
 	}
-	md, ok := bodyDescriptor(recordpb.Word(typ))
+	body, ok := recordpb.BodyField(recordpb.Word(typ))
 	if !ok {
 		return false, ""
 	}
-	fd := md.Fields().ByName(field)
+	fd := body.Message().Fields().ByName(field)
 	if fd == nil {
 		return false, ""
 	}
@@ -243,12 +243,12 @@ func RefusesARepeat(typ recordpb.EventType) bool {
 
 // typeKeyField is the first key field a body of this type can carry, or "".
 func typeKeyField(typ recordpb.EventType) protoreflect.Name {
-	md, ok := bodyDescriptor(recordpb.Word(typ))
+	body, ok := recordpb.BodyField(recordpb.Word(typ))
 	if !ok {
 		return ""
 	}
 	for _, name := range keyFields {
-		if fd := md.Fields().ByName(name); fd != nil && fd.Kind() == protoreflect.StringKind && !fd.IsList() {
+		if fd := body.Message().Fields().ByName(name); fd != nil && fd.Kind() == protoreflect.StringKind && !fd.IsList() {
 			return name
 		}
 	}
