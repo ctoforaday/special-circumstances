@@ -540,3 +540,7 @@ Ruled by gblock, 2026-10-11:
    leaving the scope. This replaces the 2026-09-03 rule that the gate races the whole shipped
    import graph on every pull request; that form moves to a nightly workflow of its own. Part R is built before
    Part B, and Part B is written only if the measurement after R still calls for it.
+4. **The residue is accepted: nightly-only detection.** A start reached only through a function
+   value, or made by a library call the table does not list, is raced by `race-nightly` and not on
+   the pull request, so such a race is found up to a day after merge. Chosen over following
+   function values, which selects most of `internal/cli`.
