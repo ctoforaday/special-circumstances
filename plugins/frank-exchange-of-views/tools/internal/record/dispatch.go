@@ -411,6 +411,57 @@ func foldPlan(params Params, r planReads) Plan {
 	return plan
 }
 
+// epochLimitHeldTheBench reports whether the chair sitting that opened the run's last epoch left
+// the bench ready for a motion the bench has ruled since — the epoch limit, read after the exit.
+//
+// THE LIMIT IS REACHED AT THE CHAIR'S SITTING, AND THE BENCH RULES AFTER IT. foldPlan asks whether
+// anybody is ready NOW, which is the question the chair's verb asks at the sitting. The terminal
+// bench sitting then rules every motion whose gavel is the bench's, and `bench outcome` derives the
+// verdict after that: where the bench was the only party the limit left undispatched — one gap at
+// impasse, docketed at the last sitting, or one petition — its ruling leaves nobody ready, the plan
+// stops saying the limit was reached, and the CEILING the engine states is refused as a word the
+// record cannot derive.
+//
+// The bench was ready for a motion when it had not had the sitting dispatch convenes it for —
+// benchSatFor for a docket, a petition sitting for a petition — and no ruling changes that: the
+// sittings the engine convenes at the exit answer no dispatch and state neither occasion. A motion
+// the bench had already sat for and left readied nobody, so its ruling at the exit moves nothing
+// here. A ruling counts when it follows the chair's last sitting opening; at the limit nobody is
+// dispatched after that sitting, so every such ruling is the exit's.
+func epochLimitHeldTheBench(params Params, r planReads) bool {
+	evs, win := r.evs, r.win
+	if params.MaxEpochs <= 0 || win.LastEpoch(evs) < params.MaxEpochs {
+		return false
+	}
+	ids := win.IDs(evs)
+	dispatches, registers := dispatchLedger(evs, ids, win)
+	chair := registers[chairSeat]
+	if len(chair) == 0 {
+		return false
+	}
+	benchOn := benchRegisters(evs, ids, win)
+	for _, m := range motionsAt(evs, ids, win) {
+		if m == nil || !m.Ruled() || m.ruled <= chair[len(chair)-1] {
+			continue
+		}
+		if g, err := gavelOf(m.Subject); err != nil || g.seat != benchSeat {
+			continue
+		}
+		subj, _ := MotionSubjectEnum(m.Subject)
+		switch benchSittingFor[subj] {
+		case recordpb.Occasion_OCCASION_PETITION:
+			if !benchSatOnOccasionSince(benchOn, recordpb.Occasion_OCCASION_PETITION, m.filed) {
+				return true
+			}
+		case recordpb.Occasion_OCCASION_DOCKET:
+			if !benchSatFor(dispatches, benchOn, m.GapID, m.filed) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // dispatchRow is one dispatch event: where it sits in the stream, the head it pinned, the seat it
 // named and the gaps it engaged that seat on.
 type dispatchRow struct {
