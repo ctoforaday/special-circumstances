@@ -18,6 +18,8 @@ import (
 func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 	const fx = "<!--fx:F-00000aaa-->"
 	cases := map[string]string{
+		"no text at all":                    "",
+		"a title and nothing more":          "# T\n",
 		"no headings at all":                "one paragraph.\n\nand another.\n",
 		"text before the title":             "prose before the title.\n# T\n**Verdict:** a preamble line\n\n## TL;DR\nx.\n",
 		"a lifted heading twice":            "# T\n\n## Open questions\nfirst.\n\n## Open questions\nsecond.\n\n##  open questions (in full)\nthird.\n",

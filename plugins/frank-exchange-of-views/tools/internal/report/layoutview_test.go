@@ -28,7 +28,7 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if _, _, err := record.RegisterSeat(id, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	blue := "# On 91\n\nA line before any heading.\n\n## TL;DR\n\n**Question:** is 91 prime?\n\n**Outcome:** it is not.\n\n## Appendix\n\n91 / 7 = 13.\n\n## Risk matrix\n\n- a list typed by hand.\n\n## Bibliography\n\n- another.\n"
+	blue := "# On 91\n\nA line before any heading.\n\n## TL;DR\n\n**Question:** is 91 prime?\n\x00\n**Outcome:** it is not.\n\n## Appendix\n\n91 / 7 = 13.\n\x00\n## Risk matrix\n\n- a list typed by hand.\n\n## Bibliography\n\n- another.\n"
 	if _, err := record.Append(id, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if s := by[bibliographyHeading]; s.Ships || s.Text != "" {
 		t.Errorf("a run that cites nothing ships no bibliography of the tool's, and the layout gives that row the report's own section: %+v", s)
 	}
-	// THE BODY IS WHAT STANDS BETWEEN ITS MARKS, not what a heading search finds: text before the
+	// THE BODY IS WHAT ASSEMBLY PLACED AS IT, not what a heading search finds: text before the
 	// report's first heading opens it, though the row before it is a lifted section, and a section
 	// in it under the heading of the first row the tool composes after it — a record from before the
 	// refusal holds one — is the body's, with the tool's own row found past it.
@@ -71,6 +71,9 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if !s.Ships || !slices.Equal(s.AuthoredHeadings, []string{"Appendix", "Risk matrix", "Bibliography"}) ||
 		!strings.HasPrefix(s.Text, "A line before any heading.") || !strings.HasSuffix(s.Text, "- another.") || !strings.Contains(s.Text, "a list typed by hand") {
 		t.Errorf("the body does not hold the report's own sections, from the text before the first heading to the last line: %+v", s)
+	}
+	if md := got.Markdown(); !strings.Contains(md, "\n    as the record stands: Appendix; Risk matrix; Bibliography\n") {
+		t.Errorf("the layout a seat reads does not list the report's own sections on the body's entry:\n%s", md)
 	}
 	if tl := by["TL;DR"]; strings.Contains(tl.Text, "A line before any heading") {
 		t.Errorf("TL;DR's text runs into the body: %q", tl.Text)
@@ -82,8 +85,11 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(docs[0].Body, "\x00") {
-		t.Errorf("the marks the layout slices the body by are in the set that ships")
+	// The report's text holds two lines that are a NUL and nothing more, one in a lifted section and
+	// one in the body: what a mark the layout slices by must not be taken for, and all of it that
+	// the set that ships holds.
+	if n := strings.Count(docs[0].Body, "\x00"); n != 2 {
+		t.Errorf("the set that ships holds %d NUL(s) and the report's text 2: a mark the layout slices the body by is in it", n)
 	}
 	if joined, body := strings.Join(texts, "\n\n"), strings.TrimSpace(docs[0].Body); joined != body {
 		t.Errorf("the layout's sections, joined, are not report.md's body.\n--- sections:\n%s\n--- report.md:\n%s", joined, body)

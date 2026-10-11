@@ -76,9 +76,9 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 
 // assemble is AssembleAll, with the headings of the rows it composed a section for: what the
 // assembled layout reads to tell a section the table placed from a line of the report's text
-// that opens as one does. The body opens under no heading of the table's, so the layout passes a
-// mark line to stand before and after it; the set that ships is assembled with none.
-func assemble(run record.Run, bodyMark string) ([]Doc, map[string]bool, error) {
+// that opens as one does. The layout passes a mark line to stand above each block composed, which
+// is how it finds where each stands; the set that ships is assembled with none.
+func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	blue, err := blueReport(run)
 	if err != nil {
 		return nil, nil, err
@@ -107,8 +107,8 @@ func assemble(run record.Run, bodyMark string) ([]Doc, map[string]bool, error) {
 		}
 		if s.compose != nil {
 			block := s.block(a)
-			if s.embeds && bodyMark != "" && block != "" {
-				block = bodyMark + "\n" + block + "\n" + bodyMark
+			if mark != "" && strings.TrimSpace(block) != "" {
+				block = mark + "\n" + block
 			}
 			composed[s.Heading] = body[s.File].add(block)
 		}
