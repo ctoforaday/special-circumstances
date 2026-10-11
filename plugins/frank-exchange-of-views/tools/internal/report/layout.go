@@ -360,6 +360,64 @@ func ComposedIn(text string) (line string, s Section, found bool) {
 	return line, s, found
 }
 
+// THE NOTES' LABELS ARE THE TOOL'S. The weave writes a citation's note as [^1], [^2] … in order of
+// first appearance (weaveCitations) and a proof's as [^P1], [^P2] … in record order
+// (weaveProofRefs), into the text as it stands and beside whatever that text already holds. A
+// footnote typed by hand under a label of that shape ships next to the tool's note of the same
+// label: markdown resolves a label to one definition and report.html lists one entry for it, so
+// a reader gets one of the two notes and no sign of the other. A reference typed with no
+// definition reads as the tool's note for whichever source or proof comes to hold that number.
+// The write refuses the label (WovenNoteIn). A footnote under a label of any other shape is the
+// report's own: it ships as written and resolves to its own definition in both tiers.
+
+// citationNote and proofNote are the labels the weave writes.
+func citationNote(n int) string { return fmt.Sprintf("[^%d]", n) }
+func proofNote(n int) string    { return fmt.Sprintf("[^P%d]", n) }
+
+// wovenNote reads a footnote label of the weave's shape, in a reference or in a definition. Case
+// is folded, as a markdown renderer folds a label's.
+var wovenNote = regexp.MustCompile(`(?i)\[\^p?[0-9]+\]`)
+
+// WovenNoteLabels names the weave's labels to a seat.
+var WovenNoteLabels = "`" + citationNote(1) + "`, `" + citationNote(2) + "` … for citations and `" + proofNote(1) + "`, `" + proofNote(2) + "` … for proofs"
+
+// NoteAside says where an aside goes that is neither a source nor a computation.
+const NoteAside = "An aside that is neither a source nor a computation is prose, or a parenthesis, where it applies."
+
+// WovenNotesRule is the rule on the pages of the verbs that write report text. The way in is the
+// Bibliography row's Path: the notes are that section's.
+var WovenNotesRule = "NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: " + WovenNoteLabels +
+	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded: " +
+	"it would ship beside the tool's note of the same label, and a reader is shown one of the two. " + notesRow().Path + " " + NoteAside
+
+// notesRow is the row of the section the woven notes belong to.
+func notesRow() Section {
+	for _, s := range layout {
+		if s.Heading == bibliographyHeading {
+			return s
+		}
+	}
+	panic("report: the layout has no " + bibliographyHeading + " row")
+}
+
+// WovenNoteIn returns the first footnote label in text that is of the weave's shape, as the text
+// writes it, with the row of the section the notes belong to. Code is not read — a fenced block,
+// or a span in backticks: a label there is no footnote.
+func WovenNoteIn(text string) (label string, s Section, found bool) {
+	eachLine(text, func(_, t string, fenced bool) {
+		if found || fenced {
+			return
+		}
+		if m := wovenNote.FindString(reCodeSpan.ReplaceAllString(t, "")); m != "" {
+			label, found = m, true
+		}
+	})
+	if found {
+		s = notesRow()
+	}
+	return label, s, found
+}
+
 // blueText is the report's text, parted: every line of it is in exactly one of these.
 type blueText struct {
 	title  string            // the first "# " line

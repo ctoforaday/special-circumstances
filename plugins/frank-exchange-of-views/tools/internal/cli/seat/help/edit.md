@@ -34,4 +34,6 @@ AN EDIT THAT CHANGES NOTHING IS REFUSED, and nothing is recorded: the refusal sa
 
 NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {{.RefusedHeadings}}. An edit that would leave one of them in the report as a `## ` heading, or an `**Outcome:**` line above the first heading, is refused and nothing is recorded. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. {{.SubjectHeadingsNote}} `show report` has an assembled form that gives the same for every section before you write.
 
+{{.WovenNotesRule}}
+
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.

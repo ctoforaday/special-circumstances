@@ -3356,6 +3356,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = "the report's text carries " + line + ", a section the tool composes, past the refusal at the write"
 			return res
 		}
+		if label, _, found := reportdoc.WovenNoteIn(string(text)); found {
+			res.err = "the report's text carries the footnote label " + label + ", one the weave writes, past the refusal at the write"
+			return res
+		}
 	}
 	// A PROOF READ AT ITS ANCHOR CARRIES THE STORED SCRIPT — the read a lens makes before it
 	// judges one. Every role, for the reason above: the projection is defined once. The script is

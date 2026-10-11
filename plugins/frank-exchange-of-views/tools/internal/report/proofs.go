@@ -63,7 +63,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 				num[label] = extra
 			}
 		}
-		return fmt.Sprintf("[^P%d]", num[label])
+		return proofNote(num[label])
 	})
 	if len(order) == 0 {
 		return body, nil
@@ -76,11 +76,11 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 	for _, label := range order {
 		p, ok := byLabel[label]
 		if !ok {
-			fmt.Fprintf(&b, "[^P%d]: _(unresolved proof %s — no proof event on the record)_\n", num[label], label)
+			fmt.Fprintf(&b, "%s: _(unresolved proof %s — no proof event on the record)_\n", proofNote(num[label]), label)
 			continue
 		}
-		fmt.Fprintf(&b, "[^P%d]: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
-			num[label], strings.TrimSpace(oneLine(firstNonEmpty(p.Reason, p.Script))), FileEvidence, label)
+		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
+			proofNote(num[label]), strings.TrimSpace(oneLine(firstNonEmpty(p.Reason, p.Script))), FileEvidence, label)
 	}
 	return b.String(), order
 }

@@ -115,7 +115,7 @@ func weaveCitations(md string, sources []record.Source) string {
 			order = append(order, k)
 			noteOf[k] = l.id
 		}
-		fmt.Fprintf(&b, "[^%d]", n)
+		b.WriteString(citationNote(n))
 	}
 	b.WriteString(md[last:])
 	if len(order) == 0 {
@@ -123,7 +123,7 @@ func weaveCitations(md string, sources []record.Source) string {
 	}
 	body := b.String()
 	for n := 1; n <= len(order); n++ {
-		ref := fmt.Sprintf("[^%d]", n)
+		ref := citationNote(n)
 		for strings.Contains(body, ref+ref) {
 			body = strings.ReplaceAll(body, ref+ref, ref)
 		}
@@ -141,7 +141,7 @@ func weaveCitations(md string, sources []record.Source) string {
 			// A dangling anchor is listed in the Bibliography too: it is where a reader looks for
 			// what the text references, and a reference to nothing is a fact to state.
 			line := fmt.Sprintf("_(unresolved citation %s — no source on the record)_", noteOf[k])
-			fmt.Fprintf(&out, "[^%d]: %s\n", n, line)
+			fmt.Fprintf(&out, "%s: %s\n", citationNote(n), line)
 			bib = append(bib, "- "+line)
 			continue
 		}
@@ -149,7 +149,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "[^%d]: %s%s. %s%s%s%s\n", n, citationTitle(s), locator, s.URL, accessed(s.AccessDate),
+		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s\n", citationNote(n), citationTitle(s), locator, s.URL, accessed(s.AccessDate),
 			retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true

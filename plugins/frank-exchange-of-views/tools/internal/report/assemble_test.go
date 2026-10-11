@@ -406,6 +406,50 @@ func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	}
 }
 
+// THE NOTE LABELS THE WRITE REFUSES ARE THE ONES THE WEAVE WRITES, every one and no other: a label
+// the weave can write and the write lets through is a hand note that can meet the tool's, and a
+// label the write refuses and the weave never writes is a footnote of the report's own turned away.
+func TestTheRefusedNoteLabelsAreTheOnesTheWeaveWrites(t *testing.T) {
+	for n := 1; n < 2000; n += 7 {
+		for _, l := range []string{citationNote(n), proofNote(n)} {
+			for _, doc := range []string{"A claim" + l + ".\n", "A claim.\n\n" + l + ": a note.\n", "## TL;DR\n\n| a" + l + " | b |\n"} {
+				if got, s, found := WovenNoteIn(doc); !found || got != l || s.Heading != bibliographyHeading {
+					t.Errorf("WovenNoteIn(%q) = %q in %q, %v; the weave writes %s", doc, got, s.Heading, found, l)
+				}
+			}
+		}
+	}
+	// The weave itself, over a citation and a proof: every label in what it returns is one.
+	woven, _ := weaveProofRefs(weaveCitations("One<!--cite:C-00000001-->. Two<!--proof:P-00000001-->.\n", nil), nil)
+	labels := regexp.MustCompile(`\[\^[^\]]*\]`).FindAllString(woven, -1)
+	if len(labels) != 4 {
+		t.Fatalf("the weave wrote %d label(s), want a reference and a definition for each anchor:\n%s", len(labels), woven)
+	}
+	for _, l := range labels {
+		if got, _, found := WovenNoteIn(l); !found || got != l {
+			t.Errorf("the weave wrote %s, and the write does not refuse it", l)
+		}
+	}
+	if got, _, _ := WovenNoteIn("A claim[^p3].\n"); got != "[^p3]" {
+		t.Errorf("a proof's label in lower case reads %q; a renderer folds a label's case", got)
+	}
+	for _, doc := range []string{
+		"A claim[^scope].\n\n[^scope]: an aside.\n",
+		"A claim[^a1], another[^1a], a third[^P], a fourth[^Px1], a fifth[^note-2].\n",
+		"The class `[^1]` and the class `[^P2]`.\n",
+		"```\n[^1]: quoted output\n```\n",
+		"~~~\nA claim[^P1].\n~~~\n",
+		"Item [1], power 2^3, set [^0-9].\n",
+	} {
+		if l, _, found := WovenNoteIn(doc); found {
+			t.Errorf("WovenNoteIn(%q) found %q; the weave writes no such label", doc, l)
+		}
+	}
+	if !strings.Contains(WovenNotesRule, notesRow().Path) || !strings.Contains(WovenNotesRule, NoteAside) {
+		t.Errorf("the rule on the help pages does not carry the Bibliography row's path and the aside's place: %s", WovenNotesRule)
+	}
+}
+
 // THE REFUSAL READS A HEADING AS THE ASSEMBLER DOES — the same key, the same fences — and finds
 // only what the tool composes.
 func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
