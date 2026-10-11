@@ -262,7 +262,7 @@ An open avenue — proposed or pursued — owes this before your sitting ends; r
 
 The fate is not the point; the account of what changed it is — an avenue abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
 
-THE REASON IS PRINTED IN THE REPORT, on the avenue's own row, in the section the fate you give it here puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write. A section by one of those names written into the report does not ship, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+THE REASON IS PRINTED IN THE REPORT, on the avenue's own row, in the section the fate you give it here puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
 
 Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
 
@@ -301,7 +301,7 @@ The tool assigns the id. It starts as `proposed` — the state that OWES a move 
 
 You may propose one AT ANY POINT in a run, not only at the start: an avenue that occurs to you in your third sitting is exactly the one a later run needs.
 
-WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, as this avenue's row in the section its fate puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write. A section by one of those names written into the report does not ship, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, as this avenue's row in the section its fate puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
 
 So write it as research prose for a reader of the SUBJECT — the question the avenue asks, not a log of what you did to ask it. No provenance or attribution tags, no notes to another seat, no narration of the run: "whether 91's factorisation follows from a divisibility test short of trial division" is a line, "ran this lane's slice against the last avenue and grepped the repo" is a diary. Who moved it, the path it took and red's ruling are already on the record, and ship in avenues.md.
 
@@ -423,6 +423,8 @@ REPAIRING PUNCTUATION. Because of that trim, a repair confined to the trailing p
 
 AN EDIT THAT CHANGES NOTHING IS REFUSED, and nothing is recorded: the refusal says whether the punctuation trim was the cause. The same holds when taking red's fix — a prescription that would leave the report as it is is refused as changing nothing, which is different from a prescription the report has moved away from.
 
+NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, Motions, Proofs, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. An edit that would leave one of them in the report as a `## ` heading, or an `**Outcome:**` line above the first heading, is refused and nothing is recorded. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does.
+
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
 
 (If you need a verb or a flag tha…) → SHARED §1
@@ -476,6 +478,8 @@ WRITE-ONCE. A second ingest is refused and points you at `edit`; the frozen base
 AUTHOR-ONLY. Only the seat that wrote the report freezes it; any other seat is refused.
 
 IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with `log` as a defect — a tooling failure no edit can fix, with no diff for you to apply.
+
+NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, Motions, Proofs, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. A report that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is frozen: the file stands for you to fix, and the one ingest a run gets is unspent. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does.
 
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
 
@@ -887,7 +891,7 @@ THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just 
 
 --json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.
 
-THIS IS THE REPORT'S AUTHORED TEXT, NOT THE ASSEMBLED report.md. Assembly composes further sections from the record and none of them is in what this prints: the Risk matrix, from the open gaps (`show board`); the three avenue sections, from the avenues (`show avenues`) — Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned; and the Bibliography with its footnotes, from the citations and proofs (`show evidence`). A section by one of those names in this text is a hand copy: it does not ship, and the tool's own section stands under that heading in what the reader gets.
+THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, Motions, Proofs, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. Blue's `ingest` and `edit` refuse report text that carries one.
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 

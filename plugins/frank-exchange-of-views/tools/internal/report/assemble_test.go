@@ -20,8 +20,18 @@ func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
 		"```", "## Technical foundations", "not a heading — inside a fence", "```", "",
 		"## Analysis", "", "the analysis.", "",
 	}, "\n")
+	a := &assembly{blue: part(md)}
+	row := func(heading string) Section {
+		for _, s := range layout {
+			if s.Heading == heading {
+				return s
+			}
+		}
+		t.Fatalf("no row %q", heading)
+		return Section{}
+	}
 
-	cat := section(md, "The Catechism")
+	cat := lift(a, row("The Catechism"))
 	if !strings.Contains(cat, "Q1: kept  as-is.") {
 		t.Errorf("catechism not copied verbatim: %q", cat)
 	}
@@ -31,25 +41,24 @@ func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
 	}
 	// A real "## Technical foundations" section does not exist (only the fenced one), so it
 	// is reported missing rather than authored.
-	if got := section(md, "Technical foundations"); got != "" {
-		t.Errorf("a fenced heading was mistaken for a real one: %q", got)
+	if got := lift(a, row("Technical foundations")); !strings.Contains(got, "not authored here") || strings.Contains(got, "inside a fence") {
+		t.Errorf("a fenced heading was mistaken for a real one, or a missing section was authored: %q", got)
 	}
-	if !strings.Contains(sectionOr(md, "Technical foundations"), "not authored here") {
-		t.Error("a missing section must be flagged, never authored")
-	}
-	// Case-insensitive: blue title-cased "## Open Questions" must still be lifted, not
-	// declared absent against the template's lowercase "## Open questions".
-	caseMd := "intro\n## Open Questions\n\nwhat remains.\n"
-	if got := section(caseMd, "Open questions"); !strings.Contains(got, "what remains") {
-		t.Errorf("case-insensitive heading match failed — a present section was declared absent: %q", got)
+	// ONE READING OF A HEADING, for the lift and for everything else that reads one: case, runs
+	// of whitespace, an anchor on the heading line and a trailing "(in full)" do not make a
+	// present section absent.
+	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--fx:F-00000aaa-->", "## Open questions (in full)"} {
+		if got := lift(&assembly{blue: part("intro\n" + h + "\n\nwhat remains.\n")}, row("Open questions")); !strings.Contains(got, "what remains") {
+			t.Errorf("%q: a present section was declared absent: %q", h, got)
+		}
 	}
 }
 
 func TestTitleLiftedOrFlagged(t *testing.T) {
-	if got := titleOr("intro\n# Whether X — research report\n## The Catechism\n"); got != "# Whether X — research report" {
+	if got := titleOr(part("intro\n# Whether X — research report\n## The Catechism\n").title); got != "# Whether X — research report" {
 		t.Errorf("title not lifted verbatim: %q", got)
 	}
-	if got := titleOr("no title here\n## Analysis\n"); !strings.Contains(got, "not authored here") {
+	if got := titleOr(part("no title here\n## Analysis\n```\n# a comment in code\n```\n").title); !strings.Contains(got, "not authored here") {
 		t.Errorf("a missing title must be flagged, never authored: %q", got)
 	}
 }
@@ -142,7 +151,7 @@ func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("check a computer-algebra system")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
 	})
-	alt := avenues(board, "Alternatives considered", rejected)
+	alt := avenueSection(t, board, "Alternatives considered")
 	if !strings.Contains(alt, "**sieve to the square root** [abandoned] —") {
 		t.Errorf("a line pursued and then abandoned keeps the plain tag:\n%s", alt)
 	}
@@ -157,11 +166,11 @@ func TestAvenuesSplitByFate(t *testing.T) {
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
 		recordtest.Event(t, "red-lens-r1", &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
 	})
-	exp := avenues(board, "Research areas", accepted)
+	exp := avenueSection(t, board, "Research areas")
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
 		t.Errorf("research areas must carry ONLY pursued and proposed avenues:\n%s", exp)
 	}
-	alt := avenues(board, "Alternatives considered", rejected)
+	alt := avenueSection(t, board, "Alternatives considered")
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
 		t.Errorf("a rejected avenue is an alternative considered, its reason the counter:\n%s", alt)
 	}
@@ -172,7 +181,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
 	}
 	// No avenues of a fate → flagged, not blank.
-	if none := avenues((record.NewFamily(nil, record.Merged{})), "Research areas", accepted); !strings.Contains(none, "none on the record") {
+	if none := avenueSection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -233,9 +242,9 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 			}),
 		})
 		in := map[string]bool{
-			"research":     strings.Contains(avenues(board, "Research areas", accepted), "the only line"),
-			"future":       strings.Contains(avenues(board, "Future research directions", deferred), "the only line"),
-			"alternatives": strings.Contains(avenues(board, "Alternatives considered", rejected), "the only line"),
+			"research":     strings.Contains(avenueSection(t, board, "Research areas"), "the only line"),
+			"future":       strings.Contains(avenueSection(t, board, "Future research directions"), "the only line"),
+			"alternatives": strings.Contains(avenueSection(t, board, "Alternatives considered"), "the only line"),
 		}
 		var got []string
 		for name, present := range in {
@@ -279,50 +288,110 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 	}
 }
 
-// composedHeadingsAreNamedToBlue fails for every "## " heading in an assembled report.md that
-// blue's own text does not carry and blue's dispatch prompts do not name.
-//
-// EVERY SECTION ASSEMBLY COMPOSES INTO THE REPORT IS NAMED TO BLUE AS THE TOOL'S. The prompts'
-// list of them is read as the whole of it: on universe-m20 it named the risk matrix, the board and
-// the debate, blue wrote "## Alternatives considered" by hand, and assembly dropped it with a
-// proof and fifteen other anchors in it. The composer is code and the list is prose in debate.js,
-// which no generator writes and which runs with no import step, so the two are held together
-// here: the headings are read off the ASSEMBLED document, never a second list of them, and the
-// prompts off their rendered goldens, which the simulator suite holds to debate.js.
-//
-// A heading composed only when the record holds something the caller's fixture lacks is not
-// read; the callers between them compose the risk matrix, the three avenue sections and the
-// bibliography.
-func composedHeadingsAreNamedToBlue(t *testing.T, blue, reportMd string, wantRead ...string) {
+// avenueSection renders the avenue section under heading, through its row.
+func avenueSection(t *testing.T, fam record.Family, heading string) string {
 	t.Helper()
-	prompts := map[string]string{}
-	for _, seat := range []string{"blue-synthesize", "blue-respond"} {
-		prompts[seat] = renderedPrompt(t, seat)
-	}
-	read := map[string]bool{}
-	for _, ln := range strings.Split(reportMd, "\n") {
-		// Blue's own surfaces are not composed: lifted where blue wrote them, and a one-line
-		// placeholder under the same heading where it did not.
-		if !strings.HasPrefix(ln, "## ") || strings.Contains(blue, ln) || ln == "## Additional findings" ||
-			strings.Contains(sectionOr("", strings.TrimPrefix(ln, "## ")), "not authored here") && strings.Contains(reportMd, sectionOr("", strings.TrimPrefix(ln, "## "))) {
-			continue
+	for _, s := range layout {
+		if s.Heading == heading && s.fate != nil {
+			return avenues(&assembly{fam: fam}, s)
 		}
-		read[ln] = true
-		for seat, prompt := range prompts {
-			if !strings.Contains(prompt, "`"+ln+"`") {
-				t.Errorf("assembly composes %q into report.md and the %s prompt does not name it among the sections that are the tool's", ln, seat)
+	}
+	t.Fatalf("no avenue section %q in the layout", heading)
+	return ""
+}
+
+// EVERY SECTION THE TOOL COMPOSES IS NAMED TO BLUE AS THE TOOL'S, AND NOTHING ELSE IS. The
+// prompts' list is read as the whole of it: on universe-m20 it named the risk matrix, the board and
+// the debate, and blue wrote "## Alternatives considered" by hand. debate.js is a hand-authored
+// script the workflow runs whole, with no import step and no generator writing into it, so its
+// list cannot be generated from the table; it is held to it here, both ways, through the prompts
+// the simulator suite renders and pins.
+func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
+	var named []string
+	for _, s := range layout {
+		if s.Composer == Tool && s.Line == "" {
+			named = append(named, "`## "+s.Heading+"`")
+		}
+	}
+	// The list whole, in the table's order: a heading the table lacks, or a row the list lacks,
+	// is a different string.
+	list := strings.Join(named, ", ")
+	for _, seat := range []string{"blue-synthesize", "blue-respond"} {
+		prompt := strings.ReplaceAll(renderedPrompt(t, seat), "\n", " ")
+		if !strings.Contains(prompt, list) {
+			t.Errorf("the %s prompt does not name the sections the tool composes as the table has them: %s", seat, list)
+		}
+		for _, s := range layout {
+			if s.Composer == Tool && s.Line != "" && !strings.Contains(prompt, "`"+s.Line+"`") {
+				t.Errorf("the %s prompt does not name the %s line the tool composes", seat, s.Line)
 			}
 		}
 	}
-	for _, h := range wantRead {
-		if !read[h] {
-			t.Errorf("the fixture no longer composes %q, so this check did not read it", h)
-		}
-	}
-	// The avenue rule reaches the seats that write the report in the assembler's own sentence.
+	// The avenue rule reaches the seats that write the report in the table's own sentence.
 	for _, seat := range []string{"blue-synthesize", "blue-lane-1"} {
 		if !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
-			t.Errorf("the %s prompt does not state which fate lands under which heading as the assembler does (AvenueSections)", seat)
+			t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, AvenueSections)
+		}
+	}
+}
+
+// EVERY ROW SAYS WHO COMPOSES THE SECTION, FROM WHAT, AND HOW CONTENT REACHES IT. A refusal at
+// the write prints the row's Path as the way in, so a row without one refuses and leaves the seat
+// nowhere to take the content.
+func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
+	seen := map[string]bool{}
+	for _, s := range layout {
+		if s.File == "" || s.Heading == "" || s.Composer != Blue && s.Composer != Tool {
+			t.Errorf("row %+v: a file, a heading and a composer are required", s)
+		}
+		if len(strings.Fields(s.From)) < 3 || len(strings.Fields(s.Path)) < 4 || !strings.HasSuffix(s.Path, ".") {
+			t.Errorf("row %q: from %q, path %q — each row says what the section is composed from and, in whole sentences, how content reaches it", s.Heading, s.From, s.Path)
+		}
+		if key := normalizeHeading(s.Heading); seen[key] {
+			t.Errorf("two rows read as the heading %q", s.Heading)
+		} else {
+			seen[key] = true
+		}
+		if s.fate != nil {
+			for _, f := range fatesOf(s) {
+				if !strings.Contains(s.Path, "`"+f+"`") || !strings.Contains(s.From, f) {
+					t.Errorf("avenue section %q holds %q and its row does not say so: from %q, path %q", s.Heading, f, s.From, s.Path)
+				}
+			}
+		}
+	}
+}
+
+// THE REFUSAL READS A HEADING AS THE ASSEMBLER DOES — the same key, the same fences — and finds
+// only what the tool composes.
+func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
+	for _, tc := range []struct{ doc, line, heading string }{
+		{"# t\n\n## TL;DR\nx\n\n## Alternatives  Considered\ny\n", "## Alternatives  Considered", "Alternatives considered"},
+		{"## risk matrix<!--fx:F-00000aaa-->\n", "## risk matrix<!--fx:F-00000aaa-->", "Risk matrix"},
+		{"  ## The Board (in full)\n", "## The Board (in full)", "The board"},
+		{"## Additional findings\n", "## Additional findings", "Additional findings"},
+		{"# t\n**outcome:** VERIFIED\n\n## TL;DR\nx\n", "**outcome:** VERIFIED", "Outcome"},
+	} {
+		line, s, found := ComposedIn(tc.doc)
+		if !found || line != tc.line || s.Heading != tc.heading {
+			t.Errorf("ComposedIn(%q) = %q, %q, %v; want %q in %q", tc.doc, line, s.Heading, found, tc.line, tc.heading)
+		}
+	}
+	for _, s := range layout {
+		_, got, found := ComposedIn("## TL;DR\nx\n\n## " + s.Heading + "\ny\n")
+		if found != (s.Composer == Tool) || found && got.Heading != s.Heading {
+			t.Errorf("a report carrying `## %s`: found %v (%q), and the table says its composer is %s", s.Heading, found, got.Heading, s.Composer)
+		}
+	}
+	for _, doc := range []string{
+		"# t\n\n## TL;DR\nx\n\n## Limits of the answer\ny\n",
+		"## Analysis\n\n### Alternatives considered\ny\n",
+		"## Analysis\n\n```\n## Risk matrix\n```\n",
+		"## Alternatives considered and rejected\n",
+		"## Analysis\n\n**Outcome:** the test passes.\n",
+	} {
+		if line, _, found := ComposedIn(doc); found {
+			t.Errorf("ComposedIn(%q) found %q; that text claims no section the tool composes", doc, line)
 		}
 	}
 }
@@ -338,8 +407,8 @@ func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "blue-r2", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
 	})
-	exp := avenues(board, "Research areas", accepted)
-	alt := avenues(board, "Alternatives considered", rejected)
+	exp := avenueSection(t, board, "Research areas")
+	alt := avenueSection(t, board, "Alternatives considered")
 	if strings.Contains(exp, "rewrite the parser") {
 		t.Errorf("an avenue ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
 	}
@@ -373,7 +442,7 @@ func TestAvenueRulingAndSeatStayOutOfTheReport(t *testing.T) {
 		// Blue pursues it ANYWAY: the ruling binds no move, and the move is what blue does about it.
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
 	})
-	exp := avenues(board, "Research areas", accepted)
+	exp := avenueSection(t, board, "Research areas")
 	if !strings.Contains(exp, "- **survey the adjacent literature**") {
 		t.Fatalf("the line itself must still reach the report:\n%s", exp)
 	}
@@ -581,39 +650,57 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 	}
 }
 
-func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
+// EVERY LINE OF THE REPORT'S TEXT SHIPS, ONCE. The text is parted among the rows that place it —
+// the title, the first section under each lifted heading, and the rest under "Additional
+// findings" — and nothing is in none of them. universe-m20 lost a section, a proof and fifteen
+// other anchors to a list of headings the composer left out; the composer keeps no such list.
+func TestEveryLineOfTheReportsTextShipsOnce(t *testing.T) {
 	blue := strings.Join([]string{
+		"prose before the title.",
 		"# A topic — research report",
-		"**Verdict:** UNVERIFIED (Round 0)",        // blue cannot author a verdict — must be stripped
-		"**Outcome:** VERIFIED (asserted by blue)", // nor the outcome stamp the tool prints — stripped too
+		"**Verdict:** a line of the preamble",
+		"```", "# a comment in a code block", "```",
 		"",
 		"## TL;DR", "lifted to the top.", "",
 		"## Analysis", "also lifted.", "",
-		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
-		"## Research areas", "a hand copy of the avenues.", "", // tool-owned — dropped, as its two siblings are
-		"## Future Research Directions", "a second hand copy.", "",
-		"## Alternatives considered", "a third hand copy.", "",
-		"## The Board", "blue cannot know red's findings.", "", // tool-owned — dropped
-		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
-		"## Footnotes", "[^a]: a citation blue tried to author.", "", // DROPPED — citations are tool-composed now
-		"## Appendix: raw benchmarks", "novel blue content.", "", // KEPT — genuinely additional
+		// What the write refuses and a migrated record can still hold: kept whole, anchors and all.
+		"## Alternatives considered", "an approach weighed<!--proof:P-00000001-->.", "",
+		"## Risk Matrix", "a risk row.", "",
+		"## Analysis", "a second section under a lifted heading.", "",
+		"##  analysis (in full)", "and a third, spelled another way.", "",
+		"## Appendix: raw benchmarks", "novel blue content.", "",
 	}, "\n")
-	got := blueEmbed(blue)
+	got := part(blue)
 
-	for _, kept := range []string{"## Appendix: raw benchmarks", "novel blue content."} {
-		if !strings.Contains(got, kept) {
-			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
+	if got.title != "# A topic — research report" {
+		t.Errorf("title = %q", got.title)
+	}
+	shipped := got.title + "\n" + got.rest
+	for _, text := range got.lifted {
+		shipped += "\n" + text
+	}
+	want := map[string]int{}
+	for _, ln := range strings.Split(blue, "\n") {
+		want[ln]++
+	}
+	have := map[string]int{}
+	for _, ln := range strings.Split(shipped, "\n") {
+		have[ln]++
+	}
+	for ln, n := range want {
+		if strings.TrimSpace(ln) != "" && have[ln] != n {
+			t.Errorf("the line %q is in the report's text %d time(s) and in what assembly places %d", ln, n, have[ln])
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "hand copy", "blue cannot know", "[to be filled]", "**Verdict:**", "**Outcome:**", "(asserted by blue)", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
-		if strings.Contains(got, dropped) {
-			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
-		}
+	if strings.Contains(got.rest, "lifted to the top") || strings.Contains(got.rest, "also lifted") {
+		t.Errorf("a lifted section is embedded a second time:\n%s", got.rest)
 	}
-	// A perfectly-scoped blue doc (only lifted sections) leaves nothing to embed.
-	scoped := "# t\n\n## TL;DR\nx\n\n## Analysis\ny\n"
-	if e := blueEmbed(scoped); e != "" {
-		t.Errorf("a correctly-scoped blue doc should yield an empty embed, got:\n%s", e)
+	if got.lifted["analysis"] != "## Analysis\nalso lifted." {
+		t.Errorf("the lift takes the first section under the heading: %q", got.lifted["analysis"])
+	}
+	// A perfectly-scoped report (only lifted sections) leaves nothing to embed.
+	if e := part("# t\n\n## TL;DR\nx\n\n## Analysis\ny\n").rest; e != "" {
+		t.Errorf("a report of lifted sections alone should leave nothing to embed, got:\n%s", e)
 	}
 }
 

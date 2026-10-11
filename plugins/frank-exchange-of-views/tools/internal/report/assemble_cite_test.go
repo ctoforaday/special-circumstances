@@ -74,10 +74,6 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		// on the same sentence.
 		"The cache is coherent<!--fx:F-00000aaa--><!--cite:C-00000001-->.",
 		"",
-		// Blue also hand-authors a Footnotes section — it must be DROPPED (tool composes it).
-		"## Footnotes",
-		"[^old]: blue's own hand-typed footnote.",
-		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
@@ -124,10 +120,6 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	}
 	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Proof. https://ex/coherence (accessed 2026-08-03)") {
 		t.Errorf("composed bibliography missing:\n%s", got)
-	}
-	composedHeadingsAreNamedToBlue(t, blue, got, "## Bibliography")
-	if strings.Contains(got, "blue's own hand-typed footnote") {
-		t.Error("blue's hand-authored footnote leaked through (must be dropped)")
 	}
 }
 

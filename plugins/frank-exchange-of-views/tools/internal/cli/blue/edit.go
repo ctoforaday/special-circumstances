@@ -145,6 +145,9 @@ func newEdit() *cobra.Command {
 			}
 			return nil, err
 		}
+		if err := composedRefusal(planned); err != nil {
+			return nil, err
+		}
 
 		// Event-first: commit the diff-stack op, then apply the write.
 		body := &recordpb.BlueEdit{
