@@ -32,6 +32,14 @@
 // a scratch path emits a tool name that does not exist. The seat would read it and type it. The
 // build below therefore writes to a file NAMED feov-record, and checkBinaryName refuses anything
 // else before a byte is generated.
+//
+// # The preloaded skills are generated too
+//
+// A seat is handed its definition AND the skills that definition declares, and a duty shared by
+// several seats lives in a skill. A skill kept by hand beside the fragments is a second copy of
+// whatever fragment text it carries, so each skill with a source under src/skills/<name>/SKILL.md
+// is expanded through the same `@include` and written to the plugin, with a comment naming its
+// source. A fragment no source includes is refused: it reaches no seat.
 package main
 
 import (
@@ -41,6 +49,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
@@ -49,6 +58,7 @@ import (
 const (
 	srcDir    = "scripts/agentgen/src"
 	agentsDir = "plugins/frank-exchange-of-views/agents"
+	skillsDir = "plugins/frank-exchange-of-views/skills"
 	toolsDir  = "plugins/frank-exchange-of-views/tools"
 	beginMark = "<!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->"
 	endMark   = "<!-- END GENERATED SURFACE -->"
@@ -75,7 +85,7 @@ var surfaceOf = map[string]struct{ role, sample string }{
 }
 
 func main() {
-	check := flag.Bool("check", false, "verify the committed definitions carry the surface the tool renders, instead of writing them")
+	check := flag.Bool("check", false, "verify the committed definitions and generated skills match their sources and the surface the tool renders, instead of writing them")
 	flag.Parse()
 
 	root, err := gitx.Root()
@@ -102,45 +112,66 @@ func main() {
 		byRole[s.role] = out
 	}
 
-	stale := []string{}
+	srcRoot := filepath.Join(root, srcDir)
+	_, skills, err := sourceRoots(srcRoot)
+	if err != nil {
+		fail(err)
+	}
+	// name -> the bytes the committed file must hold. Agent definitions and skills are one kind of
+	// output from here on: a source expanded, written when it differs, reported when -check finds it stale.
+	want := map[string][]byte{}
 	for name, s := range surfaceOf {
-		path := filepath.Join(root, agentsDir, name+".md")
-		authored, err := expand(filepath.Join(root, srcDir), name+".md", 0)
+		authored, err := expand(srcRoot, name+".md", 0)
 		if err != nil {
 			fail(fmt.Errorf("%s: %w", name, err))
 		}
-		want, err := splice(authored, byRole[s.role])
+		out, err := splice(authored, byRole[s.role])
 		if err != nil {
 			fail(fmt.Errorf("%s: %w", name, err))
 		}
+		want[filepath.Join(agentsDir, name+".md")] = out
+	}
+	for _, name := range skills {
+		out, err := renderSkill(srcRoot, name)
+		if err != nil {
+			fail(err)
+		}
+		want[filepath.Join(skillsDir, name, "SKILL.md")] = out
+	}
+
+	stale := []string{}
+	for rel, out := range want {
+		path := filepath.Join(root, rel)
 		cur, err := os.ReadFile(path)
 		if err != nil && !os.IsNotExist(err) {
-			fail(fmt.Errorf("reading %s: %w", name, err))
+			fail(fmt.Errorf("reading %s: %w", rel, err))
 		}
-		if bytes.Equal(cur, want) {
+		if bytes.Equal(cur, out) {
 			continue
 		}
 		if *check {
-			stale = append(stale, name)
+			stale = append(stale, rel)
 			continue
 		}
-		if err := os.WriteFile(path, want, 0o644); err != nil {
+		if err := os.WriteFile(path, out, 0o644); err != nil {
 			fail(err)
 		}
-		fmt.Printf("agentgen: wrote %s.md\n", name)
+		fmt.Printf("agentgen: wrote %s\n", rel)
 	}
 
 	if !*check {
-		fmt.Printf("agentgen: %d definition(s) carry %d role surface(s)\n", len(surfaceOf), len(byRole))
+		fmt.Printf("agentgen: %d definition(s) carry %d role surface(s); %d skill(s) generated\n", len(surfaceOf), len(byRole), len(skills))
 		return
 	}
 	if len(stale) > 0 {
-		fmt.Fprintf(os.Stderr, "agentgen: %d agent definition(s) carry a stale surface: %s\n"+
-			"The surface block is generated from the tool's own `manual`; edit the verb, never the block.\n"+
-			"Regenerate: (cd scripts && go run ./agentgen)\n", len(stale), strings.Join(stale, ", "))
+		sort.Strings(stale)
+		fmt.Fprintf(os.Stderr, "agentgen: %d generated file(s) are stale: %s\n"+
+			"An agent definition and a generated skill are written from %s; the surface block in a definition is the tool's own `manual`. "+
+			"Edit the source or the verb, never the generated file.\n"+
+			"Regenerate: (cd scripts && go run ./agentgen)\n", len(stale), strings.Join(stale, ", "), srcDir)
 		os.Exit(1)
 	}
-	fmt.Printf("agentgen: %d definition(s) match the surface the tool renders\n", len(surfaceOf))
+	fmt.Printf("agentgen: %d definition(s) match the surface the tool renders; %d skill(s) match their source\n", len(surfaceOf), len(skills))
 }
 
 func fail(err error) {
@@ -249,6 +280,119 @@ func expand(srcRoot, rel string, depth int) ([]byte, error) {
 		}
 	}
 	return out.Bytes(), nil
+}
+
+// skillSource is a generated skill's source, relative to the source root.
+func skillSource(name string) string { return filepath.Join("skills", name, "SKILL.md") }
+
+// skillNames lists the skills this generator writes: every directory under src/skills holding a
+// SKILL.md. Read from the tree, so a skill becomes generated by its source existing.
+func skillNames(srcRoot string) ([]string, error) {
+	found, err := filepath.Glob(filepath.Join(srcRoot, "skills", "*", "SKILL.md"))
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(found))
+	for _, p := range found {
+		names = append(names, filepath.Base(filepath.Dir(p)))
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// sourceRoots are the sources a generated file is written from — one per agent definition, one per
+// skill — and the skill names among them. It refuses a tree holding a fragment none of them reaches.
+func sourceRoots(srcRoot string) (roots, skills []string, err error) {
+	if skills, err = skillNames(srcRoot); err != nil {
+		return nil, nil, err
+	}
+	for name := range surfaceOf {
+		roots = append(roots, name+".md")
+	}
+	for _, name := range skills {
+		roots = append(roots, skillSource(name))
+	}
+	sort.Strings(roots)
+	dead, err := deadFragments(srcRoot, roots)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(dead) > 0 {
+		return nil, nil, fmt.Errorf("%d fragment(s) under %s/fragments are included by no source: %s\n"+
+			"A fragment nothing includes reaches no seat and reads as a duty somebody holds. `@include` it or delete it.",
+			len(dead), srcDir, strings.Join(dead, ", "))
+	}
+	return roots, skills, nil
+}
+
+// renderSkill expands a skill source and names that source in a comment under the frontmatter.
+//
+// THE COMMENT GOES UNDER THE FRONTMATTER, NEVER ABOVE IT: the harness reads a skill's name and
+// description from a frontmatter block that opens the file, and a skill whose first line is
+// anything else is a skill with no description.
+func renderSkill(srcRoot, name string) ([]byte, error) {
+	rel := skillSource(name)
+	body, err := expand(srcRoot, rel, 0)
+	if err != nil {
+		return nil, fmt.Errorf("skill %s: %w", name, err)
+	}
+	const fence = "---\n"
+	end := -1
+	if bytes.HasPrefix(body, []byte(fence)) {
+		end = bytes.Index(body[len(fence):], []byte("\n"+fence))
+	}
+	if end < 0 {
+		return nil, fmt.Errorf("skill %s: %s opens with no frontmatter block — the harness reads the skill's name and description from it", name, rel)
+	}
+	cut := len(fence) + end + 1 + len(fence)
+	head := fmt.Sprintf("\n<!-- GENERATED by scripts/agentgen from %s/%s — DO NOT EDIT BY HAND. -->\n", srcDir, filepath.ToSlash(rel))
+	out := append([]byte{}, body[:cut]...)
+	out = append(out, head...)
+	return append(out, body[cut:]...), nil
+}
+
+// deadFragments lists the fragments no root reaches through `@include`, transitively.
+func deadFragments(srcRoot string, roots []string) ([]string, error) {
+	reached := map[string]bool{}
+	var walk func(rel string, depth int) error
+	walk = func(rel string, depth int) error {
+		if depth > 8 {
+			return fmt.Errorf("@include nested more than 8 deep at %s — a fragment probably includes itself", rel)
+		}
+		raw, err := os.ReadFile(filepath.Join(srcRoot, rel))
+		if err != nil {
+			return err
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			inc, ok := strings.CutPrefix(strings.TrimSpace(line), "@include ")
+			if !ok {
+				continue
+			}
+			inc = filepath.Clean(strings.TrimSpace(inc))
+			reached[inc] = true
+			if err := walk(inc, depth+1); err != nil {
+				return fmt.Errorf("%s includes %s: %w", rel, inc, err)
+			}
+		}
+		return nil
+	}
+	for _, r := range roots {
+		if err := walk(r, 0); err != nil {
+			return nil, err
+		}
+	}
+	all, err := filepath.Glob(filepath.Join(srcRoot, "fragments", "*.md"))
+	if err != nil {
+		return nil, err
+	}
+	var dead []string
+	for _, p := range all {
+		if rel := filepath.Join("fragments", filepath.Base(p)); !reached[rel] {
+			dead = append(dead, rel)
+		}
+	}
+	sort.Strings(dead)
+	return dead, nil
 }
 
 // splice replaces the generated block, or appends one when the definition has none yet.
