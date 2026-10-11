@@ -3,6 +3,8 @@ package telecli
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,5 +169,62 @@ func TestRipgrepOffsetsAreRawBytes(t *testing.T) {
 	hits, stale := recordsAt(path, recs, false)
 	if stale != 0 || len(hits) != 1 || hits[0].Channel != catalogue.ChannelUser {
 		t.Errorf("stale %d, hits %+v — want the human's record read back as ripgrep matched it", stale, hits)
+	}
+}
+
+// A TRANSCRIPT THE STORE NAMES AND THE DISK NO LONGER HOLDS IS COUNTED OUT, NOT SEARCHED. Handed to
+// ripgrep it was exit 2, and every search on a box whose client had aged out one transcript read
+// INCOMPLETE — a floor under hundreds of "No such file" lines, for a corpus that was not changing.
+// The rows are the same as with the file present, the gone are stated once, the empty result
+// counts only what was on disk, and a store whose every transcript is gone refuses.
+func TestFindCountsOutTranscriptsGoneFromDisk(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is not installed, so `find` cannot be exercised here — a skipped assertion, not a passing one")
+	}
+	h := newHarness(t)
+	transcripts := func() []string {
+		var out []string
+		if err := filepath.WalkDir(h.projects, func(p string, d fs.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && strings.HasSuffix(p, ".jsonl") {
+				out = append(out, p)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	all := transcripts()
+
+	// delta's transcript goes the way retention cleanup takes it; the store keeps its rows.
+	if err := os.Remove(filepath.Join(h.projects, "-work-delta", deltaID+".jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	out, errOut, code := h.run(t, "find", "mint.go")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
+	}
+	assertGolden(t, "find-hit", out)
+	if !strings.Contains(errOut, "1 transcript(s) the store names are no longer on disk") ||
+		strings.Contains(errOut, "INCOMPLETE") || strings.Contains(errOut, "No such file") {
+		t.Errorf("one transcript gone: stderr %q — want it counted once and no INCOMPLETE", errOut)
+	}
+
+	// The worded empty result counts the transcripts that WERE searched, not the ones named.
+	out, _, code = h.run(t, "find", "no-such-term-anywhere")
+	want := fmt.Sprintf("searched %d transcripts", len(all)-1)
+	if code != 0 || !strings.Contains(out, want) {
+		t.Errorf("empty result with one gone: exit %d, stdout %q — want %q", code, out, want)
+	}
+
+	// Every named transcript gone is a refusal, never a search that found nothing.
+	for _, p := range all {
+		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			t.Fatal(err)
+		}
+	}
+	out, errOut, code = h.run(t, "find", "mint.go")
+	if code == 0 || !strings.Contains(errOut, "nothing to search") || strings.Contains(out, "no transcript contains") {
+		t.Errorf("every transcript gone: exit %d, stdout %q, stderr %q — want a refusal", code, out, errOut)
 	}
 }

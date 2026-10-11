@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"sort"
@@ -120,7 +121,13 @@ corpus it could not finish reading, or no row surviving while some matching
 records could not be read back as ripgrep matched them (the file changed or
 went away since the search, or the record no longer parses). When rows do
 survive, one line on stderr counts those records. A search that could not run
-must never be reported as a search that found nothing.`,
+must never be reported as a search that found nothing.
+
+A transcript the store names and the disk no longer holds is not searched: the
+client's retention cleanup (cleanupPeriodDays) removes transcripts after a time,
+and the store keeps their records for its own window. One line on stderr counts
+them, "searched N transcripts" counts only what is on disk, and telepathy sql
+still answers for them. When every named transcript is gone, the search refuses.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			term := args[0]
@@ -141,15 +148,24 @@ must never be reported as a search that found nothing.`,
 				return errNoRipgrep
 			}
 
-			// THE ARGV IS SORTED, and that is where the determinism comes from. `paths` is a map,
-			// so building the argv by ranging it hands ripgrep a different command line every
-			// run — and then the output order, and anything a caller diffs against yesterday's,
-			// is an accident of Go's map seed.
-			names := make([]string, 0, len(paths))
-			for p := range paths {
-				names = append(names, p)
+			// A TRANSCRIPT THE STORE NAMES CAN BE GONE FROM DISK, and stays named: the client's
+			// retention cleanup removes transcripts after cleanupPeriodDays, and the store keeps
+			// their records for its own window (backfill says so). Handed to ripgrep, each one is an
+			// error and exit 2, which turned every search on a box with one aged-out transcript
+			// into INCOMPLETE — a floor under hundreds of "No such file" lines, for a corpus that
+			// was not changing under the walk. The gone are counted out of the argv here and
+			// stated once; INCOMPLETE is kept for a walk that actually failed.
+			names, gone := onDisk(paths)
+			if len(names) == 0 {
+				return fmt.Errorf("every one of the %d transcripts the store names is gone from "+
+					"disk, so there is nothing to search; the store still holds their records, "+
+					"and `telepathy sql` answers for them", gone)
 			}
-			sort.Strings(names)
+			if gone > 0 {
+				fmt.Fprintf(cmd.ErrOrStderr(), "telepathy find: %d transcript(s) the store names "+
+					"are no longer on disk and were not searched; the store still holds their "+
+					"records, and `telepathy sql` answers for them\n", gone)
+			}
 
 			var stderr bytes.Buffer
 			run := exec.CommandContext(cmd.Context(), rg, ripgrepArgs(term, asRegex, names)...)
@@ -209,6 +225,28 @@ must never be reported as a search that found nothing.`,
 	c.Flags().BoolVar(&showPaths, "paths", false,
 		"print the transcript path under each row, for citing the record rather than summarising it")
 	return c
+}
+
+// onDisk is the argv ripgrep searches — every path the store names that is on disk, sorted —
+// and the count of those that are not.
+//
+// THE ARGV IS SORTED, and that is where the determinism comes from. `paths` is a map, so building
+// the argv by ranging it hands ripgrep a different command line every run — and then the output
+// order, and anything a caller diffs against yesterday's, is an accident of Go's map seed.
+//
+// ONLY A FILE THAT DOES NOT EXIST IS GONE. Any other stat failure — a permission, a path that is
+// a directory — stays in the argv, so ripgrep reports it and the search reads INCOMPLETE rather
+// than counting it as a transcript retention took.
+func onDisk(paths map[string]catalogue.TranscriptFile) (names []string, gone int) {
+	for p := range paths {
+		if _, err := os.Stat(p); errors.Is(err, fs.ErrNotExist) {
+			gone++
+			continue
+		}
+		names = append(names, p)
+	}
+	sort.Strings(names)
+	return names, gone
 }
 
 // ripgrepArgs is find's whole ripgrep command line after the binary, extracted so a test runs

@@ -75,6 +75,12 @@ went away since the search, or the record no longer parses). When rows do
 survive, one line on stderr counts those records. A search that could not run
 must never be reported as a search that found nothing.
 
+A transcript the store names and the disk no longer holds is not searched: the
+client's retention cleanup (cleanupPeriodDays) removes transcripts after a time,
+and the store keeps their records for its own window. One line on stderr counts
+them, "searched N transcripts" counts only what is on disk, and telepathy sql
+still answers for them. When every named transcript is gone, the search refuses.
+
 Usage:
   telepathy find <term> [flags]
 
