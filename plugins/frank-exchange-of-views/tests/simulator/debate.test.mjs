@@ -614,25 +614,35 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  // AN APPROACH IS RECORDED WITH THE FATE IT HAD, AND NO FATE IS OWED AN ENTRY. A prompt that asks
-  // for "what you considered and declined" is read as asking for a declined avenue: on universe-m21
-  // a lane with nothing it had weighed and set down ran a check, then proposed and declined it four
-  // seconds later, and the report printed one approach as concluded and as declined.
-  assert.ok(/AVENUES/.test(synth) && /NO FATE IS OWED AN ENTRY/.test(synth) && /declined is ONLY an approach you weighed and did not run/.test(synth),
-    'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
-  assert.ok(!/not only the one you took/.test(synth) && !/considered and declined is what makes/.test(synth) && !/dead ends matter most/.test(synth),
-    'the avenue clause presses for a declined or abandoned entry')
-  // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL. The sentence here read "alternatives reach
-  // the reader under their own headings" with no actor, among imperatives to blue, and the
-  // synthesizer wrote those headings. The prompt says who composes the three sections, which fate
-  // lands under which, and that blue writes none of them; and its list of the tool's sections
-  // names all three and the bibliography.
-  assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(synth) && /You write none of those three headings in the report/.test(synth))
-  assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(synth))
+  // THE SYNTHESIZER RECORDS NO AVENUE, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
+  // approaches are the frontier's and the lanes', who did the work. Handed the lanes' avenue
+  // paragraph on universe-m21, it proposed five approaches that were already on the record without
+  // reading it, and the report printed one approach as concluded and as abandoned. What it is told
+  // is what the report holds of them: the tool composes the three sections, and the report carries
+  // no list of approaches under any heading.
+  assert.ok(!/AVENUES:/.test(synth) && !/the hypothesis that would be true if it paid off/.test(synth) && !/NO FATE IS OWED/.test(synth) && !/The line you propose/.test(synth),
+    'the synthesis prompt carries the avenue paragraph: the synthesizer is asked to record approaches')
+  assert.ok(/The approaches the research considered are among them: each is an avenue on the record, where what became of it is said, and the report carries no list of them\./.test(synth),
+    'the synthesis prompt must say the report carries no list of the approaches')
   for (const h of ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Bibliography']) {
     assert.ok(synth.includes('Do NOT write any of') && synth.includes('`## ' + h + '`'), 'the synthesis prompt does not name ## ' + h + ' among the sections assembly composes')
   }
   assert.ok(!/reach the reader under their own headings|left for a later run/.test(synth), 'the synthesis prompt cues blue to head a section of its own with the avenues')
+  // AN APPROACH IS RECORDED WITH THE FATE IT HAD, AND NO FATE IS OWED AN ENTRY: the lanes' paragraph.
+  // A prompt that asks for "what you considered and declined" is read as asking for a declined
+  // avenue: on universe-m21 a lane with nothing it had weighed and set down ran a check, then
+  // proposed and declined it four seconds later, and the report printed one approach as concluded
+  // and as declined. "Your part is the record: you put each approach on it" pressed the same way.
+  for (const lane of labelsOf(world, 'blue-lane').map((c) => c.prompt)) {
+    assert.ok(/AVENUES:/.test(lane) && /NO FATE IS OWED AN ENTRY/.test(lane) && /declined is ONLY an approach you weighed and did not run/.test(lane),
+      'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
+    assert.ok(!/not only the one you took/.test(lane) && !/considered and declined is what makes/.test(lane) && !/dead ends matter most/.test(lane) && !/you put each approach on it/.test(lane),
+      'the avenue clause presses for an entry')
+    // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
+    // fate lands under which, and that blue writes none of them.
+    assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))
+    assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
+  }
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of
   // 39 results carried the literal "not computed", which the verb's own help concedes — the rows

@@ -348,11 +348,9 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 			}
 		}
 	}
-	// The avenue rule reaches the seats that write the report in the table's own sentence.
-	for _, seat := range []string{"blue-synthesize", "blue-lane-1"} {
-		if !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
-			t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, AvenueSections)
-		}
+	// The avenue rule reaches the seat that records an approach's fate in the table's own sentence.
+	if seat := "blue-lane-1"; !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
+		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, AvenueSections)
 	}
 }
 
