@@ -63,6 +63,8 @@ Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN
 
 THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
 
+YOUR MINT BUDGET CAPS THE GAPS YOU HOLD OPEN AT ONCE, not the gaps you mint in the run. Every open gap you minted takes one mint of it — one that is not material, and one you superseded and have not closed, as much as any other — and a gap that closes, by your `close` or by the bench's ruling, frees one. At the cap the mint is REFUSED with the arithmetic: record the defect as a finding, and mint it when a gap of yours has closed, crediting that finding as what surfaced it. Your work list states the count.
+
 FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, so a lens area alone (`evidence`) or an invented id fails here rather than resolving to nothing.
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.

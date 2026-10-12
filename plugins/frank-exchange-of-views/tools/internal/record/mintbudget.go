@@ -12,14 +12,20 @@ import (
 
 // A LENS'S MINT BUDGET SCALES WITH WHAT IT AUDITS (plans/roundless.md §III.B.2.2 sets the bound;
 // this sets its size). A fixed number per lens ignored the document: five mints is generous for a
-// page and starves a report of thirty paragraphs, and a smoke run's one mint was one for any
-// report at all. So each area names the unit its audit runs over and how many of them buy a mint:
+// page and starves a report of thirty paragraphs, and a floor of one was one for any report at
+// all. So each area names the unit its audit runs over and how many of them buy a mint:
 //
 //	budget(lens) = max(floor, ceil(units / per))
 //
 // The floor is the run's MintBudget (--mint-budget at setup), so no lens ever gets less than the
 // operator granted. The units are read from the record at EACH mint, so the budget grows as the
-// report grows; a superseding mint still counts against it, because lineage is a new gap.
+// report grows.
+//
+// THE BUDGET CAPS WHAT A LENS HOLDS OPEN, NOT WHAT IT MINTS IN THE RUN. What is counted against it
+// is the lens's gaps that are open on the gap view (lensMintStanding), so a gap that closes frees a
+// mint and a defect found after the cap is a finding now and a gap once a slot is free. A count of
+// every mint never refilled: a lens that spent its budget early and saw all of it dealt with was
+// refused the next real defect, and a finding obliges nobody.
 //
 // ONE TABLE. The check, the refusal and the tests all read mintScales; an area with no row is an
 // error, never a default — a default would size an unknown lens by some other lens's unit.
@@ -176,11 +182,13 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 	return reportRenderer(base, haveBase, ops)
 }
 
-// requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may mint at
-// most its budget (above) in the run, a SUPERSEDING mint included — lineage is a new gap. A lens
-// whose budget is spent still sits while the record readies it: it verifies, records findings,
-// regrades and closes its own gaps, and with no fresh mint its sittings are barren, so it retires
-// within two. The count is the record's own — this seat's mint events — not a counter
+// requireMintWithinBudget is the run-level bound that is not a clock: each cast lens may hold at
+// most its budget (above) of gaps open at once. A SUPERSEDING mint is a new open gap and takes a
+// mint like any other; the gap it replaces holds its own until it closes, which superseding does
+// not do — its lens closes it naming the successor. A lens at its budget still sits while the
+// record readies it: it verifies, records findings, regrades and closes its own gaps, and each
+// close frees a mint; with no fresh mint its sittings are barren, so it retires within two. The
+// count is the record's own — the gap view's open gaps this seat minted — not a counter
 // the seat carries. Only a lens is bounded: a seat of another role spends no budget. A mint
 // attributed to an id that is no seat is refused, live and under Migrating alike; migration replays
 // under the archived seat id, so the arithmetic — not the roster — is exempted under Migrating,
@@ -222,34 +230,38 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	if err != nil {
 		return err
 	}
-	n, b := st.Minted, st.Budget
+	n, b := st.Open, st.Budget
 	if n < b.Floor {
 		return nil
 	}
 	if st.MeasureErr != nil {
 		return feov.Errorf(feov.Validation,
-			"%s has minted %d gap(s), the floor of its budget (mintBudget in inputs/run-config.json is %d), "+
-				"and the %s lens's budget above the floor, one mint per %d %s, cannot be read: %v. "+
-				"A mint past the floor waits on that measure rather than guessing it. "+
-				"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
-			seatID, n, b.Floor, area, b.Per, b.Measure, st.MeasureErr)
+			"%s holds %d gap(s) open, the floor of its mint budget (mintBudget in inputs/run-config.json is %d), "+
+				"and the %s lens's budget above the floor, one open gap per %d %s, cannot be read: %v. "+
+				"A mint past the floor waits on that measure rather than guessing it, or on a gap you minted closing, which frees a mint under the floor. "+
+				"%s", seatID, n, b.Floor, area, b.Per, b.Measure, st.MeasureErr, mintRefusedNext)
 	}
 	if n < b.Budget {
 		return nil
 	}
 	return feov.Errorf(feov.Validation,
-		"%s has minted %d gap(s), its whole budget. The %s lens's budget is the larger of the run's floor "+
-			"(mintBudget in inputs/run-config.json) and one mint per %d %s: %s, and it grows as the report does. "+
-			"The budget is where a trifle's cost lands: with %d mints for this report, none of them is spent on a nitpick. "+
-			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
-		seatID, n, area, b.Per, b.Measure, b.Arithmetic(), b.Budget)
+		"%s holds %d gap(s) open and its mint budget admits no more. The budget caps the gaps a lens holds open at once: "+
+			"the %s lens's is the larger of the run's floor (mintBudget in inputs/run-config.json) and one open gap per %d %s: %s, "+
+			"and it grows as the report does. Every open gap you minted takes one mint of it, a trifle as much as a material defect. "+
+			"A gap of yours that closes, by your close or by the bench's ruling, frees one. %s",
+		seatID, n, area, b.Per, b.Measure, b.Arithmetic(), mintRefusedNext)
 }
 
-// mintStanding is where a lens stands against its mint budget: the gaps it has minted in the run,
-// and its budget with every term. MeasureErr is why the allowance above the floor could not be
+// mintRefusedNext is what a lens refused for budget does with what it found, on both refusals: the
+// defect is recorded as a finding, and the finding is what the later mint credits.
+const mintRefusedNext = "Record what you found as a finding now, and mint it when a gap of yours has closed, naming that finding in --found-by. " +
+	"You can still verify, record findings, and regrade or close the gaps you minted"
+
+// mintStanding is where a lens stands against its mint budget: the gaps it minted that are open
+// now, and its budget with every term. MeasureErr is why the allowance above the floor could not be
 // read; Budget then holds the area, the unit, the ratio and the floor, and no units or total.
 type mintStanding struct {
-	Minted     int
+	Open       int
 	Budget     LensBudget
 	MeasureErr error
 }
@@ -261,41 +273,48 @@ func (s mintStanding) Left() (left int, measured bool) {
 	if s.MeasureErr != nil {
 		limit = s.Budget.Floor
 	}
-	if s.Minted >= limit {
+	if s.Open >= limit {
 		return 0, s.MeasureErr == nil
 	}
-	return limit - s.Minted, s.MeasureErr == nil
+	return limit - s.Open, s.MeasureErr == nil
 }
 
 // lensMintStanding reads a lens's standing off the record: the floor from the run's terms, the
-// count from the seat's own mint events — the record's, not a counter the seat carries — and the
-// budget from the area's scale. IT IS THE ONE READING OF "HOW MANY MINTS HAS THIS LENS LEFT": the
-// write refuses on it (requireMintWithinBudget) and the work list states it (WorkOfSeat). An error
-// is the terms or the count failing to read; a measure failing to read is MeasureErr, because
-// under the floor a mint is admitted without it.
+// count from the gap view — the record's, not a counter the seat carries — and the budget from the
+// area's scale. IT IS THE ONE READING OF "HOW MANY MINTS HAS THIS LENS LEFT": the write refuses on
+// it (requireMintWithinBudget) and the work list states it (WorkOfSeat). An error is the terms or
+// the count failing to read; a measure failing to read is MeasureErr, because under the floor a
+// mint is admitted without it.
+//
+// OPEN IS THE GAP VIEW'S "open" (recordsql/views.go), the column the board, the PASS gate and the
+// dispatch plan read: no closing act of either arm stands on the gap. So a gap its lens closed, on
+// any disposition, or the bench disposed of, holds no mint; a gap whose close was struck holds one
+// again; a non-material gap holds one, because it is open; and a SUPERSEDED gap holds one until its
+// lens closes it — superseding closes nothing, and the view calls such a gap stranded.
 func lensMintStanding(run Run, seatID, area string) (mintStanding, error) {
 	p, err := RunParams(run)
 	if err != nil {
 		return mintStanding{}, err
 	}
 	var st mintStanding
-	if _, err := queryRow(run, []any{&st.Minted},
-		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?`, seatID); err != nil {
-		return mintStanding{}, err
+	if _, err := queryRow(run, []any{&st.Open},
+		`SELECT count(*) FROM "gap" WHERE "open" AND "minted_by" = ?`, seatID); err != nil {
+		// CODED AND SAID AS THE MINT'S REFUSAL, as the duplicate screen says its own failed read.
+		return mintStanding{}, feov.Wrap(feov.Conflict, err, "the board could not be read, so the gaps %s holds open cannot be counted against its mint budget: %v", seatID, err)
 	}
 	st.Budget, st.MeasureErr = lensBudgetAt(run, area, p.MintBudget)
 	return st, nil
 }
 
 // MintBudgetJSON is a lens's standing against its mint budget, as its work list carries it
-// (SittingJSON.MintBudget): the terms of LensBudget's arithmetic, what the seat has minted, and
+// (SittingJSON.MintBudget): the terms of LensBudget's arithmetic, what the seat holds open, and
 // what is left.
 type MintBudgetJSON struct {
-	// Minted is the gaps this seat has minted in the run, superseding mints included.
-	Minted int `json:"minted"`
+	// Open is the gaps this seat minted that are open now (the gap view's "open").
+	Open int `json:"open"`
 	// Budget is max(floor, ceil(units / per)) — or, where Measured is false, the floor alone.
 	Budget int `json:"budget"`
-	// Left is how many more mints the write path admits now: Budget less Minted, never below 0.
+	// Left is how many more mints the write path admits now: Budget less Open, never below 0.
 	Left  int `json:"left"`
 	Floor int `json:"floor"`
 	// Unit names what the area's budget is sized by, Units is how many of them the record holds
@@ -324,20 +343,20 @@ func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
 	}
 	b := st.Budget
 	left, measured := st.Left()
-	j := &MintBudgetJSON{Minted: st.Minted, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Per: b.Per, Measured: measured}
+	j := &MintBudgetJSON{Open: st.Open, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Per: b.Per, Measured: measured}
 	leftWords := "NO mint is left to you"
 	if left > 0 {
 		leftWords = fmt.Sprintf("%d mint(s) are left to you", left)
 	}
 	if !measured {
 		j.Budget = b.Floor
-		return j, fmt.Sprintf("you have minted %d gap(s) in this run and your mint budget above the run's floor of %d is NOT MEASURED — one mint per %d %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure; what you find past it goes in a finding, not a gap",
-			st.Minted, b.Floor, b.Per, b.Measure, st.MeasureErr, leftWords)
+		return j, fmt.Sprintf("you hold %d gap(s) open and your mint budget above the run's floor of %d is NOT MEASURED — one open gap per %d %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure or on a gap you minted closing; what you find until then goes in a finding, and the finding is minted then",
+			st.Open, b.Floor, b.Per, b.Measure, st.MeasureErr, leftWords)
 	}
-	tail := "a superseding mint spends one, and the budget grows as the report does"
+	tail := "every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one, and the budget grows as the report does"
 	if left == 0 {
-		tail = "what you find now goes in a finding, not a gap, and the budget grows as the report does"
+		tail = "what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then; the budget grows as the report does"
 	}
-	return j, fmt.Sprintf("you have minted %d gap(s) of a mint budget of %d in this run — %s — so %s; %s",
-		st.Minted, b.Budget, b.Arithmetic(), leftWords, tail)
+	return j, fmt.Sprintf("you hold %d gap(s) open of a mint budget of %d — %s — so %s; %s",
+		st.Open, b.Budget, b.Arithmetic(), leftWords, tail)
 }

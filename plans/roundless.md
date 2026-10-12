@@ -467,23 +467,29 @@ every lens ready again → any lens mints G′ → forever. `K_max` bounds excha
 bounded the number of gaps; `maxRounds` had been withdrawn with no replacement. **gblock's ruling:
 a MINT BUDGET per lens.**
 
-**Each cast lens may mint at most `M` gaps per run.** `M` is a run parameter (default 5, recorded
+**Each cast lens may hold at most `M` gaps OPEN at once.** `M` is a run parameter (default 5, recorded
 in `inputs/run-config.json`, a starting point the gate run measures — #753's baseline ran ~20
-findings a run across four lenses before the chair coalesced them). A lens whose budget is spent
+findings a run across four lenses before the chair coalesced them). What is counted is the lens's
+gaps the gap view calls open — no closing act of either arm stands — so a gap that closes, by its
+lens on any disposition or by the bench, frees a mint, and a defect the budget refuses is recorded
+as a finding and minted, crediting that finding, once one has. A count of every mint in the run
+never refilled: universe-m22's logic lens spent a budget of 3 by epoch 3, saw all three dealt with,
+and was refused a real misdescription, which went into a finding that obliges nobody and shipped
+in a VERIFIED report. A lens at its budget
 still sits when the head moves — it verifies, records findings, regrades and closes ITS OWN gaps —
-but `mint` is refused, **including a `mint` that supersedes**: lineage is a new gap and counts
-against `M`, or the bound `gaps ≤ M × L` does not hold. A spent lens therefore cannot move
-lineage, which is consistent with what it can still do. **Cross-lens supersede** — lens B's mint
+but `mint` is refused, **including a `mint` that supersedes**: the successor is a new open gap,
+and the gap it replaces holds its own mint until its lens closes it, because superseding closes
+nothing. A lens at its budget therefore moves lineage by closing first. **Cross-lens supersede** — lens B's mint
 supersedes lens A's gap, as the nearmatch screen expects — leaves A's gap closeable only by A
 (originator closes, §III.B.3); `requireSupersededAreClosed` is satisfied by A's close, and A is
 dispatched for it under rule 1 the next time the head moves. The refusal is at the write path, from the record's own count of that
-seat's mints.
+seat's open gaps.
 
 **Why it is the right bound and not merely a bound.** An epoch cap would also terminate, and it
 would be `maxRounds` with the chair's sitting standing in for the round — a global clock in all
 but name, which is the thing this plan removes. A budget is PER SEAT, and it puts the cost of a
-trifle where the trifle is born: a lens with five mints and a report full of real defects does not
-spend one on a nitpick. §III.B.2.1's refusal catches triviality at the verdict; the budget makes
+trifle where the trifle is born: a lens holding a nitpick open has one mint fewer for a real defect
+until it closes it. §III.B.2.1's refusal catches triviality at the verdict; the budget makes
 it expensive at the source. That is the incentive gblock asked for, applied one step earlier than
 revision 6 could.
 
@@ -491,13 +497,16 @@ revision 6 could.
 a smoke is `M = 1, K_max = 2` — one mint per lens, two exchanges per gap — which bounds it tighter
 than two rounds did and keeps the run shaped like a run rather than a truncation.
 
-**Termination, now provable rather than hoped.** Gaps ≤ `M × |cast lenses|`. Each gap ≤ `K_max`
-exchanges (§III.B.2). So total exchanges ≤ `M × L × K_max`. Once every budget is spent, a head
+**Termination.** Gaps open at once ≤ `M × |cast lenses|`, and each gap ≤ `K_max`
+exchanges (§III.B.2). The budget does not bound the gaps a run mints in total: a lens that mints,
+sees its gap closed and mints again is a lens working, and the bound on the run's length is the
+epoch limit (`maxEpochs`, CEILING at the limit) with lens retirement (two sittings without a fresh
+material mint). While every budget is held open, a head
 move re-readies lenses that can only regrade or close; no new gap appears; every open gap reaches
 impasse or closes; and either no material gap is open and every lens has sat against the head
 (VERIFIED) or every open gap is at impasse with the bench having sat (CEILING). The deleted
 `exhausted` arm (`debate.js:1268`, `verdict.go:75`) is replaced by this — CEILING's definition is
-unchanged; the budget is what guarantees the state is reached.
+unchanged; the budget with the epoch limit is what guarantees the state is reached.
 
 ### §III.B.2.1 Triviality must not hold the report open — the refusal, corrected
 
