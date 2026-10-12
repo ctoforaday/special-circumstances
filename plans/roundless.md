@@ -467,7 +467,7 @@ every lens ready again → any lens mints G′ → forever. `K_max` bounds excha
 bounded the number of gaps; `maxRounds` had been withdrawn with no replacement. **gblock's ruling:
 a MINT BUDGET per lens.**
 
-**Each cast lens may hold at most `M` gaps OPEN at once.** `M` is a run parameter (default 5, recorded
+**Each cast lens may hold at most `M` gaps OPEN at once.** `M` is a run parameter (default 15, recorded
 in `inputs/run-config.json`, a starting point the gate run measures — #753's baseline ran ~20
 findings a run across four lenses before the chair coalesced them). What is counted is the lens's
 gaps the gap view calls open — no closing act of either arm stands — so a gap that closes, by its

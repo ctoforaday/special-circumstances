@@ -2829,7 +2829,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	//
 	// TERMS TIGHTER THAN A SMOKE'S, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
 	// forty times inside a release gate, not to run forty production-length debates: under the
-	// defaults (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
+	// terms of production size (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
 	// already been reached. One open gap per lens and two exchanges per gap reach impasse, the
 	// docket, the ceiling and the pass in a few epochs. `/research --smoke` runs a floor of three;

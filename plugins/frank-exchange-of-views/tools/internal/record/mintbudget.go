@@ -13,9 +13,9 @@ import (
 // A LENS'S MINT BUDGET SCALES WITH WHAT IT AUDITS (plans/roundless.md §III.B.2.2 sets the bound;
 // this sets its size). A fixed number per lens ignored the document: five mints is generous for a
 // page and starves a report of thirty paragraphs, and a floor of one was one for any report at
-// all. So each area names the unit its audit runs over and how many of them buy a mint:
+// all. So each area names the unit its audit runs over and how many mints so many of them buy:
 //
-//	budget(lens) = max(floor, ceil(units / per))
+//	budget(lens) = max(floor, ceil(units × mints / per))
 //
 // The floor is the run's MintBudget (--mint-budget at setup), so no lens ever gets less than the
 // operator granted. The units are read from the record at EACH mint, so the budget grows as the
@@ -52,22 +52,27 @@ var (
 	measureParagraphs = mintMeasure{"prose paragraphs in the current report", countInReport(claimcount.Paragraphs)}
 )
 
-// mintScale is one area's row: its unit, and how many units buy one mint.
+// mintScale is one area's row: its unit, and the rate — `mints` mints for every `per` units. Two
+// integers because the rates are not all whole: three mints per two citations is no "one per N".
 type mintScale struct {
 	measure mintMeasure
+	mints   int
 	per     int
 }
+
+// rate states a scale's ratio in words, for the refusal, the work list and the help.
+func rate(mints, per int, unit string) string { return fmt.Sprintf("%d per %d %s", mints, per, unit) }
 
 // mintScales is the one source of every lens area's budget scale. Every area in flags.LensAreas
 // has a row, and no row names an area outside it (TestEveryLensAreaHasAMintScale).
 var mintScales = map[string]mintScale{
-	"evidence":     {measureCitations, 2},
-	"computation":  {measureProofs, 2},
-	"logic":        {measureClaims, 3},
-	"voice":        {measureParagraphs, 5},
-	"dark-side":    {measureParagraphs, 5},
-	"adversary":    {measureParagraphs, 5},
-	"architecture": {measureParagraphs, 5},
+	"evidence":     {measureCitations, 3, 2},
+	"computation":  {measureProofs, 3, 2},
+	"logic":        {measureClaims, 1, 1},
+	"voice":        {measureParagraphs, 3, 5},
+	"dark-side":    {measureParagraphs, 3, 5},
+	"adversary":    {measureParagraphs, 3, 5},
+	"architecture": {measureParagraphs, 3, 5},
 }
 
 // MintScaleSummary states every area's scale in roster order, for help text: read from the table,
@@ -76,7 +81,7 @@ func MintScaleSummary() string {
 	parts := make([]string, 0, len(flags.LensAreas))
 	for _, a := range flags.LensAreas {
 		if s, ok := mintScales[a]; ok {
-			parts = append(parts, fmt.Sprintf("%s 1 per %d %s", a, s.per, s.measure.name))
+			parts = append(parts, a+" "+rate(s.mints, s.per, s.measure.name))
 		}
 	}
 	return strings.Join(parts, "; ")
@@ -95,19 +100,23 @@ type LensBudget struct {
 	Area    string // the lens area: "evidence"
 	Measure string // the unit's name: "citations on the record"
 	Units   int    // the unit count at the time of reading
-	Per     int    // units per mint
+	Mints   int    // mints bought by every Per units
+	Per     int    // the units that buy Mints mints
 	Floor   int    // the run's MintBudget
-	Budget  int    // max(Floor, ceil(Units / Per))
+	Budget  int    // max(Floor, ceil(Units × Mints / Per))
 }
+
+// Rate states the budget's ratio in words: "3 per 2 citations on the record".
+func (b LensBudget) Rate() string { return rate(b.Mints, b.Per, b.Measure) }
 
 // Arithmetic states how the budget was reached, for a refusal or a board.
 func (b LensBudget) Arithmetic() string {
-	return fmt.Sprintf("max(floor %d, ceil(%d %s / %d)) = %d", b.Floor, b.Units, b.Measure, b.Per, b.Budget)
+	return fmt.Sprintf("max(floor %d, ceil(%d %s × %d / %d)) = %d", b.Floor, b.Units, b.Measure, b.Mints, b.Per, b.Budget)
 }
 
-// budgetOf is the ruling's arithmetic: max(floor, ceil(units / per)).
-func budgetOf(floor, units, per int) int {
-	b := (units + per - 1) / per
+// budgetOf is the ruling's arithmetic: max(floor, ceil(units × mints / per)).
+func budgetOf(floor, units, mints, per int) int {
+	b := (units*mints + per - 1) / per
 	if b < floor {
 		return floor
 	}
@@ -130,11 +139,11 @@ func lensBudgetAt(run Run, area string, floor int) (LensBudget, error) {
 	if err != nil {
 		return LensBudget{}, err
 	}
-	b := LensBudget{Area: area, Measure: s.measure.name, Per: s.per, Floor: floor}
+	b := LensBudget{Area: area, Measure: s.measure.name, Mints: s.mints, Per: s.per, Floor: floor}
 	if b.Units, err = s.measure.count(run); err != nil {
 		return b, fmt.Errorf("counting %s: %w", s.measure.name, err)
 	}
-	b.Budget = budgetOf(floor, b.Units, s.per)
+	b.Budget = budgetOf(floor, b.Units, s.mints, s.per)
 	return b, nil
 }
 
@@ -237,19 +246,19 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	if st.MeasureErr != nil {
 		return feov.Errorf(feov.Validation,
 			"%s holds %d gap(s) open, the floor of its mint budget (mintBudget in inputs/run-config.json is %d), "+
-				"and the %s lens's budget above the floor, one open gap per %d %s, cannot be read: %v. "+
+				"and the %s lens's budget above the floor, %s, cannot be read: %v. "+
 				"A mint past the floor waits on that measure rather than guessing it, or on a gap you minted closing, which frees a mint under the floor. "+
-				"%s", seatID, n, b.Floor, area, b.Per, b.Measure, st.MeasureErr, mintRefusedNext)
+				"%s", seatID, n, b.Floor, area, b.Rate(), st.MeasureErr, mintRefusedNext)
 	}
 	if n < b.Budget {
 		return nil
 	}
 	return feov.Errorf(feov.Validation,
 		"%s holds %d gap(s) open and its mint budget admits no more. The budget caps the gaps a lens holds open at once: "+
-			"the %s lens's is the larger of the run's floor (mintBudget in inputs/run-config.json) and one open gap per %d %s: %s, "+
+			"the %s lens's is the larger of the run's floor (mintBudget in inputs/run-config.json) and its rate, %s: %s, "+
 			"and it grows as the report does. Every open gap you minted takes one mint of it, a trifle as much as a material defect. "+
 			"A gap of yours that closes, by your close or by the bench's ruling, frees one. %s",
-		seatID, n, area, b.Per, b.Measure, b.Arithmetic(), mintRefusedNext)
+		seatID, n, area, b.Rate(), b.Arithmetic(), mintRefusedNext)
 }
 
 // mintRefusedNext is what a lens refused for budget does with what it found, on both refusals: the
@@ -318,9 +327,10 @@ type MintBudgetJSON struct {
 	Left  int `json:"left"`
 	Floor int `json:"floor"`
 	// Unit names what the area's budget is sized by, Units is how many of them the record holds
-	// now, and Per is how many buy one mint.
+	// now, and every Per of them buy Mints mints.
 	Unit  string `json:"unit"`
 	Units int    `json:"units"`
+	Mints int    `json:"mints"`
 	Per   int    `json:"per"`
 	// Measured is false where the units could not be read: Budget and Left are then the floor's,
 	// and a mint past the floor is refused until the measure reads. Never omitted — a budget of
@@ -343,15 +353,15 @@ func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
 	}
 	b := st.Budget
 	left, measured := st.Left()
-	j := &MintBudgetJSON{Open: st.Open, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Per: b.Per, Measured: measured}
+	j := &MintBudgetJSON{Open: st.Open, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Mints: b.Mints, Per: b.Per, Measured: measured}
 	leftWords := "NO mint is left to you"
 	if left > 0 {
 		leftWords = fmt.Sprintf("%d mint(s) are left to you", left)
 	}
 	if !measured {
 		j.Budget = b.Floor
-		return j, fmt.Sprintf("you hold %d gap(s) open and your mint budget above the run's floor of %d is NOT MEASURED — one open gap per %d %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure or on a gap you minted closing; what you find until then goes in a finding, and the finding is minted then",
-			st.Open, b.Floor, b.Per, b.Measure, st.MeasureErr, leftWords)
+		return j, fmt.Sprintf("you hold %d gap(s) open and your mint budget above the run's floor of %d is NOT MEASURED — %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure or on a gap you minted closing; what you find until then goes in a finding, and the finding is minted then",
+			st.Open, b.Floor, b.Rate(), st.MeasureErr, leftWords)
 	}
 	tail := "every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one, and the budget grows as the report does"
 	if left == 0 {

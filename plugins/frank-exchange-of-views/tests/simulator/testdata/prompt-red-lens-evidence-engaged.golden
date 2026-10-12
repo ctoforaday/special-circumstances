@@ -1,4 +1,4 @@
-prompt sha256: 41b425deb6713de5daf4cfddb464e964692c0160ec8a6b474a8a3c7cb0732c3e
+prompt sha256: aad1e7a888fb4d2f3c139a4fdf52266e929c5f08c85d95c642662ef891f09054
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -34,9 +34,9 @@ HARNESS NOTES: a search's count mode counts LINES, not occurrences — anchor pa
 YOU MINT YOUR OWN GAPS.
 What you find that is real and belongs on the board goes there as YOUR gap: screen every candidate against the board first for a near match — a defect already closed is a REOPEN and arrives carrying that history or arrives lying; a duplicate minted fresh forks the lineage — then mint, one considered gap at a time, graded on every axis, registering a new class first where the registry lacks one.
 Nobody coalesces for you and nobody transcribes for you: a finding is your graded observation; a gap is your claim on the board.
-Your budget caps the gaps you hold open at once, and it scales with the report: the larger of the run's floor (mintBudget in run-config.json) and one open gap per so many units of what your area audits, read off the record at each mint — a refused mint states the arithmetic.
+Your budget caps the gaps you hold open at once: the larger of the run's floor (mintBudget in run-config.json) and a rate per unit of what your area audits, read off the record at each mint — a refused mint states the arithmetic.
 A gap of yours that closes frees a mint: what the budget refuses you record as a finding, and that finding becomes your gap once one has closed.
-Hold your mints for defects a reader would pay to have fixed, not for nitpicks — a trifle takes a mint for as long as it stays open and holds nothing back, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
+Hold your mints for defects a reader would pay to have fixed, not nitpicks — a trifle takes a mint while it stays open and holds nothing back, because a gap that is not material — by its class, or graded below medium — does not hold the gate.
 ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED.
 Where a claim is arithmetic, an enumeration, or a reproducible measurement, your acceptance check demands that it be computed, and says so in the check's kind; where it turns on what the document states or what a source says, say so plainly — there is no credit for inflating it.
 Say WHEN your demand can be discharged, in the two classes blue answers in: a DOCUMENT-PROBE is executable now against shipped artifacts; a LIVE-PROBE needs built artifacts and is DEFERRABLE in a design-phase debate, discharged by naming it as a deferred acceptance test with its pass condition.

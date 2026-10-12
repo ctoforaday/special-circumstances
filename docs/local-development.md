@@ -180,7 +180,7 @@ magnitude:
 | lanes | 1 (+ `laneFloorOverride`) | 3 |
 | bulk tier | `haiku` | `sonnet` |
 | judgment tier | `haiku` | `sonnet` |
-| terms | `--mint-budget 3 --k-max 2` | defaults (5 / 6) |
+| terms | `--mint-budget 3 --k-max 2` | defaults (15 / 6) |
 
 `judgmentModel` is set EXPLICITLY, and that is the point of the mode. Before both tiers were
 required, omitting it let the judgment seats inherit the session model — measured at 68% of one
