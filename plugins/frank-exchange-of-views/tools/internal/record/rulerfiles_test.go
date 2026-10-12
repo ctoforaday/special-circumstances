@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // filingBy is the body that FILES a motion on the subject, as any writer reaches Append with it: a
@@ -87,7 +88,7 @@ func TestHoldsGavelIsTheSchemasRuler(t *testing.T) {
 			t.Fatal(err)
 		}
 		holders := 0
-		for role := range roleSeats {
+		for _, role := range seatclass.Roles() {
 			if HoldsGavel(role, subj) {
 				holders++
 				if role != ruler {

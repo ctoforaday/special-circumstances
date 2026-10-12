@@ -7,8 +7,9 @@ feov-record: you named no command, so nothing ran.
 
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.
+A lens mints its own gaps and, as the originator, regrades and closes them; no
+other seat has a mint, regrade or close verb. Blue has no board verbs at all. The
+bench rules and never originates.
 
 Usage:
   feov-record [flags]
@@ -30,8 +31,9 @@ feov-record: a command was named and the surface is scoped to whoever is asking.
 
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.
+A lens mints its own gaps and, as the originator, regrades and closes them; no
+other seat has a mint, regrade or close verb. Blue has no board verbs at all. The
+bench rules and never originates.
 
 Usage:
   feov-record [flags]
@@ -49,8 +51,9 @@ exit 0
 stdout:
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.
+A lens mints its own gaps and, as the originator, regrades and closes them; no
+other seat has a mint, regrade or close verb. Blue has no board verbs at all. The
+bench rules and never originates.
 
 Usage:
   feov-record [flags]
@@ -250,8 +253,9 @@ feov-record: a command was named and the surface is scoped to whoever is asking.
 
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.
+A lens mints its own gaps and, as the originator, regrades and closes them; no
+other seat has a mint, regrade or close verb. Blue has no board verbs at all. The
+bench rules and never originates.
 
 Usage:
   feov-record [flags]

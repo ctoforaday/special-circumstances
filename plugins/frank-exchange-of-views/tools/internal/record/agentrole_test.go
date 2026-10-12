@@ -8,34 +8,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// EVERY ROLE A TYPE CLAIMS IS A ROLE THAT EXISTS. A typo'd role in the table is not a compile
-// error, and it would make the check pass every seat of that family forever.
-func TestEveryAttestedRoleIsARealRole(t *testing.T) {
-	for at, a := range agentTypeRoles {
-		for _, r := range a.roles {
-			if _, ok := roleSeats[r]; !ok {
-				t.Errorf("agentTypeRoles[%q] admits role %q, which roleSeats does not define", at, r)
-			}
-		}
-	}
-	// And every debating role is reachable from some attestation — otherwise a whole family
-	// registers unattested and nothing says so.
-	reachable := map[string]bool{}
-	for _, a := range agentTypeRoles {
-		for _, r := range a.roles {
-			reachable[r] = true
-		}
-	}
-	for r := range roleSeats {
-		if r == OperatorRole {
-			continue // not dispatched by the engine and attested by nothing; see roster.go.
-		}
-		if !reachable[r] {
-			t.Errorf("role %q is seated by no agent type, so every %s seat registers unattested", r, r)
-		}
-	}
-}
-
 func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
 	err := CheckAttestedRole("frank-exchange-of-views:lead-judge", "red-chair")
 	if err == nil {

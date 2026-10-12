@@ -3,20 +3,15 @@ package record
 import (
 	"fmt"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE ROSTER: the seat ids the engine can actually produce.
 //
-// `RequireDispatchedSeat` checks a PREFIX, so `red-lens-` admits `red-lens-banana` and
-// `red-lens-L99-oops`. That was the whole guard on a seat id's legitimacy, and it is the half
-// of identity the binding could not close: register is the one call that takes a seat's word for
-// who it is, so what it accepts had better be an id a dispatch could have created.
-//
-// THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. The vocabulary is —
+// Register is the one call that takes a seat's word for who it is, so what it accepts is an id a
+// dispatch could have created: a roster row, or a lane this run's cast seats. The vocabulary is —
 //
 //	lens   red-lens-<area>
 //	chair  red-chair
@@ -142,23 +137,13 @@ func rolesAndSamplesAgree() error {
 		}
 	}
 	for role, id := range roleSample {
-		if r := roleOfSeatID(id); r == "" {
+		r := seatclass.RoleOfSeat(id)
+		if r == "" {
 			return fmt.Errorf("role %q samples %q, which is not an id the engine dispatches", role, id)
 		}
-		if r := roleOfSeatID(id); r != role {
+		if r != role {
 			return fmt.Errorf("role %q samples %q, whose own role is %q", role, id, r)
 		}
 	}
 	return nil
-}
-
-// roleOfSeatID is the role a seat id is dispatched under, or "" for an id that is not one.
-func roleOfSeatID(seatID string) string {
-	if s, ok := seatclass.Seats[seatID]; ok {
-		return s.Role
-	}
-	if IsLaneSeat(seatID, 1) {
-		return "blue"
-	}
-	return ""
 }

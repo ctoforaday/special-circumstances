@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // GapExchanges is what the record says about one gap's dispute (plans/roundless.md §III.B.2).
@@ -189,7 +190,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 			switch {
 			case d.seat == minted[g]:
 				sittings[g] = append(sittings[g], partySitting{start: start, end: end, red: true, open: !closed})
-			case roleOfSeat(d.seat) == "blue":
+			case seatclass.RoleOfSeat(d.seat) == "blue":
 				sittings[g] = append(sittings[g], partySitting{start: start, end: end, open: !closed})
 			}
 		}

@@ -27,6 +27,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/debatejs"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // backendFor answers debate.js's dispatches with envelopes derived from b.
@@ -47,9 +48,9 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 	engaged := []any{}
 	docket := []any{}
 	switch {
-	case strings.HasPrefix(b.Seat, "red-lens-"), b.Seat == "blue-respond":
+	case seatclass.RoleOfSeat(b.Seat) == "lens", b.Seat == "blue-respond":
 		engaged = append(engaged, map[string]any{"seat_id": b.Seat, "gap_ids": ids})
-	case b.Seat == "judge":
+	case seatclass.RoleOfSeat(b.Seat) == "bench":
 		engaged = append(engaged, map[string]any{"seat_id": "judge", "gap_ids": ids, "occasions": []any{"docket"}})
 		docket = ids
 	}
@@ -66,7 +67,7 @@ func backendFor(b Board, ids []any) debatejs.Backend {
 			"open_gaps":          0,
 		}
 		switch {
-		case strings.HasPrefix(seatID, "red-chair"):
+		case seatclass.RoleOfSeat(seatID) == "chair":
 			if strings.Contains(label, "#1 ") || strings.HasSuffix(label, "#1") {
 				e["plan"] = plan(engaged, false, docket)
 				if len(engaged) == 0 {

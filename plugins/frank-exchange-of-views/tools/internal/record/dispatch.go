@@ -378,7 +378,7 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			statedMotion[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
-		case b.Kind == BlockerContradiction && roleOfSeat(b.Owner) == "lens":
+		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(registers[b.Owner], b.since); sat {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q, and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Subject))
 				continue
@@ -946,12 +946,7 @@ const blueRespondSeat = "blue-respond"
 // carry none. The chair's envelope schema in debate.js declares the same two lists, and the
 // envelope-enum gate holds each to this one.
 func PartySeats() (bench string, lensOrBlue []string) {
-	for id, s := range seatclass.Seats {
-		if s.Role == "lens" {
-			lensOrBlue = append(lensOrBlue, id)
-		}
-	}
-	lensOrBlue = append(lensOrBlue, blueRespondSeat)
+	lensOrBlue = append(seatclass.SeatsOfRole("lens"), blueRespondSeat)
 	sort.Strings(lensOrBlue)
 	return benchSeat, lensOrBlue
 }

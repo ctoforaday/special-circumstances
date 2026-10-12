@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // EVERY VERB A SEAT HAS IS DEMANDED BY SOME BOARD.
@@ -29,7 +29,7 @@ import (
 func TestEveryVerbHasABoardThatDemandsIt(t *testing.T) {
 	demanded := map[string]map[string]bool{} // role -> verb -> demanded
 	for name, b := range Boards() {
-		role := roleOfSeat(b.Seat)
+		role := seatclass.RoleOfSeat(b.Seat)
 		if role == "" {
 			t.Errorf("board %q names seat %q, whose role is not one of lens/merge/blue/bench", name, b.Seat)
 			continue
@@ -38,7 +38,7 @@ func TestEveryVerbHasABoardThatDemandsIt(t *testing.T) {
 			demanded[role] = map[string]bool{}
 		}
 		for _, e := range b.Expect {
-			if roleOfSeat(e.Seat) != role {
+			if seatclass.RoleOfSeat(e.Seat) != role {
 				t.Errorf("board %q is a %s sitting but expects %q of %s — a board demands verbs of the seat it is FOR, or the coverage it claims is for a seat that was never dispatched", name, role, e.Verb, e.Seat)
 				continue
 			}
@@ -70,7 +70,7 @@ func TestEveryVerbHasABoardThatDemandsIt(t *testing.T) {
 // discount the whole section.
 func TestNoBoardDemandsAVerbTheSeatCannotReach(t *testing.T) {
 	for name, b := range Boards() {
-		role := roleOfSeat(b.Seat)
+		role := seatclass.RoleOfSeat(b.Seat)
 		have := map[string]bool{}
 		for _, v := range surface().Verbs(role) {
 			have[v] = true
@@ -148,29 +148,6 @@ func TestAlwaysTakenNamesRealVerbs(t *testing.T) {
 			t.Errorf("AlwaysTaken excuses %q with no reason, which is an allowlist entry wearing a map's clothes", verb)
 		}
 	}
-}
-
-func roleOfSeat(seatID string) string {
-	for _, role := range Roles {
-		if seatRolePrefix(role, seatID) {
-			return role
-		}
-	}
-	return ""
-}
-
-// seatRolePrefix asks the RECORD whether this seat may hold this role.
-//
-// IT USED TO MIRROR IT, and the mirror is what this comment used to say: a switch over
-// `red-lens` / `red-merge` / `blue` / `judge`, described as "close enough for a test fixture".
-// It was not. When the chair became `red-chair` the copy went on answering "" for it, so
-// every board naming that seat reported a role that is not one of lens/merge/blue/bench and the
-// coverage figures underneath went to zero — a fork in a fixture, failing exactly the way the
-// thing it forked from exists to prevent.
-//
-// record.CheckSeatRole is the authoritative binding and it is one import away.
-func seatRolePrefix(role, seatID string) bool {
-	return record.CheckSeatRole(role, seatID) == nil
 }
 
 // surface is the tool's real verb set, read from the cobra tree.

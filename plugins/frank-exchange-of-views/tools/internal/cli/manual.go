@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/diagnostics"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/terms"
 )
@@ -147,7 +148,7 @@ func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) erro
 	w := cmd.OutOrStdout()
 	bin := InvokedAs()
 	fmt.Fprintf(w, "%s %s — the %s surface, seat %s: %d commands, each under a header naming it and followed by the help it prints, run live just now. LEAN ON PURPOSE: a block that repeats word for word on several pages is printed ONCE under SHARED below, and each page marks where it came out (`→ SHARED §n`); a group whose page would only list commands that have pages of their own is left out, and so is this command's own page. The surface's own page comes first.\n",
-		bin, manualName, RoleOfSeat(seatID), seatID, len(pages)-1)
+		bin, manualName, seatclass.RoleOfSeat(seatID), seatID, len(pages)-1)
 	// THE WORDS, ONCE, BEFORE ANY PAGE. The registry is the single source of the protocol's concept
 	// nouns, and a seat reads a constitution, a prompt and these pages in one sitting: a word it
 	// meets with no definition is one it can take for a second thing. Printed here rather than on
@@ -159,7 +160,7 @@ func printManualFor(cmd *cobra.Command, root *cobra.Command, seatID string) erro
 	if err != nil {
 		return fmt.Errorf("the terms registry does not load, so this surface's words cannot be printed: %w", err)
 	}
-	if words := reg.ForSeat(RoleOfSeat(seatID)); len(words) > 0 {
+	if words := reg.ForSeat(seatclass.RoleOfSeat(seatID)); len(words) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, diagnostics.ManualWordsHeading)
 		for _, e := range words {

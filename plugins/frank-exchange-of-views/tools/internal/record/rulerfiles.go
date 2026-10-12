@@ -1,11 +1,11 @@
 package record
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // A RULER DOES NOT FILE THE SUBJECT IT RULES.
@@ -36,7 +36,7 @@ func HoldsGavel(role string, subj recordpb.MotionSubject) bool {
 // migrate synthesises for a record that predates docket motions is filed and ruled by the bench
 // (migrate's opinionEntry). Refusing them would drop real acts and call the loss a translation.
 func requireFilerHoldsNoGavel(seatID string, subj recordpb.MotionSubject, proposal bool) error {
-	if Migrating || !HoldsGavel(roleOfSeat(seatID), subj) {
+	if Migrating || !HoldsGavel(seatclass.RoleOfSeat(seatID), subj) {
 		return nil
 	}
 	return RefuseRulerFiling(subj, seatID, proposal)
@@ -57,7 +57,7 @@ func RefuseRulerFiling(subj recordpb.MotionSubject, seatID string, proposal bool
 		filing, who = "the proposal that files one", "An avenue is blue's to propose."
 	}
 	msg := Article(word) + " " + word + " motion is ruled by the " + ruler + " seat, so " + filing + " is not on your surface; you are " +
-		seatID + " (" + roleOfSeat(seatID) + "). The seat that rules a subject files nothing on it, because a motion its own ruler " +
+		seatID + " (" + seatclass.RoleOfSeat(seatID) + "). The seat that rules a subject files nothing on it, because a motion its own ruler " +
 		"filed is one no other seat can rule. " + who
 	if to := rulerTurnsTo[subj]; to != "" {
 		msg += " " + to
@@ -77,12 +77,11 @@ var rulerTurnsTo = map[recordpb.MotionSubject]string{
 // one that rules it. The operator sits in no seat and files nothing.
 func filingRoles(subj recordpb.MotionSubject) []string {
 	var out []string
-	for role := range roleSeats {
+	for _, role := range seatclass.Roles() {
 		if role != OperatorRole && !HoldsGavel(role, subj) {
 			out = append(out, role)
 		}
 	}
-	sort.Strings(out)
 	return out
 }
 

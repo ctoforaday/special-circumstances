@@ -99,7 +99,7 @@ func CheckAttestedRole(agentType, seatID string) error {
 		return nil
 	}
 	allowed := a.roles
-	role := roleOfSeat(seatID)
+	role := seatclass.RoleOfSeat(seatID)
 	if role == "" {
 		// An id matching no role cannot be checked here. requireDispatchableSeat is what refuses
 		// it, and it has a better message for the case than this would.

@@ -16,6 +16,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // `ops diagnostics` — DID THE SEATS FIND THEIR SURFACE, answered as fields.
@@ -207,7 +208,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	}
 
 	for _, id := range ids {
-		role := RoleOfSeat(id)
+		role := seatclass.RoleOfSeat(id)
 		acts := actsOf(role)
 		s, err := diagnostics.ReadSeen(traj, acts)
 		if err != nil {
