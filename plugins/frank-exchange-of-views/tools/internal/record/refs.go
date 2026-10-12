@@ -213,10 +213,9 @@ func requireSeat(run Run, seatID, verb, flag string) error {
 // pattern, not an error. The rules that survived had zero violations in the run, so they
 // cost nothing today and exist for the cheaper tier.
 
-// gapState answers what a gap IS, not merely whether it exists. The gap view's "open" is read
-// off the disposition vocabulary (a red close OR the earliest closing docket ruling), which is
-// the same rule the fold applied — an unknown gap answers not-closed, as before: requireGap owns
-// existence.
+// gapState answers what a gap IS, not merely whether it exists. The gap view's "open" means no
+// closing act of either arm stands (closure_act over live_event: a red close, or a docket ruling
+// whose disposition closes) — an unknown gap answers not-closed: requireGap owns existence.
 func gapState(run Run, id string) (closed bool, err error) {
 	var open bool
 	found, err := queryRow(run, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)

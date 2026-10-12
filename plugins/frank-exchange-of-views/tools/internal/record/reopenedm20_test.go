@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // m20Archive is universe-m20: 437 events at the epoch this binary reads. Blue's edit at event 389
@@ -24,11 +23,7 @@ const m20Archive = "2026-10-11_is-91-prime-m20.tar.gz"
 // The event ids are this archive's rows, read by SQL outside the fold (blue_edit_reopened, and
 // reproduce joined to events on the proof's sha).
 func TestM20AnotherLensClearsWhatTheEvidenceLensIsReadiedFor(t *testing.T) {
-	archived, err := MergedEvents(mustRun(t, recordtest.RequireArchive(t, m20Archive)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	whole := archived.Events
+	whole := archivedEvents(t, m20Archive)
 	if len(whole) != 437 || whole[388].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT ||
 		whole[405].GetSeatId() != "red-lens-dark-side" || whole[405].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE ||
 		whole[408].GetSeatId() != evLens || whole[408].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE {

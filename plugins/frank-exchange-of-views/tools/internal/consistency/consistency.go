@@ -274,6 +274,34 @@ func walk(events []*record.Event) *groundTruth {
 	return gt
 }
 
+// holdGap holds one gap of the family (rg) to the raw walk's answer for it (g): openness, whether
+// and when it closed, which arm closed it, the word the last closing act carried, and its grades.
+func holdGap(id string, g *gtGap, rg *record.Gap, add func(rule, format string, args ...any)) {
+	if rg.Open != g.open {
+		add("replay-agreement", "gap %s: raw walk open=%v, board open=%v", id, g.open, rg.Open)
+	}
+	if rg.HasClosed != g.everClosed {
+		add("replay-agreement", "gap %s: raw walk everClosed=%v, board HasClosed=%v", id, g.everClosed, rg.HasClosed)
+	}
+	if g.everClosed && rg.ClosedEpoch != g.lastCloseEpoch {
+		add("replay-agreement", "gap %s: last closing event is in epoch %d, board ClosedEpoch=%d", id, g.lastCloseEpoch, rg.ClosedEpoch)
+	}
+	if g.everClosed && rg.ClosedByBench != (g.lastCloser == "bench") {
+		add("closer-attribution", "gap %s: last closing event was %s's (epoch %d), board ClosedByBench=%v",
+			id, g.lastCloser, g.lastCloseEpoch, rg.ClosedByBench)
+	}
+	// THE WORD IS THE LAST CLOSING ACT'S. A family that named an earlier act of the same arm agrees
+	// on every line above — closed, by the same arm — and reports a fate a later close replaced.
+	if g.everClosed && g.lastClass != "" && rg.ClosureReason() != g.lastClass {
+		add("closure-reason", "gap %s: the last closing event carried %q, board ClosureReason=%q", id, g.lastClass, rg.ClosureReason())
+	}
+	if rg.Severity != g.sev || rg.Likelihood != g.lik || rg.Impact != g.imp || rg.ComplexityCost != g.cx {
+		add("replay-agreement", "gap %s: grades diverge — walk (%s,%s,%s,%s) board (%s,%s,%s,%s)", id,
+			recordpb.Word(g.sev), recordpb.Word(g.lik), recordpb.Word(g.imp), recordpb.Word(g.cx),
+			recordpb.Word(rg.Severity), recordpb.Word(rg.Likelihood), recordpb.Word(rg.Impact), recordpb.Word(rg.ComplexityCost))
+	}
+}
+
 // Check derives the ground truth for a run and holds every projection to it.
 func Check(run record.Run) ([]string, error) {
 	m, err := record.MergedEvents(run)
@@ -332,8 +360,8 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the family, which replaced the replay (plans/board-as-views.md wave 7) ----
-	// GapStates is now the one assembly every production reader derives from; the oracle holds
-	// IT to the raw walk, exactly as it held the fold.
+	// FamilyOf is the one assembly every production reader derives from; the oracle holds IT to
+	// the raw walk.
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		// The walk tolerates what the family read refuses, so a record the family cannot be
@@ -346,24 +374,7 @@ func Check(run record.Run) ([]string, error) {
 			add("replay-agreement", "gap %s exists in the raw walk and not on the board", id)
 			continue
 		}
-		if rg.Open != g.open {
-			add("replay-agreement", "gap %s: raw walk open=%v, board open=%v", id, g.open, rg.Open)
-		}
-		if rg.HasClosed != g.everClosed {
-			add("replay-agreement", "gap %s: raw walk everClosed=%v, board HasClosed=%v", id, g.everClosed, rg.HasClosed)
-		}
-		if g.everClosed && rg.ClosedEpoch != g.lastCloseEpoch {
-			add("replay-agreement", "gap %s: last closing event is in epoch %d, board ClosedEpoch=%d", id, g.lastCloseEpoch, rg.ClosedEpoch)
-		}
-		if g.everClosed && rg.ClosedByBench != (g.lastCloser == "bench") {
-			add("closer-attribution", "gap %s: last closing event was %s's (epoch %d), board ClosedByBench=%v",
-				id, g.lastCloser, g.lastCloseEpoch, rg.ClosedByBench)
-		}
-		if rg.Severity != g.sev || rg.Likelihood != g.lik || rg.Impact != g.imp || rg.ComplexityCost != g.cx {
-			add("replay-agreement", "gap %s: grades diverge — walk (%s,%s,%s,%s) board (%s,%s,%s,%s)", id,
-				recordpb.Word(g.sev), recordpb.Word(g.lik), recordpb.Word(g.imp), recordpb.Word(g.cx),
-				recordpb.Word(rg.Severity), recordpb.Word(rg.Likelihood), recordpb.Word(rg.Impact), recordpb.Word(rg.ComplexityCost))
-		}
+		holdGap(id, g, rg, add)
 	}
 	for _, rg := range fam.Gaps {
 		if gt.gaps[rg.ID] == nil {

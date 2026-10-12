@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,6 +38,26 @@ func m19At(t *testing.T, whole []*Event, n int) Run {
 	return archiveAt(t, m19Archive, whole, n)
 }
 
+// archivedEvents is the named archive's whole stream, read off its event tables on a plain read-only
+// handle. The run's own open refuses the archive: its `gap` view is the one its creating binary
+// wrote, and a view change does not move the epoch. Its EVENT rows are this epoch's, and they are
+// all these tests take — each replays a prefix of them into a record of this binary's making
+// (archiveAt), so no view of the archive's is ever asked.
+func archivedEvents(t *testing.T, archive string) []*Event {
+	t.Helper()
+	path := filepath.Join(recordtest.RequireArchive(t, archive), "records", "record.db")
+	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	evs, _, err := eventsAt(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return evs
+}
+
 // archiveAt is the named archive as it stood after event n, replayed as m19At says.
 func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 	t.Helper()
@@ -55,11 +76,7 @@ func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 // sentence against the source, and the chair's PASS at 494 was admitted. Under this rule the plans
 // that followed the edits ready the evidence lens, and the PASS is refused naming all three.
 func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
-	archived, err := MergedEvents(mustRun(t, recordtest.RequireArchive(t, m19Archive)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	whole := archived.Events
+	whole := archivedEvents(t, m19Archive)
 	if len(whole) != 502 || whole[493].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
 		t.Fatalf("the archive holds %d events and its event 494 is a %s, want 502 and the chair's verdict", len(whole), whole[493].GetType())
 	}

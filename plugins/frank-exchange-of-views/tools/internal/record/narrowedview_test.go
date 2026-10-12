@@ -326,11 +326,50 @@ func TestNoProjectionReadsAroundItsDeclaration(t *testing.T) {
 	}
 }
 
-// THE BOARD IS READ OFF ONE SNAPSHOT. Its closures come from the events and its openness from the
-// `gap` view; asked of the record at two moments, a close landing between them rendered a gap closed
-// with no closure and epoch 0. A lens closes gaps while the board is read, and every closed gap on
-// every board read carries its closure and the epoch it closed in.
+// THE BOARD IS READ OFF ONE SNAPSHOT. It takes which act closed a gap from the `gap` view and that
+// act's body from the events; asked of the record at two moments, a close landing between them names
+// an act the read did not load, and the board drops the closure. A lens closes gaps while the board
+// is read, and every closed gap on every board read carries its closure and the epoch it closed in.
 func TestEveryClosedGapOnTheBoardCarriesItsClosureWhileALensCloses(t *testing.T) {
+	run, closes := gapsALensCloses(t)
+	whileWriting(t, run, closes, func() {
+		bj, err := BoardJSONOfRun(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, g := range bj.Closed {
+			if g.Closure == nil || g.ClosedEpoch == 0 {
+				t.Fatalf("gap %s reads closed with closure %v and closed_epoch %d (anomalies %q) — its openness and its closing act came off two reads of the record",
+					g.ID, g.Closure, g.ClosedEpoch, bj.Anomalies)
+			}
+		}
+	})
+}
+
+// THE FAMILY IS READ OFF ONE SNAPSHOT, for the same reason and with the same hazard: the stream and
+// the gap rows asked at two moments, a close landing between them names an act the stream read did
+// not load, and the family read fails. A lens closes gaps while the family is read, every read
+// succeeds, and every closed gap on it carries its closure and the epoch it closed in.
+func TestEveryClosedGapInTheFamilyCarriesItsClosureWhileALensCloses(t *testing.T) {
+	run, closes := gapsALensCloses(t)
+	whileWriting(t, run, closes, func() {
+		fam, err := FamilyOf(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, g := range fam.Gaps {
+			if !g.Open && (!g.HasClosed || g.Closure == nil || g.ClosedEpoch == 0) {
+				t.Fatalf("gap %s reads closed with has_closed %v, closure %v and closed_epoch %d — its openness and its closing act came off two reads of the record",
+					g.ID, g.HasClosed, g.Closure, g.ClosedEpoch)
+			}
+		}
+	})
+}
+
+// gapsALensCloses is a seeded run holding 25 open gaps a lens minted in epoch 1, and the lens's
+// close of each, not yet written.
+func gapsALensCloses(t *testing.T) (Run, []*Event) {
+	t.Helper()
 	dir := newRun(t)
 	str := proto.String
 	medium := recordtest.P(recordpb.Grade_GRADE_MEDIUM)
@@ -351,39 +390,7 @@ func TestEveryClosedGapOnTheBoardCarriesItsClosureWhileALensCloses(t *testing.T)
 			"2026-01-01T01:00:00Z"))
 	}
 	recordtest.Seed(t, dir, seed...)
-	db := seatWriter(t, filepath.Join(dir, "records", "record.db"))
-	run := mustRun(t, dir)
-
-	done := make(chan error, 1)
-	go func() {
-		var err error
-		defer func() { done <- err }()
-		for _, ev := range closes {
-			if _, err = recordsql.Insert(db, ev); err != nil {
-				return
-			}
-		}
-	}()
-	for closing := true; closing; {
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatal(err)
-			}
-			closing = false
-		default:
-		}
-		bj, err := BoardJSONOfRun(run)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, g := range bj.Closed {
-			if g.Closure == nil || g.ClosedEpoch == 0 {
-				t.Fatalf("gap %s reads closed with closure %v and closed_epoch %d — its openness and its closing act came off two reads of the record",
-					g.ID, g.Closure, g.ClosedEpoch)
-			}
-		}
-	}
+	return mustRun(t, dir), closes
 }
 
 // seatWriter is a seat's own connection to the record at path: opened outside the per-path cache
@@ -442,10 +449,9 @@ func benchClosing(id string) *recordpb.MotionRule {
 		}}}
 }
 
-// THE WORK LIST IS READ OFF ONE SNAPSHOT. It takes each gap's closure from the events and its
-// openness from the `gap` view; asked of the record at two moments, a bench closure landing between
-// them read the gap closed with no closure among the loaded events, and the list dropped it from
-// both `open` and `estopped`. The bench rules while a lens reads its work list and the oracle reads
+// THE WORK LIST IS READ OFF ONE SNAPSHOT. It takes which act closed a gap from the `gap` view and
+// that act's body from the events; asked of the record at two moments, a bench closure landing
+// between them names an act the read did not load, and the list cannot be computed. The bench rules while a lens reads its work list and the oracle reads
 // the run's, and every gap is on every list, open or estopped by the ruling that closed it.
 func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	const gaps = 25

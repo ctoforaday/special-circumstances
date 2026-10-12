@@ -12,8 +12,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// passOverOneOpenGap is a seeded record — through the family fold that computes Gap.Material, not a
-// hand-set flag — holding one open gap of the given class and grade under a PASS.
+// passOverOneOpenGap is a seeded record — through FamilyOf, which reads Gap.Material from the gap
+// view, not a hand-set flag — holding one open gap of the given class and grade under a PASS.
 func passOverOneOpenGap(t *testing.T, cm recordpb.ClassMaterial, sev recordpb.Grade) record.Family {
 	t.Helper()
 	dir := recordtest.TmpRun(t)

@@ -205,7 +205,7 @@ func MarkdownViews() []string {
 	return out
 }
 
-// Input is what the renders read off the record: the gap family, whole (record.GapStates),
+// Input is what the renders read off the record: the gap family, whole (record.FamilyOf),
 // and the typed event stream. No Board — no counts, no derived board-wide state; a render
 // that needs a derived fact asks the family or derives it from the stream in front of the
 // reader (plans/board-as-views.md wave 3).
@@ -219,15 +219,11 @@ type Input struct {
 
 // InputOf assembles the render input from the record.
 func InputOf(run record.Run) (Input, error) {
-	m, err := record.MergedEvents(run)
+	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Input{}, err
 	}
-	gaps, err := record.GapStates(run, m)
-	if err != nil {
-		return Input{}, err
-	}
-	return Input{Gaps: gaps, Events: m.Events, At: m.At}, nil
+	return Input{Gaps: fam.Gaps, Events: fam.Events, At: fam.At}, nil
 }
 
 // Markdown returns one markdown projection, rendered in-memory from the record.
