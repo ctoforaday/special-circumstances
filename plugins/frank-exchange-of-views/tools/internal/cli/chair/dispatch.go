@@ -84,7 +84,7 @@ func newDispatch() *cobra.Command {
 			for _, w := range p.Occasions {
 				o, ok := record.OccasionOf(w)
 				if !ok {
-					return nil, fmt.Errorf("the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
+					return nil, feov.Errorf(feov.Internal, "the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
 				}
 				occasions = append(occasions, o)
 			}

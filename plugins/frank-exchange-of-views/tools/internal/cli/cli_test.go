@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/refusalcheck"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"maps"
@@ -148,16 +149,21 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 }
 
 // assertRefusalNamesItsCommandOnce reads a refusal `run` returned against the command that
-// resolved: its diagnosis starts at what is wrong, never at the role or the path the renderer
-// already prints (refusalonce_test.go).
+// resolved, in both forms: the diagnosis the human line prints after the renderer's head, and the
+// sentence the JSON envelope carries beside its `verb`. Neither names the command again
+// (internal/refusalcheck holds the reading; refusalonce_test.go says why).
 func assertRefusalNamesItsCommandOnce(t *testing.T, leaf *cobra.Command, err error) {
 	t.Helper()
 	if err == nil || leaf == nil {
 		return
 	}
-	if head := ownHeadOf(leaf, seat.Diagnosis(err)); head != "" {
-		t.Errorf("the refusal of `%s` opens with %q, which the renderer already prints from the command — "+
-			"the diagnosis starts at what is wrong.\n\nrefusal: %v", leaf.CommandPath(), head, seat.Diagnosis(err))
+	path := seat.PathOf(leaf)
+	for form, said := range map[string]string{"human": seat.Diagnosis(err), "--json": seat.EnvelopeOf(leaf, err).Error} {
+		if again := refusalcheck.Again(path, roleWords(), said); len(again) > 0 {
+			t.Errorf("the refusal of `%s` names its command %d times in its %s form — the renderer prints it from the command, "+
+				"and the diagnosis %s; it starts at what is wrong.\n\nrefusal: %v",
+				leaf.CommandPath(), 1+len(again), form, strings.Join(again, ", "), said)
+		}
 	}
 }
 

@@ -140,7 +140,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 				// LOUD, NOT DROPPED: a correction whose replacement did not land would leave a
 				// replacement nothing marks as one, or a strike with nothing in its place.
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
-					Err: fmt.Sprintf("migrate: this correction names replacement %v, which did not land as a correction on the migrated record — it is absent from the source or was itself refused", old.Fields["replacement"])})
+					Err: fmt.Sprintf("this correction names replacement %v, which did not land as a correction on the migrated record — it is absent from the source or was itself refused", old.Fields["replacement"])})
 			}
 			continue
 		}
@@ -173,7 +173,7 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			target, ok := newKey[corrects]
 			if !ok || len(bodies) != 1 {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
-					Err: fmt.Sprintf("migrate: this act replaced %s by a same-sitting correction, and that act did not land on the migrated record", corrects)})
+					Err: fmt.Sprintf("this act replaced %s by a same-sitting correction, and that act did not land on the migrated record", corrects)})
 				continue
 			}
 			typ, err := recordpb.SetBody(&recordpb.Event{}, bodies[0])

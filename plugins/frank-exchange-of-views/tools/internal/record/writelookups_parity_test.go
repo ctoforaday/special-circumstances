@@ -109,21 +109,14 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id != "" {
 		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id, err)
 	}
-	if err := requireFindings(run, []string{"F-0a0a0a0a"}, "mint", "--found-by"); err != nil {
+	if err := requireFindings(run, []string{"F-0a0a0a0a"}, "--found-by"); err != nil {
 		t.Errorf("requireFindings on a recorded id = %v", err)
 	}
-	if err := requireFindings(run, []string{"F-0a0a0a0a", "F-99999999"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
+	if err := requireFindings(run, []string{"F-0a0a0a0a", "F-99999999"}, "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
 		t.Errorf("requireFindings must name the first missing id: %v", err)
 	}
 	if loc, err := UnplacedLocation(run, "F-0a0a0a0a"); err != nil || loc != "L" {
 		t.Errorf("UnplacedLocation = (%q, %v) — no anchor event was appended for this finding, so its stored location is owed", loc, err)
-	}
-
-	if err := requireSeat(run, "red-chair", "rule", "--by"); err != nil {
-		t.Errorf("requireSeat on a seated seat = %v", err)
-	}
-	if err := requireSeat(run, "judge", "rule", "--by"); err == nil {
-		t.Error("requireSeat accepted a seat that never recorded anything")
 	}
 
 	if ClassCoinedInRun(run, "never-coined") {

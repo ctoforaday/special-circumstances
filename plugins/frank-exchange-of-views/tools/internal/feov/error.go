@@ -38,6 +38,10 @@ const (
 	// Conflict: the act contradicts the record's state — a lineage that does not hold, a
 	// closure of something already closed.
 	Conflict Code = "conflict"
+	// Internal: the tool failed, not the caller — a defect in the tool, or a failure with no cause
+	// beneath it to pass up. It is the word an error nothing coded renders as, so a consumer reads
+	// one code for "this was not your input" however the failure was raised.
+	Internal Code = "error"
 )
 
 // Error is the tool's coded error. Msg is the human sentence; Code is the machine handle;
@@ -71,5 +75,5 @@ func CodeOf(err error) string {
 	if errors.As(err, &e) {
 		return string(e.Code)
 	}
-	return "error"
+	return string(Internal)
 }

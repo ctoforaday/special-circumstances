@@ -280,7 +280,7 @@ type Refusal struct {
 }
 
 func (r *Refusal) Error() string {
-	return fmt.Sprintf("fetch: %s returned HTTP %d%s", r.URL, r.Status, r.Note)
+	return fmt.Sprintf("%s returned HTTP %d%s", r.URL, r.Status, r.Note)
 }
 
 // Classify records what the stored bytes ARE, and is the one place that asks.

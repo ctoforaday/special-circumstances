@@ -1,11 +1,12 @@
 package recordpb
 
 import (
-	"fmt"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
 // CheckRequired refuses a body missing a field its own schema marks required.
@@ -27,8 +28,8 @@ import (
 // legitimate ruling — is present, and a field never passed is absent. Testing for "" instead
 // would refuse the first and accept nothing extra. Prose that must say something is refused empty
 // below, field by field.
-func CheckRequired(verb string, body proto.Message) error {
-	if err := checkRequiredIn(verb, body.ProtoReflect()); err != nil {
+func CheckRequired(body proto.Message) error {
+	if err := checkRequiredIn(body.ProtoReflect()); err != nil {
 		return err
 	}
 	// AND THE SUBJECT'S OWN ARM, WHOSE ANNOTATIONS ARE AS BINDING AS THE BODY'S.
@@ -56,7 +57,7 @@ func CheckRequired(verb string, body proto.Message) error {
 		if fd == nil || fd.Kind() != protoreflect.MessageKind {
 			continue
 		}
-		if err := checkRequiredIn(verb, m.Get(fd).Message()); err != nil {
+		if err := checkRequiredIn(m.Get(fd).Message()); err != nil {
 			return err
 		}
 	}
@@ -65,7 +66,7 @@ func CheckRequired(verb string, body proto.Message) error {
 
 // checkRequiredIn is the walk over ONE message's own fields. Split out so the body and its filing
 // or ruling arm are checked by the same code rather than by two copies that can disagree.
-func checkRequiredIn(verb string, m protoreflect.Message) error {
+func checkRequiredIn(m protoreflect.Message) error {
 	md := m.Descriptor()
 	for i := 0; i < md.Fields().Len(); i++ {
 		fd := md.Fields().Get(i)
@@ -74,7 +75,7 @@ func checkRequiredIn(verb string, m protoreflect.Message) error {
 			continue
 		}
 		if !m.Has(fd) {
-			return fmt.Errorf("record: %s requires --%s%s", verb, flagFor(fd, o), because(o))
+			return feov.Errorf(feov.MissingField, "requires --%s%s", flagFor(fd, o), because(o))
 		}
 		// PRESENT IS NOT ENOUGH FOR PROSE. A required string that is EMPTY is a duty discharged by
 		// silence — an acceptance check demanding nothing, a log entry saying nothing — and
@@ -83,7 +84,7 @@ func checkRequiredIn(verb string, m protoreflect.Message) error {
 		// docket ruling's `settled` may bar nothing, so an empty answer there is an answer.
 		// Whitespace is silence too: a blank that is all spaces says exactly what "" says.
 		if fd.Kind() == protoreflect.StringKind && !o.GetAllowEmpty() && strings.TrimSpace(m.Get(fd).String()) == "" {
-			return fmt.Errorf("record: %s requires --%s to say something%s", verb, flagFor(fd, o), because(o))
+			return feov.Errorf(feov.MissingField, "requires --%s to say something%s", flagFor(fd, o), because(o))
 		}
 	}
 	return nil

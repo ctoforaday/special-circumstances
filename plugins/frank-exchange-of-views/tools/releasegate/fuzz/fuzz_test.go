@@ -4817,6 +4817,12 @@ func TestFuzzDebate(t *testing.T) {
 				seats, edges, completed)
 		}
 	}
+	walked, wrong := namedOtherThanOnce()
+	t.Logf("%d refusals walked for how many times each names its command; %d other than once", walked, len(wrong))
+	if len(wrong) > 0 {
+		t.Errorf("%d refusal(s) the sweep met name their command other than exactly once — the renderer prints the path from the command that resolved, and the diagnosis starts at what is wrong:\n  %s",
+			len(wrong), strings.Join(wrong, "\n  "))
+	}
 	if un := neverSucceeded(); len(un) > 0 {
 		t.Errorf("%d command path(s) were driven and NEVER SUCCEEDED — the surface gate counts invocations, so these read as covered while their success path has never run:\n  %s",
 			len(un), strings.Join(un, "\n  "))

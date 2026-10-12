@@ -114,7 +114,7 @@ func newMint() *cobra.Command {
 		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
 		// is not changed here — but a gap that claims both is claiming two.
 		if strings.TrimSpace(loc) != "" && about != nil {
-			return nil, fmt.Errorf("takes --quote OR --about, not both: a gap has one subject")
+			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
 		}
 		// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
 		// once within one paragraph of the report as it stands. A gap is one sentence (R-4), and the
@@ -228,7 +228,7 @@ func newMint() *cobra.Command {
 				if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
 					return nil, ferr
 				}
-				return nil, record.ToolLogged(errors.New(msg))
+				return nil, record.ToolLogged(feov.Errorf(feov.Conflict, "%s", msg))
 			}
 		}
 

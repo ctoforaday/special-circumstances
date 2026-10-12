@@ -85,11 +85,11 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("assemble: board: %w", err)
+		return nil, nil, fmt.Errorf("reading the board: %w", err)
 	}
 	bj, err := record.BoardJSONOfRun(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("assemble: board json: %w", err)
+		return nil, nil, fmt.Errorf("encoding the board: %w", err)
 	}
 	evs := fam.Events
 
@@ -152,11 +152,11 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
 	sources, err := record.CitedSources(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("assemble: cited sources: %w", err)
+		return nil, nil, fmt.Errorf("cited sources: %w", err)
 	}
 	proofs, err := record.RecordedProofs(run)
 	if err != nil {
-		return nil, nil, fmt.Errorf("assemble: recorded proofs: %w", err)
+		return nil, nil, fmt.Errorf("recorded proofs: %w", err)
 	}
 
 	used := map[string]bool{}
@@ -230,7 +230,7 @@ func blueReport(run record.Run) (string, error) {
 		}
 	}
 	if err != nil {
-		err = fmt.Errorf("assemble: the report's text: %w", err)
+		err = fmt.Errorf("the report's text: %w", err)
 	}
 	return "", err
 }
@@ -389,18 +389,18 @@ func Write(run record.Run, title string, docs []Doc, index string) (string, erro
 		// The link bar is applied HERE, over the set that actually exists, so it can never
 		// link a file nobody wrote.
 		if err := os.WriteFile(path, []byte(render(d, title, docs)), 0o644); err != nil {
-			return "", fmt.Errorf("assemble: write %s: %w", d.File, err)
+			return "", fmt.Errorf("write %s: %w", d.File, err)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(index), 0o644); err != nil {
-		return "", fmt.Errorf("assemble: write %s: %w", FileIndex, err)
+		return "", fmt.Errorf("write %s: %w", FileIndex, err)
 	}
 	for _, name := range docOrder {
 		if want[name] {
 			continue
 		}
 		if err := os.Remove(filepath.Join(run.Dir(), name)); err != nil && !os.IsNotExist(err) {
-			return "", fmt.Errorf("assemble: remove stale %s: %w", name, err)
+			return "", fmt.Errorf("remove stale %s: %w", name, err)
 		}
 	}
 	return filepath.Join(run.Dir(), FileReport), nil

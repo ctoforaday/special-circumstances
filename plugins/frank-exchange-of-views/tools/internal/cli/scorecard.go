@@ -50,8 +50,8 @@ func newScorecard() *cobra.Command {
 				if !isCard(card) {
 					// RETURNED, NOT EXITED: Execute renders a refusal through seat.RenderRefusal, so
 					// a --json caller gets an envelope naming the bad flag.
-					return feov.Errorf(feov.Validation, "--%s %q is not a scorecard: the cards are %s (omit --%s to print all three). usage: %s scorecard --run <dir> [--%s red|blue|bench]",
-						flags.Card, card, cardList(), flags.Card, InvokedAs(), flags.Card)
+					return feov.Errorf(feov.Validation, "--%s %q is not a card: the cards are %s (omit --%s to print all three)",
+						flags.Card, card, cardList(), flags.Card)
 				}
 				cards = []string{card}
 			}

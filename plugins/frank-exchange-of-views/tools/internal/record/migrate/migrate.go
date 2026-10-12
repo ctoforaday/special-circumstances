@@ -22,7 +22,7 @@ import (
 // copies verbatim; the record is the one thing replay rebuilds.
 func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error) {
 	if entries, err := os.ReadDir(toDir); err == nil && len(entries) > 0 {
-		return nil, fmt.Errorf("migrate: %s is not empty — a migration writes a FRESH sibling, never into an existing run", toDir)
+		return nil, fmt.Errorf("%s is not empty — a migration writes a FRESH sibling, never into an existing run", toDir)
 	}
 	if err := copyChannels(fromDir, toDir); err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		for agent, ts := range turns {
 			n, err := record.AppendSeatTurns(dst, agent, ts)
 			if err != nil {
-				return nil, fmt.Errorf("migrate: carrying %d per-turn measurement(s) for agent %s: %w", len(ts), agent, err)
+				return nil, fmt.Errorf("carrying %d per-turn measurement(s) for agent %s: %w", len(ts), agent, err)
 			}
 			carried += n
 		}
@@ -97,7 +97,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 		return nil, err
 	}
 	if len(res.Refusals) > 0 {
-		return m, fmt.Errorf("migrate: %d event(s) refused — the manifest at %s carries each one; "+
+		return m, fmt.Errorf("%d event(s) refused — the manifest at %s carries each one; "+
 			"a refusal is the tool's OUTPUT, decided in review, and there is no flag that skips validation",
 			len(res.Refusals), filepath.Join(toDir, "inputs", ManifestName))
 	}
@@ -136,7 +136,7 @@ func copyChannels(fromDir, toDir string) error {
 		if !d.Type().IsRegular() {
 			// A socket or symlink in a run directory is not a channel; the copy names it
 			// rather than silently flattening or following it.
-			return fmt.Errorf("migrate: %s is not a regular file — a run channel copy does not know what it would mean", path)
+			return fmt.Errorf("%s is not a regular file — a run channel copy does not know what it would mean", path)
 		}
 		return copyFile(path, dst)
 	})
@@ -159,12 +159,12 @@ func translateStagedRegistry(toDir string) ([]StatedFill, error) {
 	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(b, &top); err != nil {
-		return nil, fmt.Errorf("migrate: the staged class registry %s is unreadable: %w", p, err)
+		return nil, fmt.Errorf("the staged class registry %s is unreadable: %w", p, err)
 	}
 	var rows []map[string]json.RawMessage
 	if raw, ok := top["classes"]; ok {
 		if err := json.Unmarshal(raw, &rows); err != nil {
-			return nil, fmt.Errorf("migrate: the staged class registry %s has an unreadable classes list: %w", p, err)
+			return nil, fmt.Errorf("the staged class registry %s has an unreadable classes list: %w", p, err)
 		}
 	}
 	var fills []StatedFill

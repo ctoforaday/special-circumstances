@@ -16,7 +16,7 @@ import (
 // record that it ENDED and not how. So the assertion here is not that the annotation is present
 // but that a body missing it is REFUSED, and that the refusal names the flag a seat would type.
 func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
-	if err := CheckRequired("bench outcome", &Outcome{Prose: proto.String("ended on safety grounds")}); err == nil {
+	if err := CheckRequired(&Outcome{Prose: proto.String("ended on safety grounds")}); err == nil {
 		t.Fatal("an outcome with no verdict was accepted — the run records that it ended and not how, " +
 			"and every reader downstream sees a run that never reached a verdict")
 	} else if !strings.Contains(err.Error(), "--as") {
@@ -27,7 +27,7 @@ func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
 		Verdict: RunOutcome_RUN_OUTCOME_HALTED.Enum(),
 		Prose:   proto.String("ended on safety grounds"),
 	}
-	if err := CheckRequired("bench outcome", complete); err != nil {
+	if err := CheckRequired(complete); err != nil {
 		t.Errorf("a complete outcome was refused: %v — the requirement is a gate, not a wall", err)
 	}
 }
@@ -46,7 +46,7 @@ func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 		Settled:     proto.String(""), // said, and said to be nothing
 		ReopensOn:   proto.String("a reproduction on the shipped binary"),
 	}
-	if err := CheckRequired("motion docket rule", body); err != nil {
+	if err := CheckRequired(body); err != nil {
 		t.Errorf("an explicitly empty settled was refused: %v", err)
 	}
 }
@@ -63,7 +63,7 @@ func TestAWhitespaceValueIsRefusedWhereEmptyIs(t *testing.T) {
 			Settled:     proto.String(""),
 			ReopensOn:   proto.String("a reproduction on the shipped binary"),
 		}
-		if err := CheckRequired("motion docket rule", body); err == nil || !strings.Contains(err.Error(), "--tension to say something") {
+		if err := CheckRequired(body); err == nil || !strings.Contains(err.Error(), "--tension to say something") {
 			t.Errorf("a tension of %q was taken as an answer: %v", blank, err)
 		}
 	}
@@ -118,7 +118,7 @@ func TestEveryRequiredFieldIsRefusedOnEveryBody(t *testing.T) {
 				}
 				m.Set(fd, sample(fd))
 			}
-			err := CheckRequired(string(md.Name()), m)
+			err := CheckRequired(m)
 			if err == nil {
 				t.Errorf("%s: a body missing only %s was accepted", md.Name(), omit.Name())
 				continue

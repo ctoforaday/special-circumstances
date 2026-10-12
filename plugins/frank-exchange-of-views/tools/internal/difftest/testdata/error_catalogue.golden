@@ -128,11 +128,11 @@ Global Flags:
 
 ── mint with dangling supersedes
 exit 2
-feov-record: mint: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused
+feov-record: mint: --supersedes names G-00000000, which no mint event has created — dangling lineage refused
 
 ── close unknown gap
 exit 2
-feov-record: close: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
+feov-record: close: --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 ── close without id
 exit 2

@@ -118,7 +118,7 @@ func (r *resolver) interpreterFor(path string) ([]string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	tried := candidatesFor(ext)
 	if len(tried) == 0 {
-		return nil, fmt.Errorf("proof: %s has no known interpreter — a proof script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
+		return nil, fmt.Errorf("%s has no known interpreter — a proof script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
 	}
 	for _, name := range tried {
 		if p := r.resolve(name); p != "" {
@@ -135,7 +135,7 @@ func (r *resolver) interpreterFor(path string) ([]string, error) {
 	// produce something a reader takes for a proof that FAILED, and a seat told only "no" will
 	// rewrite the same script in the same language. The environment is often not the seat's to
 	// change — it is a fresh container — but the EXTENSION is, so the way out is named here.
-	msg := fmt.Sprintf("proof: cannot run %s — no interpreter for %s in this environment (tried %s)",
+	msg := fmt.Sprintf("cannot run %s — no interpreter for %s in this environment (tried %s)",
 		filepath.Base(path), ext, strings.Join(tried, ", "))
 	if avail := r.available(); len(avail) > 0 {
 		msg += fmt.Sprintf(". This environment DOES have %s — write the proof in a language one of those runs, and it will execute here",

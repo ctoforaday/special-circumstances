@@ -3,6 +3,7 @@ package lens
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -41,7 +42,7 @@ func newFinding() *cobra.Command {
 		// sentence is the marker anchor + the snapshot red re-audits against; the
 		// reason is the explanation. A finding without either cannot be anchored.
 		if strings.TrimSpace(text) == "" {
-			return nil, fmt.Errorf("requires --reason: the explanation red re-audits the repair against")
+			return nil, feov.Errorf(feov.MissingField, "requires --reason: the explanation red re-audits the repair against")
 		}
 		location := seat.Location(cmd)
 		aboutKind, aboutRef := seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)
@@ -55,14 +56,14 @@ func newFinding() *cobra.Command {
 		// ambiguity.
 		switch {
 		case strings.TrimSpace(location) == "" && !aboutSet:
-			return nil, fmt.Errorf("needs an anchor: --quote for text that IS in the report, " +
-				"or --about-kind/--about for something that is not.\n\n" +
-				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing avenue " +
-				"pinned to a sentence the finding itself calls fine — lands a reader of the gap list " +
-				"on good prose. Anchor it to the section it " +
+			return nil, feov.Errorf(feov.MissingField, "needs an anchor: --quote for text that IS in the report, "+
+				"or --about-kind/--about for something that is not.\n\n"+
+				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing avenue "+
+				"pinned to a sentence the finding itself calls fine — lands a reader of the gap list "+
+				"on good prose. Anchor it to the section it "+
 				"is missing from, the avenue whose reason you are arguing against, or the gap it is about")
 		case strings.TrimSpace(location) != "" && aboutSet:
-			return nil, fmt.Errorf("takes --quote OR --about, not both: a finding has one subject, " +
+			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a finding has one subject, "+
 				"and the gap it becomes would inherit the ambiguity")
 		}
 		// Crash-retry idempotency: a prior finding under this --key returns its
@@ -143,9 +144,9 @@ func findingRefusal(err error) error { return placementRefusal("finding", err) }
 func placementRefusal(noun string, err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
-		return fmt.Errorf("--quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a %s anchors ONE passage", noun)
+		return feov.Errorf(feov.Validation, "--quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a %s anchors ONE passage", noun)
 	case errors.Is(err, anchortext.ErrInFence):
-		return errors.New("the quote resolves inside a code fence — anchor a prose sentence, not code")
+		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — anchor a prose sentence, not code")
 	case errors.Is(err, anchortext.ErrOnHeading):
 		return fmt.Errorf("%w; for a %s about the whole section, name the section with --about-kind section", anchortext.Refusal(err), noun)
 	}

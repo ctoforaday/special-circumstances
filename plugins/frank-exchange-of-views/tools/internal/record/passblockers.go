@@ -91,7 +91,7 @@ type blockerKind struct {
 	gloss string
 	// item is the chair's work-list sentence for one blocker.
 	item func(Blocker) string
-	// refusal is the gate's paragraph for every blocker of the kind, after "verdict … refused — ".
+	// refusal is the gate's paragraph for every blocker of the kind, after the gate's head ("PASS refused — ").
 	refusal func([]Blocker) string
 	// why is the plan's reason for one blocker, or nil where a readiness source already states it.
 	why func(Blocker) string
@@ -576,7 +576,7 @@ func requireBenchMotionsRuled(run Run) error {
 	if len(named) == 0 {
 		return nil
 	}
-	return fmt.Errorf("record: outcome refused — %d motion(s) whose gavel is the bench's stand unruled: %s. "+
+	return fmt.Errorf("%d motion(s) whose gavel is the bench's stand unruled: %s. "+
 		"The outcome is the run's last act, and a run that ends over an ask the bench never answered records a settlement that did not happen. "+
 		"You hold the gavel: read what each one asks with `inquest motions`, rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`, then record the outcome",
 		len(named), strings.Join(named, ", "))
@@ -589,9 +589,9 @@ func blockerRefusal(holding []Blocker) error {
 	for _, b := range holding {
 		every = every && b.Every()
 	}
-	head := "record: verdict PASS refused — "
+	head := "PASS refused — "
 	if every {
-		head = "record: verdict refused — "
+		head = "a verdict is refused — "
 	}
 	var paras []string
 	for _, r := range blockerKinds {

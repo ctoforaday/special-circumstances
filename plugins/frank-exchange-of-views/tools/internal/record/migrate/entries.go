@@ -43,7 +43,7 @@ func logEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	for col, v := range old.Fields {
 		s, ok := v.(string)
 		if !ok {
-			return nil, fmt.Errorf("migrate: log.%s holds %T, not text", col, v)
+			return nil, fmt.Errorf("log.%s holds %T, not text", col, v)
 		}
 		switch col {
 		case "text", "reason":
@@ -53,7 +53,7 @@ func logEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		case "source":
 			num, err := enumNumberOf(recordpb.LogSource(0).Descriptor(), s)
 			if err != nil {
-				return nil, fmt.Errorf("migrate: log.source: %w", err)
+				return nil, fmt.Errorf("log.source: %w", err)
 			}
 			l.Source = recordpb.LogSource(num).Enum()
 		case "type":
@@ -62,11 +62,11 @@ func logEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 			}
 			num, err := enumNumberOf(recordpb.LogType(0).Descriptor(), s)
 			if err != nil {
-				return nil, fmt.Errorf("migrate: log.type: %w", err)
+				return nil, fmt.Errorf("log.type: %w", err)
 			}
 			l.Type = recordpb.LogType(num).Enum()
 		default:
-			return nil, fmt.Errorf("migrate: old column log.%s has no place on Log — extend the log entry", col)
+			return nil, fmt.Errorf("old column log.%s has no place on Log — extend the log entry", col)
 		}
 	}
 	if l.Source == nil {
@@ -85,7 +85,7 @@ func frictionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	for col, v := range old.Fields {
 		s, ok := v.(string)
 		if !ok {
-			return nil, fmt.Errorf("migrate: friction.%s holds %T, not text", col, v)
+			return nil, fmt.Errorf("friction.%s holds %T, not text", col, v)
 		}
 		switch col {
 		case "text", "reason": // `reason` is the shard era's spelling of the same prose
@@ -95,11 +95,11 @@ func frictionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		case "kind":
 			num, err := enumNumberOf(recordpb.LogType(0).Descriptor(), s)
 			if err != nil {
-				return nil, fmt.Errorf("migrate: friction.kind: %w", err)
+				return nil, fmt.Errorf("friction.kind: %w", err)
 			}
 			l.Type = recordpb.LogType(num).Enum()
 		default:
-			return nil, fmt.Errorf("migrate: old column friction.%s has no place on Log — extend the friction entry", col)
+			return nil, fmt.Errorf("old column friction.%s has no place on Log — extend the friction entry", col)
 		}
 	}
 	// An untyped old entry predates the kind column. FRICTION is the channel's namesake and
@@ -126,7 +126,7 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	}
 	c, ok := body.(*recordpb.Cite)
 	if !ok {
-		return nil, fmt.Errorf("migrate: cite translated to %T, not a Cite", body)
+		return nil, fmt.Errorf("cite translated to %T, not a Cite", body)
 	}
 	if c.SourceTextOrigin == nil {
 		c.SourceTextOrigin = recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED.Enum()
@@ -157,7 +157,7 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // refusal names what it found, which is how this repository turns away data by its content.
 func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	if v, ok := old.Fields["repairs_sitting"]; ok {
-		return nil, fmt.Errorf("migrate: register %s carries repairs_sitting (%v), which no run before epoch 8 could record — "+
+		return nil, fmt.Errorf("register %s carries repairs_sitting (%v), which no run before epoch 8 could record — "+
 			"this row did not come from the epoch this step reads, and translating it would put a repair on the record no writer checked", old.Key, v)
 	}
 	body, err := identityBody(old)
@@ -166,7 +166,7 @@ func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	}
 	r, ok := body.(*recordpb.Register)
 	if !ok {
-		return nil, fmt.Errorf("migrate: register translated to %T, not a Register", body)
+		return nil, fmt.Errorf("register translated to %T, not a Register", body)
 	}
 	return []proto.Message{r}, nil
 }
@@ -177,7 +177,7 @@ func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 func frictionNoneEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	for col := range old.Fields {
 		if col != "text" && col != "reason" { // `reason` is the shard era's spelling
-			return nil, fmt.Errorf("migrate: old column friction_none.%s has no place on Log — extend the friction_none entry", col)
+			return nil, fmt.Errorf("old column friction_none.%s has no place on Log — extend the friction_none entry", col)
 		}
 	}
 	return nil, nil
@@ -215,7 +215,7 @@ func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 			}
 			num, err := enumValue(recordpb.Disposition(0).Descriptor(), w)
 			if err != nil {
-				return nil, fmt.Errorf("migrate: opinion.disposition: %w", err)
+				return nil, fmt.Errorf("opinion.disposition: %w", err)
 			}
 			ruling.Disposition = recordpb.Disposition(num).Enum()
 		case "principle":
@@ -231,7 +231,7 @@ func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		case "final":
 			n, ok := v.(int64)
 			if !ok || (n != 0 && n != 1) {
-				return nil, fmt.Errorf("migrate: opinion.final holds %v (%T), not a 0/1 bool", v, v)
+				return nil, fmt.Errorf("opinion.final holds %v (%T), not a 0/1 bool", v, v)
 			}
 			if n == 1 {
 				ruling.Final = proto.Bool(true)
@@ -241,7 +241,7 @@ func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 			// which (the name is the history) is where ruling prose lives now.
 			rule.Opinion = proto.String(v.(string))
 		default:
-			return nil, fmt.Errorf("migrate: old column opinion.%s has no place on the docket pair — extend the opinion entry", col)
+			return nil, fmt.Errorf("old column opinion.%s has no place on the docket pair — extend the opinion entry", col)
 		}
 	}
 	// THE STATED MISS, for rulings that predate a requirement. The earliest opinions carry
