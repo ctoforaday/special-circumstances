@@ -1493,6 +1493,9 @@ jobs:
       - name: The engine script's seat block and envelope vocabulary match the record (a stale one dispatches a seat, or offers an envelope word, the record does not give)
         run: go run ./devcmd/enginegen -check
         working-directory: plugins/frank-exchange-of-views/tools
+      - name: Nothing in the FEOV tools module is unreachable from its binaries, its generators and its tests (every line the pinned deadcode prints is a failure; there is no allowlist)
+        run: go run ./deadcode
+        working-directory: scripts
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second

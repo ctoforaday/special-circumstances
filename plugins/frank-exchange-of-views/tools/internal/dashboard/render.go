@@ -585,13 +585,6 @@ func gradeOrDash(g *recordpb.Grade) string {
 	return recordpb.Word(*g)
 }
 
-func intPtr(p *int) string {
-	if p == nil {
-		return "—"
-	}
-	return itoa(*p)
-}
-
 // countOrNotMeasured renders a count read off the record, and says so where there was nothing to
 // read: a dash would be one more tile that had no data yet, and this one states that the record
 // holds no report to count.
