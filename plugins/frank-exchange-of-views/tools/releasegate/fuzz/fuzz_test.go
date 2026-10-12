@@ -2827,12 +2827,13 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// k, kMax, mintBudget, convergenceFraction) are what `dispatch next` reads impasse and the
 	// mint budget from, and what the CEILING verdict is DERIVED against (#308).
 	//
-	// THE SMOKE TERMS, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
+	// TERMS TIGHTER THAN A SMOKE'S, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
 	// forty times inside a release gate, not to run forty production-length debates: under the
 	// defaults (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
 	// already been reached. One open gap per lens and two exchanges per gap reach impasse, the
-	// docket, the ceiling and the pass in a few epochs — the shape `/research --smoke` runs.
+	// docket, the ceiling and the pass in a few epochs. `/research --smoke` runs a floor of three;
+	// one keeps a lens at its budget, and the budget's refusal driven, in most sittings.
 	//
 	// THE EPOCH LIMIT IS SETUP'S DEFAULT, READ FROM WHERE SETUP READS IT. Every run setup creates
 	// carries one, and a config that states none is held to none (record.RunParams): without it

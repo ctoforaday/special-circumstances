@@ -494,7 +494,7 @@ it expensive at the source. That is the incentive gblock asked for, applied one 
 revision 6 could.
 
 **What bounds `--smoke`.** `commands/research.md` sets `maxRounds: 2` for a smoke run. Roundless,
-a smoke is `M = 1, K_max = 2` — one mint per lens, two exchanges per gap — which bounds it tighter
+a smoke is `M = 3, K_max = 2` — three open gaps per lens, two exchanges per gap — which bounds it tighter
 than two rounds did and keeps the run shaped like a run rather than a truncation.
 
 **Termination.** Gaps open at once ≤ `M × |cast lenses|`, and each gap ≤ `K_max`

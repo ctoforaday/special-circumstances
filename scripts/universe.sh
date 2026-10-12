@@ -544,7 +544,7 @@ cmd_run() {
   smoke_flag=""
   if [ "$SMOKE" = "1" ]; then
     if [ "$MODEL" != "haiku" ] || [ "$JUDGMENT_MODEL" != "haiku" ] || [ "$LANES" != "1" ]; then
-      die "SMOKE=1 sets model=haiku judgment=haiku lanes=1 (and --mint-budget 1 --k-max 2), but this run asks for model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES. Pass SMOKE=0 for the development configuration, or drop the overrides."
+      die "SMOKE=1 sets model=haiku judgment=haiku lanes=1 (and --mint-budget 3 --k-max 2), but this run asks for model=$MODEL judgment=$JUDGMENT_MODEL lanes=$LANES. Pass SMOKE=0 for the development configuration, or drop the overrides."
     fi
     smoke_flag=" --smoke"
   fi

@@ -414,7 +414,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
     assert.ok(/read them in the report's assembled form before you grade an avenue/.test(p), `${seat} is not told to read the avenue sections as they ship`)
     assert.ok(/A contradiction left as a finding ships: a finding about an avenue is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an avenue contradiction as a finding`)
     // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch spends a
-    // lens's budget — one mint, in a smoke — on a duplicate row, against the same prompt's "not on
+    // lens's budget — three open gaps, in a smoke — on a duplicate row, against the same prompt's "not on
     // nitpicks"; and the lens that filed findings on universe-m21 had judged by the answer alone.
     assert.ok(/weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer/.test(p) && !/YOU MINT A GAP/.test(p),
       `${seat} is told to mint whatever the mismatch changes for a reader`)

@@ -23,7 +23,7 @@ import (
 //   - MaxEpochs: the chair sittings the run gets. The sitting that opens epoch MaxEpochs
 //     dispatches nobody, and a run with parties still ready there ends CEILING (PlanDispatch).
 //
-// A smoke run is M = 1, KMax = 2: one open gap per lens unless the report is large enough to buy more.
+// A smoke run is M = 3, KMax = 2: three open gaps per lens unless the report is large enough to buy more.
 type Params struct {
 	K                   int     `json:"k"`
 	KMax                int     `json:"kMax"`

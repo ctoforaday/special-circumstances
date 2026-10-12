@@ -40,7 +40,7 @@ func b4Report() string {
 }
 
 // The worked example: B4's record (29 paragraphs, 11 citations, 11 claims, 6 proofs) under a
-// smoke run's floor of 1, through the renderer this package registers.
+// floor of 1, through the renderer this package registers.
 func TestTheB4MintBudgets(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	if err := record.StageForRun(runtest.Open(t, runDir), "x"); err != nil {
