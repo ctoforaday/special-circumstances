@@ -57,6 +57,34 @@ func TestAFailedCallBecomesTheSeatsFailureEntry(t *testing.T) {
 	}
 }
 
+// A CHAIN'S FAILURE IS NOT ITS FIRST COMMAND'S. The call is the bench's at the wave B smoke's event
+// 430: `register` succeeded and printed its line, and the `ls` chained after it exited 2. The entry
+// read "`Bash` failed on `R=…; "$R/.bin/feov-record" --seat-id judge register --occasion doc…`:
+// registered judge" — the command cut before the `ls`, the first command's success standing as the
+// error — and the seat logged "register exits 2 after it succeeds" from the same reading.
+func TestAChainedCallsFailureIsNotGivenToItsFirstCommand(t *testing.T) {
+	const run = "/home/operator/.claude/scratch/universe-wave-b/src/research/2026-10-12_is-91-prime"
+	command := `R=` + run + `; "$R/.bin/feov-record" --seat-id judge register --occasion docket --run "$R"; echo "---LAW"; ls -la "$R/inputs/law/" 2>&1`
+	input, _ := json.Marshal(map[string]string{"command": command})
+	last := "ls: cannot access '" + run + "/inputs/law/': No such file or directory"
+	got, ok := failureEntry("Bash", input, "Exit code 2\nregistered judge\n2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):\n---LAW\n"+last)
+	if !ok {
+		t.Fatal("the failed chain produced no entry")
+	}
+	if !strings.Contains(got, "`"+command+"`") {
+		t.Errorf("the entry does not quote the whole command, so the part that failed is not in it:\n%s", got)
+	}
+	if !strings.Contains(got, "ends: "+last) {
+		t.Errorf("the entry does not carry the output's last line, which is where the failing `ls` spoke:\n%s", got)
+	}
+	if strings.Contains(got, "`: registered judge") {
+		t.Errorf("the entry gives the first command's success line as the call's error:\n%s", got)
+	}
+	if !strings.Contains(got, "does not say which part of it failed") {
+		t.Errorf("the entry does not say the status is the whole call's:\n%s", got)
+	}
+}
+
 // THE HOOK HANDS A SEAT'S FAILURE TO THE WRITER, and only a seat's, only in a run, never an interrupt.
 func TestTheFailureHookLogsOnlyASeatsOwnFailures(t *testing.T) {
 	cwd, runDir, _ := limitRun(t, 1000)

@@ -48,7 +48,7 @@ func teachAnswer(c *cobra.Command) {
 	rows := AnswersFor(c)
 	if len(rows) == 0 {
 		if record.RefusesARepeat(typ) {
-			panic(fmt.Sprintf("seat: %s records a %s, whose second act in a sitting the record refuses, and no row says what answers a wrong one — add it to record's superseders",
+			panic(fmt.Sprintf("%s records a %s, whose second act in a sitting the record refuses, and no row says what answers a wrong one — add it to record's superseders",
 				c.CommandPath(), recordpb.Word(typ)))
 		}
 		return

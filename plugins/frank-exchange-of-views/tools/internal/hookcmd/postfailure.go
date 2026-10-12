@@ -62,13 +62,14 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	return nil
 }
 
-// failureEntry is the log line for a failed call: the tool, what it was aimed at, and the error's
-// first line of substance. It reports false for a failure the record tool already logged — its own
-// refusal, which it writes as a `refusal` entry at the moment it refuses.
+// failureEntry is the log line for a failed call: the tool, what it was aimed at, and what it
+// printed — its one line of substance, or the first and the last of several. It reports false for
+// a failure the record tool already logged — its own refusal, which it writes as a `refusal` entry
+// at the moment it refuses.
 //
 // WHAT IT WAS AIMED AT, because the guess is the signal: `jq '.[-1]'` against a projection whose
-// help says JSONL, a template path the prompt never gave. A Bash call is named by its command's
-// first line, a file tool by its path.
+// help says JSONL, a template path the prompt never gave. A Bash call is named by its whole
+// command, a file tool by its path.
 func failureEntry(tool string, input json.RawMessage, errText string) (string, bool) {
 	var lines []string
 	for _, l := range strings.Split(strings.TrimSpace(errText), "\n") {
@@ -94,21 +95,40 @@ func failureEntry(tool string, input json.RawMessage, errText string) (string, b
 		FilePath string `json:"file_path"`
 	}
 	_ = json.Unmarshal(input, &ti)
-	target := ti.FilePath
+	target := clip(ti.FilePath, 160)
 	if ti.Command != "" {
 		// The input arrives as the PreToolUse hook REWROTE it; the seat's own command is what it
 		// reached for.
-		target, _, _ = strings.Cut(strings.TrimSpace(hookgate.WithoutInjection(ti.Command)), "\n")
+		//
+		// THE WHOLE COMMAND, not its head. A shell call's status is its LAST command's — or, behind
+		// `&&`, whichever stopped the chain — and the hook is told the status and the output, never
+		// which part produced them. The head alone names the first command, and a head cut at 160
+		// characters behind a long path names nothing else: `"$R/.bin/feov-record" … register; echo
+		// …` was logged for a call whose `ls`, past the cut, was what exited 2.
+		target = clip(strings.TrimSpace(hookgate.WithoutInjection(ti.Command)), commandShown)
 	}
 	aimed := ""
-	if target = clip(target, 160); target != "" {
+	if target != "" {
 		aimed = " on `" + target + "`"
 	}
-	if first == "" {
-		first = "no error text"
+	switch len(lines) {
+	case 0:
+		return fmt.Sprintf("`%s` failed%s: no error text", tool, aimed), true
+	case 1:
+		return fmt.Sprintf("`%s` failed%s: %s", tool, aimed, clip(first, 300)), true
 	}
-	return fmt.Sprintf("`%s` failed%s: %s", tool, aimed, clip(first, 300)), true
+	// SEVERAL LINES OF OUTPUT, AND NONE OF THEM IS CALLED THE ERROR. The first line is the first
+	// thing the call printed, which for a chain is its first command SUCCEEDING — "registered judge"
+	// stood as the failure of a call that registered. What failed usually speaks last, so both ends
+	// are given, as what they are.
+	return fmt.Sprintf("`%s` failed%s — the status is the whole call's and does not say which part of it failed. Its output opens: %s — and ends: %s",
+		tool, aimed, clip(first, 300), clip(lines[len(lines)-1], 300)), true
 }
+
+// commandShown bounds the command a failure entry quotes. It is far above any chain a seat types
+// by hand — the cut is for a script or a long --reason passed in a heredoc — and a command past it
+// is marked as cut.
+const commandShown = 2000
 
 func clip(s string, n int) string {
 	if r := []rune(s); len(r) > n {

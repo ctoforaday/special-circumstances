@@ -23,17 +23,17 @@ import (
 // pair per event through EventTypeOf, which is the per-write half that test's header names.
 func SetBody(ev *Event, body proto.Message) (EventType, error) {
 	if ev == nil {
-		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("recordpb: SetBody on a nil event")
+		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("SetBody on a nil event")
 	}
 	if body == nil {
-		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("recordpb: an event with no body is not an event — every EventType names a body message")
+		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("an event with no body is not an event — every EventType names a body message")
 	}
 
 	want := body.ProtoReflect().Descriptor()
 	md := ev.ProtoReflect().Descriptor()
 	od := md.Oneofs().ByName("body")
 	if od == nil {
-		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("recordpb: Event has no `body` oneof")
+		return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf("Event has no `body` oneof")
 	}
 
 	for i := 0; i < od.Fields().Len(); i++ {
@@ -46,7 +46,7 @@ func SetBody(ev *Event, body proto.Message) (EventType, error) {
 		typ, ok := EventTypeOf(string(fd.Name()))
 		if !ok {
 			return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf(
-				"recordpb: the `body` oneof carries %s but EventType has no EVENT_TYPE_%s — nothing could stamp "+
+				"the `body` oneof carries %s but EventType has no EVENT_TYPE_%s — nothing could stamp "+
 					"that type, so every reader switching on `type` would skip the body silently",
 				fd.Name(), strings.ToUpper(string(fd.Name())))
 		}
@@ -59,7 +59,7 @@ func SetBody(ev *Event, body proto.Message) (EventType, error) {
 	// anywhere else in the write path: this is the refusal a seat's author meets when they reach
 	// for a message the record does not carry as an event.
 	return EventType_EVENT_TYPE_UNSPECIFIED, fmt.Errorf(
-		"recordpb: %s is not an event body — the `body` oneof carries %d messages, and an event is exactly one of them",
+		"%s is not an event body — the `body` oneof carries %d messages, and an event is exactly one of them",
 		want.Name(), od.Fields().Len())
 }
 

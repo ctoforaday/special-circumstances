@@ -277,6 +277,25 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 	if f.Name == "script" {
 		return scriptPath
 	}
+	// A FLAG THAT DECLARES A FORM GETS A VALUE IN THAT FORM, read off the flag's own type. A value
+	// the flag refuses is refused BEFORE the missing flag is looked for, and the refusal is then
+	// about the placeholder: every row with an id beside the flag under test was passing on the
+	// verb's whole page, which names every flag, under a refusal of `G1`. A required flag is
+	// refused before any handler looks an id up, so the form is all the value has to get right.
+	switch f.Value.Type() {
+	case "int":
+		return "1"
+	case "gap-id":
+		return "G-00000000"
+	case "avenue-id":
+		return "Q-00000000"
+	case "motion-id":
+		return "M-00000000"
+	case "citation-anchor":
+		return "C-00000000"
+	case "sha256":
+		return proofSHA
+	}
 	if f.Name == "id" {
 		// THE SHAPE DECIDES, NOT THE PATH. A flag declares the id kind it accepts
 		// (flags.AvenueID() types itself `avenue-id`), so reading the declaration answers the

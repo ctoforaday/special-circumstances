@@ -167,7 +167,7 @@ func TestAMeasureThatCannotReadIsLoud(t *testing.T) {
 		}
 	}
 	withRenderer(t, func(string, bool, []ReportOp) (string, error) {
-		return "", errors.New("render: replaying mutation 3 of 3")
+		return "", errors.New("replaying mutation 3 of 3")
 	})
 	if _, err := Append(id, budgetMint("G2")); err == nil || !strings.Contains(err.Error(), "replaying mutation 3 of 3") {
 		t.Errorf("a failed render did not refuse with its cause: %v", err)

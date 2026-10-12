@@ -64,7 +64,7 @@ func Render(base string, ops []Op) (string, error) {
 	for i, op := range ops {
 		next, err := (spliceMut{old: op.Old, new: op.New, exact: op.Exact}).apply(text)
 		if err != nil {
-			return "", fmt.Errorf("render: replaying edit %d of %d: %w", i+1, len(ops), err)
+			return "", fmt.Errorf("replaying edit %d of %d: %w", i+1, len(ops), err)
 		}
 		text = next
 	}
@@ -91,7 +91,7 @@ func (m spliceMut) apply(text string) (string, error) {
 		// written before exact_span existed, and those must replay as they always have.
 		start, end, n, ok := bluedoc.LocateLiteral(text, m.old)
 		if !ok {
-			return "", fmt.Errorf("render: an exact-span edit's quote occurs %d time(s) in the running report, where it was written against exactly one", n)
+			return "", fmt.Errorf("an exact-span edit's quote occurs %d time(s) in the running report, where it was written against exactly one", n)
 		}
 		return ApplySplice(text, start, end, m.new), nil
 	}
@@ -263,7 +263,7 @@ func RenderFromRecord(run record.Run) (string, error) {
 // Replay folds the ordered mutations over the frozen base.
 func Replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
 	if !haveBase {
-		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")
+		return "", fmt.Errorf("no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")
 	}
 	text := base
 	for i, op := range ops {
@@ -273,7 +273,7 @@ func Replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
 		}
 		next, err := mut.apply(text)
 		if err != nil {
-			return "", fmt.Errorf("render: replaying mutation %d of %d (%s): %w", i+1, len(ops), mut.describe(), err)
+			return "", fmt.Errorf("replaying mutation %d of %d (%s): %w", i+1, len(ops), mut.describe(), err)
 		}
 		text = next
 	}
@@ -292,7 +292,7 @@ func mutationOf(op record.ReportOp) (mutation, error) {
 	case "remove":
 		return removeMut{id: op.A}, nil
 	default:
-		return nil, fmt.Errorf("render: unknown report_op kind %q — the report_op view emits only edit, insert and remove", op.Kind)
+		return nil, fmt.Errorf("unknown report_op kind %q — the report_op view emits only edit, insert and remove", op.Kind)
 	}
 }
 

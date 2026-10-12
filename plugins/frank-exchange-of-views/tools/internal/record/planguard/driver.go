@@ -136,7 +136,7 @@ func Install(r *Recorder) (string, error) {
 func innerDriver() (driver.Driver, error) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
-		return nil, fmt.Errorf("planguard: reaching the sqlite driver: %w", err)
+		return nil, fmt.Errorf("reaching the sqlite driver: %w", err)
 	}
 	defer db.Close()
 	return db.Driver(), nil

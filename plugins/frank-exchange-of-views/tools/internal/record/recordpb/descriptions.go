@@ -50,7 +50,7 @@ func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
 	term, _ := proto.GetExtension(v.Options(), E_DefinedTerm).(string)
 	switch {
 	case means != "" && term != "":
-		return "", fmt.Errorf("recordpb: enum value %s carries both (means) and (defined_term) = %q — "+
+		return "", fmt.Errorf("enum value %s carries both (means) and (defined_term) = %q — "+
 			"one meaning has one author: keep (defined_term) and edit the registry's definition, or "+
 			"keep (means)", v.FullName(), term)
 	case means != "":
@@ -58,7 +58,7 @@ func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
 	case term != "":
 		return definedTerm(v, term)
 	}
-	return "", fmt.Errorf("recordpb: no meaning on enum value %s — put one on the value itself, "+
+	return "", fmt.Errorf("no meaning on enum value %s — put one on the value itself, "+
 		"`%s = N [(means) = \"…\"]`, or name the terms-registry entry that defines it, "+
 		"`[(defined_term) = \"…\"]`; a set rendered as bare words leaves a seat guessing which "+
 		"situation warrants which", v.FullName(), v.Name())
@@ -71,14 +71,14 @@ var registry = sync.OnceValues(terms.Load)
 func definedTerm(v protoreflect.EnumValueDescriptor, term string) (string, error) {
 	reg, err := registry()
 	if err != nil {
-		return "", fmt.Errorf("recordpb: enum value %s names the defined term %q and the terms registry does not load: %w", v.FullName(), term, err)
+		return "", fmt.Errorf("enum value %s names the defined term %q and the terms registry does not load: %w", v.FullName(), term, err)
 	}
 	for _, e := range reg.Entries {
 		if e.Term == term {
 			return e.Definition, nil
 		}
 	}
-	return "", fmt.Errorf("recordpb: enum value %s names the defined term %q, which the terms registry "+
+	return "", fmt.Errorf("enum value %s names the defined term %q, which the terms registry "+
 		"(internal/terms/terms.json) does not define — name an entry's `term`, or give the value a (means)",
 		v.FullName(), term)
 }
@@ -145,7 +145,7 @@ func RulerOf(v protoreflect.EnumValueDescriptor) (string, error) {
 	if r, _ := proto.GetExtension(v.Options(), E_RuledBy).(string); r != "" {
 		return r, nil
 	}
-	return "", fmt.Errorf("recordpb: no ruler on motion subject %s — put one on the value itself, "+
+	return "", fmt.Errorf("no ruler on motion subject %s — put one on the value itself, "+
 		"`%s = N [(ruled_by) = \"…\"]`; a subject nobody holds the gavel for is a motion that "+
 		"blocks a PASS and can never be answered", v.FullName(), v.Name())
 }

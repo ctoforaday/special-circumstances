@@ -23,6 +23,7 @@
 package refusalcheck
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -66,7 +67,37 @@ func Again(path string, roles []string, diagnosis string) []string {
 			}
 		}
 	}
+	if stage := StageHead(d); stage != "" {
+		found = append(found, "opens with the stage word `"+stage+":`")
+	}
 	return found
+}
+
+// LayerWords are the heads the record layer writes on its own messages — `record: asking the record
+// for its open gaps`. The readings here pass over them: Again and the source gate read the message
+// BEHIND one for a command's name. They are a label of the same kind StageHead catches, on some 160
+// messages, and stay until those are reworded together.
+var LayerWords = []string{"record", "recordsql"}
+
+// StageHead is the word a message opens with when that word is a LABEL — one lowercase word and a
+// colon, in front of the sentence — and "" for a message that starts at what is wrong.
+//
+// A STAGE NAME IS THE COMMAND'S NAME AGAIN, ONE LEVEL DOWN. `feov-record: show report: render: no
+// base has been ingested` names the command, from the renderer, and then the function that
+// noticed: a word of the tool's own source, which the seat has no surface for and cannot act on.
+// A wrapped failure says what was being DONE, in words — `replaying edit 3 of 5: …`, `reading the
+// board: …` — and a phrase is not a label: only a single word is read as one.
+func StageHead(message string) string {
+	word, _, found := strings.Cut(message, ": ")
+	if !found || word == "" || slices.Contains(LayerWords, word) {
+		return ""
+	}
+	for _, r := range word {
+		if (r < 'a' || r > 'z') && r != '_' {
+			return ""
+		}
+	}
+	return word
 }
 
 // Rendered reads what the binary wrote to stderr for a refused argv, against the tree built for
