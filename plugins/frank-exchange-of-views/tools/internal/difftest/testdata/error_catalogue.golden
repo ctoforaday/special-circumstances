@@ -985,9 +985,10 @@ feov-record: regrade: record: red-lens-evidence has already recorded a regrade o
 ── repeat target: the chair sits and states its position
 exit 0
 position recorded
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
 ── a second position in one sitting
 exit 2
@@ -996,9 +997,10 @@ feov-record: position: record: red-chair has already recorded a position this si
 ── repeat target: the chair's spot-check
 exit 0
 spot-check: nothing to sample, recorded with its reason
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
 ── a second spot-check in one sitting
 exit 2
@@ -1007,7 +1009,8 @@ feov-record: spot-check: record: red-chair has already recorded a spot_check thi
 ── repeat target: the chair's verdict
 exit 0
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
-1 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+NOTHING HERE IS YOURS TO CLEAR (3 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
 ── a second verdict in one sitting
