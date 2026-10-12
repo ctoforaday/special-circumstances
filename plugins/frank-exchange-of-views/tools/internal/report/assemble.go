@@ -635,12 +635,38 @@ func deferred(status string) bool { return status == "deferred" }
 
 func setAside(status string) bool { return !taken(status) && !deferred(status) }
 
+// avenueFates is how each fate reads on an avenue's row: what the word means for the approach, in
+// a clause that binds to the hypothesis printed above it, and whether the approach ran — the
+// reason of one that ran is what it FOUND, the reason of any other is WHY it stands where it does.
+// `rejected` is the one a bare word misstates: unglossed, it reads as an approach turned down.
+// TestEveryAvenueFateIsSaidOnItsRow fails a fate the enum declares and this does not gloss.
+var avenueFates = map[string]struct {
+	means string
+	ran   bool
+}{
+	"proposed":  {means: "not yet taken up"},
+	"pursued":   {means: "followed, with no final fate recorded", ran: true},
+	"concluded": {means: "ran, and confirmed what it tested", ran: true},
+	"rejected":  {means: "ran, and refuted what it tested", ran: true},
+	"deferred":  {means: "left for later"},
+	"declined":  {means: "weighed, never run"},
+	"abandoned": {means: "started, and no answer came"},
+}
+
 // avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
 // avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
 // line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
 // and as an alternative to itself.
 //
-// A ROW IS THE LINE AND ITS FATE, IN THE SUBJECT'S TERMS — and nothing about who or how. It used
+// A ROW SAYS FOUR THINGS, EACH UNDER ITS OWN LABEL: the question the avenue asks, the hypothesis
+// that was tested, the fate, and what was found. The row was `- **line** _(method)_ [fate] —
+// reason`, with the hypothesis recorded and never printed. A line that carried a predicted result
+// then stood in bold beside a finding that contradicted it, and read as a claim of the report's:
+// four shipped reports (universe-m7, m12, m19, m22) hold such a row. Labelled, the question is a
+// question, the hypothesis is a hypothesis whatever became of it, and the fate line says in words
+// whether it held.
+//
+// A ROW IS IN THE SUBJECT'S TERMS — and says nothing about who or how. It used
 // to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
 // ruling with its opinion, and a sentence that blue had moved against that ruling. All four are
 // the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
@@ -656,26 +682,32 @@ func avenues(a *assembly, s Section) string {
 		if !want(a.Status) {
 			continue
 		}
-		method := ""
+		row := "- **Question:** " + a.Line
 		if a.Method != "" {
-			method = fmt.Sprintf(" _(%s)_", a.Method)
+			row += fmt.Sprintf(" _(%s)_", a.Method)
 		}
-		reason := ""
-		if a.Reason != "" {
-			reason = " — " + a.Reason
+		if a.Hypothesis != "" {
+			row += "\n  - **Hypothesis:** " + a.Hypothesis
 		}
-		status := ""
-		// THE ROW CARRIES THE STATUS WHENEVER THE HEADING DOES NOT SETTLE IT. `pursued` is what
-		// "Research areas" means, so it is left off; `proposed` shares that heading and must say
-		// so, or the reader cannot tell a line this run FOLLOWED from one it merely named.
-		if a.Status != "pursued" {
-			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
-		}
-		// THE TAG IS THE FATE THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
+		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
 		// exactly as one concluded or rejected straight from `proposed` ran; a missing `pursued` step is
 		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
-		row := fmt.Sprintf("- **%s**%s%s%s", a.Line, method, status, reason)
+		said := avenueFates[a.Status]
+		row += "\n  - **Fate:** " + a.Status
+		if said.means != "" {
+			row += " — " + said.means
+		}
+		row += "."
+		// A PROPOSAL'S REASON IS ITS LINE: `avenue propose` writes the one text to both fields, so
+		// until the avenue is moved there is nothing found, and the question is not printed twice.
+		if a.Reason != "" && a.Reason != a.Line {
+			label := "Why"
+			if said.ran {
+				label = "Found"
+			}
+			row += fmt.Sprintf(" **%s:** %s", label, a.Reason)
+		}
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`
 		// verdict on each line — a vocabulary that made PRESENCE the question. Presence is not a

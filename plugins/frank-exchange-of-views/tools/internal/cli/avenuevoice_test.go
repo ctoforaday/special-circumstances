@@ -53,10 +53,10 @@ func TestProposeAdvisesOnTheMethod(t *testing.T) {
 	}
 }
 
-// THE SCOPE, PINNED FROM THE OTHER SIDE. The hypothesis is never composed into report.md, so a tell
-// there is not the report's problem, and an advisory that fires on text no reader of the report
-// sees is noise — which is how a real note stops being read.
-func TestTheHypothesisIsNotAdvised(t *testing.T) {
+// THE HYPOTHESIS IS REPORT TEXT TOO: the avenue's row prints it under its own label, so a tell
+// there reaches the reader as one in the line does, and the advisory covers every part of the row
+// this act writes.
+func TestProposeAdvisesOnAVoicedHypothesis(t *testing.T) {
 	runDir := newRun(t)
 	seat := avenueSeat(t, runDir)
 	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
@@ -64,8 +64,8 @@ func TestTheHypothesisIsNotAdvised(t *testing.T) {
 	if err != nil {
 		t.Fatalf("propose: %v\n%s", err, out)
 	}
-	if strings.Contains(out, "NOTE") {
-		t.Errorf("the advisory fired on the hypothesis, which report.md never shows:\n%s", out)
+	if !strings.Contains(out, "process-voice") {
+		t.Errorf("a voiced --hypothesis reaches report.md and was not advised:\n%s", out)
 	}
 }
 

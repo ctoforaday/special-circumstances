@@ -1,4 +1,4 @@
-prompt sha256: 7d24eb4cf50b2b5a32318ee7af7cfe2bd617ce031c9fd1b43cc11e310529b82f
+prompt sha256: bc4c91fb32dfb8ef8a4d75cc269e65c6019f334c426772c8156c40a3dd8bd29d
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `avenues` projection — where each carries an id and its hypothesis,.
@@ -16,7 +16,7 @@ THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU.
 At assembly it composes three sections of the report from the avenues on the record: Research areas holds each avenue that is proposed, pursued, concluded or rejected, Future research directions each one deferred, and Alternatives considered each one declined or abandoned.
 That gives the reader what was run, what was deferred and what was set aside as three things, not one list of winners.
 You write none of those three headings in the report, and no list of the approaches considered and their fates under any other heading: a report that carries one of those headings is refused, and a hand copy elsewhere is a second account nothing checks against the record.
-The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
+The line you propose, its hypothesis and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, each under its own label — the question, the hypothesis, what was found — so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
 Recording each approach with the fate it had is what makes "explore the alternatives" checkable instead of self-attested.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.

@@ -115,13 +115,13 @@ func newAvenuePropose() *cobra.Command {
 		body.Line = proto.String(why)
 		body.Reason = proto.String(why)
 		// THE ADVISORY, over exactly what `avenues()` composes into report.md from this act: the
-		// line (which is also the reason — propose writes the same resolved prose to both) and the
-		// method, rendered there as _(method)_. Not the hypothesis: report.md never shows it, so
-		// advising on it would be noise about text no reader of the report sees.
+		// line (which is also the reason — propose writes the same resolved prose to both), the
+		// hypothesis, printed under its own label on the avenue's row, and the method, rendered
+		// there as _(method)_.
 		//
 		// Measured before this existed: arm A of the #861 smoke carried a process-voice tell in
 		// Alternatives considered that came from a blue lane's line, through a verb no advisory saw.
-		tells := spanVoiceTells(why, seat.Str(cmd, flags.Method))
+		tells := spanVoiceTells(why, seat.Str(cmd, flags.Hypothesis), seat.Str(cmd, flags.Method))
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}

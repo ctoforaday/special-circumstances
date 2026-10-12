@@ -211,7 +211,7 @@ func init() {
 			continue
 		}
 		fates := fatesOf(*s)
-		s.From = "the avenues on the record that are " + orList(fates) + ", one row for each: the line, its fate and the reason, in their author's words"
+		s.From = "the avenues on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate, and what was found or why it stands there, in their author's words"
 		s.Path = "Blue's `avenue propose` puts an approach on the record as `proposed`, and blue's `avenue move` gives it a fate with `--as`. An avenue that is " +
 			orList(ticked(fates)) + " is listed under this heading; the heading is not written into the report's text, and neither is a list of approaches under another one."
 	}

@@ -73,8 +73,9 @@
 
 ## Research areas                        <!-- [RECORD] avenues PROPOSED, PURSUED, CONCLUDED and REJECTED — a research topic
                                               taken on, and what it yielded: `concluded` ran and its hypothesis held,
-                                              `rejected` ran and its hypothesis was refuted. A row that is not `pursued`
-                                              carries its status, so a line still undecided or one that ran says so. -->
+                                              `rejected` ran and its hypothesis was refuted. Every avenue row is
+                                              labelled: the question it asks, its hypothesis, its fate, and what was
+                                              found — or, for an approach that did not run, why it stands there. -->
 
 ## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not set aside: worth taking and not by THIS
                                               run. --reason says what a later run should pick it up FOR. It reaches the
@@ -83,8 +84,8 @@
                                               opposite of its fate. -->
 
 ## Alternatives considered               <!-- [RECORD] avenues DECLINED (weighed, never run) and ABANDONED (started, no answer) —
-                                              each with its reason (the counter), in the subject's terms. The tag is the
-                                              fate its seat recorded, whatever path led to it. Who proposed a
+                                              each with its reason (the counter), in the subject's terms. The fate is the
+                                              one its seat recorded, whatever path led to it. Who proposed a
                                               line, the path its status took and red's ruling are the debate,
                                               not the subject: they render in avenues.md and judgments.md. -->
 
