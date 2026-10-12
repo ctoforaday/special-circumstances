@@ -12,7 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// EVERY LINE OF THE REPORT'S TEXT IS IN THE report.md THAT SHIPS, through the whole assembly: the
+// EVERY LINE OF THE REPORT'S TEXT IS IN THE report.md THAT SHIPS, IN THE ORDER WRITTEN, through the whole assembly: the
 // parting of the text among the rows, the composition, the token strip and the weave. Each case
 // is a shape a report can take that one of those steps could mistake for something to leave out.
 func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
@@ -22,8 +22,8 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 		"a title and nothing more":          "# T\n",
 		"no headings at all":                "one paragraph.\n\nand another.\n",
 		"text before the title":             "prose before the title.\n# T\n**Verdict:** a preamble line\n\n## TL;DR\nx.\n",
-		"a lifted heading twice":            "# T\n\n## Open questions\nfirst.\n\n## Open questions\nsecond.\n\n##  open questions (in full)\nthird.\n",
-		"a lifted heading, other case":      "# T\n\n## ANALYSIS\nupper.\n\n## tl;dr\nlower.\n",
+		"the closing heading twice":         "# T\n\n## Open questions\nfirst.\n\n## Open questions\nsecond.\n\n##  open questions (in full)\nthird.\n",
+		"a placed heading, other case":      "# T\n\n## ANALYSIS\nupper.\n\n## tl;dr\nlower.\n",
 		"an anchored heading":               "# T\n\n## The Catechism" + fx + "\nanchored heading.\n",
 		"a section named as the body's row": "# T\n\n## TL;DR\nx.\n\n## " + bodyHeading + "\na section of that name.\n\n## Technical foundations\ny.\n",
 		"an empty section":                  "# T\n\n## Analysis\n\n## Open questions\n\n## Appendix\n",
@@ -69,6 +69,23 @@ func TestNoLineOfTheReportsTextIsLostInAssembly(t *testing.T) {
 				if have[ln] < n {
 					t.Errorf("the line %q is in the report's text %d time(s) and in report.md %d:\n%s", ln, n, have[ln], shipped)
 				}
+			}
+			// AND NONE MOVES PAST ANOTHER: but for the title line, which opens the document, the
+			// text's lines stand in report.md in the order written, whatever order that is.
+			at, title := 0, part(blue).title
+			for _, ln := range strings.Split(blue, "\n") {
+				if ln = strings.TrimSpace(anchor.StripAssembled(ln)); ln == "" {
+					continue
+				}
+				if ln == title {
+					title = "\x00"
+					continue
+				}
+				i := strings.Index(shipped[at:], ln)
+				if i < 0 {
+					t.Fatalf("the line %q does not stand in report.md after the line written before it:\n%s", ln, shipped)
+				}
+				at += i + len(ln)
 			}
 		})
 	}

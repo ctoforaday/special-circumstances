@@ -4189,9 +4189,9 @@ var dialecticProseKey = map[string]string{
 var reportExemptions = map[string]string{
 	"revision":    "written by migrate alone, for the revisions an archived record holds — no command records one and no document renders its prose: the changelog lists what left the report",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
-	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
-	"blue_edit":   "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"base_ingest": "the synthesized report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly lifts verbatim; rendering it as an entry of its own would duplicate the whole document",
+	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
+	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"base_ingest": "the synthesized report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly ships as written; rendering it as an entry of its own would duplicate the whole document",
 	"class_new":   "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// THE DISPATCH MACHINERY (plans/roundless.md §III.B.1). A cast names who may sit; a dispatch
 	// records who the chair relayed for one epoch. Both are attribution and routing, and both

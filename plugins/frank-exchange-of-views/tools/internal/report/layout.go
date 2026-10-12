@@ -33,12 +33,14 @@ import (
 // tool's in report.md, ships whole and once among the report's own sections, and is what a
 // report on a theorem or on a legislature calls a section of its own.
 //
-// THE REPORT'S STRUCTURE IS ITS AUTHOR'S. The table places the three sections a report is asked
-// to carry, and every other section of its text ships as the body, in the order written, under
-// the heading its author gave it. A row for a heading the report need not have is a slot that
-// reads as unfilled: universe-m21's sections named the reader's questions, and it shipped a line
-// under two fixed headings saying neither was authored, with its argument after the tool's
-// sections under a heading of the tool's.
+// THE REPORT'S STRUCTURE IS ITS AUTHOR'S, AND ASSEMBLY MOVES NONE OF IT. The report's text ships
+// in the order written, each section under the heading its author gave it: the body, and after
+// the tool's sections of report.md the section that closes the text. Which of its sections open
+// it and which closes it is the table's (first, and the row after the tool's), and the write
+// holds the text to that order (OutOfOrderIn), so the order a seat reads is the order that ships.
+// A row for a heading the report need not have is a slot that reads as unfilled: universe-m21's
+// sections named the reader's questions, and it shipped a line under two fixed headings saying
+// neither was authored, with its argument after the tool's sections under a heading of the tool's.
 
 // Who composes a section.
 const (
@@ -71,6 +73,8 @@ type Section struct {
 
 	// embeds marks the body: the report's own sections, each under the heading its author gave it.
 	embeds bool
+	// first, on the body, is the sections that open it when the text carries them, in order.
+	first []string
 	// fate, on an avenue section, is which avenue statuses it holds.
 	fate func(status string) bool
 	// compose renders the section's body; nil for one a later pass over the whole document writes.
@@ -87,7 +91,7 @@ func (s Section) block(a *assembly) string {
 }
 
 // assembly is what one assembly of the set reads: the record once, and the report's text parted
-// into its title, its lifted sections and the rest.
+// into its title, its body and the section that closes it.
 type assembly struct {
 	run     record.Run
 	fam     record.Family
@@ -101,8 +105,6 @@ const (
 	questionLine = "**Question:**"
 
 	blueTextPath = "The report's text: the opening synthesis writes it and blue's `edit` amends it."
-	liftedFrom   = "the section of this name in the report's text, lifted whole"
-	liftedPath   = blueTextPath + " A report with no section of this name ships without one."
 	bodyHeading  = "The report's own sections"
 	noSeatPath   = "No seat's act reaches it."
 
@@ -124,14 +126,12 @@ var layout = []Section{
 		From:    fmt.Sprintf("the Title in full, when it runs past %d characters", titleLimit),
 		Path:    blueTextPath,
 		compose: func(a *assembly, _ Section) string { _, q := heading(a.blue.title); return q }},
-	{File: FileReport, Heading: "TL;DR", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	{File: FileReport, Heading: "The Catechism", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	// THE BODY: after the two surfaces that open the report and before every section the tool
-	// composes, so the reader meets the argument before the record's account of it.
-	{File: FileReport, Heading: bodyHeading, Composer: Blue, embeds: true,
-		From:    "every part of the report's text that no other row places, whole and in the order written, each section under the heading its author gave it",
+	// THE BODY: before every section the tool composes, so the reader meets the argument before
+	// the record's account of it. The two surfaces that open the report are its first sections.
+	{File: FileReport, Heading: bodyHeading, Composer: Blue, embeds: true, first: []string{"TL;DR", "The Catechism"},
+		From:    "the report's text up to the section that closes it, whole and in the order written, each section under the heading its author gave it",
 		Path:    blueTextPath + " Each section stands under a heading of its author's choosing, and assembly writes none above it.",
-		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
+		compose: func(a *assembly, _ Section) string { return a.blue.body }},
 	{File: FileReport, Heading: "Risk matrix", Composer: Tool,
 		From:    "the open gaps on the board, one row for each: its problem, its grades and its required fix",
 		Path:    "No act of blue's adds a row. A lens's `mint` opens a gap and with it a row, and the lens's `close` takes the row out; blue's `edit` answering the gap is what the lens closes on. A risk the report itself argues for is prose in the section that makes the claim.",
@@ -141,7 +141,10 @@ var layout = []Section{
 	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: accepted, compose: avenues},
 	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: avenues},
 	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: rejected, compose: avenues},
-	{File: FileReport, Heading: "Open questions", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
+	{File: FileReport, Heading: "Open questions", Composer: Blue,
+		From:    "the section of this name in the report's text, which closes it",
+		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",
+		compose: func(a *assembly, _ Section) string { return a.blue.close }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
 		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
@@ -196,10 +199,14 @@ var layout = []Section{
 }
 
 // The avenue sections' From and Path are written from each row's own fate, so the sentence a seat
-// reads and the predicate the composer applies are one fact.
+// reads and the predicate the composer applies are one fact; and the body's Path names the
+// sections the write holds first from the row's own list.
 func init() {
 	for i := range layout {
 		s := &layout[i]
+		if len(s.first) > 0 {
+			s.Path += " The write holds " + "`## " + strings.Join(s.first, "` and `## ") + "` first among them, in that order, where the text carries them."
+		}
 		if s.fate == nil {
 			continue
 		}
@@ -301,8 +308,8 @@ var SubjectHeadingsNote = func() string {
 	return "Assembly also composes " + strings.Join(parts, " and ") + ", and those names are not refused: " + OwnInTheReport + "."
 }()
 
-// HEADINGS ARE READ ONE WAY, by every reader here: the composer that lifts blue's sections, the
-// refusal at the write, and the view that slices the assembled document.
+// HEADINGS ARE READ ONE WAY, by every reader here: the composer that parts the report's text, the
+// refusals at the write, and the view that slices the assembled document.
 //
 // A line opens a section when, outside a code fence, it starts with "## " once its surrounding
 // whitespace is trimmed. Two headings name the same section when they agree after their anchors
@@ -426,6 +433,9 @@ func textRows() (rows []Section, body int) {
 	for _, s := range layout {
 		// The Question line is the title again, composed; the text holds no line of its own for it.
 		if s.File == FileReport && s.Composer == Blue && (s.Line == "" || s.compose == nil) {
+			for _, h := range s.first {
+				rows = append(rows, Section{Heading: h})
+			}
 			if s.embeds {
 				body = len(rows)
 			}
@@ -613,58 +623,36 @@ func wovenNotes(text string) (out []claim) {
 	return out
 }
 
-// blueText is the report's text, parted: every line of it is in exactly one of these.
+// blueText is the report's text, parted: every line of it is in exactly one of these, and the two
+// that hold sections hold them in the order written.
 type blueText struct {
-	title  string            // the first "# " line
-	lifted map[string]string // heading key → the first section under each heading a Blue row lifts
-	rest   string            // everything else, in the order written
+	title string // the first "# " line
+	body  string // everything else, up to the section that closes the text
+	close string // that section, and whatever the text holds after it
 }
 
-// part splits the report's text among the rows that place it. NOTHING IS LEFT OVER: the title
-// line, the first section under each lifted heading, and the rest, which ships whole as the body
-// — a second section under a lifted heading, text before the first heading and a section under a
-// heading the tool composes included. Of the last, a live seat writes only one under a
-// SubjectHeading; a record migrated from before the refusal can hold any, and ships it there with
-// every anchor it carries.
-func part(blue string) blueText {
-	lifts := map[string]bool{}
-	for _, s := range layout {
-		if s.Composer == Blue && s.Line == "" && !s.embeds {
-			lifts[normalizeHeading(s.Heading)] = true
-		}
-	}
-	out := blueText{lifted: map[string]string{}}
-	var rest, cur []string
-	curKey := ""
-	flush := func() {
-		if curKey != "" {
-			out.lifted[curKey] = strings.TrimRight(strings.Join(cur, "\n"), " \t\n")
-		}
-		cur, curKey = nil, ""
-	}
+// part takes the title line out of the report's text and cuts the rest at the heading of the
+// section that closes it. ASSEMBLY MOVES NO LINE OF THE TEXT PAST ANOTHER: the tool's sections of
+// report.md stand between the two parts, and each part ships as written. The write holds the
+// closing section last (OutOfOrderIn); a record migrated with its text as written can hold more
+// after it, a second section of its name included, and that ships after it with every anchor it
+// carries.
+func part(blue string) (out blueText) {
+	var parts [2][]string
+	closed := 0
 	eachLine(blue, func(ln, t string, fenced bool) {
-		if !fenced {
-			if key, ok := headingKey(t); ok {
-				flush()
-				if _, done := out.lifted[key]; lifts[key] && !done {
-					curKey = key
+		if key, ok := headingKey(t); ok && !fenced {
+			for _, s := range layout {
+				if s.Composer == Blue && s.Line == "" && !s.embeds && key == normalizeHeading(s.Heading) {
+					closed = 1
 				}
-			} else if out.title == "" && strings.HasPrefix(t, "# ") {
-				out.title = t
-				return
 			}
+		} else if !fenced && out.title == "" && strings.HasPrefix(t, "# ") {
+			out.title = t
+			return
 		}
-		if curKey != "" {
-			cur = append(cur, ln)
-		} else {
-			rest = append(rest, ln)
-		}
+		parts[closed] = append(parts[closed], ln)
 	})
-	flush()
-	out.rest = strings.TrimSpace(strings.Join(rest, "\n"))
+	out.body, out.close = strings.TrimSpace(strings.Join(parts[0], "\n")), strings.TrimSpace(strings.Join(parts[1], "\n"))
 	return out
 }
-
-// lift copies blue's section verbatim. A report with no section of that name ships none, and the
-// assembled layout is where a seat reads that the row is not in the set.
-func lift(a *assembly, s Section) string { return a.blue.lifted[normalizeHeading(s.Heading)] }
