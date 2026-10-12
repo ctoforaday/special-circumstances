@@ -117,9 +117,19 @@ func TestOpenWaitsOutALockedFreshDatabase(t *testing.T) {
 // connection's `journal_mode(WAL)` conversion — the pragma needs the write lock and RESERVED
 // already denies it; EXCLUSIVE is taken only at this transaction's commit. The caller commits or
 // rolls back to release it.
+//
+// THE HOLDER CARRIES busy_timeout, AS EVERY CONNECTION TO A RECORD DOES. A rollback-mode commit
+// needs the EXCLUSIVE lock, which waits for every SHARED lock to clear — and the open that is
+// waiting on this holder takes one on each of connect's retries: `journal_mode(WAL)` opens a read
+// transaction before it asks for the write lock it is then refused. With no busy handler the
+// commit that lands inside one of those reads returns SQLITE_BUSY at once, and it is the HOLDER
+// that fails — the stand-in, by a rule no writer the product has is subject to. The pragma is
+// the only setting taken: `journal_mode(WAL)` would make this the conversion's winner rather than
+// a lock on a fresh file, and `_txlock=immediate` is beside the point of a transaction whose
+// first statement is its write.
 func holdFresh(t *testing.T, path string) *sql.Tx {
 	t.Helper()
-	holder, err := sql.Open(driverName(), dsnWithQuery(path, ""))
+	holder, err := sql.Open(driverName(), dsnWithQuery(path, holderQuery))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,6 +143,54 @@ func holdFresh(t *testing.T, path string) *sql.Tx {
 		t.Fatal(err)
 	}
 	return tx
+}
+
+// holderQuery is holdFresh's connection settings: the busy wait every connection to a record has,
+// and nothing that would take the file out of rollback mode. A fixed figure rather than
+// openBusyBudget, which a test shortens to prove the OPEN's expiry — the holder's patience is not
+// what that test measures.
+const holderQuery = "_pragma=busy_timeout(5000)"
+
+// TestTheHeldLockCommitsPastAReader pins the stand-in to the one property of a real writer the
+// tests above depend on: its commit WAITS for a reader to leave. The reader here is a connection
+// of its own holding a SHARED lock on the fresh file, which is what a waiting open holds for an
+// instant on each of connect's retries. The interleaving is driven, not sampled: the reader lets
+// go only after the commit has had its chance to fail against it.
+func TestTheHeldLockCommitsPastAReader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fresh.db")
+	tx := holdFresh(t, path)
+
+	reader, err := sql.Open(driverName(), dsnWithQuery(path, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	reader.SetMaxOpenConns(1)
+	read, err := reader.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = read.Rollback() }()
+	// A deferred transaction takes its SHARED lock at the first read and keeps it until it ends.
+	var n int
+	if err := read.QueryRow(`SELECT count(*) FROM sqlite_master`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+
+	committed := make(chan error, 1)
+	go func() { committed <- tx.Commit() }()
+	select {
+	case err := <-committed:
+		// The reader has not let go, so a commit that is back already did not wait for it.
+		t.Fatalf("the holder's commit returned while a reader still held the file (%v) — it does not wait as a record's writer does", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := read.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-committed; err != nil {
+		t.Fatalf("the holder's commit, once the reader had left: %v", err)
+	}
 }
 
 // TestOpenGivesUpWhenTheLockOutlivesTheBudget is the deadline half of connect's contract: a lock
