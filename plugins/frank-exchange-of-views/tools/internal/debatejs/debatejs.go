@@ -63,6 +63,41 @@ type Dispatch struct {
 	// type is dispatched from several sites (the bench), so neither answers "which builder wrote
 	// this prompt". Sites lists every one the script holds, by the same line.
 	Site int
+	// Schema is the envelope schema the dispatch carried — what the Workflow harness holds the
+	// seat's return to — as the script built it. Nil for a seat whose return is prose.
+	Schema map[string]any
+}
+
+// SchemaKeys is every property name a schema declares, at any depth — through `properties`,
+// `items` and `anyOf` — sorted. It is the set of keys an envelope under that schema can carry by
+// declaration.
+func SchemaKeys(schema map[string]any) []string {
+	seen := map[string]bool{}
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case []any:
+			for _, e := range x {
+				walk(e)
+			}
+		case map[string]any:
+			if props, ok := x["properties"].(map[string]any); ok {
+				for k, sub := range props {
+					seen[k] = true
+					walk(sub)
+				}
+			}
+			walk(x["items"])
+			walk(x["anyOf"])
+		}
+	}
+	walk(schema)
+	out := make([]string, 0, len(seen))
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // seatRe reads the seat id out of the prompt. recordClause writes `SEAT_ID: <id>.` into every
@@ -363,6 +398,9 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 					d.AgentType = optStr(o, "agentType")
 					d.Model = optStr(o, "model")
 					d.Phase = optStr(o, "phase")
+					if sc := o.Get("schema"); sc != nil && !goja.IsUndefined(sc) && !goja.IsNull(sc) {
+						d.Schema, _ = sc.Export().(map[string]any)
+					}
 				}
 				// The innermost frame is this stub; the one under it is the script's call.
 				if st := vm.CaptureCallStack(2, nil); len(st) == 2 {

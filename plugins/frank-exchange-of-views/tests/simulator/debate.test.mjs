@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
@@ -12,6 +12,11 @@ const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3
 const labelsOf = (world, prefix) => world.calls.filter((c) => c.opts.label.startsWith(prefix))
 const firstPrompt = (world, prefix) => labelsOf(world, prefix)[0].prompt
 const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
+// THE LENS AREAS ARE READ FROM THE LENS DEFINITIONS, one `agents/red-lens-<area>.md` each, so a
+// test over every area holds no list of them: the script's own areas are its generated seat block,
+// and a definition the block does not seat fails the default-cast test below.
+const LENS_AREAS = readdirSync(new URL('../../agents/', import.meta.url)).map((f) => /^red-lens-(.+)\.md$/.exec(f)).filter(Boolean).map((m) => m[1])
+if (!LENS_AREAS.length) throw new Error('no agents/red-lens-<area>.md — every test over the lens areas would pass on nothing')
 
 // THE SPEED CLAUSE IS READ FROM ITS ONE DEFINITION, NOT RESTATED HERE.
 //
@@ -922,7 +927,7 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
   assert.ok(!/COALESCE/.test(chair) && !/board's only writer/.test(chair), 'the chair constitution still describes the coalescing merge')
   assert.ok(/dispatch/.test(chair), 'the chair constitution names its dispatch duty')
   assert.ok(/mint/i.test(lens), 'the lens constitution names minting')
-  for (const area of ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']) {
+  for (const area of LENS_AREAS) {
     const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
     assert.ok(md.includes('two sittings without one retire you, a head move after that re-arms you once, and a barren re-arm retires you for good'), `red-lens-${area}: readiness is the retirement state`)
     assert.ok(!/dispatches you when the report head moves/.test(md), `red-lens-${area}: no lens is ready because the head moved`)
@@ -964,14 +969,14 @@ test('a relayed plan missing a required field, or carrying the wrong type, abort
   assert.equal((await world.run(script, ARGS)).verdict, 'VERIFIED')
 })
 
-// EVERY AREA SITS BY DEFAULT: with no lens areas named, the engine admits all seven, and a plan
-// naming each dispatches seven lens sittings, one agent configuration per area.
+// EVERY AREA SITS BY DEFAULT: with no lens areas named, the engine admits every one, and a plan
+// naming each dispatches one lens sitting per area, one agent configuration per area.
 test('the default cast is every lens area', async () => {
-  const areas = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
+  const areas = LENS_AREAS
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan(areas.map((a) => party(`red-lens-${a}`))) }), passChair()] }))
   const { lensAreas, ...noAreas } = ARGS
   await world.run(script, noAreas)
-  assert.deepEqual(labelsOf(world, 'red-lens').map((c) => c.opts.label).sort(), areas.map((a) => `red-lens-${a} #1 · test`).sort(), 'seven lens sittings, one per area')
+  assert.deepEqual(labelsOf(world, 'red-lens').map((c) => c.opts.label).sort(), areas.map((a) => `red-lens-${a} #1 · test`).sort(), 'one lens sitting per area')
   assert.equal(new Set(labelsOf(world, 'red-lens').map((c) => c.opts.agentType)).size, areas.length, 'one configuration per area')
 })
 

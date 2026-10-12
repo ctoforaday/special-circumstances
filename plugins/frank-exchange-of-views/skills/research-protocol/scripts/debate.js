@@ -96,8 +96,9 @@ const TIER = { bulk: { model }, judgment: { model: judgmentModel } }
 // script authors none of it: each seat's role, tier class, agent configuration and lens area
 // (seatclass.Seats, seatclass.Lane), the lens areas in the order the cast declares them
 // (flags.LensAreas), the bench's occasions (the record's Occasion enum) and the mass mapping's
-// stamp (record.MassMappingVersion). Adding a lens area is an edit to flags.LensAreas and a
-// regeneration; a block that is stale or edited by hand fails `enginegen -check`.
+// stamp (record.MassMappingVersion). Adding a lens area is an edit to flags.LensAreas, its agent
+// configuration, and a regeneration; a block that is stale or edited by hand fails
+// `enginegen -check`.
 //
 // A SEAT ID IS A NAME. Read a seat's role, tier, configuration and area from its row; never off
 // its id. A lane has no row because the run's lane count decides how many there are: its id is
@@ -329,9 +330,85 @@ EVERY READ IS A PROJECTION OF THE RECORD, never a file you open. The .md files u
 YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your closings in the transcript, your grounds beside the acts on the board. The transcript is your case to the bench, which reads it when it rules, and to the reader of the run; the grounds on the board are what the other party's seats read and answer. NEVER the research report: that document is addressed to a reader of the subject and carries no argument about the run. And write the SUBSTANCE — what it rests on, and what answers it — not a label for what you did — the record already holds every act of this sitting, in order, so an account of the verbs you ran narrates what the record reconstructs. An act stands as filed, so read before you record. One you got wrong stays on the record and is answered by another act: the page for the act names which, and so does the refusal of a second where a sitting holds one.`
 
 
-// Compound grades allowed: red's protocol grades finer than a 3-point scale
-// (retrospective friction #6 — forced rounding lost information every round).
-const GRADE = { type: 'string', enum: ['low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized', 'trivial'] }
+// WHAT AN ENVELOPE MAY SAY IS THE RECORD'S VOCABULARY. The region below is written from it and
+// this script authors none of it.
+//
+// EVERY CLOSED SET A SEAT'S ENVELOPE OFFERS is the list the record's write path resolves the same
+// word against: the grade scale (GRADE — compound grades, because red grades finer than a 3-point
+// scale), a grade motion's dimensions (DISPUTE_DIMENSION), a petition's rulings and whom its relief
+// binds (RULING_ON_PETITION, RELIEF_BINDS), the docket's dispositions (DISPOSITION), the chair's
+// verdict (VERDICT, with null for a sitting that recorded none) and the run's outcome
+// (RUN_OUTCOME). An envelope word the tool refuses is a write that never happens while this script
+// carries on as though it had.
+//
+// THE PLAN THE CHAIR RELAYS is record.Plan: its schema (PLAN) is written from that struct's
+// fields, types and tags, and so are the two tables requirePlan walks (PLAN_FIELD_TYPES,
+// PLAN_ITEM_TYPES). A PARTY IS ONE OF TWO SHAPES, AND THE SCHEMA SAYS WHICH BY ITS SEAT
+// (BENCH_PARTY, LENS_OR_BLUE_PARTY, over record.PartySeats): the bench's carries at least one of
+// BENCH_PARTY_OCCASIONS, and a lens's or blue's carries none. AN EMPTY `occasions` ON A LENS OR
+// BLUE IS NOTHING: the verb omits the field for them, the record's dispatch row holds a repeated
+// field with no presence — empty and absent are one state there — and nothing routes on it. Both
+// shapes accept it; neither accepts a word in it. KEYED_BLOCKER_KINDS is the blocker kinds
+// capture holds a relayed plan to the record on (record.RelayBlockerKinds).
+//
+// A word added to an enum, a lens area, or a field added to the plan is an edit to the record's
+// declaration and a regeneration; a region that is stale or edited by hand fails
+// `enginegen -check`.
+// BEGIN GENERATED ENVELOPE VOCABULARY — go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen writes this from the record's enums and record.Plan. DO NOT EDIT BY HAND.
+const GRADE = { type: 'string', enum: ['trivial', 'low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized'] }
+const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
+const RULING_ON_PETITION = { type: 'string', enum: ['granted', 'denied'] }
+const RELIEF_BINDS = { type: 'string', enum: ['blue', 'red', 'both'] }
+const DISPOSITION = { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'defect_owed_elsewhere', 'remanded', 'moot'] }
+const VERDICT = { type: ['string', 'null'], enum: ['PASS', 'FAIL', null] }
+const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
+const BENCH_PARTY_OCCASIONS = ['docket', 'petition']
+const KEYED_BLOCKER_KINDS = ['contradiction', 'reopened', 'no_report', 'unruled_motion']
+const BENCH_PARTY = {
+  type: 'object',
+  required: ['seat_id', 'gap_ids', 'occasions'],
+  properties: {
+    seat_id: { type: 'string', enum: ['judge'] },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps docketed for the bench; empty when it is convened for a petition alone' },
+    occasions: { type: 'array', minItems: 1, items: { type: 'string', enum: BENCH_PARTY_OCCASIONS }, description: 'what the bench is convened for — petition (before any other party sits), docket (its gap_ids, after blue)' },
+  },
+}
+const LENS_OR_BLUE_PARTY = {
+  type: 'object',
+  required: ['seat_id', 'gap_ids'],
+  properties: {
+    seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-adversary', 'red-lens-architecture', 'red-lens-computation', 'red-lens-dark-side', 'red-lens-evidence', 'red-lens-logic', 'red-lens-voice'] },
+    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps this party is engaged on; empty for a lens engaged by its retirement state — active, or retired and re-armed once by a head move — or by a contradiction it read, or by a reopened citation or proof' },
+    occasions: { type: 'array', maxItems: 0, description: 'absent, as the verb prints it: only the bench is convened for an occasion' },
+  },
+}
+const PLAN = {
+  type: 'object',
+  required: ['head', 'parties', 'docket', 'remand_owed', 'exchanges', 'pass_permitted', 'stale_areas', 'ceiling', 'max_epochs', 'epoch_limit_reached', 'blockers', 'why'],
+  properties: {
+    head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
+    parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
+    docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
+    remand_owed: { type: 'array', description: 'gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: their minting lens and blue are among the parties for it', items: { type: 'object', required: ['gap_id', 'direction'], properties: { gap_id: { type: 'string' }, direction: { type: 'string', pattern: '\\S', description: 'never blank: the record refuses a remand without one' } } } },
+    exchanges: { type: 'array', description: 'one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero', items: { type: 'object', required: ['gap_id', 'count', 'unresolved'], properties: { gap_id: { type: 'string' }, count: { type: 'integer', minimum: 0 }, unresolved: { type: 'integer', minimum: 0 } } } },
+    pass_permitted: { type: 'boolean' },
+    stale_areas: { type: 'array', description: 'each lens retired for good whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS', items: { type: 'object', required: ['seat_id', 'pin'], properties: { seat_id: { type: 'string' }, pin: { type: 'integer', minimum: 0 } } } },
+    ceiling: { type: 'boolean' },
+    max_epochs: { type: 'integer', minimum: 0, description: "the run's epoch limit, a term setup records; 0 when the run is held to none" },
+    epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
+    blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each', items: { type: 'object', required: ['kind', 'subject', 'owner'], properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'contradiction', 'reopened', 'no_report', 'lens_ready', 'stale_area', 'unruled_motion', 'avenue_review'] }, subject: { type: 'string' }, owner: { type: 'string' } } } },
+    why: { type: 'array', items: { type: 'string' } },
+  },
+}
+const PLAN_FIELD_TYPES = { head: 'integer', parties: 'array', docket: 'array', remand_owed: 'array', exchanges: 'array', pass_permitted: 'boolean', stale_areas: 'array', ceiling: 'boolean', max_epochs: 'integer', epoch_limit_reached: 'boolean', blockers: 'array', why: 'array' }
+const PLAN_ITEM_TYPES = {
+  parties: { seat_id: 'string', gap_ids: 'array' },
+  remand_owed: { gap_id: 'string', direction: 'string' },
+  exchanges: { gap_id: 'string', count: 'integer', unresolved: 'integer' },
+  stale_areas: { seat_id: 'string', pin: 'integer' },
+  blockers: { kind: 'string', subject: 'string', owner: 'string' },
+}
+// END GENERATED ENVELOPE VOCABULARY
 
 // §8 Q6 pinned mass mapping (run-4 report §2.5 item 1) — TOTAL over the GRADE enum.
 // `realized` is EXCLUDED from mass (a realized risk is no longer a probability: it
@@ -355,8 +432,7 @@ const GRADE = { type: 'string', enum: ['low', 'low_medium', 'medium', 'medium_hi
 // Grade-dispute channel (run-4 report §3.3, clauses (v) and (vii)): the dimensions a grade
 // motion may dispute. The per-round dispute cap and the cumulative accepted-delta threshold that
 // once sat here left with the round (plans/roundless.md); a dispute is docketed per gap now.
-
-const DISPUTE_DIMENSION = { type: 'string', enum: ['severity', 'likelihood', 'impact', 'complexity'] }
+// DISPUTE_DIMENSION is in the generated vocabulary region.
 
 // W2c — the petition right (constitutional, record-routed): any party seat may petition the
 // bench, and the petition is a motion ON THE RECORD — the one channel every seat has, lenses and
@@ -381,7 +457,7 @@ const PETITION_RULING = {
         properties: {
           petitioner: { type: 'string' },
           class: { type: 'string' },
-          // granted|denied ONLY, matching the record's petition-rule enum exactly.
+          // THE RECORD'S PETITION RULINGS, generated: granted and denied, and no other.
           //
           // `halt` USED TO BE A THIRD VALUE HERE AND IT COULD NOT BE RECORDED (#329). The
           // record's enum is granted|denied — deliberately, because a halt is the bench's own
@@ -394,7 +470,7 @@ const PETITION_RULING = {
           // The collision was the cause, not the symptom. Two vocabularies for one act is what
           // the seat-command trigger map exists to remove, and while `halt` sat in this enum the
           // mistake was the natural thing to write. It is now unwriteable.
-          ruling: { type: 'string', enum: ['granted', 'denied'] },
+          ruling: RULING_ON_PETITION,
           // RELIEF, NOT OPINION. The OPINION is the reasoning (the principle applied, the values in tension, why a
           // human should or should not look); it belongs on the record, and the report renders it
           // beside the filing it answers. The RELIEF is the operative part — the instruction that
@@ -405,7 +481,7 @@ const PETITION_RULING = {
           // rather than in the schema, because `required` cannot be conditional on a sibling.
           //
           // An instruction with no addressee can only be delivered by guessing.
-          binds: { type: 'string', enum: ['blue', 'red', 'both'] },
+          binds: RELIEF_BINDS,
         },
       },
     },
@@ -499,91 +575,20 @@ const BLUE_ENVELOPE = {
 // verdict is what the chair RECORDED this sitting, if it recorded one. Nothing else the old envelope carried
 // (gaps, closures, dispute responses, citation counts) is here: the record holds them and every seat reads
 // them through the tool.
-// A PARTY IS ONE OF TWO SHAPES, AND THE SCHEMA SAYS WHICH BY ITS SEAT. requirePlan below refuses a
+//
+// A PARTY IS ONE OF TWO SHAPES (BENCH_PARTY, LENS_OR_BLUE_PARTY, generated). requirePlan below refuses a
 // bench party with no occasion, a lens or blue carrying one, and a seat this workflow has no
 // sitting for; a relay the schema accepted and the check then threw on ended a run at its sixth
-// chair sitting, with every sitting before it paid for. So each refusal there is a shape here: the
-// harness hands a mis-shaped relay back to the chair to send again, and the run goes on.
+// chair sitting, with every sitting before it paid for. So each refusal there is a shape in the
+// schema: the harness hands a mis-shaped relay back to the chair to send again, and the run goes on.
 //
-// AN EMPTY `occasions` ON A LENS OR BLUE IS NOTHING. The verb omits the field for them, the
-// record's dispatch row holds a repeated field with no presence — empty and absent are one state
-// there — and nothing routes on it. Both shapes accept it; neither accepts a word in it.
-//
-// THE SEAT LISTS ARE LITERALS because the envelope-enum gate reads `enum: [...]` off this source
-// and holds each to the record's own party seats (record.PartySeats).
-const BENCH_PARTY = {
-  type: 'object',
-  required: ['seat_id', 'gap_ids', 'occasions'],
-  properties: {
-    seat_id: { type: 'string', enum: ['judge'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps docketed for the bench; empty when it is convened for a petition alone' },
-    occasions: { type: 'array', minItems: 1, items: { type: 'string', enum: [OCCASION.docket, OCCASION.petition] }, description: 'what the bench is convened for — petition (before any other party sits), docket (its gap_ids, after blue)' },
-  },
-}
-const LENS_OR_BLUE_PARTY = {
-  type: 'object',
-  required: ['seat_id', 'gap_ids'],
-  properties: {
-    seat_id: { type: 'string', enum: ['red-lens-evidence', 'red-lens-logic', 'red-lens-dark-side', 'red-lens-voice', 'red-lens-computation', 'red-lens-adversary', 'red-lens-architecture', 'blue-respond'] },
-    gap_ids: { type: 'array', items: { type: 'string' }, description: 'the gaps this party is engaged on; empty for a lens engaged by its retirement state — active, or retired and re-armed once by a head move — or by a contradiction it read, or by a reopened citation or proof' },
-    occasions: { type: 'array', maxItems: 0, description: 'absent, as the verb prints it: only the bench is convened for an occasion' },
-  },
-}
-const PLAN = {
-  type: 'object',
-  required: ['head', 'parties', 'docket', 'remand_owed', 'exchanges', 'pass_permitted', 'ceiling', 'max_epochs', 'epoch_limit_reached', 'why', 'stale_areas', 'blockers'],
-  properties: {
-    head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
-    parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
-    blockers: {
-      type: 'array',
-      description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each',
-      items: {
-        type: 'object',
-        required: ['kind', 'subject', 'owner'],
-        properties: { kind: { type: 'string' }, subject: { type: 'string' }, owner: { type: 'string' } },
-      },
-    },
-    stale_areas: {
-      type: 'array',
-      description: 'each lens retired for good whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS',
-      items: {
-        type: 'object',
-        required: ['seat_id', 'pin'],
-        properties: { seat_id: { type: 'string' }, pin: { type: 'integer', minimum: 0 } },
-      },
-    },
-    docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
-    remand_owed: {
-      type: 'array',
-      description: "gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: their minting lens and blue are among the parties for it",
-      items: { type: 'object', required: ['gap_id', 'direction'], properties: { gap_id: { type: 'string' }, direction: { type: 'string', pattern: '\\S', description: 'never blank: the record refuses a remand without one' } } },
-    },
-    exchanges: {
-      type: 'array',
-      description: 'one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero',
-      items: {
-        type: 'object',
-        required: ['gap_id', 'count', 'unresolved'],
-        properties: { gap_id: { type: 'string' }, count: { type: 'integer', minimum: 0 }, unresolved: { type: 'integer', minimum: 0 } },
-      },
-    },
-    pass_permitted: { type: 'boolean' },
-    ceiling: { type: 'boolean' },
-    max_epochs: { type: 'integer', minimum: 0, description: "the run's epoch limit, a term setup records; 0 when the run is held to none" },
-    epoch_limit_reached: { type: 'boolean', description: "this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason" },
-    why: { type: 'array', items: { type: 'string' } },
-  },
-}
 // EVERY FIELD THE WORKFLOW READS FROM THE RELAY IS CHECKED, AND A MISS THROWS NAMING IT. The plan
 // reaches this script only as the chair model's copy, and a field dropped or mistyped on the way read
 // as its fallback: `plan.docket || []` was "nothing docketed" for a docket the chair lost. The Go verb
 // prints every field and every array as an array, so a plan that fails here was altered in transit.
-const PLAN_FIELD_TYPES = {
-  head: 'integer', max_epochs: 'integer',
-  pass_permitted: 'boolean', ceiling: 'boolean', epoch_limit_reached: 'boolean',
-  parties: 'array', docket: 'array', remand_owed: 'array', exchanges: 'array', why: 'array', stale_areas: 'array', blockers: 'array',
-}
+// The fields and their types are the record's: PLAN_FIELD_TYPES for the plan's own, PLAN_ITEM_TYPES
+// for each entry of each of its lists.
+//
 // THE BENCH IS CONVENED FOR AN OCCASION, AND THE PLAN SAYS WHICH. Its one seat id cannot say whether
 // it hears a petition or rules a docket, so the bench party carries `occasions` and this script
 // routes on it; an empty gap list is never read as "a petition". No other party carries one.
@@ -592,16 +597,18 @@ const PLAN_FIELD_TYPES = {
 // a relay the harness accepted: they stand behind the schema, not beside it. The simulator's
 // schema-agreement test drives every field of a plan through both and fails on a relay the schema
 // takes and this throws on.
-const BENCH_PARTY_OCCASIONS = [OCCASION.petition, OCCASION.docket]
 const typeName = (t) => (t === 'integer' ? 'an integer' : t === 'boolean' ? 'a boolean' : t === 'string' ? 'a string' : 'an array')
 const typeOk = (v, t) => (t === 'integer' ? Number.isInteger(v) : t === 'boolean' ? typeof v === 'boolean' : t === 'string' ? typeof v === 'string' : Array.isArray(v))
 const requirePlan = (plan, epoch) => {
   if (!plan || typeof plan !== 'object') throw new Error(`red-chair sitting ${epoch} relayed no plan — the envelope carries \`dispatch next\`'s JSON verbatim, or the workflow has nothing to dispatch`)
   const refuse = (field, v, t) => { throw new Error(`red-chair sitting ${epoch} relayed a plan whose \`${field}\` is ${JSON.stringify(v)}, not ${typeName(t)} — the plan is \`dispatch next\`'s JSON, relayed verbatim`) }
   for (const [f, t] of Object.entries(PLAN_FIELD_TYPES)) if (!typeOk(plan[f], t)) refuse(f, plan[f], t)
-  plan.parties.forEach((p, i) => {
-    if (!p || !typeOk(p.seat_id, 'string')) refuse(`parties[${i}].seat_id`, p && p.seat_id, 'string')
-    if (!typeOk(p.gap_ids, 'array')) refuse(`parties[${i}].gap_ids`, p.gap_ids, 'array')
+  for (const [list, types] of Object.entries(PLAN_ITEM_TYPES)) {
+    plan[list].forEach((x, i) => {
+      for (const [f, t] of Object.entries(types)) if (!x || !typeOk(x[f], t)) refuse(`${list}[${i}].${f}`, x && x[f], t)
+    })
+  }
+  plan.parties.forEach((p) => {
     const bench = roleOfSeat(p.seat_id) === 'bench'
     if (bench && !(typeOk(p.occasions, 'array') && p.occasions.length && p.occasions.every((o) => BENCH_PARTY_OCCASIONS.includes(o)))) {
       throw new Error(`red-chair sitting ${epoch} relayed a bench party whose \`occasions\` is ${JSON.stringify(p.occasions)}, not a non-empty list of ${BENCH_PARTY_OCCASIONS.join(' | ')} — the plan is \`dispatch next\`'s JSON, relayed verbatim`)
@@ -610,22 +617,10 @@ const requirePlan = (plan, epoch) => {
     // from it and nothing is refused. A WORD in it is a party the relay altered.
     if (!bench && !(p.occasions === undefined || (Array.isArray(p.occasions) && p.occasions.length === 0))) throw new Error(`red-chair sitting ${epoch} relayed ${p.seat_id} with \`occasions\` ${JSON.stringify(p.occasions)} — only the bench is convened for an occasion; the plan is \`dispatch next\`'s JSON, relayed verbatim`)
   })
-  plan.blockers.forEach((b, i) => {
-    for (const f of ['kind', 'subject', 'owner']) if (!b || !typeOk(b[f], 'string')) refuse(`blockers[${i}].${f}`, b && b[f], 'string')
-  })
   // A REMAND'S DIRECTION IS THE RECORD'S, and the record refuses it blank on a remand: a blank one
   // here was lost on the way, and blue would be handed a remand owing nothing.
   plan.remand_owed.forEach((o, i) => {
-    if (!o || !typeOk(o.gap_id, 'string')) refuse(`remand_owed[${i}].gap_id`, o && o.gap_id, 'string')
-    if (!(typeOk(o.direction, 'string') && o.direction.trim())) refuse(`remand_owed[${i}].direction`, o.direction, 'string')
-  })
-  plan.stale_areas.forEach((a, i) => {
-    if (!a || !typeOk(a.seat_id, 'string')) refuse(`stale_areas[${i}].seat_id`, a && a.seat_id, 'string')
-    if (!typeOk(a.pin, 'integer')) refuse(`stale_areas[${i}].pin`, a.pin, 'integer')
-  })
-  plan.exchanges.forEach((x, i) => {
-    if (!x || !typeOk(x.gap_id, 'string')) refuse(`exchanges[${i}].gap_id`, x && x.gap_id, 'string')
-    for (const f of ['count', 'unresolved']) if (!typeOk(x[f], 'integer')) refuse(`exchanges[${i}].${f}`, x[f], 'integer')
+    if (!o.direction.trim()) refuse(`remand_owed[${i}].direction`, o.direction, 'string')
   })
 }
 const CHAIR_ENVELOPE = {
@@ -637,7 +632,7 @@ const CHAIR_ENVELOPE = {
     // sitting that recorded no verdict, was refused by the schema, and spent a call re-sending it —
     // m14's chair then logged the refusal as the schema forcing a verdict it could not give. Every
     // reader below treats a missing verdict and null alike.
-    verdict: { type: ['string', 'null'], enum: ['PASS', 'FAIL', null], description: 'the verdict you RECORDED this sitting, restated — the record is the original; null or absent if you recorded none' },
+    verdict: { ...VERDICT, description: 'the verdict you RECORDED this sitting, restated — the record is the original; null or absent if you recorded none' },
     notes: { type: 'string' },
   },
 }
@@ -672,10 +667,10 @@ const JUDGE_ENVELOPE = {
           // this account of the ruling.
           reopens_on: { type: 'string' },
           final: { type: 'boolean' },
-          // THIS LIST IS THE RECORD'S DISPOSITION VOCABULARY, EXACTLY, and the envelope/record
-          // gate holds it there: every word offered here is a word `motion docket rule --as`
-          // accepts, and every word that verb accepts appears here with a duty in
-          // BLUE_DUTY_BY_DISPOSITION. A value added to one side fails the gate until it is on both.
+          // DISPOSITION IS THE RECORD'S DISPOSITION VOCABULARY, generated: every word offered here
+          // is a word `motion docket rule --as` accepts, and every word that verb accepts is
+          // offered. Each carries a duty in BLUE_DUTY_BY_DISPOSITION, and the disposition schedule
+          // (TestEveryRulingFateHandsBlueADuty) rules every one and reads blue's next prompt for it.
           //
           // A GRADE OUTCOME IS NOT A DISPOSITION. "Gap real, grade wrong" is a GRADE MOTION —
           // carried by `grade_motions` on this envelope and by `motion grade rule --as accepted`
@@ -689,7 +684,7 @@ const JUDGE_ENVELOPE = {
           // `remanded` is the word for "I could not settle this on the record I have" — it sends
           // the gap back for one more exchange between its minting lens and blue and names what
           // that exchange owes, which is the same act as asking for evidence.
-          disposition: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'remanded', 'moot', 'defect_owed_elsewhere'] },
+          disposition: DISPOSITION,
           rationale: { type: 'string' },
         },
       },
@@ -975,13 +970,11 @@ if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — a
 // blind to the counts would cut short under any k of 3 or more. A seat that is dispatched and opens
 // no sitting moves no count, so its plan repeats exactly: the loop this valve exists for.
 //
-// KEYED_BLOCKER_KINDS IS THE RECORD'S RELAY-HELD KINDS (record.RelayBlockerKinds), written out
-// because this script is authored source with no generation step. Capture's
-// TestThePlanKeyReadsOnlyComparedFields drives this script over every kind of the record's table and
-// fails on a kind keyed here that capture does not hold to the record, and on one it holds that is
-// not keyed here.
+// KEYED_BLOCKER_KINDS IS THE RECORD'S RELAY-HELD KINDS (record.RelayBlockerKinds), in the generated
+// vocabulary region. Capture's TestThePlanKeyReadsOnlyComparedFields drives this script over every
+// kind of the record's table and fails on a kind the valve keys on that capture does not hold to
+// the record, and on one it holds that the valve does not key on.
 const NO_PROGRESS_EPOCHS = 3
-const KEYED_BLOCKER_KINDS = ['contradiction', 'reopened', 'no_report', 'unruled_motion']
 const partyList = (ps) => ps.map((p) => `${p.seat_id}${p.gap_ids && p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')
 const sortedStrings = (xs) => (Array.isArray(xs) ? xs : []).map(String).sort()
 const planKey = (p) => JSON.stringify({
@@ -1148,13 +1141,11 @@ while (!halted) {
   }
 }
 
-// THE RUN'S TERMINAL WORD IS A RECORD VOCABULARY, so it is declared as an enum rather than spelled
-// inline. The word travels into the assembly seat's prompt ("Record it as the run's outcome —
+// THE RUN'S TERMINAL WORD IS A RECORD VOCABULARY: RUN_OUTCOME, in the generated vocabulary region.
+// The word travels into the assembly seat's prompt ("Record it as the run's outcome —
 // ${verdict}") and is typed straight at `bench outcome --as`, so a word the record refuses arrives
-// as an INSTRUCTION and the engine carries on as though it had been written. The declaration is
-// what the envelope-enum gate binds — that gate scans `enum: [...]`, and a vocabulary spelled as
-// bare literals is out of its reach entirely — and outcomeWord makes a misspelling throw here.
-const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
+// as an INSTRUCTION and the engine carries on as though it had been written. outcomeWord makes a
+// misspelling throw here.
 const outcomeWord = (w) => {
   if (!RUN_OUTCOME.enum.includes(w)) throw new Error(`not a run outcome: ${w} (have ${RUN_OUTCOME.enum.join('|')})`)
   return w

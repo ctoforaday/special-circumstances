@@ -86,7 +86,7 @@ func TestARosterTheEngineCouldNotDispatchIsRefused(t *testing.T) {
 // lacks either marker.
 func TestOnlyTheRegionBetweenTheMarkersIsWritten(t *testing.T) {
 	script := "const a = 1\n" + beginMark + "\nconst STALE = 0\n" + endMark + "\nconst b = 2\n"
-	got, err := splice([]byte(script), []byte("const FRESH = 1\n"))
+	got, err := splice([]byte(script), beginMark, endMark, []byte("const FRESH = 1\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,10 +94,10 @@ func TestOnlyTheRegionBetweenTheMarkersIsWritten(t *testing.T) {
 	if string(got) != want {
 		t.Errorf("spliced:\n%s\nwant:\n%s", got, want)
 	}
-	if _, err := splice([]byte("const a = 1\n"), nil); err == nil {
+	if _, err := splice([]byte("const a = 1\n"), beginMark, endMark, nil); err == nil {
 		t.Error("a script with no opening marker was written")
 	}
-	if _, err := splice([]byte(beginMark+"\nconst a = 1\n"), nil); err == nil {
+	if _, err := splice([]byte(beginMark+"\nconst a = 1\n"), beginMark, endMark, nil); err == nil {
 		t.Error("a script whose block never closes was written")
 	}
 }

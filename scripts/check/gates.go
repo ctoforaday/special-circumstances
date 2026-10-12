@@ -236,7 +236,7 @@ var tools = []gate{
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",
 		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
 	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
-		why: "the engine script's seat block is written from the record's roster; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it"},
+		why: "the engine script's seat block and envelope vocabulary are written from the record's roster, enums and plan; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it, or offers an envelope word or a plan shape the record does not hold"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because
