@@ -337,19 +337,19 @@ func TestNoEvidenceLensInTheCastNoBlocker(t *testing.T) {
 }
 
 // F8: the sitting the evidence lens is readied into for a reopened anchor is a sitting like any
-// other in the retirement fold — one that mints nothing fresh is barren.
+// other in the lens fold — one that mints nothing fresh is barren.
 func TestAReopenedSittingCountsInTheRetirementFold(t *testing.T) {
 	board := func() *stage { return retBoard(t).sit(2, evLens).cite("C-1").supports(evLens, "C-1") }
-	if f := lensStateOf(t, board().seed()); f.state != LensActive || f.barren != 1 {
-		t.Fatalf("fixture: the lens is %s with %d barren sitting(s), want active with 1", f.state, f.barren)
+	if f := lensStateOf(t, board().seed()); f.barren != 1 {
+		t.Fatalf("fixture: the lens has %d barren sitting(s), want 1", f.barren)
 	}
 	b := board().reopen("C-1")
 	run := b.sit(b.at(), evLens).supports(evLens, "C-1").seed()
 	if got := reopenedOf(t, run); len(got) != 0 {
 		t.Fatalf("fixture: blockers = %+v, want the sitting's verify to clear C-1", got)
 	}
-	if f := lensStateOf(t, run); f.state != LensRetired || f.sittings != 2 {
-		t.Errorf("the lens is %s after %d sitting(s), want retired after 2: the sitting that cleared C-1 minted nothing fresh, and is its second barren one", f.state, f.sittings)
+	if f := lensStateOf(t, run); f.barren != 2 || f.sittings != 2 {
+		t.Errorf("the lens has %d barren sitting(s) of %d, want 2 of 2: the sitting that cleared C-1 minted nothing fresh, and counts toward its retirement", f.barren, f.sittings)
 	}
 }
 
@@ -448,7 +448,7 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 // in it: it has sat, the next plan does not ready it again, and the blocker still holds the PASS.
 // A second edit of the sentence is a second reopening, and readies it again.
 func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
-	// Retired for good by the head move's one re-arm, so only a reopened anchor readies the lens.
+	// It has sat at the moved head, so only a reopened anchor readies the lens.
 	board := func() *stage {
 		b := reopenedBoard(t).ingest()
 		return b.sit(b.at(), evLens).reopen("C-1")
@@ -484,7 +484,7 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 // refusing the FAIL too would leave the chair no verdict to record.
 func TestAFailIsAdmittedOnAConvergedBoardUnderAReopenedBlocker(t *testing.T) {
 	b := convergedBoard(t).cite("C-1").supports(evLens, "C-1").reopen("C-1")
-	// The lens sits its one re-arm and leaves the anchor, so nothing but the anchor holds the PASS.
+	// The lens sits at the moved head and leaves the anchor, so nothing but the anchor holds the PASS.
 	run := b.sit(b.at(), evLens).register("red-chair").seed()
 	all, err := PassBlockers(run)
 	if err != nil {

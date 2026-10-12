@@ -964,8 +964,8 @@ func (r *runner) docketed() []string {
 	return out
 }
 
-// staleAreas is the current plan's stale areas — each lens retired for good whose pin the head
-// moved past, by seat — which the chair's spot-check names before a PASS.
+// staleAreas is the current plan's stale areas — each retired lens whose pin the head moved
+// past, by seat — which the chair's spot-check names before a PASS.
 func (r *runner) staleAreas() []string {
 	var out []string
 	if r.planThisSitting == nil {
@@ -1235,8 +1235,8 @@ func (r *runner) reopened() []record.ProofRef {
 }
 
 // readiedForReopened reports whether plan holds a reopened blocker, and whether it readies the
-// evidence lens for that AND FOR NOTHING ELSE: the lens is a party on no gap, and neither its
-// retirement state (a lens_ready blocker) nor a contradiction it read readies it. Read off the
+// evidence lens for that AND FOR NOTHING ELSE: the lens is a party on no gap, and neither a head
+// moved past its last sitting (a lens_ready blocker) nor a contradiction it read readies it. Read off the
 // plan's own fields, so the tally counts the reopened arm and never a lens that would have sat
 // anyway.
 func readiedForReopened(plan map[string]any) (held, alone bool) {
@@ -1981,10 +1981,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
 		// bookkeeping that minted it.
 		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, and the driver models both
-		// halves. A lens retired for good does not sit again, so the plan lists each whose pin the
+		// halves. A retired lens does not sit again, so the plan lists each whose pin the
 		// head has moved past, and the PASS gate refuses a verdict until a spot-check this sitting
 		// names every one: with stale areas on the plan the drive always files it, or every run
-		// whose lenses retired for good ends UNVERIFIED on the refusal and VERIFIED goes undriven.
+		// whose lenses retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
 		// With none, the chair samples the archive in about half its sittings and files nothing in
 		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
 		// drive that filed one every sitting would never put that in front of the oracle.
@@ -2441,8 +2441,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "red-lens"):
 		// A LENS FINDS AND MINTS; THE ORIGINATOR CLOSES (plans/roundless.md §III.B.3). The plan
 		// dispatched this lens either ENGAGED — on gaps it minted that are open and below their
-		// limits, which it now re-evaluates against blue's repair — or by its retirement state
-		// (active, or re-armed once). Either way it audits (the shared lens acts below the
+		// limits, which it now re-evaluates against blue's repair — or because it has never sat or
+		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board against its own budget.
 		r.sit("lens", seatID)
 		engaged := r.engaged(seatID)
@@ -4678,9 +4678,9 @@ func TestFuzzDebate(t *testing.T) {
 				"the propose result named no id the harness reads, or the tool refused every move; the avenue lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["avenue"])
 		}
 		// THE REOPENED GATE. A citation or proof whose sentence changed after its check readies the
-		// evidence lens through its own arm of the plan. The lens is also readied by its
-		// retirement state, so a drive that never left a checked anchor reopened behind a lens
-		// the head move no longer re-arms would leave the arm unreached behind a green sweep.
+		// evidence lens through its own arm of the plan. The lens is also readied by a head moved
+		// past its last sitting, so a drive that never left a checked anchor reopened behind a lens
+		// that has sat at the head, or retired, would leave the arm unreached behind a green sweep.
 		if reopenedReadied == 0 {
 			t.Errorf("fuzz readied the evidence lens for a reopened citation or proof ZERO times across %d runs (%d plan(s) held a reopened blocker) — no plan readied the lens for that alone, so the plan's reopened arm is unexercised (false green)", completed, reopenedPlans)
 		}

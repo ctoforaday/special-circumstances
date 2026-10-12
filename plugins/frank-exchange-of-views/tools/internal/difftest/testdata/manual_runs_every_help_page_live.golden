@@ -1598,8 +1598,8 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
-  - Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
-  - A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
+  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire it, and a head move does not ready a retired lens.
+  - A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.

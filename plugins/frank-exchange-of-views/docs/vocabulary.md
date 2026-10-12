@@ -446,13 +446,13 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.
+Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire it, and a head move does not ready a retired lens.
 
 **Delivered to:** lens, chair, operator
 
 ## stale area
 
-A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
+A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
 
 **Delivered to:** chair, operator
 

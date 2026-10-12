@@ -180,7 +180,7 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 // most its budget (above) in the run, a SUPERSEDING mint included — lineage is a new gap. A lens
 // whose budget is spent still sits while the record readies it: it verifies, records findings,
 // regrades and closes its own gaps, and with no fresh mint its sittings are barren, so it retires
-// within two. The count is the record's own — this seat's mint events — not a counter
+// within three. The count is the record's own — this seat's mint events — not a counter
 // the seat carries. Only a lens is bounded: a seat of another role spends no budget. A mint
 // attributed to an id that is no seat is refused, live and under Migrating alike; migration replays
 // under the archived seat id, so the arithmetic — not the roster — is exempted under Migrating,

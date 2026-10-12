@@ -50,12 +50,12 @@ type Blocker struct {
 	// reads — and "" where no seat on the record can.
 	Owner string
 	// Detail is what the wording needs beyond the subject: a stranded gap's successor, a motion's
-	// subject and gavel, a ready lens's reason, a stale area's pin, a reopened proof's sha256 (""
+	// subject and gavel, a stale area's pin, a reopened proof's sha256 (""
 	// for a reopened citation).
 	Detail string
 	// About is the gap an unruled motion is about, "" for a motion about no gap.
 	About string
-	// foldWhy is a ready lens's reason in the retirement fold's own words, for the refusal.
+	// foldWhy is a ready lens's reason in the lens fold's own words, for the refusal.
 	foldWhy string
 	// motionSubject is an unruled motion's subject — which sitting dispatch convenes its gavel for.
 	motionSubject string
@@ -245,14 +245,14 @@ var blockerKinds = []blockerKind{
 		kind:  BlockerLensReady,
 		gloss: "a ready lens",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("lens %s is ready (%s) — PASS is refused while it is", b.Subject, b.Detail)
+			return fmt.Sprintf("lens %s is ready — PASS is refused while it is", b.Subject)
 		},
 		refusal: func(bs []Blocker) string {
 			var why []string
 			for _, b := range bs {
 				why = append(why, b.foldWhy)
 			}
-			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready while it is active (it minted fresh material within its last two sittings) or retired with its one re-arm owed; `dispatch next` readies them",
+			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or the report head has moved since its last sitting, until three sittings in a row with no fresh material mint retire it; `dispatch next` readies them",
 				len(bs), strings.Join(why, "; "))
 		},
 	},
@@ -267,7 +267,7 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				named = append(named, fmt.Sprintf("%s (pin %s)", b.Subject, b.Detail))
 			}
-			return fmt.Sprintf("the report changed behind %d lens(es) retired for good: %s. Read the changes since each pin against that area's duties, and name the areas in a spot-check this sitting (--areas) before a PASS; a defect you find there goes in that spot-check",
+			return fmt.Sprintf("the report changed behind %d retired lens(es): %s. Read the changes since each pin against that area's duties, and name the areas in a spot-check this sitting (--areas) before a PASS; a defect you find there goes in that spot-check",
 				len(bs), strings.Join(named, ", "))
 		},
 	},
@@ -391,7 +391,7 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 	out = append(out, eventBlockersOf(evs, ids, win)...)
 	if lg := passLensGateOf(evs, ids, win, fresh); lg.cast && lg.head != 0 {
 		for _, f := range lg.ready() {
-			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, Detail: readyReason(f), foldWhy: f.why})
+			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, foldWhy: f.why})
 		}
 		for _, a := range lg.uncovered() {
 			out = append(out, Blocker{Kind: BlockerStaleArea, Subject: a.SeatID, Owner: chairSeat, Detail: fmt.Sprint(a.Pin)})
