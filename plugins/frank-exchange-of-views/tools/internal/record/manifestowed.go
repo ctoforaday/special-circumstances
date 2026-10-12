@@ -124,20 +124,8 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 		if !sat || laterBlueDispatchBefore(ds[k+1:], start) {
 			continue // not sat, or not this sitting's dispatch: a later row before the register is
 		}
-		s := BlueSitting{Engaged: d.gaps, opened: start}
-		closedFirst := map[string]*Event{}
-		for _, e := range evs[d.at+1 : start] {
-			if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
-				closedFirst[c.GetGapId()] = e
-			}
-		}
-		for _, g := range d.gaps {
-			if c := closedFirst[g]; c != nil {
-				s.FoundClosed = append(s.FoundClosed, c)
-			} else {
-				s.Open = append(s.Open, g)
-			}
-		}
+		s := engagementOf(evs, d, start)
+		s.opened = start
 		spans, end, closed := closer.bounds(blueRespondSeat, start)
 		s.Unresolved = !closed
 		for i := start; i < end; i++ {
@@ -148,6 +136,29 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 		out = append(out, s)
 	}
 	return out
+}
+
+// engagementOf is what a dispatch row engages blue-respond on, read up to end: its gaps, split by
+// whether a close landed on each between the row and end. It is the one split of a dispatch's gaps
+// into found-closed and open — BlueSittings reads it up to the register that sat for the row, and
+// the work list's `engaged` reads it up to the end of the record for a row not yet sat for
+// (engagedOf), so the block blue reads before it registers is the one its sitting then holds.
+func engagementOf(evs []*Event, d dispatchRow, end int64) BlueSitting {
+	s := BlueSitting{Engaged: d.gaps}
+	closedFirst := map[string]*Event{}
+	for _, e := range evs[d.at+1 : end] {
+		if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok {
+			closedFirst[c.GetGapId()] = e
+		}
+	}
+	for _, g := range d.gaps {
+		if c := closedFirst[g]; c != nil {
+			s.FoundClosed = append(s.FoundClosed, c)
+		} else {
+			s.Open = append(s.Open, g)
+		}
+	}
+	return s
 }
 
 // laterBlueDispatchBefore reports whether a later row naming blue-respond precedes its register.
