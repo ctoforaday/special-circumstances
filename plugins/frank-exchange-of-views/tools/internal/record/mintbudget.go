@@ -24,8 +24,8 @@ import (
 // THE BUDGET CAPS WHAT A LENS HOLDS OPEN, NOT WHAT IT MINTS IN THE RUN. What is counted against it
 // is the lens's gaps that are open on the gap view (lensMintStanding), so a gap that closes frees a
 // mint and a defect found after the cap is a finding now and a gap once a slot is free. A count of
-// every mint never refilled: a lens that spent its budget early and saw all of it dealt with was
-// refused the next real defect, and a finding obliges nobody.
+// every mint never refilled: a lens that had minted its budget and closed two of the three was
+// refused the next real defect while holding one open, and a finding obliges nobody.
 //
 // ONE TABLE. The check, the refusal and the tests all read mintScales; an area with no row is an
 // error, never a default — a default would size an unknown lens by some other lens's unit.
@@ -60,8 +60,18 @@ type mintScale struct {
 	per     int
 }
 
+// mintsOf names a number of mints: every figure a surface prints of the rate says what it counts.
+func mintsOf(n int) string {
+	if n == 1 {
+		return "1 mint"
+	}
+	return fmt.Sprintf("%d mints", n)
+}
+
 // rate states a scale's ratio in words, for the refusal, the work list and the help.
-func rate(mints, per int, unit string) string { return fmt.Sprintf("%d per %d %s", mints, per, unit) }
+func rate(mints, per int, unit string) string {
+	return fmt.Sprintf("%s for every %d of the %s", mintsOf(mints), per, unit)
+}
 
 // mintScales is the one source of every lens area's budget scale. Every area in flags.LensAreas
 // has a row, and no row names an area outside it (TestEveryLensAreaHasAMintScale).
@@ -106,12 +116,12 @@ type LensBudget struct {
 	Budget  int    // max(Floor, ceil(Units × Mints / Per))
 }
 
-// Rate states the budget's ratio in words: "3 per 2 citations on the record".
+// Rate states the budget's ratio in words: "3 mints for every 2 of the citations on the record".
 func (b LensBudget) Rate() string { return rate(b.Mints, b.Per, b.Measure) }
 
 // Arithmetic states how the budget was reached, for a refusal or a board.
 func (b LensBudget) Arithmetic() string {
-	return fmt.Sprintf("max(floor %d, ceil(%d %s × %d / %d)) = %d", b.Floor, b.Units, b.Measure, b.Mints, b.Per, b.Budget)
+	return fmt.Sprintf("max(floor %d, ceil(%d %s × %s / %d)) = %d", b.Floor, b.Units, b.Measure, mintsOf(b.Mints), b.Per, b.Budget)
 }
 
 // budgetOf is the ruling's arithmetic: max(floor, ceil(units × mints / per)).
@@ -321,7 +331,7 @@ func lensMintStanding(run Run, seatID, area string) (mintStanding, error) {
 type MintBudgetJSON struct {
 	// Open is the gaps this seat minted that are open now (the gap view's "open").
 	Open int `json:"open"`
-	// Budget is max(floor, ceil(units / per)) — or, where Measured is false, the floor alone.
+	// Budget is max(floor, ceil(units × mints / per)) — or, where Measured is false, the floor alone.
 	Budget int `json:"budget"`
 	// Left is how many more mints the write path admits now: Budget less Open, never below 0.
 	Left  int `json:"left"`

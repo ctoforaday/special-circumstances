@@ -88,7 +88,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 		if i <= 18 && err != nil {
 			t.Fatalf("mint %d of a budget of 18 was refused: %v", i, err)
 		}
-		if i == 19 && (err == nil || !strings.Contains(err.Error(), "max(floor 1, ceil(29 prose paragraphs in the current report × 3 / 5)) = 18")) {
+		if i == 19 && (err == nil || !strings.Contains(err.Error(), "max(floor 1, ceil(29 prose paragraphs in the current report × 3 mints / 5)) = 18")) {
 			t.Fatalf("the nineteenth mint was not refused with the arithmetic: %v", err)
 		}
 	}

@@ -164,7 +164,7 @@ func TestAMeasureThatCannotReadIsLoud(t *testing.T) {
 	if err == nil {
 		t.Fatal("a mint past the floor landed with the measure unreadable — the budget was read as the floor")
 	}
-	for _, want := range []string{"red-lens-voice holds 1 gap(s) open", "voice lens", "3 per 5 prose paragraphs in the current report", "cannot be read", "no report renderer",
+	for _, want := range []string{"red-lens-voice holds 1 gap(s) open", "voice lens", "3 mints for every 5 of the prose paragraphs in the current report", "cannot be read", "no report renderer",
 		"or on a gap you minted closing, which frees a mint under the floor", "naming that finding in --found-by", "regrade or close"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the unmeasured refusal lost %q:\n%v", want, err)
@@ -193,8 +193,8 @@ func TestTheRefusalStatesTheArithmetic(t *testing.T) {
 		t.Fatal("the third mint past a budget of 2 landed")
 	}
 	for _, want := range []string{"red-lens-evidence holds 2 gap(s) open and its mint budget admits no more", "caps the gaps a lens holds open at once",
-		"the evidence lens's is the larger of the run's floor", "and its rate, 3 per 2 citations on the record",
-		"max(floor 1, ceil(1 citations on the record × 3 / 2)) = 2", "mintBudget in inputs/run-config.json", "grows as the report does",
+		"the evidence lens's is the larger of the run's floor", "and its rate, 3 mints for every 2 of the citations on the record",
+		"max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2", "mintBudget in inputs/run-config.json", "grows as the report does",
 		"A gap of yours that closes, by your close or by the bench's ruling, frees one",
 		"Record what you found as a finding now, and mint it when a gap of yours has closed, naming that finding in --found-by",
 		"verify, record findings, and regrade or close the gaps you minted"} {
@@ -398,9 +398,9 @@ func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
 	t.Run("measured", func(t *testing.T) {
 		id := budgetRun(t, 1, 1, 0, "red-lens-evidence")
 		for minted, sentence := range []string{
-			"you hold 0 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 / 2)) = 2 — so 2 mint(s) are left to you; every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one",
-			"you hold 1 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 / 2)) = 2 — so 1 mint(s) are left to you; every open gap you minted takes one",
-			"you hold 2 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 / 2)) = 2 — so NO mint is left to you; what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then",
+			"you hold 0 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 2 mint(s) are left to you; every open gap you minted takes one, a superseding mint too, a gap of yours that closes frees one",
+			"you hold 1 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so 1 mint(s) are left to you; every open gap you minted takes one",
+			"you hold 2 gap(s) open of a mint budget of 2 — max(floor 1, ceil(1 citations on the record × 3 mints / 2)) = 2 — so NO mint is left to you; what you find now goes in a finding, and when a gap of yours closes it frees a mint and the finding is minted then",
 		} {
 			got, items := standing(t, id)
 			want := MintBudgetJSON{Open: minted, Budget: 2, Left: 2 - minted, Floor: 1, Unit: "citations on the record", Units: 1, Mints: 3, Per: 2, Measured: true}
