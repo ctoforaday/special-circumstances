@@ -285,6 +285,9 @@ type runner struct {
 	// position, a closing on a gap — each naming the act that answers the first. The sweep gates
 	// it at zero.
 	repeatsRefused int
+	// budgetRefused counts the mints the tool refused a lens holding its whole mint budget open.
+	// The sweep gates it at zero.
+	budgetRefused int
 	// repeatErr is the first repeated act the tool admitted, or refused without naming the act
 	// that answers the first. It fails the run: an act stands as filed, and the refusal of a
 	// second is where a seat learns what answers a wrong one.
@@ -297,10 +300,9 @@ type runner struct {
 	rulerFilingErr string
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
-	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
-	// bounded by a budget whose floor is the run's mintBudget (the report's size can only raise
-	// it), so the driver spreads them over the lenses debate.js dispatches rather than raising the
-	// floor: least-loaded first, which keeps every lens under the bound for as long as it can.
+	// lensMints: lens seat -> mints that LANDED. The gaps a lens holds open are bounded by a budget
+	// whose floor is the run's mintBudget (the report's size can only raise it), so the driver
+	// spreads its mints over the lenses debate.js dispatches rather than raising the floor.
 	lensMints map[string]int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
@@ -1098,9 +1100,9 @@ func (r *runner) register(role, seatID string) {
 
 // fuzzLensSeats are the lens seats this driver mints from — the default cast's lenses, every area,
 // read off record.CastFor so the driver and setup cannot disagree about who sits. Each lens's
-// budget is at least the run's mintBudget and grows with the report, so the ceiling on gaps is at
-// least seven times the floor; a lens that reached its budget would see `mint` refused with the
-// budget text, which noteExec tallies.
+// budget is at least the run's mintBudget and grows with the report, so the ceiling on gaps open
+// at once is at least seven times the floor; a lens holding its budget open sees `mint` refused
+// with the budget text, which noteExec tallies, until one of its gaps closes.
 var fuzzLensSeats = func() []string {
 	var out []string
 	seats, _ := record.CastFor(nil, 1)
@@ -1127,8 +1129,18 @@ func (r *runner) minterOf(gapID string) string {
 	return m
 }
 
-// noteMint records that seatID's mint of gapID landed — the originator, and the load the next
-// lens() pick reads.
+// fuzzLensStock is the defects one lens finds in a run: past it, its sittings draw no fresh mint.
+const fuzzLensStock = 2
+
+// landedMints is the mints of seatID that landed in this run.
+func (r *runner) landedMints(seatID string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.lensMints[seatID]
+}
+
+// noteMint records that seatID's mint of gapID landed — the originator, and the count its stock
+// of defects is read against.
 func (r *runner) noteMint(seatID, gapID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1459,6 +1471,11 @@ func (r *runner) mint(seatID string) string {
 		out, err = r.exec(distinct(args)...)
 	}
 	if err != nil {
+		if strings.Contains(out, "its mint budget admits no more") {
+			r.mu.Lock()
+			r.budgetRefused++
+			r.mu.Unlock()
+		}
 		return ""
 	}
 	var env struct {
@@ -1662,8 +1679,9 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
 	if allowReg && r.coin(35) {
 		// THE CLOSER MINTS ITS OWN SUCCESSOR: it is the seat that is sitting, and a mint past its
-		// budget is refused rather than laundered through a lens that is not. Under the sweep's
-		// smoke terms (one mint per lens) that refusal is the usual case, so the remainder is
+		// budget is refused rather than laundered through a lens that is not. The gap being closed
+		// is still open when its successor is minted, so under the sweep's floor of one open gap
+		// per lens that refusal is the usual case, and the remainder is
 		// forwarded to a gap the board already holds open — which is what a successor is: a real,
 		// still-open gap, and the record refuses a dead-end forwarding address either way.
 		succ := r.mint(closer)
@@ -2480,6 +2498,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			fresh = r.rng.Intn(2) // an engaged sitting mostly works its own gaps
 		}
 		for range fresh {
+			// A LENS RUNS OUT OF DEFECTS, AND THE DRIVER HAS TO SAY SO. The budget caps what a lens
+			// holds open, not what it mints in a run, so a lens that draws fresh mints at every
+			// sitting mints again after every close and the run never converges: measured on this
+			// sweep, 35 of 40 runs ended CEILING, 27 at the epoch limit, and the forced-VERIFIED
+			// run with them. A stock of two per lens over the floor of one still drives both sides
+			// of the budget: the second mint is refused while the first is open, and lands once it
+			// has closed.
+			if r.landedMints(seatID) >= fuzzLensStock {
+				break
+			}
 			r.maybe(40, func() {
 				r.readOnly("near-match", seatID, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
 			})
@@ -2763,6 +2791,9 @@ type outcome struct {
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
 	repeatsRefused int
+	// budgetRefused is the mints the tool refused a lens holding its whole budget open
+	// (runner.budgetRefused).
+	budgetRefused int
 	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
 	// (runner.rulerFilingsRefused).
 	rulerFilingsRefused int
@@ -2855,12 +2886,13 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// k, kMax, mintBudget, convergenceFraction) are what `dispatch next` reads impasse and the
 	// mint budget from, and what the CEILING verdict is DERIVED against (#308).
 	//
-	// THE SMOKE TERMS, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
+	// TERMS TIGHTER THAN A SMOKE'S, NOT THE DEFAULTS. This sweep's job is to drive every branch of the engine
 	// forty times inside a release gate, not to run forty production-length debates: under the
-	// defaults (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
+	// terms of production size (kMax 6, mintBudget 5, every lens area) a run is up to twenty gaps of six exchanges
 	// each, and 29 of 40 blew the ten-minute per-run budget while every verb the sweep counts had
-	// already been reached. One mint per lens and two exchanges per gap reach impasse, the
-	// docket, the ceiling and the pass in a few epochs — the shape `/research --smoke` runs.
+	// already been reached. One open gap per lens and two exchanges per gap reach impasse, the
+	// docket, the ceiling and the pass in a few epochs. `/research --smoke` runs a floor of three;
+	// one keeps a lens at its budget, and the budget's refusal driven, in most sittings.
 	//
 	// THE EPOCH LIMIT IS SETUP'S DEFAULT, READ FROM WHERE SETUP READS IT. Every run setup creates
 	// carries one, and a config that states none is held to none (record.RunParams): without it
@@ -3819,6 +3851,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.ordersRefused = r.ordersRefused
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
 	res.repeatsRefused = r.repeatsRefused
+	res.budgetRefused = r.budgetRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
 	// NO POSITION ON THE RECORD IS FROM A SEAT THAT OWES NONE — read off the record, so a refusal
@@ -4493,6 +4526,7 @@ func TestFuzzDebate(t *testing.T) {
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0 // plans that readied the evidence lens for a reopened citation or proof alone, of those holding one
 	repeatsRefused := 0                    // second acts refused in a sitting that holds one, naming the answering act
+	budgetRefused := 0                     // mints refused a lens holding its whole mint budget open
 	rulerFilingsRefused := 0               // filings refused the seat that rules their subject
 	applyMisses := map[string]int{}        // and why it did not, by cause — a bare 0 above named none of them
 	estoppelMisses := map[string]int{}     // and why the estoppel drive declined, for the same reason
@@ -4568,6 +4602,7 @@ func TestFuzzDebate(t *testing.T) {
 			reopenedReadied += o.reopenedReadied
 			reopenedPlans += o.reopenedPlans
 			repeatsRefused += o.repeatsRefused
+			budgetRefused += o.budgetRefused
 			rulerFilingsRefused += o.rulerFilingsRefused
 			for why, n := range o.estoppelMisses {
 				estoppelMisses[why] += n
@@ -4700,6 +4735,14 @@ func TestFuzzDebate(t *testing.T) {
 		// that stopped repeating an act would leave those refusals unreached behind a green sweep.
 		if repeatsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused repeats across %d runs — no seat filed a second position or closing in a sitting, so the refusal that names the answering act is unexercised (false green)", completed)
+		}
+		// THE MINT-BUDGET GATE. The budget caps the gaps a lens holds open, and the sweep's floor of
+		// one keeps most lenses at it: a mint from a lens already holding its budget is refused. The
+		// `mint` verb gate is satisfied by the mints that land, so a budget that stopped refusing — or
+		// terms too generous for any lens to reach it — would leave the refusal unreached behind a
+		// green sweep.
+		if budgetRefused == 0 {
+			t.Errorf("fuzz drove ZERO mints refused for budget across %d runs — no lens held its whole mint budget open and minted again, so the cap on open gaps is unexercised (false green)", completed)
 		}
 		// THE RULER-FILES-NOTHING GATE. The chair's grade motion and the bench's docket motion are
 		// refused at the surface; a drive that stopped reaching for them would leave the refusal

@@ -180,7 +180,7 @@ magnitude:
 | lanes | 1 (+ `laneFloorOverride`) | 3 |
 | bulk tier | `haiku` | `sonnet` |
 | judgment tier | `haiku` | `sonnet` |
-| terms | `--mint-budget 1 --k-max 2` | defaults (5 / 6) |
+| terms | `--mint-budget 3 --k-max 2` | defaults (15 / 6) |
 
 `judgmentModel` is set EXPLICITLY, and that is the point of the mode. Before both tiers were
 required, omitting it let the judgment seats inherit the session model — measured at 68% of one
@@ -189,7 +189,7 @@ strength and no faster to iterate on than a keeper.
 
 ```sh
 MODEL=haiku JUDGMENT_MODEL=haiku LANES=1 \
-  scripts/universe.sh run "<topic>" --mint-budget 1 --k-max 2
+  scripts/universe.sh run "<topic>" --mint-budget 3 --k-max 2
 ```
 
 Measured for scale on one elementary topic: the development configuration cost **$42.96** and 99.5
@@ -261,5 +261,5 @@ re-reads the whole context from cache. Measured over one week: dev sessions and 
   is the main session's only), so a resume re-writes the whole grown transcript. Hand a fresh agent
   the artifacts instead.
 - A smoke run is meant to be cheap. The engine's own `--smoke` is one lane, `haiku` on **both**
-  tiers, `--mint-budget 1 --k-max 2`. Running it at the development configuration — three lanes,
+  tiers, `--mint-budget 3 --k-max 2`. Running it at the development configuration — three lanes,
   `sonnet` on both tiers — costs roughly an order of magnitude more and is not a smoke.
