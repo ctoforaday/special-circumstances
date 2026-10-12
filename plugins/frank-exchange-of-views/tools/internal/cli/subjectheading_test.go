@@ -105,8 +105,8 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 				t.Errorf("the layout's %s row: %+v", s.Heading, s)
 			}
 		case "The report's own sections":
-			if !slices.Equal(s.AuthoredHeadings, []string{"Proofs", "Motions"}) {
-				t.Errorf("the body holds %v, want the report's own Proofs and Motions", s.AuthoredHeadings)
+			if !slices.Equal(s.AuthoredHeadings, []string{"TL;DR", "Proofs", "Motions"}) {
+				t.Errorf("the body holds %v, want the report's own TL;DR, Proofs and Motions", s.AuthoredHeadings)
 			}
 		default:
 			if s.OwnInReport {

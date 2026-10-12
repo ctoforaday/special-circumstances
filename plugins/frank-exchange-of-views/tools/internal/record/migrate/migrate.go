@@ -62,7 +62,7 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	if err != nil {
 		return nil, err
 	}
-	res, err := Replay(src, reg, dst, opt)
+	res, err := replayInOrder(src, reg, dst, opt)
 	if err != nil {
 		return nil, err
 	}

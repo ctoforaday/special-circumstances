@@ -107,7 +107,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
-  assemble    assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+  assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
@@ -133,7 +133,7 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 ==============================================================================
 $ feov-record assemble --help
-assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
+assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
 
 Usage:
   feov-record assemble [flags]
@@ -1026,6 +1026,10 @@ NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: O
 
 (NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §6
 
+ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`. A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections.
+
+A SECTION MOVES IN ONE EDIT. Quote the section together with everything that stands between it and its place, as `show report` prints them, and write the same text as the replacement with the section where it belongs: every anchor in the span stays on its sentence and no sentence changes, so nothing is reopened. Taking a section out in one edit to write it back in a second is refused when the section holds an anchor, because the first edit would drop it.
+
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §7
 
 (If you need a verb or a flag tha…) → SHARED §1
@@ -1083,6 +1087,8 @@ IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with
 NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. A report that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is frozen: the file stands for you to fix, and the one ingest a run gets is unspent. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: a section of that name in the report's text is the report's own, and ships whole in report.md among the report's own sections. `show report` has an assembled form that gives the same for every section before you write.
 
 (NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §6
+
+ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`. A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections. The file stands for you to move the lines, and the one ingest a run gets is unspent.
 
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §7
 
@@ -1756,6 +1762,8 @@ $ feov-record migrate --help
 migrate reads an old run's record — including a vocabulary this binary's readers refuse — translates each event through the authored registry, and replays them in order through the current write path under the ORIGINAL clock. Every act is validated exactly as a seat's would be, so the output is a record this binary could have written; run channels (inputs, proofs) copy verbatim, and inputs/migration.json records what was translated, refused, and accepted as loss. A refusal exits non-zero and is the tool's OUTPUT — there is no flag that skips validation.
 
 THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurements taken from outside, from transcripts that are not part of a run, so the record holds the only copy of them and the manifest states how many came over. The manifest also states the epoch the source declared beside the one this binary wrote, so the move the migration exists to make is a fact you can read rather than infer.
+
+THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`), where that moves whole sections and nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its author's order. The manifest's report_order says which: no_report, in_order, reordered, as_written.
 
 Usage:
   feov-record migrate --from <oldRunDir> --to <newRunDir> [flags]

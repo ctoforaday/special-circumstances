@@ -90,14 +90,21 @@ What a run hands over is a SET, not a file (see `references/report_template.md`)
 in it opens with a link bar to the others.
 
 `report.md` is the research: verdict stamp (the word alone — its argument opens *Read this
-first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
+first*) → **the TL;DR** (the answer, the confidence, the sharpest caveat) → **the Catechism**
+(`references/catechism_template.md` — the worth-our-time decision,
 adapted from Heilmeier) → **the report's own sections** (the argument, in the order and under the
 headings its author chose — each names the reader's question it answers; no heading is required,
 and red audits whether the structure carries the argument, never whether a section of a given name
 exists) → risk matrix (graded likelihood × impact × complexity, including risk-accepted items
 with rationale) → **the three
-avenue sections, Research areas, Future research directions and Alternatives considered** (composed by the tool from the avenues on the record, one row per avenue under the heading its fate names; blue records each avenue and what became of it, and writes none of the three into the report) → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved, lifted verbatim) →
+avenue sections, Research areas, Future research directions and Alternatives considered** (composed by the tool from the avenues on the record, one row per avenue under the heading its fate names; blue records each avenue and what became of it, and writes none of the three into the report) → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved) →
 footnotes (with access dates; volatility noted for living sources).
+
+**The report's text ships in the order it is written.** Blue writes the TL;DR first, the Catechism
+second, its own sections in the order it chooses and the open questions last; freezing the report
+and every edit refuse a text that holds one of those out of its place, so the order red audits is
+the order a reader gets. The tool's sections stand between blue's last section of its own and the
+open questions, and move no line of blue's text.
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `avenues.md`

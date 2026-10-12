@@ -6,8 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // Options is the operator's say over a replay.
@@ -39,6 +42,9 @@ type Result struct {
 	Serialized     map[string]int    // archived instance seat -> events moved after instance 1 (serializeInstances)
 	StatedFills    []StatedFill      // values supplied where the source predates the field
 	GapAnchors     GapPlacement      // what bringing the run's gaps onto anchors did (F-c)
+	ReportOrder    string            // what became of the order of the report's text (order.go)
+
+	base string // the report's base as the source wrote it
 }
 
 // byGradeFillWhy is the reason a class-material fill records, in one place so the staged-registry
@@ -67,6 +73,12 @@ func shippedDefault(slug string) (v recordpb.ClassMaterial, fill bool) {
 // only honest answer. Dispatch numbering survives because it derives from the key ordinal,
 // which Append's own path re-derives.
 func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
+	return replay(src, reg, dst, opt, false)
+}
+
+// replay is Replay, with the report's base written in the order its text ships in when inOrder is
+// set (order.go).
+func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool) (*Result, error) {
 	evs, err := src.Events()
 	if err != nil {
 		return nil, err
@@ -190,6 +202,12 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
 			rm.apply(body, old.Fields["label"])
+			if b, ok := body.(*recordpb.BaseIngest); ok {
+				res.base = b.GetText()
+				if inOrder {
+					b.Text = proto.String(report.Ordered(res.base))
+				}
+			}
 			// A BENCH ROW THAT PREDATES ITS OCCASIONS convened the bench for its docket: before
 			// epoch 19 the chair readied the bench only on a docketed gap, and a petition was heard
 			// off an envelope with no row. The write refuses a bench row naming no occasion, so the

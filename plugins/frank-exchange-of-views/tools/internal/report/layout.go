@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -32,12 +33,14 @@ import (
 // tool's in report.md, ships whole and once among the report's own sections, and is what a
 // report on a theorem or on a legislature calls a section of its own.
 //
-// THE REPORT'S STRUCTURE IS ITS AUTHOR'S. The table places the three sections a report is asked
-// to carry, and every other section of its text ships as the body, in the order written, under
-// the heading its author gave it. A row for a heading the report need not have is a slot that
-// reads as unfilled: universe-m21's sections named the reader's questions, and it shipped a line
-// under two fixed headings saying neither was authored, with its argument after the tool's
-// sections under a heading of the tool's.
+// THE REPORT'S STRUCTURE IS ITS AUTHOR'S, AND ASSEMBLY MOVES NONE OF IT. The report's text ships
+// in the order written, each section under the heading its author gave it: the body, and after
+// the tool's sections of report.md the section that closes the text. Which of its sections open
+// it and which closes it is the table's (first, and the row after the tool's), and the write
+// holds the text to that order (OutOfOrderIn), so the order a seat reads is the order that ships.
+// A row for a heading the report need not have is a slot that reads as unfilled: universe-m21's
+// sections named the reader's questions, and it shipped a line under two fixed headings saying
+// neither was authored, with its argument after the tool's sections under a heading of the tool's.
 
 // Who composes a section.
 const (
@@ -70,6 +73,8 @@ type Section struct {
 
 	// embeds marks the body: the report's own sections, each under the heading its author gave it.
 	embeds bool
+	// first, on the body, is the sections that open it when the text carries them, in order.
+	first []string
 	// fate, on an avenue section, is which avenue statuses it holds.
 	fate func(status string) bool
 	// compose renders the section's body; nil for one a later pass over the whole document writes.
@@ -86,7 +91,7 @@ func (s Section) block(a *assembly) string {
 }
 
 // assembly is what one assembly of the set reads: the record once, and the report's text parted
-// into its title, its lifted sections and the rest.
+// into its title, its body and the section that closes it.
 type assembly struct {
 	run     record.Run
 	fam     record.Family
@@ -100,8 +105,6 @@ const (
 	questionLine = "**Question:**"
 
 	blueTextPath = "The report's text: the opening synthesis writes it and blue's `edit` amends it."
-	liftedFrom   = "the section of this name in the report's text, lifted whole"
-	liftedPath   = blueTextPath + " A report with no section of this name ships without one."
 	bodyHeading  = "The report's own sections"
 	noSeatPath   = "No seat's act reaches it."
 
@@ -123,14 +126,12 @@ var layout = []Section{
 		From:    fmt.Sprintf("the Title in full, when it runs past %d characters", titleLimit),
 		Path:    blueTextPath,
 		compose: func(a *assembly, _ Section) string { _, q := heading(a.blue.title); return q }},
-	{File: FileReport, Heading: "TL;DR", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	{File: FileReport, Heading: "The Catechism", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	// THE BODY: after the two surfaces that open the report and before every section the tool
-	// composes, so the reader meets the argument before the record's account of it.
-	{File: FileReport, Heading: bodyHeading, Composer: Blue, embeds: true,
-		From:    "every part of the report's text that no other row places, whole and in the order written, each section under the heading its author gave it",
+	// THE BODY: before every section the tool composes, so the reader meets the argument before
+	// the record's account of it. The two surfaces that open the report are its first sections.
+	{File: FileReport, Heading: bodyHeading, Composer: Blue, embeds: true, first: []string{"TL;DR", "The Catechism"},
+		From:    "the report's text up to the section that closes it, whole and in the order written, each section under the heading its author gave it",
 		Path:    blueTextPath + " Each section stands under a heading of its author's choosing, and assembly writes none above it.",
-		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
+		compose: func(a *assembly, _ Section) string { return a.blue.body }},
 	{File: FileReport, Heading: "Risk matrix", Composer: Tool,
 		From:    "the open gaps on the board, one row for each: its problem, its grades and its required fix",
 		Path:    "No act of blue's adds a row. A lens's `mint` opens a gap and with it a row, and the lens's `close` takes the row out; blue's `edit` answering the gap is what the lens closes on. A risk the report itself argues for is prose in the section that makes the claim.",
@@ -140,7 +141,10 @@ var layout = []Section{
 	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: accepted, compose: avenues},
 	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: avenues},
 	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: rejected, compose: avenues},
-	{File: FileReport, Heading: "Open questions", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
+	{File: FileReport, Heading: "Open questions", Composer: Blue,
+		From:    "the section of this name in the report's text, which closes it",
+		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",
+		compose: func(a *assembly, _ Section) string { return a.blue.close }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
 		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
@@ -195,10 +199,14 @@ var layout = []Section{
 }
 
 // The avenue sections' From and Path are written from each row's own fate, so the sentence a seat
-// reads and the predicate the composer applies are one fact.
+// reads and the predicate the composer applies are one fact; and the body's Path names the
+// sections the write holds first from the row's own list.
 func init() {
 	for i := range layout {
 		s := &layout[i]
+		if len(s.first) > 0 {
+			s.Path += " The write holds " + "`## " + strings.Join(s.first, "` and `## ") + "` first among them, in that order, where the text carries them."
+		}
 		if s.fate == nil {
 			continue
 		}
@@ -300,8 +308,8 @@ var SubjectHeadingsNote = func() string {
 	return "Assembly also composes " + strings.Join(parts, " and ") + ", and those names are not refused: " + OwnInTheReport + "."
 }()
 
-// HEADINGS ARE READ ONE WAY, by every reader here: the composer that lifts blue's sections, the
-// refusal at the write, and the view that slices the assembled document.
+// HEADINGS ARE READ ONE WAY, by every reader here: the composer that parts the report's text, the
+// refusals at the write, and the view that slices the assembled document.
 //
 // A line opens a section when, outside a code fence, it starts with "## " once its surrounding
 // whitespace is trimmed. Two headings name the same section when they agree after their anchors
@@ -339,11 +347,15 @@ func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
 	}
 }
 
-// A claim is one place where text takes what is the tool's: the line or the label as the text
-// writes it, the row it belongs to, and the key two claims of the same thing share.
+// A claim is one place where text takes what is the tool's, or stands out of the order the text
+// ships in: the line or the label as the text writes it, the row it belongs to, and the key two
+// claims of the same thing share. A claim of order (orderClaims) also says what the line stands
+// on the wrong side of, and which side.
 type claim struct {
 	key, text string
 	row       Section
+	beside    string
+	after     bool
 }
 
 // added is the first claim now makes that was does not, counted by key.
@@ -393,11 +405,161 @@ func composedClaims(text string) (out []claim) {
 			}
 			if isHeading && key == normalizeHeading(row.Heading) ||
 				preamble && row.Line != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(row.Line)) {
-				out = append(out, claim{row.Heading, t, row})
+				out = append(out, claim{key: row.Heading, text: t, row: row})
 				return
 			}
 		}
 	})
+	return out
+}
+
+// THE REPORT'S TEXT STANDS IN THE ORDER IT SHIPS IN. Every seat reads the text in the order its
+// author wrote it, and a reader gets it in the table's. universe-m21's Catechism was written after
+// the argument it answers from ("These four sources…") and shipped ahead of the sections that
+// introduce them, where no seat had read it. The write refuses a text out of the table's order
+// (OutOfOrderIn), so the order a seat audits is the order that ships.
+//
+// THE ORDER IS THE ROWS THAT PLACE THE TEXT (textRows): the title line, each section a row names,
+// and the body, which is every other section in the order its author chooses. A line of the text
+// stands at its row's rank. A row before the body is out of order when something of its own rank
+// or a later one stands before it; a row after the body, when a section of the body stands after
+// it or a section of its own name before it. So a section the text lacks leaves no place open; a
+// second section under a row's name is out of order, the first standing before it; text before the
+// first heading is the body's, so a row's section after it is out of order, as the title line is
+// after any text at all; and where a section that opens the text stands after the one that closes
+// it, the one named is the one that opens it, which is the one to move.
+
+// textRows is the rows that place the report's text, in the table's order.
+func textRows() (rows []Section, body int) {
+	for _, s := range layout {
+		// The Question line is the title again, composed; the text holds no line of its own for it.
+		if s.File == FileReport && s.Composer == Blue && (s.Line == "" || s.compose == nil) {
+			for _, h := range s.first {
+				rows = append(rows, Section{Heading: h})
+			}
+			if s.embeds {
+				body = len(rows)
+			}
+			rows = append(rows, s)
+		}
+	}
+	return rows, body
+}
+
+// orderName is how a row of the text's order is named to a seat.
+func orderName(s Section) string {
+	switch {
+	case s.embeds:
+		return "the report's own sections, in the order their author chooses"
+	case s.Line != "":
+		return "the " + strings.ToLower(s.Heading) + " line (`" + s.Line + "…`)"
+	}
+	return "`## " + s.Heading + "`"
+}
+
+// TextOrder is the order the report's text stands in, as a seat reads it.
+var TextOrder = func() string {
+	rows, _ := textRows()
+	names := make([]string, len(rows))
+	for i, s := range rows {
+		names[i] = orderName(s)
+	}
+	return strings.Join(names, "; ")
+}()
+
+// TextOrderRule is the rule on the pages of the verbs that write report text.
+var TextOrderRule = "ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: " + TextOrder +
+	". A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. " +
+	"A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. " +
+	"A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections."
+
+// Misplaced is one line or section the report's text holds out of the order it ships in.
+type Misplaced struct {
+	Line    string // the title line or the section's heading, as the text writes it
+	Beside  string // what it stands on the wrong side of, as the text writes it
+	After   bool   // it stands after Beside; before it otherwise
+	Belongs string // where the order holds it
+}
+
+// OutOfOrderIn returns the first line text holds out of the order it ships in (TextOrder) that
+// was, the text as it stood, did not (added).
+func OutOfOrderIn(was, text string) (Misplaced, bool) {
+	c, found := added(orderClaims(was), orderClaims(text))
+	if !found {
+		return Misplaced{}, false
+	}
+	rows, body := textRows()
+	at := slices.IndexFunc(rows, func(s Section) bool { return s.Heading == c.key })
+	others, side := rows[:at], "before"
+	if at > body {
+		others, side = rows[at+1:], "after"
+	}
+	belongs := "nothing in the report's text stands " + side + " it"
+	if len(others) > 0 {
+		names := make([]string, len(others))
+		for i, s := range others {
+			names[i] = orderName(s)
+		}
+		belongs = "nothing in the report's text but " + strings.Join(names, " and ") + " stands " + side + " it"
+	}
+	return Misplaced{Line: c.text, Beside: c.beside, After: c.after, Belongs: belongs}, true
+}
+
+// A stand is one thing the order places, where the text holds it: the title line, a section's
+// heading, or the first line of text before the first heading, which opens the body.
+type stand struct {
+	rank int    // its row's place in textRows
+	line string // as the text writes it
+	at   int    // the line's index in the text
+}
+
+func stands(text string) (out []stand, rows []Section, body int) {
+	rows, body = textRows()
+	preamble, titled, at := true, false, -1
+	eachLine(text, func(_, t string, fenced bool) {
+		at++
+		key, isHeading := "", false
+		if !fenced {
+			key, isHeading = headingKey(t)
+		}
+		switch {
+		case isHeading:
+			rank := body
+			for i, s := range rows {
+				if s.Line == "" && !s.embeds && normalizeHeading(s.Heading) == key {
+					rank = i
+				}
+			}
+			preamble = false
+			out = append(out, stand{rank, t, at})
+		// The title is the first such line wherever it stands, as assembly reads it (part), and
+		// its row is the table's first.
+		case !fenced && !titled && strings.HasPrefix(t, rows[0].Line):
+			titled = true
+			out = append(out, stand{0, t, at})
+		case preamble && t != "":
+			preamble = false
+			out = append(out, stand{body, t, at})
+		}
+	})
+	return out, rows, body
+}
+
+// orderClaims is each line of a row's that text holds out of order, with the first thing that
+// stands on the wrong side of it.
+func orderClaims(text string) (out []claim) {
+	all, rows, body := stands(text)
+	for i, s := range all {
+		if s.rank == body {
+			continue
+		}
+		for j, o := range all {
+			if j < i && (o.rank == s.rank || s.rank < body && o.rank > s.rank) || j > i && s.rank > body && o.rank >= body && o.rank < s.rank {
+				out = append(out, claim{key: rows[s.rank].Heading, text: s.line, row: rows[s.rank], beside: o.line, after: j < i})
+				break
+			}
+		}
+	}
 	return out
 }
 
@@ -456,64 +618,42 @@ func wovenNotes(text string) (out []claim) {
 			return
 		}
 		for _, m := range wovenNote.FindAllString(reCodeSpan.ReplaceAllString(t, ""), -1) {
-			out = append(out, claim{strings.ToLower(m), m, notesRow()})
+			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
 	})
 	return out
 }
 
-// blueText is the report's text, parted: every line of it is in exactly one of these.
+// blueText is the report's text, parted: every line of it is in exactly one of these, and the two
+// that hold sections hold them in the order written.
 type blueText struct {
-	title  string            // the first "# " line
-	lifted map[string]string // heading key → the first section under each heading a Blue row lifts
-	rest   string            // everything else, in the order written
+	title string // the first "# " line
+	body  string // everything else, up to the section that closes the text
+	close string // that section, and whatever the text holds after it
 }
 
-// part splits the report's text among the rows that place it. NOTHING IS LEFT OVER: the title
-// line, the first section under each lifted heading, and the rest, which ships whole as the body
-// — a second section under a lifted heading, text before the first heading and a section under a
-// heading the tool composes included. Of the last, a live seat writes only one under a
-// SubjectHeading; a record migrated from before the refusal can hold any, and ships it there with
-// every anchor it carries.
-func part(blue string) blueText {
-	lifts := map[string]bool{}
-	for _, s := range layout {
-		if s.Composer == Blue && s.Line == "" && !s.embeds {
-			lifts[normalizeHeading(s.Heading)] = true
-		}
-	}
-	out := blueText{lifted: map[string]string{}}
-	var rest, cur []string
-	curKey := ""
-	flush := func() {
-		if curKey != "" {
-			out.lifted[curKey] = strings.TrimRight(strings.Join(cur, "\n"), " \t\n")
-		}
-		cur, curKey = nil, ""
-	}
+// part takes the title line out of the report's text and cuts the rest at the heading of the
+// section that closes it. ASSEMBLY MOVES NO LINE OF THE TEXT PAST ANOTHER: the tool's sections of
+// report.md stand between the two parts, and each part ships as written. The write holds the
+// closing section last (OutOfOrderIn); a record migrated with its text as written can hold more
+// after it, a second section of its name included, and that ships after it with every anchor it
+// carries.
+func part(blue string) (out blueText) {
+	var parts [2][]string
+	closed := 0
 	eachLine(blue, func(ln, t string, fenced bool) {
-		if !fenced {
-			if key, ok := headingKey(t); ok {
-				flush()
-				if _, done := out.lifted[key]; lifts[key] && !done {
-					curKey = key
+		if key, ok := headingKey(t); ok && !fenced {
+			for _, s := range layout {
+				if s.Composer == Blue && s.Line == "" && !s.embeds && key == normalizeHeading(s.Heading) {
+					closed = 1
 				}
-			} else if out.title == "" && strings.HasPrefix(t, "# ") {
-				out.title = t
-				return
 			}
+		} else if !fenced && out.title == "" && strings.HasPrefix(t, "# ") {
+			out.title = t
+			return
 		}
-		if curKey != "" {
-			cur = append(cur, ln)
-		} else {
-			rest = append(rest, ln)
-		}
+		parts[closed] = append(parts[closed], ln)
 	})
-	flush()
-	out.rest = strings.TrimSpace(strings.Join(rest, "\n"))
+	out.body, out.close = strings.TrimSpace(strings.Join(parts[0], "\n")), strings.TrimSpace(strings.Join(parts[1], "\n"))
 	return out
 }
-
-// lift copies blue's section verbatim. A report with no section of that name ships none, and the
-// assembled layout is where a seat reads that the row is not in the set.
-func lift(a *assembly, s Section) string { return a.blue.lifted[normalizeHeading(s.Heading)] }

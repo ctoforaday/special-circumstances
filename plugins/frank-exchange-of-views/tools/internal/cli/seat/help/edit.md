@@ -36,4 +36,8 @@ NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {
 
 {{.WovenNotesRule}}
 
+{{.TextOrderRule}}
+
+A SECTION MOVES IN ONE EDIT. Quote the section together with everything that stands between it and its place, as `show report` prints them, and write the same text as the replacement with the section where it belongs: every anchor in the span stays on its sentence and no sentence changes, so nothing is reopened. Taking a section out in one edit to write it back in a second is refused when the section holds an anchor, because the first edit would drop it.
+
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.

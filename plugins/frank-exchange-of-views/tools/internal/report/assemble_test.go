@@ -15,51 +15,40 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
+func TestTheTextIsPartedVerbatimAndFenceAware(t *testing.T) {
 	md := strings.Join([]string{
 		"# report", "",
 		"## The Catechism", "", "Q1: kept  as-is.  ", "", // trailing spaces preserved inside
 		"```", "## Open questions", "not a heading — inside a fence", "```", "",
 		"## Analysis", "", "the analysis.", "",
 	}, "\n")
-	a := &assembly{blue: part(md)}
-	row := func(heading string) Section {
-		for _, s := range layout {
-			if s.Heading == heading {
-				return s
-			}
-		}
-		t.Fatalf("no row %q", heading)
-		return Section{}
+	got := part(md)
+	if !strings.Contains(got.body, "Q1: kept  as-is.  \n") {
+		t.Errorf("the body is not the text as written: %q", got.body)
 	}
-
-	cat := lift(a, row("The Catechism"))
-	if !strings.Contains(cat, "Q1: kept  as-is.") {
-		t.Errorf("catechism not copied verbatim: %q", cat)
-	}
-	// The fenced "## Open questions" must NOT end the Catechism section.
-	if !strings.Contains(cat, "not a heading — inside a fence") {
-		t.Errorf("a ## inside a code fence wrongly ended the section: %q", cat)
+	// The fenced "## Open questions" does not cut the text: the lines after it are the body's.
+	if !strings.Contains(got.body, "not a heading — inside a fence") || !strings.HasSuffix(got.body, "the analysis.") {
+		t.Errorf("a ## inside a code fence wrongly cut the text: %q", got.body)
 	}
 	// A real "## Open questions" section does not exist (only the fenced one), so the row ships
 	// NOTHING: no text is authored in its place, and no line about the run or its seats stands in
 	// the reader's document for it (universe-m21 shipped two such lines).
-	if got := lift(a, row("Open questions")); got != "" {
-		t.Errorf("a fenced heading was mistaken for a real one, or a missing section was given text: %q", got)
+	if got.close != "" {
+		t.Errorf("a fenced heading was mistaken for a real one, or a missing section was given text: %q", got.close)
 	}
-	// ONE READING OF A HEADING, for the lift and for everything else that reads one: case, runs
+	// ONE READING OF A HEADING, for the cut and for everything else that reads one: case, runs
 	// of whitespace, an anchor on the heading line, the note reference the weave leaves where a
 	// citation's stood and a trailing "(in full)" do not make a present section absent.
 	for _, h := range []string{"## Open Questions", "##  open   questions", "## Open questions<!--fx:F-00000aaa-->", "## Open questions[^2]", "## Open questions (in full)"} {
-		if got := lift(&assembly{blue: part("intro\n" + h + "\n\nwhat remains.\n")}, row("Open questions")); !strings.Contains(got, "what remains") {
-			t.Errorf("%q: a present section was declared absent: %q", h, got)
+		if got := part("intro\n" + h + "\n\nwhat remains.\n"); got.body != "intro" || got.close != h+"\n\nwhat remains." {
+			t.Errorf("%q: the text is not cut at its closing section: body %q, close %q", h, got.body, got.close)
 		}
 	}
 }
 
-func TestTitleLiftedOrFlagged(t *testing.T) {
+func TestTheTitleIsTakenVerbatimOrFlagged(t *testing.T) {
 	if got := titleOr(part("intro\n# Whether X — research report\n## The Catechism\n").title); got != "# Whether X — research report" {
-		t.Errorf("title not lifted verbatim: %q", got)
+		t.Errorf("the title is not the line as written: %q", got)
 	}
 	if got := titleOr(part("no title here\n## Analysis\n```\n# a comment in code\n```\n").title); !strings.Contains(got, "not authored here") {
 		t.Errorf("a missing title must be flagged, never authored: %q", got)
@@ -338,9 +327,10 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 		// inside it. Every `## ` heading the prompt names is a row of the table, the wrapper it
 		// forbids beside them, or one of the report's own it tells blue to write.
 		for _, m := range regexp.MustCompile("`## ([^`]+)`").FindAllStringSubmatch(prompt, -1) {
-			row := slices.ContainsFunc(layout, func(s Section) bool { return s.Heading == m[1] && (s.refused() || s.Composer == Blue) })
+			placed, _ := textRows()
+			row := slices.ContainsFunc(append(placed, layout...), func(s Section) bool { return s.Heading == m[1] && (s.refused() || s.Composer != Tool) })
 			if !row && m[1] != "Blue team report" {
-				t.Errorf("the %s prompt names `## %s`, which is no section of the table that the tool refuses or the report lifts", seat, m[1])
+				t.Errorf("the %s prompt names `## %s`, which is no section the table has the tool refuse or holds a place in the report's text for", seat, m[1])
 			}
 		}
 		for _, s := range layout {
@@ -743,71 +733,49 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 	}
 }
 
-// EVERY LINE OF THE REPORT'S TEXT SHIPS, ONCE. The text is parted among the rows that place it —
-// the title, the first section under each lifted heading, and the rest as the body — and nothing
-// is in none of them. universe-m20 lost a section, a proof and fifteen
-// other anchors to a list of headings the composer left out; the composer keeps no such list.
-func TestEveryLineOfTheReportsTextShipsOnce(t *testing.T) {
-	blue := strings.Join([]string{
+// EVERY LINE OF THE REPORT'S TEXT SHIPS, ONCE, AND NONE MOVES PAST ANOTHER. The text is parted in
+// two at the section that closes it, with the title line taken out, and nothing is in neither
+// part. universe-m20 lost a section, a proof and fifteen other anchors to a list of headings the
+// composer left out, and universe-m21's Catechism shipped ahead of the sections it was written
+// after; the composer keeps no list of sections to leave out or to move.
+func TestEveryLineOfTheReportsTextShipsOnceWhereItWasWritten(t *testing.T) {
+	lines := []string{
 		"prose before the title.",
 		"# A topic — research report",
 		"**Verdict:** a line of the preamble",
 		"```", "# a comment in a code block", "```",
 		"",
-		"## TL;DR", "lifted to the top.", "",
-		"## Open questions", "also lifted.", "",
-		// Headings the table no longer places: sections of the report's own, in the body.
 		"## Technical foundations", "what is established.", "",
-		"## Analysis", "the argument.", "",
-		"## Additional findings", "a section its author gave that name.", "",
+		// A section the write holds first, written late: a migrated record can hold one, and it
+		// ships where it was written.
+		"## The Catechism", "written after the argument.", "",
+		"## TL;DR", "written later still.", "",
 		// What the write refuses and a migrated record can still hold: kept whole, anchors and all.
 		"## Alternatives considered", "an approach weighed<!--proof:P-00000001-->.", "",
 		"## Risk Matrix", "a risk row.", "",
-		"## Open questions", "a second section under a lifted heading.", "",
-		"##  open questions (in full)", "and a third, spelled another way.", "",
-		"## Appendix: raw benchmarks", "novel blue content.", "",
-	}, "\n")
-	got := part(blue)
-
+		"## Open questions", "the closing section.", "",
+		"##  open questions (in full)", "a second, spelled another way.", "",
+		"## Appendix: raw benchmarks", "a section after the closing one.", "",
+	}
+	got := part(strings.Join(lines, "\n"))
 	if got.title != "# A topic — research report" {
 		t.Errorf("title = %q", got.title)
 	}
-	shipped := got.title + "\n" + got.rest
-	for _, text := range got.lifted {
-		shipped += "\n" + text
+	title := slices.Index(lines, got.title)
+	closing := slices.Index(lines, "## Open questions")
+	body := strings.Join(append(slices.Clone(lines[:title]), lines[title+1:closing]...), "\n")
+	if got.body != strings.TrimSpace(body) {
+		t.Errorf("the body is not the text up to its closing section, as written:\n%s", got.body)
 	}
-	want := map[string]int{}
-	for _, ln := range strings.Split(blue, "\n") {
-		want[ln]++
+	if got.close != strings.TrimSpace(strings.Join(lines[closing:], "\n")) {
+		t.Errorf("the closing part is not the text from its closing section on, as written:\n%s", got.close)
 	}
-	have := map[string]int{}
-	for _, ln := range strings.Split(shipped, "\n") {
-		have[ln]++
+	// A report with no closing section is its body, and one that is only its closing section has none.
+	if e := part("# t\n\n## TL;DR\nx\n\n## Appendix\ny\n"); e.close != "" || e.body != "## TL;DR\nx\n\n## Appendix\ny" {
+		t.Errorf("a report with no closing section is not its body: %+v", e)
 	}
-	for ln, n := range want {
-		if strings.TrimSpace(ln) != "" && have[ln] != n {
-			t.Errorf("the line %q is in the report's text %d time(s) and in what assembly places %d", ln, n, have[ln])
-		}
-	}
-	if strings.Contains(got.rest, "lifted to the top") || strings.Contains(got.rest, "also lifted") {
-		t.Errorf("a lifted section is embedded a second time:\n%s", got.rest)
-	}
-	if got.lifted["open questions"] != "## Open questions\nalso lifted." {
-		t.Errorf("the lift takes the first section under the heading: %q", got.lifted["open questions"])
-	}
-	// THE BODY IS THE REPORT'S OWN SECTIONS IN THE ORDER WRITTEN, whatever they are named: the two
-	// headings the table once placed and the one it once wrote above the body are sections like
-	// any other.
-	body := "## Technical foundations\nwhat is established.\n\n## Analysis\nthe argument.\n\n## Additional findings\na section its author gave that name.\n\n## Alternatives considered"
-	if !strings.Contains(got.rest, body) {
-		t.Errorf("the body does not hold the report's own sections whole and in the order written:\n%s", got.rest)
-	}
-	if len(got.lifted) != 2 {
-		t.Errorf("the table lifts %d section(s) of this report, want TL;DR and Open questions: %v", len(got.lifted), got.lifted)
-	}
-	// A perfectly-scoped report (only lifted sections) leaves nothing to embed.
-	if e := part("# t\n\n## TL;DR\nx\n\n## Open questions\ny\n").rest; e != "" {
-		t.Errorf("a report of lifted sections alone should leave nothing to embed, got:\n%s", e)
+	if e := part("# t\n\n## Open questions\ny\n"); e.body != "" || e.close != "## Open questions\ny" {
+		t.Errorf("a report that is only its closing section: %+v", e)
 	}
 }
 

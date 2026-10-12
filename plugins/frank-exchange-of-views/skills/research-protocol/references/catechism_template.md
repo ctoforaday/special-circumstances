@@ -5,6 +5,9 @@ decision**. We are not asking anyone for money; we are deciding whether to spend
 attention. Answer in plain language, as the *agreed* post-debate positions — no jargon, no
 enthusiasm standing in for evidence.
 
+It is the report's second section, after the TL;DR and before every section of the argument: a
+reader meets it before any of them.
+
 "This" is always the SUBJECT — the idea, claim or recommendation the report is about — never the
 research that produced the report. A reason not to have run the research, or what would have
 happened without it, is a fact about the run, and the run is not the report's subject.

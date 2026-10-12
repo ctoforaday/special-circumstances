@@ -164,7 +164,7 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		if docs[i].Body == "" {
 			continue
 		}
-		// Strip finding-markers from the WHOLE composed document, not just blue's lifted
+		// Strip finding-markers from the WHOLE composed document, not just the report's own
 		// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
 		// the record-derived findings/transcript sections, and only a final-output strip
 		// catches those. No raw marker ships (the leak fix).
