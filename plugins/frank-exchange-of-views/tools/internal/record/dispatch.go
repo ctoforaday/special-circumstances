@@ -12,13 +12,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps is
-// ready by its retirement state, or owes a finding on a contradiction it read, or — the evidence
-// lens — the check of a citation or proof reopened since its last one, and sits to audit the
-// current report.
+// Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps
+// has never sat or last sat behind the report head (retirement.go), or owes a finding on a
+// contradiction it read, or — the evidence lens — the check of a citation or proof reopened since
+// its last one, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens engaged by its retirement state — active, or retired and re-armed once by a head move — or by a contradiction it read, or by a reopened citation or proof" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head has moved since its last sitting — or by a contradiction it read, or by a reopened citation or proof" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
 	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
@@ -94,10 +94,10 @@ type Plan struct {
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
 	// (grade, avenue). Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
-	// StaleAreas is every lens retired for good whose pin the head has moved past. The chair reads
+	// StaleAreas is every retired lens whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
 	// a PASS is refused until it has.
-	StaleAreas []StaleArea `json:"stale_areas" desc:"each lens retired for good whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS"`
+	StaleAreas []StaleArea `json:"stale_areas" desc:"each retired lens whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS"`
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
 	// open material gap is at impasse after the one more exchange its remand granted and the bench
 	// has remanded it again (remandStageOf), or the run's epoch limit is reached with parties still
@@ -137,7 +137,7 @@ type openGap struct {
 	supersededBy string
 }
 
-// PlanDispatch computes readiness from four sources — each cast lens's retirement state, each
+// PlanDispatch computes readiness from four sources — each cast lens the report head has moved past, each
 // open material gap below its limits, each docketed gap awaiting the bench, and the owner of each
 // blocker another seat must clear (the bench for a motion, a lens for a contradiction it read,
 // the evidence lens for a reopened citation or proof) — and the two derived facts the termination turns on. It writes
@@ -225,9 +225,9 @@ func foldPlan(params Params, r planReads) Plan {
 	plan.Head = r.head
 	evs, win, fresh := r.evs, r.win, r.fresh
 
-	// Source 1: each cast lens by its retirement state (retirement.go) — the same fold the PASS
-	// gate refuses from. A lens engaged that has opened no sitting since has not sat, so its state
-	// has not moved and it stays ready.
+	// Source 1: each cast lens that has never sat, or whose last sitting the head has moved past,
+	// until it retires (retirement.go) — the same fold the PASS gate refuses from. A lens engaged
+	// that has opened no sitting since has not sat, so its pin has not moved and it stays ready.
 	ids := win.IDs(evs)
 	dispatches, registers := dispatchLedger(evs, ids, win)
 	benchOn := benchRegisters(evs, ids, win)
@@ -597,7 +597,7 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 		// — the registering seat, or the seat a hook's sitting_open resolves to through its
 		// configuration. The second arm is how a no-op sitting costs nothing: every reader of "has
 		// this seat sat" comes through this map, so a hook-opened sitting satisfies the dispatch,
-		// the pin, the retirement fold and the work list without the seat running a command.
+		// the pin, the lens fold and the work list without the seat running a command.
 		if seat, opens := win.Opens(e); opens {
 			registers[seat] = append(registers[seat], seq[i])
 		}
@@ -620,7 +620,7 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // sittingFor IS THE ONE ANSWER TO "HAS THIS SEAT SAT FOR WHAT IT WAS DISPATCHED FOR": its sitting
 // for a dispatch is the first sitting it opened after the dispatch row (dispatchLedger: the hook's
 // bracket, or a register no bracket preceded), and a seat that has not opened one
-// since has not sat. Every reader of the question asks it here — the lens's retirement fold
+// since has not sat. Every reader of the question asks it here — the lens's readiness fold
 // (lensStates) and its last sitting (lastSittingBefore), the bench's sitting for a docketing
 // (benchSatFor), the exchange count (exchangesOf), and the seat's own work list (owedSitting). An unsat dispatch is why dispatch
 // readies the seat again, and it is why the seat's work list is not complete.

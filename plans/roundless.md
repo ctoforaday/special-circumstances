@@ -516,8 +516,8 @@ a finding — a finding obliges nobody — and shipped in a VERIFIED report.
 **What the amendment costs the argument above.** `gaps ≤ M × L` becomes `gaps open at once ≤ M × L`:
 the budget no longer bounds the gaps a run mints in total, so "total exchanges ≤ `M × L × K_max`"
 does not hold and the budget alone does not terminate a run. What ends a run in which a lens goes
-on minting is lens retirement (two sittings without a fresh material mint, one re-arm on a head
-move) when the lens stops, and the epoch limit (`maxEpochs`, CEILING with the limit as its reason)
+on minting is lens retirement (three sittings in a row without a fresh material mint) when the
+lens stops, and the epoch limit (`maxEpochs`, CEILING with the limit as its reason)
 when it does not.
 
 ### §III.B.2.1 Triviality must not hold the report open — the refusal, corrected
