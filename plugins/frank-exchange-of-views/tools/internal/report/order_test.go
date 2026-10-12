@@ -25,6 +25,40 @@ func TestTheOrderOfTheReportsTextIsTheRuling(t *testing.T) {
 	}
 }
 
+// THE ORDER BLUE IS TOLD IS THE ORDER THE WRITE HOLDS. The write refuses a text out of the table's
+// order, so the seat that writes the report and the seat that edits it are each told that order:
+// the sections the table places, named in the table's order, from where the prompt states it.
+// debate.js is hand-authored and cannot be generated from the table, so its sentence is held to
+// it here through the prompts the simulator suite renders and pins.
+func TestBluesPromptsStateTheOrderTheWriteHolds(t *testing.T) {
+	rows, _ := textRows()
+	for seat, from := range map[string]string{"blue-synthesize": "report.md OPENS with the H1 title", "blue-respond": "THEIR ORDER BINDS TOO:"} {
+		prompt := strings.ReplaceAll(renderedPrompt(t, seat), "\n", " ")
+		at := strings.Index(prompt, from)
+		if at < 0 {
+			t.Fatalf("the %s prompt does not state the order of the report's text (%q)", seat, from)
+		}
+		named := 0
+		for _, s := range rows {
+			if s.Line != "" || s.embeds {
+				continue
+			}
+			i := strings.Index(prompt[at:], "`## "+s.Heading+"`")
+			if i < 0 {
+				t.Fatalf("the %s prompt does not name `## %s` in the table's order, after what the table places before it", seat, s.Heading)
+			}
+			at += i
+			named++
+		}
+		if named != 3 {
+			t.Errorf("the table places %d section(s) of the report's text by name; this test reads three", named)
+		}
+		if !strings.Contains(prompt[at:], "refused") {
+			t.Errorf("the %s prompt states the order and not that a text out of it is refused", seat)
+		}
+	}
+}
+
 const (
 	tl    = "## TL;DR\n\nNo.\n\n"
 	cat   = "## The Catechism\n\nThese two factors settle it.\n\n"
