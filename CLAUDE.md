@@ -50,6 +50,9 @@ Always-on rules bind every session via the imports below; the rest load on deman
 - Present tense only; the why goes in a code comment at the source or in the commit. `archaeology` gates the pattern-matchable part.
 - Each `<verb> --help` page MUST teach its verb on its own: remove repetition only where that page keeps every instruction. One Go constant rendered on every page that needs it is fine; one *home* that removes the text from a page is not. Tool mechanics live in the tool; duties live in constitutions and prompts.
 - Seat **prompts** name ACTS, never a command path or flag — CI pins this (`TestNoPromptGrowsItsCommandCatalogue`, `TestTheSeatPromptsNameNoVerb`). A **constitution** carries its seat's whole surface: `scripts/agentgen` inlines the tool's own `manual` into every agent definition, and `agentgen -check` fails a stale one. The authored prose around that block is still held to the same rule — the catalogue gate scans everything outside the generated markers.
+- Four FEOV carriers are GENERATED, each with a `-check` gate that fails a stale or hand-edited copy. YOU MUST edit the source and regenerate, never the generated text:
+  - the agent definitions (`agents/*.md`) and the two preloaded skills (`skills/adversarial-audit/SKILL.md`, `skills/research-protocol/SKILL.md`) — sources under `scripts/agentgen/src/`, written by `go -C scripts run ./agentgen`;
+  - two marked regions of `debate.js` — the seat identity block, and the envelope vocabulary with the `PLAN` schema — written from the roster, the record's enums and `record.Plan` by `go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen`. The rest of `debate.js` is authored.
 - AFTER changing any of these surfaces, YOU MUST read every changed golden line, and each affected `--help` before and after, one command at a time, for semantic loss.
 
 ### Verification
