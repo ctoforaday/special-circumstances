@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -208,7 +209,7 @@ func TestARebuiltStoreListsASupersetOfTheOriginal(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if !strings.Contains(notice.String(), "was stamped 4, rebuilt empty at shape 5") {
+	if !strings.Contains(notice.String(), fmt.Sprintf("was stamped 4, rebuilt empty at shape %d", UserVersion)) {
 		t.Fatalf("the shape-4 store was not rebuilt: notice %q", notice.String())
 	}
 	mustIngest(t, db, a, b) // the backfill

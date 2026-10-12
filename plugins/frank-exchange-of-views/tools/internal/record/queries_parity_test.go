@@ -134,10 +134,10 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// requireAvenue: the proposed line resolves, an unknown one is refused.
-	if err := requireAvenue(run, "Q1", "move", "--id"); err != nil {
+	if err := requireAvenue(run, "Q1", "--id"); err != nil {
 		t.Errorf("requireAvenue(Q1) = %v", err)
 	}
-	if err := requireAvenue(run, "Q9", "move", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
+	if err := requireAvenue(run, "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
 		t.Errorf("requireAvenue on an unknown id = %v, want the refusal", err)
 	}
 

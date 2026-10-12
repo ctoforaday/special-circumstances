@@ -22,13 +22,27 @@
 # # One issue, reopened and commented — never a new one per night
 #
 # A workflow that files a fresh issue every morning is a workflow people mute, and a muted
-# alarm is the state we are already in. It keeps a single issue keyed by a marker in the
-# title, comments on it, and reopens it if it was closed while the nightly is still red.
+# alarm is the state we are already in. It keeps a single issue PER WATCHED WORKFLOW, keyed by
+# a marker in the title, comments on it, and reopens it if it was closed while that workflow
+# is still red.
+#
+# # Per workflow, because the two reds have different readers and different fixes
+#
+# A red `hooks` nightly is the release gate. A red `race-nightly` is a data race that reached
+# main, or a goroutine start the pull-request race gate cannot see. Filed into one issue, the
+# second would read as one more comment about the first.
 name: nightly-alarm
 
+# `workflow_run` runs with this repository's token whatever branch the watched run was on,
+# which is why a linter calls the trigger dangerous: a job that checked out or executed
+# anything from the triggering run would hand that token to it. THIS JOB DOES NEITHER. It
+# checks out nothing, runs nothing the watched run produced, and reads four facts about it
+# (url, id, sha, branch) through `env`, never interpolated into the script. Its token can
+# write issues and nothing else. The finding is answered here rather than suppressed and
+# forgotten: adding a checkout or an artifact download to this job reopens it.
 on:
-  workflow_run:
-    workflows: [hooks]
+  workflow_run:  # zizmor: ignore[dangerous-triggers]
+    workflows: [hooks, race-nightly]
     types: [completed]
 
 permissions:
@@ -39,9 +53,15 @@ jobs:
     # SCHEDULED FAILURES ONLY. A pull-request or push failure already reaches the person who
     # caused it; a scheduled one reaches nobody, which is the asymmetry this fixes. Firing on
     # every red would bury the case that has no other reader.
+    #
+    # `race-nightly` has no pull-request or push leg, so its dispatched run is admitted too:
+    # it is the same whole-graph measurement started by hand. A dispatched `hooks` run is NOT —
+    # that is the cache-seeding path, run by someone who is watching it.
     if: >-
-      github.event.workflow_run.event == 'schedule' &&
-      github.event.workflow_run.conclusion == 'failure'
+      github.event.workflow_run.conclusion == 'failure' &&
+      (github.event.workflow_run.event == 'schedule' ||
+       (github.event.workflow_run.name == 'race-nightly' &&
+        github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     permissions:
       # The narrowest thing that can raise an alarm. Deliberately not `contents: write` —
@@ -55,29 +75,63 @@ jobs:
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
-          MARKER="nightly is red"
-          BODY=$(printf '%s\n' \
-            "The scheduled \`hooks\` run failed on \`${SHA}\`." \
-            "" \
-            "${RUN_URL}" \
-            "" \
-            "The scheduled leg is the ONLY one that sets \`FEOV_RELEASE_GATE=1\`, so the debate" \
-            "sweeps and their flag/enum coverage assertions run there and nowhere else until a" \
-            "tag. A red nightly is therefore the earliest signal that a merged change left the" \
-            "release gate failing — and until this alarm existed it reached nobody, because a" \
-            "scheduled run has no actor to email." \
-            "" \
-            "Two reds in September 2026 (the 5th and the 6th) went unread for two days while a" \
-            "release converged; both were undriven flags a merged PR had added." \
-            "" \
-            "\`gh run view ${RUN_ID} --log-failed\` shows what failed.")
+          # THE ISSUE IS KEYED BY THE WORKFLOW THAT FAILED. Each marker is a phrase the other
+          # title does not contain, so one workflow's search cannot land in the other's issue.
+          case "$WORKFLOW" in
+            hooks)
+              MARKER="nightly is red"
+              TITLE="The nightly is red"
+              BODY=$(printf '%s\n' \
+                "The scheduled \`hooks\` run failed on \`${SHA}\`." \
+                "" \
+                "${RUN_URL}" \
+                "" \
+                "The scheduled leg is the ONLY one that sets \`FEOV_RELEASE_GATE=1\`, so the debate" \
+                "sweeps and their flag/enum coverage assertions run there and nowhere else until a" \
+                "tag. A red nightly is therefore the earliest signal that a merged change left the" \
+                "release gate failing — and until this alarm existed it reached nobody, because a" \
+                "scheduled run has no actor to email." \
+                "" \
+                "Two reds in September 2026 (the 5th and the 6th) went unread for two days while a" \
+                "release converged; both were undriven flags a merged PR had added." \
+                "" \
+                "\`gh run view ${RUN_ID} --log-failed\` shows what failed.")
+              ;;
+            race-nightly)
+              MARKER="whole-graph race run failed"
+              TITLE="race-nightly: the whole-graph race run failed"
+              BODY=$(printf '%s\n' \
+                "The \`race-nightly\` workflow failed on \`${SHA}\` (branch \`${BRANCH}\`)." \
+                "" \
+                "${RUN_URL}" \
+                "" \
+                "This run races every test in the feov-record binary's import graph. The" \
+                "pull-request gate races only the tests that start a goroutine, so a failure" \
+                "here that the pull-request gate passed is one of:" \
+                "" \
+                "- a data race reached through a function value or an interface, which" \
+                "  \`scripts/racescope\` does not follow;" \
+                "- a data race on a goroutine started by a library call that is not a row of" \
+                "  the table in \`scripts/internal/racescope\` — fix the race, then add the row;" \
+                "- a package that outran \`-timeout=30m\` under the detector." \
+                "" \
+                "\`gh run view ${RUN_ID} --log-failed\` shows what failed; search it for" \
+                "\`WARNING: DATA RACE\`.")
+              ;;
+            *)
+              echo "::error::nightly-alarm watches a workflow it has no issue for: ${WORKFLOW}"
+              exit 1
+              ;;
+          esac
 
           NUM=$(gh issue list --repo "$REPO" --state all --search "\"$MARKER\" in:title" \
                   --limit 1 --json number --jq '.[0].number // empty')
           if [ -z "$NUM" ]; then
-            gh issue create --repo "$REPO" --title "The $MARKER" --body "$BODY"
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
             exit 0
           fi
           # REOPEN BEFORE COMMENTING. A closed issue with a new comment is a notification

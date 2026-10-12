@@ -3,11 +3,12 @@ Runs a query against the store and prints the result as tab-separated columns.
 The questions worth asking of a trajectory corpus are not knowable in advance, so
 the schema is published and callers write their own. These views are the contract:
 
-  v_action   session_id, agent_id, seq, ts, tool, target, outcome
-  v_session  session_id, project_dir, cwd, first_act, last_act, ingested_first, ingested_last, closed_at, capture_build, bridge_session_id
-  v_skip     session_id, agent_id, prompt_id, reason, at
-  v_thought  session_id, agent_id, prompt_id, block_seq, ts, text
-  v_word     session_id, agent_id, prompt_id, block_seq, ts, role, text, source, provisional, attribution
+  v_action      session_id, agent_id, seq, ts, tool, target, outcome
+  v_session     session_id, project_dir, cwd, first_act, last_act, ingested_first, ingested_last, closed_at, capture_build, bridge_session_id
+  v_skip        session_id, agent_id, prompt_id, reason, at
+  v_thought     session_id, agent_id, prompt_id, block_seq, ts, text
+  v_transcript  path, session_id, agent_id, size, gone_at
+  v_word        session_id, agent_id, prompt_id, block_seq, ts, role, text, source, provisional, attribution
 
 The connection is opened read-only, with query_only and ATTACH both refused, so a
 query cannot write and cannot reach a second database. Underlying tables are not

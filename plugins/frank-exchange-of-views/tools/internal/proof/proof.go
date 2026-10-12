@@ -111,7 +111,7 @@ func ScriptSha(runDir, scriptPath string) (string, error) {
 	}
 	body, err := os.ReadFile(abs)
 	if err != nil {
-		return "", fmt.Errorf("proof: cannot read %s: %w", scriptPath, err)
+		return "", fmt.Errorf("cannot read %s: %w", scriptPath, err)
 	}
 	sum := sha256.Sum256(body)
 	return hex.EncodeToString(sum[:]), nil
@@ -124,10 +124,10 @@ func Run(runDir, scriptPath string) (*Result, error) {
 	}
 	body, err := os.ReadFile(abs)
 	if err != nil {
-		return nil, fmt.Errorf("proof: cannot read %s: %w", scriptPath, err)
+		return nil, fmt.Errorf("cannot read %s: %w", scriptPath, err)
 	}
 	if len(bytes.TrimSpace(body)) == 0 {
-		return nil, fmt.Errorf("proof: %s is empty — an empty script exits cleanly and proves nothing, which is the most misleading artifact available", scriptPath)
+		return nil, fmt.Errorf("%s is empty — an empty script exits cleanly and proves nothing, which is the most misleading artifact available", scriptPath)
 	}
 	argv, err := interpreterFor(abs)
 	if err != nil {
@@ -202,13 +202,13 @@ func execute(runDir string, argv []string, script string) (string, int, error) {
 	cmd.Dir = runDir
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
-		return "", 0, fmt.Errorf("proof: %s did not finish inside %s — a proof settles a question; anything longer is a project and belongs in prose with its cost stated", filepath.Base(script), Timeout)
+		return "", 0, fmt.Errorf("%s did not finish inside %s — a proof settles a question; anything longer is a project and belongs in prose with its cost stated", filepath.Base(script), Timeout)
 	}
 	code := 0
 	if err != nil {
 		var ee *exec.ExitError
 		if !errors.As(err, &ee) {
-			return "", 0, fmt.Errorf("proof: could not run %s: %w (is %s installed?)", filepath.Base(script), err, argv[0])
+			return "", 0, fmt.Errorf("could not run %s: %w (is %s installed?)", filepath.Base(script), err, argv[0])
 		}
 		code = ee.ExitCode()
 	}
@@ -358,7 +358,7 @@ func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 		//
 		// A refusal that describes the tool's plumbing instead of the seat's mistake is the same
 		// misdirection as a refusal naming a flag that does not exist. The seat believes it.
-		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run — --id takes the sha256 "+
+		return false, "", "", fmt.Errorf("no recorded proof %s in this run — --id takes the sha256 "+
 			"of a proof blue's `prove` recorded, and the evidence projection lists every one under `proofs`", sha)
 	}
 	rec := Result{Output: string(recorded)}
@@ -373,7 +373,7 @@ func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 		}
 	}
 	if script == "" {
-		return false, "", "", fmt.Errorf("proof: %s has no stored script, so it cannot be re-run — which is the one thing a proof is for", sha)
+		return false, "", "", fmt.Errorf("%s has no stored script, so it cannot be re-run — which is the one thing a proof is for", sha)
 	}
 	argv, err := interpreterFor(script)
 	if err != nil {

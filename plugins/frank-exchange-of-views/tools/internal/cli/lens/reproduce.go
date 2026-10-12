@@ -1,7 +1,7 @@
 package lens
 
 import (
-	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -62,7 +62,7 @@ func newReproduce() *cobra.Command {
 			// beside the sentence it backs". It is not: the report carries an opaque
 			// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
 			// document had the token this verb does not take and no path to the one it does.
-			return nil, fmt.Errorf("requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, and whether anyone has re-run it yet, and `show evidence --anchor <that id>` prints its script", anchor.Token("P-…"))
+			return nil, feov.Errorf(feov.MissingField, "requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, and whether anyone has re-run it yet, and `show evidence --anchor <that id>` prints its script", anchor.Token("P-…"))
 		}
 		ok, got, want, err := proof.Reproduce(run.Dir(), sha)
 		if err != nil {
@@ -70,11 +70,11 @@ func newReproduce() *cobra.Command {
 		}
 		soundness := seat.Str(cmd, flags.As)
 		if soundness == "" {
-			return nil, fmt.Errorf("requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once and say whether it computes what it is anchored to; nothing is recorded by this call")
+			return nil, feov.Errorf(feov.MissingField, "requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once and say whether it computes what it is anchored to; nothing is recorded by this call")
 		}
 		snd, known := record.SoundnessOf(soundness)
 		if !known {
-			return nil, fmt.Errorf("%q is not a soundness this record can carry", soundness)
+			return nil, feov.Errorf(feov.Validation, "%q is not a soundness this record can carry", soundness)
 		}
 		// A SOUND VERDICT OVER A RE-RUN THAT DID NOT REPRODUCE IS REFUSED, where the proof is recorded
 		// `reproducible`. The verdict and its reason are typed before the run, so on a failed run
@@ -92,7 +92,7 @@ func newReproduce() *cobra.Command {
 			}
 			for _, p := range proofs {
 				if p.SHA == sha && p.Basis == proof.Reproducible {
-					return nil, fmt.Errorf("the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, run now, did not print the recorded output.\n"+
+					return nil, feov.Errorf(feov.Conflict, "the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, run now, did not print the recorded output.\n"+
 						"  recorded: %s\n  now:      %s\n"+
 						"Nothing is recorded. Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "+
 						"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
@@ -118,7 +118,7 @@ func newReproduce() *cobra.Command {
 		}
 		body.Note = proto.String(note)
 		if note == "" {
-			return nil, fmt.Errorf("requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace — this call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once with the verdict and what the reading showed; nothing is recorded by this call")
+			return nil, feov.Errorf(feov.MissingField, "requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace — this call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once with the verdict and what the reading showed; nothing is recorded by this call")
 		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err

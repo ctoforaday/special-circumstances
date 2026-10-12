@@ -71,7 +71,7 @@ func TestFindingByKeyIsIdempotent(t *testing.T) {
 func TestAFindingIsNamedByItsIDWithItsAreaBeside(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	if _, err := Append(Identity{Run: run, SeatID: "red-lens-dark-side"}, &recordpb.Finding{Text: proto.String("x")}); err == nil || !strings.Contains(err.Error(), "finding requires --id") || !strings.Contains(err.Error(), "can never be credited") {
+	if _, err := Append(Identity{Run: run, SeatID: "red-lens-dark-side"}, &recordpb.Finding{Text: proto.String("x")}); err == nil || !strings.HasPrefix(err.Error(), "requires --id") || !strings.Contains(err.Error(), "can never be credited") {
 		t.Fatalf("a finding with no id = %v, want the refusal — nothing can credit it", err)
 	}
 	id := NewID("finding")

@@ -171,7 +171,7 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	if member, hasCast, err := InCast(run, seatID); err != nil {
 		return 0, "", err
 	} else if hasCast && !member {
-		return 0, "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
+		return 0, "", fmt.Errorf("%q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
 	}
 	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
 		return 0, "", err
@@ -375,7 +375,7 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 	}
 	col := gradeAtColumn(g.GetDimension())
 	if col == "" {
-		return fmt.Errorf("record: motion grade file: %q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to gradeAtColumn",
+		return fmt.Errorf("%q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to gradeAtColumn",
 			recordpb.Word(g.GetDimension()))
 	}
 	// The CURRENT grade is the latest regrade that touched the axis, else the mint's — the same
@@ -390,7 +390,7 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 	if current != recordpb.Word(proposed) {
 		return nil
 	}
-	return fmt.Errorf("record: motion grade file: %s is already %s at %s, so this motion asks for no change — "+
+	return fmt.Errorf("%s is already %s at %s, so this motion asks for no change — "+
 		"a motion is a request to MOVE a grade, and a ruling on one that moves nothing reads exactly like a ruling on the merits. "+
 		"Propose the grade you think it should be, or if you mean to argue the current grade is right, that belongs in your closing rather than on the docket",
 		g.GetGapId(), recordpb.Word(proposed), recordpb.Word(g.GetDimension()))
@@ -726,7 +726,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 		}
 	}
-	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
+	if err := recordpb.CheckRequired(body); err != nil {
 		return err
 	}
 	switch b := body.(type) {
@@ -772,7 +772,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
 		// a seat that passed an empty one were both refused, and both land here.
 		if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-			return fmt.Errorf("record: mint requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
+			return fmt.Errorf("requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
 		}
 		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
 		// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
@@ -797,7 +797,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			grade recordpb.Grade
 		}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
 			if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
-				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
+				return fmt.Errorf("requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
 			}
 		}
 		if err := refuseMintReportVoice(b); err != nil {
@@ -810,12 +810,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err != nil {
 			return err
 		}
-		if err := requireFindings(run, b.GetFoundBy(), "mint", "--found-by"); err != nil {
+		if err := requireFindings(run, b.GetFoundBy(), "--found-by"); err != nil {
 			return err
 		}
 		for _, anc := range b.GetSupersedes() {
 			if !ids[anc] {
-				return fmt.Errorf("record: mint --supersedes names %s, which no mint event has created — dangling lineage refused", anc)
+				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
 	case *recordpb.Proof:
@@ -823,10 +823,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see `lens close`).
-		if err := requireGap(run, b.GetAnswers(), "blue's `prove`", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(run, b.GetCites(), "blue's `prove`", "--cites", ProveCitesAdvice); err != nil {
+		if err := requireCitation(run, b.GetCites(), "--cites", ProveCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -835,7 +835,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(run, b.GetAnswers(), "blue's `edit`", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -856,7 +856,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return err
 			}
 			if named != "" {
-				return fmt.Errorf("record: blue edit --reason names gap %s but --answers is empty — say it with --answers %s so the edit joins to the fix red asked for; --reason is the argument, not the key", named, named)
+				return fmt.Errorf("--reason names gap %s but --answers is empty — say it with --answers %s so the edit joins to the fix red asked for; --reason is the argument, not the key", named, named)
 			}
 		}
 	case *recordpb.Close:
@@ -870,7 +870,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 		if !ids[b.GetGapId()] {
-			return fmt.Errorf("record: close of unknown gap %s", b.GetGapId())
+			return fmt.Errorf("--id names gap %s, which no mint event created", b.GetGapId())
 		}
 		anchored := b.GetAnchorSeat() != "" && b.GetAnchorTool() != "" && b.GetAnchorTarget() != ""
 		// PRESENCE, NOT EMPTINESS, on carried_from throughout this arm. It is a lineage CLAIM,
@@ -878,7 +878,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `p.Has` asked exactly that and the check below is what stops it laundering an
 		// unverified closure past the anchor requirement.
 		if !anchored && b.CarriedFrom == nil {
-			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). A closure an earlier sitting already made is restated by the chair's `carry --carried-from <epoch>`, not closed again")
+			return fmt.Errorf("requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). A closure an earlier sitting already made is restated by the chair's `carry --carried-from <epoch>`, not closed again")
 		}
 		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
 		//
@@ -902,15 +902,15 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("record: carry claims gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
+				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
-		if err := requireGap(run, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
+		if err := requireGap(run, b.GetSuccessor(), "--superseded-by"); err != nil {
 			return err
 		}
 		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
 		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(run, b.GetSuccessor(), "close", "--superseded-by",
+		if err := requireOpenGap(run, b.GetSuccessor(), "--superseded-by",
 			"the unresolved remainder cannot move into a gap that is already finished"); err != nil {
 			return err
 		}
@@ -919,7 +919,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil && !closedByTarget(run, b.GetGapId(), target) {
-			if err := requireOpenGap(run, b.GetGapId(), "close", "--id",
+			if err := requireOpenGap(run, b.GetGapId(), "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
 			}
@@ -941,7 +941,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// restates an earlier closure that already stated its reason, so demanding a fresh one
 		// would be asking the same argument twice.
 		if b.CarriedFrom == nil && b.GetProse() == "" {
-			return fmt.Errorf("record: close requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
+			return fmt.Errorf("requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
 		}
 	case *recordpb.Closing:
 		// Both name a gap and neither checked it. Grouped because the reference is the same
@@ -956,23 +956,23 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// naming no gap and printed "manifest row recorded for ", and a bare `closing` filed an
 		// argument about nothing.
 		if b.GetGapId() == "" {
-			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "closing")
+			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
 		}
-		if err := requireGap(run, b.GetGapId(), "closing", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
-			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "manifest-row")
+			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
 		}
-		if err := requireGap(run, b.GetGapId(), "manifest-row", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 		// A MANIFEST ROW IS THE RECEIPT. An empty one says a repair was audited and shows
 		// nothing for it, which is worth less than no row: the row is what makes "unaudited
 		// repair" countable, so a blank one flatters the count it feeds.
 		if b.GetRow() == "" {
-			return fmt.Errorf("record: manifest-row requires --%s (what you checked and what it showed — an empty receipt still counts as a repair audited)", flags.ForPayloadKey("row"))
+			return fmt.Errorf("requires --%s (what you checked and what it showed — an empty receipt still counts as a repair audited)", flags.ForPayloadKey("row"))
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
 	//
@@ -1018,11 +1018,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 	case *recordpb.Position:
 		if b.GetText() == "" {
-			return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position", "position")
+			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
 	case *recordpb.Revision:
 		if b.GetText() == "" {
-			return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "revision", "revision")
+			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "revision")
 		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
@@ -1031,10 +1031,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err := requireOriginator(run, b.GetGapId(), seatID, "regrade"); err != nil {
 			return err
 		}
-		if err := requireGap(run, b.GetGapId(), "regrade", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
-		if err := requireOpenGap(run, b.GetGapId(), "regrade", "--id",
+		if err := requireOpenGap(run, b.GetGapId(), "--id",
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
@@ -1068,10 +1068,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// at replay; one against a gap already disposed of asks for a different disposition than
 		// the one that has been made.
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-			if err := requireGap(run, b.GetGrade().GetGapId(), "motion grade file", "--id"); err != nil {
+			if err := requireGap(run, b.GetGrade().GetGapId(), "--id"); err != nil {
 				return err
 			}
-			if err := requireOpenGap(run, b.GetGrade().GetGapId(), "motion grade file", "--id",
+			if err := requireOpenGap(run, b.GetGrade().GetGapId(), "--id",
 				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
 				return err
 			}
@@ -1105,7 +1105,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// has already closed is a real act (the consistency oracle has a fixture for exactly that
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
-			if err := requireGap(run, b.GetDocket().GetGapId(), "motion docket file", "--id"); err != nil {
+			if err := requireGap(run, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
 		}
@@ -1135,10 +1135,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// offered --final. A blank direction is no direction.
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
 			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && (strings.TrimSpace(d.Docket.GetReopensOn()) == "" || d.Docket.Final != nil) {
-				return fmt.Errorf("record: motion docket rule --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing")
+				return fmt.Errorf("--as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing")
 			}
 			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
-				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
+				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
 				return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
@@ -1210,12 +1210,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 		if !hasCast {
-			return fmt.Errorf("record: dispatch refused — the record holds no cast, so there is nothing to admit %q against", b.GetSeatId())
+			return fmt.Errorf("the record holds no cast, so there is nothing to admit %q against", b.GetSeatId())
 		}
 		if !member {
-			return fmt.Errorf("record: dispatch refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup; a party outside it would be a seat the workflow invents", b.GetSeatId())
+			return fmt.Errorf("%q is not in this run's cast. The cast is the run's admissible seats, written by setup; a party outside it would be a seat the workflow invents", b.GetSeatId())
 		}
-		if err := requireGaps(run, b.GetGapIds(), "dispatch", "--seat"); err != nil {
+		if err := requireGaps(run, b.GetGapIds(), "--seat"); err != nil {
 			return err
 		}
 		if err := requireDispatchOccasions(b); err != nil {
@@ -1241,7 +1241,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return err
 		}
 	case *recordpb.SpotCheck:
-		if err := requireGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
+		if err := requireGaps(run, b.GetIds(), "--ids"); err != nil {
 			return err
 		}
 		// AN AREA IS A CAST LENS SEAT: the plan's stale_areas name seats, and a spot-check that
@@ -1257,11 +1257,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 			for _, a := range areas {
 				if seatclass.RoleOfSeat(a) != "lens" || !inCast[a] {
-					return fmt.Errorf("record: spot-check --areas names %q, which is not a lens seat in this run's cast — name the stale areas the chair's `dispatch next` lists, by seat", a)
+					return fmt.Errorf("--areas names %q, which is not a lens seat in this run's cast — name the stale areas the chair's `dispatch next` lists, by seat", a)
 				}
 			}
 		}
-		if err := requireClosedGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
+		if err := requireClosedGaps(run, b.GetIds(), "--ids"); err != nil {
 			return err
 		}
 	case *recordpb.Avenue:
@@ -1275,7 +1275,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `avenue_id`, and the seat-facing verb is `avenue` — and the schema's name is
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
-			if err := requireAvenue(run, b.GetAvenueId(), "blue's `avenue move`", "--id"); err != nil {
+			if err := requireAvenue(run, b.GetAvenueId(), "--id"); err != nil {
 				return err
 			}
 		}
@@ -1287,7 +1287,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 		}
 		if b.GetAvenueId() == "" {
-			return fmt.Errorf("record: avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
+			return fmt.Errorf("an avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
 		}
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
@@ -1304,7 +1304,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			// pointed it at a flag that does not exist. A refusal naming something the seat cannot
 			// type is worse than a bare "invalid": it is a false lead with the tool's authority
 			// behind it.
-			return fmt.Errorf("record: avenue requires --%s (what you are going to try — an unnamed avenue teaches a future run nothing)", flags.ForPayloadKey("line"))
+			return fmt.Errorf("requires --%s (what you are going to try — an unnamed avenue teaches a future run nothing)", flags.ForPayloadKey("line"))
 		}
 		// A declined or abandoned avenue with no reason is the decoration this verb
 		// exists to prevent: the road not taken is worthless without why.
@@ -1339,7 +1339,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// stricter of the two tests is kept deliberately.
 	case *recordpb.AvenueReview:
 		if strings.TrimSpace(b.GetReason()) == "" {
-			return fmt.Errorf("record: avenue-review requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where an avenue's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
+			return fmt.Errorf("requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where an avenue's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
 		}
 	case *recordpb.Halt:
 	case *recordpb.Certify:
@@ -1408,10 +1408,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
-			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")
+			return fmt.Errorf("requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")
 		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
-			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
+			return fmt.Errorf("requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
 		if err := refuseCorroborationTitleVoice(b); err != nil {
 			return err
@@ -1479,13 +1479,6 @@ func rulingWord(r *recordpb.MotionRule) string {
 	return ""
 }
 
-// verbOf names the act in the words a seat types it, for a refusal it can act on. The schema spells
-// the type; the seat typed a verb, and "record: motion_rule requires --x" sends it looking for a
-// command it never ran.
-func verbOf(typ recordpb.EventType) string {
-	return strings.ReplaceAll(recordpb.Word(typ), "_", " ")
-}
-
 // isDuplicateKey recognises the one constraint a SEAT can walk into, so it can be answered in the
 // seat's own terms rather than SQLite's.
 //
@@ -1506,7 +1499,7 @@ func isDuplicateKey(err error) bool {
 //
 // Migration is not exempt and needs no exemption: an archived run's closes were the merge's on
 // the merge's own mints, and both translate to the chair.
-func requireOriginator(run Run, gapID, seatID, verb string) error {
+func requireOriginator(run Run, gapID, seatID, act string) error {
 	if gapID == "" {
 		return nil // the missing-id refusal is the verb's own
 	}
@@ -1516,7 +1509,7 @@ func requireOriginator(run Run, gapID, seatID, verb string) error {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
 	return feov.Errorf(feov.Validation,
-		"record: %s refused — %s was minted by %s, and the originator %ss its own gap; %s cannot. "+
+		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
 			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
-		verb, gapID, mintedBy, verb, seatID)
+		gapID, mintedBy, act, seatID)
 }

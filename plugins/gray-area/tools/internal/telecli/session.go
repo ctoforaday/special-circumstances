@@ -23,7 +23,12 @@ v_session for the ones that have ended.
 
 'closed' means the catalogue's closure has settled the session. Any sign of life
 after that — new transcript bytes, or the session starting or finishing a turn —
-clears it, so a resumed session reads 'open' again.`,
+clears it, so a resumed session reads 'open' again.
+
+When a transcript the session was read from is no longer on disk, one line says
+how many of its files are gone and when the store noticed. The client expires
+transcript files on its own clock, and the rows read from one outlive it; the
+store looks once a UTC day and at every backfill.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := env.openRead(cmd.ErrOrStderr())
@@ -58,6 +63,13 @@ clears it, so a resumed session reads 'open' again.`,
 				fmt.Fprintf(out, "  %-16s %7d %7d\n", tl, s.ByTool[tl], s.Failures[tl])
 			}
 			fmt.Fprintf(out, "\n  %d words, %d thoughts\n", s.Words, s.Thoughts)
+			// THE FILE UNDER THESE ROWS MAY BE GONE, and the rows do not say so on their own: the
+			// client expires transcripts on its own clock, and what was read from one stays.
+			if s.TranscriptsGone > 0 {
+				fmt.Fprintf(out, "  %d of %d transcript file(s) are gone from disk (noticed %s) — these rows "+
+					"are the record that is left, and `find` does not search what is gone\n",
+					s.TranscriptsGone, s.Transcripts, env.ago(s.GoneSince.Int64))
+			}
 			// THE SKIPS ARE THE HALF THAT USED TO BE INVISIBLE. "0 thoughts" and "0 thoughts, 300
 			// of them arrived empty" are different facts about different subjects — the second is
 			// about the CLIENT — and only one of them says anything about the agent.

@@ -94,7 +94,7 @@ func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entr
 			if vm, ok := valueMaps[col]; ok {
 				s, isStr := v.(string)
 				if !isStr {
-					return nil, fmt.Errorf("migrate: %s.%s holds %T where a word was expected", old.Word, col, v)
+					return nil, fmt.Errorf("%s.%s holds %T where a word was expected", old.Word, col, v)
 				}
 				if to, ok := vm[s]; ok {
 					v = to
@@ -125,7 +125,7 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		return (Registry{}).Translate(avenueArm(old), dst)
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
-		return nil, fmt.Errorf("migrate: era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
+		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
 	}
 	m := &recordpb.Motion{Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum()}
 	g := &recordpb.GradeMotion{}
@@ -142,17 +142,17 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		case "dimension":
 			num, err := enumNumberOf(recordpb.GradeDimension(0).Descriptor(), v.(string))
 			if err != nil {
-				return nil, fmt.Errorf("migrate: motion.dimension: %w", err)
+				return nil, fmt.Errorf("motion.dimension: %w", err)
 			}
 			g.Dimension = recordpb.GradeDimension(num).Enum()
 		case "proposed":
 			num, err := enumNumberOf(recordpb.Grade(0).Descriptor(), v.(string))
 			if err != nil {
-				return nil, fmt.Errorf("migrate: motion.proposed: %w", err)
+				return nil, fmt.Errorf("motion.proposed: %w", err)
 			}
 			g.Proposed = recordpb.Grade(num).Enum()
 		default:
-			return nil, fmt.Errorf("migrate: old column motion.%s has no place on the grade filing — extend the era motion entry", col)
+			return nil, fmt.Errorf("old column motion.%s has no place on the grade filing — extend the era motion entry", col)
 		}
 	}
 	return []proto.Message{m}, nil
@@ -179,7 +179,7 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		case "reason":
 			r.Opinion = proto.String(v.(string))
 		default:
-			return nil, fmt.Errorf("migrate: old column motion_rule.%s has no place on the ruling — extend the era motion-rule entry", col)
+			return nil, fmt.Errorf("old column motion_rule.%s has no place on the ruling — extend the era motion-rule entry", col)
 		}
 	}
 	switch subject {
@@ -187,18 +187,18 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum()
 		num, err := enumNumberOf(recordpb.GradeRuling(0).Descriptor(), ruling)
 		if err != nil {
-			return nil, fmt.Errorf("migrate: motion_rule.ruling (grade): %w", err)
+			return nil, fmt.Errorf("motion_rule.ruling (grade): %w", err)
 		}
 		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
 	case "inquiry":
 		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum()
 		num, err := enumNumberOf(recordpb.AvenueRuling(0).Descriptor(), ruling)
 		if err != nil {
-			return nil, fmt.Errorf("migrate: motion_rule.ruling (inquiry->avenue): %w", err)
+			return nil, fmt.Errorf("motion_rule.ruling (inquiry->avenue): %w", err)
 		}
 		r.Ruling = &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling(num)}
 	default:
-		return nil, fmt.Errorf("migrate: era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
+		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
 	}
 	return []proto.Message{r}, nil
 }

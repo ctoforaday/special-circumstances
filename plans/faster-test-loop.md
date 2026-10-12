@@ -1,7 +1,9 @@
 # Faster test loop
 
-Status: proposed 2026-10-11. Three independently shippable parts, in order: Part A (built, PR #1321),
-Part R, then Part B only if the measurement after R still calls for it. Related: #1013, #1046 (both measure the same gate from the outside).
+Status: in progress, 2026-10-12. Part A is merged (#1321). Part R (#1326), Part B (#1332, local
+only) and the OCR step change this work turned up (#1330) are built, measured and open. The
+measured outcome and the rulings that followed it are under "Outcome" below; the sections after
+it are the design as audited. Related: #1013, #1046 (both measure the same gate from the outside).
 
 ## I. Summary & Goals
 
@@ -50,6 +52,45 @@ Measured on the same box in one session, arms interleaved, suite run solo for th
 | B4 | Tests executed | the package's `-test.list` | the same set, every name with a verdict |
 
 A target missed is reported with the measured figure; it is not grounds to widen the change.
+
+### Outcome (measured 2026-10-11 and 2026-10-12)
+
+CI figures are the Ubuntu `feov-record` job. CI tests the merge with `main`, so every run after
+#1321 merged includes Part A.
+
+| # | Target | Measured | Verdict |
+|---|---|---|---|
+| A1 | at most 35% of baseline | 47 s and 57 s against 218 s and 285 s, interleaved (22%, 20%) | met |
+| A2 | exactly 1, asserted | `TestTheArchiveStoreMigratesEachArchiveOnce` | met |
+| A3 | at most 400 s | 360 s (from 1,012 s) | met |
+| R1 | at most 300 s | 240 s, then 187 s (from 1,081 s; 889 s with Part A alone) | met |
+| R2 | green, at most 300 s | 141 s solo; 165.5 s inside a full `check` at load 12–20 | met |
+| R3 | every start executed | 5 of 5: `dashboard_serve.go:77` and `:79`, `seatprobe/build.go:349` (two), `debatejs/debatejs.go:331` | met |
+| R4 | the derived set, printed | 61 tests in 6 packages; one selected test skips by design (`TestWriteSeatProbeFixture`) | met |
+| B1 | — | moot: the race gate is Part R's | — |
+| B2 | at most 90 s | 59 s, 62 s, 71 s against 94 s for plain `go test`; 66.9 s and 68.7 s as the gate inside `check` | met |
+| B3 | at most 780 s | 526 s and 590 s with Parts A and R; Part B adds nothing in CI (below) | met without Part B |
+| B4 | the same set, every name with a verdict | 71 packages, 2,198 top-level tests, equal pass/fail/skip counts on both paths | met |
+
+The whole-graph race on Part R's commit, for the verdict comparison: 1,663 s locally, zero data
+races, and all 61 scoped tests have the verdict there that they have in the scoped run.
+
+**Part B does not help a four-core runner.** Through `testsplit` CI's suite step took 134 s and
+111 s against 73–104 s for plain `go test`; `internal/cli` alone went from 57 s to 100 s. Plain
+`go test` already runs four packages at once there, so every core is busy and more processes are
+contention. Ruling 6 follows from that.
+
+**The OCR engine step was the next cost, and it was not tests.** With the race step at 187–240 s,
+the step "the OCR engine's own suite" (193–268 s) was as long. Its log held about 36–70 s of
+tests and 1,230 lines of libc++ being compiled inside the first test binary's link: zig builds
+its C runtime, libc++ and compiler-rt from source on first use and caches them under the home
+directory, which a fresh runner does not have. #1330 keeps that cache with the C stack and runs
+only the `fetchcache` tests that reach the real engine: 44 s with fresh links, 17 s re-running
+identical code.
+
+**What bounds each gate now.** Locally the FEOV suite's floor is `internal/fetchcache` at about
+60 s, most of it one pacing test that sleeps a real crawl delay. In CI the Ubuntu job's largest
+steps are the race gate and the plain suite, each under four minutes.
 
 ### Value case
 
@@ -544,3 +585,13 @@ Ruled by gblock, 2026-10-11:
    value, or made by a library call the table does not list, is raced by `race-nightly` and not on
    the pull request, so such a race is found up to a day after merge. Chosen over following
    function values, which selects most of `internal/cli`.
+
+Ruled by gblock, 2026-10-12, on the measurements under "Outcome":
+
+5. **Part B is built anyway.** Asked with the recommendation to drop it, since no gate still waited
+   minutes on a single-core package after Parts A and R; chosen over dropping it.
+6. **Part B is local only.** This reverses ruling 1. `check` and `golden` run `testsplit`; the
+   workflow's suite step stays plain `go test`, and the tool splits nothing on a box of four cores
+   or fewer.
+7. **The OCR engine step is narrowed now**, as its own pull request (#1330), without a path filter
+   that would skip it.

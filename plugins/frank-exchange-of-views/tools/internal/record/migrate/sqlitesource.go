@@ -40,7 +40,7 @@ type SQLiteSource struct {
 // OpenSQLite copies the record's file set from recordsDir into scratchDir and opens the copy.
 func OpenSQLite(recordsDir, scratchDir string) (*SQLiteSource, error) {
 	if _, err := os.Stat(filepath.Join(recordsDir, dbSiblings[0])); err != nil {
-		return nil, fmt.Errorf("migrate: no %s in %s: %w", dbSiblings[0], recordsDir, err)
+		return nil, fmt.Errorf("no %s in %s: %w", dbSiblings[0], recordsDir, err)
 	}
 	if err := os.MkdirAll(scratchDir, 0o755); err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (s *SQLiteSource) vocabulary() (map[string]bool, error) {
 	if err != nil {
 		rows, err = s.db.Query(`SELECT DISTINCT "type" FROM "events"`)
 		if err != nil {
-			return nil, fmt.Errorf("migrate: reading the old vocabulary: %w", err)
+			return nil, fmt.Errorf("reading the old vocabulary: %w", err)
 		}
 	}
 	defer rows.Close()
@@ -171,7 +171,7 @@ func (s *SQLiteSource) envelopes() ([]OldEvent, error) {
 	// serializeInstances already reads as "one round".
 	var hasRound int
 	if err := s.db.QueryRow(`SELECT count(*) FROM pragma_table_info('events') WHERE "name" = 'round'`).Scan(&hasRound); err != nil {
-		return nil, fmt.Errorf("migrate: reading the old envelope's columns: %w", err)
+		return nil, fmt.Errorf("reading the old envelope's columns: %w", err)
 	}
 	round := `0`
 	if hasRound > 0 {
@@ -179,7 +179,7 @@ func (s *SQLiteSource) envelopes() ([]OldEvent, error) {
 	}
 	rows, err := s.db.Query(`SELECT "id", "seat_id", ` + round + `, "ts", "type", "key" FROM "events" ORDER BY "id"`)
 	if err != nil {
-		return nil, fmt.Errorf("migrate: reading the old envelope: %w", err)
+		return nil, fmt.Errorf("reading the old envelope: %w", err)
 	}
 	defer rows.Close()
 	var out []OldEvent
@@ -274,7 +274,7 @@ func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[in
 			return err
 		}
 		if n > 0 {
-			return fmt.Errorf("migrate: table %q holds %d row(s) and belongs to no word this record declares — "+
+			return fmt.Errorf("table %q holds %d row(s) and belongs to no word this record declares — "+
 				"rows nobody can attribute are events nobody replays, so this is a refusal rather than a skip", t, n)
 		}
 		s.unclassified = append(s.unclassified, t)
@@ -322,10 +322,10 @@ func (s *SQLiteSource) readBody(t string, byID map[int64]*OldEvent, word string)
 	return s.eachRow(t, func(id int64, fields map[string]any) error {
 		ev, ok := byID[id]
 		if !ok {
-			return fmt.Errorf("migrate: %q row for event %d, which the envelope does not hold", t, id)
+			return fmt.Errorf("%q row for event %d, which the envelope does not hold", t, id)
 		}
 		if ev.Word != word {
-			return fmt.Errorf("migrate: %q row for event %d, whose word is %q not %q", t, id, ev.Word, word)
+			return fmt.Errorf("%q row for event %d, whose word is %q not %q", t, id, ev.Word, word)
 		}
 		ev.Fields = fields
 		return nil
@@ -336,10 +336,10 @@ func (s *SQLiteSource) readArm(t, owner, arm string, byID map[int64]*OldEvent) e
 	return s.eachRow(t, func(id int64, fields map[string]any) error {
 		ev, ok := byID[id]
 		if !ok {
-			return fmt.Errorf("migrate: %q row for event %d, which the envelope does not hold", t, id)
+			return fmt.Errorf("%q row for event %d, which the envelope does not hold", t, id)
 		}
 		if ev.Word != owner {
-			return fmt.Errorf("migrate: %q row for event %d, whose word is %q not %q", t, id, ev.Word, owner)
+			return fmt.Errorf("%q row for event %d, whose word is %q not %q", t, id, ev.Word, owner)
 		}
 		if ev.Arms == nil {
 			ev.Arms = map[string]map[string]any{}
@@ -363,10 +363,10 @@ func (s *SQLiteSource) readList(t, owner, field string, byID map[int64]*OldEvent
 		}
 		ev, ok := byID[id]
 		if !ok {
-			return fmt.Errorf("migrate: %q row for event %d, which the envelope does not hold", t, id)
+			return fmt.Errorf("%q row for event %d, which the envelope does not hold", t, id)
 		}
 		if ev.Word != owner {
-			return fmt.Errorf("migrate: %q row for event %d, whose word is %q not %q", t, id, ev.Word, owner)
+			return fmt.Errorf("%q row for event %d, whose word is %q not %q", t, id, ev.Word, owner)
 		}
 		if ev.Lists == nil {
 			ev.Lists = map[string][]string{}
@@ -407,7 +407,7 @@ func (s *SQLiteSource) eachRow(t string, fn func(id int64, fields map[string]any
 			if c == "event_id" {
 				n, ok := v.(int64)
 				if !ok {
-					return fmt.Errorf("migrate: %q event_id is %T, not an integer", t, v)
+					return fmt.Errorf("%q event_id is %T, not an integer", t, v)
 				}
 				id = n
 				continue
@@ -469,7 +469,7 @@ func (s *SQLiteSource) SeatTurns() (map[string][]seatturn.Turn, error) {
 		var thinking, tool int
 		if err := rows.Scan(&agent, &t.Index, &t.TSMillis, &t.Model, &t.Input, &t.Output,
 			&t.CacheRead, &t.CacheCreation, &thinking, &tool); err != nil {
-			return nil, fmt.Errorf("migrate: reading a seat turn from the source record: %w", err)
+			return nil, fmt.Errorf("reading a seat turn from the source record: %w", err)
 		}
 		t.Thinking, t.Tool = thinking == 1, tool == 1
 		out[agent] = append(out[agent], t)

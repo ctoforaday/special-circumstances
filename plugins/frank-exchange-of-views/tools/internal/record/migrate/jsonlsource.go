@@ -79,13 +79,13 @@ func OpenJSONL(recordsDir string) (*JSONLSource, error) {
 		}
 		lines, sum, size, err := readShard(filepath.Join(recordsDir, e.Name()))
 		if err != nil {
-			return nil, fmt.Errorf("migrate: shard %s: %w", e.Name(), err)
+			return nil, fmt.Errorf("shard %s: %w", e.Name(), err)
 		}
 		s.files = append(s.files, SourceFile{Name: e.Name(), SHA256: sum, Bytes: size})
 		sittings = append(sittings, &sitting{seat: m[1], nonce: m[2], lines: lines})
 	}
 	if len(sittings) == 0 {
-		return nil, fmt.Errorf("migrate: no event shards in %s", recordsDir)
+		return nil, fmt.Errorf("no event shards in %s", recordsDir)
 	}
 
 	// Winner per seat: the sitting that started last. An empty shard cannot win (it has no
@@ -217,7 +217,7 @@ func oldEventOf(l jsonlLine, id int64) (OldEvent, error) {
 			setField(&ev, k, n)
 		case float64:
 			if t != math.Trunc(t) {
-				return ev, fmt.Errorf("migrate: %s.%s holds %v — the era wrote no fractional numbers, so this is not a shape to guess at", ev.Word, k, t)
+				return ev, fmt.Errorf("%s.%s holds %v — the era wrote no fractional numbers, so this is not a shape to guess at", ev.Word, k, t)
 			}
 			setField(&ev, k, int64(t))
 		case []any:
@@ -225,7 +225,7 @@ func oldEventOf(l jsonlLine, id int64) (OldEvent, error) {
 			for _, item := range t {
 				str, ok := item.(string)
 				if !ok {
-					return ev, fmt.Errorf("migrate: %s.%s holds a list of %T — the era's lists held strings", ev.Word, k, item)
+					return ev, fmt.Errorf("%s.%s holds a list of %T — the era's lists held strings", ev.Word, k, item)
 				}
 				vals = append(vals, str)
 			}
@@ -236,7 +236,7 @@ func oldEventOf(l jsonlLine, id int64) (OldEvent, error) {
 		case nil:
 			// absent is absent
 		default:
-			return ev, fmt.Errorf("migrate: %s.%s holds %T, which this era never wrote", ev.Word, k, v)
+			return ev, fmt.Errorf("%s.%s holds %T, which this era never wrote", ev.Word, k, v)
 		}
 	}
 	return ev, nil

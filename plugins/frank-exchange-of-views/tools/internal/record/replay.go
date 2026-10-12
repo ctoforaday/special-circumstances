@@ -728,7 +728,7 @@ func validateClass(run Run, mint *recordpb.Mint) error {
 // and has never seen a field name.
 func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 	if coined.GetSlug() == "" {
-		return fmt.Errorf("record: class new requires --class (the slug being coined)")
+		return fmt.Errorf("requires --class (the slug being coined)")
 	}
 	for _, f := range []struct {
 		flag  string
@@ -739,13 +739,13 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 		{"distinguisher", coined.GetDistinguisher()},
 	} {
 		if f.value == "" {
-			return fmt.Errorf("record: class new requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
+			return fmt.Errorf("requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
 		}
 	}
 	// The verb always writes the default, and a migration fills one where the archive predates
 	// it, so a coining without one is refused rather than left for every mint of it to guess.
 	if coined.GetMaterialDefault() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
-		return fmt.Errorf("record: class new requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
+		return fmt.Errorf("requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
 	}
 	known, _, err := knownClasses(run)
 	if err != nil {

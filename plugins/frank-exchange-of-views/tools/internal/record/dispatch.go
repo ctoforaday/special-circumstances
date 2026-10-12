@@ -172,7 +172,7 @@ func PlanDispatch(run Run) (Plan, error) {
 }
 
 // errNoCast is the dispatch's refusal of a record that holds no cast.
-var errNoCast = errors.New("record: dispatch refused — the record holds no cast. setup writes the run's admissible seats before any seat registers; a run without one has nothing to dispatch against")
+var errNoCast = errors.New("the record holds no cast. setup writes the run's admissible seats before any seat registers; a run without one has nothing to dispatch against")
 
 // planReads is every answer the dispatch plan takes off the record, read on one snapshot
 // (planReadsAt) and folded after it closes (foldPlan).
@@ -994,7 +994,7 @@ func RequireChairSittingOpened(run Run) error {
 	if !owed {
 		return nil
 	}
-	return fmt.Errorf("record: dispatch refused — %s", chairRegisterOwed(g))
+	return fmt.Errorf("%s", chairRegisterOwed(g))
 }
 
 // chairRegisterOwed is the one wording of the chair's owed register, for the refusal and the work
@@ -1141,25 +1141,25 @@ func requireDispatchOccasions(b *recordpb.Dispatch) error {
 	occ := b.GetOccasions()
 	if !SeatOwesOccasion(b.GetSeatId()) {
 		if len(occ) > 0 {
-			return fmt.Errorf("record: dispatch refused — %q is convened for no occasion; only the bench's row says what it sits for", b.GetSeatId())
+			return fmt.Errorf("%q is convened for no occasion; only the bench's row says what it sits for", b.GetSeatId())
 		}
 		return nil
 	}
 	if len(occ) == 0 {
-		return fmt.Errorf("record: dispatch refused — a bench row names what the bench is convened for (%s, %s, or both); its one seat id cannot say", occasionDocket, occasionPetition)
+		return fmt.Errorf("a bench row names what the bench is convened for (%s, %s, or both); its one seat id cannot say", occasionDocket, occasionPetition)
 	}
 	seen := map[recordpb.Occasion]bool{}
 	for _, o := range occ {
 		if !slices.Contains(dispatchOccasions, o) {
-			return fmt.Errorf("record: dispatch refused — the chair convenes the bench for %s or %s, and %s is a sitting the engine convenes", occasionDocket, occasionPetition, recordpb.Word(o))
+			return fmt.Errorf("the chair convenes the bench for %s or %s, and %s is a sitting the engine convenes", occasionDocket, occasionPetition, recordpb.Word(o))
 		}
 		if seen[o] {
-			return fmt.Errorf("record: dispatch refused — the row names %s twice; the bench sits once per occasion", recordpb.Word(o))
+			return fmt.Errorf("the row names %s twice; the bench sits once per occasion", recordpb.Word(o))
 		}
 		seen[o] = true
 	}
 	if docket, gaps := seen[recordpb.Occasion_OCCASION_DOCKET], len(b.GetGapIds()) > 0; docket != gaps {
-		return fmt.Errorf("record: dispatch refused — a docket sitting is the bench engaged on gaps, and this row has %s with %d gap(s)", strings.Join(wordsOf(occ), ", "), len(b.GetGapIds()))
+		return fmt.Errorf("a docket sitting is the bench engaged on gaps, and this row has %s with %d gap(s)", strings.Join(wordsOf(occ), ", "), len(b.GetGapIds()))
 	}
 	return nil
 }

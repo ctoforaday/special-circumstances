@@ -21,8 +21,8 @@ import (
 // version this fails with a data race on runHandle; against the constructor version it passes.
 //
 // It only means anything under `-race`, so hooks.yml runs THIS TEST on the race leg — the
-// one harness carve-out from the 2026-09-03 scope rule (race the shipped binary's source,
-// not the harnesses), kept by ruling: "keep fuzz on the hook" (#686). A harness race cannot
+// one harness carve-out from the race gate's scope (the shipped binary's import graph, never
+// the harnesses that spawn it), kept by ruling: "keep fuzz on the hook" (#686). A harness race cannot
 // ship, but it makes fuzz verdicts flaky, and a flaky verdict is a measurement defect.
 // Without that line this is a guard that cannot fire, which is the plausible zero this
 // suite exists to refuse.

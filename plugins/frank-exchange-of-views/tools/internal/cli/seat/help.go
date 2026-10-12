@@ -44,6 +44,7 @@ package seat
 import (
 	"embed"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"io/fs"
 	"strings"
 	"sync"
@@ -148,7 +149,7 @@ func parseHelp(src string) (helpDoc, error) {
 			continue
 		}
 		if strings.HasPrefix(strings.TrimSpace(line), "## ") {
-			return d, fmt.Errorf("unknown section %q — the sections are `## menu` and `## detail`", strings.TrimSpace(line))
+			return d, feov.Errorf(feov.Internal, "unknown section %q — the sections are `## menu` and `## detail`", strings.TrimSpace(line))
 		}
 		if cur != nil {
 			*cur += line + "\n"
@@ -156,16 +157,16 @@ func parseHelp(src string) (helpDoc, error) {
 	}
 	d.menu, d.detail = strings.TrimSpace(d.menu), strings.TrimSpace(d.detail)
 	if d.menu == "" {
-		return d, fmt.Errorf("no `## menu` section, or it is empty — this is the line a seat reads while deciding, and a blank one is indistinguishable from a verb with nothing to say")
+		return d, feov.Errorf(feov.Internal, "no `## menu` section, or it is empty — this is the line a seat reads while deciding, and a blank one is indistinguishable from a verb with nothing to say")
 	}
 	if d.detail == "" {
-		return d, fmt.Errorf("no `## detail` section, or it is empty — a verb whose long page adds nothing to its menu line teaches a seat that opening the page is not worth doing")
+		return d, feov.Errorf(feov.Internal, "no `## detail` section, or it is empty — a verb whose long page adds nothing to its menu line teaches a seat that opening the page is not worth doing")
 	}
 	if strings.Contains(d.menu, "\n") {
-		return d, fmt.Errorf("the menu is %d lines — it is ONE line, printed inside a listing", strings.Count(d.menu, "\n")+1)
+		return d, feov.Errorf(feov.Internal, "the menu is %d lines — it is ONE line, printed inside a listing", strings.Count(d.menu, "\n")+1)
 	}
 	if len(d.menu) > MenuLimit {
-		return d, fmt.Errorf("the menu is %d characters, over the %d limit — cobra prints it in full in the parent listing, so every character is paid by every seat that opens it", len(d.menu), MenuLimit)
+		return d, feov.Errorf(feov.Internal, "the menu is %d characters, over the %d limit — cobra prints it in full in the parent listing, so every character is paid by every seat that opens it", len(d.menu), MenuLimit)
 	}
 	return d, nil
 }
@@ -176,7 +177,7 @@ func parseHelp(src string) (helpDoc, error) {
 func LoadHelp(key string) (menu, detail string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+			err = feov.Errorf(feov.Internal, "%v", r)
 		}
 	}()
 	d := helpFor(key)

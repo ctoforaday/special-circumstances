@@ -140,7 +140,7 @@ func (r *remap) seat(old string) (string, error) {
 		n, _ := strconv.Atoi(m[1])
 		area, ok := lensAreaOfNumber(n)
 		if !ok {
-			return "", fmt.Errorf("migrate: seat %q names lens number %d, which no archived roster had — the number-to-area table in remap.go stops at 7", old, n)
+			return "", fmt.Errorf("seat %q names lens number %d, which no archived roster had — the number-to-area table in remap.go stops at 7", old, n)
 		}
 		return "red-lens-" + area, nil
 	}

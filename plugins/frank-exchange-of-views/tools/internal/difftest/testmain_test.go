@@ -12,5 +12,8 @@ import (
 // it is safe. Omitting this leaks one directory holding one linked binary per run into
 // TMPDIR, which is a tmpfs on the paths that matter. See testbuild.Main.
 // It also opens records, and TestMain is a package's ONE hook — so the orphaned-handle check
-// rides here rather than being dropped for the build sandbox (#666).
-func TestMain(m *testing.M) { testbuild.Main(m, recordtest.CheckOrphanedHandles) }
+// rides here rather than being dropped for the build sandbox (#666), and so does the verdict on
+// every refusal the binary printed (refusalonce_test.go).
+func TestMain(m *testing.M) {
+	testbuild.Main(m, recordtest.CheckOrphanedHandles, refusalsNameTheirCommandOnce)
+}

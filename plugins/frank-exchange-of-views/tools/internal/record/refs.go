@@ -38,15 +38,15 @@ import (
 // alone would be one every other caller skips. Two enforcers drifting is the defect this
 // codebase keeps finding; two callers of one enforcer is not.
 //
-// The subject is named as the FLAG, not the verb: this refusal arrives while the seat is looking
-// at one command, so "--id names gap R9-9, which no mint event created" is the whole sentence it
-// needs. validate's copy keeps the verb too, because there it can be reached by any caller.
+// The subject is named as the FLAG, never the verb, here and in validate's call of the same
+// helper: one check answers several verbs, the renderer prints the one the seat typed, and
+// "--id names gap R9-9, which no mint event created" is the whole sentence it needs.
 func GapExists(runDir, flag, id string) error {
 	run, err := OpenRun(runDir)
 	if err != nil {
 		return err
 	}
-	return requireGap(run, id, "the", flag)
+	return requireGap(run, id, flag)
 }
 
 // AvenueExists resolves an avenue.
@@ -55,7 +55,7 @@ func AvenueExists(runDir, flag, id string) error {
 	if err != nil {
 		return err
 	}
-	return requireAvenue(run, id, "the", flag)
+	return requireAvenue(run, id, flag)
 }
 
 // THESE THREE KEEP A `runDir string`, AND IT IS NOT AN OVERSIGHT.
@@ -79,7 +79,7 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 		if err != nil {
 			return err
 		}
-		return requireCitation(run, label, "the", flag, advice)
+		return requireCitation(run, label, flag, advice)
 	}
 }
 
@@ -87,7 +87,7 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 // copy of the same refusal alike: blue's own act, in blue's words.
 const ProveCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
 
-func requireGap(run Run, id, verb, flag string) error {
+func requireGap(run Run, id, flag string) error {
 	if id == "" {
 		return nil
 	}
@@ -96,15 +96,15 @@ func requireGap(run Run, id, verb, flag string) error {
 		return err
 	}
 	if !ids[id] {
-		return fmt.Errorf("record: %s %s names gap %s, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open", verb, flag, id)
+		return fmt.Errorf("%s names gap %s, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open", flag, id)
 	}
 	return nil
 }
 
 // requireGaps is the list form, naming the first that does not resolve.
-func requireGaps(run Run, ids []string, verb, flag string) error {
+func requireGaps(run Run, ids []string, flag string) error {
 	for _, id := range ids {
-		if err := requireGap(run, id, verb, flag); err != nil {
+		if err := requireGap(run, id, flag); err != nil {
 			return err
 		}
 	}
@@ -116,7 +116,7 @@ func requireGaps(run Run, ids []string, verb, flag string) error {
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
 // read back by the capture-recapture estimate. An invented id inflates the count of
 // lens-sourced gaps with a finding nobody made.
-func requireFindings(run Run, ids []string, verb, flag string) error {
+func requireFindings(run Run, ids []string, flag string) error {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -129,13 +129,12 @@ func requireFindings(run Run, ids []string, verb, flag string) error {
 			return err
 		}
 		if !found {
-			return fmt.Errorf("record: %s %s names finding %s, which no lens recorded — attribution to a finding nobody made inflates the lens-sourced count the capture estimate reads", verb, flag, l)
+			return fmt.Errorf("%s names finding %s, which no lens recorded — attribution to a finding nobody made inflates the lens-sourced count the capture estimate reads", flag, l)
 		}
 	}
 	return nil
 }
 
-// requireSeat refuses attribution to a seat that never registered.
 // requireCitation refuses a citation label that names no `blue cite` on the record.
 //
 // `blue prove --cites` names the METHOD a computation applies — "the source that says trial
@@ -143,7 +142,7 @@ func requireFindings(run Run, ids []string, verb, flag string) error {
 // cite a citation that does not exist and the assembled report would carry the link as though it
 // meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
 // axis, one verb over.
-func requireCitation(run Run, label, verb, flag, advice string) error {
+func requireCitation(run Run, label, flag, advice string) error {
 	if label == "" {
 		return nil
 	}
@@ -159,8 +158,8 @@ func requireCitation(run Run, label, verb, flag, advice string) error {
 	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
 	// corroborations, which mint a label of their own — so a count described as blue's would
 	// misstate what a seat is being compared against.
-	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. %s",
-		verb, flag, label, len(known), advice)
+	return fmt.Errorf("%s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. %s",
+		flag, label, len(known), advice)
 }
 
 // requireAvenue refuses a move against an avenue nobody proposed.
@@ -168,7 +167,7 @@ func requireCitation(run Run, label, verb, flag, advice string) error {
 // `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
 // a status change for an avenue that was never opened — and the avenues view
 // renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireAvenue(run Run, id, verb, flag string) error {
+func requireAvenue(run Run, id, flag string) error {
 	if id == "" {
 		return nil
 	}
@@ -181,22 +180,8 @@ func requireAvenue(run Run, id, verb, flag string) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("record: %s %s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`avenue propose --reason …`, which ASSIGNS the id); --id moves an avenue that already exists",
-		verb, flag, id)
-}
-
-func requireSeat(run Run, seatID, verb, flag string) error {
-	if seatID == "" {
-		return nil
-	}
-	found, err := recordHas(run, `SELECT 1 FROM "events" WHERE "seat_id" = ? LIMIT 1`, seatID)
-	if err != nil {
-		return err
-	}
-	if found {
-		return nil
-	}
-	return fmt.Errorf("record: %s %s names seat %s, which has recorded nothing in this run — a ruling attributed to a seat that never sat cannot be matched to the petition it answers", verb, flag, seatID)
+	return fmt.Errorf("%s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`avenue propose --reason …`, which ASSIGNS the id); --id moves an avenue that already exists",
+		flag, id)
 }
 
 // ---- STATE, not just existence ----
@@ -226,7 +211,7 @@ func gapState(run Run, id string) (closed bool, err error) {
 }
 
 // requireOpenGap refuses an act that only makes sense on a live gap.
-func requireOpenGap(run Run, id, verb, flag, why string) error {
+func requireOpenGap(run Run, id, flag, why string) error {
 	if id == "" {
 		return nil
 	}
@@ -235,14 +220,14 @@ func requireOpenGap(run Run, id, verb, flag, why string) error {
 		return err
 	}
 	if closed {
-		return fmt.Errorf("record: %s %s names gap %s, which is already CLOSED — %s", verb, flag, id, why)
+		return fmt.Errorf("%s names gap %s, which is already CLOSED — %s", flag, id, why)
 	}
 	return nil
 }
 
 // requireClosedGap is the mirror: spot-check re-verifies the ARCHIVE, so naming a gap that
 // was never closed is not a sample of anything.
-func requireClosedGaps(run Run, ids []string, verb, flag string) error {
+func requireClosedGaps(run Run, ids []string, flag string) error {
 	for _, id := range ids {
 		if id == "" {
 			continue
@@ -252,7 +237,7 @@ func requireClosedGaps(run Run, ids []string, verb, flag string) error {
 			return err
 		}
 		if !closed {
-			return fmt.Errorf("record: %s %s names gap %s, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it", verb, flag, id)
+			return fmt.Errorf("%s names gap %s, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it", flag, id)
 		}
 	}
 	return nil
@@ -297,7 +282,7 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 	arrived := append([]string(nil), g.GetMigrationAdmittedGapIds()...)
 	if !Migrating {
 		if len(arrived) > 0 {
-			return fmt.Errorf("record: verdict refused — it carries migration_admitted_gap_ids (%s), which only a migration writes: it records the open material gaps an archived PASS was admitted over. A live PASS closes its material gaps or is refused; record the verdict without it",
+			return fmt.Errorf("it carries migration_admitted_gap_ids (%s), which only a migration writes: it records the open material gaps an archived PASS was admitted over. A live PASS closes its material gaps or is refused; record the verdict without it",
 				strings.Join(arrived, ", "))
 		}
 		return nil

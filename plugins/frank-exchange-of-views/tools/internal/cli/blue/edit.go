@@ -3,6 +3,7 @@ package blue
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"slices"
 	"strings"
 
@@ -49,7 +50,7 @@ func newEdit() *cobra.Command {
 			return nil, err
 		}
 		if strings.TrimSpace(reason) == "" {
-			return nil, fmt.Errorf("requires --reason: why this change (the argument red re-audits against)")
+			return nil, feov.Errorf(feov.MissingField, "requires --reason: why this change (the argument red re-audits against)")
 		}
 		oldStr := seat.Str(cmd, flags.Quote)
 		newStr := seat.Str(cmd, flags.New)
@@ -78,29 +79,29 @@ func newEdit() *cobra.Command {
 		}
 		if accepting {
 			if gapID == "" {
-				return nil, fmt.Errorf("--accept needs --answers: the gap whose prescribed fix you are accepting")
+				return nil, feov.Errorf(feov.MissingField, "--accept needs --answers: the gap whose prescribed fix you are accepting")
 			}
 			if oldStr != "" || newStr != "" {
-				return nil, fmt.Errorf("--accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
+				return nil, feov.Errorf(feov.Validation, "--accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
 			}
 			loc, fix, found, err := record.Proposal(run, gapID, peek)
 			if err != nil {
 				return nil, err
 			}
 			if !found {
-				return nil, fmt.Errorf("--accept: no gap %s on the board", gapID)
+				return nil, feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", gapID)
 			}
 			if strings.TrimSpace(fix) == "" {
-				return nil, fmt.Errorf("--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
+				return nil, feov.Errorf(feov.Conflict, "--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
 			}
 			oldStr, newStr = loc, fix
 		}
 
 		if oldStr == "" {
-			return nil, fmt.Errorf("requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
+			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
 		}
 		if oldStr == newStr {
-			return nil, fmt.Errorf("--old and --new are identical — no change to make")
+			return nil, feov.Errorf(feov.Validation, "--old and --new are identical — no change to make")
 		}
 		key := seat.Str(cmd, flags.Key)
 
@@ -249,7 +250,7 @@ func planEdit(report, old, new string) (string, string, bool, error) {
 		return "", "", false, err
 	}
 	if dropped := droppedMarker(report, next); dropped != "" {
-		return "", "", false, fmt.Errorf("internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
+		return "", "", false, feov.Errorf(feov.Internal, "internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
 	return next, applied, exact, nil
 }
@@ -294,7 +295,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 				for _, id := range anchor.IDs(run) {
 					labels = append(labels, anchor.Label(id))
 				}
-				return "", "", false, fmt.Errorf("your quote stops before %s. An anchor the quote leaves out stays where it stands, on the text that precedes it, "+
+				return "", "", false, feov.Errorf(feov.Validation, "your quote stops before %s. An anchor the quote leaves out stays where it stands, on the text that precedes it, "+
 					"and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. "+
 					"To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes",
 					strings.Join(labels, ", "))
@@ -302,7 +303,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 		}
 	}
 	if run := reportproj.DoubledTerminator(report, planned); run != "" {
-		return "", "", false, fmt.Errorf("this replacement would leave %q in the report — a punctuation run the document did not have. "+
+		return "", "", false, feov.Errorf(feov.Validation, "this replacement would leave %q in the report — a punctuation run the document did not have. "+
 			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --quote names stops SHORT of the "+
 			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
 			"how a repair makes the document strictly worse while reading as applied. The quote as written, punctuation included, "+
@@ -431,7 +432,7 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 	}
 	fmt.Fprintf(&b, "Write each anchor after the sentence that now holds its claim. Where every one of them belongs on sentence %d, make the change in two edits: "+
 		"reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word", len(now))
-	return errors.New(b.String())
+	return feov.Errorf(feov.Validation, "%s", b.String())
 }
 
 // droppedMarker returns an anchor id present in before but absent from after, or "" — read on the

@@ -45,7 +45,7 @@ func TestScorecardRefusesAnUnknownCardByName(t *testing.T) {
 	if err == nil {
 		t.Fatal("--card chair was accepted; the cards are red, blue and bench")
 	}
-	for _, want := range []string{`"chair" is not a scorecard`, "red, blue and bench", "omit --card"} {
+	for _, want := range []string{`"chair" is not a card`, "red, blue and bench", "omit --card"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not say %q: %v", want, err)
 		}

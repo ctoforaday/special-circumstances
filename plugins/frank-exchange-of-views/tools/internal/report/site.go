@@ -107,7 +107,7 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 	if err := siteTmpl.Execute(&b, page); err != nil {
 		// The template and its data are both compiled in; an execute error is a programming
 		// error, and a panic in tests is how it gets found.
-		panic(fmt.Sprintf("report: site template: %v", err))
+		panic(fmt.Sprintf("site template: %v", err))
 	}
 	return b.String()
 }

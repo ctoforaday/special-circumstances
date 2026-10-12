@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -365,8 +366,8 @@ func teachUnknownSubcommand(root *cobra.Command) {
 					have = append(have, s.Name())
 				}
 			}
-			return seat.RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf("`%s` has no `%s` act on any seat's surface — yours has %s.",
-				group.Name(), sub, strings.Join(have, ", ")))
+			return seat.RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf("no `%s` act exists here, on any seat's surface — yours has %s.",
+				sub, strings.Join(have, ", ")))
 		}
 	}
 }
@@ -611,10 +612,23 @@ func codeCobraRefusal(cmd *cobra.Command, err error) error {
 	switch {
 	case isMissingRequired(cmd, err):
 		return feov.Wrap(feov.MissingField, err, "%s", err.Error())
+	case same(cobra.NoArgs(cmd, cmd.Flags().Args())):
+		// COBRA'S SENTENCE HERE NAMES THE COMMAND — `unknown command "x" for "<tool> <path>"` — and
+		// calls an argument a command. The renderer prints the path, so this says what is wrong.
+		return feov.Wrap(feov.Validation, err, "takes no arguments; got %s", quotedArgs(cmd.Flags().Args()))
 	case same(cmd.ValidateFlagGroups()), same(cmd.ValidateArgs(cmd.Flags().Args())):
 		return feov.Wrap(feov.Validation, err, "%s", err.Error())
 	}
 	return err
+}
+
+// quotedArgs is an argument list as the seat typed it, each word quoted.
+func quotedArgs(args []string) string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		out[i] = strconv.Quote(a)
+	}
+	return strings.Join(out, " ")
 }
 
 // translateUnknownFlag answers the seat's ACTUAL mistake when it typed the record's word for a

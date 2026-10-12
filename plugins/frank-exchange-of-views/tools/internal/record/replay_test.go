@@ -314,13 +314,13 @@ type validateContract struct {
 // that quietly stopped covering half the verbs.
 func validateContractCases() []validateContract {
 	return []validateContract{
-		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x")}, "mint requires --check"},
-		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
-		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
+		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x")}, "requires --check"},
+		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "requires --check"},
+		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "requires --class"},
 		{"mint complete", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
 
-		{"close without --id", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{}, "close requires --id"},
-		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "regrade requires --reason"},
+		{"close without --id", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{}, "requires --id"},
+		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "requires --reason"},
 		{"regrade complete", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}, ""},
 
 		// `--quote`, NOT `--claim`: the field is `claim` and the flag a seat types is `--quote`,
@@ -328,8 +328,8 @@ func validateContractCases() []validateContract {
 		// This expectation was the field name, so it passed while the message and the parser
 		// agreed with each other and disagreed with the test — a refusal naming a flag nobody can
 		// pass is the class this branch has found four times, and the test asserted it.
-		{"retire without --quote", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, "retire requires --quote"},
-		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "retire requires --reason"},
+		{"retire without --quote", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, "requires --quote"},
+		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "requires --reason"},
 		{"retire complete", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 
 		// An unknown status is UNREPRESENTABLE: AvenueStatus is an enum, so `shelved` cannot be built.
@@ -351,7 +351,7 @@ func validateContractCases() []validateContract {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
-		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "motion rule requires --id"},
+		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "requires --id"},
 		// AN UNKNOWN VERB IS UNREPRESENTABLE: the type is an enum and the body is a message, so there
 		// is no "no-such-verb" to pass. The arm that ignored it is gone with the string.
 	}
@@ -571,7 +571,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// field. A fixture omitting --reason would be refused for that and never reach the rule
 		// it names. The ordering is a deliberate change: the old code ran requiredness LAST so
 		// the more specific refusal led, and this reverses it.
-		{"unknown gap", &recordpb.Close{GapId: proto.String("G3"), Prose: proto.String("verified")}, "close of unknown gap"},
+		{"unknown gap", &recordpb.Close{GapId: proto.String("G3"), Prose: proto.String("verified")}, "--id names gap G3, which no mint event created"},
 		{"no anchor at all", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified")}, "requires the verification triple"},
 		{"a PARTIAL anchor is not an anchor", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1")}, "requires the verification triple"},
 		{"anchor missing its target", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show")}, "requires the verification triple"},

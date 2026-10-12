@@ -118,7 +118,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 func changesForGap(in Input, gapID string) ([]byte, error) {
 	g, ok := record.GapsByID(in.Gaps)[gapID]
 	if !ok {
-		return nil, fmt.Errorf("view changes: no gap %s on the board — --id takes a gap id (a mint created it), and a view that answered for an id nobody minted would be inventing a comparison", gapID)
+		return nil, fmt.Errorf("no gap %s on the board — --id takes a gap id (a mint created it), and a view that answered for an id nobody minted would be inventing a comparison", gapID)
 	}
 
 	out := []string{
