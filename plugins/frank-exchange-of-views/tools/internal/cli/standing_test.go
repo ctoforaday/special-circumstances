@@ -111,6 +111,65 @@ func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 	}
 }
 
+// THE COUNT IS THE SEAT'S OWN DEBT. A chair's list holds the PASS gate's blockers, and some are
+// another seat's to clear — an open material gap its minter closes. The chair was told "10 STILL TO
+// CLEAR before you may end your turn" over two of those and ended its turn, correctly, with all ten
+// open (the 2026-10-12 smoke, chair sitting 8). So the count covers what the chair clears, the
+// sentence says those hold a PASS, and what another seat clears is stated after as the board's state.
+func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
+	runDir := seatRun(t)
+	id := mintGap(t, runDir, "a-material-gap", "c")
+	gapLine := "gap " + id + " is open and material"
+
+	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", "red's account of this epoch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, board, found := strings.Cut(out, "ANOTHER SEAT'S TO CLEAR")
+	if !found {
+		t.Fatalf("the chair's digest does not set apart what another seat clears:\n%s", out)
+	}
+	if strings.Contains(head, gapLine) || !strings.Contains(board, gapLine) {
+		t.Errorf("a gap its minter closes is counted in the chair's own debt, want it under the board's state:\n%s", out)
+	}
+	if !strings.Contains(head, "your terminal act is missing") {
+		t.Errorf("the chair's own item is not in its own count:\n%s", out)
+	}
+	if strings.Contains(out, "before you may end your turn") {
+		t.Errorf("the chair's PASS blockers are said to hold its turn:\n%s", out)
+	}
+	if !strings.Contains(head, "STILL TO CLEAR before the run can PASS") {
+		t.Errorf("the chair is not told its items hold a PASS:\n%s", out)
+	}
+
+	// THE ENVELOPE SAYS THE SAME: `blocking` is the chair's own, and the rest is beside it.
+	raw, err := run(t, "log", "--run", runDir, "--seat-id", "red-chair", "--json", "--reason", "nothing blocked me", "--type", "defect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env struct {
+		Standing struct {
+			Blocking          []string `json:"blocking"`
+			AnotherSeatClears []string `json:"another_seat_clears"`
+		} `json:"standing"`
+	}
+	if e := json.Unmarshal([]byte(raw), &env); e != nil {
+		t.Fatalf("the envelope did not parse (%v):\n%s", e, raw)
+	}
+	if strings.Contains(strings.Join(env.Standing.Blocking, "\n"), gapLine) || !strings.Contains(strings.Join(env.Standing.AnotherSeatClears, "\n"), gapLine) {
+		t.Errorf("the envelope counts another seat's blocker as the chair's: %s", raw)
+	}
+
+	// A SEAT WHOSE ITEMS ARE ALL ITS OWN IS TOLD THEY HOLD ITS TURN, as before.
+	blue, err := run(t, "log", "--run", runDir, "--seat-id", "blue-respond", "--reason", "nothing blocked me", "--type", "defect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(blue, "ANOTHER SEAT'S TO CLEAR") || strings.Contains(blue, "before a PASS") {
+		t.Errorf("a seat that is not the chair is shown the chair's sentence:\n%s", blue)
+	}
+}
+
 // A MOTION CARRIES IT TOO, and it is here because the motion verbs reach Emit by a different route:
 // they are built from a bare cobra.Command rather than through NewKeyed. Filing and ruling
 // are writes, a bench ruling is the act most likely to flip `complete`, and nothing else in this file
@@ -129,8 +188,8 @@ func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 	}
 }
 
-// saysWhereYouStand matches either terminal of the standing block, in ONE place — the two phrases are
+// saysWhereYouStand matches each opening of the standing block, in ONE place — the phrases are
 // what the block is, and a test spelling them separately drifts from the renderer one leg at a time.
 func saysWhereYouStand(s string) bool {
-	return strings.Contains(s, "ALL CLEAR") || strings.Contains(s, "STILL TO CLEAR")
+	return strings.Contains(s, "ALL CLEAR") || strings.Contains(s, "STILL TO CLEAR") || strings.Contains(s, "NOTHING HERE IS YOURS TO CLEAR")
 }
