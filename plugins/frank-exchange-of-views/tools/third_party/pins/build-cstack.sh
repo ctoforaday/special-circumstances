@@ -85,6 +85,13 @@ if [ "$MODE" = "env" ]; then
 	# -lc++ is zig's bundled STATIC libc++ — the whole "-lstdc++ handled by zig" story.
 	echo "export CC=$T/bin/zigcc"
 	echo "export CXX=$T/bin/zigcxx"
+	# zig builds its C runtime, libc++ and compiler-rt FROM SOURCE the first time a link
+	# needs them, and keeps the result in its global cache — by default under the home
+	# directory, which a fresh CI runner does not have. Measured there: a 196s test step
+	# held 36s of tests, and its log carried 1,230 lines of libc++ being compiled inside
+	# the first test binary's link. The cache lives in the work directory instead, where
+	# the build below fills it and whatever preserves the stack preserves it too.
+	echo "export ZIG_GLOBAL_CACHE_DIR=$WORK/zig-cache"
 	echo "export CGO_ENABLED=1"
 	echo "export CGO_CFLAGS=\"-I$PREFIX/include\""
 	echo "export CGO_CXXFLAGS=\"-I$PREFIX/include\""
@@ -320,6 +327,20 @@ Darwin)
 		'/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation' "$cf_syms"
 	write_tbd "$PREFIX/Frameworks/Security.framework/Security.tbd" \
 		'/System/Library/Frameworks/Security.framework/Versions/A/Security' "$sec_syms"
+	;;
+esac
+
+# ---- the linker's runtime, built once here rather than at every consumer's first link ----
+# One static link of an empty C++ program makes zig compile the target's libc, libc++ and
+# compiler-rt into the cache `env` points every later link at. Linux targets only: those are
+# the ones a test binary is linked for on the build host, and macOS has no static link to make.
+case "$SYSNAME" in
+Linux)
+	phase "runtime"
+	export ZIG_GLOBAL_CACHE_DIR="$WORK/zig-cache"
+	printf 'int main() { return 0; }\n' > "$T/build/runtime.cc"
+	"$CXX" -c -o "$T/build/runtime.o" "$T/build/runtime.cc"
+	"$CC" -static -o "$T/build/runtime" "$T/build/runtime.o" -lc++
 	;;
 esac
 
