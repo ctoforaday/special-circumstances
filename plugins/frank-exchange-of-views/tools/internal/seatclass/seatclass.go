@@ -3,11 +3,12 @@
 // of seat-classify.mjs, which itself existed because two JS copies of this classifier had drifted
 // (cost-audit lacked the terminal-disposition case, misattributing that seat's spend).
 //
-// seat-classify.mjs is DELETED (#121 slice 5): this is the SOLE canonical seat→class map. No copy
-// lives in debate.js — it spreads `...bulk` or `...judgment` at each dispatch — and
-// integration/surface's TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier RUNS the
-// script to every agent() call and holds the model each dispatch carried to the class ClassOf
-// reports for its seat.
+// seat-classify.mjs is DELETED (#121 slice 5): this is the SOLE canonical seat→class map.
+// debate.js reads each seat's class from its generated seat block, which devcmd/enginegen writes
+// from this map, and integration/surface's
+// TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier RUNS the script to every agent()
+// call and holds the model each dispatch carried to the class ClassOf reports for the seat its
+// prompt names.
 package seatclass
 
 import "strings"

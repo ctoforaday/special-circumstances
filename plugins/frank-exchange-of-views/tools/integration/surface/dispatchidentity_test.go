@@ -17,10 +17,13 @@ import (
 //
 // A dispatch states its identity three times: the SEAT_ID in the prompt, which the seat types at
 // register; the agent type, which the hook attests and the record reads the seat back from; and
-// the model, which is the seat's tier. debate.js writes each at the call site, so a site can name
-// one seat in its prompt and dispatch another seat's configuration — `blue-respond` under
-// `blue-synthesizer` attests the same role, registers cleanly, and has its sitting attributed to
-// `blue-synthesize`.
+// the model, which is the seat's tier. The configuration and tier of every seat are debate.js's
+// generated seat block, written from the roster (devcmd/enginegen), so neither can be misspelled.
+// What a call site authors is WHICH seat, and it says so twice — once to the prompt and once
+// to `dispatchAs` — so a site can name one seat in its prompt and dispatch another's row:
+// `blue-respond` under `blue-synthesizer` attests the same role, registers cleanly, and has its
+// sitting attributed to `blue-synthesize`. A site also authors which occasion it convenes the
+// bench on, and whether a seat has a site at all.
 //
 // THE SCRIPT IS RUN, NOT READ. The drive is the one TestEveryFragmentRendersOnceWhereItIsIncluded
 // uses, which reaches every agent() call in the script or fails by line; each dispatch is then
@@ -43,7 +46,6 @@ func TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier(t *testing.T) 
 		Model: tierModel["bulk"], JudgmentModel: tierModel["judgment"]})
 
 	laneIDs := record.LaneSeatIDs(lanes)
-	occasionWords := record.OccasionWords()
 	sat := map[string]bool{}
 	convened := map[string]bool{}
 	for _, d := range ds {
@@ -69,13 +71,7 @@ func TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier(t *testing.T) 
 		if owes := record.SeatOwesOccasion(d.SeatID); owes != (d.Occasion != "") {
 			t.Errorf("%s: seat %s is told OCCASION %q; a seat owes one at register: %v", where, d.SeatID, d.Occasion, owes)
 		}
-		if d.Occasion != "" {
-			convened[d.Occasion] = true
-			if !slices.Contains(occasionWords, d.Occasion) {
-				t.Errorf("%s: the bench is convened on occasion %q, which the record does not carry (%s) — register refuses it",
-					where, d.Occasion, strings.Join(occasionWords, ", "))
-			}
-		}
+		convened[d.Occasion] = true
 	}
 
 	// AND EVERY SEAT AND OCCASION THE RECORD ADMITS IS ONE THE ENGINE REACHES. A roster seat no
@@ -91,7 +87,7 @@ func TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier(t *testing.T) 
 			t.Errorf("a run of %d lanes seats %s, and the drive dispatched no such seat", lanes, id)
 		}
 	}
-	for _, w := range occasionWords {
+	for _, w := range record.OccasionWords() {
 		if !convened[w] {
 			t.Errorf("the record carries the occasion %q, and no sitting of the drive was convened on it", w)
 		}

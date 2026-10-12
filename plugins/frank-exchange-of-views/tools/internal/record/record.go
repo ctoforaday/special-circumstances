@@ -59,10 +59,10 @@ import (
 // MassMappingVersion stamps every telemetry line (view.go) with WHICH mass mapping produced
 // its numbers. cost.go reads it back.
 //
-// The engine names the same mapping to blue in its response prompt (`MASS_MAPPING_VERSION` in
-// debate.js), and massparity_test.go holds the two stamps equal: a reader joining runs by
-// mapping_version must find one population, not two. The stamp moves when the SEMANTICS of a
-// grade move, even where no weight does.
+// The engine names the same mapping to blue in its response prompt, as `MASS_MAPPING_VERSION` in
+// debate.js's generated seat block, which devcmd/enginegen writes from this constant: a reader
+// joining runs by mapping_version must find one population, not two. The stamp moves when the
+// SEMANTICS of a grade move, even where no weight does.
 const MassMappingVersion = "v2"
 
 // MASS IS DERIVED FROM THE VOCABULARY, not typed here.

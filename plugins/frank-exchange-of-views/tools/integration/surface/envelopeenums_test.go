@@ -147,12 +147,14 @@ func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 	// another, and keying on the bare name silently bound the first to the second — this gate's
 	// own first draft did that, which is the same collision it exists to catch.
 	schemaDecl := regexp.MustCompile(`^const ([A-Z_]+) = \{`)
-	// AN ENUM SPELLED WITH THE ENGINE'S OWN CONSTANTS IS READ THROUGH THEM: `[DOCKET_OCCASION,
-	// PETITION_OCCASION]` is the two words those constants hold, and an identifier this file does
-	// not declare as a string stays itself — which no record enum holds, so it fails loudly.
+	// AN ENUM SPELLED WITH THE ENGINE'S OCCASION TABLE IS READ THROUGH IT: `[OCCASION.docket,
+	// OCCASION.petition]` is the two words those entries hold, and a member the table does not
+	// declare stays itself — which no record enum holds, so it fails loudly.
 	words := map[string]string{}
-	for _, m := range regexp.MustCompile(`(?m)^const ([A-Z_]+) = '([^']*)'$`).FindAllStringSubmatch(string(b), -1) {
-		words[m[1]] = m[2]
+	if table := regexp.MustCompile(`(?m)^const OCCASION = \{ (.*) \}$`).FindStringSubmatch(string(b)); table != nil {
+		for _, m := range regexp.MustCompile(`(\w+): '([^']*)'`).FindAllStringSubmatch(table[1], -1) {
+			words["OCCASION."+m[1]] = m[2]
+		}
 	}
 	parse := func(raw string) []string {
 		out := parseJSValues(raw)
