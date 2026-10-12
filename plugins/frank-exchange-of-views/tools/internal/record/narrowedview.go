@@ -25,8 +25,8 @@ import (
 // renderer reads and its declaration leaves out fails there, on a record that carries it.
 //
 // ONE READ TRANSACTION, for the families and for every other question the renderer asks. The board
-// reads its closures from the events and its openness from the `gap` table; asked on two snapshots, a
-// close landing between them renders a gap closed with no closure and epoch 0. So the renderer is
+// takes which act closed a gap from the `gap` view and that act's body from the events; asked on two
+// snapshots, a close landing between them names an act the read did not load. So the renderer is
 // handed the transaction the events came off and asks the record nothing except through it. The run's
 // handle is ONE connection (recordsql.Open), so a read around that transaction, from inside the
 // renderer, waits on it forever.

@@ -184,8 +184,8 @@ type Gap struct {
 	// closed it, not merely that it is closed.
 	ClosedByBench bool
 	// Material is the gap's materiality NOW: its class's default, and for a `by_grade` class its
-	// current severity against the floor. It is the Go carrier of the one definition; the gap
-	// view's "material" column is the other, and a test holds the two level.
+	// current severity against the floor. It is the gap view's "material" column (gap_grade's
+	// standing row), which FamilyOf reads.
 	Material bool
 }
 
@@ -282,25 +282,6 @@ func DocketGapByMotion(evs []*Event) map[string]string {
 	return out
 }
 
-// benchClosesGap says which dispositions end a gap's life on the board.
-//
-// # What this used to be, and why the shape was the bug
-//
-// It was `disposition != "" && disposition != DispositionRemanded` — a NEGATIVE rule, with the
-// closing set defined as everything left over. That reads as economical and it is a trap: a
-// disposition added to the vocabulary later is classified as CLOSING by default, silently, with no
-// author ever asked. Measured — `grade_adjusted` was added for a bench that had adjusted a grade
-// and explicitly kept the gap alive, and this predicate retired it. No test of the function's
-// stated behaviour could fail, because its stated behaviour was exactly what it did.
-//
-// The set is now on the values themselves (`(closes)` in record.proto), so adding a word without
-// answering the question is an init panic (see dispositionsWhere) rather than a default. What is
-// left here is the one thing that is genuinely about REPLAY and not about the vocabulary: an
-// unspecified disposition closes nothing, because it means the bench never said.
-func benchClosesGap(d recordpb.Disposition) bool {
-	return recordpb.Closes(d)
-}
-
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
 //
 // ONE SPELLING, ONE LIST. The word is the Grade enum's own (`low_medium`, `medium_high`): the grade
@@ -355,8 +336,8 @@ type Observation struct {
 }
 
 // NO GO FOLD OF THE RECORD EXISTS (plans/board-as-views.md wave 7). Every reader derives from
-// the gap view, the typed loader and the family (GapStates/FamilyOf), and the consistency oracle
-// holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by GapStates.
+// the gap view, the typed loader and the family (FamilyOf), and the consistency oracle
+// holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by FamilyOf.
 
 func allGapIDs(run Run) (map[string]bool, error) {
 	db, err := openRunForRead(run)

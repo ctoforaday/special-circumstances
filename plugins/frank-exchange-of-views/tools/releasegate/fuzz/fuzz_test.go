@@ -1540,7 +1540,7 @@ func (r *runner) someFinding() string {
 // dispatch the same tree in process). These three call sites were never what proved `show board`
 // works — they were the harness reading its own board through a subprocess.
 //
-// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.BoardJSONOf,
+// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.FamilyOf,
 // EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
 // hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
 // a reordering would silently move every downstream draw.

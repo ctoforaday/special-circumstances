@@ -324,12 +324,13 @@ func TestTheBoardIsAQuery(t *testing.T) {
 		t.Errorf("board_counts = (%d open, %d closed), want (1, 1)", open, closed)
 	}
 
-	// The closure's reason travels with the gap, so the closure index is a SELECT rather than a
-	// second walk that has to agree with the first about what closed means.
+	// The gap names the act that closed it, so the closure's reason is a JOIN through that act
+	// rather than a second walk that has to agree with the first about what closed means.
 	var class, why string
 	if err := db.QueryRow(`
-		SELECT g."closure_class", v."means"
-		FROM "gap" g JOIN "enum_disposition" v ON v."value" = g."closure_class"
+		SELECT c."closure_class", v."means"
+		FROM "gap" g JOIN "close" c ON c."event_id" = g."close_event"
+		JOIN "enum_disposition" v ON v."value" = c."closure_class"
 		WHERE g."gap_id" = 'G2'`).Scan(&class, &why); err != nil {
 		t.Fatalf("a closed gap does not join to why it closed: %v", err)
 	}
@@ -339,12 +340,12 @@ func TestTheBoardIsAQuery(t *testing.T) {
 
 	// And an open gap reports no closure rather than an empty one — the distinction a fold that
 	// defaults to "" cannot make.
-	var cc *string
-	if err := db.QueryRow(`SELECT "closure_class" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&cc); err != nil {
+	var ce *int64
+	if err := db.QueryRow(`SELECT "close_event" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&ce); err != nil {
 		t.Fatal(err)
 	}
-	if cc != nil {
-		t.Errorf("an open gap reports closure_class %q", *cc)
+	if ce != nil {
+		t.Errorf("an open gap reports close_event %d", *ce)
 	}
 }
 

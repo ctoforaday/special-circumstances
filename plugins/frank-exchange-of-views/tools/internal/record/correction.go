@@ -322,13 +322,19 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 // closedByTarget answers whether the act a correction replaces is the one that closed this gap —
 // the case where "the gap is already closed" is the correction's own premise, not a refusal. A read
 // that fails answers false, so the ordinary guard runs and says what it says.
+//
+// THE EARLIEST STANDING RED CLOSE, read from closure_act itself, where the gap view states the
+// LAST: the question is whether the target is the act that closed the gap, and a later standing
+// close on a closed gap is a carry that restates it.
 func closedByTarget(run Run, gapID string, target *correctionTarget) bool {
 	if target == nil || gapID == "" {
 		return false
 	}
-	var seq sql.NullInt64
-	found, err := queryRow(run, []any{&seq}, `SELECT "merge_closed_seq" FROM "gap" WHERE "gap_id" = ?`, gapID)
-	return err == nil && found && seq.Valid && seq.Int64 == target.ID
+	var seq int64
+	found, err := queryRow(run, []any{&seq}, `SELECT c."event_id" FROM "closure_act" c
+	  JOIN "live_event" l ON l."event_id" = c."event_id"
+	  WHERE c."gap_id" = ? AND c."arm" = 'close' ORDER BY l."pos" LIMIT 1`, gapID)
+	return err == nil && found && seq == target.ID
 }
 
 // correctionRetry answers a correction this seat already made of this key: the SAME replacement is

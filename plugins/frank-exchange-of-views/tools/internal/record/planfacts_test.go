@@ -106,7 +106,10 @@ func TestPlanFactsAnswerForTheRecordAsItStoodAtThePoint(t *testing.T) {
 	b.register(evLens).register("blue-respond").
 		register("judge").add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("no"),
 		Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}}).
-		register("red-chair")
+		// The chair carries G3's closure forward at the end: a second closing act, after every point
+		// asked below. G3 reads closed from its FIRST.
+		register("red-chair").add("red-chair", &recordpb.Close{GapId: proto.String("G3"),
+		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), CarriedFrom: proto.String("1"), Prose: proto.String("as before")})
 	run := b.seed()
 	evs, win, err := dispatchEventsOf(run)
 	if err != nil {

@@ -293,17 +293,14 @@ func BoardJSONBytes(run Run) ([]byte, error) { return boardView.jsonBytes(run) }
 // regrades, findings — come through the typed loader, because their bodies render whole and the
 // schema machinery is the one statement of body shape.
 //
-// It must answer byte-identically to BoardJSONOf over the fold — boardparity_test.go holds the
-// pair on records that exercise the fold's edges (a gap closed by BOTH arms, where attribution
-// follows the LAST closing event but the embedded body prefers the red close) — until the last
-// board-holding caller's wave retires the fold shape (plans/board-as-views.md wave 7).
+// closureview_test.go holds it on a gap closed more than once and by BOTH arms, where attribution
+// follows the LAST standing closing act but the embedded body prefers the red close.
 func BoardJSONOfRun(run Run) (BoardJSON, error) { return boardView.of(run) }
 
 // boardView is the acts the board embeds or attributes, one filtered typed read, grouped per gap;
 // every gap's scalars come off the same snapshot (boardJSONOfRecord).
 var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_CLOSE,
-	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_REGRADE,
 	recordpb.EventType_EVENT_TYPE_FINDING,
@@ -330,14 +327,10 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	report, renderErr := renderProjection(ReportProjectionAt(q))
 
 	verified := backingOf(Live(evs))
-	// THE CLOSURE IS A FOLD (the acts that stand); THE REGRADE HISTORY IS A LISTING (every regrade,
-	// a struck one marked `struck`). Read raw, a corrected regrade listed as two ordinary regrades
-	// and a struck close could be taken for the gap's closure.
-	closures, unpairedDocket := closureStatesOf(Live(evs), win)
-	for _, id := range unpairedDocket {
-		out.Anomalies = append(out.Anomalies, fmt.Sprintf(
-			"motion %s: a docket RULING with no filing in this stream — the gap it disposes of cannot be identified, so it is reported OPEN here; the ruling was DROPPED from this projection, not rendered empty", id))
-	}
+	// THE CLOSURE IS THE GAP VIEW'S (the last standing act of each arm, by its events.id, with the
+	// body looked up in evs); THE REGRADE HISTORY IS A LISTING (every regrade, a struck one marked
+	// `struck`), because read raw a corrected regrade lists as two ordinary regrades.
+	byID := eventsByID(evs, win)
 	regrades := map[string][]Listed{}
 	var findings []*Event
 	for _, l := range Listing(evs) {
@@ -361,7 +354,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
-	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
+	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event",
+	    "close_event", "bench_close_event", "closed_by_bench"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return out, fmt.Errorf("record: asking the record for its board: %w", err)
@@ -374,8 +368,11 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var open, awaiting bool
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
 		var mintedEvent int64
+		var closeEvent, benchEvent sql.NullInt64
+		var closedByBench bool
 		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
-			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent); err != nil {
+			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent,
+			&closeEvent, &benchEvent, &closedByBench); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
@@ -407,10 +404,13 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		for _, l := range foundBy[mintedEvent] {
 			credited[l] = true
 		}
-		if c := closures[id]; c != nil && c.hasClosed {
+		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, byID, win)
+		if err != nil {
+			out.Anomalies = append(out.Anomalies, fmt.Sprintf("%v — the closure was DROPPED from this projection, not rendered empty", err))
+		}
+		if c != nil {
 			gj.ClosedEpoch, gj.ClosedByBench = c.closedEpoch, c.closedByBench
-			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred, from the same pair the fold
-			// carried.
+			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred, from the pair the view names.
 			body := proto.Message(c.lastClose)
 			if c.lastClose == nil {
 				body = c.lastBenchClosure
@@ -471,15 +471,15 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	return out, nil
 }
 
-// closeState is the fold's closure pair for one gap, derived from the close/docket-ruling stream:
-// attribution follows the LAST closing event, whichever arm wrote it, while both bodies stay
-// addressable (the embedded body prefers the red close even when the bench closed last).
+// closeState is the gap view's closure for one gap (`close_event`, `bench_close_event`,
+// `closed_by_bench`) with the bodies those ids name: attribution follows the LAST standing closing
+// act, whichever arm wrote it, while both bodies stay addressable (the embedded body prefers the red
+// close even when the bench closed last).
 type closeState struct {
-	lastClose        *recordpb.Close        // the fold's Closure: last red close
-	lastBenchClosure *recordpb.DocketRuling // the fold's BenchClosure: last CLOSING docket ruling
-	closedEpoch      int                    // the LAST closing event's epoch, either arm
-	closedByBench    bool                   // ... and whether that last event was the bench's
-	hasClosed        bool
+	lastClose        *recordpb.Close        // the body `close_event` names: the last standing red close
+	lastBenchClosure *recordpb.DocketRuling // the body `bench_close_event` names: the last standing CLOSING docket ruling
+	closedEpoch      int                    // the epoch of the later of the two
+	closedByBench    bool                   // `closed_by_bench`: whether that later act was the bench's
 }
 
 // reason is the last closer's word — Gap.ClosureReason, asked of the same pair.
@@ -487,54 +487,54 @@ func (c *closeState) reason() string {
 	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench}).ClosureReason()
 }
 
-// It returns the unpaired docket rulings alongside the closures. A ruling whose filing is not in
-// the stream settles nothing, and "settled nothing" is indistinguishable from "the bench ruled on
-// nothing" — so it is handed back rather than dropped, and each caller puts it on the channel it
-// actually has: the projection has `anomalies`, the two typed loaders have an error.
-func closureStatesOf(evs []*Event, win WindowIndex) (map[string]*closeState, []string) {
-	closures := map[string]*closeState{}
-	var unpaired []string
-	// THE RULING NAMES A MOTION; THE MOTION NAMES THE GAP. A stream that omits the filings
-	// yields an empty index here and every bench closure would fall through as "not a closure" —
-	// the plausible zero this whole change exists to remove — so the arm below reports the miss
-	// rather than skipping it.
-	docketGap := DocketGapByMotion(evs)
-	closing := func(id string) *closeState {
-		c, ok := closures[id]
-		if !ok {
-			c = &closeState{}
-			closures[id] = c
-		}
-		return c
-	}
+// eventsByID indexes evs by events.id, the key the gap view names a closing act by.
+func eventsByID(evs []*Event, win WindowIndex) map[int64]*Event {
+	out := make(map[int64]*Event, len(evs))
 	for _, e := range evs {
-		w := win.Of(e)
-		switch m := mustBody(e).(type) {
-		case *recordpb.Close:
-			c := closing(m.GetGapId())
-			c.lastClose, c.closedEpoch, c.closedByBench, c.hasClosed = m, w.Epoch, false, true
-		case *recordpb.MotionRule:
-			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
-			if !isDocket {
-				continue // grade, petition and avenue rulings settle no gap
-			}
-			if !benchClosesGap(d.Docket.GetDisposition()) {
-				continue
-			}
-			gapID, known := docketGap[m.GetMotionId()]
-			if !known || gapID == "" {
-				// SILENCE HERE IS A LOST CLOSURE, so it is not silent. A `continue` alone leaves
-				// the gap OPEN with its ruling sitting on the record and nothing anywhere saying
-				// so — and `show board` reaches this fold rather than the replay, so the path a
-				// seat actually calls would have been the blind one while replay.go errored.
-				unpaired = append(unpaired, m.GetMotionId())
-				continue
-			}
-			c := closing(gapID)
-			c.lastBenchClosure, c.closedEpoch, c.closedByBench, c.hasClosed = d.Docket, w.Epoch, true, true
+		out[win.Of(e).ID] = e
+	}
+	return out
+}
+
+// closeStateOf is one gap's closure as its gap-view row states it, with the bodies looked up in
+// byID — the events of the read the row came off. nil is a gap no standing act closes.
+//
+// THE MISS IS LOUD. The view decides which act closed the gap and names it by id; an id the read
+// did not load, or one whose body is not the arm's, is an error naming the gap and the event, never
+// "not closed" — a closed gap with no closure reads exactly like a gap with nothing to say there.
+func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBench bool, byID map[int64]*Event, win WindowIndex) (*closeState, error) {
+	if !closeEvent.Valid && !benchEvent.Valid {
+		return nil, nil
+	}
+	c := &closeState{closedByBench: closedByBench}
+	miss := func(column string, id int64) error {
+		return fmt.Errorf("record: gap %s: the gap view names event %d as its %s, and the events this read loaded hold no such act", gapID, id, column)
+	}
+	var last *Event
+	if closeEvent.Valid {
+		e := byID[closeEvent.Int64]
+		body, ok := recordpb.BodyAs[*recordpb.Close](e)
+		if e == nil || !ok {
+			return nil, miss("close_event", closeEvent.Int64)
+		}
+		c.lastClose, last = body, e
+	}
+	if benchEvent.Valid {
+		e := byID[benchEvent.Int64]
+		rule, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+		if e == nil || !ok || rule.GetDocket() == nil {
+			return nil, miss("bench_close_event", benchEvent.Int64)
+		}
+		c.lastBenchClosure = rule.GetDocket()
+		if closedByBench {
+			last = e
 		}
 	}
-	return closures, unpaired
+	if last == nil {
+		return nil, fmt.Errorf("record: gap %s: the gap view names no red close and says the bench did not close it", gapID)
+	}
+	c.closedEpoch = win.Of(last).Epoch
+	return c, nil
 }
 
 // mustBody is Body for a stream the loader just built: every event it returns carries one.
@@ -858,13 +858,11 @@ func synopsis(s string) string {
 	return strings.TrimRight(string(r[:synopsisLimit]), " ") + "…"
 }
 
-// WorkJSONOf projects the replayed board into the chair's working set. It walks the same
-// GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
-// lean work list shape, closed gaps to the prose-free index.
 // WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
-// (openness, the regrade-overlaid grades, the proof debt) plus the closure attribution derived
-// from the close and docket-ruling stream. It is the input SittingOf and availableOf read instead of a
-// folded Board.
+// (openness, the regrade-overlaid grades, the proof debt, and `closed_by_bench`) plus the last
+// closer's word, read off the act the view names. The work list walks the gap view in the order
+// BoardJSONOfRun does, so the two agree on membership and order. It is the input SittingOf and
+// availableOf read instead of a folded Board.
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
 	// RequiredFix, AcceptanceCheck and MintedBy come off the gap view's own columns. The work list
@@ -938,7 +936,8 @@ type workReads struct {
 // the gap — the key the list tables are read by.
 type workGapRow struct {
 	WorkGapState
-	mintedEvent int64
+	mintedEvent            int64
+	closeEvent, benchEvent sql.NullInt64
 }
 
 // workReadsAt reads the work list's answers off q, the read transaction every one of them comes off.
@@ -964,7 +963,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
 	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL,
-	    "fix_basis", "fix_new"
+	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("record: asking the record for its work list: %w", err)
@@ -975,6 +974,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn, classMaterial, supersededBy sql.NullString
 		var requiredFix, acceptanceCheck, mintedBy, fixBasis, fixNew sql.NullString
 		var mintedEvent int64
+		var closeEvent, benchEvent sql.NullInt64
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
 		// remanded/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
@@ -984,7 +984,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
 			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket,
-			&fixBasis, &fixNew); err != nil {
+			&fixBasis, &fixNew, &closeEvent, &benchEvent, &g.ClosedByBench); err != nil {
 			return r, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
@@ -994,7 +994,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
 		g.RequiredFix, g.AcceptanceCheck, g.MintedBy = requiredFix.String, acceptanceCheck.String, mintedBy.String
 		g.FixBasis, g.FixNew = fixBasis.String, fixNew.String
-		r.gaps = append(r.gaps, workGapRow{WorkGapState: g, mintedEvent: mintedEvent})
+		r.gaps = append(r.gaps, workGapRow{WorkGapState: g, mintedEvent: mintedEvent, closeEvent: closeEvent, benchEvent: benchEvent})
 	}
 	if err := rows.Err(); err != nil {
 		return r, err
@@ -1003,17 +1003,15 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	return r, err
 }
 
-// workGapStatesOf folds the gap family for the work path from what workReadsAt read: the closure
-// attribution off the stream, each gap's location carried through its edits and its passage in the
-// report, and its route. It asks the record nothing; run is for the run's terms (RunParams).
+// workGapStatesOf folds the gap family for the work path from what workReadsAt read: the gap view's
+// closure with the closing acts' bodies looked up in r.evs, each gap's location carried through its
+// edits and its passage in the report, and its route. It asks the record nothing; run is for the
+// run's terms (RunParams).
 func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 	if r.absent {
 		return nil, nil
 	}
-	closures, unpairedDocket := closureStatesOf(r.evs, r.win)
-	if len(unpairedDocket) > 0 {
-		return nil, fmt.Errorf("record: the work list cannot be computed: docket ruling(s) on motion(s) %s have no filing on this record, so which gap each settles is unknown — a seat told a gap is open when the bench has disposed of it is the failure this refuses to produce", strings.Join(unpairedDocket, ", "))
-	}
+	byID := eventsByID(r.evs, r.win)
 	// The report, once for the whole work list — see boardJSONOfRecord for why once.
 	report, renderErr := renderProjection(r.reportBase, r.haveBase, r.reportOps, r.reportErr)
 	var out []WorkGapState
@@ -1022,8 +1020,12 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		g.Edits = r.edits[g.ID]
 		locateGap(report, renderErr, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
-		if c := closures[g.ID]; c != nil && c.hasClosed {
-			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
+		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, byID, r.win)
+		if err != nil {
+			return nil, fmt.Errorf("record: the work list cannot be computed: %w", err)
+		}
+		if c != nil {
+			g.Fate = c.reason()
 		}
 		out = append(out, g)
 	}

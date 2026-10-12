@@ -194,7 +194,7 @@ func Failed(checks []Check) []Check {
 // gapsDisposed: a gap is either OPEN or CLOSED WITH A RECORDED REASON. A closure carries its
 // reason in one of two fields depending on WHO closed it: a chair `close` carries a
 // `closure_class`, while the bench's ruling on a `docket` motion carries a `disposition`
-// (closed / not_a_defect / defect_accepted — see replay.go benchClosesGap). Either is a
+// (closed / not_a_defect / defect_accepted — see recordpb.Closes). Either is a
 // decision; a closed gap with NEITHER is a torn closure — closed by the replay with no reason
 // on the record.
 func gapsDisposed(f record.Family) Check {

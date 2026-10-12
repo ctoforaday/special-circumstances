@@ -1,6 +1,7 @@
 package record
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -149,17 +150,13 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 	t.Run("a board that cannot be read refuses the mint with that error, never admits it", func(t *testing.T) {
 		// A read failure and an empty board must not share an answer: the screen swallowed every
 		// FamilyOf error as "no board yet", and on that path the --distinct-from check went unasked
-		// too. The failure is staged in the record itself — a docket ruling whose filing is not on
-		// the record, which FamilyOf refuses to fold — so what is tested is the screen's answer to
-		// the read, not a stand-in for it.
+		// too. The failure is staged in the record itself — its `gap` view dropped from under the
+		// open handle, so the family's read of it fails — and what is tested is the screen's answer
+		// to the read, not a stand-in for it.
 		dir := withG1(t)
-		recordtest.Seed(t, dir, recordtest.At(t, "judge", "judge:motion_rule:M9", &recordpb.MotionRule{
-			MotionId: proto.String("M9"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Opinion: proto.String("ruled"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("p"),
-				Tension: proto.String("t"), ReviewFlag: proto.String("r"), Settled: proto.String("s"), Final: proto.Bool(true)}},
-		}))
+		if _, err := seatWriter(t, filepath.Join(dir, "records", "record.db")).Exec(`DROP VIEW "gap"`); err != nil {
+			t.Fatal(err)
+		}
 		if _, err := FamilyOf(mustRun(t, dir)); err == nil {
 			t.Fatal("the staged record still reads — the fixture proves nothing")
 		}
@@ -178,8 +175,8 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 			if err == nil {
 				t.Fatalf("%s: a mint was admitted over a board that could not be read", tc.name)
 			}
-			// The refusal is the MINT's, coded, and names the read as its cause — not the fold's
-			// own sentence about a docket ruling, which two other readers emit word for word.
+			// The refusal is the MINT's, coded, and names the read as its cause — not the read's
+			// own sentence, bare.
 			if !strings.HasPrefix(err.Error(), "record: mint refused — the board could not be read, so the screen cannot run: ") {
 				t.Fatalf("%s: the refusal is not the mint's own, naming the read: %v", tc.name, err)
 			}
