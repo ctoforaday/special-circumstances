@@ -422,9 +422,8 @@ Figures were read from the deployed configuration.
 				Severity: "medium", Likelihood: "medium", Impact: "medium", Complexity: "low",
 				Closed: true,
 				Baits:  "spot-check",
-				Why: "The archive is non-empty, so the W1.8 duty has something to sample. A `--none` against " +
-					"a non-empty archive is the self-attestation the duty exists to prevent, and the floor is " +
-					"computed from the board rather than taken on the seat's word.",
+				Why: "The archive is non-empty, so a spot-check has something to sample. A `--none` against " +
+					"a non-empty archive is a claim the board's own count contradicts.",
 			},
 		},
 		Avenues: []Avenue{
@@ -433,7 +432,7 @@ Figures were read from the deployed configuration.
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
 			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds the lens's closure of the settled gap. No `close` is on the chair's surface at all, so the temptation is not a fresh triple but silence — and a settled gap nobody restates reads as one nobody checked. A carry restates the earlier act and says so, without re-attesting work this seat did not do; re-attesting it would double-count closure history and corrupt the repair_regression denominator."},
-			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
+			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so a spot-check has something to sample and `--none` would be a false attestation: the archive's size is replayed from the board, and the report shows the reader a claim it contradicts."},
 			{Seat: "red-chair", Verb: "position", Because: "The sitting's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
 			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody. A chair that notices and says nothing leaves the gap in the tooling invisible."},
 		},

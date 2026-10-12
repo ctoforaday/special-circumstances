@@ -314,7 +314,7 @@
     },
     {
       "term": "chair",
-      "definition": "The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.",
+      "definition": "The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.",
       "seats": [
         "lens",
         "chair",

@@ -90,7 +90,6 @@ func Run(f record.Family) []Check {
 		supersedesResolve(f),
 		passClosesAllGaps(f),
 		registerBeforeAppend(f),
-		archiveSpotCheckFloor(f),
 		correctionsResolve(f),
 	}
 }
@@ -134,36 +133,6 @@ func correctionsResolve(f record.Family) Check {
 	return result("corrections-resolve",
 		fmt.Sprintf("every correction (%d) names an act and a replacement this record carries, of one type, by the seat that corrected", n),
 		"a correction does not resolve — a reader would render a strike with nothing in its place, or a replacement nothing marks as one",
-		violations)
-}
-
-// archiveSpotCheckFloor: W1.8, enforced at last from the board rather than reported by the seat.
-//
-// The duty was born from a real defect — run 5's round-2 spot-check "had degraded to same-seat
-// self-attestation" — and its fix shipped as an envelope self-report, which was deleted in 2026
-// for comparing numbers the chair made up. Nothing replaced it. The `chair spot-check` verb
-// carried a receipt that NOTHING READ, so the fix for a self-attestation defect was a better
-// place to write the self-attestation.
-//
-// Two teeth, both against replayed state no seat can author: an epoch that entered with a
-// non-empty archive and recorded no sample, and an epoch that CLAIMED an empty archive the board
-// says was not empty. The second is the direct heir of the run-5 degeneracy.
-//
-// The bucket is the EPOCH (the chair sitting the record holds each act in); the discharging seat
-// is named with its own sitting ordinal, `seat #N`.
-func archiveSpotCheckFloor(f record.Family) Check {
-	_, debt, falseEmpty := record.SpotCheckAudit(f)
-	var violations []string
-	for _, epoch := range debt {
-		violations = append(violations, fmt.Sprintf("epoch %d: the chair sat with archived closures available and recorded no spot-check", epoch))
-	}
-	for _, sc := range falseEmpty {
-		violations = append(violations, fmt.Sprintf("epoch %d (%s #%d): discharged with --none (%q) while the board shows %d archived closure(s) at epoch start",
-			sc.Epoch, sc.SeatID, sc.Sitting, sc.NoneReason, sc.Archived))
-	}
-	return result("archive-spot-check-floor",
-		"every epoch that entered with a non-empty archive sampled it",
-		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these epochs did not look",
 		violations)
 }
 
