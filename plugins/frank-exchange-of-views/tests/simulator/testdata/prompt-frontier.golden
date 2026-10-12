@@ -1,7 +1,11 @@
-prompt sha256: 4403ff630ee934d3545cdd57ae3c312e0aa68487484f89ed8c41e6a315928e7c
+prompt sha256: e14b989e8ac3bee312474e2025cb502a6f0c4b86c57b6a15ab4bbc5e18c7029a
 
 Research debate opening for topic: "the seat prompt contract".
-Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A AVENUE — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off.
+Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN AVENUE — the verb is under a group of its own in your role's help.
+An avenue holds two things, and each says what it is.
+ITS LINE IS THE QUESTION the avenue asks and the approach that would answer it, with no answer in it: nothing is researched yet, the report prints the line as the question, and it stands as you write it.
+ITS HYPOTHESIS IS YOUR PREDICTION — what would be true if the avenue paid off — and the report prints it as a hypothesis beside what the research then finds.
+A result you expect goes in the hypothesis, never in the line.
 ONE avenue per hypothesis, and the tool assigns each an id.
 THEY ARE AVENUES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts.
 On the record it has an id, a fate, and an argument.

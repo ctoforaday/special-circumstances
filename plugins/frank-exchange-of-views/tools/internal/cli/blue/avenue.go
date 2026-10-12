@@ -59,8 +59,9 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // which by being refused. The whole `conditionallyRequired` mechanism in the seat package existed
 // to describe this one verb, and it is gone with the split.
 //
-// --hypothesis is what makes a later move checkable: a line that says what would be true if it
-// paid off can be abandoned against its own claim rather than on a shrug.
+// --hypothesis is what makes a later move checkable: an avenue that says what would be true if it
+// paid off is concluded or rejected against its own claim rather than set down on a shrug. It is
+// the ONLY place a predicted result goes: the line is the question, and it is never rewritten.
 func newAvenue() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "avenue",
@@ -137,7 +138,7 @@ func newAvenuePropose() *cobra.Command {
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
 	seat.Require(c, flags.Reason)
-	flags.Text(c, flags.Hypothesis, "what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
+	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, rejected where it did not — so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

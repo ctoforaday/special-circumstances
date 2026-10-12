@@ -1,4 +1,4 @@
-prompt sha256: bc4c91fb32dfb8ef8a4d75cc269e65c6019f334c426772c8156c40a3dd8bd29d
+prompt sha256: 9a801a62ca7edb092574c7e1be3a82df0cc1e531913afc1b9def3a0a5c7aee55
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `avenues` projection — where each carries an id and its hypothesis,.
@@ -7,7 +7,7 @@ Your assigned METHOD: adversarial-disconfirming-first (hunt evidence AGAINST the
 YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
 Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/lane-1.md.
-AVENUES: each approach the research took or weighed is on the record once — with the hypothesis that would be true if it paid off, and later with the fate it ACTUALLY had and what changed your mind.
+AVENUES: each approach the research took or weighed is on the record once — as the question it asks, with the hypothesis that would be true if it paid off kept apart from the question, and later with the fate it ACTUALLY had and what was found.
 The fate says what happened to the approach: one you ran whose hypothesis held is concluded; one you ran whose hypothesis the data refuted is rejected, and a refutation is an answer; one you started that gave no answer — the method broke, the data was unavailable, the question was given up — is abandoned; declined is ONLY an approach you weighed and did not run; deferred is one left for a later run.
 NO FATE IS OWED AN ENTRY.
 A sitting that weighed nothing and set it down has no declined avenue, and that record is complete: an approach thought up, or run, so that there is one to decline is a false entry, and a declined line whose reason reports a result is one too.
@@ -17,6 +17,7 @@ At assembly it composes three sections of the report from the avenues on the rec
 That gives the reader what was run, what was deferred and what was set aside as three things, not one list of winners.
 You write none of those three headings in the report, and no list of the approaches considered and their fates under any other heading: a report that carries one of those headings is refused, and a hand copy elsewhere is a second account nothing checks against the record.
 The line you propose, its hypothesis and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, each under its own label — the question, the hypothesis, what was found — so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
+THE LINE IS THE QUESTION AND HOLDS NO PREDICTED RESULT: what you expect to find is the hypothesis, and a line that states a result is printed as the question whatever the research then finds.
 Recording each approach with the fate it had is what makes "explore the alternatives" checkable instead of self-attested.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
