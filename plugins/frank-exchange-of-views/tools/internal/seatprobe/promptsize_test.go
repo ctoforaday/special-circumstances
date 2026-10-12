@@ -45,8 +45,8 @@ import (
 // tight.
 //
 // Raised 2026-09-15 for the lens bar (plans/feov-lens-bar.md III.5, §V #6): the chair relays a
-// dispatch readied by retirement state and records the PASS that state permits, so its prompt says
-// that a lens retires and is re-armed once, that a PASS needs no lens ready, that the stale areas are
+// dispatch readied by each lens's last sitting against the head and records the PASS that permits, so its prompt says
+// that a lens sits again only on a moved head and retires, that a PASS needs no lens ready, that the stale areas are
 // read and named in the spot-check before it, and that the PASS lists every open gap that is not
 // material by class — the JOB, which §V #6 requires the prompt to carry. The refusal that restated
 // "the tool refuses a PASS the board does not permit" was cut from it; that refusal is the verdict

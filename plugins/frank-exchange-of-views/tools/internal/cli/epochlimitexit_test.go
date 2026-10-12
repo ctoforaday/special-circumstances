@@ -19,7 +19,7 @@ import (
 // limitGap is the one gap the epoch-limit exits below turn on.
 const limitGap = "G-00000001"
 
-// stageRetiredLens seeds a run whose one lens has sat three times and retired at the head, with the
+// stageRetiredLens seeds a run whose one lens has sat three times at the head, with the
 // chair opening its fourth sitting: nobody is ready but what a test adds. withGap leaves limitGap open and
 // material, minted in the lens's first sitting.
 func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
@@ -42,7 +42,7 @@ func stageRetiredLens(t *testing.T, runDir string, withGap bool) {
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}))
 	}
-	for range 2 { // two barren sittings since it last minted retire the lens
+	for range 2 { // it has sat at the head, so the head readies it for nothing further
 		evs = append(evs, at("red-chair", &recordpb.Register{}), lens(), at("red-lens-evidence", &recordpb.Register{}))
 	}
 	evs = append(evs, at("red-chair", &recordpb.Register{}))

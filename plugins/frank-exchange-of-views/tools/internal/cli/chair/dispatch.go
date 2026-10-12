@@ -15,7 +15,7 @@ import (
 )
 
 // dispatch next — the chair reads the board and the record says who sits (plans/roundless.md
-// §III.B.1). The verb computes readiness FROM THE BOARD: each lens's retirement state against the report head,
+// §III.B.1). The verb computes readiness FROM THE BOARD: each lens's last sitting against the report head,
 // each open material gap below its limits, each docketed gap awaiting the bench, the seat that owes
 // another seat's PASS blocker (a petition's bench, a contradiction's lens, the evidence lens for a
 // reopened citation or proof). It records the
@@ -154,7 +154,7 @@ func (r dispatchResult) Human() string {
 		fmt.Fprintf(&b, "  docketed %s for the bench\n", g)
 	}
 	for _, a := range r.StaleAreas {
-		fmt.Fprintf(&b, "  stale area %s — retired for good at pin %d; read the changes since against its duties and name it in this sitting's spot-check before a PASS\n", a.SeatID, a.Pin)
+		fmt.Fprintf(&b, "  stale area %s — retired at pin %d; read the changes since against its duties and name it in this sitting's spot-check before a PASS\n", a.SeatID, a.Pin)
 	}
 	for _, w := range r.Why {
 		fmt.Fprintf(&b, "  · %s\n", w)

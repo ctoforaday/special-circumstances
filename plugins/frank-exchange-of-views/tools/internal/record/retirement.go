@@ -9,59 +9,47 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// PER-SEAT RETIREMENT (plans/feov-lens-bar.md III.5; gblock D1: re-arm ONCE per retirement).
+// LENS READINESS AND RETIREMENT (plans/feov-lens-bar.md III.5).
 //
-// A lens used to be ready whenever the report head moved past its pin, so a lens that found nothing
-// sat again on every head move for the whole run: b5's chair readied the voice lens alone eleven
-// times at head 144. A lens now retires when it stops finding material, and a head move re-arms it
-// once. The cost is bounded: at most two barren sittings per active spell, plus one per retirement.
+// A LENS WITH NO GAP ENGAGED IS READY WHEN THE REPORT HEAD HAS MOVED SINCE ITS LAST SITTING, AND NOT
+// OTHERWISE. A second look at an unchanged report finds what the first did: across the archived
+// runs, the lenses readied at the head they had last sat at minted nothing and checked nothing,
+// and four in five recorded no act at all. A lens that has never sat is ready for its first look.
+// The gaps a lens is engaged on, a contradiction it read and a reopened citation or proof ready it
+// on their own grounds (foldPlan), whatever the head.
+//
+// A lens that keeps finding nothing stops being asked: b5's chair readied the voice lens alone
+// eleven times as the head moved. So a lens RETIRES at its third sitting in a row that mints no
+// fresh material, and a head move does not ready a retired lens.
 //
 //   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
 //     bracket, or a register no bracket preceded — including the sittings it is engaged for on its
-//     own gaps.
+//     own gaps. Its PIN is the head that dispatch recorded.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
 //   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
-//   - ACTIVE: fewer than two trailing barren sittings. A productive sitting returns a lens here,
-//     with its re-arm unspent. RETIRED: two barren sittings, re-arm unspent. RETIRED FOR GOOD: its
-//     re-arm sitting was barren.
+//     A productive sitting returns the count to zero, a retired lens's included.
 //
-// Readiness keeps the head precondition: nothing is ready before a report is ingested. An active
-// lens is ready; a retired lens is ready once when the head has moved past its pin; a lens retired
-// at the head, or for good, is not. A lens retired for good still answers its own open gaps.
+// Nothing is ready before a report is ingested. A retired lens still answers its own open gaps.
 
-// LensState is where a cast lens stands in its retirement fold.
-type LensState int
-
-const (
-	LensActive LensState = iota
-	LensRetired
-	LensRetiredForGood
-)
-
-func (s LensState) String() string {
-	switch s {
-	case LensRetired:
-		return "retired"
-	case LensRetiredForGood:
-		return "retired for good"
-	}
-	return "active"
-}
+// retiresAfter is how many sittings in a row with no fresh material mint retire a lens.
+const retiresAfter = 3
 
 // lensFold is one cast lens, folded.
 type lensFold struct {
 	seat     string
-	state    LensState
-	barren   int   // trailing barren sittings in the current active spell
+	barren   int   // trailing sittings with no fresh material mint
 	sittings int   // sittings on the record
 	pin      int64 // pin of the last dispatch it sat for; 0 when it never sat
 	ready    bool
 	why      string
 }
 
-// StaleArea is a lens retired for good whose pin the report head has moved past: text it will not
-// audit again changed after it last sat. The chair reads those changes against the area's duties
-// and names the area in its spot-check before a PASS.
+// retired is a lens whose last retiresAfter sittings minted no fresh material.
+func (f lensFold) retired() bool { return f.barren >= retiresAfter }
+
+// StaleArea is a retired lens whose pin the report head has moved past: text it will not audit
+// again changed after it last sat. The chair reads those changes against the area's duties and
+// names the area in its spot-check before a PASS.
 type StaleArea struct {
 	SeatID string `json:"seat_id"`
 	Pin    int64  `json:"pin" min:"0"`
@@ -114,43 +102,33 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 		for _, s := range sittings {
 			f.sittings++
 			if productive[s] {
-				f.state, f.barren = LensActive, 0
-				continue
-			}
-			switch f.state {
-			case LensActive:
+				f.barren = 0
+			} else {
 				f.barren++
-				if f.barren >= 2 {
-					f.state = LensRetired
-				}
-			case LensRetired:
-				f.state = LensRetiredForGood
 			}
 		}
 		switch {
 		case head == 0:
-			f.why = fmt.Sprintf("%s: %s — not ready, no report has been ingested", seat, f.state)
-		case f.state == LensActive && f.sittings == 0:
-			f.ready, f.why = true, fmt.Sprintf("%s: active, never sat — audits the report at head %d", seat, head)
-		case f.state == LensActive:
-			f.ready, f.why = true, fmt.Sprintf("%s: active (%d barren sitting(s) since it last minted fresh material; it retires at 2) — audits the report at head %d", seat, f.barren, head)
-		case f.state == LensRetired && head > f.pin:
-			f.ready, f.why = true, fmt.Sprintf("%s: retired, re-armed once — head %d moved past its pin %d", seat, head, f.pin)
-		case f.state == LensRetired:
-			f.why = fmt.Sprintf("%s: retired at the head (pin %d) — ready once when the head moves", seat, f.pin)
+			f.why = fmt.Sprintf("%s: not ready, no report has been ingested", seat)
+		case f.retired():
+			f.why = fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", seat, f.pin, f.barren)
+		case f.sittings == 0:
+			f.ready, f.why = true, fmt.Sprintf("%s: never sat — audits the report at head %d", seat, head)
+		case head > f.pin:
+			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; it retires at %d)", seat, head, f.pin, f.barren, retiresAfter)
 		default:
-			f.why = fmt.Sprintf("%s: retired for good (pin %d) — not ready", seat, f.pin)
+			f.why = fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves", seat, f.pin)
 		}
 		out = append(out, f)
 	}
 	return out
 }
 
-// staleAreasOf is every lens retired for good whose pin is behind the head, in cast order.
+// staleAreasOf is every retired lens whose pin is behind the head, in cast order.
 func staleAreasOf(folds []lensFold, head int64) []StaleArea {
 	out := []StaleArea{}
 	for _, f := range folds {
-		if f.state == LensRetiredForGood && f.pin < head {
+		if f.retired() && f.pin < head {
 			out = append(out, StaleArea{SeatID: f.seat, Pin: f.pin})
 		}
 	}
@@ -258,13 +236,6 @@ func (g passLensGate) uncovered() []StaleArea {
 		}
 	}
 	return out
-}
-
-func readyReason(f lensFold) string {
-	if f.state == LensRetired {
-		return "re-arm owed"
-	}
-	return "active"
 }
 
 // passLensGateOfRun reads the gate's inputs off the run, on one snapshot (readSnapshot): a gap

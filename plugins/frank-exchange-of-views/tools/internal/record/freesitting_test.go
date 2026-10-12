@@ -139,20 +139,18 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	// `dispatch` readies a seat until it has SAT: if a hook-opened sitting did not count, the lens
 	// would be re-dispatched for the same unsat dispatch forever.
 	//
-	// THE LENS IS STILL READIED, AND THAT IS CORRECT — an ACTIVE lens is ready every epoch by
-	// design (retirement.go). What this asserts is the REASON: the plan must ready it as an active
-	// lens, never as one that has not sat. The retirement fold counting a barren sitting is the
-	// proof the hook-opened sitting reached every reader through the same ledger.
+	// THE LENS IS NOT READIED AGAIN: it sat at the head (retirement.go), and the fold that says so
+	// reads the hook-opened sitting through the same ledger the work list does.
 	plan, err := PlanDispatch(hookOpened().seed())
 	if err != nil {
 		t.Fatal(err)
 	}
 	why := strings.Join(plan.Why, " | ")
-	if strings.Contains(why, "has not registered") || strings.Contains(why, "not sat") {
-		t.Errorf("the lens sat (hook-opened) and dispatch still treats it as unsat: %s", why)
+	if len(plan.Parties) != 0 || strings.Contains(why, "never sat") {
+		t.Errorf("the lens sat (hook-opened) and dispatch still treats it as unsat: parties %+v, why %s", plan.Parties, why)
 	}
-	if !strings.Contains(why, "barren sitting") {
-		t.Errorf("the retirement fold did not count the hook-opened sitting, so it reached the ledger "+
+	if !strings.Contains(why, evLens+": sat at the head (pin 2)") {
+		t.Errorf("the lens fold did not count the hook-opened sitting, so it reached the ledger "+
 			"for the work list and not for the fold: %s", why)
 	}
 }

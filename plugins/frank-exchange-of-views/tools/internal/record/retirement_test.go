@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -55,56 +56,82 @@ func lensStateOf(t *testing.T, run Run) lensFold {
 	return g.lenses[0]
 }
 
-func TestLensRetiresAfterTwoBarrenSittings(t *testing.T) {
-	one := planOf(t, retBoard(t).sit(2, evLens))
-	if !lensReady(one) || !strings.Contains(whyOf(one), "active (1 barren sitting(s)") {
-		t.Fatalf("after one barren sitting the lens is active and ready: %+v", one)
+// gaplessParty reports whether the plan engages the lens with no gap: readied to audit the report.
+func gaplessParty(p Plan) bool {
+	for _, party := range p.Parties {
+		if party.SeatID == evLens {
+			return len(party.GapIDs) == 0
+		}
 	}
-	two := planOf(t, retBoard(t).sit(2, evLens).sit(2, evLens))
-	if lensReady(two) || !strings.Contains(whyOf(two), "retired at the head") {
-		t.Fatalf("after two barren sittings the lens is retired and not ready: %+v", two)
+	return false
+}
+
+// THE RULE: a lens with no gap engaged is readied when it has never sat or the report head has
+// moved since its last sitting, and not otherwise.
+func TestALensIsReadiedOnlyWhenTheHeadHasMovedSinceItSat(t *testing.T) {
+	never := planOf(t, retBoard(t))
+	if !lensReady(never) || !strings.Contains(whyOf(never), "never sat") {
+		t.Fatalf("a lens that has never sat is ready for its first look: %+v", never)
+	}
+	same := planOf(t, retBoard(t).sit(2, evLens))
+	if lensReady(same) || !strings.Contains(whyOf(same), "sat at the head (pin 2)") {
+		t.Fatalf("a lens that sat at the head is not readied for a second look at the same report: %+v", same)
+	}
+	moved := planOf(t, retBoard(t).sit(2, evLens).ingest())
+	if !lensReady(moved) || !strings.Contains(whyOf(moved), "moved past its last sitting's pin 2") {
+		t.Fatalf("a lens is ready when the head has moved past its last sitting's pin: %+v", moved)
 	}
 }
 
-func TestRetiredLensReArmedOnceByHeadMove(t *testing.T) {
-	plan := planOf(t, retBoard(t).sit(2, evLens).sit(2, evLens).ingest())
-	if !lensReady(plan) || !strings.Contains(whyOf(plan), "retired, re-armed once") {
-		t.Fatalf("a retired lens is ready once when the head moves past its pin: %+v", plan)
-	}
-}
-
-func TestBarrenReArmRetiresForGood(t *testing.T) {
-	b := retBoard(t).sit(2, evLens).sit(2, evLens).ingest()
-	head := int64(b.n)
-	plan := planOf(t, b.sit(head, evLens))
-	if lensReady(plan) || !strings.Contains(whyOf(plan), "retired for good") {
-		t.Fatalf("a barren re-arm sitting retires the lens for good: %+v", plan)
-	}
-}
-
-func TestRetiredForGoodIgnoresLaterHeadMoves(t *testing.T) {
-	b := retBoard(t).sit(2, evLens).sit(2, evLens).ingest()
-	head := int64(b.n)
-	plan := planOf(t, b.sit(head, evLens).ingest().ingest())
-	if lensReady(plan) || !strings.Contains(whyOf(plan), "retired for good") {
-		t.Fatalf("head moves do not re-arm a lens retired for good: %+v", plan)
-	}
-}
-
-func TestFreshMintOnReArmMakesLensActiveAgain(t *testing.T) {
-	b := retBoard(t).sit(2, evLens).sit(2, evLens).ingest()
-	head := int64(b.n)
-	b.sit(head, evLens).add(evLens, freshHigh("G1"))
-	run := b.seed()
-	if f := lensStateOf(t, run); f.state != LensActive || f.barren != 0 || !f.ready {
-		t.Fatalf("a productive re-arm sitting returns the lens to active with its re-arm unspent: %+v", f)
-	}
-}
-
-func TestActiveLensReadyAtSameHead(t *testing.T) {
+// A lens that minted at the head is engaged on its gap there, and for nothing else: the mint does
+// not ready a second audit of the report it has just read.
+func TestALensThatMintedAtTheHeadIsEngagedOnItsGapAlone(t *testing.T) {
 	plan := planOf(t, retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")))
-	if !lensReady(plan) || !strings.Contains(whyOf(plan), "active (0 barren sitting(s)") {
-		t.Fatalf("an active lens is ready at the same head: %+v", plan)
+	if !lensReady(plan) || gaplessParty(plan) || !strings.Contains(whyOf(plan), "sat at the head (pin 2)") {
+		t.Fatalf("a lens with an open material gap sits for the gap, and the head has not moved: %+v", plan)
+	}
+}
+
+// A dispatch the lens never sat for is not a sitting: the head has still moved since it last sat.
+func TestAnUnsatDispatchLeavesTheLensReady(t *testing.T) {
+	b := retBoard(t).sit(2, evLens).ingest()
+	head := int64(b.n)
+	plan := planOf(t, b.dispatch(head, evLens))
+	if !lensReady(plan) {
+		t.Fatalf("a lens dispatched at the new head that has opened no sitting has not sat there: %+v", plan)
+	}
+}
+
+func TestLensRetiresAtItsThirdBarrenSitting(t *testing.T) {
+	// two barren sittings, each at its own head, and the head moved past the second
+	twice := func() (*stage, int64) {
+		b := retBoard(t).sit(2, evLens).ingest()
+		b.sit(int64(b.n), evLens).ingest()
+		return b, int64(b.n)
+	}
+	two, h3 := twice()
+	if plan := planOf(t, two); !lensReady(plan) || !strings.Contains(whyOf(plan), "2 sitting(s) in a row with no fresh material mint; it retires at 3") {
+		t.Fatalf("after two barren sittings a head move readies the lens: %+v", plan)
+	}
+	three, _ := twice()
+	plan := planOf(t, three.sit(h3, evLens).ingest())
+	if lensReady(plan) || !strings.Contains(whyOf(plan), evLens+": retired (pin ") {
+		t.Fatalf("a third barren sitting retires the lens, and a head move does not ready it: %+v", plan)
+	}
+}
+
+func TestRetiredLensIgnoresLaterHeadMoves(t *testing.T) {
+	plan := planOf(t, retBoard(t).sit(2, evLens).sit(2, evLens).sit(2, evLens).ingest().ingest())
+	if lensReady(plan) || !strings.Contains(whyOf(plan), evLens+": retired (pin 2)") {
+		t.Fatalf("head moves do not ready a retired lens: %+v", plan)
+	}
+}
+
+func TestAFreshMintReturnsARetiredLensToTheCount(t *testing.T) {
+	b := retBoard(t).sit(2, evLens).sit(2, evLens).sit(2, evLens)
+	b.sit(2, evLens).add(evLens, freshHigh("G1")).ingest()
+	if f := lensStateOf(t, b.seed()); f.retired() || f.barren != 0 || !f.ready {
+		t.Fatalf("a productive sitting returns a retired lens to the count at zero, ready on the moved head: %+v", f)
 	}
 }
 
@@ -116,76 +143,79 @@ func TestNoLensReadyBeforeIngest(t *testing.T) {
 }
 
 func TestLineageMintIsNotFresh(t *testing.T) {
-	// Sitting 1 mints fresh material; sittings 2 and 3 mint only successors of it — lineage, not
+	// Sitting 1 mints fresh material; the three after it mint only successors of it — lineage, not
 	// discovery — so they are barren and the lens retires.
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
 		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G1")).
-		sit(2, evLens).add(evLens, cmMint("G3", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G2"))
-	if f := lensStateOf(t, b.seed()); f.state != LensRetired {
+		sit(2, evLens).add(evLens, cmMint("G3", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G2")).
+		sit(2, evLens).add(evLens, cmMint("G4", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G3"))
+	if f := lensStateOf(t, b.seed()); !f.retired() {
 		t.Fatalf("sittings that minted only lineage are barren: %+v", f)
 	}
 }
 
 func TestNeverClassMintIsNotFresh(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")).
-		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
-	if f := lensStateOf(t, b.seed()); f.state != LensRetired {
+		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")).
+		sit(2, evLens).add(evLens, cmMint("G3", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
+	if f := lensStateOf(t, b.seed()); !f.retired() {
 		t.Fatalf("sittings that minted only never-class gaps are barren: %+v", f)
 	}
 }
 
-// retiredForGoodBehindHead is a lens that retired, spent its re-arm on a barren sitting, and has
-// had the head move past it since: stale.
-func retiredForGoodBehindHead(t *testing.T) (*stage, int64) {
+// retiredBehindHead is a lens retired by three barren sittings that the head has moved past
+// since: stale. The pin is its last sitting's.
+func retiredBehindHead(t *testing.T) (*stage, int64) {
 	b := retBoard(t).sit(2, evLens).sit(2, evLens).ingest()
 	pin := int64(b.n)
 	b.sit(pin, evLens).ingest()
 	return b, pin
 }
 
-func TestPassPermittedWithLensRetiredForGoodBehindHead(t *testing.T) {
-	b, _ := retiredForGoodBehindHead(t)
+func TestPassPermittedWithRetiredLensBehindHead(t *testing.T) {
+	b, _ := retiredBehindHead(t)
 	plan := planOf(t, b.register("red-chair"))
 	if !plan.PassPermitted || lensReady(plan) {
-		t.Fatalf("a lens retired for good behind the head is not ready, so the plan permits a PASS: %+v", plan)
+		t.Fatalf("a retired lens behind the head is not ready, so the plan permits a PASS: %+v", plan)
 	}
 }
 
-func TestPassRefusedWhileReArmOwed(t *testing.T) {
-	b := retBoard(t).sit(2, evLens).sit(2, evLens).ingest().register("red-chair")
+func TestPassRefusedWhileALensHasNotSeenTheHead(t *testing.T) {
+	b := retBoard(t).sit(2, evLens).ingest().register("red-chair")
 	run := b.seed()
 	plan, err := PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if plan.PassPermitted {
-		t.Fatalf("pass_permitted over an owed re-arm: %+v", plan)
+		t.Fatalf("pass_permitted while the head has moved past a lens's last sitting: %+v", plan)
 	}
 	_, err = Append(Identity{Run: run, SeatID: "red-chair"}, passGate)
-	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "re-armed once") {
-		t.Fatalf("a chair's PASS over an owed re-arm must be refused at the write path, naming the lens: %v", err)
+	if err == nil || !strings.Contains(err.Error(), evLens) || !strings.Contains(err.Error(), "moved past its last sitting's pin") {
+		t.Fatalf("a chair's PASS over a lens the head has moved past must be refused at the write path, naming the lens: %v", err)
 	}
 }
 
-// THE PLAN AND THE GATE READ ONE FOLD: in every retirement state, pass_permitted and the write
-// path's answer to a PASS agree.
+// THE PLAN AND THE GATE READ ONE FOLD: in every state of it, pass_permitted and the write path's
+// answer to a PASS agree.
 func TestPassPermittedAndGateShareTheFold(t *testing.T) {
+	const staleRead = "retired, stale area read"
 	for _, c := range []struct {
 		name  string
 		build func(t *testing.T) *stage
 	}{
-		{"active", func(t *testing.T) *stage { return retBoard(t).sit(2, evLens) }},
-		{"retired at the head", func(t *testing.T) *stage { return retBoard(t).sit(2, evLens).sit(2, evLens) }},
-		{"retired, re-arm owed", func(t *testing.T) *stage { return retBoard(t).sit(2, evLens).sit(2, evLens).ingest() }},
-		{"retired for good, stale area read", func(t *testing.T) *stage {
-			b, _ := retiredForGoodBehindHead(t)
+		{"never sat", func(t *testing.T) *stage { return retBoard(t) }},
+		{"sat at the head", func(t *testing.T) *stage { return retBoard(t).sit(2, evLens) }},
+		{"head moved since it sat", func(t *testing.T) *stage { return retBoard(t).sit(2, evLens).ingest() }},
+		{staleRead, func(t *testing.T) *stage {
+			b, _ := retiredBehindHead(t)
 			b.register("red-chair")
 			return b.add("red-chair", &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since the pin")})
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := c.build(t)
-			if c.name != "retired for good, stale area read" {
+			if c.name != staleRead {
 				b.register("red-chair")
 			}
 			run := b.seed()
@@ -201,33 +231,48 @@ func TestPassPermittedAndGateShareTheFold(t *testing.T) {
 	}
 }
 
+// A lens that sat at the head and found nothing holds no PASS: the plan permits one and the gate
+// takes it, with no second sitting at the same head between.
+func TestPassIsPermittedOnceEveryLensHasSatAtTheHead(t *testing.T) {
+	run := retBoard(t).sit(2, evLens).register("red-chair").seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !plan.PassPermitted || len(plan.Parties) != 0 {
+		t.Fatalf("every lens has sat at the head and nothing is open, so nobody sits and a PASS is permitted: %+v", plan)
+	}
+	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err != nil {
+		t.Fatalf("the PASS the plan permits was refused: %v", err)
+	}
+}
+
 func TestBudgetExhaustedLensRetires(t *testing.T) {
-	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).sit(2, evLens).sit(2, evLens)
+	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).sit(2, evLens).sit(2, evLens).sit(2, evLens)
 	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
 	run := b.seed()
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, liveMint("G2", "x", recordpb.Grade_GRADE_HIGH)); err == nil || !strings.Contains(err.Error(), "budget") {
 		t.Fatalf("fixture: the lens is not at its budget: %v", err)
 	}
-	if f := lensStateOf(t, run); f.state != LensRetired {
+	if f := lensStateOf(t, run); !f.retired() {
 		t.Fatalf("a lens at its budget mints nothing, so its sittings are barren and it retires: %+v", f)
 	}
 }
 
 func TestWhyCarriesState(t *testing.T) {
-	b, _ := retiredForGoodBehindHead(t)
+	b, pin := retiredBehindHead(t)
 	for _, c := range []struct {
 		name string
 		plan Plan
 		want string
 	}{
-		{"never sat", planOf(t, retBoard(t)), "active, never sat"},
-		{"active", planOf(t, retBoard(t).sit(2, evLens)), "active (1 barren sitting(s)"},
-		{"retired at the head", planOf(t, retBoard(t).sit(2, evLens).sit(2, evLens)), "retired at the head (pin 2)"},
-		{"re-armed", planOf(t, retBoard(t).sit(2, evLens).sit(2, evLens).ingest()), "retired, re-armed once"},
-		{"retired for good", planOf(t, b), "retired for good"},
+		{"never sat", planOf(t, retBoard(t)), "never sat — audits the report at head 2"},
+		{"sat at the head", planOf(t, retBoard(t).sit(2, evLens)), "sat at the head (pin 2) — ready when the head moves"},
+		{"head moved", planOf(t, retBoard(t).sit(2, evLens).ingest()), "moved past its last sitting's pin 2 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)"},
+		{"retired", planOf(t, b), fmt.Sprintf("retired (pin %d) — its last 3 sittings minted no fresh material; not ready", pin)},
 	} {
-		if !strings.Contains(whyOf(c.plan), evLens+": "+c.want) {
-			t.Errorf("%s: the why must name the state %q:\n%s", c.name, c.want, whyOf(c.plan))
+		if !strings.Contains(whyOf(c.plan), evLens+": ") || !strings.Contains(whyOf(c.plan), c.want) {
+			t.Errorf("%s: the why must say %q:\n%s", c.name, c.want, whyOf(c.plan))
 		}
 	}
 }
@@ -282,7 +327,7 @@ func TestLensWorkCarriesLastSitting(t *testing.T) {
 // ---- stale areas (§V #1b) ----
 
 func TestPlanListsStaleAreas(t *testing.T) {
-	b, pin := retiredForGoodBehindHead(t)
+	b, pin := retiredBehindHead(t)
 	plan := planOf(t, b)
 	if len(plan.StaleAreas) != 1 || plan.StaleAreas[0] != (StaleArea{SeatID: evLens, Pin: pin}) {
 		t.Fatalf("stale_areas = %+v, want %s at pin %d", plan.StaleAreas, evLens, pin)
@@ -292,13 +337,13 @@ func TestPlanListsStaleAreas(t *testing.T) {
 func TestPassRefusedUntilSpotCheckCoversStaleAreas(t *testing.T) {
 	spot := &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("read the changes since the pin")}
 	// A spot-check in an EARLIER chair sitting does not cover this one.
-	b, _ := retiredForGoodBehindHead(t)
+	b, _ := retiredBehindHead(t)
 	b.add("red-chair", spot).register("red-chair")
 	run := b.seed()
-	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err == nil || !strings.Contains(err.Error(), "retired for good") {
+	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, passGate); err == nil || !strings.Contains(err.Error(), "the report changed behind 1 retired lens(es)") {
 		t.Fatalf("a PASS over an uncovered stale area must be refused: %v", err)
 	}
-	b2, _ := retiredForGoodBehindHead(t)
+	b2, _ := retiredBehindHead(t)
 	b2.register("red-chair").add("red-chair", spot)
 	if _, err := Append(Identity{Run: b2.seed(), SeatID: "red-chair"}, passGate); err != nil {
 		t.Fatalf("a PASS after this sitting's spot-check named the stale area was refused: %v", err)
@@ -322,7 +367,7 @@ func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
 }
 
 func TestMigratingSkipsStaleAreaGate(t *testing.T) {
-	b, _ := retiredForGoodBehindHead(t)
+	b, _ := retiredBehindHead(t)
 	run := b.register("red-chair").seed()
 	Migrating = true
 	defer func() { Migrating = false }()

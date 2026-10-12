@@ -39,16 +39,16 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(evLens, contradictingVerify("the sky is green"))
 		}, false},
 		{"reopened citation", BlockerReopened, true, true, func(b *stage) {
-			// checked in the lens's last sitting, then its sentence changes; the head move's one
-			// re-arm sitting leaves it unchecked, so the lens is retired for good at the head.
+			// checked in the lens's last sitting, then its sentence changes; its sitting at the
+			// moved head leaves it unchecked, so the lens has sat at the head.
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
 		}, false},
 		{"no report ingested", BlockerNoReport, false, false, func(*stage) {}, false},
 		{"cast lens ready", BlockerLensReady, false, true, func(*stage) {}, false},
 		{"stale area uncovered", BlockerStaleArea, true, true, func(b *stage) {
-			// retired at head 2; the head moves; its re-arm sitting is barren (retired for good at
-			// that pin); the head moves again, past it.
+			// two barren sittings at head 2; the head moves; its third sitting is barren (retired
+			// at that pin); the head moves again, past it.
 			b.ingest()
 			b.dispatch(int64(b.n), evLens).register(evLens)
 			b.ingest()
