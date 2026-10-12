@@ -1026,6 +1026,10 @@ NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: O
 
 (NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §6
 
+ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`. A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections.
+
+A SECTION MOVES IN ONE EDIT. Quote the section together with everything that stands between it and its place, as `show report` prints them, and write the same text as the replacement with the section where it belongs: every anchor in the span stays on its sentence and no sentence changes, so nothing is reopened. Taking a section out in one edit to write it back in a second is refused when the section holds an anchor, because the first edit would drop it.
+
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §7
 
 (If you need a verb or a flag tha…) → SHARED §1
@@ -1083,6 +1087,8 @@ IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with
 NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. A report that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is frozen: the file stands for you to fix, and the one ingest a run gets is unspent. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: a section of that name in the report's text is the report's own, and ships whole in report.md among the report's own sections. `show report` has an assembled form that gives the same for every section before you write.
 
 (NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §6
+
+ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`. A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections. The file stands for you to move the lines, and the one ingest a run gets is unspent.
 
 (WHAT MAY BE IN THE REPORT: resea…) → SHARED §7
 

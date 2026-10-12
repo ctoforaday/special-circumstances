@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -339,11 +340,15 @@ func eachLine(md string, visit func(ln, trimmed string, fenced bool)) {
 	}
 }
 
-// A claim is one place where text takes what is the tool's: the line or the label as the text
-// writes it, the row it belongs to, and the key two claims of the same thing share.
+// A claim is one place where text takes what is the tool's, or stands out of the order the text
+// ships in: the line or the label as the text writes it, the row it belongs to, and the key two
+// claims of the same thing share. A claim of order (orderClaims) also says what the line stands
+// on the wrong side of, and which side.
 type claim struct {
 	key, text string
 	row       Section
+	beside    string
+	after     bool
 }
 
 // added is the first claim now makes that was does not, counted by key.
@@ -393,11 +398,157 @@ func composedClaims(text string) (out []claim) {
 			}
 			if isHeading && key == normalizeHeading(row.Heading) ||
 				preamble && row.Line != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(row.Line)) {
-				out = append(out, claim{row.Heading, t, row})
+				out = append(out, claim{key: row.Heading, text: t, row: row})
 				return
 			}
 		}
 	})
+	return out
+}
+
+// THE REPORT'S TEXT STANDS IN THE ORDER IT SHIPS IN. Every seat reads the text in the order its
+// author wrote it, and a reader gets it in the table's. universe-m21's Catechism was written after
+// the argument it answers from ("These four sources…") and shipped ahead of the sections that
+// introduce them, where no seat had read it. The write refuses a text out of the table's order
+// (OutOfOrderIn), so the order a seat audits is the order that ships.
+//
+// THE ORDER IS THE ROWS THAT PLACE THE TEXT (textRows): the title line, each section a row names,
+// and the body, which is every other section in the order its author chooses. A line of the text
+// stands at its row's rank. A row before the body is out of order when something of its own rank
+// or a later one stands before it; a row after the body, when something of an earlier rank stands
+// after it or a section of its own name before it. So a section the text lacks leaves no place
+// open; a second section under a row's name is out of order, the first standing before it; and
+// text before the first heading is the body's, so a row's section after it is out of order, as the
+// title line is after any text at all.
+
+// textRows is the rows that place the report's text, in the table's order.
+func textRows() (rows []Section, body int) {
+	for _, s := range layout {
+		// The Question line is the title again, composed; the text holds no line of its own for it.
+		if s.File == FileReport && s.Composer == Blue && (s.Line == "" || s.compose == nil) {
+			if s.embeds {
+				body = len(rows)
+			}
+			rows = append(rows, s)
+		}
+	}
+	return rows, body
+}
+
+// orderName is how a row of the text's order is named to a seat.
+func orderName(s Section) string {
+	switch {
+	case s.embeds:
+		return "the report's own sections, in the order their author chooses"
+	case s.Line != "":
+		return "the " + strings.ToLower(s.Heading) + " line (`" + s.Line + "…`)"
+	}
+	return "`## " + s.Heading + "`"
+}
+
+// TextOrder is the order the report's text stands in, as a seat reads it.
+var TextOrder = func() string {
+	rows, _ := textRows()
+	names := make([]string, len(rows))
+	for i, s := range rows {
+		names[i] = orderName(s)
+	}
+	return strings.Join(names, "; ")
+}()
+
+// TextOrderRule is the rule on the pages of the verbs that write report text.
+var TextOrderRule = "ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: " + TextOrder +
+	". A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. " +
+	"A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. " +
+	"A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections."
+
+// Misplaced is one line or section the report's text holds out of the order it ships in.
+type Misplaced struct {
+	Line    string // the title line or the section's heading, as the text writes it
+	Beside  string // what it stands on the wrong side of, as the text writes it
+	After   bool   // it stands after Beside; before it otherwise
+	Belongs string // where the order holds it
+}
+
+// OutOfOrderIn returns the first line text holds out of the order it ships in (TextOrder) that
+// was, the text as it stood, did not (added).
+func OutOfOrderIn(was, text string) (Misplaced, bool) {
+	c, found := added(orderClaims(was), orderClaims(text))
+	if !found {
+		return Misplaced{}, false
+	}
+	rows, body := textRows()
+	at := slices.IndexFunc(rows, func(s Section) bool { return s.Heading == c.key })
+	others, side := rows[:at], "before"
+	if at > body {
+		others, side = rows[at+1:], "after"
+	}
+	belongs := "nothing in the report's text stands " + side + " it"
+	if len(others) > 0 {
+		names := make([]string, len(others))
+		for i, s := range others {
+			names[i] = orderName(s)
+		}
+		belongs = "nothing in the report's text but " + strings.Join(names, " and ") + " stands " + side + " it"
+	}
+	return Misplaced{Line: c.text, Beside: c.beside, After: c.after, Belongs: belongs}, true
+}
+
+// A stand is one thing the order places, where the text holds it: the title line, a section's
+// heading, or the first line of text before the first heading, which opens the body.
+type stand struct {
+	rank int    // its row's place in textRows
+	line string // as the text writes it
+	at   int    // the line's index in the text
+}
+
+func stands(text string) (out []stand, rows []Section, body int) {
+	rows, body = textRows()
+	preamble, titled, at := true, false, -1
+	eachLine(text, func(_, t string, fenced bool) {
+		at++
+		key, isHeading := "", false
+		if !fenced {
+			key, isHeading = headingKey(t)
+		}
+		switch {
+		case isHeading:
+			rank := body
+			for i, s := range rows {
+				if s.Line == "" && !s.embeds && normalizeHeading(s.Heading) == key {
+					rank = i
+				}
+			}
+			preamble = false
+			out = append(out, stand{rank, t, at})
+		// The title is the first such line wherever it stands, as assembly reads it (part), and
+		// its row is the table's first.
+		case !fenced && !titled && strings.HasPrefix(t, rows[0].Line):
+			titled = true
+			out = append(out, stand{0, t, at})
+		case preamble && t != "":
+			preamble = false
+			out = append(out, stand{body, t, at})
+		}
+	})
+	return out, rows, body
+}
+
+// orderClaims is each line of a row's that text holds out of order, with the first thing that
+// stands on the wrong side of it.
+func orderClaims(text string) (out []claim) {
+	all, rows, body := stands(text)
+	for i, s := range all {
+		if s.rank == body {
+			continue
+		}
+		for j, o := range all {
+			if j < i && (o.rank == s.rank || s.rank < body && o.rank > s.rank) || j > i && s.rank > body && o.rank < s.rank {
+				out = append(out, claim{key: rows[s.rank].Heading, text: s.line, row: rows[s.rank], beside: o.line, after: j < i})
+				break
+			}
+		}
+	}
 	return out
 }
 
@@ -456,7 +607,7 @@ func wovenNotes(text string) (out []claim) {
 			return
 		}
 		for _, m := range wovenNote.FindAllString(reCodeSpan.ReplaceAllString(t, ""), -1) {
-			out = append(out, claim{strings.ToLower(m), m, notesRow()})
+			out = append(out, claim{key: strings.ToLower(m), text: m, row: notesRow()})
 		}
 	})
 	return out
