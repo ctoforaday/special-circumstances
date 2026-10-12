@@ -242,18 +242,18 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 // declaration deleted. Every other duplicate fails now.
 var dOwnedDuplicates = map[string]map[string]bool{
 	"red-chair": {
-		"The plan permits a PASS only when no lens is ready — every lens has sat at the head or is retired — and nothing another seat must clear holds it.":                                                       true,
+		"The plan permits a PASS only when no lens is ready — every lens has sat at the head or has retired — and nothing another seat must clear holds it.":                                                                     true,
 		"BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict.":                                       true,
 		"YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record.":                                                         true,
-		"A lens with no gap engaged is readied when it has never sat or the report head has moved since its last sitting, and not otherwise.":                                                              true,
-		"Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens.": true,
+		"A lens with no gap engaged is readied when it has never sat or the report head has moved since its last sitting, and not otherwise.":                                                                                    true,
+		"Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens.":                                                                                                          true,
 		"It holds two things no act of the sitting holds: what you ask the bench to hold, and why you left untaken a step the record offered you — a closure not restated, a gap not put before the bench, a verdict held back.": true,
 		"It restates no act and nothing on the board: the record holds every grade, closure, ruling and dispatch of this sitting, and the bench reads them there.":                                                               true,
 	},
 	"blue-researcher": {
-		"Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens.": true,
+		"Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens.":                                                                                                                               true,
 		"It holds two things no act of the sitting holds: what you ask the bench to weigh, and why you left untaken a route the record offered you — a repair a gap's fix prescribed that you did not make, a gap you rebutted rather than repaired.": true,
-		"It restates no edit, manifest row or motion: each carries its own reason on the record.": true,
+		"It restates no edit, manifest row or motion: each carries its own reason on the record.":                                                                                                                                                     true,
 	},
 }
 

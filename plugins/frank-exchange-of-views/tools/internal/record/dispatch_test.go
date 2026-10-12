@@ -434,7 +434,7 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 	}
 }
 
-// PASS waits for every cast lens to stop being ready — each has sat at the head, or is retired. A
+// PASS waits for every cast lens to stop being ready — each has sat at the head, or has retired. A
 // lens engaged that has opened no sitting since has not sat, so it is still ready.
 func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	logic := "red-lens-logic"

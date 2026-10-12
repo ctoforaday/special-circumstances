@@ -376,7 +376,7 @@ test('the chair is told a lens sits again only on a moved head and retires at th
   assert.ok(/RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past,/.test(p), 'the dispatch is described by the head and the lens\'s last sitting')
   assert.ok(!/active lenses/.test(p) && !/re-arm/.test(p), 'no lens is described as ready at a head it has sat at')
   assert.ok(/A lens with no gap engaged is readied when it has never sat or the report head has moved since its last sitting, and not otherwise\. Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens\./.test(p), 'ready only on a moved head, retired at three')
-  assert.ok(/permits a PASS only when no lens is ready — every lens has sat at the head or is retired — and nothing another seat must clear holds it\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
+  assert.ok(/permits a PASS only when no lens is ready — every lens has sat at the head or has retired — and nothing another seat must clear holds it\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
   assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(p), 'the stale areas')
   assert.ok(/The spot-check is owed before a PASS and at no other time: name in it every stale area the plan lists/.test(p), 'the spot-check is owed before a PASS, and names the stale areas')
   assert.ok(!/every sitting it is not empty/.test(p) && !/Re-sample the archive/.test(p), 'no sitting without a PASS in view owes a spot-check')
