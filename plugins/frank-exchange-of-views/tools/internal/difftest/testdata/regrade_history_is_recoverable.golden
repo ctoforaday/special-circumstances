@@ -21,7 +21,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
 exit 0
@@ -29,7 +29,7 @@ stdout:
 minted GAP001
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --severity medium
 exit 2
@@ -44,7 +44,7 @@ $ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --severity medium 
 exit 0
 stdout:
 regraded GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ regrade --run {RUN} --seat-id red-lens-evidence --id GAP001 --impact low --reason second movement, same id
 exit 2

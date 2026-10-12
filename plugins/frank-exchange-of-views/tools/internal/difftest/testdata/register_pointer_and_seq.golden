@@ -42,7 +42,7 @@ $ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity medium --like
 exit 0
 stdout:
 finding recorded: FINDING001 (logic) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
