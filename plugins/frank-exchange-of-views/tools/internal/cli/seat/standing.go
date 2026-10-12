@@ -50,12 +50,21 @@ import (
 // same call `show work` makes, so a seat that reads this and a seat that asks cannot be told
 // different things — which is the whole reason the list is not re-derived here.
 type StandingJSON struct {
-	// Complete answers "may I end my turn": false whenever a blocking item is open. It is the
-	// question a seat was calling `show work` to settle.
+	// Complete is the work list's `complete`: false whenever a blocking item is open, the seat's own
+	// or another seat's. It is the question a seat was calling `show work` to settle.
 	Complete bool `json:"complete"`
-	// Blocking is every item that stops closure, verbatim from the work list. Not a count — a count
-	// tells a seat it is held and not by what, which is another read.
+	// Blocking is every blocking item THIS SEAT'S OWN ACT CLEARS, verbatim from the work list. Not a
+	// count — a count tells a seat it is held and not by what, which is another read.
 	Blocking []string `json:"blocking"`
+	// AnotherSeatClears is every blocking item on the list that another seat must clear
+	// (record.Item.AnotherSeatClears): the board's state, stated beside the seat's debt and never
+	// counted in it. A chair was told "10 STILL TO CLEAR before you may end your turn" over a list
+	// holding a gap its minter closes and a lens still ready, and ended its turn, correctly, with
+	// all ten open. Only the chair's list holds any.
+	AnotherSeatClears []string `json:"another_seat_clears,omitempty"`
+	// holdsPass: the seat's blocking items hold a PASS and not the end of its turn
+	// (record.SittingJSON.HoldsPass), which is what the sentence above them says they hold.
+	holdsPass bool
 	// Open is how many items the list holds in total, blocking or not. It is the pointer to the rest:
 	// a seat with nothing blocking and items open is complete and not finished, and this is the only
 	// thing here that says so.
@@ -85,15 +94,34 @@ func (s StandingJSON) Human() string {
 			"\n  this is not a report that nothing is open to you — read your work list before you stop"
 	}
 	var b strings.Builder
-	if len(s.Blocking) == 0 {
+	if len(s.Blocking) == 0 && len(s.AnotherSeatClears) == 0 {
 		fmt.Fprintf(&b, "ALL CLEAR — nothing blocks you and you may end your turn "+
 			"(%d item(s) stay open to you and none of them is owed).", s.Open)
 		return b.String()
 	}
-	fmt.Fprintf(&b, "%d STILL TO CLEAR before you may end your turn (of %d item(s) open to you):",
-		len(s.Blocking), s.Open)
+	// THE COUNT IS THE SEAT'S OWN DEBT, AND THE SENTENCE SAYS WHAT THAT DEBT HOLDS. A chair's
+	// blocking items hold a PASS; told they held its turn, a chair with a PASS out of view is told
+	// it owes what the rules do not ask of it. What another seat must clear is stated after, as
+	// the board's state.
+	switch {
+	case len(s.Blocking) == 0:
+		fmt.Fprintf(&b, "NOTHING HERE IS YOURS TO CLEAR (%d item(s) open to you).", s.Open)
+	case s.holdsPass:
+		fmt.Fprintf(&b, "%d STILL TO CLEAR before the run can PASS, and yours to clear (of %d item(s) open to you):",
+			len(s.Blocking), s.Open)
+	default:
+		fmt.Fprintf(&b, "%d STILL TO CLEAR before you may end your turn (of %d item(s) open to you):",
+			len(s.Blocking), s.Open)
+	}
 	for _, it := range s.Blocking {
 		b.WriteString("\n  · " + it)
+	}
+	if len(s.AnotherSeatClears) > 0 {
+		fmt.Fprintf(&b, "\nALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (%d) — the board's state, not your debt; a PASS is not in view while any of it stands:",
+			len(s.AnotherSeatClears))
+		for _, it := range s.AnotherSeatClears {
+			b.WriteString("\n  · " + it)
+		}
 	}
 	return b.String()
 }
@@ -121,11 +149,13 @@ func standingAfter(cmd *cobra.Command) *StandingJSON {
 	if err != nil {
 		return &StandingJSON{Unreadable: err.Error()}
 	}
-	out := &StandingJSON{Complete: w.Sitting.Complete, Open: len(w.Sitting.Open), Blocking: []string{}}
-	for _, it := range w.Sitting.Open {
-		if it.Blocks {
-			out.Blocking = append(out.Blocking, it.What)
-		}
+	out := &StandingJSON{Complete: w.Sitting.Complete, Open: len(w.Sitting.Open), Blocking: []string{}, holdsPass: w.Sitting.HoldsPass()}
+	owed, board := w.Sitting.Owed()
+	for _, it := range owed {
+		out.Blocking = append(out.Blocking, it.What)
+	}
+	for _, it := range board {
+		out.AnotherSeatClears = append(out.AnotherSeatClears, it.What)
 	}
 	return out
 }

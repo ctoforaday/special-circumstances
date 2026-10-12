@@ -146,6 +146,24 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			if s.Complete != (len(blockers) == 0) {
 				t.Errorf("sitting.complete = %v with %d blocker(s)", s.Complete, len(blockers))
 			}
+			// EACH ITEM IS THE CHAIR'S DEBT EXACTLY WHEN THE CHAIR CLEARS ITS BLOCKER: the list's
+			// Owed is the chair-owned blockers and its Board the rest, so a digest counting the
+			// chair's debt counts nothing another seat must clear.
+			var wantOwed, wantBoard []string
+			for _, bl := range blockers {
+				if bl.ChairOwned() {
+					wantOwed = append(wantOwed, bl.WorkItem())
+				} else {
+					wantBoard = append(wantBoard, bl.WorkItem())
+				}
+			}
+			owed, board := s.Owed()
+			if got := whats(owed); strings.Join(got, "\n") != strings.Join(wantOwed, "\n") {
+				t.Errorf("the chair's own blocking items =\n  %q\nwant the chair-owned blockers\n  %q", got, wantOwed)
+			}
+			if got := whats(board); strings.Join(got, "\n") != strings.Join(wantBoard, "\n") {
+				t.Errorf("the items another seat clears =\n  %q\nwant the blockers the chair does not own\n  %q", got, wantBoard)
+			}
 
 			// The plan.
 			plan, err := PlanDispatch(run)
@@ -445,4 +463,33 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 			t.Errorf("outcome after a halt = %v, want it admitted over the unruled petition", err)
 		}
 	})
+}
+
+// NO SEAT BUT THE CHAIR IS SHOWN ANOTHER SEAT'S BLOCKER. A lens, blue and the bench list only what
+// their own act clears, so every blocking item on their lists is their debt — over a board that
+// holds a blocker of every owner at once.
+func TestOnlyTheChairsListHoldsWhatAnotherSeatClears(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
+		dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium")
+	b.add(evLens, contradictingVerify("the sky is green"))
+	b.docketMotion("red-chair", "M1", "G1")
+	b.register("blue-respond").register("judge")
+	run := b.seed()
+	for role, seat := range map[string]string{"lens": evLens, "blue": "blue-respond", "bench": "judge"} {
+		s := sittingOfRunT(t, run, role, seat)
+		owed, board := s.Owed()
+		if len(board) != 0 {
+			t.Errorf("%s is shown %d blocking item(s) another seat clears: %q", seat, len(board), whats(board))
+		}
+		if s.HoldsPass() {
+			t.Errorf("%s's blocking items are said to hold a PASS; they hold its own turn", seat)
+		}
+		if role != "blue" && len(owed) == 0 {
+			t.Errorf("%s owes nothing on a board built to hold a blocker it owns, so this read nothing", seat)
+		}
+	}
+	chair := sittingOfRunT(t, run, "chair", "red-chair")
+	if _, board := chair.Owed(); len(board) == 0 || !chair.HoldsPass() {
+		t.Errorf("the chair's list holds %d item(s) another seat clears and HoldsPass = %v, want some and true", len(board), chair.HoldsPass())
+	}
 }
