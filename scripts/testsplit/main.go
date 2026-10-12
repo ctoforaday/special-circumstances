@@ -19,7 +19,8 @@
 // listed, and the names dealt round-robin to N processes of that binary, each started in the
 // package's directory with the caller's environment. Every listed name must come back with a
 // verdict, read from the JSON event stream; a name that does not is NOT MEASURED and fails the
-// run. `-n 1` is one process per package.
+// run. `-n 1` splits nothing: every package runs under plain `go test`, and that is the
+// default on a box of four cores or fewer (defaultProcesses says why).
 package main
 
 import (
@@ -58,15 +59,22 @@ func main() {
 	os.Exit(run(os.Stdout, *module, testsplit.For(strings.TrimSpace(path)), *n, *timeout))
 }
 
-// defaultProcesses is half the cores, at most eight: the unsplit packages run beside the split
-// ones, and past eight the shares are short enough that each process's own start-up dominates.
+// defaultProcesses is half the cores, at most eight — and ONE on a box of four cores or fewer,
+// which splits nothing.
+//
+// Splitting pays only where cores sit idle. Plain `go test` already runs as many packages at
+// once as there are cores, so on a small box every core is busy and more processes are only
+// contention. MEASURED on a four-core CI runner: the suite step took 111s and 134s through
+// two processes per split package, against 73-104s for plain `go test`; internal/cli alone
+// went from 57s to 100s. Sixteen cores: 94s down to 59-71s. Past eight processes the shares
+// are short enough that each process's own start-up dominates.
 func defaultProcesses(cpus int) int {
+	if cpus <= 4 {
+		return 1
+	}
 	n := cpus / 2
 	if n > 8 {
 		n = 8
-	}
-	if n < 1 {
-		n = 1
 	}
 	return n
 }
@@ -106,6 +114,12 @@ func run(w io.Writer, moduleDir string, rows []testsplit.Row, n int, timeout str
 			return 1
 		}
 		split[r.Package] = true
+	}
+	// ONE PROCESS IS PLAIN `go test`. With nothing to deal to, a split package would be compiled
+	// on its own and run beside the rest for no gain, so the rows are checked above and then
+	// set aside: every package takes the plain path.
+	if n == 1 {
+		rows, split = nil, map[string]bool{}
 	}
 	var plain []string
 	for _, p := range pkgs {

@@ -243,7 +243,7 @@ func runGate(root string, g gate, base string) result {
 		return result{gate: g, status: "PASS", took: took}
 	case kindNode:
 		cmd = exec.Command("node", g.args...)
-	case kindTool:
+	case kindTool, kindSuite:
 		// BUILT, then run — never `go run`. `go run` collapses ANY non-zero exit to 1, so a
 		// tool's exit code cannot reach this function through it: exitNotMeasured (3) arrived
 		// here as 1 and was reported as a failure, indistinguishable from a real one. Measured

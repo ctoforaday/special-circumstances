@@ -263,7 +263,7 @@ func TestEverySuiteGateDefeatsTheTestCache(t *testing.T) {
 		// passes it on both of its paths, and its own tests hold it to that
 		// (TestBothPathsDefeatTheTestCache). What is held HERE is that such a gate runs that
 		// tool and nothing else.
-		if g.kind == kindTool && strings.HasSuffix(g.id, ":test") {
+		if g.kind == kindSuite {
 			if len(g.args) < 2 || g.args[1] != "./testsplit" {
 				t.Errorf("suite gate %q runs %v — a tool that is not testsplit, whose cache defeat nothing here vouches for", g.id, g.args)
 			}
@@ -285,11 +285,12 @@ func TestEverySuiteGateDefeatsTheTestCache(t *testing.T) {
 	}
 }
 
-// ONE SUITE COMMAND, THREE CALLERS. A module with a row in testsplit's table has its suite run
-// by that tool from `check`, from `golden` and from the workflow. The first two build their
-// command from testsplit.SuiteArgs; the workflow is text, so it is held to the gate's arguments
-// here. A module's `:test` gate is also the job's only suite step on Linux: plain `go test
-// ./...` beside it would be the suite run twice.
+// A SPLIT SUITE IS STILL THE WORKFLOW'S SUITE. A module with a row in testsplit's table has its
+// suite run by that tool from `check` and from `golden`, both through testsplit.SuiteArgs. The
+// workflow runs plain `go test ./...` over the same module instead — its runners have too few
+// cores for splitting to pay — and the tool runs the whole of `./...` whatever it splits, so
+// the two cover the same packages. What is held here: the job still runs that plain suite, and
+// does not ALSO run the tool, which would be the suite twice on the slowest box.
 func TestTheSplitSuiteIsTheWorkflowsSuite(t *testing.T) {
 	wf := workflow(t)
 	var held int
@@ -298,29 +299,24 @@ func TestTheSplitSuiteIsTheWorkflowsSuite(t *testing.T) {
 			continue
 		}
 		held++
-		want := "go " + strings.Join(testsplit.SuiteArgs("../"+m.dir), " ")
-		var linux, plain []string
+		var suite, tool int
 		for _, line := range strings.Split(jobBlock(t, wf, m.ciJob), "\n") {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "#") {
 				continue
 			}
-			if strings.Contains(trimmed, want) {
-				linux = append(linux, trimmed)
-			}
 			if strings.Contains(trimmed, "go test ") && strings.HasSuffix(trimmed, " ./...") && !strings.Contains(trimmed, "-race") {
-				plain = append(plain, trimmed)
+				suite++
+			}
+			if strings.Contains(trimmed, "./testsplit") {
+				tool++
 			}
 		}
-		if len(linux) != 1 {
-			t.Errorf("job %s runs %q %d time(s), want once — the local %s:test gate runs exactly that", m.ciJob, want, len(linux), m.ciJob)
+		if suite != 1 {
+			t.Errorf("job %s runs plain `go test ... ./...` %d time(s), want once — it is the CI half of the local %s:test gate", m.ciJob, suite, m.ciJob)
 		}
-		block := jobBlock(t, wf, m.ciJob)
-		for _, p := range plain {
-			at := strings.Index(block, p)
-			if at < 0 || !strings.Contains(block[max(0, at-120):at], "runner.os == 'Windows'") {
-				t.Errorf("job %s also runs the suite as %q without restricting it to Windows", m.ciJob, p)
-			}
+		if tool != 0 {
+			t.Errorf("job %s runs testsplit; on a four-core runner that is slower than the plain suite it also runs", m.ciJob)
 		}
 	}
 	if held == 0 {

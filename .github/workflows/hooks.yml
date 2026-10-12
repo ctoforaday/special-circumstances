@@ -543,10 +543,8 @@ jobs:
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
-          # scripts/go.sum as well: the suite step builds scripts/testsplit.
           cache-dependency-path: |
             plugins/frank-exchange-of-views/tools/go.sum
-            scripts/go.sum
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -656,21 +654,7 @@ jobs:
       # minutes per package, and the leg then fails on the clock with the sweep's own verdict
       # unprinted. The release job's sweep step carries the same bound for the same reason; every
       # other event keeps the default, where no package runs that long. Both arms are workflow literals, like the -short arms.
-      #
-      # ON LINUX THE SUITE RUNS THROUGH scripts/testsplit: the whole of `./...`, with the
-      # packages in scripts/internal/testsplit's table run as several processes each. Those
-      # packages are long and serial (t.Setenv, a package-level swap), so under plain `go
-      # test` each uses one core and the step waits on it. The tool passes -count=1 itself,
-      # hands the environment through to every test process, and fails on a listed test that
-      # sent no verdict. scripts/check and scripts/golden run this same command.
-      # Windows keeps plain `go test`: its pull-request leg is -short and off the critical path.
-      - if: runner.os == 'Linux'
-        working-directory: scripts
-        run: go run ./testsplit -module ../plugins/frank-exchange-of-views/tools ${{ github.event_name == 'schedule' && '-timeout=40m' || '' }}
-        env:
-          FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
-      - if: runner.os == 'Windows'
-        run: go test ${{ github.event_name == 'schedule' && '-timeout=40m' || '' }} ${{ github.event_name == 'pull_request' && '-short' || '' }} ./...
+      - run: go test ${{ github.event_name == 'schedule' && '-timeout=40m' || '' }} ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship

@@ -30,10 +30,6 @@ func TestTheWholeScopeRunsAndEveryListedNameAnswers(t *testing.T) {
 		if rc != 0 {
 			t.Fatalf("n=%d: exit %d\n%s", n, rc, out)
 		}
-		processes := n
-		if processes > 10 {
-			processes = 10 // never more processes than names
-		}
 		for _, want := range []string{
 			"9 pass, 0 fail, 1 skip",
 			"1 pass, 0 fail, 1 skip", // the plain package
@@ -44,7 +40,11 @@ func TestTheWholeScopeRunsAndEveryListedNameAnswers(t *testing.T) {
 				t.Errorf("n=%d: the report lacks %q:\n%s", n, want, out)
 			}
 		}
-		if want := fmt.Sprintf("[%d processes]", processes); !strings.Contains(out, want) {
+		// One process splits nothing; otherwise never more processes than the ten names.
+		want := fmt.Sprintf("[%d processes]", min(n, 10))
+		if got := strings.Contains(out, "processes]"); n == 1 && got {
+			t.Errorf("n=1 ran a package as separate processes; one process is plain go test:\n%s", out)
+		} else if n > 1 && !strings.Contains(out, want) {
 			t.Errorf("n=%d: the report lacks %q:\n%s", n, want, out)
 		}
 	}
@@ -131,6 +131,11 @@ func TestARowThatSplitsNothingIsAnError(t *testing.T) {
 	rc, out := runFixture(t, fixture, []testsplit.Row{{Module: "splitfixture", Package: "splitfixture/renamed"}}, 2)
 	if rc != 1 || !strings.Contains(out, "splitfixture/renamed, which is not a package of this module") {
 		t.Errorf("exit %d:\n%s", rc, out)
+	}
+	// A row is checked even when nothing is split, so a stale table is red on a small box too.
+	rc, out = runFixture(t, fixture, []testsplit.Row{{Module: "splitfixture", Package: "splitfixture/renamed"}}, 1)
+	if rc != 1 || !strings.Contains(out, "splitfixture/renamed, which is not a package of this module") {
+		t.Errorf("n=1: exit %d:\n%s", rc, out)
 	}
 	rc, out = runFixture(t, fixture, []testsplit.Row{{Module: "splitfixture", Package: "splitfixture/empty"}}, 2)
 	if rc != 1 || !strings.Contains(out, "has no tests to split") {
@@ -250,7 +255,7 @@ func has(args []string, want string) bool {
 }
 
 func TestDefaultProcesses(t *testing.T) {
-	for cpus, want := range map[int]int{1: 1, 2: 1, 4: 2, 16: 8, 64: 8} {
+	for cpus, want := range map[int]int{1: 1, 2: 1, 4: 1, 6: 3, 16: 8, 64: 8} {
 		if got := defaultProcesses(cpus); got != want {
 			t.Errorf("%d cores: %d processes, want %d", cpus, got, want)
 		}

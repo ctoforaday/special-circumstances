@@ -72,6 +72,7 @@ const (
 	kindTest    kind = "test"    // go test over a module
 	kindRace    kind = "race"    // go test -race over some subset of a module
 	kindTool    kind = "tool"    // a scripts/ tool, run via go run
+	kindSuite   kind = "suite"   // go test over a module, driven by scripts/testsplit
 	kindNode    kind = "node"    // a node --test suite
 	kindExtern  kind = "extern"  // needs a binary this repo does not vendor
 	kindRelease kind = "release" // only meaningful on a tag
@@ -329,12 +330,18 @@ func gateSet() []gate {
 
 // suiteGate is a module's `:test` gate. A module with a row in internal/testsplit's table runs
 // its suite through scripts/testsplit — the whole of `./...`, the table's serial packages as
-// several processes each — and every other module runs plain `go test`. The tool passes
-// -count=1 on both of its paths (testsplit.NoCache), which is why this gate's own arguments do
-// not show it.
+// several processes each where the box has cores to spare — and every other module runs plain
+// `go test`. The tool passes -count=1 on both of its paths (testsplit.NoCache), which is why
+// this gate's own arguments do not show it.
+//
+// A KIND OF ITS OWN, NOT kindTool: CI does not run this tool. Its runners have four cores, where
+// splitting is slower than plain `go test` (measured; testsplit's defaultProcesses carries the
+// numbers), so the workflow's suite step is the plain command and the tool-parity tests, which
+// hold every kindTool gate to a `go run` line in the workflow, must not read this one.
+// TestTheSplitSuiteIsTheWorkflowsSuite holds the two together instead.
 func suiteGate(dir, ciJob string) gate {
 	if testsplit.Splits(dir) {
-		return gate{id: ciJob + ":test", kind: kindTool, dir: "scripts", args: testsplit.SuiteArgs("../" + dir),
+		return gate{id: ciJob + ":test", kind: kindSuite, dir: "scripts", args: testsplit.SuiteArgs("../" + dir),
 			ciJob: ciJob, why: "the suite"}
 	}
 	return gate{id: ciJob + ":test", kind: kindTest, dir: dir, args: []string{"test", noCache, "./..."}, ciJob: ciJob,
