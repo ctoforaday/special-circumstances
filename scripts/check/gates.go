@@ -50,6 +50,8 @@
 //	go run ./check -base main   the ref diff-based gates compare against (default origin/main)
 package main
 
+import "github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
+
 // workflowPath is the authority FOR THE GATE SET, and the scoping matters: it is not the only
 // workflow in the repository. `.github/workflows/labels.yml` runs on `issues` events, marks an
 // issue carrying no `area:`/`priority:` label, and is deliberately absent from this table — it
@@ -114,7 +116,10 @@ type gate struct {
 // leaving it in place would mean the local gate set can pass where CI fails, which is the
 // original defect wearing this tool's name. parity_test.go compares gate IDENTITY (which module,
 // which race scope, which tool), not argv, so declaring it here claims no coverage CI lacks.
-const noCache = "-count=1"
+//
+// One constant for both carriers: a suite gate passes it itself, and a module whose suite is
+// run by scripts/testsplit has it passed for it, on both of that tool's paths.
+const noCache = testsplit.NoCache
 
 // modules are the four Go modules. Enumerated rather than globbed for the same reason CI
 // enumerates them: a glob that matches nothing is a silent pass.
@@ -270,8 +275,7 @@ func gateSet() []gate {
 				why: "vet catches what compiles and cannot be right"},
 			gate{id: m.ciJob + ":fmt", kind: kindFmt, dir: m.dir, ciJob: m.ciJob,
 				why: "unformatted Go keeps reaching CI (#352)"},
-			gate{id: m.ciJob + ":test", kind: kindTest, dir: m.dir, args: []string{"test", noCache, "./..."}, ciJob: m.ciJob,
-				why: "the suite"},
+			suiteGate(m.dir, m.ciJob),
 		)
 		if scope, ok := raceScope[m.dir]; ok {
 			gs = append(gs, gate{id: m.ciJob + ":race", kind: kindRace, dir: m.dir,
@@ -321,6 +325,20 @@ func gateSet() []gate {
 			why:  "a tag and the manifest it publishes cannot disagree — one release act writes both"},
 	)
 	return gs
+}
+
+// suiteGate is a module's `:test` gate. A module with a row in internal/testsplit's table runs
+// its suite through scripts/testsplit — the whole of `./...`, the table's serial packages as
+// several processes each — and every other module runs plain `go test`. The tool passes
+// -count=1 on both of its paths (testsplit.NoCache), which is why this gate's own arguments do
+// not show it.
+func suiteGate(dir, ciJob string) gate {
+	if testsplit.Splits(dir) {
+		return gate{id: ciJob + ":test", kind: kindTool, dir: "scripts", args: testsplit.SuiteArgs("../" + dir),
+			ciJob: ciJob, why: "the suite"}
+	}
+	return gate{id: ciJob + ":test", kind: kindTest, dir: dir, args: []string{"test", noCache, "./..."}, ciJob: ciJob,
+		why: "the suite"}
 }
 
 func baseName(p string) string {

@@ -82,7 +82,7 @@ func main() {
 
 // subsumeGoldenLegs tells the golden gate which of its go legs THIS run already executes.
 //
-// golden's go leg per module is `go test -count=1 ./...` — byte-for-byte the module's `:test`
+// golden's go leg per module is the module's suite command — byte-for-byte the module's `:test`
 // gate — so a check run that includes both runs the same suite twice, sequentially: ~620s of a
 // ~1550s local run re-deriving a result the run already has (#626). The subsumption is only
 // claimed when the module's test gate is actually in the selected set (an `-only golden` run
@@ -304,12 +304,14 @@ func buildTool(dir string, g gate) (bin string, cleanup func(), err error) {
 	if len(g.args) < 2 {
 		return "", func() {}, fmt.Errorf("gate %s: no package path in args %v", g.id, g.args)
 	}
-	tmp, err := os.MkdirTemp("", "check-"+g.id+"-")
+	// A gate id may carry a colon (feov-record:test), which a Windows path may not.
+	name := strings.ReplaceAll(g.id, ":", "-")
+	tmp, err := os.MkdirTemp("", "check-"+name+"-")
 	if err != nil {
 		return "", func() {}, err
 	}
 	cleanup = func() { _ = os.RemoveAll(tmp) }
-	bin = filepath.Join(tmp, g.id)
+	bin = filepath.Join(tmp, name)
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
