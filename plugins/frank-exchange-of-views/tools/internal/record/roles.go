@@ -26,13 +26,12 @@ import (
 // boundary enforced only by which word a seat happens to type is evidence of
 // nothing.
 //
-// The check is a PREFIX match on the seat id the engine assigns, taken from
-// debate.js's own recordClause dispatch so the two cannot drift silently:
+// The check is a PREFIX match on the seat id the engine assigns.
 //
-// The grammar lives ONCE, in roster.go's seatShapes: that table is what admits a seat id, and its
-// drift test is what holds it against debate.js's own dispatch sites. A second copy here would be
-// a hand-written restatement of the same vocabulary with no check under it, and a stale copy reads
-// exactly like a current one.
+// The ids live ONCE, in internal/seatclass's roster: that table is what admits a seat id at
+// register, and the dispatch identity test in integration/surface holds it against the seats
+// debate.js dispatches. A second copy here would be a hand-written restatement of the same
+// vocabulary with no check under it, and a stale copy reads exactly like a current one.
 //
 // A petition sitting is `judge`, like the other three. Which of the four questions a sitting
 // answers rides on the register's `occasion` (see occasion.go) rather than on the id, and who filed
@@ -58,7 +57,7 @@ var roleSeats = map[string][]string{
 	"blue":  {"blue-", "frontier"},
 	// THE BENCH IS ONE PREFIX, BECAUSE IT IS ONE SEAT. `assemble` stayed here after the bench
 	// collapsed, and this table is the GRANT: RoleOfSeat scopes the command surface from it, while
-	// seatShapes is what REFUSES at register. Removing every refusal and leaving the grant meant
+	// the roster is what REFUSES at register. Removing every refusal and leaving the grant meant
 	// `--seat-id assemble-anything` still selected the whole bench tree — and `halt`, the safety
 	// stop capture relays verbatim to a human, recorded under an identity no dispatch can create.
 	benchRole: {"judge"},

@@ -25,6 +25,13 @@ type Seat struct {
 	Role string
 	Base string
 	Area string
+	// AgentType is the agent configuration the engine dispatches this seat under, spelled as the
+	// harness delivers it on a hook payload. Empty for the operator, which nothing dispatches.
+	//
+	// THE SEAT NAMES ITS CONFIGURATION, AND NOTHING NAMES IT BACK. record's attestation table —
+	// which roles a configuration may be seated as, and the one seat it always is — is computed
+	// from this column, so a configuration and its seat are written once, here.
+	AgentType string
 	// CommonWord marks an id that is ALSO an ordinary English word, so it cannot be guarded by
 	// NAME anywhere. `judge`, `frontier` and `operator` are the three: a report about its subject
 	// may say "a sitting judge", "the frontier of the field" or "the operator of the plant"
@@ -42,6 +49,11 @@ type Seat struct {
 // OperatorRole is the identity a human or a script acts under, outside the debate.
 const OperatorRole = "operator"
 
+// AgentTypePrefix is the plugin namespace the harness puts in front of every agent definition's
+// name: `agents/red-chair.md` is dispatched, and attested on a hook payload, as this plus
+// `red-chair`.
+const AgentTypePrefix = "frank-exchange-of-views:"
+
 // Seats is every seat id the engine can produce whose spelling is FIXED.
 //
 // The lens rows are GENERATED from flags.LensAreas rather than written out, so membership and
@@ -52,18 +64,24 @@ var Seats = roster()
 
 func roster() map[string]Seat {
 	m := map[string]Seat{
-		"red-chair":       {Role: "chair", Base: "red-chair"},
-		"blue-respond":    {Role: "blue", Base: "blue-respond"},
-		"blue-synthesize": {Role: "blue", Base: "blue-synthesize"},
-		"frontier":        {Role: "blue", Base: "frontier", CommonWord: true},
-		"judge":           {Role: "bench", Base: "judge", CommonWord: true},
+		"red-chair":       {Role: "chair", Base: "red-chair", AgentType: AgentTypePrefix + "red-chair"},
+		"blue-respond":    {Role: "blue", Base: "blue-respond", AgentType: AgentTypePrefix + "blue-researcher"},
+		"blue-synthesize": {Role: "blue", Base: "blue-synthesize", AgentType: AgentTypePrefix + "blue-synthesizer"},
+		"frontier":        {Role: "blue", Base: "frontier", AgentType: AgentTypePrefix + "blue-researcher", CommonWord: true},
+		"judge":           {Role: "bench", Base: "judge", AgentType: AgentTypePrefix + "lead-judge", CommonWord: true},
 		OperatorRole:      {Role: OperatorRole, CommonWord: true},
 	}
 	for _, a := range flags.LensAreas {
-		m["red-lens-"+a] = Seat{Role: "lens", Base: "red-lens", Area: a}
+		// One configuration per area, named for the seat: `agent_type` attests WHICH lens sat.
+		m["red-lens-"+a] = Seat{Role: "lens", Base: "red-lens", Area: a, AgentType: AgentTypePrefix + "red-lens-" + a}
 	}
 	return m
 }
+
+// Lane is what every lane seat is, whatever its number. A lane's ID is generated from the run's
+// lane count (record.LaneSeatIDs), so no row of Seats can carry one; its role, tier base and
+// configuration do not vary with the number and are stated once, here.
+var Lane = Seat{Role: "blue", Base: "blue-lane", AgentType: AgentTypePrefix + "blue-researcher"}
 
 // LaneSeatPrefix is how a lane seat id is SPELLED, and the one place that says so.
 //

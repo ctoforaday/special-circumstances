@@ -1,64 +1,65 @@
 package record
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE ATTESTATION TABLE: which roles an agent configuration is allowed to be seated as.
 //
-// The roster gate (roster.go) bounds a seat id's shape and, for a lens, its area. What it cannot
-// see is WHO registered: nothing there could tell that a `lead-judge` agent had registered as
+// The roster gate (roster.go) bounds a seat id to the ids the engine dispatches. What it cannot see
+// is WHO registered: nothing there could tell that a `lead-judge` agent had registered as
 // `red-chair`, because both are ids the engine really does dispatch. This table is the
 // agent-to-role half, and it is the first fact in this system about a seat that the seat did not
-// supply: `agent_type` comes off the PreToolUse payload, and a seat cannot state it or withhold it.
+// supply: `agent_type` comes off the hook payload, and a seat cannot state it or withhold it.
 //
-// A SET PER TYPE IS NO LONGER NEEDED FOR RED, AND THAT IS THE POINT OF THE SPLIT. This table
-// carried `red-auditor -> {lens, merge}` and said so as a real limit: debate.js dispatched both
-// the lenses and the chair as one configuration, so an attestation of red-auditor admitted either
-// and could refuse neither. Every red seat now has its OWN configuration, so `agent_type` names
-// WHICH lens — not merely that it is one — and the ambiguous row is gone.
+// IT IS COMPUTED FROM THE ROSTER, NOT WRITTEN BESIDE IT. seatclass.Seats names the configuration
+// each seat is dispatched under, and this is that column read the other way: per configuration,
+// the roles of the seats it seats, and the seat where there is exactly one. A configuration is a
+// row here exactly when a seat names it, keyed on the full prefixed string the harness delivers.
 //
-// The sets remain sets because blue's are genuinely one-to-many and because a scalar here would
-// have to be widened back the first time any configuration seats two roles.
-//
-// KEYED ON THE FULL PREFIXED STRING, exactly as the harness delivers it and as
-// hookgate.AuthorAgentType already spells it. A bare-keyed table would map every real seat to
-// unattested, which is the silent pass this exists to remove.
-// attestation is what one agent configuration may be seated as.
-//
-// SEAT IS A FIELD, NOT A SUBSTRING OF THE TYPE. `frank-exchange-of-views:red-lens-voice` contains
-// its seat id, and recovering it with a prefix-strip is the shape this repository keeps removing:
-// a fact composed into a name at one end and pulled back out at the other, whose miss is a
-// plausible zero. Written here, a configuration that stops being one-to-one says so by having no
-// seat rather than by a regex quietly matching something else.
-//
-// EMPTY MEANS THE CONFIGURATION SEATS SEVERAL, which is a real answer and not a gap in the table:
-// `blue-researcher` dispatches blue-lane-N, blue-respond and frontier, so nothing but the seat's
-// own word can say which one registered. TestEveryDispatchedAgentTypeIsAttestable keeps the rows
-// honest against debate.js.
+// EVERY RED SEAT HAS ITS OWN CONFIGURATION, so `agent_type` names WHICH lens sat and not merely
+// that one did. The roles remain a set because blue's configuration is one-to-many.
 type attestation struct {
 	roles []string
 	// seat is the ONE seat id this configuration is ever dispatched as, or "" where it seats more
-	// than one. Where it is set, a sitting is knowable from the hook alone.
+	// than one: `blue-researcher` seats the lanes, blue-respond and the frontier, so nothing but
+	// the seat's own word can say which one registered. Where it is set, a sitting is knowable
+	// from the hook alone.
 	seat string
 }
 
-var agentTypeRoles = map[string]attestation{
-	"frank-exchange-of-views:red-lens-evidence":     {[]string{"lens"}, "red-lens-evidence"},
-	"frank-exchange-of-views:red-lens-logic":        {[]string{"lens"}, "red-lens-logic"},
-	"frank-exchange-of-views:red-lens-dark-side":    {[]string{"lens"}, "red-lens-dark-side"},
-	"frank-exchange-of-views:red-lens-voice":        {[]string{"lens"}, "red-lens-voice"},
-	"frank-exchange-of-views:red-lens-computation":  {[]string{"lens"}, "red-lens-computation"},
-	"frank-exchange-of-views:red-lens-adversary":    {[]string{"lens"}, "red-lens-adversary"},
-	"frank-exchange-of-views:red-lens-architecture": {[]string{"lens"}, "red-lens-architecture"},
-	"frank-exchange-of-views:red-chair":             {[]string{"chair"}, "red-chair"},
-	"frank-exchange-of-views:blue-synthesizer":      {[]string{"blue"}, "blue-synthesize"},
-	"frank-exchange-of-views:lead-judge":            {[]string{"bench"}, "judge"},
-	// ONE CONFIGURATION, THREE SEATS — so no seat id, and blue keeps paying for its own register.
-	"frank-exchange-of-views:blue-researcher": {[]string{"blue"}, ""},
+var agentTypeRoles = attestationsOf(seatclass.Seats, seatclass.Lane)
+
+// attestationsOf reads a roster by configuration. lane stands for every lane seat: its ids are
+// generated per run, so a configuration that seats a lane seats no ONE id, whatever else it seats.
+func attestationsOf(seats map[string]seatclass.Seat, lane seatclass.Seat) map[string]attestation {
+	out := map[string]attestation{}
+	seated := map[string]int{}
+	add := func(id string, s seatclass.Seat) {
+		if s.AgentType == "" {
+			return // the operator: nothing dispatches it, so nothing attests it
+		}
+		a := out[s.AgentType]
+		if !slices.Contains(a.roles, s.Role) {
+			a.roles = append(a.roles, s.Role)
+		}
+		seated[s.AgentType]++
+		a.seat = ""
+		if seated[s.AgentType] == 1 {
+			a.seat = id
+		}
+		out[s.AgentType] = a
+	}
+	for id, s := range seats {
+		add(id, s)
+	}
+	add("", lane)
+	return out
 }
 
 // SeatOfAgentType is the seat a configuration is always dispatched as, where there is exactly one.
@@ -85,8 +86,10 @@ func SeatOfAgentType(agentType string) (string, bool) {
 // AN UNKNOWN TYPE IS ALSO NOT A VIOLATION, and this is the deliberate half. A type absent from the
 // table is one this build has not been taught, which happens the moment a new agent configuration
 // is added — and failing closed there would refuse every seat of the new kind at its first act,
-// turning an incomplete table into a broken run. TestEveryDispatchedAgentTypeIsAttestable is what
-// keeps the table complete instead; the runtime stays permissive on purpose.
+// turning an incomplete table into a broken run. The table holds every configuration the roster
+// names, and integration/surface's TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier
+// holds every dispatch the engine makes to the roster's configuration for its seat; the runtime
+// stays permissive on purpose.
 func CheckAttestedRole(agentType, seatID string) error {
 	if agentType == "" {
 		return nil

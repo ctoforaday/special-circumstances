@@ -3,6 +3,8 @@ package sittingwrite
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -93,19 +95,15 @@ func TestTheClosingEndRendersNothing(t *testing.T) {
 // zero this repository keeps finding. So the failure is stated, in the seat's own channel, and says
 // what it is NOT.
 func TestAnUnreadableListSaysSoRatherThanReadingEmpty(t *testing.T) {
+	// A record that cannot be opened: the projection fails, and the seat is told so.
 	dir := newRun(t)
-	// The seat is in the attestation table and NOT in the roster, which is the one disagreement
-	// between those two tables that can produce a seat with no surface role.
-	prev := seatRoleOf
-	seatRoleOf = func(string) string { return "" }
-	t.Cleanup(func() { seatRoleOf = prev })
-
-	var forSeat bytes.Buffer
-	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: "frank-exchange-of-views:red-lens-evidence", TranscriptPath: ""}, &forSeat); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "records", "record.db"), []byte("not a database"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	var forSeat bytes.Buffer
+	injectWorkList(mustRun(t, dir), "frank-exchange-of-views:red-lens-evidence", &forSeat)
 	out := forSeat.String()
-	for _, want := range []string{"COULD NOT BE READ", "NOT the same as nothing being open", "red-lens-evidence"} {
+	for _, want := range []string{"COULD NOT BE READ", "NOT the same as nothing being open"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the failure does not say %q — a seat would read it as a clean board:\n%s", want, out)
 		}
