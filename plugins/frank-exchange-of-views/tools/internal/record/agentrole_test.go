@@ -1,73 +1,12 @@
 package record
 
 import (
-	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
-
-// agentTypeDispatch captures every agentType debate.js dispatches under.
-var agentTypeDispatch = regexp.MustCompile("agentType:\\s*['`]([^'`]+)['`]")
-
-// lensAreaHole is the one interpolated agent type the engine composes: every lens area is
-// dispatched under its own configuration, so the dispatch site reads
-// `frank-exchange-of-views:red-lens-${area}` rather than seven literals.
-//
-// IT IS EXPANDED, NOT SKIPPED. Skipping an argument this cannot read is how a bind goes quiet:
-// the interpolated site would stop being checked in EITHER direction, and the table could grow a
-// row for an area nothing dispatches without failing here. Expanding it over LensAreas — which
-// TestTheLensAreasMatchWhatTheEngineDeclares independently binds to debate.js's own list — keeps
-// both directions honest.
-const lensAreaHole = "${area}"
-
-// EVERY TYPE THE ENGINE DISPATCHES IS IN THE TABLE, because a missing row is SILENT.
-//
-// CheckAttestedRole passes an unknown type deliberately: failing closed on a type this build has
-// not been taught would refuse every seat of a newly added kind at its first act, turning an
-// incomplete table into a broken run. That choice is only safe while something else keeps the
-// table complete — otherwise the permissive branch is exactly the plausible zero this package
-// exists to refuse, and the day someone adds an agent configuration the attestation quietly stops
-// attesting anything for it.
-//
-// This is that something else, and it reads the engine rather than a second list of its own.
-func TestEveryDispatchedAgentTypeIsAttestable(t *testing.T) {
-	src, err := os.ReadFile(debateSource)
-	if err != nil {
-		t.Fatalf("cannot read debate.js — the dispatch this table is derived from: %v", err)
-	}
-
-	ms := agentTypeDispatch.FindAllStringSubmatch(string(src), -1)
-	if len(ms) < 10 {
-		t.Fatalf("found %d agentType dispatch sites in debate.js, expected at least 10 — this bind is "+
-			"reading the wrong thing and would pass on an empty set", len(ms))
-	}
-
-	seen := map[string]bool{}
-	expanded := make([]string, 0, len(ms)+len(LensAreas))
-	for _, m := range ms {
-		if strings.Contains(m[1], lensAreaHole) {
-			for _, a := range LensAreas {
-				expanded = append(expanded, strings.ReplaceAll(m[1], lensAreaHole, a))
-			}
-			continue
-		}
-		expanded = append(expanded, m[1])
-	}
-	for _, at := range expanded {
-		seen[at] = true
-		if _, known := agentTypeRoles[at]; !known {
-			t.Errorf("debate.js dispatches agent type %q and agentTypeRoles has no row for it, so every "+
-				"seat under it registers with its role unattested", at)
-		}
-	}
-	for at := range agentTypeRoles {
-		if !seen[at] {
-			t.Errorf("agentTypeRoles has a row for %q and debate.js dispatches no seat under it", at)
-		}
-	}
-}
 
 // EVERY ROLE A TYPE CLAIMS IS A ROLE THAT EXISTS. A typo'd role in the table is not a compile
 // error, and it would make the check pass every seat of that family forever.
@@ -109,18 +48,6 @@ func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
 	}
 }
 
-// THE AMBIGUOUS ROW IS ASSERTED, not left to be rediscovered. red-auditor seats the lenses AND the
-// merge, so the attestation cannot tell them apart and must admit both. If this ever starts
-// failing it is because red-merge got its own configuration — at which point the table narrows and
-// this test states the new truth.
-func TestRedAuditorSeatsBothLensAndMerge(t *testing.T) {
-	for _, seat := range []string{"red-lens-evidence", "red-chair"} {
-		if err := CheckAttestedRole("frank-exchange-of-views:red-auditor", seat); err != nil {
-			t.Errorf("red-auditor cannot seat %s, but debate.js dispatches it: %v", seat, err)
-		}
-	}
-}
-
 // UNATTESTED AND UNKNOWN BOTH PASS, and both are load-bearing: an operator at a shell has no hook,
 // and a build that has not learned a new type must not refuse every seat of that kind.
 func TestUnattestedAndUnknownTypesArePermitted(t *testing.T) {
@@ -132,64 +59,54 @@ func TestUnattestedAndUnknownTypesArePermitted(t *testing.T) {
 	}
 }
 
-// A ONE-TO-ONE CONFIGURATION'S SEAT MUST BE A SEAT, OF ITS OWN ROLE, AND SPELLED THE SAME WAY.
-//
-// The `seat` field is what makes a no-op sitting free: where it is set, a `sitting_open` from the
-// hook identifies the seat with no command from the seat at all. A WRONG value there attributes one
-// seat's sitting to another, silently, because nothing else compares the two.
-//
-// PAIRING THIS AGAINST debate.js BY REGEX WAS TRIED AND REMOVED. `recordClause(...)` and
-// `agentType:` sit in different halves of a dispatch, so a span match runs past the end of one
-// site into the next: it paired red-chair's clause with the bench's type and reported the TABLE as
-// wrong. A bind that mis-reads its own input is worse than no bind, because its failure looks like
-// the thing it was watching for. The properties below need no source parsing, and the engine bind
-// that does exist — TestEveryDispatchedAgentTypeIsAttestable, plus roster.go's own
-// TestTheRosterMatchesWhatTheEngineActuallyDispatches — already hold the type set and the seat ids
-// to debate.js from their own ends.
-func TestAOneToOneAgentTypeNamesARealSeatOfItsOwnRole(t *testing.T) {
-	oneToOne := 0
-	for at, a := range agentTypeRoles {
-		if a.seat == "" {
-			continue
-		}
-		oneToOne++
-		// 1. It is a seat the engine could dispatch at all.
-		if !dispatchableSeatID(mustRun(t, t.TempDir()), a.seat) {
-			t.Errorf("agentTypeRoles[%q].seat = %q, which requireDispatchableSeat refuses — a hook-derived "+
-				"sitting would name a seat that cannot register", at, a.seat)
-			continue
-		}
-		// 2. Its role is one this configuration may be seated as. This is the cross-check between
-		//    the two halves of the row, and it is what catches a seat pasted from the wrong line.
-		role := roleOfSeat(a.seat)
-		if !slices.Contains(a.roles, role) {
-			t.Errorf("agentTypeRoles[%q] seats %q (role %q) but admits roles %v — the row disagrees with itself",
-				at, a.seat, role, a.roles)
-		}
-		// 3. The two independently authored strings agree. This is an ASSERTION of agreement, not a
-		//    derivation: the seat is stored as a field precisely so it is not recovered from the type,
-		//    and this only refuses a row where the two have drifted apart.
-		if suffix := at[strings.LastIndex(at, ":")+1:]; suffix != a.seat && !strings.HasPrefix(suffix, "blue") && !strings.HasPrefix(suffix, "lead") {
-			t.Errorf("agentTypeRoles[%q] seats %q — the configuration name and the seat disagree, and one "+
-				"of them is a typo", at, a.seat)
+// THE TABLE IS THE ROSTER READ BY CONFIGURATION. A configuration one seat names is that seat, from
+// the hook alone; one several seats name — or a lane, whose id no roster row can hold — is no one
+// seat, and admits every role those seats hold. A seat with no configuration attests nothing.
+func TestTheAttestationIsDerivedFromTheRoster(t *testing.T) {
+	got := attestationsOf(map[string]seatclass.Seat{
+		"solo":     {Role: "lens", AgentType: "t:solo"},
+		"shared-a": {Role: "blue", AgentType: "t:shared"},
+		"shared-b": {Role: "bench", AgentType: "t:shared"},
+		"beside":   {Role: "blue", AgentType: "t:lane"},
+		"nobody":   {Role: "operator"},
+	}, seatclass.Seat{Role: "blue", AgentType: "t:lane"})
+	for _, c := range []struct {
+		typ, seat string
+		roles     []string
+	}{
+		{"t:solo", "solo", []string{"lens"}},
+		{"t:shared", "", []string{"bench", "blue"}},
+		{"t:lane", "", []string{"blue"}},
+	} {
+		a, ok := got[c.typ]
+		slices.Sort(a.roles)
+		if !ok || a.seat != c.seat || !slices.Equal(a.roles, c.roles) {
+			t.Errorf("%s attests seat %q, roles %v (row present: %v); want seat %q, roles %v", c.typ, a.seat, a.roles, ok, c.seat, c.roles)
 		}
 	}
-	if oneToOne < 7 {
-		t.Errorf("only %d one-to-one configuration(s) carry a seat; the seven lenses alone should — this "+
-			"test would pass on an empty table", oneToOne)
+	if len(got) != 3 {
+		t.Errorf("%d configuration(s) attested, want 3 — a seat with no configuration is no row: %v", len(got), got)
 	}
-}
+	// A lane ALONE under a configuration is still no one seat: its id is generated per run.
+	if a := attestationsOf(nil, seatclass.Seat{Role: "blue", AgentType: "t:lane"})["t:lane"]; a.seat != "" || !slices.Equal(a.roles, []string{"blue"}) {
+		t.Errorf("a configuration seating only lanes attests seat %q, roles %v; want no seat and blue", a.seat, a.roles)
+	}
 
-// AND THE AMBIGUOUS ROW IS AMBIGUOUS ON PURPOSE. blue-researcher seats blue-lane-N, blue-respond and
-// frontier, so nothing but the seat's own word says which registered. If that configuration is ever
-// split per seat, this test is the reminder that blue's no-op sittings become free too.
-func TestTheAmbiguousConfigurationIsNamedRatherThanForgotten(t *testing.T) {
-	a, ok := agentTypeRoles["frank-exchange-of-views:blue-researcher"]
-	if !ok {
-		t.Fatal("blue-researcher has no row at all")
-	}
-	if a.seat != "" {
-		t.Errorf("blue-researcher carries seat %q, but the engine dispatches blue-lane-N, blue-respond and "+
-			"frontier under it — a hook-derived sitting would attribute two of those three wrongly", a.seat)
+	// AND THE LIVE TABLE IS THAT READING OF THE LIVE ROSTER: every seat's configuration admits the
+	// seat's own role, and names the seat exactly where no other seat shares it.
+	for id, s := range seatclass.Seats {
+		if s.AgentType == "" {
+			continue
+		}
+		if err := CheckAttestedRole(s.AgentType, id); err != nil {
+			t.Errorf("seat %s is refused under its own configuration %s: %v", id, s.AgentType, err)
+		}
+		sole := s.AgentType != seatclass.Lane.AgentType
+		for other, o := range seatclass.Seats {
+			sole = sole && (other == id || o.AgentType != s.AgentType)
+		}
+		if seat, ok := SeatOfAgentType(s.AgentType); ok != sole || (sole && seat != id) {
+			t.Errorf("SeatOfAgentType(%s) = %q, %v; seat %s names it and is its only seat: %v", s.AgentType, seat, ok, id, sole)
+		}
 	}
 }

@@ -36,16 +36,11 @@ import (
 // agentbinding.go, where that loss is now UNREPRESENTABLE — so the id stopped needing to carry it
 // and nobody went back to collapse it.
 //
-// — and nothing could refuse anything against it, because a comment is not a check. Every id below
-// is verified against debate.js's own dispatch sites by TestTheRosterMatchesWhatTheEngineActuallyDispatches,
-// in both directions: a dispatched seat no shape admits, and a shape no dispatch produces.
-//
-// THAT SENTENCE WAS ITSELF AN UNCHECKED COMMENT until #675 — it named a test that did not exist,
-// in the paragraph arguing that a comment is not a check. What stood in its place reconciled these
-// shapes against `roleSeats`: two hand-written tables over here stating one vocabulary, neither of
-// them the engine. The bind reads the seat ids debate.js hands `recordClause` — the string a seat
-// is told to type at `register` — rather than the dispatch LABELS, which are a dashboard's text and
-// do not carry a seat id's shape at all.
+// — and a comment is not a check. integration/surface's
+// TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier RUNS debate.js to every agent() call
+// and holds each dispatch to the roster in both directions: a dispatched SEAT_ID the roster does not
+// carry, and a roster seat no dispatch seats. It reads the id out of the prompt — the string a seat
+// is told to type at `register` — never the dispatch LABEL, which is a dashboard's text.
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
 // none. A lens id is bounded twice — the pattern for its shape, `LensAreas` for its area (see
@@ -93,8 +88,8 @@ func AreaOf(seatID string) string { return seatclass.Seats[seatID].Area }
 // imports that package, so a second copy here is the one thing this arrangement exists to stop.
 //
 // It is what GENERATES the lens rows above, so membership and shape are no longer two questions
-// with two answers: an id is a lens seat exactly when this list named its area.
-// TestTheLensAreasMatchWhatTheEngineDeclares holds it against debate.js's own RED_AREAS, so
+// with two answers: an id is a lens seat exactly when this list named its area. The dispatch
+// identity test in integration/surface holds the lens seats debate.js dispatches to these rows, so
 // adding an area there and not here fails.
 var LensAreas = flags.LensAreas
 

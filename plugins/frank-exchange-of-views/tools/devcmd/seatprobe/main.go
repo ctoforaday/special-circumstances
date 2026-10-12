@@ -80,6 +80,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 
@@ -289,34 +290,24 @@ func namingTreatment(role, constDir string, sf seatprobe.Surface) string {
 		strings.ToUpper(role), len(names), strings.Join(names, ", "))
 }
 
+// agentTypeOf is the agent configuration production dispatches a seat under — the roster's own
+// answer, so the probe and the engine cannot seat one id under two constitutions.
+// NO DEFAULT. A seat the roster names no configuration for is a programming error and says so: a
+// fallback would dispatch it under ANOTHER SEAT'S constitution and report the run as its own.
+func agentTypeOf(seat string) string {
+	at := seatclass.Seats[seat].AgentType
+	if at == "" {
+		fail("no agent configuration for seat %q — the probe will not dispatch a seat under another seat's constitution", seat)
+	}
+	return at
+}
+
 // trajectoryPath keeps the capture OUT of the run directory.
 //
 // It used to be written to <runDir>/probe-trajectory.jsonl, where the seat can read it — and one
 // did: the docket seat found the harness's own recording of the docket seat and tried to execute
 // it, producing 149 "command not found" lines in a single turn. A probe that leaves its
 // instrument inside the thing it measures is measuring itself.
-// agentFor maps a seat role to the agent definition production dispatches for it — the same
-// mapping debate.js makes with agentType.
-// NO DEFAULT. A role that fell through would dispatch under ANOTHER SEAT'S constitution and the run
-// would report it as its own role — a seat measured against duties it was never given, reported as
-// a finding about that role. An unknown role is a programming error and says so.
-func agentFor(role string) string {
-	switch role {
-	case "lens":
-		// Any lens: the seven areas share every duty this probe measures, and they share it
-		// through the adversarial-audit skill rather than by each restating it.
-		return "red-lens-evidence"
-	case "chair":
-		return "red-chair"
-	case "blue":
-		return "blue-researcher"
-	case "bench":
-		return "lead-judge"
-	}
-	fail("no agent definition for role %q — the probe will not dispatch a seat under another seat's constitution", role)
-	return ""
-}
-
 func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
@@ -567,9 +558,9 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debate
 	if err != nil {
 		return err
 	}
-	if d.AgentType != "frank-exchange-of-views:"+agentFor(role) {
-		return fmt.Errorf("board %q: debate.js dispatches %s under %q, and this harness maps its %s role to %q — the probe would run the seat under the wrong constitution",
-			b.Name, b.Seat, d.AgentType, role, "frank-exchange-of-views:"+agentFor(role))
+	if d.AgentType != agentTypeOf(b.Seat) {
+		return fmt.Errorf("board %q: debate.js dispatches %s under %q, and the roster seats it under %q — the probe would run the seat under the wrong constitution",
+			b.Name, b.Seat, d.AgentType, agentTypeOf(b.Seat))
 	}
 
 	if err := promptNamesTheBinary(b.Name, d.Prompt, bin); err != nil {
@@ -623,7 +614,7 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, pluginDir, model, debate
 		"--model", model,
 		"--output-format", "stream-json",
 		"--verbose",
-		"--agent", "frank-exchange-of-views:" + agentFor(role),
+		"--agent", agentTypeOf(b.Seat),
 		"--add-dir", runDir,
 		"--max-turns", "60",
 		// WHICH COPY OF THE PLUGIN --agent RESOLVES AGAINST. Without this the CLI answers from

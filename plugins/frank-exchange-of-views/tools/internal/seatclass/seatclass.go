@@ -3,11 +3,11 @@
 // of seat-classify.mjs, which itself existed because two JS copies of this classifier had drifted
 // (cost-audit lacked the terminal-disposition case, misattributing that seat's spend).
 //
-// seat-classify.mjs is now DELETED (#121 slice 5): this is the SOLE canonical seat→class map.
-// No copy lives in debate.js — it never read one, it hardcodes `...bulk`/`...judgment` at each
-// dispatch — and dispatch_bind_test.go reads debate.js SOURCE and asserts every dispatch spreads
-// the tier ClassOf reports (with no dead key), so the map stays bound to the actual dispatches
-// from the side that owns it. The drift hole the old free-floating JS oracle left is closed.
+// seat-classify.mjs is DELETED (#121 slice 5): this is the SOLE canonical seat→class map. No copy
+// lives in debate.js — it spreads `...bulk` or `...judgment` at each dispatch — and
+// integration/surface's TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier RUNS the
+// script to every agent() call and holds the model each dispatch carried to the class ClassOf
+// reports for its seat.
 package seatclass
 
 import "strings"

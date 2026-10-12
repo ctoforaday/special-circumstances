@@ -41,43 +41,14 @@ func TestTheProbeDispatchesTheProductionAgent(t *testing.T) {
 	if strings.Contains(src, `"--system-prompt-file"`) {
 		t.Error("the probe still dispatches a raw constitution file — that loads no skills, so the seat lacks the protocol it operates under")
 	}
-	if !strings.Contains(src, `"--agent", "frank-exchange-of-views:"`) {
-		t.Error("the probe does not dispatch through the plugin's agent definition")
+	// The definition is the roster's for the board's seat (seatclass.Seats), which the dispatch
+	// identity test in integration/surface holds to what debate.js dispatches that seat under.
+	if !strings.Contains(src, `"--agent", agentTypeOf(b.Seat)`) {
+		t.Error("the probe does not dispatch through the agent definition the roster seats the board's seat under")
 	}
 	// The ACTING arm must not state a tool set at all: the definition supplies it.
 	if regexp.MustCompile(`"--allowedTools",\s*tools`).MatchString(src) {
 		t.Error("the probe still replaces the agent's tool set with a list written in the harness")
-	}
-}
-
-// EVERY ROLE MAPS TO THE AGENT PRODUCTION USES FOR IT. A role that fell through to a default would
-// dispatch a seat under another seat's constitution and report it as that role.
-func TestEveryRoleMapsToItsProductionAgent(t *testing.T) {
-	want := map[string]string{
-		// Any ONE lens area stands for the seven: they share every duty this probe measures, and
-		// they share it through the adversarial-audit skill rather than by restating it sevenfold.
-		"lens": "red-lens-evidence", "chair": "red-chair",
-		"blue": "blue-researcher", "bench": "lead-judge",
-	}
-	src := dispatchSource(t)
-	for role, agent := range want {
-		if !strings.Contains(src, `case "`+role+`"`) && !strings.Contains(src, `"`+role+`", "`) {
-			t.Errorf("role %q has no explicit mapping in agentFor — it would fall through to a default and be dispatched under another seat's constitution", role)
-		}
-		if !strings.Contains(src, `"`+agent+`"`) {
-			t.Errorf("role %q should dispatch %q and that name does not appear", role, agent)
-		}
-	}
-	// And the agents it names must exist as files, or the dispatch fails at runtime with the
-	// probe reporting a failed board rather than a missing mapping.
-	for _, agent := range want {
-		p, err := repotree.Plugin("agents", agent+".md")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := os.Stat(p); err != nil {
-			t.Errorf("agent %q is dispatched and has no definition at %s", agent, p)
-		}
 	}
 }
 

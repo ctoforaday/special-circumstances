@@ -251,17 +251,16 @@ const inspectionClause = transcriptDir
 // They were two literals per sitting and could drift; the label said `terminal` while the record
 // said nothing at all.
 //
-// THE WORDS ARE THE SCHEMA'S, and TestTheEngineDispatchesTheSchemasOccasions binds these four
-// against the Occasion enum in both directions. A guard rather than generation, and the reason is
-// that there is nothing here to generate FROM: which occasion the assembly sitting has is an
-// authored fact about that call site, not a copy of a list. What CAN drift is whether the four
-// words are the four the write path accepts, and that is exactly what the bind checks.
+// THE WORDS ARE THE SCHEMA'S. Which occasion the assembly sitting has is an authored fact about
+// that call site; whether the four words are the four the write path accepts is held by RUNNING
+// this script: the dispatch identity test (tools/integration/surface) drives every agent() call and
+// compares the OCCASION each bench prompt states with the record's Occasion enum, in both
+// directions.
 //
-// THE DOCKET SITTING'S LABEL DOES NOT CARRY ITS WORD, and that is not an omission. Its label is
-// `labelFor('judge')` — `judge #2 · <slug>` — whose literal head is what binds the dispatch to its
-// tier class (TestDebateDispatchBindsToSeatClass reads everything before the first `·`). Wrapping
-// it leaves no literal head and resolves no seat. The occasion reaches the RECORD from the prompt,
-// which is where every reader now takes it from; the label is a dashboard's text.
+// THE DOCKET SITTING'S LABEL DOES NOT CARRY ITS WORD. Its label is `labelFor('judge')` —
+// `judge #2 · <slug>` — the same sitting counter every party of the loop is labelled with. The
+// occasion reaches the RECORD from the prompt, which is where every reader takes it from; the label
+// is a dashboard's text.
 const DOCKET_OCCASION = 'docket'
 const PETITION_OCCASION = 'petition'
 const TERMINAL_OCCASION = 'terminal'
@@ -680,13 +679,14 @@ const TERMINAL_ENVELOPE = {
 // THE LENS TEXT IS NOT HERE ANY MORE. Each area's standing instructions are its agent
 // configuration — `agents/red-lens-<area>.md` — which is where a prompt belongs and where it can
 // be reviewed as one. What stays here is what the ENGINE needs: the key, because it composes the
-// seat id and the dispatch label from it. record.LensAreas and the agent files are held against
-// this list in every direction by TestTheLensAreasMatchWhatTheEngineDeclares.
+// seat id and the dispatch label from it. The record's roster (seatclass.Seats, generated from
+// flags.LensAreas) and the agent files are held against the lens seats this script dispatches by
+// the dispatch identity test, which runs it.
 const RED_AREAS = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
-// EVERY LENS AREA NAMES ITS AGENT TYPE AS A LITERAL, one per line. The record's role attestation
-// (agentTypeRoles) is bound to this script by READING these literals; a type composed from the
-// seat id at the dispatch site would dispatch correctly and be attested by nothing. The two lists
-// are checked against each other at load, below, so an area cannot be declared and undispatchable.
+// EVERY LENS AREA NAMES ITS AGENT TYPE. The record's role attestation is computed from the roster's
+// own configuration per seat, and the dispatch identity test holds the type each lens is dispatched
+// under here to that roster. The two lists below are checked against each other at load, so an
+// area cannot be declared and undispatchable.
 // LENS_DISPATCH is the lens roster: the seat id the engine dispatches, and the two facts that
 // belong to the seat rather than to the spelling of its id — the area it audits, and the agent
 // configuration that seats it.
@@ -855,11 +855,9 @@ let haltOpinion = null
 // WHICH occasion a sitting was is the occasion its register states — a field the record refuses a
 // wrong value for (checkOccasion), and nothing a regex has to recover from a name.
 //
-// THE SEAT ID IS WRITTEN OUT AT EVERY SITE, never lifted to a constant. The roster bind
-// (TestTheRosterMatchesWhatTheEngineActuallyDispatches) reads this file as SOURCE and reduces each
-// recordClause argument to a seat id; a constant reduces to nothing, and its own failure says what
-// that costs — "an unread argument is a seat the roster is no longer checked against". Lifting it
-// cost exactly that, and the bind caught it.
+// THE SEAT ID A SITE HANDS recordClause IS THE SEAT IT DISPATCHES. The dispatch identity test reads
+// SEAT_ID out of each prompt this script renders and holds the dispatch's agent type and model to
+// the roster's row for that seat.
 
 // THE PETITIONS COME FROM THE RECORD, RELAYED IN THE PLAN. A lens, a lane and the frontier return
 // prose, so an envelope field could never carry their petitions — the record is the one channel
@@ -900,11 +898,8 @@ async function hearPetitions() {
   log(`epoch ${epoch}: the plan convenes the bench to hear the petitions on the record — before any party of this epoch sits`)
   const sitting = await agent(
     `Petition sitting, topic "${topic}". The record holds petitions no petition sitting has heard: your work list names each unruled motion whose gavel is yours, and the motions projection carries each petition's filer, class, basis and relief. Rule EVERY PETITION among them; a docket motion there waits for the sitting its docket convenes. Petitions are never sanctioned, and a pattern of overruled petitions is at most a craft note for the petitioner. For EACH petition rule granted | denied. TWO THINGS, AND THEY GO TO DIFFERENT PLACES: your OPINION is the reasoning — the principle applied, the values in tension, why a human should or should not look — and it belongs on the record beside the filing it answers. The envelope's \`relief\` is the OPERATIVE part of a granted ruling: the instruction as it will BIND the coming seats, written as a DIRECTIVE a seat can act on without reading your argument, not as a summary of your opinion. A denied ruling carries no relief. Read the transcript for context. ${haltClause('stops the engine')}${lawClause}${declareClause}${inspectionClause}${logClause(seatID, 'bench')}${speedClause}${recordClause(seatID, PETITION_OCCASION)} Return the petition-ruling envelope.`,
-    // THE LABEL HEADS WITH THE SEAT, LITERALLY. TestDebateDispatchBindsToSeatClass reads this
-    // file as SOURCE and prefix-matches the label template's head — everything before the first
-    // `·` — against the SeatClass map, to prove every dispatch spreads its seat's model tier. A
-    // bare `${seatID}` has no literal head and resolves nothing. What follows the head is for a
-    // human reading a dashboard, and carries which question this sitting was.
+    // The label heads with the seat and carries which question this sitting was, for a human
+    // reading a dashboard.
     { ...judgment, label: `judge · ${PETITION_OCCASION} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: PETITION_RULING })
   if (!sitting) throw new Error('petition sitting returned null (agent failed) — a filed petition is never dropped; aborting cleanly')
   for (const h of sitting.holdings || []) holdingsInEffect.push(h)

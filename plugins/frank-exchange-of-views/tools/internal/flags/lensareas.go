@@ -8,6 +8,7 @@ package flags
 // internal/record owns the roster and imports this package, so the list cannot live there without
 // putting internal/flags in a cycle — and the alternative, a second hand-written copy, is the
 // defect this package was built to end (see ShapedValue.Shape).
-// record.LensAreas is an alias, and TestTheLensAreasMatchWhatTheEngineDeclares holds this list
-// against debate.js's own RED_AREAS in both directions.
+// record.LensAreas is an alias. The roster's lens rows are generated from this list, and
+// integration/surface's TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier runs debate.js
+// and holds the lens seats it dispatches to those rows in both directions.
 var LensAreas = []string{"evidence", "logic", "dark-side", "voice", "computation", "adversary", "architecture"}
