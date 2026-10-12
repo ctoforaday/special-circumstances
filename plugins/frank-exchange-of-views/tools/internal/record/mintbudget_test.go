@@ -254,3 +254,88 @@ func TestTheBudgetGrowsWithTheReport(t *testing.T) {
 		t.Fatal("six paragraphs bought a third mint")
 	}
 }
+
+// THE WORK LIST STATES THE MINTS LEFT, AND IT IS THE WRITE'S OWN READING. universe-wave-b's logic
+// lens learned its budget by being refused a third mint (event 386, seat log 387) and minted the
+// same defect two epochs later. The list's `sitting.mint_budget` and its sentence come from
+// lensMintStanding, the reading requireMintWithinBudget refuses on, and this holds the two
+// together through Append: a mint lands exactly while the list says one is left.
+func TestTheWorkListStatesTheMintsLeft(t *testing.T) {
+	standing := func(t *testing.T, id Identity) (MintBudgetJSON, []Item) {
+		t.Helper()
+		w, err := WorkOfSeat(id.Run, "lens", id.SeatID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if w.Sitting.MintBudget == nil {
+			t.Fatalf("%s's work list carries no mint_budget: %v", id.SeatID, hows(w.Sitting.Open))
+		}
+		return *w.Sitting.MintBudget, w.Sitting.Open
+	}
+
+	t.Run("measured", func(t *testing.T) {
+		id := budgetRun(t, 1, 3, 0, "red-lens-evidence")
+		for minted, sentence := range []string{
+			"you have minted 0 gap(s) of a mint budget of 2 in this run — max(floor 1, ceil(3 citations on the record / 2)) = 2 — so 2 mint(s) are left to you",
+			"you have minted 1 gap(s) of a mint budget of 2 in this run — max(floor 1, ceil(3 citations on the record / 2)) = 2 — so 1 mint(s) are left to you",
+			"you have minted 2 gap(s) of a mint budget of 2 in this run — max(floor 1, ceil(3 citations on the record / 2)) = 2 — so NO mint is left to you",
+		} {
+			got, items := standing(t, id)
+			want := MintBudgetJSON{Minted: minted, Budget: 2, Left: 2 - minted, Floor: 1, Unit: "citations on the record", Units: 3, Per: 2, Measured: true}
+			if got != want {
+				t.Errorf("after %d mint(s): mint_budget = %+v, want %+v", minted, got, want)
+			}
+			if !mentions(items, sentence) {
+				t.Errorf("after %d mint(s): no item reads %q: %v", minted, sentence, hows(items))
+			}
+			for _, it := range items {
+				if strings.Contains(it.What, "mint budget") && it.Blocks {
+					t.Errorf("the budget line blocks the sitting: %q", it.What)
+				}
+			}
+			_, err := Append(id, budgetMint(fmt.Sprintf("G%d", minted+1)))
+			if landed := err == nil; landed != (got.Left > 0) {
+				t.Errorf("after %d mint(s) the list says %d left and the next mint landed = %v (%v)", minted, got.Left, landed, err)
+			}
+		}
+	})
+
+	// A MEASURE THAT CANNOT BE READ IS SAID, NEVER READ AS THE FLOOR: what is left is what the
+	// floor still admits, and the fields say the budget above it is not measured.
+	t.Run("the measure cannot be read", func(t *testing.T) {
+		id := budgetRun(t, 2, 0, 0, "red-lens-voice")
+		withRenderer(t, nil)
+		for minted, sentence := range []string{
+			"so 2 mint(s) are left to you under the floor",
+			"so 1 mint(s) are left to you under the floor",
+			"so NO mint is left to you under the floor",
+		} {
+			got, items := standing(t, id)
+			want := MintBudgetJSON{Minted: minted, Budget: 2, Left: 2 - minted, Floor: 2, Unit: "prose paragraphs in the current report", Per: 5}
+			if got != want {
+				t.Errorf("after %d mint(s): mint_budget = %+v, want %+v", minted, got, want)
+			}
+			if !mentions(items, sentence) || !mentions(items, "NOT MEASURED") || !mentions(items, "no report renderer") {
+				t.Errorf("after %d mint(s): the unmeasured budget is not stated with its cause and %q: %v", minted, sentence, hows(items))
+			}
+			_, err := Append(id, budgetMint(fmt.Sprintf("G%d", minted+1)))
+			if landed := err == nil; landed != (got.Left > 0) {
+				t.Errorf("after %d mint(s) the list says %d left and the next mint landed = %v (%v)", minted, got.Left, landed, err)
+			}
+		}
+	})
+
+	// Only a lens spends a budget: no other role's list carries the block or the line.
+	t.Run("no other role", func(t *testing.T) {
+		id := budgetRun(t, 1, 3, 0, "red-lens-evidence")
+		for seat, role := range map[string]string{"blue-respond": "blue", "red-chair": "chair", "judge": "bench"} {
+			w, err := WorkOfSeat(id.Run, role, seat)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if w.Sitting.MintBudget != nil || mentions(w.Sitting.Open, "mint budget") {
+				t.Errorf("%s's list states a mint budget: %+v %v", seat, w.Sitting.MintBudget, hows(w.Sitting.Open))
+			}
+		}
+	})
+}

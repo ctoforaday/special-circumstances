@@ -88,6 +88,11 @@ type SittingJSON struct {
 	// read it already does first. Present for every lens, with an explicit kind — first, behind,
 	// unchanged or undispatched — never inferred from an absent field; absent for every other role.
 	LastSitting *LastSittingJSON `json:"last_sitting,omitempty"`
+	// MintBudget is a lens's standing against its mint budget — what it has minted, its budget
+	// with every term, and what is left — from the reading the write refuses a mint on
+	// (lensMintStanding). Present for every lens whose standing reads; absent for every other
+	// role, which spends no budget. An item of Open states the same numbers in a sentence.
+	MintBudget *MintBudgetJSON `json:"mint_budget,omitempty"`
 }
 
 // SittingOf computes what the given seat still owes on this record — the events carry every

@@ -1287,6 +1287,19 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 				}
 			}
 		}
+		// THE MINTS LEFT, ON THE LIST A LENS DECIDES "GAP OR FINDING" FROM. It is not read off the
+		// snapshot above: the count and the measure are the write path's own reads
+		// (lensMintStanding), so the list states the number the next mint is judged against. The
+		// seat's mints are its own acts and nothing else moves the count; the units may move under
+		// a blue edit, as they may between this read and the mint.
+		//
+		// LAST, AND NEVER BLOCKING: it is a fact about the run's terms, neither owed nor work, and
+		// it follows the statement that the list is empty where SittingOf made one.
+		budget, line := mintBudgetOf(run, seatID)
+		w.Sitting.MintBudget = budget
+		if line != "" {
+			w.Sitting.Open = append(w.Sitting.Open, Item{What: line})
+		}
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
 	w.Engaged = engagedOf(evs, win, seatID)

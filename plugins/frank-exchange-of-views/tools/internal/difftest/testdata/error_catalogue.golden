@@ -976,7 +976,7 @@ feov-record: edit: your quote stops before finding anchor <!--fx:FINDING002--> (
 ── repeat target: the lens regrades GAP001
 exit 0
 regraded GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ── a second regrade of a gap in one sitting
 exit 2
@@ -1035,7 +1035,7 @@ feov-record: manifest-row: record: blue-respond has already recorded a manifest_
 ── repeat target: the lens closes GAP001
 exit 0
 closed GAP001 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ── repeat target: the chair sits again
 exit 0
@@ -1060,12 +1060,12 @@ feov-record: carry: record: red-chair has already recorded a close on "GAP001" t
 ── bunch target: a finding on a plain sentence
 exit 0
 finding recorded: FINDING003 (evidence) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ── bunch target: a second finding on it
 exit 0
 finding recorded: FINDING004 (evidence) — the id a gap's found_by names
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ── an edit carrying a run of anchors to the end of a longer replacement
 exit 2

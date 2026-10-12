@@ -186,8 +186,11 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 // under the archived seat id, so the arithmetic — not the roster — is exempted under Migrating,
 // below.
 //
-// BELOW THE FLOOR NOTHING IS MEASURED. The budget is at least the floor, so a mint under it lands
-// whatever the report holds; the units are read only when they can decide the answer.
+// BELOW THE FLOOR THE MEASURE DECIDES NOTHING. The budget is at least the floor, so a mint under it
+// lands whatever the report holds — and whether or not the units could be read.
+//
+// THE STANDING IS lensMintStanding'S, the reading the work list states (WorkOfSeat), so the count a
+// lens is shown and the count it is refused on are one read by one function.
 func requireMintWithinBudget(run Run, seatID string) error {
 	// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another
 	// role is not a lens spending a budget; an id with no role is no seat at all, and is refused by
@@ -215,26 +218,21 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	if Migrating {
 		return nil
 	}
-	p, err := RunParams(run)
+	st, err := lensMintStanding(run, seatID, area)
 	if err != nil {
 		return err
 	}
-	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?`, seatID); err != nil {
-		return err
-	}
-	if n < p.MintBudget {
+	n, b := st.Minted, st.Budget
+	if n < b.Floor {
 		return nil
 	}
-	b, err := lensBudgetAt(run, area, p.MintBudget)
-	if err != nil {
+	if st.MeasureErr != nil {
 		return feov.Errorf(feov.Validation,
 			"%s has minted %d gap(s), the floor of its budget (mintBudget in inputs/run-config.json is %d), "+
 				"and the %s lens's budget above the floor, one mint per %d %s, cannot be read: %v. "+
 				"A mint past the floor waits on that measure rather than guessing it. "+
 				"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
-			seatID, n, p.MintBudget, area, b.Per, b.Measure, err)
+			seatID, n, b.Floor, area, b.Per, b.Measure, st.MeasureErr)
 	}
 	if n < b.Budget {
 		return nil
@@ -245,4 +243,101 @@ func requireMintWithinBudget(run Run, seatID string) error {
 			"The budget is where a trifle's cost lands: with %d mints for this report, none of them is spent on a nitpick. "+
 			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
 		seatID, n, area, b.Per, b.Measure, b.Arithmetic(), b.Budget)
+}
+
+// mintStanding is where a lens stands against its mint budget: the gaps it has minted in the run,
+// and its budget with every term. MeasureErr is why the allowance above the floor could not be
+// read; Budget then holds the area, the unit, the ratio and the floor, and no units or total.
+type mintStanding struct {
+	Minted     int
+	Budget     LensBudget
+	MeasureErr error
+}
+
+// Left is how many more mints the write path admits now. Where the measure could not be read it is
+// what the floor still admits, and measured is false: a mint past the floor waits on the measure.
+func (s mintStanding) Left() (left int, measured bool) {
+	limit := s.Budget.Budget
+	if s.MeasureErr != nil {
+		limit = s.Budget.Floor
+	}
+	if s.Minted >= limit {
+		return 0, s.MeasureErr == nil
+	}
+	return limit - s.Minted, s.MeasureErr == nil
+}
+
+// lensMintStanding reads a lens's standing off the record: the floor from the run's terms, the
+// count from the seat's own mint events — the record's, not a counter the seat carries — and the
+// budget from the area's scale. IT IS THE ONE READING OF "HOW MANY MINTS HAS THIS LENS LEFT": the
+// write refuses on it (requireMintWithinBudget) and the work list states it (WorkOfSeat). An error
+// is the terms or the count failing to read; a measure failing to read is MeasureErr, because
+// under the floor a mint is admitted without it.
+func lensMintStanding(run Run, seatID, area string) (mintStanding, error) {
+	p, err := RunParams(run)
+	if err != nil {
+		return mintStanding{}, err
+	}
+	var st mintStanding
+	if _, err := queryRow(run, []any{&st.Minted},
+		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?`, seatID); err != nil {
+		return mintStanding{}, err
+	}
+	st.Budget, st.MeasureErr = lensBudgetAt(run, area, p.MintBudget)
+	return st, nil
+}
+
+// MintBudgetJSON is a lens's standing against its mint budget, as its work list carries it
+// (SittingJSON.MintBudget): the terms of LensBudget's arithmetic, what the seat has minted, and
+// what is left.
+type MintBudgetJSON struct {
+	// Minted is the gaps this seat has minted in the run, superseding mints included.
+	Minted int `json:"minted"`
+	// Budget is max(floor, ceil(units / per)) — or, where Measured is false, the floor alone.
+	Budget int `json:"budget"`
+	// Left is how many more mints the write path admits now: Budget less Minted, never below 0.
+	Left  int `json:"left"`
+	Floor int `json:"floor"`
+	// Unit names what the area's budget is sized by, Units is how many of them the record holds
+	// now, and Per is how many buy one mint.
+	Unit  string `json:"unit"`
+	Units int    `json:"units"`
+	Per   int    `json:"per"`
+	// Measured is false where the units could not be read: Budget and Left are then the floor's,
+	// and a mint past the floor is refused until the measure reads. Never omitted — a budget of
+	// the floor that was measured and one that was not are different answers.
+	Measured bool `json:"measured"`
+}
+
+// mintBudgetOf is the work list's two carriers of a lens's standing — the block and its sentence —
+// from the one reading the write refuses on. A seat that is no lens on the roster spends no budget
+// and has neither. A standing that cannot be read at all is said in the sentence, with no block:
+// a block of zeros would read as a lens with nothing left.
+func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
+	area := AreaOf(seatID)
+	if _, err := mintScaleOf(area); err != nil {
+		return nil, ""
+	}
+	st, err := lensMintStanding(run, seatID, area)
+	if err != nil {
+		return nil, fmt.Sprintf("your mint budget is NOT MEASURED — %v — and that is not a report that no mint is left to you", err)
+	}
+	b := st.Budget
+	left, measured := st.Left()
+	j := &MintBudgetJSON{Minted: st.Minted, Budget: b.Budget, Left: left, Floor: b.Floor, Unit: b.Measure, Units: b.Units, Per: b.Per, Measured: measured}
+	leftWords := "NO mint is left to you"
+	if left > 0 {
+		leftWords = fmt.Sprintf("%d mint(s) are left to you", left)
+	}
+	if !measured {
+		j.Budget = b.Floor
+		return j, fmt.Sprintf("you have minted %d gap(s) in this run and your mint budget above the run's floor of %d is NOT MEASURED — one mint per %d %s, which cannot be read: %v — so %s under the floor, and a mint past it waits on that measure; what you find past it goes in a finding, not a gap",
+			st.Minted, b.Floor, b.Per, b.Measure, st.MeasureErr, leftWords)
+	}
+	tail := "a superseding mint spends one, and the budget grows as the report does"
+	if left == 0 {
+		tail = "what you find now goes in a finding, not a gap, and the budget grows as the report does"
+	}
+	return j, fmt.Sprintf("you have minted %d gap(s) of a mint budget of %d in this run — %s — so %s; %s",
+		st.Minted, b.Budget, b.Arithmetic(), leftWords, tail)
 }
