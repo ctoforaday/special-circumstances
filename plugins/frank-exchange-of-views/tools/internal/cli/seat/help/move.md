@@ -4,9 +4,9 @@ say what became of an avenue you proposed — every open avenue owes this before
 
 ## detail
 
-An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. A line you followed to its END — it answered what it set out to test — is `concluded`, and owes nothing further; `abandoned` is only for a line that died.
+An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. An approach you RAN ends at what it found, and owes nothing further: `concluded` where the hypothesis held, `rejected` where what it found refuted the hypothesis — a refutation is an answer, and the report prints it beside the confirmations. `abandoned` is only for an approach you started that gave no answer, and `declined` only for one you never ran.
 
-The fate is not the point; the account of what changed it is — an avenue abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
+The fate is not the point; the account of what settled it is — an avenue given its fate against its own stated hypothesis is evidence of choosing, one set down on a shrug is not.
 
 THE REASON IS PRINTED IN THE REPORT, on the avenue's own row, in the section the fate you give it here puts it under. {{.AvenueSectionsRule}}
 

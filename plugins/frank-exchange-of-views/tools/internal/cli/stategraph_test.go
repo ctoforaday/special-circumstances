@@ -526,7 +526,7 @@ func avenueMotionProbe() entityProbe {
 // ---- the avenue ----
 //
 // Its lifecycle has TWO AXES and only one of them is the state. Blue MOVES a line between
-// `proposed`, `pursued`, `declined`, `abandoned` and `deferred`; red RULES it `endorsed`,
+// `proposed`, `pursued`, `concluded`, `rejected`, `declined`, `abandoned` and `deferred`; red RULES it `endorsed`,
 // `out_of_scope` or `too_thin`. The status is the state — it is what the line IS — and the ruling
 // is content, which is why a first ruling reads here as an ordinary act that does not move the
 // state rather than as a transition.
@@ -546,10 +546,10 @@ func avenueProbe() entityProbe {
 		// Every status the vocabulary offers is built and probed, because a fate nobody can leave
 		// is exactly what this gate is for and `deferred` and `abandoned` are the two most likely
 		// to be one.
-		states: []string{"unproposed", "proposed", "pursued", "declined", "abandoned", "deferred"},
+		states: []string{"unproposed", "proposed", "pursued", "concluded", "rejected", "declined", "abandoned", "deferred"},
 		acts: []probeAct{
 			avenuePropose(),
-			moveTo("pursued"), moveTo("declined"), moveTo("abandoned"), moveTo("deferred"),
+			moveTo("pursued"), moveTo("concluded"), moveTo("rejected"), moveTo("declined"), moveTo("abandoned"), moveTo("deferred"),
 			{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
 				"--reason", "worth this run's time"}},
 		},

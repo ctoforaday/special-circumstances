@@ -97,7 +97,7 @@ CREATE TABLE "enum_event_type" (
   "correct" TEXT NOT NULL REFERENCES "enum_correction_tier"("value")
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'a marker placed in the report', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'an avenue, from proposed through pursued, declined, deferred or abandoned', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'an avenue, from proposed through pursued to concluded, rejected, deferred, declined or abandoned', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue_review', 'a review of the avenues themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable', 'none');
@@ -335,12 +335,13 @@ CREATE TABLE "enum_avenue_status" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('abandoned', 'you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('concluded', 'you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if it answered what it set out to test, `abandoned` if it died');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `rejected`, not this');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('concluded', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `rejected`, and one that gave no answer is `abandoned`');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `rejected` if what it found refuted the hypothesis, `abandoned` if it was started and no answer came');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('deferred', 'not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end');
+INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('rejected', 'you RAN the approach and what it found REFUTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this');
 
 CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,

@@ -168,7 +168,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 	}
 	alt := avenueSection(t, board, "Alternatives considered")
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
-		t.Errorf("a rejected avenue is an alternative considered, its reason the counter:\n%s", alt)
+		t.Errorf("an abandoned avenue is an alternative considered, its reason the counter:\n%s", alt)
 	}
 	if !strings.Contains(alt, "third-party audit") {
 		t.Errorf("a declined avenue is also an alternative considered:\n%s", alt)
@@ -188,7 +188,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 //
 // It ranged over `record.AvenueStatuses`, which is `[]EnumValue`, and passed the STRUCT to
 // `Set("status", status)`. `Payload.Str` returns "" for a non-string, so `a.Status` was the empty
-// string on all five iterations. With `rejected` defined as the complement of `accepted`, "" fell
+// string on all five iterations. With setAside defined as the complement of taken, "" fell
 // into alternatives every time and `in != inAlt` held — so it passed, five times, having exercised
 // no status at all. A test whose entire subject is "every status reaches a section" had never seen
 // one. Found 2026-08-16 while adding the third section. It ranges over AvenueStatusNames() now.
@@ -200,7 +200,8 @@ func TestAvenuesSplitByFate(t *testing.T) {
 //	                     which is a decision. Filing it under "Alternatives considered" said the
 //	                     opposite of its fate, and only the `[deferred]` tag on the row
 //	                     contradicted the heading above it.
-//	declined, abandoned  Alternatives considered — weighed and not taken, or tried and died
+//	concluded, rejected  "Research areas" — an approach that ran and answered, whichever way
+//	declined, abandoned  Alternatives considered — weighed and never run, or started with no answer
 //	proposed             "Research areas", beside `pursued`, with `[proposed]` on its own row. A
 //	                     first cut excluded it from every section (TestFuzzDebate refused: a seat's
 //	                     recorded reasoning must reach the reader) and a second gave it a fourth
@@ -214,6 +215,7 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
 		"pursued":   "research",
 		"concluded": "research", // a line followed to its end is one the research took
+		"rejected":  "research", // a refutation is an answer: it stands beside the confirmations
 		"proposed":  "research", // an undecided line IS an area this run is researching
 		"deferred":  "future",
 		"declined":  "alternatives",

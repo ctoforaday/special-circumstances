@@ -30,21 +30,23 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // becomes a report section, so the rule stops being self-attested and starts
 // leaving artifacts.
 //
-// THREE STATUSES, each answering a different question:
+// THE STATUSES, each answering a different question:
 //
-//	declined   considered, never run     — was the rejection REASONED, or decoration?
-//	abandoned  pursued, then died        — what killed it? (the negative result)
-//	pursued    became the report's spine — does the report reflect it honestly?
+//	declined   considered, never run          — was setting it aside REASONED, or decoration?
+//	abandoned  started, and no answer came    — what stopped it?
+//	rejected   ran, and refuted its hypothesis — what did it find? (the negative result)
+//	concluded  ran, and the hypothesis held   — what did it find?
+//	pursued    became the report's spine      — does the report reflect it honestly?
 //
-// `abandoned` is the most valuable and the most routinely lost: dead ends are
-// exactly what a future run needs so it does not re-walk them, and they are
-// direct feedstock for the sleeper service's subject mining. Nothing in the
+// `rejected` and `abandoned` are the most valuable and the most routinely lost: negative
+// results and dead ends are exactly what a future run needs so it does not re-walk them, and
+// they are direct feedstock for the sleeper service's subject mining. Nothing in the
 // engine preserved them before this verb — they died in a seat's context.
 //
 // TWO FORMS, AND THEY ARE TWO VERBS (#246).
 //
 //	propose  --reason "<the approach>" --hypothesis "<what would be true if it pays off>"
-//	move     --id A1 --as pursued|concluded|declined|abandoned|deferred --reason "<what changed>"
+//	move     --id A1 --as pursued|concluded|rejected|declined|abandoned|deferred --reason "<what changed>"
 //
 // The move form is the whole point. Measured over 86 avenue events in six runs: ZERO
 // were ever recorded twice and ZERO statuses ever changed, because there was no id and no update

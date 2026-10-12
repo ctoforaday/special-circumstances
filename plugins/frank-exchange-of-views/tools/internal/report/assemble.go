@@ -595,18 +595,21 @@ func truncateRunes(s string, n int) string {
 
 // THE LIFECYCLE OF A RESEARCH TOPIC, in the three descriptive areas a reader gets:
 //
-//	Research areas               `pursued` — followed, and what it yielded. AND `proposed`: a line
-//	                             put forward and not yet resolved is research this run has taken
-//	                             on, and its row carries the undecided state so the heading does
-//	                             not have to lie about it.
-//	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not
-//	                             rejected. --reason says what a later run should pick it up FOR,
+//	Research areas               the approaches the research RAN: `pursued` (running), `concluded`
+//	                             (ran, the hypothesis held) and `rejected` (ran, the hypothesis was
+//	                             refuted) — a refutation is an answer, and it stands beside the
+//	                             confirmations. AND `proposed`: a line put forward and not yet
+//	                             resolved is research this run has taken on, and its row carries
+//	                             the undecided state so the heading does not have to lie about it.
+//	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not set
+//	                             aside. --reason says what a later run should pick it up FOR,
 //	                             and it reaches the report as a proposal a human selects.
-//	Alternatives considered      `declined` (weighed, not taken) and `abandoned` (tried, died).
+//	Alternatives considered      `declined` (weighed, never run) and `abandoned` (started, and no
+//	                             answer came).
 //
 // # It rendered TWO, and the missing ones made the report say something false
 //
-// Taking `rejected` as the complement of `pursued` puts `deferred` AND `proposed` under
+// Taking the set-aside lines as the complement of `pursued` puts `deferred` AND `proposed` under
 // "Alternatives considered" — wrong in a way no reader can detect, since only the `[deferred]`
 // tag on the row contradicts the heading above it. Narrowing the pair instead makes them vanish
 // from the report entirely, which is the failure the status enum's own Why warns about ("it
@@ -621,15 +624,16 @@ func truncateRunes(s string, n int) string {
 // researching, and red's per-epoch support verdict is what stops it sitting there undecided,
 // rather than a heading that describes the omission.
 //
-// `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
+// setAside stays a COMPLEMENT so a status no predicate names cannot silently match nothing. The
+// fate `rejected` is NOT set aside: it is named in taken, with the other approaches that ran.
 //
 // The sentence a seat reads is written from these three predicates: AvenueSections, in layout.go.
-func accepted(status string) bool {
-	return status == "pursued" || status == "concluded" || status == "proposed"
+func taken(status string) bool {
+	return status == "pursued" || status == "concluded" || status == "rejected" || status == "proposed"
 }
 func deferred(status string) bool { return status == "deferred" }
 
-func rejected(status string) bool { return !accepted(status) && !deferred(status) }
+func setAside(status string) bool { return !taken(status) && !deferred(status) }
 
 // avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
 // avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
@@ -642,7 +646,7 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
 // report text: avenues.md (view.AvenueBody) ships the seat, path and ruling, and
 // judgments.md the ruling's opinion with the other motions. The fate word
-// itself stays, because it is subject content: `abandoned` means the line was tried and died. What a reader of the report
+// itself stays, because it is subject content: `rejected` means the approach ran and its hypothesis did not hold. What a reader of the report
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
 func avenues(a *assembly, s Section) string {
@@ -668,8 +672,8 @@ func avenues(a *assembly, s Section) string {
 			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
 		}
 		// THE TAG IS THE FATE THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
-		// abandoned straight from `proposed` was tried and died by the fate's own meaning, exactly as
-		// one concluded straight from `proposed` was followed to its end; a missing `pursued` step is
+		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
+		// exactly as one concluded or rejected straight from `proposed` ran; a missing `pursued` step is
 		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
 		row := fmt.Sprintf("- **%s**%s%s%s", a.Line, method, status, reason)
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED

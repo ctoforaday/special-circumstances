@@ -136,11 +136,11 @@ var layout = []Section{
 		From:    "the open gaps on the board, one row for each: its problem, its grades and its required fix",
 		Path:    "No act of blue's adds a row. A lens's `mint` opens a gap and with it a row, and the lens's `close` takes the row out; blue's `edit` answering the gap is what the lens closes on. A risk the report itself argues for is prose in the section that makes the claim.",
 		compose: func(a *assembly, _ Section) string { return riskMatrix(a.bj) }},
-	// THREE DESCRIPTIVE AREAS, and every avenue lands in exactly one. See accepted, deferred and
-	// rejected in assemble.go for why three and why `rejected` is a complement.
-	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: accepted, compose: avenues},
+	// THREE DESCRIPTIVE AREAS, and every avenue lands in exactly one. See taken, deferred and
+	// setAside in assemble.go for why three and why setAside is a complement.
+	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, compose: avenues},
 	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: avenues},
-	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: rejected, compose: avenues},
+	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, compose: avenues},
 	{File: FileReport, Heading: "Open questions", Composer: Blue,
 		From:    "the section of this name in the report's text, which closes it",
 		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",

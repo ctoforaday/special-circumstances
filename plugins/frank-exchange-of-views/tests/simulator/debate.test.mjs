@@ -664,12 +664,17 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   for (const lane of labelsOf(world, 'blue-lane').map((c) => c.prompt)) {
     assert.ok(/AVENUES:/.test(lane) && /NO FATE IS OWED AN ENTRY/.test(lane) && /declined is ONLY an approach you weighed and did not run/.test(lane),
       'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
+    // A REFUTATION HAS A FATE OF ITS OWN. With none, universe-m22's lane filed a refuted hypothesis
+    // as abandoned, a lens read the same line as concluded, and the gap between the words held the gate.
+    assert.ok(/one you ran whose hypothesis the data refuted is rejected, and a refutation is an answer/.test(lane) && /one you started that gave no answer .* is abandoned/.test(lane),
+      'the avenue clause must tell a refuted hypothesis (rejected) from a line that gave no answer (abandoned)')
+    assert.ok(!/one you ran that died is abandoned/.test(lane), 'the avenue clause calls an approach that ran abandoned')
     assert.ok(!/not only the one you took/.test(lane) && !/considered and declined is what makes/.test(lane) && !/dead ends matter most/.test(lane) && !/you put each approach on it/.test(lane),
       'the avenue clause presses for an entry')
     // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
     // fate lands under which, and that blue writes none of them.
     assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))
-    assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
+    assert.ok(/Research areas holds each avenue that is proposed, pursued, concluded or rejected, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
   }
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of
