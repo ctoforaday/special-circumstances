@@ -135,15 +135,11 @@ func run(w io.Writer, moduleDir string, rows []testsplit.Row, n int, timeout str
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// The plain path gets the cores the split processes leave. The split packages
-			// overlap only briefly, so this counts one of them, not all.
+			// The plain path keeps every core. `-p` bounds the BUILD as well as the packages
+			// run at once, and holding cores back for the split processes was measured on a
+			// four-core runner: -p 2 took 134s where plain `go test` took 73-104s. The split
+			// processes overlap it only while their packages run.
 			parallel := runtime.NumCPU()
-			if len(rows) > 0 {
-				parallel -= n
-			}
-			if parallel < 1 {
-				parallel = 1
-			}
 			add(runPlain(moduleDir, plain, parallel, timeout)...)
 		}()
 	}
