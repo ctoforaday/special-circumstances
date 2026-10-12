@@ -1,6 +1,10 @@
 package seatclass
 
 import (
+	"slices"
+	"strconv"
+	"strings"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
@@ -96,6 +100,50 @@ const LaneSeatPrefix = "blue-lane-"
 // the run's lane count (record.LaneSeatIDs), so "is this a lane" is a comparison against that set
 // and "which lane" is a name the caller already holds. A pattern here could bound a shape and
 // never membership, and the coverage audit read the lane's INDEX back out of its name.
+
+// RoleOfSeat is the role a seat id is seated under, or "" for an id that is no seat.
+//
+// IT IS THE ONE ANSWER. A fixed seat's role is its row's; a lane's is Lane's, and an id is a lane
+// exactly when it is LaneSeatPrefix and a count a run could declare, spelled as record.LaneSeatIDs
+// spells it. Whether THIS run seats that lane is the cast's question (record.LaneSeatsOf). Every
+// other id has no role, however much of a seat's spelling it shares — debate.js's `roleOfSeat`
+// reads the same rows through the generated SEATS block.
+func RoleOfSeat(id string) string {
+	if s, ok := Seats[id]; ok {
+		return s.Role
+	}
+	if n, ok := strings.CutPrefix(id, LaneSeatPrefix); ok {
+		if k, err := strconv.Atoi(n); err == nil && k >= 1 && strconv.Itoa(k) == n {
+			return Lane.Role
+		}
+	}
+	return ""
+}
+
+// SeatsOfRole is the fixed seat ids seated under a role, sorted. The lanes are not among them: a
+// lane id exists only against a run's lane count.
+func SeatsOfRole(role string) []string {
+	var ids []string
+	for id, s := range Seats {
+		if s.Role == role {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// Roles is every role some seat is seated under, sorted.
+func Roles() []string {
+	var roles []string
+	for _, s := range Seats {
+		if !slices.Contains(roles, s.Role) {
+			roles = append(roles, s.Role)
+		}
+	}
+	slices.Sort(roles)
+	return roles
+}
 
 // SeatIDs is every seat id this roster names, for a reader that needs the NAMES rather than the
 // facts behind them — reportvoice builds its tell from it, so a seat that leaves the roster

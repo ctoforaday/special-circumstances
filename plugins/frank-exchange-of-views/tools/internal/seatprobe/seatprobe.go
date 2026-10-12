@@ -42,6 +42,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // RoleVerbs is what each role may do, as the tree offers it. A verb absent from a seat's role is
@@ -217,7 +218,7 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Choices{SeatID: seatID, Used: map[string]int{}}
+	c := &Choices{SeatID: seatID, Role: seatclass.RoleOfSeat(seatID), Used: map[string]int{}}
 	// THE LOG IS READ FROM THE ACTS THAT STAND. A log entry the seat corrected in its sitting
 	// would otherwise be listed twice, the struck wording beside the one it meant.
 	live := map[*record.Event]bool{}
@@ -234,13 +235,6 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		// An Anchor places the marker of the act before it, whose own event names the verb.
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION || e.GetType() == recordpb.EventType_EVENT_TYPE_ANCHOR {
 			continue
-		}
-		// THE ROLE COMES OFF THE EVENT, which is what #348 put it there for. Deriving it from
-		// the seat id would re-create the string-shape guess that change removed — and
-		// record.RoleOf is a different concept entirely (the LENS index, L5/L6), so reaching for
-		// it by name would have silently reported every party seat as roleless.
-		if c.Role == "" {
-			c.Role = e.GetRole()
 		}
 		verb, ok := verbOfEvent[e.GetType()]
 		if !ok {
@@ -263,17 +257,6 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		// key that carried it.
 		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok && live[e] {
 			c.Log = append(c.Log, f.GetText())
-		}
-	}
-	if c.Role == "" {
-		// A seat that recorded nothing has no events to carry a role, and guessing one would
-		// invent a verb list to compare against. Fall back to the id ONLY here, where the
-		// alternative is reporting nothing at all.
-		for _, role := range Roles {
-			if record.CheckSeatRole(role, seatID) == nil {
-				c.Role = role
-				break
-			}
 		}
 	}
 	for _, v := range sf.Verbs(c.Role) {

@@ -3,13 +3,13 @@
 //
 // # Why this exists as a package rather than as one test
 //
-// The record is a single event log with at least ten independent readers — the Board replay, the
+// The record is a single event log with at least ten independent readers — the gap family, the
 // board/work/findings JSON, five markdown renders, the telemetry series, the lineage graph, report
 // assembly, capture's audits. Every reader is its own traversal of the same facts, and the bug
 // class that architecture invites is PROJECTION DISAGREEMENT: two readers deriving different
 // answers from one record, each locally plausible. It is not hypothetical — the measured
 // 2026-08-22 incident was the board reporting open:0 while assembly reported a refuted source
-// still cited, and the merge that landed the store found five more instances of the same class.
+// still cited.
 //
 // Unit tests cannot see this class, because each one exercises a single reader against a fixture
 // built to that reader's expectations. The oracle inverts that: it derives the ground truth ONCE,
@@ -18,7 +18,7 @@
 //
 // # What a violation is
 //
-// A violation is a DISAGREEMENT, not a verdict. When the replay says a gap was closed by the bench
+// A violation is a DISAGREEMENT, not a verdict. When the family says a gap was closed by the bench
 // and the last closing event on the record is red's, the oracle reports both sides; which reader
 // is wrong is the finding's job to establish. The one thing a violation always means is that two
 // carriers of one fact have diverged, which is the thing this codebase keeps paying for.

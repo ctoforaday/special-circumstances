@@ -26,7 +26,7 @@ import (
 )
 
 // dirs are the run's directories. friction.md is deliberately absent (the log lives on the
-// record); ledger/archive/telemetry are red-merge-born.
+// record).
 //
 // `records` is NOT in this list — it is created at its RESOLVED location by BuildSkeleton,
 // because a separated run must not be handed an empty records/ in the run directory. An empty
@@ -227,12 +227,9 @@ func ValidatePins(cites []string, head string, git GitFunc) PinValidation {
 
 // ---- purge, preflight, version ----
 
-// PurgeStaleMirrors moved to record.PurgeStaleMirrors, beside the path it purges.
-//
-// It lived here and composed ~/.cache/feov/run-mirror at the call site, while merge/verdict.go
-// composed the same path to WRITE it — two hand-assembled copies of one location, where a
-// mismatch is a purge that returns 0 and reads exactly like a clean board. capture now reaps
-// too, which would have made three.
+// The mirror purge is record.PurgeStaleMirrors, beside the path it purges: the write, the purge
+// and capture's reap read one composition of ~/.cache/feov/run-mirror. Two hand-assembled copies
+// of that location would disagree as a purge that returns 0 and reads exactly like a clean board.
 
 // expectedSchema is the epoch the plugin beside this binary declares.
 //

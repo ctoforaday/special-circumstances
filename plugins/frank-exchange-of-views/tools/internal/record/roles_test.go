@@ -4,60 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
-
-// The role boundary is the engine's premise, so it gets a test per crossing
-// rather than one happy-path assertion. Before this binding existed, every
-// "refused" case below SUCCEEDED.
-func TestSeatRoleBinding(t *testing.T) {
-	allowed := map[string][]string{
-		"lens":  {"red-lens-evidence", "red-lens-dark-side"},
-		"chair": {"red-chair", "red-chair"},
-		"blue":  {"blue-lane-1", "blue-respond", "blue-synthesize", "frontier"},
-		"bench": {"judge"},
-	}
-	for role, seats := range allowed {
-		for _, s := range seats {
-			if err := CheckSeatRole(role, s); err != nil {
-				t.Errorf("%s should accept its own seat %q: %v", role, s, err)
-			}
-		}
-	}
-	// Every cross-role pairing is refused, not just the one that motivated this.
-	for role := range allowed {
-		for other, seats := range allowed {
-			if other == role {
-				continue
-			}
-			for _, s := range seats {
-				err := CheckSeatRole(role, s)
-				if err == nil {
-					t.Errorf("%s accepted %s seat %q — the role boundary is not enforced", role, other, s)
-					continue
-				}
-				if got := err.Error(); !contains(got, other) {
-					t.Errorf("refusal for %q should name its real role %q: %s", s, other, got)
-				}
-			}
-		}
-	}
-	if err := CheckSeatRole("blue", "totally-made-up"); err == nil {
-		t.Error("a seat id no dispatch created was accepted")
-	}
-}
-
-func contains(s, sub string) bool {
-	return len(sub) > 0 && len(s) >= len(sub) && (func() bool {
-		for i := 0; i+len(sub) <= len(s); i++ {
-			if s[i:i+len(sub)] == sub {
-				return true
-			}
-		}
-		return false
-	})()
-}
 
 func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 	cases := []struct {
@@ -144,30 +91,6 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 		runDir := newRun(t)
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, "", ""); err == nil {
 			t.Errorf("RegisterSeat(%q) was accepted; it binds for the whole run and no dispatch created it", id)
-		}
-	}
-}
-
-// THE ROSTER AND THE ROLE TABLE MUST NOT FORK. roleSeats matches PREFIXES for role lookup and
-// the roster holds whole ids for legitimacy — two statements of one vocabulary, which is exactly
-// the shape that drifts. Every roster id must land in its own role, and every role must have at
-// least one id, so a role added to one table without the other fails here.
-func TestTheRosterAndTheRoleTableAgree(t *testing.T) {
-	covered := map[string]bool{}
-	for id, s := range seatclass.Seats {
-		if got := roleOfSeat(id); got != s.Role {
-			t.Errorf("roster id %q is role %q by the roster and %q by roleSeats", id, s.Role, got)
-		}
-		covered[s.Role] = true
-	}
-	// The lane shape is the roster's one remaining pattern (#1153b retires it), so its sample
-	// carries it here rather than being the one id nothing reconciles.
-	if lane := SampleSeatOf("blue"); roleOfSeat(lane) != "blue" {
-		t.Errorf("lane sample %q is role %q by roleSeats, not blue", lane, roleOfSeat(lane))
-	}
-	for role := range roleSeats {
-		if !covered[role] {
-			t.Errorf("role %q has a prefix in roleSeats and no shape in the roster, so every id under it registers unchecked", role)
 		}
 	}
 }

@@ -552,7 +552,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The chair's register opens epoch 1; everything below sits in it.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
-		recordtest.Event(t, "blue-r1", &recordpb.Position{Text: proto.String("gap A repaired")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
@@ -578,7 +578,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		}),
 		// A petition is a MOTION now — the retired `petition` event type has no arm in the schema,
 		// so the fixture could only ever have described a state nothing writes.
-		recordtest.Event(t, "blue-r1", &recordpb.Motion{
+		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("the instruction would require asserting what I believe false"),

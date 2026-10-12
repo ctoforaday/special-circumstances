@@ -45,6 +45,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -115,9 +116,9 @@ type Event = recordpb.Event
 // An Identity carries no epoch: the epoch is the record's (events_w."epoch", the chair's stored
 // sittings at or before the row), so no caller supplies it.
 //
-// ROLE IS DELIBERATELY NOT A FIELD HERE. See the note on Event.Role: the role stamped on an event
-// is the PARTY, derived from the seat id, and seat.Context.Role answers a different question —
-// which command group the verb is mounted under. They disagree: `motion grade file` run by
+// ROLE IS DELIBERATELY NOT A FIELD HERE. The PARTY that wrote an event is the role of its seat
+// (PartyOf), and seat.Context.Role answers a different question — which command group the verb is
+// mounted under. They disagree: `motion grade file` run by
 // `blue-respond` is party `blue` and command-group `grade`. Passing the wrong one would
 // silently re-label who wrote every motion event.
 type Identity struct {
@@ -314,9 +315,6 @@ func allowSubstitution(run Run) bool {
 func envelope(ev *Event, ts, seatID string, key string) {
 	ev.Ts = proto.String(ts)
 	ev.SeatId = proto.String(seatID)
-	if r := roleOfSeat(seatID); r != "" {
-		ev.Role = proto.String(r)
-	}
 	ev.Key = proto.String(key)
 }
 
@@ -1258,7 +1256,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				inCast[s] = true
 			}
 			for _, a := range areas {
-				if !strings.HasPrefix(a, "red-lens-") || !inCast[a] {
+				if seatclass.RoleOfSeat(a) != "lens" || !inCast[a] {
 					return fmt.Errorf("record: spot-check --areas names %q, which is not a lens seat in this run's cast — name the stale areas the chair's `dispatch next` lists, by seat", a)
 				}
 			}

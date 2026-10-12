@@ -1019,15 +1019,12 @@ func renderView(cmd *cobra.Command, want string) error {
 
 // RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
 //
-// It used to build a `<role>` command GROUP and the root mounted all four. The role level is gone:
-// the seat is bound at `register`, the tool derives the role from that binding, and the root IS the
-// seat's surface. A chair seat runs `mint`; a lens seat running `mint` gets an unknown command,
-// which is the same boundary the role group drew and is now drawn by the only fact that decides it.
+// There is no role level: the seat is bound at `register`, the tool reads the role from that
+// binding, and the root IS the seat's surface. A lens seat runs `mint`; a chair seat running `mint`
+// is told the verb is the lens seat's — the boundary drawn by the only fact that decides it.
 //
-// The seat therefore no longer types a word the tool can already look up. ResolveSeat has always
-// refused a --seat-id that disagrees with the identity — while the tree required the role DERIVED
-// from that identity to be typed correctly, with CheckSeatRole reconciling the two copies. There is
-// one copy now, and it is on the record.
+// The seat types no word the tool can already look up: its role is read from its registered seat
+// id, and there is one copy of it, on the record.
 func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 	out := make([]*cobra.Command, 0, len(verbs)+1)
 	for _, v := range verbs {

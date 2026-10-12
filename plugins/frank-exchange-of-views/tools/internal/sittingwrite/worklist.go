@@ -67,7 +67,7 @@ func injectWorkList(run record.Run, agentType string, out io.Writer) {
 		return
 	}
 	// The seat is a roster row: the attestation table is the roster read by configuration.
-	role := seatclass.Seats[seat].Role
+	role := seatclass.RoleOfSeat(seat)
 	b, err := record.WorkJSONBytes(run, role, seat)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)

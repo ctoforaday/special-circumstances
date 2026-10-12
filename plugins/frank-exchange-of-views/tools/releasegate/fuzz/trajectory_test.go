@@ -10,6 +10,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // EVERY EXECUTION THROUGH THE HARNESS IS TRACKED, THE WAY A TRAJECTORY IS.
@@ -151,7 +152,7 @@ func roleOfArgs(args []string) string {
 		default:
 			continue
 		}
-		if r := cli.RoleOfSeat(id); r != "" && r != record.OperatorRole {
+		if r := seatclass.RoleOfSeat(id); r != "" && r != record.OperatorRole {
 			return r
 		}
 	}

@@ -3,186 +3,69 @@ package record
 import (
 	"fmt"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
-
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
-// Seat identity is BOUND to a role namespace.
+// A SEAT'S ROLE IS ITS ROSTER ROW, and the role selects its surface.
 //
-// Without this the role boundary was a naming convention, not a boundary. A lens
-// seat could not run `feov-record lens mint` — the lens namespace has no mint
-// verb — but nothing stopped it running `feov-record merge mint --seat-id
-// red-lens-evidence`, and it minted a board gap. Verified before this file existed;
-// the tool said "minted G1".
+// The verb set being the role boundary is the engine's premise: a lens mints its own gaps and, as
+// the originator, regrades and closes them; the chair runs the debate and mints and closes
+// nothing; blue edits the report and has no board verb; the bench rules and never originates. The
+// record is the evidence those boundaries held, so which role a seat id has is answered in one
+// place — seatclass.RoleOfSeat, read from internal/seatclass's roster — and every question here is
+// a call to it. An id the roster does not carry has no role and selects no surface.
 //
-// That mattered more than a missing guard usually does, because the verb set
-// being the role boundary is the engine's PREMISE, not a convenience: blue is
-// additive-only and never touches the ledger, a lens surfaces observations the
-// chair disposes, and the bench rules without originating. Those are load-bearing
-// claims about who can do what, and the record is the evidence they held. A
-// boundary enforced only by which word a seat happens to type is evidence of
-// nothing.
+// A petition sitting is `judge`, like the bench's other three. Which of the four questions a
+// sitting answers rides on the register's `occasion` (see occasion.go), and who filed the petition
+// rides on the petition.
 //
-// The check is a PREFIX match on the seat id the engine assigns.
-//
-// The ids live ONCE, in internal/seatclass's roster: that table is what admits a seat id at
-// register, and the dispatch identity test in integration/surface holds it against the seats
-// debate.js dispatches. A second copy here would be a hand-written restatement of the same
-// vocabulary with no check under it, and a stale copy reads exactly like a current one.
-//
-// A petition sitting is `judge`, like the other three. Which of the four questions a sitting
-// answers rides on the register's `occasion` (see occasion.go) rather than on the id, and who filed
-// the petition rides on the petition. The prefix match is unaffected — `judge` is still position 0.
-// OPERATOR IS A SEAT ID, not the absence of one.
-//
-// The operator surface used to be what you got when NOTHING identified you, which made "no
-// identity" a MODE — and a mode nobody selects is one nobody can be refused from. Setup, capture,
-// dashboard and the hook backends are run by a party; that party now says so, and the tree is
-// chosen the same way for every caller: by the identity, never by its absence.
-// OperatorRole is ALIASED from internal/seatclass, which declares it beside the roster it keys.
-// A second const here would be the same string with two authors.
+// OPERATOR IS A SEAT ID, not the absence of one. Setup, capture, dashboard and the hook backends
+// are run by a party; that party says so, and the tree is chosen the same way for every caller: by
+// the identity, never by its absence. OperatorRole is ALIASED from internal/seatclass, which
+// declares it beside the roster it keys.
 const OperatorRole = seatclass.OperatorRole
 
-var roleSeats = map[string][]string{
-	OperatorRole: {OperatorRole},
-	"lens":       {"red-lens-"},
-	// The seat is `red-chair-r<n>`; `red-merge-r<n>` is what archived runs hold, and migrate
-	// maps it. The role and the seat share the word: the scorecard is named for itself
-	// (`--card`), so "chair" means the seat and its role and nothing else, and
-	// "merge" means only blue's union of the lane drafts.
-	"chair": {"red-chair"},
-	"blue":  {"blue-", "frontier"},
-	// THE BENCH IS ONE PREFIX, BECAUSE IT IS ONE SEAT. `assemble` stayed here after the bench
-	// collapsed, and this table is the GRANT: RoleOfSeat scopes the command surface from it, while
-	// the roster is what REFUSES at register. Removing every refusal and leaving the grant meant
-	// `--seat-id assemble-anything` still selected the whole bench tree — and `halt`, the safety
-	// stop capture relays verbatim to a human, recorded under an identity no dispatch can create.
-	benchRole: {"judge"},
-}
-
 // gavelSeatOf resolves a motion's `ruled_by` role to the one seat that holds the gavel, through
-// roleSeats — the roster every other role question reads, so a gavel cannot rest with a seat the
-// roster does not give that role. A gavel rests with ONE seat: a role whose roster entry is a
-// family of seats (the lenses, blue) or not a seat at all is an error, as is a word that names no
-// role. Printing the word as though it were a seat id would send the reader to a seat that does
-// not exist.
+// the roster every other role question reads, so a gavel cannot rest with a seat the roster does
+// not give that role. A gavel rests with ONE seat: a role seated as a family of seats (the lenses,
+// blue) is an error, as is a word that names no role. Printing the word as though it were a seat
+// id would send the reader to a seat that does not exist.
 func gavelSeatOf(ruler string) (string, error) {
-	prefixes, known := roleSeats[ruler]
-	if !known {
+	seats := seatclass.SeatsOfRole(ruler)
+	if len(seats) == 0 {
 		return "", fmt.Errorf("its gavel is held by %q, which is no role in the roster — a motion nobody can rule", ruler)
 	}
-	if len(prefixes) == 1 {
-		if s, ok := seatclass.Seats[prefixes[0]]; ok && s.Role == ruler {
-			return prefixes[0], nil
-		}
+	if len(seats) == 1 && ruler != seatclass.Lane.Role {
+		return seats[0], nil
 	}
-	return "", fmt.Errorf("its gavel is held by the %s role, whose roster entry (%s) is not one seat — a gavel rests with one seat", ruler, strings.Join(prefixes, ", "))
+	return "", fmt.Errorf("its gavel is held by the %s role, which the roster seats as more than one seat (%s) — a gavel rests with one seat", ruler, strings.Join(seats, ", "))
 }
 
-// roleOfSeat reports which role a seat id belongs to, for the error message.
-func roleOfSeat(seatID string) string {
-	for role, prefixes := range roleSeats {
-		for _, p := range prefixes {
-			if strings.HasPrefix(seatID, p) {
-				return role
-			}
-		}
-	}
-	return ""
-}
-
-// PartyOf answers "which party wrote this" from the EVENT, not from its seat id (#348).
+// PartyOf answers "which party wrote this": the role of the seat the event is attributed to.
 //
-// NOT named RoleOf, and that name is now free because nothing should take it. What used to hold
-// it read a lens's AREA off its seat id and is called AreaOf; `role` is what selects a seat's
-// SURFACE, which is this file's sense and the terms registry's. Two things were sharing one
-// word, which is the collision this whole exercise exists to prevent — and a seat's area is a
-// namespace whose collapse once made 39 of 60 disposals ambiguous, so it kept a name of its own
-// rather than losing one.
-//
-// The field is stamped at the write. The fallback re-derives from the id only for records
-// written before the field existed — a real corpus this tool still reads — and it is the
-// fallback precisely because it is the thing being retired: `strings.HasPrefix(e.SeatID,
-// "red-merge")` decided whether a position rendered as RED or BLUE, so an id that failed to
-// match its expected prefix rendered as the wrong party with nothing to notice.
-// The fallback is guarded on the STAMPED VALUE being usable, not merely present. `role` is
-// optional in the schema, so it now has three states where it had two: stamped, stamped-empty,
-// and absent. The old code's single `!= ""` collapsed the last two, and that collapse is the
-// correct one HERE — both mean "no role was stamped", and both must reach the id fallback. This
-// is deliberately not `e.Role != nil`: a record carrying an explicit empty role would otherwise
-// return "" as if that were the party, which is the wrong-party-silently failure the field was
-// added to end.
-func PartyOf(e *Event) string {
-	if role := e.GetRole(); role != "" {
-		return role
-	}
-	return roleOfSeat(e.GetSeatId())
-}
+// It is named for the party and not for the role because `role` is what selects a seat's SURFACE
+// (the terms registry's sense), and a lens's AREA is a third fact with its own name (AreaOf). The
+// event stores the seat id and no role, so a role can change spelling without a migration.
+func PartyOf(e *Event) string { return seatclass.RoleOfSeat(e.GetSeatId()) }
 
-// RequireDispatchedSeat asserts the seat id is one the engine created, with no claim about which
+// RequireDispatchedSeat asserts the seat id is one the roster seats, with no claim about which
 // role it belongs to.
 //
-// It is the half of the role guard that survives where there is no role to enforce — the motion
+// It is the half of the role guard that holds where there is no role to enforce — the motion
 // commands, whose parent is their SUBJECT. Every seat files on the subjects it does not rule
-// (rulerfiles.go) and that asymmetry is deliberate; being a seat at all is not optional, and it
-// was not being checked.
+// (rulerfiles.go) and that asymmetry is deliberate; being a seat at all is not optional. A motion
+// attributed to an invented identity would be rendered in the report, ruled on, and joined to a
+// gap.
 func RequireDispatchedSeat(seatID string) error {
-	if roleOfSeat(seatID) != "" {
+	if seatclass.RoleOfSeat(seatID) != "" {
 		return nil
 	}
 	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace — "+
 		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created. "+
 		"A motion is filed by a seat the engine created", seatID)
-}
-
-// CheckSeatRole enforces the binding at the CLI boundary.
-//
-// AN UNKNOWN ROLE STILL CHECKS THAT THE SEAT EXISTS, and it did not.
-//
-// `if !known { return nil }` was written for the commands that have no role — and it also caught
-// every MOTION, because a motion's command parent is its SUBJECT. `motion grade file` arrives with
-// role "grade", which is in no role table, so the whole guard returned nil.
-//
-// Measured 2026-08-15, on a real board:
-//
-//	blue position      --seat-id totally-invented   REFUSED  ("does not belong to any role namespace")
-//	motion grade file  --seat-id totally-invented   ACCEPTED ("motion M2 filed (grade)")
-//
-// Which seat files which subject is rulerfiles.go's question and this does not touch it. What
-// was lost is the other half of the same guard: that the seat id is one the engine created. A
-// motion attributed to an invented identity is rendered in the report, ruled on, and joined to a
-// gap, which is exactly the property the refusal's own message claims to protect ("a hand-invented
-// one records under an identity no dispatch created").
-//
-// The shape is this repository's recurring one, in a guard: a lookup MISS returned "fine". The
-// unknown-role case and the everything-is-in-order case were the same nil.
-func CheckSeatRole(role, seatID string) error {
-	prefixes, known := roleSeats[role]
-	if !known {
-		// No role to enforce, so enforce what is still true: the seat must belong to SOME
-		// namespace. This is the check `motion` needs and the one it silently skipped.
-		return RequireDispatchedSeat(seatID)
-	}
-	for _, p := range prefixes {
-		if strings.HasPrefix(seatID, p) {
-			return nil
-		}
-	}
-	// The message names the seat's ACTUAL role when it has one. A seat that
-	// reached for another role's verbs is usually mis-scripted rather than
-	// malicious, and telling it where its own capability lives is the difference
-	// between a refusal it can act on and one it will retry.
-	if own := roleOfSeat(seatID); own != "" {
-		return feov.Errorf(feov.RoleViolation, "seat %q belongs to the %s role and may not write through %s — "+
-			"the verb set is the role boundary, and a seat that could cross it would make the record evidence of nothing "+
-			"(use: feov-record %s <verb>)", seatID, own, role, own)
-	}
-	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace (expected one of %s) — "+
-		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created",
-		seatID, strings.Join(prefixes, ", "))
 }
 
 // roleSample is one seat id per role, for building that role's command tree in the gates and the
