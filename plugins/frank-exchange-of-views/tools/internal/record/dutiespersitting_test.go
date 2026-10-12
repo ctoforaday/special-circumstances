@@ -32,17 +32,6 @@ func listsItem(s SittingJSON, sub string) bool {
 	return false
 }
 
-// listed is hasItem for an AFFORDANCE — availableOf's lines carry Blocks:false, open work rather
-// than owed work, so a blocking-only match can never see them.
-func listed(s SittingJSON, sub string) bool {
-	for _, it := range s.Open {
-		if strings.Contains(it.What, sub) {
-			return true
-		}
-	}
-	return false
-}
-
 // repairs writes a register that names key as the sitting it repairs. NO COMMAND WRITES ONE: the
 // stored field stays readable, so the readers that bound a sitting by it keep a fixture.
 func (b *stage) repairs(seat, agent, key string) *stage {
