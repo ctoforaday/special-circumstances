@@ -35,7 +35,7 @@ func refusesTheOrder(t *testing.T, out string, err error, want ...string) {
 		t.Fatalf("report text holding a section out of order was recorded:\n%s", out)
 	}
 	msg := err.Error() + "\n" + out
-	for _, w := range append(want, report.TextOrder, "NOTHING IS RECORDED", "WHAT TO DO: move the section to its place, whole", "leaves no place open") {
+	for _, w := range append(want, report.TextOrder, "NOTHING IS RECORDED", "WHAT TO DO: move the section to its place, whole") {
 		if !strings.Contains(msg, w) {
 			t.Errorf("the refusal does not say %q:\n%s", w, msg)
 		}
@@ -70,6 +70,16 @@ func TestIngestRefusesASectionOutOfOrder(t *testing.T) {
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("the refused ingest did not leave the file for its author to fix: %v", err)
 		}
+	}
+	// What a section stands beside can be a paragraph: the refusal quotes its opening, not all of it.
+	long := "A framing paragraph " + strings.Repeat("that runs on ", 30) + "to its last words."
+	if err := os.WriteFile(path, []byte("# On 91\n\n"+long+"\n\n## TL;DR\n\n91 is 7 x 13.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
+	refusesTheOrder(t, out, err, `"## TL;DR" after "A framing paragraph that runs on`, "…")
+	if err != nil && strings.Contains(err.Error()+out, "to its last words") {
+		t.Errorf("the refusal quotes the whole paragraph the section stands after:\n%v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BASE_INGEST); n != 0 {
 		t.Errorf("the refused ingests recorded %d base(s)", n)

@@ -195,7 +195,6 @@ func orderRefusal(was, doc string) error {
 	}
 	return feov.Errorf(feov.Validation, "the report's text would carry %q %s %q, and %s. "+
 		"The report ships in the order its text is written, and its text stands in this order: %s. "+
-		"A section the report does not carry leaves no place open; a second section under one of those names is out of place, and so is one of them after text that stands before the first heading. "+
 		"NOTHING IS RECORDED by this call. "+
 		"WHAT TO DO: move the section to its place, whole, with every line under it and every anchor it holds. In the file, before it is frozen, move the lines. "+
 		"In an edit, quote the section and what stands between it and its place as one span, as `show report` prints them, and write the same text in --new with the section where it belongs: "+

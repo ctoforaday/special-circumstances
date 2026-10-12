@@ -422,11 +422,12 @@ func composedClaims(text string) (out []claim) {
 // THE ORDER IS THE ROWS THAT PLACE THE TEXT (textRows): the title line, each section a row names,
 // and the body, which is every other section in the order its author chooses. A line of the text
 // stands at its row's rank. A row before the body is out of order when something of its own rank
-// or a later one stands before it; a row after the body, when something of an earlier rank stands
-// after it or a section of its own name before it. So a section the text lacks leaves no place
-// open; a second section under a row's name is out of order, the first standing before it; and
-// text before the first heading is the body's, so a row's section after it is out of order, as the
-// title line is after any text at all.
+// or a later one stands before it; a row after the body, when a section of the body stands after
+// it or a section of its own name before it. So a section the text lacks leaves no place open; a
+// second section under a row's name is out of order, the first standing before it; text before the
+// first heading is the body's, so a row's section after it is out of order, as the title line is
+// after any text at all; and where a section that opens the text stands after the one that closes
+// it, the one named is the one that opens it, which is the one to move.
 
 // textRows is the rows that place the report's text, in the table's order.
 func textRows() (rows []Section, body int) {
@@ -553,7 +554,7 @@ func orderClaims(text string) (out []claim) {
 			continue
 		}
 		for j, o := range all {
-			if j < i && (o.rank == s.rank || s.rank < body && o.rank > s.rank) || j > i && s.rank > body && o.rank < s.rank {
+			if j < i && (o.rank == s.rank || s.rank < body && o.rank > s.rank) || j > i && s.rank > body && o.rank >= body && o.rank < s.rank {
 				out = append(out, claim{key: rows[s.rank].Heading, text: s.line, row: rows[s.rank], beside: o.line, after: j < i})
 				break
 			}
