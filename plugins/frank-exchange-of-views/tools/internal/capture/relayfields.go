@@ -1,7 +1,6 @@
 package capture
 
 import (
-	"reflect"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -66,27 +65,23 @@ var relayedPlanFields = map[string]relayField{
 // relayedPlanFields, and its JSON path, which is what a relay and a departure name.
 type planField struct{ goPath, jsonPath string }
 
-// planFields walks record.Plan — nested slices of structs included — in declaration order. A field
-// tagged `json:"-"` is never relayed and is not listed.
+// planFields is every leaf of record.PlanFields — the record's one walk of record.Plan, which the
+// engine script's plan schema is generated from as well — in declaration order, each under its
+// path. A list of structs is its fields' paths, never a leaf of its own.
 func planFields() []planField {
 	var out []planField
-	var walk func(t reflect.Type, goPath, jsonPath string)
-	walk = func(t reflect.Type, goPath, jsonPath string) {
-		for i := range t.NumField() {
-			f := t.Field(i)
-			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-			if name == "-" || !f.IsExported() {
-				continue
-			}
-			g, j := goPath+"."+f.Name, strings.TrimPrefix(jsonPath+"."+name, ".")
-			if f.Type.Kind() == reflect.Slice && f.Type.Elem().Kind() == reflect.Struct {
-				walk(f.Type.Elem(), g+"[]", j+"[]")
+	var walk func(fs []record.PlanField, goPath, jsonPath string)
+	walk = func(fs []record.PlanField, goPath, jsonPath string) {
+		for _, f := range fs {
+			g, j := goPath+"."+f.Name, strings.TrimPrefix(jsonPath+"."+f.JSON, ".")
+			if f.Of != nil {
+				walk(f.Items, g+"[]", j+"[]")
 				continue
 			}
 			out = append(out, planField{g, j})
 		}
 	}
-	walk(reflect.TypeFor[record.Plan](), "Plan", "")
+	walk(record.PlanFields(), "Plan", "")
 	return out
 }
 

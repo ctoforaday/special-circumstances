@@ -1,18 +1,21 @@
-// Command enginegen writes the seat block of the engine script from the record's roster.
+// Command enginegen writes the generated regions of the engine script from the record.
 //
-// debate.js is authored source with ONE generated region. The script dispatches every seat, so it
-// needs each seat's role, tier class, agent configuration and lens area, the lens areas, the
-// bench's occasions and the mass mapping's stamp; Go owns every one of those. This command renders
-// them between two marker lines, and `-check` fails when the committed block is not what the
-// roster renders — a stale block after a roster edit, or a block edited by hand.
+// debate.js is authored source with TWO generated regions, each between its own pair of marker
+// lines. The SEATS region is identity: the script dispatches every seat, so it needs each seat's
+// role, tier class, agent configuration and lens area, the lens areas, the bench's occasions and
+// the mass mapping's stamp. The ENVELOPE VOCABULARY region is what a seat's envelope may say: each
+// closed set an envelope schema offers, and the schema of the plan the chair relays, with the
+// type tables the script's own check of a relay walks. Go owns every one of those, and `-check`
+// fails when a committed region is not what the record renders — stale after an edit to the
+// roster, an enum or record.Plan, or edited by hand.
 //
 // It lives in this module and not under scripts/ because it reads internal/seatclass,
 // internal/record and internal/flags, which nothing outside the module can import.
 //
 // Run from the tools module:
 //
-//	go run ./devcmd/enginegen          write the block
-//	go run ./devcmd/enginegen -check   exit 1 when the committed block is stale
+//	go run ./devcmd/enginegen          write the regions
+//	go run ./devcmd/enginegen -check   exit 1 when a committed region is stale
 package main
 
 import (
@@ -62,8 +65,31 @@ func fromTheRecord() source {
 	}
 }
 
+// region is one generated stretch of the script: its marker lines, what it is called in a
+// message, the declarations it is written from, and its lines.
+type region struct {
+	begin, end string
+	name, from string
+	render     func() ([]byte, error)
+}
+
+var regions = []region{
+	{beginMark, endMark, "seat block",
+		"the record's roster (seatclass.Seats and Lane, flags.LensAreas, the Occasion enum, record.MassMappingVersion). Edit the roster",
+		func() ([]byte, error) { return render(fromTheRecord()) }},
+	{vocabBegin, vocabEnd, "envelope vocabulary",
+		"the record's enums and record.Plan (record.GradeWords, MotionVerdicts, MotionFields, EnumFields, PartySeats, DispatchOccasions, the blocker kinds, and record.Plan's fields and tags). Edit the declaration",
+		func() ([]byte, error) {
+			v, err := vocabularyFromTheRecord()
+			if err != nil {
+				return nil, err
+			}
+			return renderVocabulary(v)
+		}},
+}
+
 func main() {
-	check := flag.Bool("check", false, "verify the committed block matches what the roster renders, instead of writing it")
+	check := flag.Bool("check", false, "verify each committed region matches what the record renders, instead of writing it")
 	flag.Parse()
 
 	path, err := repotree.DebateJS()
@@ -74,29 +100,38 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	block, err := render(fromTheRecord())
-	if err != nil {
-		fail(err)
+	out := cur
+	stale := false
+	for _, r := range regions {
+		block, err := r.render()
+		if err != nil {
+			fail(err)
+		}
+		next, err := splice(out, r.begin, r.end, block)
+		if err != nil {
+			fail(fmt.Errorf("%s: %w", path, err))
+		}
+		if !bytes.Equal(out, next) {
+			stale = true
+			if *check {
+				fmt.Fprintf(os.Stderr, "enginegen: the %s in %s is stale.\n"+
+					"It is written from %s, never the region.\n", r.name, path, r.from)
+			}
+		}
+		out = next
 	}
-	out, err := splice(cur, block)
-	if err != nil {
-		fail(fmt.Errorf("%s: %w", path, err))
-	}
-	if bytes.Equal(cur, out) {
-		fmt.Println("enginegen: the engine's seat block matches the roster")
+	if !stale {
+		fmt.Println("enginegen: the engine's generated regions match the record")
 		return
 	}
 	if *check {
-		fmt.Fprintf(os.Stderr, "enginegen: the seat block in %s is stale.\n"+
-			"It is written from the record's roster (seatclass.Seats and Lane, flags.LensAreas, the Occasion enum, record.MassMappingVersion). "+
-			"Edit the roster, never the block.\n"+
-			"Regenerate: go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen\n", path)
+		fmt.Fprintln(os.Stderr, "Regenerate: go -C plugins/frank-exchange-of-views/tools run ./devcmd/enginegen")
 		os.Exit(1)
 	}
 	if err := os.WriteFile(path, out, 0o644); err != nil {
 		fail(err)
 	}
-	fmt.Printf("enginegen: wrote the seat block in %s\n", path)
+	fmt.Printf("enginegen: wrote the generated regions in %s\n", path)
 }
 
 func fail(err error) {
@@ -214,17 +249,18 @@ func each(in []string, f func(string) string) []string {
 	return out
 }
 
-// splice replaces what stands between the markers. A script without both markers is refused: the
-// block's place in the script is authored, because the declarations must precede their first use.
-func splice(cur, block []byte) ([]byte, error) {
-	i := bytes.Index(cur, []byte(beginMark+"\n"))
+// splice replaces what stands between a region's markers. A script without both markers is
+// refused: a region's place in the script is authored, because its declarations must precede
+// their first use.
+func splice(cur []byte, begin, end string, block []byte) ([]byte, error) {
+	i := bytes.Index(cur, []byte(begin+"\n"))
 	if i < 0 {
-		return nil, fmt.Errorf("no line %q — the seat block's place in the script is authored, and this command fills it", beginMark)
+		return nil, fmt.Errorf("no line %q — the region's place in the script is authored, and this command fills it", begin)
 	}
-	from := i + len(beginMark) + 1
-	j := bytes.Index(cur[from:], []byte(endMark+"\n"))
+	from := i + len(begin) + 1
+	j := bytes.Index(cur[from:], []byte(end+"\n"))
 	if j < 0 {
-		return nil, fmt.Errorf("the seat block opens and never closes — the line %q is missing", endMark)
+		return nil, fmt.Errorf("the region opens and never closes — the line %q is missing", end)
 	}
 	out := append([]byte{}, cur[:from]...)
 	out = append(out, block...)

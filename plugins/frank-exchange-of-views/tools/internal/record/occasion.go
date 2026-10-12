@@ -3,6 +3,8 @@ package record
 import (
 	"strings"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -40,8 +42,15 @@ func OccasionOf(word string) (recordpb.Occasion, bool) {
 
 // OccasionWords is the vocabulary in schema order, skipping the UNSPECIFIED zero — derived from the
 // descriptor, so the words a refusal offers are the words the write path accepts.
-func OccasionWords() []string {
-	d := recordpb.Occasion(0).Descriptor().Values()
+func OccasionWords() []string { return wordsOfEnum(recordpb.Occasion(0).Descriptor()) }
+
+// GradeWords is the grade scale in schema order, skipping the UNSPECIFIED zero: the words every
+// graded axis accepts, which the engine script's envelope vocabulary is generated from.
+func GradeWords() []string { return wordsOfEnum(recordpb.Grade(0).Descriptor()) }
+
+// wordsOfEnum spells an enum's values in schema order, skipping the zero.
+func wordsOfEnum(ed protoreflect.EnumDescriptor) []string {
+	d := ed.Values()
 	out := make([]string, 0, d.Len())
 	for i := 0; i < d.Len(); i++ {
 		v := d.Get(i)

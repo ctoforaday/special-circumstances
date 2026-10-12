@@ -18,13 +18,13 @@ import (
 // current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens engaged by its retirement state — active, or retired and re-armed once by a head move — or by a contradiction it read, or by a reopened citation or proof" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
 	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
 	// the workflow routes on it — never on an empty gap list. Every other seat has no occasion, and
 	// the field is absent.
-	Occasions []string `json:"occasions,omitempty"`
+	Occasions []string `json:"occasions,omitempty" desc:"absent, as the verb prints it: only the bench is convened for an occasion" bench:"what the bench is convened for — petition (before any other party sits), docket (its gap_ids, after blue)"`
 }
 
 // PlanBlocker is one entry of the gate's list (PassBlockers) as the plan relays it: what holds a
@@ -41,7 +41,7 @@ type PlanBlocker struct {
 // owes — the gap view's `docket_reopens_on`, which the record refuses blank on a remand.
 type RemandOwed struct {
 	GapID     string `json:"gap_id"`
-	Direction string `json:"direction"`
+	Direction string `json:"direction" pattern:"\\S" desc:"never blank: the record refuses a remand without one"`
 }
 
 // ExchangeCount is one gap's exchanges as the plan relays them: Count is the total had on the gap
@@ -51,8 +51,8 @@ type RemandOwed struct {
 // apart.
 type ExchangeCount struct {
 	GapID      string `json:"gap_id"`
-	Count      int    `json:"count"`
-	Unresolved int    `json:"unresolved"`
+	Count      int    `json:"count" min:"0"`
+	Unresolved int    `json:"unresolved" min:"0"`
 }
 
 // exchangeCountOf is a gap's entry off the fold; x is nil for a gap no exchange fold names.
@@ -66,25 +66,27 @@ func exchangeCountOf(gapID string, x *GapExchanges) ExchangeCount {
 // Plan is what `feov-record dispatch next` computes FROM THE BOARD (plans/roundless.md §III.B.1).
 // The chair relays it; the workflow dispatches what it says; nothing in it is a seat's assertion.
 type Plan struct {
-	Head    int64   `json:"head"`    // events.id of the latest blue_edit or base_ingest — the report the parties audit
-	Parties []Party `json:"parties"` // who to engage; empty is the termination signal, and empty is [], never null
+	// Head is the events.id of the latest blue_edit or base_ingest — the report the parties audit.
+	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
+	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
+	Parties []Party `json:"parties"`
 	// Docket names the gaps docketed at impasse THIS chair sitting: the verb files a docket motion
 	// for each under the chair's authorship the moment impasse is first computed, so "docketed" and
 	// "at impasse" are one fact and no seat's discretion sits between a stalled gap and the bench.
 	// Asked again in the same sitting, the plan still names them — the chair relays the plan it asks
 	// for last, and blue owes closings on what this sitting docketed.
-	Docket []string `json:"docket"`
+	Docket []string `json:"docket" desc:"gaps the verb docketed for the bench at this sitting"`
 	// RemandOwed names the gaps whose remand's one more exchange this plan readies (routeRemandOwed),
 	// each with the research direction the remand states: their minting lens and blue are among
 	// Parties for it. The workflow tells blue the remand's duty for these gaps and no others, so the
 	// duty lasts exactly as long as the exchange is owed — and it quotes THIS direction, the
 	// record's, never the bench envelope's account of its own ruling.
-	RemandOwed []RemandOwed `json:"remand_owed"`
+	RemandOwed []RemandOwed `json:"remand_owed" desc:"gaps the bench remanded whose one more exchange this plan readies, each with the research direction the remand states: their minting lens and blue are among the parties for it"`
 	// Exchanges is one entry per gap a party is engaged on, in the order the parties first name
 	// them. It is the engine's measure of movement that the head does not carry: a gap marching to
 	// impasse keeps its head and its parties while its count advances, so the engine's no-progress
 	// valve keys on these and capture holds each to the record.
-	Exchanges []ExchangeCount `json:"exchanges"`
+	Exchanges []ExchangeCount `json:"exchanges" desc:"one entry per gap a party is engaged on: the exchanges had on it, and the engaged sittings the record cannot close — not counted, and not zero"`
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
@@ -95,23 +97,23 @@ type Plan struct {
 	// StaleAreas is every lens retired for good whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
 	// a PASS is refused until it has.
-	StaleAreas []StaleArea `json:"stale_areas"`
+	StaleAreas []StaleArea `json:"stale_areas" desc:"each lens retired for good whose pin the report head has moved past: the chair reads the changes since each pin and names the areas in its spot-check before a PASS"`
 	// Ceiling is the run at its limit, for one of two reasons EpochLimitReached tells apart: every
 	// open material gap is at impasse after the one more exchange its remand granted and the bench
 	// has remanded it again (remandStageOf), or the run's epoch limit is reached with parties still
 	// ready.
 	Ceiling bool `json:"ceiling"`
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
-	MaxEpochs int `json:"max_epochs"`
+	MaxEpochs int `json:"max_epochs" min:"0" desc:"the run's epoch limit, a term setup records; 0 when the run is held to none"`
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
 	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
 	// is not at the limit: it ends as any empty plan does.
-	EpochLimitReached bool `json:"epoch_limit_reached"`
+	EpochLimitReached bool `json:"epoch_limit_reached" desc:"this chair sitting opens the run's last epoch: nobody is dispatched, and ceiling is set for that reason"`
 	// Blockers is everything holding a PASS, from the list the verdict gate refuses on, each with the
 	// seat that clears it. A blocker whose owner is not the chair readies that owner, once per cause
 	// (Why says which); one still standing when the debate ends with the bench as its owner is what
 	// the terminal bench sitting rules.
-	Blockers []PlanBlocker `json:"blockers"`
+	Blockers []PlanBlocker `json:"blockers" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
 }
 
@@ -943,8 +945,8 @@ const blueRespondSeat = "blue-respond"
 
 // PartySeats are the seats a plan's party can name, in the two shapes a party takes: the bench,
 // which carries occasions, and every lens seat on the roster with blue's responding seat, which
-// carry none. The chair's envelope schema in debate.js declares the same two lists, and the
-// envelope-enum gate holds each to this one.
+// carry none. The chair's envelope schema in debate.js states the same two lists: devcmd/enginegen
+// writes its two party shapes from this one.
 func PartySeats() (bench string, lensOrBlue []string) {
 	lensOrBlue = append(seatclass.SeatsOfRole("lens"), blueRespondSeat)
 	sort.Strings(lensOrBlue)
@@ -1136,6 +1138,15 @@ func benchReadiness(b Blocker, dispatches []dispatchRow, on map[recordpb.Occasio
 	return fmt.Sprintf("%s: %s motion, unruled, and no sitting convenes the bench for its subject — nobody is readied; the run cannot end in a verdict while it stands", b.Subject, b.motionSubject)
 }
 
+// dispatchOccasions is what the chair convenes the bench for, in schema order: a dispatch row
+// names these and no other. The terminal and assembly sittings are the engine's own.
+var dispatchOccasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET, recordpb.Occasion_OCCASION_PETITION}
+
+// DispatchOccasions is the words a plan's bench party can carry in `occasions` — the set
+// requireDispatchOccasions holds a dispatch row to, which the engine script's party schema is
+// generated from.
+func DispatchOccasions() []string { return wordsOf(dispatchOccasions) }
+
 // requireDispatchOccasions refuses a dispatch row whose occasions disagree with its seat, at the
 // write. The bench's row says what it is convened for — `docket`, `petition`, or both — because its
 // one id cannot; no other seat's row carries an occasion. The two the chair convenes are the only
@@ -1155,7 +1166,7 @@ func requireDispatchOccasions(b *recordpb.Dispatch) error {
 	}
 	seen := map[recordpb.Occasion]bool{}
 	for _, o := range occ {
-		if o != recordpb.Occasion_OCCASION_DOCKET && o != recordpb.Occasion_OCCASION_PETITION {
+		if !slices.Contains(dispatchOccasions, o) {
 			return fmt.Errorf("record: dispatch refused — the chair convenes the bench for %s or %s, and %s is a sitting the engine convenes", occasionDocket, occasionPetition, recordpb.Word(o))
 		}
 		if seen[o] {

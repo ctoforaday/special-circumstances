@@ -64,7 +64,7 @@ type lensFold struct {
 // and names the area in its spot-check before a PASS.
 type StaleArea struct {
 	SeatID string `json:"seat_id"`
-	Pin    int64  `json:"pin"`
+	Pin    int64  `json:"pin" min:"0"`
 }
 
 // lensStates folds every cast lens, in cast order. ids are the events' row ids, aligned with evs;

@@ -1490,7 +1490,7 @@ jobs:
       - name: Each agent definition and preloaded skill matches its source and the surface the tool renders (a seat must not be taught a surface the binary lacks)
         run: go run ./agentgen -check
         working-directory: scripts
-      - name: The engine script's seat block matches the record's roster (a stale one dispatches a seat under what the record does not give it)
+      - name: The engine script's seat block and envelope vocabulary match the record (a stale one dispatches a seat, or offers an envelope word, the record does not give)
         run: go run ./devcmd/enginegen -check
         working-directory: plugins/frank-exchange-of-views/tools
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
