@@ -13,6 +13,16 @@ store's shape rebuilds it EMPTY on the next open, and every read verb warns unti
 a backfill has completed; this re-reads the transcripts that still exist and
 clears the warning. Sessions whose transcripts are gone do not come back.
 
+A transcript read from the top — one the store holds no offset for, as after a
+rebuild, or one that was rewritten — is read whatever its age, and the store
+keeps a month by each record's own time: records older than that are read in and
+removed again by the next day's prune, and a session whose every record is that
+old goes with them.
+
+It also looks for every transcript the store names, and records the ones no
+longer on disk (v_transcript.gone_at). Their rows are kept: they are then the
+only record of those files.
+
 Usage:
   telepathy backfill [flags]
 

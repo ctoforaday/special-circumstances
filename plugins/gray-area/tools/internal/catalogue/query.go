@@ -95,6 +95,12 @@ type SessionShape struct {
 	// thoughts and 300 thinking-empty skips is a different fact from one showing 0 and 0, and the
 	// verb that prints them has to be able to tell a reader which it is looking at.
 	Skipped map[string]int
+	// Transcripts is how many transcript files the store has read for the session, and
+	// TranscriptsGone how many of them were no longer on disk at the store's last look — first
+	// noticed at GoneSince. Gone, the rows above are the only record of what those files held.
+	Transcripts     int
+	TranscriptsGone int
+	GoneSince       sql.NullInt64
 }
 
 // ResolveSession turns what a reader typed into the one session id it names: the full id, or any
@@ -183,6 +189,9 @@ func Shape(ctx context.Context, db *sql.DB, id string) (SessionShape, error) {
 		}
 		srows.Close()
 	}
+	db.QueryRowContext(ctx,
+		`SELECT count(*), count(gone_at), min(gone_at) FROM v_transcript WHERE session_id = ?`, sessionID).
+		Scan(&s.Transcripts, &s.TranscriptsGone, &s.GoneSince)
 	return s, nil
 }
 

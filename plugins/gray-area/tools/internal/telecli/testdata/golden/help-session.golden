@@ -10,6 +10,11 @@ v_session for the ones that have ended.
 after that — new transcript bytes, or the session starting or finishing a turn —
 clears it, so a resumed session reads 'open' again.
 
+When a transcript the session was read from is no longer on disk, one line says
+how many of its files are gone and when the store noticed. The client expires
+transcript files on its own clock, and the rows read from one outlive it; the
+store looks once a UTC day and at every backfill.
+
 Usage:
   telepathy session <id> [flags]
 

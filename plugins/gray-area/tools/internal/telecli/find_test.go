@@ -228,3 +228,48 @@ func TestFindCountsOutTranscriptsGoneFromDisk(t *testing.T) {
 		t.Errorf("every transcript gone: exit %d, stdout %q, stderr %q — want a refusal", code, out, errOut)
 	}
 }
+
+// THE STORE SAYS WHEN THE FILE UNDER ITS ROWS IS GONE. The rows outlive the transcript on purpose
+// — they are then the only record — and without this a session whose transcript is a path away
+// and one whose rows are all there is read the same: to `sql`, and to `session`.
+func TestTheStoreSaysATranscriptIsGone(t *testing.T) {
+	h := newHarness(t)
+	gone := func() string {
+		t.Helper()
+		out, errOut, code := h.run(t, "sql", "SELECT session_id, agent_id FROM v_transcript WHERE gone_at IS NOT NULL ORDER BY 1, 2")
+		if code != 0 {
+			t.Fatalf("sql exited %d: %s", code, errOut)
+		}
+		return out
+	}
+	if out := gone(); strings.Contains(out, deltaID) {
+		t.Fatalf("with every transcript on disk, v_transcript marks one gone:\n%s", out)
+	}
+	before, _, _ := h.run(t, "session", deltaID)
+	if strings.Contains(before, "gone from disk") {
+		t.Fatalf("session reports a transcript gone while it is on disk:\n%s", before)
+	}
+
+	if err := os.Remove(filepath.Join(h.projects, "-work-delta", deltaID+".jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	// The look is the backfill's (and the daily pass's): until one runs, nothing is recorded.
+	out, errOut, code := h.run(t, "backfill")
+	if code != 0 || !strings.Contains(out, "1 transcript(s) the store names are gone from disk") {
+		t.Fatalf("backfill after a removal: exit %d, stdout %q, stderr %q — want the gone count", code, out, errOut)
+	}
+	if out := gone(); !strings.Contains(out, deltaID) || strings.Contains(out, alphaID) {
+		t.Errorf("v_transcript after the look:\n%s\nwant delta's transcript and no other", out)
+	}
+	after, _, code := h.run(t, "session", deltaID)
+	if code != 0 || !strings.Contains(after, "1 of 1 transcript file(s) are gone from disk") {
+		t.Errorf("session for a transcript that is gone: exit %d\n%s\nwant the line that says so", code, after)
+	}
+	// Everything else the verb said is still said: the rows are the record that is left.
+	if !strings.HasPrefix(after, strings.SplitAfter(before, "\n")[0]) || !strings.Contains(after, "words") {
+		t.Errorf("session lost what it printed before the file went:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+	if out, _, _ := h.run(t, "session", alphaID); strings.Contains(out, "gone from disk") {
+		t.Errorf("a session whose transcripts are on disk reports one gone:\n%s", out)
+	}
+}
