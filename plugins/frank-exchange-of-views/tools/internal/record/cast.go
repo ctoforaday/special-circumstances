@@ -137,16 +137,6 @@ func LaneSeatsOf(run Run) []string {
 	return out
 }
 
-// IsLaneSeat reports whether seatID is one of the lane seats a run with this many lanes seats.
-func IsLaneSeat(seatID string, lanes int) bool {
-	for _, id := range LaneSeatIDs(lanes) {
-		if id == seatID {
-			return true
-		}
-	}
-	return false
-}
-
 // castOfEvents is CastOf read off a stream already in hand: the seats of the LAST cast event, or
 // nil when the stream holds none — the same answer as the cast table, for a fold that holds only
 // the events.
