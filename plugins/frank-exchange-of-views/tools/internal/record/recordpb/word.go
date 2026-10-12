@@ -43,3 +43,21 @@ func Word(e protoreflect.Enum) string {
 	}
 	return Spelling(vd)
 }
+
+// Words spells an enum's values in schema order, skipping the UNSPECIFIED zero: the words a seat
+// may type for it, in the order the schema declares them.
+func Words(ed protoreflect.EnumDescriptor) []string {
+	d := ed.Values()
+	out := make([]string, 0, d.Len())
+	for i := 0; i < d.Len(); i++ {
+		if v := d.Get(i); !isZeroValue(v) {
+			out = append(out, Spelling(v))
+		}
+	}
+	return out
+}
+
+// GradeWords is the grade scale: the words every graded axis accepts, in the Grade enum's order.
+// It is the one list of them — the grade flag's help and refusal, the engine script's envelope
+// vocabulary and the mass table's key set are each read from it or from the enum itself.
+func GradeWords() []string { return Words(Grade(0).Descriptor()) }

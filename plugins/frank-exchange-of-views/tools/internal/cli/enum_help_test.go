@@ -115,7 +115,7 @@ var enforcedElsewhere = map[string]string{
 
 	// The ONE set already solved the other way, and correctly: flags.GradeValue is a
 	// pflag.Value, so a bad grade is refused BEFORE the payload is built, and both the
-	// help and the refusal are generated from flags.GradeNames(). A second enforcement in
+	// help and the refusal are generated from recordpb.GradeWords(). A second enforcement in
 	// the table would be the two-readers-of-one-rule mistake required.go warns about.
 	"mint --severity":    gradeParseTime,
 	"finding --severity": gradeParseTime,
@@ -148,7 +148,7 @@ var enforcedElsewhere = map[string]string{
 	"scorecard --card": "a read-only operator command that writes no event: the set is checked inline against the same map it renders from, so there is no write path for a bad value to reach",
 }
 
-const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Value), with help and refusal both generated from flags.GradeNames() — a bad grade never reaches a payload"
+const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Value), with help and refusal both generated from recordpb.GradeWords() — a bad grade never reaches a payload"
 
 // setFlags finds every flag in the real tree that ADVERTISES A SET, keyed "<verb> --<flag>" so a
 // failure names the site to fix.

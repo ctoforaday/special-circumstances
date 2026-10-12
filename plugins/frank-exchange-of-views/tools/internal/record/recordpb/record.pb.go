@@ -1589,7 +1589,15 @@ func (LogType) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{22}
 }
 
-// GradeDimension is which axis of a gap's grading is contested.
+// GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
+// flag that sets an axis (`mint`, `regrade`, `finding`) and the menu of the axis a grade motion
+// contests both print the `(means)` here.
+//
+// Each axis is spelled as the flag that sets it, so a seat learns the pattern from any one of them.
+//
+// LIKELIHOOD's "never how likely the defect is to BE there" is the clause the likelihood/impact
+// split makes necessary: with one grade standing for both, the natural reading is the likelihood
+// of the defect being present, and a seat grading on that reading answers the wrong question.
 type GradeDimension int32
 
 const (
@@ -8101,13 +8109,13 @@ const file_record_proto_rawDesc = "" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x10\xb0\xb5\x18\x01ʵ\x18\bfriction\x12\xaa\x02\n" +
 	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\xb1\x03\n" +
 	"\x10LOG_TYPE_FAILURE\x10\a\x1a\x9a\x03\x8a\xb5\x18\x91\x03a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this\xb0\xb5\x18\x00\x12\x89\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\x96\x03\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\xdc\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
-	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
-	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
-	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1af\x8a\xb5\x18bhow likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis\x12:\n" +
-	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a\x1e\x8a\xb5\x18\x1ahow far the damage reaches\x12a\n" +
-	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1aA\x8a\xb5\x18=what the fix costs; it is what makes defect_accepted arguable*\x8b\x04\n" +
+	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12A\n" +
+	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a#\x8a\xb5\x18\x1fhow bad the defect is in itself\x12p\n" +
+	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1aP\x8a\xb5\x18Lhow likely the CONSEQUENCE is — never how likely the defect is to BE there\x12F\n" +
+	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a*\x8a\xb5\x18&how bad the consequence is if it lands\x12\xab\x01\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a\x8a\x01\x8a\xb5\x18\x85\x01what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable*\x8b\x04\n" +
 	"\rPetitionClass\x12\x1e\n" +
 	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aX\x8a\xb5\x18Tproceeding would require asserting what you believe false, or burying a real finding\x12J\n" +

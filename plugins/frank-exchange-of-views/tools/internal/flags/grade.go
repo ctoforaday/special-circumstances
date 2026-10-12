@@ -14,46 +14,14 @@ package flags
 import (
 	"fmt"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// Grade is a point on the shared grading scale. Order is severity-ascending and
-// mirrors the domain's own enum, including the two off-scale values: realized
-// (it already happened) and trivial (below the bar but real).
+// Grade is a point on the shared grading scale, as the word a seat types. The scale — its words
+// and their order — is the record's Grade enum (recordpb.GradeWords); this package holds no list
+// of them, so the flag, its help and its refusal cannot name a grade the write path does not.
 type Grade string
-
-const (
-	Low        Grade = "low"
-	LowMedium  Grade = "low_medium"
-	Medium     Grade = "medium"
-	MediumHigh Grade = "medium_high"
-	High       Grade = "high"
-	Certain    Grade = "certain"
-	Realized   Grade = "realized"
-	Trivial    Grade = "trivial"
-)
-
-// Grades is the canonical order, used for both validation and the help text so
-// the two cannot drift.
-var Grades = []Grade{Low, LowMedium, Medium, MediumHigh, High, Certain, Realized, Trivial}
-
-func GradeNames() []string {
-	out := make([]string, len(Grades))
-	for i, g := range Grades {
-		out[i] = string(g)
-	}
-	return out
-}
-
-// IsGrade reports whether s is one of the canonical grades — the single membership authority, so
-// other packages validate against Grades rather than keeping their own copy of the set.
-func IsGrade(s string) bool {
-	for _, g := range Grades {
-		if string(g) == s {
-			return true
-		}
-	}
-	return false
-}
 
 // GradeValue is the pflag.Value implementation. It is a POINTER to a Grade so an
 // unset flag stays distinguishable from a set one — the record format requires
@@ -72,16 +40,14 @@ func (v *GradeValue) String() string {
 }
 
 func (v *GradeValue) Set(s string) error {
-	g := Grade(strings.TrimSpace(s))
-	for _, known := range Grades {
-		if g == known {
-			v.Grade, v.set = g, true
-			return nil
-		}
+	g := strings.TrimSpace(s)
+	if _, ok := recordpb.BySpelling(recordpb.Grade(0).Descriptor(), g); ok {
+		v.Grade, v.set = Grade(g), true
+		return nil
 	}
 	// The message names what WOULD have worked. A refusal a seat can act on beats
 	// one it will retry, and this is the seat's most common typo class.
-	return fmt.Errorf("%q is not a grade — use one of: %s", s, strings.Join(GradeNames(), " | "))
+	return fmt.Errorf("%q is not a grade — use one of: %s", s, strings.Join(recordpb.GradeWords(), " | "))
 }
 
 // Type is what pflag prints in usage: "--severity grade" reads better than
@@ -90,20 +56,7 @@ func (v *GradeValue) Type() string { return "grade" }
 
 func (v *GradeValue) Given() bool { return v != nil && v.set }
 
-// GradeUsage is the shared help text, generated from the canonical list.
+// GradeUsage is the shared help text: what the flag grades, then the scale in the record's order.
 func GradeUsage(what string) string {
-	return what + ": " + strings.Join(GradeNames(), " | ")
+	return what + ": " + strings.Join(recordpb.GradeWords(), " | ")
 }
-
-// WHAT EACH GRADE AXIS MEANS, ONCE. These were hand-kept on every verb that takes the axis —
-// finding, mint, regrade — and on the grade motion's dimension gloss, and the copies had already
-// drifted ("one grade meant" / "the grade meant").
-//
-// DescLikelihood's "never how likely the defect is to BE there" is the clause the v2 split made
-// necessary: before likelihood and impact were separate axes, one grade meant the likelihood of the
-// defect being present, and a seat that learned it then grades the wrong question now.
-const (
-	DescLikelihood = "how likely the CONSEQUENCE is — never how likely the defect is to BE there"
-	DescImpact     = "how bad the consequence is if it lands"
-	DescComplexity = "what fixing it costs"
-)

@@ -606,7 +606,7 @@ Flags:
       --dimension dimension-value   REQUIRED — the grade axis you contest
   -h, --help                        help for file
       --id gap-id                   REQUIRED — the gap this motion is about
-      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --proposed grade              REQUIRED — the grade you say it should be: trivial | low | low_medium | medium | medium_high | high | certain | realized
       --reason string               → SHARED §9
 
 Enumerated values:
@@ -614,7 +614,7 @@ Enumerated values:
     severity    how bad the defect is in itself
     likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
     impact      how bad the consequence is if it lands
-    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable
 
 (Global Flags:) → SHARED §4
 ==============================================================================

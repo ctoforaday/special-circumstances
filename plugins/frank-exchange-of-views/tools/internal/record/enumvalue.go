@@ -39,9 +39,9 @@ import (
 // property enums.go exists to hold, extended from the values to their meanings.
 //
 // The grades are the one set that does NOT come through here. flags.GradeValue is a pflag.Value
-// over an ORDERED SCALE shared by five axes, and it already refuses at parse with help generated
-// from one list. Routing it through a second mechanism would be two implementations of a rule
-// that currently has one.
+// over an ORDERED SCALE shared by five axes, and it refuses at parse with help generated from the
+// Grade enum's own words (recordpb.GradeWords). Routing it through a second mechanism would be
+// two implementations of a rule that currently has one.
 
 // EnumValue is one legal value and what it means.
 type EnumValue struct {
