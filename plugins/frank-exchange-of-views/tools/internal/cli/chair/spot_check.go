@@ -12,13 +12,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// spot-check: re-verify archived closures, and say which.
+// spot-check: name the stale areas read before a PASS, and the archived closures re-verified.
 //
-// The duty exists because a closure index is only as good as the last time
-// anyone looked. W1.8 keys the floor on the archive's state at the SITTING's start —
-// run 5's round-2 merge entered with an empty archive, so the old
-// from-round-2 rule degraded into a seat attesting blocks it was about to write
-// itself.
+// It is owed before a PASS and at no other time: the PASS gate refuses a verdict until a spot-check
+// in the chair's sitting names every stale area (record.BlockerStaleArea). The archived closures
+// it names are the chair's sample of a closure index that is only as good as the last time anyone
+// looked.
 func newSpotCheck() *cobra.Command {
 	var ids, areas flags.CSV
 
@@ -51,29 +50,16 @@ func newSpotCheck() *cobra.Command {
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
 	c.Flags().Var(&areas, flags.Areas, "comma-separated lens seats from the plan's stale_areas whose area you read the changes against this sitting — a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason")
-	// AN HONESTLY-EMPTY SITTING IS A DISCHARGE, NOT A SKIP.
-	//
-	// This run's red-merge-r1 reported in friction that spot-check "cannot record an
-	// honestly-empty epoch" because --ids requires a list. That is NOT what the tool
-	// did: a bare spot-check was always accepted and recorded ids as an empty array —
-	// TestSpotCheckIdsAreAlwaysAnArray pins exactly that, and caught the attempt to
-	// make the bare form an error. The friction was self-report that did not survive
-	// checking, the second such entry in this run.
-	//
-	// What the seat actually lacked was EXPRESSIVENESS: an empty array records that
-	// nothing was sampled but not WHY, so a later audit cannot tell "the archive was
-	// empty at the sitting's start, floor not applicable" from "the seat skipped its duty".
-	// --none --reason says which, and the bare form keeps working.
+	// THE EMPTY FORM SAYS WHY NOTHING IS NAMED. A spot-check naming no closure records that
+	// nothing was sampled but not why; --none states that the archive was empty, a claim the
+	// board's replayed count is read against (record.SpotCheckAudit).
 	c.Flags().Bool(flags.None, false, "the archive was empty when this sitting began, so there was nothing to sample")
 	// COBRA SAYS THIS, not the handler. Both rules were hand-written refusals inside RunE, which
 	// means neither could be read from `--help` and neither fired until after the seat had
 	// composed the whole invocation.
 	c.MarkFlagsMutuallyExclusive(flags.None, flags.IDs)
-	// ONE PROSE CHANNEL, ALWAYS REQUIRED — which is what collapsing --notes into --reason makes
-	// possible. The bare form used to be legal and recorded an empty array with no account of it,
-	// so "the archive was empty at the sitting's start" and "the seat skipped its duty" were the same
-	// event. Cobra has no one-way "--none needs --reason", and it does not need one: BOTH forms
-	// owe a reason.
+	// ONE PROSE CHANNEL, ALWAYS REQUIRED: both forms owe a reason. Cobra has no one-way "--none
+	// needs --reason", and it does not need one.
 	// REQUIRED, THROUGH EITHER SPELLING, and stated once by the channel itself rather than by a
 	// group this verb has to remember to declare. MarkFlagRequired names one flag and would refuse
 	// the file form, which is what the hand-registered --reason here used to do.

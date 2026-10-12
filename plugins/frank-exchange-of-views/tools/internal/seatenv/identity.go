@@ -16,10 +16,8 @@ import (
 //
 // That is the hottest recovered-from-a-string fact in the tool, and it has already failed:
 // `judge-terminal` carries no epoch, so the regex returned 0, so a bench closure at run END looked
-// like a closure BEFORE EPOCH 1. It put a phantom entry in the archive and made the W1.8
-// spot-check floor demand samples from epochs whose seats had done nothing wrong. It surfaced at
-// 1 seed in 60 during #327, entirely by luck; a live run would have failed verify while naming
-// innocent epochs.
+// like a closure BEFORE EPOCH 1, a phantom entry in the archive every count of it then carried. It
+// surfaced at 1 seed in 60 during #327, entirely by luck.
 //
 // Role was recovered the same way — `strings.HasPrefix(e.SeatID, "red-merge")` — including in
 // the branch deciding whether a position renders as RED or BLUE in the report.

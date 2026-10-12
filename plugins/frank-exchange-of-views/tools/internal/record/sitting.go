@@ -468,29 +468,8 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 	return e
 }
 
-// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts in the sitting
-// the write path stored them in count (thisSitting). seatDid reads the whole record,
-// so the first sitting's act discharged every later one: a seat that sat again and filed nothing
-// read `complete` because its earlier sitting's act was on the record. A seat that
-// has never sat has no earlier sitting to borrow from, so the whole record is its sitting.
-//
-// IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
-// act belong to", so it reads the stored sitting, the one definition every attribution reader
-// shares: the write path stores a register that names a repaired sitting, and its acts, in the sitting it names.
-// Starting the window at the seat's latest register of ANY kind put the repair's own register there, so inside a repair the work list said
-// the log channel was open for a sitting that had already filed there. The seat was told to file
-// something it had done, on the one surface it reads to find out what is left.
-func seatDidThisSitting(evs []*Event, win WindowIndex, seatID string, typ recordpb.EventType) bool {
-	for _, e := range thisSitting(evs, win, seatID) {
-		if e.GetType() == typ {
-			return true
-		}
-	}
-	return false
-}
-
-// thisSitting is the seat's own live events in the window seatDidThisSitting reads: the acts the
-// write path stored in the seat's latest sitting. That sitting opened at the hook's bracket or at a
+// thisSitting is the seat's own live events in its latest sitting: the acts the write path stored
+// there. That sitting opened at the hook's bracket or at a
 // register, and a register under the bracketed agent joined it — so a log filed between the
 // bracket and that register is in the sitting, as the record says. A seat that has never sat has
 // no earlier sitting to borrow from: its acts are in none, and that is its window.
@@ -535,7 +514,7 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 // predicate exists to excuse, and sitting_open/sitting_close are the hooks' own. Counting any of
 // them would make every sitting look busy and the empty case unreachable.
 //
-// It reads the same window seatDidThisSitting does (thisSitting), so "this sitting" means one thing
+// It reads the one window every per-sitting reader does (thisSitting), so "this sitting" means one thing
 // on this surface: the seat's acts the write path stored in its latest sitting — opened by its
 // register, or by the hook's sitting_open where the configuration names one seat.
 func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {
