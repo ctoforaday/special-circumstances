@@ -16,4 +16,6 @@ NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {
 
 {{.WovenNotesRule}}
 
+{{.TextOrderRule}} The file stands for you to move the lines, and the one ingest a run gets is unspent.
+
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.

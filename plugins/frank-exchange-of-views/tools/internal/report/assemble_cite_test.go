@@ -116,7 +116,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Error("a citation anchor survived assembly (should be woven to [^N])")
 	}
 	if !strings.Contains(got, "The cache is coherent[^1].") {
-		t.Errorf("citation not woven into the lifted TL;DR:\n%s", got)
+		t.Errorf("citation not woven into the TL;DR:\n%s", got)
 	}
 	if !strings.Contains(got, "## Bibliography") || !strings.Contains(got, "[^1]: Coherence Proof. https://ex/coherence (accessed 2026-08-03)") {
 		t.Errorf("composed bibliography missing:\n%s", got)

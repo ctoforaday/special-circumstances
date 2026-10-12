@@ -268,6 +268,11 @@ type runner struct {
 	// positionsRefused counts the positions the tool REFUSED a seat that owes none
 	// (record.SeatOwesPosition) — a lane, the frontier, the synthesizer. The sweep gates it at zero.
 	positionsRefused int
+	// ordersRefused counts the edits the tool REFUSED for a section out of the order the report
+	// ships in (orderRefused). The sweep gates it at zero. orderAdmittedErr is the first such edit
+	// the tool recorded, or refused without naming the order; it fails the run.
+	ordersRefused    int
+	orderAdmittedErr string
 	// reopenedReadied counts the plans that readied the evidence lens for a reopened citation or
 	// proof and for nothing else (readiedForReopened). The sweep gates it at zero. reopenedPlans
 	// counts the plans holding a reopened blocker, whoever they readied.
@@ -476,6 +481,40 @@ func (r *runner) noteAvenueIDErr(msg string) {
 	defer r.mu.Unlock()
 	if r.avenueIDErr == "" {
 		r.avenueIDErr = msg
+	}
+}
+
+// seedReport is the report every run freezes: text before the first heading, which is one of the
+// report's own sections, and the section that closes the text (reportdoc.TextOrder).
+const seedReport = "# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n\n## Open questions\n\nWhether the trend outlasts the sample.\n"
+
+// orderRefused drives an edit that would put a section out of the order the report ships in — one
+// written after the section that closes the text, or a TL;DR after text of the report's own — and
+// holds the tool to refusing it with the order named and the report as it stood.
+func (r *runner) orderRefused(seatID string) {
+	before, err := reportproj.RenderFromRecord(r.run())
+	if err != nil || !strings.Contains(before, "Whether the trend outlasts the sample") {
+		return
+	}
+	text := "Whether the trend outlasts the sample.\n\n## Appendix\n\nA section after the last one"
+	if r.coin(50) {
+		text = "Whether the trend outlasts the sample.\n\n## TL;DR\n\nA summary at the end"
+	}
+	out, err := r.exec("edit", "--seat-id", seatID, "--quote", "Whether the trend outlasts the sample", "--new", text, "--reason", "fuzz: a section out of order")
+	after, _ := reportproj.RenderFromRecord(r.run())
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch {
+	case err == nil || after != before:
+		if r.orderAdmittedErr == "" {
+			r.orderAdmittedErr = seatID + " put a section out of order and the edit was recorded: " + firstLine(out)
+		}
+	case !strings.Contains(out, reportdoc.TextOrder):
+		if r.orderAdmittedErr == "" {
+			r.orderAdmittedErr = seatID + "'s edit was refused without naming the order the text stands in (" + reportdoc.TextOrder + "): " + firstLine(out)
+		}
+	default:
+		r.ordersRefused++
 	}
 }
 
@@ -2053,6 +2092,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 				set("--title", "unreachable "+seatID).
 				run()
 		})
+		// A SECTION OUT OF ORDER IS REFUSED: some sittings write one, and the tool refuses each.
+		r.maybe(20, func() { r.orderRefused(seatID) })
 		// THE ONLY WRITE PATH to blue/report.md, driven end to end through the real binary.
 		// It swaps the seeded edit-target sentence between two phrasings, so a valid unique
 		// --quote exists whichever way the previous edit left the file — no state to thread.
@@ -2741,6 +2782,8 @@ type outcome struct {
 	// positionsRefused is the positions the tool refused a seat that owes none
 	// (runner.positionsRefused).
 	positionsRefused int
+	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
+	ordersRefused int
 	// reopenedReadied is the plans that readied the evidence lens for a reopened citation or proof
 	// alone (runner.reopenedReadied), and reopenedPlans the plans that held a reopened blocker at
 	// all — what the zero of the first is read against.
@@ -3109,7 +3152,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// The trailing sentence is the EDIT TARGET: `blue edit` swaps it between two fixed
 	// phrasings, so every round has a valid unique span to replace whichever way the last
 	// edit left it, while the anchor quote above stays untouched for findings and cites.
-	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport), 0o644)
 	// THE RUN DECLARES ITS CLASS VOCABULARY, because a real run does. The fuzz used to be exempt
 	// by accident: no registry staged meant `validateClass` accepted every slug, so the fuzz drove
 	// `mint` for its whole life without ever exercising the check the flag's help describes. When
@@ -3197,6 +3240,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.positionAdmittedErr != "" {
 		res.err = "position duty: " + r.positionAdmittedErr
+		return res
+	}
+	if r.orderAdmittedErr != "" {
+		res.err = "section order: " + r.orderAdmittedErr
 		return res
 	}
 	if r.repeatErr != "" {
@@ -3386,6 +3433,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 		if label, _, found := reportdoc.WovenNoteIn("", string(text)); found {
 			res.err = "the report's text carries the footnote label " + label + ", one the weave writes, past the refusal at the write"
+			return res
+		}
+		if m, found := reportdoc.OutOfOrderIn("", string(text)); found {
+			res.err = "the report's text carries " + m.Line + " out of the order it ships in, past the refusal at the write"
 			return res
 		}
 	}
@@ -3797,6 +3848,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.mu.Lock()
 	res.avenueMoves = r.avenueMoves
 	res.positionsRefused = r.positionsRefused
+	res.ordersRefused = r.ordersRefused
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
 	res.repeatsRefused = r.repeatsRefused
 	res.budgetRefused = r.budgetRefused
@@ -4050,7 +4102,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	// UNVERIFIED with the petition never heard.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644)
+		[]byte(seedReport), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
 	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)
@@ -4170,9 +4222,9 @@ var dialecticProseKey = map[string]string{
 var reportExemptions = map[string]string{
 	"revision":    "written by migrate alone, for the revisions an archived record holds — no command records one and no document renders its prose: the changelog lists what left the report",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
-	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
-	"blue_edit":   "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"base_ingest": "the synthesized report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly lifts verbatim; rendering it as an entry of its own would duplicate the whole document",
+	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
+	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"base_ingest": "the synthesized report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly ships as written; rendering it as an entry of its own would duplicate the whole document",
 	"class_new":   "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// THE DISPATCH MACHINERY (plans/roundless.md §III.B.1). A cast names who may sit; a dispatch
 	// records who the chair relayed for one epoch. Both are attribution and routing, and both
@@ -4470,6 +4522,7 @@ func TestFuzzDebate(t *testing.T) {
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
+	ordersRefused := 0                     // edits refused for a section out of the order the report ships in
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0 // plans that readied the evidence lens for a reopened citation or proof alone, of those holding one
 	repeatsRefused := 0                    // second acts refused in a sitting that holds one, naming the answering act
@@ -4545,6 +4598,7 @@ func TestFuzzDebate(t *testing.T) {
 			estoppels += o.estoppels
 			avenueMoves += o.avenueMoves
 			positionsRefused += o.positionsRefused
+			ordersRefused += o.ordersRefused
 			reopenedReadied += o.reopenedReadied
 			reopenedPlans += o.reopenedPlans
 			repeatsRefused += o.repeatsRefused
@@ -4670,6 +4724,11 @@ func TestFuzzDebate(t *testing.T) {
 		// or a tool that stopped refusing it — would leave the refusal unreached behind a green sweep.
 		if positionsRefused == 0 {
 			t.Errorf("fuzz drove ZERO refused positions across %d runs — no lane, frontier or synthesizer typed `position`, so the refusal for a seat that owes none is unexercised (false green)", completed)
+		}
+		// THE SECTION-ORDER GATE. The generators here write the report's text in order, so the
+		// refusal that holds it is reached only by the drive that writes a section out of place.
+		if ordersRefused == 0 {
+			t.Errorf("fuzz drove ZERO edits refused for a section out of order across %d runs — no drive wrote one, so the refusal that holds the order the report ships in is unexercised (false green)", completed)
 		}
 		// THE REPEATED-ACT GATE. No verb takes a correction: a seat that got an act wrong meets the
 		// refusal of its second, and that refusal names the act that answers the first. A drive
@@ -5536,7 +5595,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// refused with "no base has been ingested". runOne does all three before it drives; so does this.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644)
+		[]byte(seedReport), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
 	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)

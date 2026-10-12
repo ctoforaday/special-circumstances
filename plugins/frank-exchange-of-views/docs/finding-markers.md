@@ -146,7 +146,7 @@ nothing left for a write-guard to protect.
 ## Assembly — findings are STRIPPED; resolution belongs to the citation axis
 
 Finding-markers are invisible machine anchors, so at assembly they are simply **stripped** — the tool
-removes every `<!--fx:…-->` token from the **final composed report** (not just blue's lifted content:
+removes every `<!--fx:…-->` token from the **final composed report** (not just the report's own text:
 the strip runs on the whole `out`, so a marker that a finding's location/reason text quoted into a
 record-derived findings/transcript section is stripped too — that record-derived path was the leak the
 live run exposed). Nothing about a finding-marker is reader-facing, so there is nothing to resolve and
