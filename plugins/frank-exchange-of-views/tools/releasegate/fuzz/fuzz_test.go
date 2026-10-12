@@ -1090,8 +1090,18 @@ func (r *runner) minterOf(gapID string) string {
 	return m
 }
 
-// noteMint records that seatID's mint of gapID landed — the originator, and the load the next
-// lens() pick reads.
+// fuzzLensStock is the defects one lens finds in a run: past it, its sittings draw no fresh mint.
+const fuzzLensStock = 2
+
+// landedMints is the mints of seatID that landed in this run.
+func (r *runner) landedMints(seatID string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.lensMints[seatID]
+}
+
+// noteMint records that seatID's mint of gapID landed — the originator, and the count its stock
+// of defects is read against.
 func (r *runner) noteMint(seatID, gapID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -2451,6 +2461,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			fresh = r.rng.Intn(2) // an engaged sitting mostly works its own gaps
 		}
 		for range fresh {
+			// A LENS RUNS OUT OF DEFECTS, AND THE DRIVER HAS TO SAY SO. The budget caps what a lens
+			// holds open, not what it mints in a run, so a lens that draws fresh mints at every
+			// sitting mints again after every close and the run never converges: measured on this
+			// sweep, 35 of 40 runs ended CEILING, 27 at the epoch limit, and the forced-VERIFIED
+			// run with them. A stock of two per lens over the floor of one still drives both sides
+			// of the budget: the second mint is refused while the first is open, and lands once it
+			// has closed.
+			if r.landedMints(seatID) >= fuzzLensStock {
+				break
+			}
 			r.maybe(40, func() {
 				r.readOnly("near-match", seatID, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
 			})
