@@ -89,7 +89,7 @@ func printManifest(cmd *cobra.Command, m *migrate.Manifest) {
 	case migrate.OrderReordered:
 		fmt.Fprintln(out, "  the report's text is brought into the order it ships in: whole sections moved, every act replayed over it")
 	case migrate.OrderAsWritten:
-		fmt.Fprintln(out, "  the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written: its acts do not replay over the reordered text")
+		fmt.Fprintln(out, "  the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written: its acts, replayed over the base in order, do not give this text in order")
 	}
 	for w, why := range m.Accepted {
 		fmt.Fprintf(out, "  accepted loss of %q: %s\n", w, why)
