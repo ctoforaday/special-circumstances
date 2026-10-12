@@ -69,7 +69,7 @@ const (
 	kindFmt     kind = "fmt"     // gofmt -l must be empty over a module
 	kindTest    kind = "test"    // go test over a module
 	kindRace    kind = "race"    // go test -race over some subset of a module
-	kindTool    kind = "tool"    // a scripts/ tool, run via go run
+	kindTool    kind = "tool"    // a dev tool, run via go run: under scripts/, or a plugin's tools/devcmd/
 	kindNode    kind = "node"    // a node --test suite
 	kindExtern  kind = "extern"  // needs a binary this repo does not vendor
 	kindRelease kind = "release" // only meaningful on a tag
@@ -235,6 +235,8 @@ var tools = []gate{
 		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",
 		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
+	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
+		why: "the engine script's seat block is written from the record's roster; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because

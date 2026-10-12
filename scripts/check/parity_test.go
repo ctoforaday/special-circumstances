@@ -44,7 +44,7 @@ func workflow(t *testing.T) string {
 }
 
 var (
-	reGoRunTool = regexp.MustCompile(`go run \./([a-z]+)(?:\s+(-[a-z]+))?`)
+	reGoRunTool = regexp.MustCompile(`go run \./([a-z/]+)(?:\s+(-[a-z]+))?`)
 	reNodeSuite = regexp.MustCompile(`(plugins/[^\s"']+\.test\.mjs)`)
 )
 
@@ -65,7 +65,8 @@ func toolID(name, flag string) string {
 	return name + " " + flag
 }
 
-// ciTools is every scripts/ tool the workflow invokes.
+// ciTools is every dev tool the workflow invokes, by its package path: `agentgen` under scripts/,
+// `devcmd/enginegen` under a plugin's tools module.
 func ciTools(wf string) map[string]bool {
 	got := map[string]bool{}
 	for _, m := range reGoRunTool.FindAllStringSubmatch(wf, -1) {

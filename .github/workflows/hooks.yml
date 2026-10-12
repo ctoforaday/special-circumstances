@@ -1490,6 +1490,9 @@ jobs:
       - name: Each agent definition and preloaded skill matches its source and the surface the tool renders (a seat must not be taught a surface the binary lacks)
         run: go run ./agentgen -check
         working-directory: scripts
+      - name: The engine script's seat block matches the record's roster (a stale one dispatches a seat under what the record does not give it)
+        run: go run ./devcmd/enginegen -check
+        working-directory: plugins/frank-exchange-of-views/tools
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second
