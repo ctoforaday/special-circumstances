@@ -29,7 +29,7 @@ func newCapture() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// RETURNED, NOT EXITED — see newScorecard. Same 1 -> 2 move, same reason.
 			if len(args) < 2 {
-				return feov.Errorf(feov.MissingField, "usage: %s capture <run-dir> <workflow-transcript-dir>", InvokedAs())
+				return feov.Errorf(feov.MissingField, "takes two arguments, <run-dir> <workflow-transcript-dir>, and got %d — `%s capture --help` says what each is", len(args), InvokedAs())
 			}
 			// A POSITIONAL PATH IS THE EASIEST ONE TO GET WRONG — nothing injects it and nothing
 			// checks it. Opened rather than passed through, so a mistyped directory is refused

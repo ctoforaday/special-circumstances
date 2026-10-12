@@ -30,7 +30,7 @@ feov-record: mint: requires --impact, --likelihood, --severity
 
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -41,7 +41,7 @@ feov-record: mint: requires --impact, --likelihood, --severity
 
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -52,7 +52,7 @@ feov-record: mint: requires --impact, --likelihood, --severity
 
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 

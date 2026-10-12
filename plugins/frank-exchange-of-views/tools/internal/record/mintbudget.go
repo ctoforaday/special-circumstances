@@ -7,6 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // A LENS'S MINT BUDGET SCALES WITH WHAT IT AUDITS (plans/roundless.md §III.B.2.2 sets the bound;
@@ -180,29 +181,31 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 // whose budget is spent still sits while the record readies it: it verifies, records findings,
 // regrades and closes its own gaps, and with no fresh mint its sittings are barren, so it retires
 // within two. The count is the record's own — this seat's mint events — not a counter
-// the seat carries. Only a lens is bounded: the chair mints nothing, and a seed writing under
-// another seat is not a lens spending a budget. Migration replays under the archived seat id, so
-// the arithmetic — not the roster — is exempted under Migrating, below.
+// the seat carries. Only a lens is bounded: a seat of another role spends no budget. A mint
+// attributed to an id that is no seat is refused, live and under Migrating alike; migration replays
+// under the archived seat id, so the arithmetic — not the roster — is exempted under Migrating,
+// below.
 //
 // BELOW THE FLOOR NOTHING IS MEASURED. The budget is at least the floor, so a mint under it lands
 // whatever the report holds; the units are read only when they can decide the answer.
 func requireMintWithinBudget(run Run, seatID string) error {
-	if roleOfSeat(seatID) != "lens" {
+	// THE ROLE AND THE AREA ARE THE ROSTER'S, SO AN ID OFF THE ROSTER HAS NEITHER. A seat of another
+	// role is not a lens spending a budget; an id with no role is no seat at all, and is refused by
+	// name rather than by an area cut off its spelling — `red-lens-banana` is not the `banana` lens.
+	// requireDispatchableSeat refuses such an id at `register`; a write that reaches here under one
+	// is refused here.
+	role := seatclass.RoleOfSeat(seatID)
+	if role != "" && role != "lens" {
 		return nil
 	}
-	// THE AREA IS A FIELD ON THE ROSTER, SO AN ID OFF THE ROSTER HAS NONE. It used to be cut off
-	// the seat id, which handed `red-lens-banana` the area "banana" and then refused THAT — a
-	// refusal naming an area the engine has never heard of, for a seat id no dispatch produces.
-	// requireDispatchableSeat refuses such an id at `register` and it should never reach here; if
-	// it does, the seat is what is wrong with it, not its area.
 	area := AreaOf(seatID)
 	if area == "" {
 		return feov.Errorf(feov.Validation,
-			"record: mint refused — %q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
+			"%q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
 			seatID)
 	}
 	if _, err := mintScaleOf(area); err != nil {
-		return feov.Errorf(feov.Validation, "record: mint refused — %s: %v", seatID, err)
+		return feov.Errorf(feov.Validation, "%s: %v", seatID, err)
 	}
 	// THE BUDGET JUDGES WHAT A LENS MAY DO NEXT; an archived mint is what a lens DID under the budget
 	// of its day, and a replay counts it against today's: the floor is the archive's own, but the
@@ -227,7 +230,7 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	b, err := lensBudgetAt(run, area, p.MintBudget)
 	if err != nil {
 		return feov.Errorf(feov.Validation,
-			"record: mint refused — %s has minted %d gap(s), the floor of its budget (mintBudget in inputs/run-config.json is %d), "+
+			"%s has minted %d gap(s), the floor of its budget (mintBudget in inputs/run-config.json is %d), "+
 				"and the %s lens's budget above the floor, one mint per %d %s, cannot be read: %v. "+
 				"A mint past the floor waits on that measure rather than guessing it. "+
 				"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
@@ -237,7 +240,7 @@ func requireMintWithinBudget(run Run, seatID string) error {
 		return nil
 	}
 	return feov.Errorf(feov.Validation,
-		"record: mint refused — %s has minted %d gap(s), its whole budget. The %s lens's budget is the larger of the run's floor "+
+		"%s has minted %d gap(s), its whole budget. The %s lens's budget is the larger of the run's floor "+
 			"(mintBudget in inputs/run-config.json) and one mint per %d %s: %s, and it grows as the report does. "+
 			"The budget is where a trifle's cost lands: with %d mints for this report, none of them is spent on a nitpick. "+
 			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",

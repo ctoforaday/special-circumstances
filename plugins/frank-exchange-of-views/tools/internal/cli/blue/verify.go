@@ -1,7 +1,7 @@
 package blue
 
 import (
-	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"strings"
 )
 
@@ -28,7 +28,7 @@ func VerifyReproduction(ingested, rendered string) error {
 		return nil
 	}
 	at := firstDivergence(ingested, rendered)
-	return fmt.Errorf(`INGEST ABORTED — STOP. Do not edit the report; do not retry; the tool failed, not your writing.
+	return feov.Errorf(feov.Internal, `INGEST ABORTED — STOP. Do not edit the report; do not retry; the tool failed, not your writing.
 
 Your report file is PRESERVED, byte-for-byte, exactly as you wrote it. Nothing was deleted and no work is lost. This is a defect in the ingest/render tooling — the record did not reproduce your report — and it is not something an edit can fix: changing the report cannot correct a rendering bug, it can only hide it. There is no diff for you to apply here.
 

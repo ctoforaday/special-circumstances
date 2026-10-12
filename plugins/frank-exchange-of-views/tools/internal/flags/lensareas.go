@@ -8,6 +8,9 @@ package flags
 // internal/record owns the roster and imports this package, so the list cannot live there without
 // putting internal/flags in a cycle — and the alternative, a second hand-written copy, is the
 // defect this package was built to end (see ShapedValue.Shape).
-// record.LensAreas is an alias, and TestTheLensAreasMatchWhatTheEngineDeclares holds this list
-// against debate.js's own RED_AREAS in both directions.
+// record.LensAreas is an alias. The roster's lens rows are generated from this list, and so are
+// debate.js's `RED_AREAS`, its lens rows and the lens seats of the chair's party schema:
+// devcmd/enginegen writes the script's generated regions from the roster, and its -check fails a
+// region this list has moved past. Adding an area is an edit here, the area's agent definition,
+// and that regeneration.
 var LensAreas = []string{"evidence", "logic", "dark-side", "voice", "computation", "adversary", "architecture"}

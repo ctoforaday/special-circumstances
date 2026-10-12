@@ -81,7 +81,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 			continue
 		}
 		if starts[i] < 0 {
-			return LayoutJSON{}, fmt.Errorf("report: assembly composed %q for %s and the document does not open it", s.Heading, s.File)
+			return LayoutJSON{}, fmt.Errorf("assembly composed %q for %s and the document does not open it", s.Heading, s.File)
 		}
 	}
 	var out LayoutJSON

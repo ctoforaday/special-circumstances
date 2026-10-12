@@ -172,10 +172,10 @@ CREATE TABLE "enum_grade_dimension" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('complexity', 'what the fix costs; it is what makes defect_accepted arguable');
-INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('impact', 'how far the damage reaches');
-INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('likelihood', 'how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis');
-INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('severity', 'how bad it is if it bites');
+INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('complexity', 'what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable');
+INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('impact', 'how bad the consequence is if it lands');
+INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('likelihood', 'how likely the CONSEQUENCE is — never how likely the defect is to BE there');
+INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('severity', 'how bad the defect is in itself');
 
 CREATE TABLE "enum_grade" (
   "value" TEXT PRIMARY KEY,
@@ -1248,7 +1248,9 @@ WHERE NOT d."closes";
 -- stretch after it: the verdict's row still holds the original the gate read.
 --
 -- THE MATERIALITY RULE: the class's default says 'always' or 'never', and a 'by_grade' class is
--- material at a severity of medium (mass 2.0, record.material) and above.
+-- material at a severity of medium (mass 2.0) and above. A gap that is not material stays on the
+-- board, and blue may answer it when engaged for something else, but it alone cannot spin the cycle
+-- (gblock, 2026-09-08).
 --
 -- "mass" is MASS[likelihood] * MASS[impact] and "severity_mass" MASS[severity] — a grade's weight is
 -- a facet on the vocabulary (enum_grade.mass).
@@ -1311,8 +1313,8 @@ LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
 -- EVERY ACT THAT CLOSES A GAP, by its arm: red's close ('close'), and a docket ruling whose
 -- disposition closes ('bench') — whether it closes is read off the vocabulary rather than decided
 -- here. Struck acts are rows too: whether one closed the gap at a point is act_standing's question.
--- The gap view reads the earliest of each arm that stands now; convergence_at asks whether any stood
--- at a verdict.
+-- The gap view reads the LAST of each arm that stands now, and which arm acted last; convergence_at
+-- asks whether any stood at a verdict.
 --
 -- TWO HOPS ON THE BENCH ARM, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own
 -- event carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
@@ -1400,14 +1402,13 @@ SELECT
   e."id"                                       AS "minted_seq",
   e."epoch"                                    AS "minted_epoch",
   e."seat_id"                                  AS "minted_by",
-  c."closure_class"                            AS "closure_class",
-  c."successor"                                AS "successor",
-  ce."id"                                      AS "merge_closed_seq",
-  bo."disposition"                             AS "bench_disposition",
-  be."seat_id"                                 AS "bench_closed_by",
-  be."id"                                      AS "bench_closed_seq",
-  COALESCE(MIN(ce."id", be."id"), ce."id", be."id")           AS "closed_seq",
-  (c."event_id" IS NULL AND bc."event_id" IS NULL)              AS "open",
+  -- HOW THE GAP CLOSED, stated here and nowhere else: the last standing closing act of each arm by
+  -- its events.id (NULL where the arm has none), and whether the bench's is the later of the two.
+  -- A reader takes the act's word, epoch and seat from the event the id names.
+  cx."event_id"                                AS "close_event",
+  bc."event_id"                                AS "bench_close_event",
+  (bc."pos" IS NOT NULL AND (cx."pos" IS NULL OR bc."pos" > cx."pos")) AS "closed_by_bench",
+  (cx."event_id" IS NULL AND bc."event_id" IS NULL)             AS "open",
   -- THE REPEATED FIELDS, ANSWERED HERE RATHER THAN STORED. A gap's lineage and its credited
   -- findings live in child tables, so "does this gap supersede anything" is a join every reader
   -- would otherwise write for itself — and several did, differently.
@@ -1431,7 +1432,7 @@ SELECT
   -- handed. 'computation' is the vocabulary's own word; the Go home for the question
   -- (Gap.NeedsComputation) reads the enum, and THIS is the one SQL statement of it.
   EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id")                      AS "proof_answered",
-  (c."event_id" IS NULL AND bc."event_id" IS NULL
+  (cx."event_id" IS NULL AND bc."event_id" IS NULL
      AND m."check_kind" = 'computation'
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
@@ -1466,7 +1467,7 @@ SELECT
   -- twice, which is what the verdict gate refuses.
   (SELECT m2."gap_id" FROM "mint_supersedes" s2 JOIN "mint" m2 ON m2."event_id" = s2."event_id"
     WHERE s2."value" = m."gap_id" ORDER BY s2."event_id" DESC LIMIT 1)                AS "superseded_by",
-  (c."event_id" IS NULL AND bc."event_id" IS NULL
+  (cx."event_id" IS NULL AND bc."event_id" IS NULL
      AND EXISTS(SELECT 1 FROM "mint_supersedes" s3 WHERE s3."value" = m."gap_id"))    AS "stranded",
   -- The mint's own event id, so board order is a sort key rather than a join every reader
   -- writes for itself.
@@ -1476,35 +1477,31 @@ FROM "mint" m
 JOIN "events_w" e ON e."id" = m."event_id"
 LEFT JOIN "gap_grade" gg ON gg."minted_event" = m."event_id" AND gg."until_seq" IS NULL
 -- A gap can be closed more than once — red re-adjudicates across epochs (defect_accepted in
--- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
--- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
--- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
--- once (a projection disagreement the consistency oracle catches). closed_round's MIN already
--- assumed the earliest; this makes the row do so too.
+-- one, repaired in a later one, or the chair carries an earlier closure forward). Take the LAST
+-- close: the word a later close gives is the one that stands. ONE ROW PER GAP, because a plain
+-- LEFT JOIN "close" fans out one row per close event, and a gap with two closes then counts twice
+-- in board_counts while the raw event walk counts it once (a projection disagreement the
+-- consistency oracle catches).
 --
--- EARLIEST AMONG THE ACTS THAT STAND, by "pos": a struck close is not a closure, and a corrected
--- close keeps its original place. (SQLite's bare column beside MIN() is read from the MIN row.)
+-- LAST AMONG THE ACTS THAT STAND, by "pos": a struck close is not a closure, and a corrected
+-- close keeps its original place. (SQLite's bare column beside MAX() is read from the MAX row.)
 LEFT JOIN (
-  SELECT c0."gap_id" AS "gap_id", c0."event_id" AS "event_id", MIN(l0."pos") AS "pos"
+  SELECT c0."gap_id" AS "gap_id", c0."event_id" AS "event_id", MAX(l0."pos") AS "pos"
   FROM "closure_act" c0
   JOIN "live_event" l0 ON l0."event_id" = c0."event_id"
   WHERE c0."arm" = 'close'
   GROUP BY c0."gap_id"
 ) cx ON cx."gap_id" = m."gap_id"
-LEFT JOIN "close" c ON c."event_id" = cx."event_id"
-LEFT JOIN "events" ce ON ce."id" = cx."event_id"
--- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
--- epoch and disposed of in the next — so this is the EARLIEST ruling whose disposition closes
--- (closure_act's bench arm).
+-- The bench's closing ruling, if it made one. A gap can be ruled on many times — remanded in one
+-- epoch and disposed of in the next, or disposed of twice — so this is the LAST standing ruling
+-- whose disposition closes (closure_act's bench arm).
 LEFT JOIN (
-  SELECT b0."gap_id" AS "gap_id", b0."event_id" AS "event_id", MIN(lr."pos") AS "pos"
+  SELECT b0."gap_id" AS "gap_id", b0."event_id" AS "event_id", MAX(lr."pos") AS "pos"
   FROM "closure_act" b0
   JOIN "live_event" lr ON lr."event_id" = b0."event_id"
   WHERE b0."arm" = 'bench'
   GROUP BY b0."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
-LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
-LEFT JOIN "events" be ON be."id" = bc."event_id"
 ) gb;
 
 -- THE CONVERGENCE RULE'S INPUTS, AS THE BOARD STOOD AT A POINT: one row per verdict, and one for the

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -107,37 +108,151 @@ func TestSweepCapsFilesAndDefersTheRest(t *testing.T) {
 	}
 }
 
-// Retention deletes past the window and leaves everything inside it.
-func TestRetentionDeletesOnlyPastTheWindow(t *testing.T) {
+// RETENTION RUNS ON TRANSCRIPT TIME, session rows included. One session per way the rule can be
+// got wrong; each row's name says what it is.
+//
+//	OLD         records past the window, read long ago            goes
+//	NEW         records inside it                                  stays
+//	BACKFILLED  records past the window, READ A MOMENT AGO         goes — keyed on when the store
+//	            read it, this row lived a month with nothing under it
+//	SPOKE       no acts, one word inside the window                stays
+//	REGISTERED  no records at all, registered inside the window    stays
+//	FORGOTTEN   no records at all, registered past it              goes
+//	RESUMED     records past the window, and LIVE                  stays — registration reopened it
+//	            a moment before this pass, and deleting it loses the cloud id
+func TestRetentionRunsOnTranscriptTime(t *testing.T) {
 	db := store(t)
 	now := time.Now()
 	old := now.Add(-40 * 24 * time.Hour).Unix()
 	fresh := now.Add(-1 * time.Hour).Unix()
-	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('OLD','/p',?,?)`, old, old)
-	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('NEW','/p',?,?)`, fresh, fresh)
-	db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES('OLD',0,?,'Bash','ok')`, old)
-	db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES('NEW',0,?,'Bash','ok')`, fresh)
-	// Each session's transcript has an offset row; the expired session's must go with it, or the
-	// store keeps naming a transcript it holds nothing about (Closure queues it for ever, find
-	// counts its path for ever).
-	db.Exec(`INSERT INTO file_offset(path,session_id,agent_id,offset,size,head_sha) VALUES('/p/OLD.jsonl','OLD','',10,10,'x')`)
-	db.Exec(`INSERT INTO file_offset(path,session_id,agent_id,offset,size,head_sha) VALUES('/p/NEW.jsonl','NEW','',10,10,'x')`)
-
-	if _, err := Retain(db, DefaultLimits(), now); err != nil {
+	session := func(id string, ingested int64) {
+		t.Helper()
+		if _, err := db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES(?,'/p',?,?)`, id, ingested, ingested); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO file_offset(path,session_id,agent_id,offset,size,head_sha) VALUES(?,?,'',10,10,'x')`, "/p/"+id+".jsonl", id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	act := func(id string, ts int64) {
+		t.Helper()
+		if _, err := db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES(?,0,?,'Bash','ok')`, id, ts); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session("OLD", old)
+	act("OLD", old)
+	session("NEW", fresh)
+	act("NEW", fresh)
+	session("BACKFILLED", fresh)
+	act("BACKFILLED", old)
+	session("SPOKE", old)
+	if _, err := db.Exec(`INSERT INTO word(session_id,ts,role,text,source) VALUES('SPOKE',?,'user','hello','transcript')`, fresh); err != nil {
 		t.Fatal(err)
 	}
-	var sessions, acts, offsets int
-	db.QueryRow(`SELECT count(*) FROM session`).Scan(&sessions)
-	db.QueryRow(`SELECT count(*) FROM act`).Scan(&acts)
-	db.QueryRow(`SELECT count(*) FROM file_offset`).Scan(&offsets)
-	if sessions != 1 || acts != 1 || offsets != 1 {
-		t.Errorf("after retention: %d sessions / %d acts / %d offsets, want 1/1/1 — only the expired session's rows go", sessions, acts, offsets)
+	session("REGISTERED", fresh)
+	session("FORGOTTEN", old)
+	session("RESUMED", old)
+	act("RESUMED", old)
+
+	if _, err := Retain(db, DefaultLimits(), now, map[string]bool{"RESUMED": true}); err != nil {
+		t.Fatal(err)
 	}
-	var left, leftPath string
-	db.QueryRow(`SELECT session_id FROM act`).Scan(&left)
-	db.QueryRow(`SELECT path FROM file_offset`).Scan(&leftPath)
-	if left != "NEW" || leftPath != "/p/NEW.jsonl" {
-		t.Errorf("retention kept act %q and offset %q, want NEW's", left, leftPath)
+	ids := func(q string) string {
+		t.Helper()
+		rows, err := db.Query(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var id string
+			rows.Scan(&id)
+			out = append(out, id)
+		}
+		return strings.Join(out, ",")
+	}
+	const want = "NEW,REGISTERED,RESUMED,SPOKE"
+	if got := ids(`SELECT session_id FROM session ORDER BY 1`); got != want {
+		t.Errorf("sessions kept = %s, want %s", got, want)
+	}
+	// An offset row goes with its session row and never before it: left behind it queues the
+	// expired session in Closure for ever, and `find` counts its path for ever.
+	if got := ids(`SELECT session_id FROM file_offset ORDER BY 1`); got != want {
+		t.Errorf("offset rows kept = %s, want %s", got, want)
+	}
+	// Records go by their own time whatever became of the row: RESUMED keeps its row, not its act.
+	if got := ids(`SELECT session_id FROM act ORDER BY 1`); got != "NEW" {
+		t.Errorf("acts kept = %s, want NEW", got)
+	}
+}
+
+// MarkGone RECORDS A TRANSCRIPT THE DISK NO LONGER HOLDS, once, and clears it when the file is
+// back. The rows read from the file are untouched: they are what is left of it.
+func TestMarkGoneRecordsWhatTheDiskNoLongerHolds(t *testing.T) {
+	root := corpus(t)
+	db := store(t)
+	files, _ := TranscriptFiles(root)
+	if len(files) < 2 {
+		t.Fatalf("the fixture holds %d transcripts, want at least 2", len(files))
+	}
+	mustIngest(t, db, files...)
+	goneAt := func(path string) sql.NullInt64 {
+		t.Helper()
+		var at sql.NullInt64
+		if err := db.QueryRow(`SELECT gone_at FROM v_transcript WHERE path = ?`, path).Scan(&at); err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	first := time.Unix(1_800_000_000, 0)
+	if n, err := MarkGone(db, first); err != nil || n != 0 {
+		t.Fatalf("every transcript on disk: %d gone, err %v — want 0", n, err)
+	}
+
+	victim := files[0].Path
+	body, err := os.ReadFile(victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var acts int
+	db.QueryRow(`SELECT count(*) FROM act`).Scan(&acts)
+	if err := os.Remove(victim); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := MarkGone(db, first); err != nil || n != 1 {
+		t.Fatalf("one transcript removed: %d gone, err %v — want 1", n, err)
+	}
+	if at := goneAt(victim); !at.Valid || at.Int64 != first.Unix() {
+		t.Errorf("gone_at = %+v, want %d", at, first.Unix())
+	}
+	if at := goneAt(files[1].Path); at.Valid {
+		t.Errorf("a transcript still on disk is marked gone at %d", at.Int64)
+	}
+	// A LATER LOOK KEEPS THE FIRST NOTICE: gone_at is when the store found out, not the last
+	// time it checked.
+	if n, err := MarkGone(db, first.Add(24*time.Hour)); err != nil || n != 1 {
+		t.Fatalf("second look: %d gone, err %v — want 1", n, err)
+	}
+	if at := goneAt(victim); at.Int64 != first.Unix() {
+		t.Errorf("a second look moved gone_at to %d, want %d kept", at.Int64, first.Unix())
+	}
+	var after int
+	db.QueryRow(`SELECT count(*) FROM act`).Scan(&after)
+	if after != acts {
+		t.Errorf("marking a transcript gone changed the act count from %d to %d", acts, after)
+	}
+
+	// The file is back — a corpus restored from a copy — and the mark goes.
+	if err := os.WriteFile(victim, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := MarkGone(db, first.Add(48*time.Hour)); err != nil || n != 0 {
+		t.Fatalf("file restored: %d gone, err %v — want 0", n, err)
+	}
+	if at := goneAt(victim); at.Valid {
+		t.Errorf("a restored transcript is still marked gone at %d", at.Int64)
 	}
 }
 

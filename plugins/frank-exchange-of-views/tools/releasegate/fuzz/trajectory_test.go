@@ -9,7 +9,10 @@ import (
 	"sync"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/refusalcheck"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // EVERY EXECUTION THROUGH THE HARNESS IS TRACKED, THE WAY A TRAJECTORY IS.
@@ -59,10 +62,77 @@ var (
 
 // noteExec records one invocation of the BINARY. Called from BOTH paths that shell it — the
 // runner's exec and the direct exec.Command oracles — so nothing reaches the tool untracked.
-func noteExec(args []string, err error, out []byte) { note(args, err, out, false) }
+func noteExec(args []string, err error, out []byte) {
+	noteNaming(args, err, out, false)
+	note(args, err, out, false)
+}
 
 // noteInProc records one invocation that drove the same command path in this process.
-func noteInProc(args []string, err error, out []byte) { note(args, err, out, true) }
+func noteInProc(args []string, err error, out []byte) {
+	noteNaming(args, err, out, true)
+	note(args, err, out, true)
+}
+
+// EVERY REFUSAL THE SWEEP MEETS NAMES ITS COMMAND EXACTLY ONCE. The sweep drives the surface
+// across arbitrary run shapes, so it reaches refusals no hand-written scenario does; each is read
+// by internal/refusalcheck — the same reading internal/cli's harness and difftest's use — against
+// the tree of the seat that ran it.
+var (
+	namingMu     sync.Mutex
+	namingWalked int
+	namingWrong  = map[string]string{} // the refusal's first line -> the argv and the count
+	namingRoles  = sync.OnceValue(func() []string {
+		var roles []string
+		for role := range cli.AllRoots() {
+			roles = append(roles, role)
+		}
+		sort.Strings(roles)
+		return roles
+	})
+)
+
+func noteNaming(args []string, err error, out []byte, inProcess bool) {
+	if err == nil {
+		return
+	}
+	root := cli.NewRootFor(seatOfArgs(args))
+	said := string(out)
+	if inProcess {
+		// The tree built here names itself after this test binary; the tool names the tool.
+		said = strings.Replace(said, root.Name()+": ", refusalcheck.Tool+": ", 1)
+	}
+	var wrong string
+	if env, ok := feov.DecodeRefusal(strings.TrimSpace(said)); ok {
+		path, _, _ := refusalcheck.Rendered(root, namingRoles(), args, "")
+		if again := refusalcheck.Again(path, namingRoles(), env.Error); len(again) > 0 {
+			wrong = fmt.Sprintf("--json, %d times (%s)", 1+len(again), strings.Join(again, ", "))
+		}
+	} else if strings.HasPrefix(said, refusalcheck.Tool+": ") {
+		if _, n, forms := refusalcheck.Rendered(root, namingRoles(), args, said); n != 1 {
+			wrong = fmt.Sprintf("%d times (%s)", n, strings.Join(forms, ", "))
+		}
+	} else {
+		return // not a refusal the renderer wrote
+	}
+	namingMu.Lock()
+	defer namingMu.Unlock()
+	namingWalked++
+	if wrong != "" {
+		namingWrong[refusalDigest(out, err)] = wrong + ": " + strings.Join(args, " ")
+	}
+}
+
+// namedOtherThanOnce lists the refusals the sweep met that name their command 0 times or 2 and
+// more, one row per distinct first line.
+func namedOtherThanOnce() (walked int, wrong []string) {
+	namingMu.Lock()
+	defer namingMu.Unlock()
+	for line, why := range namingWrong {
+		wrong = append(wrong, why+"\n      "+line)
+	}
+	sort.Strings(wrong)
+	return namingWalked, wrong
+}
 
 func note(args []string, err error, out []byte, inProcess bool) {
 	execMu.Lock()
@@ -151,7 +221,7 @@ func roleOfArgs(args []string) string {
 		default:
 			continue
 		}
-		if r := cli.RoleOfSeat(id); r != "" && r != record.OperatorRole {
+		if r := seatclass.RoleOfSeat(id); r != "" && r != record.OperatorRole {
 			return r
 		}
 	}

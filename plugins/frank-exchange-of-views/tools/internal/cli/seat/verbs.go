@@ -148,7 +148,7 @@ func Log() *cobra.Command {
 		// a second.
 		lt, ok := record.LogTypeOf(word)
 		if !ok {
-			return nil, fmt.Errorf("%q is not a log type this record can carry", word)
+			return nil, feov.Errorf(feov.Validation, "%q is not a log type this record can carry", word)
 		}
 		// NO SEAT-SIDE FACET CHECK HERE EITHER. The invariant that holds for every writer — a
 		// tool-only word carries source=TOOL — lives at the record's write path, where the
@@ -638,7 +638,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// 0, which is precisely the failure the paragraph above describes. A guard is only a guard
 	// at the point the request arrives.
 	if scope := Str(cmd, flags.ID); scope != "" && want != "changes" && want != "" {
-		return fmt.Errorf("--id scopes `show changes` and nothing else; the %s view has no scoped form, and answering it unscoped would hand you a different question's answer", want)
+		return feov.Errorf(feov.Validation, "--id scopes `show changes` and nothing else; the %s view has no scoped form, and answering it unscoped would hand you a different question's answer", want)
 	}
 	if want == "" {
 		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
@@ -723,7 +723,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		default:
 			// EVERY PROJECTION HAS A JSON FORM, so nothing in the table reaches this; a view added
 			// without one is refused by name rather than answered in a form the seat did not ask for.
-			return fmt.Errorf("the %s view has no --json form", want)
+			return feov.Errorf(feov.Validation, "the %s view has no --json form", want)
 		}
 	}
 
@@ -873,7 +873,7 @@ func renderView(cmd *cobra.Command, want string) error {
 					return err
 				}
 				if found {
-					return fmt.Errorf("anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (blue's `retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
+					return feov.Errorf(feov.Conflict, "anchor %s is not in the report because it was RETIRED — it left with the claim %q at event %d (blue's `retire` takes a bare anchor out with its claim). It is not a stale reference; there is no live text around it to read",
 						a, claim, ev)
 				}
 			}
@@ -1019,15 +1019,12 @@ func renderView(cmd *cobra.Command, want string) error {
 
 // RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
 //
-// It used to build a `<role>` command GROUP and the root mounted all four. The role level is gone:
-// the seat is bound at `register`, the tool derives the role from that binding, and the root IS the
-// seat's surface. A chair seat runs `mint`; a lens seat running `mint` gets an unknown command,
-// which is the same boundary the role group drew and is now drawn by the only fact that decides it.
+// There is no role level: the seat is bound at `register`, the tool reads the role from that
+// binding, and the root IS the seat's surface. A lens seat runs `mint`; a chair seat running `mint`
+// is told the verb is the lens seat's — the boundary drawn by the only fact that decides it.
 //
-// The seat therefore no longer types a word the tool can already look up. ResolveSeat has always
-// refused a --seat-id that disagrees with the identity — while the tree required the role DERIVED
-// from that identity to be typed correctly, with CheckSeatRole reconciling the two copies. There is
-// one copy now, and it is on the record.
+// The seat types no word the tool can already look up: its role is read from its registered seat
+// id, and there is one copy of it, on the record.
 func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
 	out := make([]*cobra.Command, 0, len(verbs)+1)
 	for _, v := range verbs {
@@ -1214,7 +1211,7 @@ func PlaceOwed(s Context, run record.Run, id, key string) error {
 		if key != "" {
 			repeats, anew = fmt.Sprintf("under --key %q", key), fmt.Sprintf(", under a --key other than %q", key)
 		}
-		return fmt.Errorf("the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
+		return feov.Errorf(feov.Conflict, "the %s this call repeats is on the record without its anchor, and the location it stored, %q, does not place: the report %s. "+
 			"A call %s repeats that act: it places the stored location and does not read --quote, so another --quote here changes nothing. "+
 			"The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote%s",
 			anchor.Kind(id), loc, state, repeats, anew)

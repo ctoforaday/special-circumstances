@@ -220,7 +220,7 @@ func (c Context) handle() record.Run {
 // Every `record.Append` goes through this, so anything the envelope must carry lands in one
 // place instead of 32. No clock rides on it: the record derives epoch and sitting on read.
 //
-// Role is not carried. See record.Event.Role: the party on an event is derived from the seat id,
+// Role is not carried. See record.PartyOf: the party on an event is the role of its seat id,
 // and this Context's Role answers a different question — which command group the verb sits under.
 func (c Context) Identity() record.Identity {
 	// The zero Run when this context was REFUSED. Append asserts Valid() and refuses rather

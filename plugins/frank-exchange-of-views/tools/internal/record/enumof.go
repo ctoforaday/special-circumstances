@@ -53,9 +53,9 @@ func ConfidenceOf(word string) (recordpb.Confidence, bool) {
 	return enumOf[recordpb.Confidence](recordpb.Confidence(0).Descriptor(), word)
 }
 
-// GradeDimensionOf resolves the axis a grade motion contests. The seat's word for one of these is
-// `cx` while the schema spells `complexity_cost` — that fold is the flag's business, not this
-// function's, and it is why the surface has its own alias rather than a second spelling here.
+// GradeDimensionOf resolves the axis a grade motion contests. Each axis is spelled as the flag
+// that sets it; `complexity_cost` is the payload key the complexity grade is stored under, which no
+// seat types and this does not resolve.
 func GradeDimensionOf(word string) (recordpb.GradeDimension, bool) {
 	return enumOf[recordpb.GradeDimension](recordpb.GradeDimension(0).Descriptor(), word)
 }

@@ -172,7 +172,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
-			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition-red-chair",
+			path: []string{"motion", "petition", "rule"}, seatID: "judge",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", "subject": "petition",
@@ -182,7 +182,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "bench halt is the safety boundary",
-			role: "bench", seatID: "judge-terminal",
+			role: "bench", seatID: "judge",
 			args: []string{"--reason", "the run must stop, and here is why"},
 			typ:  recordpb.EventType_EVENT_TYPE_HALT,
 			want: map[string]string{"opinion": "the run must stop, and here is why"},
@@ -422,7 +422,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 		typ                       recordpb.EventType
 		extra                     []string
 	}{
-		{"bench", "halt", "judge-terminal", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
+		{"bench", "halt", "judge", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "judge", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
 		{"chair", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "G1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "G1"}},

@@ -35,17 +35,26 @@ func repoRoot(t *testing.T) string {
 	return root
 }
 
+// workflow is every workflow that holds a gate, read as one text: hooks.yml, and the nightly
+// whole-graph race beside it. A sweep that read only the first would hold the nightly's race leg
+// to nothing.
 func workflow(t *testing.T) string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(repoRoot(t), workflowPath))
+	return workflowFile(t, workflowPath) + "\n" + workflowFile(t, nightlyRacePath)
+}
+
+// workflowFile is ONE workflow, for an assertion about which of them carries a line.
+func workflowFile(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(repoRoot(t), path))
 	if err != nil {
-		t.Fatalf("reading the workflow, which is the AUTHORITY this table mirrors: %v", err)
+		t.Fatalf("reading %s, which is the AUTHORITY this table mirrors: %v", path, err)
 	}
 	return string(b)
 }
 
 var (
-	reGoRunTool = regexp.MustCompile(`go run \./([a-z]+)(?:\s+(-[a-z]+))?`)
+	reGoRunTool = regexp.MustCompile(`go run \./([a-z/]+)(?:\s+(-[a-z]+))?`)
 	reNodeSuite = regexp.MustCompile(`(plugins/[^\s"']+\.test\.mjs)`)
 )
 
@@ -66,7 +75,8 @@ func toolID(name, flag string) string {
 	return name + " " + flag
 }
 
-// ciTools is every scripts/ tool the workflow invokes.
+// ciTools is every dev tool the workflow invokes, by its package path: `agentgen` under scripts/,
+// `devcmd/enginegen` under a plugin's tools module.
 func ciTools(wf string) map[string]bool {
 	got := map[string]bool{}
 	for _, m := range reGoRunTool.FindAllStringSubmatch(wf, -1) {
@@ -154,21 +164,53 @@ func TestEveryModuleCIBuildsIsDeclared(t *testing.T) {
 }
 
 // The -race scopes are NOT uniform across modules, and encoding them wrongly would claim
-// coverage CI does not have. feov-record races the shipped binary's import graph — a deps:
-// marker both sides expand at run time, so what this test can hold together is not a package
-// list but the DERIVATION: the workflow must generate its list from the same target the
-// local gate does.
+// coverage CI does not have. feov-record's scope is the shipped binary's import graph, and two
+// workflows read it: the pull-request gate hands the target to racescope, which races the tests
+// in that graph that start goroutines; the nightly races the graph whole. What this test holds
+// together is the TARGET each derives from, and which workflow carries which form — the
+// whole-graph line appearing in hooks.yml, or the tool line in the nightly, is the two having
+// been swapped or copied.
 func TestRaceScopesMatchTheWorkflow(t *testing.T) {
-	wf := workflow(t)
-	feov := jobBlock(t, wf, "feov-record")
-	if !strings.Contains(feov, "go list -deps ./cmd/feov-record") ||
-		!strings.Contains(feov, "xargs go test -race") {
-		t.Error("the feov-record job no longer derives its -race scope from the feov-record " +
-			"binary's import graph; raceScope still claims it does")
+	wf := workflowFile(t, workflowPath)
+	const target = "./cmd/feov-record"
+	if scope := raceScope["plugins/frank-exchange-of-views/tools"]; len(scope) != 1 || scope[0] != depsScopePrefix+target {
+		t.Errorf("raceScope for feov = %v, want exactly %s%s — any other claim here "+
+			"would report concurrency coverage the workflow does not run", scope, depsScopePrefix, target)
 	}
-	if scope := raceScope["plugins/frank-exchange-of-views/tools"]; len(scope) != 1 || scope[0] != depsScopePrefix+"./cmd/feov-record" {
-		t.Errorf("raceScope for feov = %v, want exactly %s./cmd/feov-record — any other claim here "+
-			"would report concurrency coverage the workflow does not run", scope, depsScopePrefix)
+	var local gate
+	for _, g := range gateSet() {
+		if g.id == "feov-record:race" {
+			local = g
+		}
+	}
+	localLine := "go " + strings.Join(local.args, " ")
+	if local.kind != kindTool || !strings.Contains(localLine, "go run ./racescope ") || !strings.Contains(localLine, " -deps "+target) {
+		t.Errorf("the local feov-record:race gate runs %q, want racescope over %s", localLine, target)
+	}
+	feov := jobBlock(t, wf, "feov-record")
+	var tool string
+	for _, line := range strings.Split(feov, "\n") {
+		if trimmed := strings.TrimSpace(line); !strings.HasPrefix(trimmed, "#") && strings.Contains(trimmed, "go run ./racescope ") {
+			tool = trimmed
+		}
+	}
+	switch {
+	case tool == "":
+		t.Error("the feov-record job no longer runs racescope; raceScope still claims its race gate is derived")
+	case !strings.Contains(tool, " -deps "+target):
+		t.Errorf("the feov-record job's racescope line derives from another target than %s: %q", target, tool)
+	case !strings.Contains(tool, raceTimeout):
+		t.Errorf("the feov-record job's racescope line lacks %s, so CI and the local gate diverge: %q", raceTimeout, tool)
+	}
+	if strings.Contains(feov, "xargs go test -race") {
+		t.Error("the feov-record job races the whole import graph again; that form belongs to " + nightlyRacePath)
+	}
+	nightly := workflowFile(t, nightlyRacePath)
+	if !strings.Contains(nightly, "go list -deps "+target) || !strings.Contains(nightly, "xargs go test -race") {
+		t.Errorf("%s no longer races the whole import graph of %s, and it is the only run that does", nightlyRacePath, target)
+	}
+	if strings.Contains(nightly, "go run ./racescope") {
+		t.Errorf("%s runs racescope; the nightly exists for what racescope cannot see", nightlyRacePath)
 	}
 	// scripts GAINED a -race leg when its concurrency became real: golden/interrupt.go guards
 	// signal state with a mutex against its interrupt handler, which puts a file back. The
@@ -401,26 +443,23 @@ func TestTheNarrowRaceLegsAreDeclared(t *testing.T) {
 	}
 }
 
-// expandScope is the local half of the derived race scope; the workflow's grep is the other.
-// What must hold: expansion happens in the gate's own module, keeps only that module's
-// packages, and a target that expands to nothing is an ERROR — `go test -race` with no
-// packages would pass while measuring almost nothing.
-func TestExpandScopeDerivesTheModuleLocalGraph(t *testing.T) {
-	// A test binary runs in its package directory, so the module root is one level up.
-	pkgs, err := expandScope("..", []string{"test", "-race", depsScopePrefix + "./check"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(pkgs) < 3 || pkgs[0] != "test" || pkgs[1] != "-race" {
-		t.Fatalf("expanded args = %v, want the non-marker args kept and at least one package", pkgs)
-	}
-	for _, p := range pkgs[2:] {
-		if !strings.HasPrefix(p, "github.com/ctoforaday/special-circumstances/scripts") {
-			t.Errorf("expansion leaked a package outside the module: %s", p)
+// A deps: scope reaches `go test` through nothing: the gate that carries one is racescope's, or
+// is declared and skipped. One that is neither would hand the marker to go test as a package.
+func TestADepsScopeIsNeverAGoTestArgument(t *testing.T) {
+	var markers int
+	for _, g := range gateSet() {
+		for _, a := range g.args {
+			if !strings.HasPrefix(a, depsScopePrefix) {
+				continue
+			}
+			markers++
+			if g.skip == "" {
+				t.Errorf("gate %q runs here with the scope marker %s in its arguments %v", g.id, a, g.args)
+			}
 		}
 	}
-	if _, err := expandScope("..", []string{depsScopePrefix + "./no-such-target"}); err == nil {
-		t.Error("a target go list cannot resolve expanded without error — that silence would race nothing and pass")
+	if markers == 0 {
+		t.Error("no gate carries a deps: scope at all — the whole-graph race is no longer declared")
 	}
 }
 
@@ -432,10 +471,14 @@ func TestExpandScopeDerivesTheModuleLocalGraph(t *testing.T) {
 // raceTimeout fixes the local gate; the workflow carries the same bound. If one moves without
 // the other, `check` and CI measure different things — the drift this command exists to remove.
 func TestEveryModuleRaceLegCarriesTheBound(t *testing.T) {
+	var bounded int
 	for _, g := range gateSet() {
-		if g.kind != kindRace || !strings.HasSuffix(g.id, ":race") {
-			continue // the narrow single-test legs run one test and need no suite bound
+		// A module's gate, and the declared whole-graph run. The narrow single-test legs run
+		// one test and need no suite bound.
+		if !strings.HasSuffix(g.id, ":race") && !strings.HasSuffix(g.id, ":race-nightly") {
+			continue
 		}
+		bounded++
 		var found bool
 		for _, a := range g.args {
 			if a == raceTimeout {
@@ -446,7 +489,11 @@ func TestEveryModuleRaceLegCarriesTheBound(t *testing.T) {
 			t.Errorf("local race gate %q runs %v without %s", g.id, g.args, raceTimeout)
 		}
 	}
-	// Every SUITE race leg in the workflow — `./...` or the xargs'd import graph — carries it too.
+	if bounded != len(raceScope)+1 {
+		t.Errorf("held %d race gates to the bound, want one per module in raceScope and the nightly (%d)", bounded, len(raceScope)+1)
+	}
+	// Every SUITE race leg in either workflow — `./...` or the xargs'd import graph — carries it
+	// too. racescope's line is held to the bound by TestRaceScopesMatchTheWorkflow.
 	// Whole lines, so a mention in a YAML comment — the workflow explains itself in prose — is
 	// told apart from an invocation. The first version matched "`go test -race` with no packages
 	// would" out of a comment and failed on it.

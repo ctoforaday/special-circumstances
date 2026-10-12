@@ -1589,7 +1589,15 @@ func (LogType) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{22}
 }
 
-// GradeDimension is which axis of a gap's grading is contested.
+// GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
+// flag that sets an axis (`mint`, `regrade`, `finding`) and the menu of the axis a grade motion
+// contests both print the `(means)` here.
+//
+// Each axis is spelled as the flag that sets it, so a seat learns the pattern from any one of them.
+//
+// LIKELIHOOD's "never how likely the defect is to BE there" is the clause the likelihood/impact
+// split makes necessary: with one grade standing for both, the natural reading is the likelihood
+// of the defect being present, and a seat grading on that reading answers the wrong question.
 type GradeDimension int32
 
 const (
@@ -2053,17 +2061,10 @@ type Event struct {
 	// because the gap did not exist yet at replay time. Nanosecond precision, fixed width, so
 	// lexicographic order is time order — and monotonicity is guaranteed in code rather than
 	// hoped for from the hardware, because a wall clock can step backwards under NTP.
-	Ts     *string `protobuf:"bytes,2,opt,name=ts,proto3,oneof" json:"ts,omitempty"`
-	SeatId *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
-	// role is the seat's ROLE as a field. Readers used to recover it with
-	// strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
-	// renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
-	// the wrong party, silently. Stamped at the write from the seat id, and NOT PERSISTED: the store
-	// keeps (seat_id, ts, type, key) and no role column, so every read re-derives it from seat_id
-	// through PartyOf. That is why a role id can change spelling without a migration.
-	Role *string    `protobuf:"bytes,6,opt,name=role,proto3,oneof" json:"role,omitempty"`
-	Type *EventType `protobuf:"varint,7,opt,name=type,proto3,enum=feov.record.v1.EventType,oneof" json:"type,omitempty"`
-	Key  *string    `protobuf:"bytes,8,opt,name=key,proto3,oneof" json:"key,omitempty"`
+	Ts     *string    `protobuf:"bytes,2,opt,name=ts,proto3,oneof" json:"ts,omitempty"`
+	SeatId *string    `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
+	Type   *EventType `protobuf:"varint,7,opt,name=type,proto3,enum=feov.record.v1.EventType,oneof" json:"type,omitempty"`
+	Key    *string    `protobuf:"bytes,8,opt,name=key,proto3,oneof" json:"key,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
 	//	*Event_Register
@@ -2148,13 +2149,6 @@ func (x *Event) GetTs() string {
 func (x *Event) GetSeatId() string {
 	if x != nil && x.SeatId != nil {
 		return *x.SeatId
-	}
-	return ""
-}
-
-func (x *Event) GetRole() string {
-	if x != nil && x.Role != nil {
-		return *x.Role
 	}
 	return ""
 }
@@ -3475,7 +3469,7 @@ func (x *ClassNew) GetMaterialDefault() ClassMaterial {
 type Close struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	GapId *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
-	// A MERGE MAY CLOSE, AND MAY NOT CARRY. `subset` generates the CHECK from the vocabulary's own
+	// A CLOSE TAKES A WORD THAT CLOSES. `subset` generates the CHECK from the vocabulary's own
 	// `closes` annotation, so the admitted words are never typed here.
 	ClosureClass *Disposition `protobuf:"varint,2,opt,name=closure_class,json=closureClass,proto3,enum=feov.record.v1.Disposition,oneof" json:"closure_class,omitempty"`
 	// The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
@@ -6070,9 +6064,8 @@ type Register struct {
 	//
 	// agent_id says WHICH agent; this says which CONFIGURATION it was dispatched as, and the two
 	// refuse different things. It is what lets `register` reject a seat id from the wrong family:
-	// the roster gate bounds an id's SHAPE and states plainly that it "bounds the SHAPE, never the
-	// membership", so before this field nothing could tell that a lead-judge agent had registered
-	// as `red-merge-r1`.
+	// the roster says an id is a seat, and this says a lead-judge agent may not register as
+	// `red-chair`.
 	//
 	// IT NAMES A CONFIGURATION AND NOT A SITTING. Every red seat now has its own configuration, so
 	// the type says WHICH lens rather than merely that it is one — but a configuration is seated
@@ -7273,13 +7266,12 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xfe\x11\n" +
+	"\a_unique\"\xe8\x11\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
-	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x17\n" +
-	"\x04role\x18\x06 \x01(\tH\x03R\x04role\x88\x01\x01\x122\n" +
-	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\x04R\x04type\x88\x01\x01\x12\x15\n" +
-	"\x03key\x18\b \x01(\tH\x05R\x03key\x88\x01\x01\x126\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x122\n" +
+	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\x03R\x04type\x88\x01\x01\x12\x15\n" +
+	"\x03key\x18\b \x01(\tH\x04R\x03key\x88\x01\x01\x126\n" +
 	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x120\n" +
 	"\averdict\x18\x15 \x01(\v2\x14.feov.record.v1.GateH\x00R\averdict\x123\n" +
 	"\aoutcome\x18\x16 \x01(\v2\x17.feov.record.v1.OutcomeH\x00R\aoutcome\x126\n" +
@@ -7326,10 +7318,9 @@ const file_record_proto_rawDesc = "" +
 	"\x03_tsB\n" +
 	"\n" +
 	"\b_seat_idB\a\n" +
-	"\x05_roleB\a\n" +
 	"\x05_typeB\x06\n" +
-	"\x04_keyJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
-	"J\x04\b;\x10QJ\x04\b$\x10%R\x05roundR\x0eschema_versionR\aopinion\"\xf0\x04\n" +
+	"\x04_keyJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
+	"J\x04\b;\x10QJ\x04\b$\x10%R\x05roundR\x04roleR\x0eschema_versionR\aopinion\"\xf0\x04\n" +
 	"\rTelemetryLine\x12\x19\n" +
 	"\x05epoch\x18\x01 \x01(\x05H\x00R\x05epoch\x88\x01\x01\x12,\n" +
 	"\x0fmapping_version\x18\x02 \x01(\tH\x01R\x0emappingVersion\x88\x01\x01\x12\"\n" +
@@ -8118,13 +8109,13 @@ const file_record_proto_rawDesc = "" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x10\xb0\xb5\x18\x01ʵ\x18\bfriction\x12\xaa\x02\n" +
 	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\xb1\x03\n" +
 	"\x10LOG_TYPE_FAILURE\x10\a\x1a\x9a\x03\x8a\xb5\x18\x91\x03a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this\xb0\xb5\x18\x00\x12\x89\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\x96\x03\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\xdc\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
-	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
-	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
-	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1af\x8a\xb5\x18bhow likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis\x12:\n" +
-	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a\x1e\x8a\xb5\x18\x1ahow far the damage reaches\x12a\n" +
-	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1aA\x8a\xb5\x18=what the fix costs; it is what makes defect_accepted arguable*\x8b\x04\n" +
+	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12A\n" +
+	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a#\x8a\xb5\x18\x1fhow bad the defect is in itself\x12p\n" +
+	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1aP\x8a\xb5\x18Lhow likely the CONSEQUENCE is — never how likely the defect is to BE there\x12F\n" +
+	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a*\x8a\xb5\x18&how bad the consequence is if it lands\x12\xab\x01\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a\x8a\x01\x8a\xb5\x18\x85\x01what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable*\x8b\x04\n" +
 	"\rPetitionClass\x12\x1e\n" +
 	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aX\x8a\xb5\x18Tproceeding would require asserting what you believe false, or burying a real finding\x12J\n" +

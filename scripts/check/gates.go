@@ -50,7 +50,11 @@
 //	go run ./check -base main   the ref diff-based gates compare against (default origin/main)
 package main
 
-import "github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
+import (
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
+)
 
 // workflowPath is the authority FOR THE GATE SET, and the scoping matters: it is not the only
 // workflow in the repository. `.github/workflows/labels.yml` runs on `issues` events, marks an
@@ -62,6 +66,12 @@ import "github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
 // see the package comment.
 const workflowPath = ".github/workflows/hooks.yml"
 
+// nightlyRacePath is the one other workflow that holds a gate: feov-record's whole-graph race.
+// It is a workflow of its own because a step inside the scheduled `hooks` run does not reliably
+// execute — that run's feov-record matrix cancels the Linux leg when Windows fails — and its
+// red would be indistinguishable from the standing one.
+const nightlyRacePath = ".github/workflows/race-nightly.yml"
+
 // kind groups a gate by what it is, so the report can be read at a glance and so parity can
 // compare like with like.
 type kind string
@@ -71,7 +81,7 @@ const (
 	kindFmt     kind = "fmt"     // gofmt -l must be empty over a module
 	kindTest    kind = "test"    // go test over a module
 	kindRace    kind = "race"    // go test -race over some subset of a module
-	kindTool    kind = "tool"    // a scripts/ tool, run via go run
+	kindTool    kind = "tool"    // a dev tool, run via go run: under scripts/, or a plugin's tools/devcmd/
 	kindSuite   kind = "suite"   // go test over a module, driven by scripts/testsplit
 	kindNode    kind = "node"    // a node --test suite
 	kindExtern  kind = "extern"  // needs a binary this repo does not vendor
@@ -131,27 +141,35 @@ var modules = []struct{ dir, ciJob string }{
 	{"scripts", "scripts"},
 }
 
-// raceScope is what each job passes to `go test -race`. NOT uniform, and the difference is
-// deliberate. Encoding the real scopes means this table cannot claim coverage the workflow
-// does not have.
+// raceScope is what each job races. NOT uniform, and the difference is deliberate. Encoding
+// the real scopes means this table cannot claim coverage the workflow does not have.
 //
-// feov-record races the SHIPPED BINARY'S IMPORT GRAPH and nothing else (ruled 2026-09-03: no
-// race-instrumenting the test harnesses). The scope is a deps: marker expanded at run time —
-// by expandScope here and by `go list -deps | grep` in the workflow — because the graph is
-// the record and a hand-copied package list beside it would be free to drift. What the
-// module's harness packages (releasegate/fuzz, testbuild, difftest) do with their
-// concurrency is SPAWN the real binary, which no race detector observes from the parent.
-// This is also the module's slowest gate now: the graph includes fetchcache and cli, whose
-// suites are minutes, not seconds.
+// Three modules race `./...`: their suites are seconds to two minutes under the detector.
 //
-// A STATED LIMIT: the race sweep covers the DEFAULT build here AND in CI — the engine
+// feov-record's scope is a deps: marker — the SHIPPED BINARY'S IMPORT GRAPH — and what is raced
+// inside it is derived, not listed: `scripts/racescope` races every test in that graph that
+// starts a goroutine, and fails when a goroutine start in a non-test file went unexecuted.
+// Every concurrency start and every test that makes one, on every pull request; not every test.
+// The detector reports a race between two goroutines of the test binary, so a test that starts
+// none pays 12-26x for nothing: raced whole, the graph's two slowest packages took 1,012s and
+// 846s in CI, and the slowest of them starts no goroutine in source or tests.
+//
+// What that derivation cannot see — a start reached only through a function value, a library
+// call its table does not list — is raced by `.github/workflows/race-nightly.yml`, which runs
+// the whole graph once a day. feov-record:race-nightly below declares it.
+//
+// The module's harness packages (releasegate/fuzz, testbuild, difftest) are outside the graph:
+// what they do with their concurrency is SPAWN the real binary, which no race detector
+// observes from the parent.
+//
+// A STATED LIMIT: the race gate covers the DEFAULT build here AND in CI — the engine
 // behind -tags tessocr is not race-instrumented anywhere. Racing the tagged graph was
 // tried and taught why not: musl cgo objects under the race build's linking broke every
 // package that touches net/os_user, and a box without the C stack cannot compile the
 // tagged graph at all. The engine's CI coverage is its own statically-linked test step
-// in the feov-record job; Wave 2 has now put the engine in the shipped graph (fetchcache
-// imports tessocr), so the divergence is real: the race sweep observes the stub, and the
-// tagged engine's race coverage remains the open decision this comment records.
+// in the feov-record job; the engine is in the shipped graph (fetchcache imports tessocr),
+// so the divergence is real: the race gate observes the stub, and the tagged engine's race
+// coverage remains the open decision this comment records.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
 	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},
@@ -167,8 +185,9 @@ var raceScope = map[string][]string{
 	"scripts": {"./..."},
 }
 
-// depsScopePrefix marks a race scope that is a binary's module-local import graph, resolved
-// in the gate's own directory when the gate runs. See expandScope.
+// depsScopePrefix marks a race scope that is a binary's module-local import graph. A scope so
+// marked is handed to scripts/racescope, which resolves it in the gate's own module when the
+// gate runs (internal/racescope.Scope); it is never an argument to `go test`.
 const depsScopePrefix = "deps:"
 
 // narrowRace are -race legs scoped to ONE NAMED TEST rather than to a package.
@@ -241,6 +260,8 @@ var tools = []gate{
 		why: "docs/vocabulary.md is generated from the terms registry; a hand-kept copy drifts"},
 	{id: "agentgen", kind: kindTool, dir: "scripts", args: []string{"run", "./agentgen", "-check"}, ciJob: "debate-sim",
 		why: "each agent definition carries the verb surface the tool renders, and each definition and preloaded skill is written from its source; a hand-edited or stale one teaches a seat a surface the binary does not have, or a duty its source no longer states"},
+	{id: "enginegen", kind: kindTool, dir: "plugins/frank-exchange-of-views/tools", args: []string{"run", "./devcmd/enginegen", "-check"}, ciJob: "debate-sim",
+		why: "the engine script's seat block and envelope vocabulary are written from the record's roster, enums and plan; a stale or hand-edited one dispatches a seat under a configuration, tier, area or occasion the record does not give it, or offers an envelope word or a plan shape the record does not hold"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because
@@ -279,9 +300,7 @@ func gateSet() []gate {
 			suiteGate(m.dir, m.ciJob),
 		)
 		if scope, ok := raceScope[m.dir]; ok {
-			gs = append(gs, gate{id: m.ciJob + ":race", kind: kindRace, dir: m.dir,
-				args: append([]string{"test", "-race", noCache, raceTimeout}, scope...), ciJob: m.ciJob,
-				why: "the concurrency guards are the ones that fail in production, not in a suite"})
+			gs = append(gs, raceGate(m.dir, m.ciJob, scope))
 		}
 	}
 	gs = append(gs, narrowRace...)
@@ -297,6 +316,13 @@ func gateSet() []gate {
 		gate{id: "ocr-corpus", kind: kindExtern, dir: "plugins/frank-exchange-of-views/tools", ciJob: "ocr-corpus",
 			skip: "needs the OCR engine's C stack and FEOV_OCR_CORPUS=1; build it with third_party/pins/build-cstack.sh and run the tagged suite by hand. ANY edit under internal/tessocr re-arms it, COMMENTS INCLUDED: each golden's first line carries DefaultPageEngine.Identity(), which hashes that package's source, so all eight fail together on a hash nothing else notices",
 			why:  "the committed scans that beat the reader, read end to end and pinned byte for byte"},
+		// The whole graph under the detector, once a day, in a workflow of its own. Declared so
+		// the report says what the pull-request gate leaves to it.
+		gate{id: "feov-record:race-nightly", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
+			args:  []string{"test", "-race", noCache, raceTimeout, depsScopePrefix + "./cmd/feov-record"},
+			ciJob: "race-nightly",
+			skip:  "the whole import graph under -race is 15-45 minutes on this box; " + nightlyRacePath + " runs it on a schedule and on dispatch",
+			why:   "a goroutine started through a function value, or by a library call racescope's table does not list, is raced here and nowhere else"},
 		gate{id: "qlty", kind: kindExtern, dir: ".", ciJob: "qlty", needsBase: true,
 			skip: "qlty is not a dependency of this repo; CI installs it. Run it there, or install qlty locally.",
 			why:  "lint and static analysis against the merge base"},
@@ -326,6 +352,21 @@ func gateSet() []gate {
 			why:  "a tag and the manifest it publishes cannot disagree — one release act writes both"},
 	)
 	return gs
+}
+
+// raceGate is a module's race gate. A deps: scope is raced by scripts/racescope, built and run
+// from the scripts module with the gated module named by a path relative to it; any other scope
+// is `go test -race` over the packages it names.
+func raceGate(dir, ciJob string, scope []string) gate {
+	const why = "the concurrency guards are the ones that fail in production, not in a suite"
+	if len(scope) == 1 && strings.HasPrefix(scope[0], depsScopePrefix) {
+		return gate{id: ciJob + ":race", kind: kindTool, dir: "scripts",
+			args: []string{"run", "./racescope", "-module", "../" + dir,
+				"-deps", strings.TrimPrefix(scope[0], depsScopePrefix), raceTimeout},
+			ciJob: ciJob, why: why}
+	}
+	return gate{id: ciJob + ":race", kind: kindRace, dir: dir,
+		args: append([]string{"test", "-race", noCache, raceTimeout}, scope...), ciJob: ciJob, why: why}
 }
 
 // suiteGate is a module's `:test` gate. A module with a row in internal/testsplit's table runs

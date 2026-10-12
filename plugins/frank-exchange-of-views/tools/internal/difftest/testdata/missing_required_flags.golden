@@ -8,7 +8,7 @@ feov-record: mint: requires --check, --check-kind, --class, --impact, --likeliho
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -21,8 +21,9 @@ feov-record: a command was named and the surface is scoped to whoever is asking.
 
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.
+A lens mints its own gaps and, as the originator, regrades and closes them; no
+other seat has a mint, regrade or close verb. Blue has no board verbs at all. The
+bench rules and never originates.
 
 Usage:
   feov-record [flags]

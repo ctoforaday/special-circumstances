@@ -1540,7 +1540,7 @@ func (r *runner) someFinding() string {
 // dispatch the same tree in process). These three call sites were never what proved `show board`
 // works — they were the harness reading its own board through a subprocess.
 //
-// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.BoardJSONOf,
+// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.FamilyOf,
 // EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
 // hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
 // a reordering would silently move every downstream draw.
@@ -4816,6 +4816,12 @@ func TestFuzzDebate(t *testing.T) {
 			t.Errorf("the observed graph recorded %d seat(s) and %d edge(s) across %d runs — the sweep drove the surface, so this is the EMITTER failing to attribute it, not a quiet run",
 				seats, edges, completed)
 		}
+	}
+	walked, wrong := namedOtherThanOnce()
+	t.Logf("%d refusals walked for how many times each names its command; %d other than once", walked, len(wrong))
+	if len(wrong) > 0 {
+		t.Errorf("%d refusal(s) the sweep met name their command other than exactly once — the renderer prints the path from the command that resolved, and the diagnosis starts at what is wrong:\n  %s",
+			len(wrong), strings.Join(wrong, "\n  "))
 	}
 	if un := neverSucceeded(); len(un) > 0 {
 		t.Errorf("%d command path(s) were driven and NEVER SUCCEEDED — the surface gate counts invocations, so these read as covered while their success path has never run:\n  %s",

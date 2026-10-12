@@ -1,20 +1,23 @@
 // Package cli assembles feov-record: the root command, the flags every seat
-// shares, and the four role trees.
+// shares, and each role's verb set.
 //
-// The seat-side record runtime. ONE binary whose role subcommands carry bespoke
-// verb sets, because the verb set IS the role boundary — a lens has no mint verb
-// to call, blue has no board verbs at all, and the bench rules without
-// originating. Seat identity is bound to its namespace, so the boundary is
-// enforced rather than merely described.
+// The seat-side record runtime. ONE binary whose root carries the verb set of the
+// seat asking, because the verb set IS the role boundary — a lens mints, regrades
+// and closes its own gaps and no other seat has those verbs, blue has no board
+// verbs at all, and the bench rules without originating. A seat's role is its
+// roster row (seatclass.RoleOfSeat), so the boundary is enforced rather than
+// merely described.
 package cli
 
 import (
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -81,19 +84,6 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 	return nil, ""
 }
 
-// RoleOfSeat resolves the dispatched role from a seat id, or "" for no seat.
-func RoleOfSeat(seatID string) string {
-	if strings.TrimSpace(seatID) == "" {
-		return ""
-	}
-	for _, r := range []string{"lens", "chair", "blue", "bench", record.OperatorRole} {
-		if record.CheckSeatRole(r, seatID) == nil {
-			return r
-		}
-	}
-	return ""
-}
-
 // noSeatNote explains an OPERATOR surface to something that expected a seat's.
 //
 // THIS IS THE COST OF SCOPING THE TREE, PAID RATHER THAN HIDDEN. A seat verb is now absent from a
@@ -110,7 +100,7 @@ func noSeatNote(seatID string) string {
 			"is — a seat id, or `" + record.OperatorRole + "`. You type it ONCE, at `register`; after that " +
 			"the binding is on the record and every later call resolves it for you."
 	}
-	if RoleOfSeat(seatID) == "" {
+	if seatclass.RoleOfSeat(seatID) == "" {
 		return "\n\n" + seatID + " does not belong to any role namespace, so it selects no surface. The engine " +
 			"assigns seat ids; a hand-invented one identifies nobody, and a record written under it would be " +
 			"attributed to an identity no dispatch created."
@@ -145,12 +135,10 @@ func dispatchedSeat() string {
 
 // NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
 //
-// THE ROLE LEVEL IS GONE. It used to be four groups under the root, so a chair seat typed
-// `feov-record merge mint` — restating a fact the tool could already look up, with CheckSeatRole
-// reconciling the two copies and refusing a disagreement. The tool's own refusal message said the
-// principle it was breaking: you do not retype your identity. A chair seat now runs `mint`; a lens
-// seat running `mint` gets an unknown command, which is the same boundary drawn by the only fact
-// that decides it.
+// THERE IS NO ROLE LEVEL. A seat does not retype its identity as a command word: its role is read
+// from its seat id, and the root IS that role's surface. A lens seat runs `mint`; a chair seat
+// running `mint` is told the verb is the lens seat's — the boundary drawn by the only fact that
+// decides it.
 //
 // The operator tree is the one with no seat: setup, capture, dashboard and the rest have no role
 // to scope to, and a human running them is not a seat.
@@ -160,8 +148,9 @@ func NewRootFor(seatID string) *cobra.Command {
 		Short: "the seat-side record runtime (the verb set IS the role boundary)",
 		Long: InvokedAs() + ` — the seat-side record runtime (the verb set IS the role boundary)
 
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.`,
+A lens mints its own gaps and, as the originator, regrades and closes them; no
+other seat has a mint, regrade or close verb. Blue has no board verbs at all. The
+bench rules and never originates.`,
 		Version:       buildid.Revision(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -212,7 +201,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// "nobody said who I am" a way of selecting a tree — and a tree nobody selects is one nobody
 	// can be refused from. The surface is scoped to whoever is asking, so there is nothing to show
 	// until that is answered; `--seat-id operator` is how an operator answers it.
-	switch role := RoleOfSeat(seatID); {
+	switch role := seatclass.RoleOfSeat(seatID); {
 	case role == "":
 		// NO VERBS FOR AN IDENTITY NOBODY RECOGNISES, and that covers two cases with one rule:
 		// nothing was given, or what was given belongs to no namespace. An invented seat id used
@@ -377,8 +366,8 @@ func teachUnknownSubcommand(root *cobra.Command) {
 					have = append(have, s.Name())
 				}
 			}
-			return seat.RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf("`%s` has no `%s` act on any seat's surface — yours has %s.",
-				group.Name(), sub, strings.Join(have, ", ")))
+			return seat.RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf("no `%s` act exists here, on any seat's surface — yours has %s.",
+				sub, strings.Join(have, ", ")))
 		}
 	}
 }
@@ -478,7 +467,7 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 	}
 	// NOBODY SAID WHO IS ASKING, so there is no surface to look this up in. Answered here rather
 	// than after parsing, because the flags belong to a command that could not have been found.
-	if RoleOfSeat(seatID) == "" {
+	if seatclass.RoleOfSeat(seatID) == "" {
 		return seat.RefuseAndTeach(root, feov.MissingField, "a command was named and the surface is scoped to whoever is asking."+noSeatNote(seatID))
 	}
 	for _, c := range root.Commands() {
@@ -623,10 +612,23 @@ func codeCobraRefusal(cmd *cobra.Command, err error) error {
 	switch {
 	case isMissingRequired(cmd, err):
 		return feov.Wrap(feov.MissingField, err, "%s", err.Error())
+	case same(cobra.NoArgs(cmd, cmd.Flags().Args())):
+		// COBRA'S SENTENCE HERE NAMES THE COMMAND — `unknown command "x" for "<tool> <path>"` — and
+		// calls an argument a command. The renderer prints the path, so this says what is wrong.
+		return feov.Wrap(feov.Validation, err, "takes no arguments; got %s", quotedArgs(cmd.Flags().Args()))
 	case same(cmd.ValidateFlagGroups()), same(cmd.ValidateArgs(cmd.Flags().Args())):
 		return feov.Wrap(feov.Validation, err, "%s", err.Error())
 	}
 	return err
+}
+
+// quotedArgs is an argument list as the seat typed it, each word quoted.
+func quotedArgs(args []string) string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		out[i] = strconv.Quote(a)
+	}
+	return strings.Join(out, " ")
 }
 
 // translateUnknownFlag answers the seat's ACTUAL mistake when it typed the record's word for a

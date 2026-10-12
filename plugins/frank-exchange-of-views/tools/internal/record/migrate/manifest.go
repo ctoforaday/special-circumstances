@@ -118,7 +118,7 @@ func ReadManifest(runDir string) (*Manifest, error) {
 	}
 	var m Manifest
 	if err := json.Unmarshal(b, &m); err != nil {
-		return nil, fmt.Errorf("migrate: %s is present and unreadable — a run that claims to be a migration and cannot say of what must not read as native: %w", ManifestName, err)
+		return nil, fmt.Errorf("%s is present and unreadable — a run that claims to be a migration and cannot say of what must not read as native: %w", ManifestName, err)
 	}
 	return &m, nil
 }

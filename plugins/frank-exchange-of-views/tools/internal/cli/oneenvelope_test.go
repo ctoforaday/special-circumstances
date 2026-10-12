@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/refusalcheck"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 )
 
@@ -70,9 +71,9 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 	rows := []row{
 		// A handler's own refusal, on a seat of each class.
 		{kind: "handler", seat: lens, args: []string{"finding", "--quote", "a quoted sentence", "--severity", "high", "--likelihood", "high", "--impact", "high"},
-			verb: "finding", path: "finding", role: "lens", code: "error", logged: true},
+			verb: "finding", path: "finding", role: "lens", code: "missing_field", logged: true},
 		{kind: "handler", seat: blue, args: []string{"edit", "--quote", "a quoted sentence", "--new", "x", "--key", "E1"},
-			verb: "edit", path: "edit", role: "blue", code: "error", logged: true},
+			verb: "edit", path: "edit", role: "blue", code: "missing_field", logged: true},
 		{kind: "handler", seat: bench, args: []string{"declare", "--reason", ""},
 			verb: "declare", path: "declare", role: "bench", code: "missing_field", logged: true},
 		{kind: "handler on a nested verb", seat: lens, args: []string{"motion", "petition", "file", "--class", "safety", "--relief", "r"},
@@ -186,12 +187,15 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 				t.Fatalf("the human form opens %q, want %q", clipTo(stderr, len(head)+40), head)
 			}
 			human := strings.TrimSuffix(strings.TrimPrefix(stderr, head), "\n")
-			leaf, _, ferr := NewRootFor(r.seat).Find(strings.Fields(r.path))
-			if ferr != nil {
-				t.Fatalf("the row's path %q is not a command on the %s surface: %v", r.path, r.seat, ferr)
+			// THE PATH IS RESOLVED FROM THE ARGV, the way every other harness resolves it, and has to be
+			// the one this row states: a resolver that disagreed with the binary would count a head
+			// the binary never printed.
+			resolved, n, again := refusalcheck.Rendered(NewRootFor(r.seat), roleWords(), args, stderr)
+			if resolved != r.path {
+				t.Fatalf("the argv resolves to %q on the %s surface, and the row says %q", resolved, r.seat, r.path)
 			}
-			if again := ownHeadOf(leaf, human); again != "" || strings.HasPrefix(human, "feov-record: ") {
-				t.Errorf("the human form names its command twice: after %q the diagnosis opens %q", head, clipTo(human, 80))
+			if n != 1 || strings.HasPrefix(human, "feov-record: ") {
+				t.Errorf("the human form names its command %d times (%s): after %q the diagnosis opens %q", n, strings.Join(again, ", "), head, clipTo(human, 80))
 			}
 			logged := toolRefusals(t, runDir)[len(before):]
 
@@ -209,6 +213,9 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			}
 			if env.OK {
 				t.Errorf("a refusal's envelope says ok: %s", clipTo(jsonOut, 200))
+			}
+			if again := refusalcheck.Again(r.path, roleWords(), env.Error); len(again) > 0 {
+				t.Errorf("the envelope's error names the command its `verb` already carries (%s): %s", strings.Join(again, ", "), clipTo(env.Error, 200))
 			}
 			if strings.Contains(env.Error, "\nUsage:") || strings.Contains(env.Error, "\nFlags:") {
 				t.Errorf("the envelope's error carries a help page (%d bytes): %s", len(env.Error), clipTo(env.Error, 300))

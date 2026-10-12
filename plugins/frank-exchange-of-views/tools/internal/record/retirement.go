@@ -3,10 +3,10 @@ package record
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // PER-SEAT RETIREMENT (plans/feov-lens-bar.md III.5; gblock D1: re-arm ONCE per retirement).
@@ -64,7 +64,7 @@ type lensFold struct {
 // and names the area in its spot-check before a PASS.
 type StaleArea struct {
 	SeatID string `json:"seat_id"`
-	Pin    int64  `json:"pin"`
+	Pin    int64  `json:"pin" min:"0"`
 }
 
 // lensStates folds every cast lens, in cast order. ids are the events' row ids, aligned with evs;
@@ -75,7 +75,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 	ds, registers := dispatchLedger(evs, ids, win)
 	var out []lensFold
 	for _, seat := range cast {
-		if !strings.HasPrefix(seat, "red-lens-") {
+		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
 		f := lensFold{seat: seat}

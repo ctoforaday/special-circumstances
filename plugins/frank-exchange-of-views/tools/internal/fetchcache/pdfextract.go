@@ -128,7 +128,8 @@ const moduleCacheName = "feov-pdfium-module-cache"
 // its own t.TempDir() and so its own empty cache. Measured: 21 tests in this package and 6 in
 // internal/cli each paid the full compile; 68s and ~15s respectively, and past the 10-minute
 // default timeout under -race, where the instrumented compile runs about 10x. fetchcache is in
-// cmd/feov-record's import graph, so that is CI's race leg.
+// cmd/feov-record's import graph, so its tests that start a goroutine are in CI's race gate and
+// all of them are in the nightly whole-graph race.
 //
 // THE FIXED NAME IS THE CLEANUP. The obvious shape — MkdirTemp plus a removal before os.Exit —
 // cleans up on every path except the one that matters: `go test` PANICS the process on a timeout,

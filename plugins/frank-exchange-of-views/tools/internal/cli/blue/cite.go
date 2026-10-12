@@ -3,6 +3,7 @@ package blue
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -43,13 +44,13 @@ func newCite() *cobra.Command {
 		quote, url, title := seat.Location(cmd), seat.Str(cmd, flags.URL), seat.Str(cmd, flags.Title)
 		ocrQuote := seat.Str(cmd, flags.OCRQuote)
 		if strings.TrimSpace(quote) == "" {
-			return nil, fmt.Errorf("requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
+			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT sentence to anchor the citation at, verbatim from the report as `show report` serves it, and nothing else")
 		}
 		if strings.TrimSpace(url) == "" {
-			return nil, fmt.Errorf("requires --url: the source being cited (fetched once and cached; red re-reads the same bytes)")
+			return nil, feov.Errorf(feov.MissingField, "requires --url: the source being cited (fetched once and cached; red re-reads the same bytes)")
 		}
 		if strings.TrimSpace(title) == "" {
-			return nil, fmt.Errorf("requires --title: the source's name as it appears in the composed bibliography")
+			return nil, feov.Errorf(feov.MissingField, "requires --title: the source's name as it appears in the composed bibliography")
 		}
 
 		// THE TITLE IS THE ONE SEAT-TYPED STRING THE REPORT PRINTS for a cite — in its note and its
@@ -88,11 +89,14 @@ func newCite() *cobra.Command {
 		// citation: reject AND log a defect (unlike a bare `fetch` miss).
 		entry, _, _, err := fetchcache.Resolve(run, url, fetchcache.Default)
 		if err != nil {
-			msg := fmt.Sprintf("could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
+			// THE CAUSE STAYS BENEATH IT, so the refusal carries the code the failure came with: a
+			// source that would not load is not the seat's ill-formed input.
+			unloaded := fmt.Errorf("could not load %s: %w — pick a reachable source or an archive.org snapshot", url, err)
+			msg := unloaded.Error()
 			if _, ferr := record.Append(s.Identity(), &recordpb.Log{Text: proto.String(msg), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()}); ferr != nil {
 				return nil, ferr
 			}
-			return nil, record.ToolLogged(errors.New(msg))
+			return nil, record.ToolLogged(unloaded)
 		}
 
 		// A LEAF READING OF AN ABSTRACT IS A CLAIM TO HAVE READ THE STUDY. The fetch has already
@@ -100,7 +104,7 @@ func newCite() *cobra.Command {
 		// reading the record can carry is `summary_only` — which the vocabulary defines to include
 		// an abstract — or `unread` for a page that is not the work at all.
 		if read == recordpb.SourceTextRead_SOURCE_TEXT_READ_LEAF && entry.WithoutBody() {
-			return nil, fmt.Errorf("the copy of %s this run holds is %s — %s. A leaf reading claims "+
+			return nil, feov.Errorf(feov.Conflict, "the copy of %s this run holds is %s — %s. A leaf reading claims "+
 				"you read the work itself; cite it with --%s summary_only for an abstract, or unread for a page "+
 				"that is not the work, or cite a source whose text you read", url, entry.Completeness, entry.CompletenessReason, flags.SourceText)
 		}
@@ -176,7 +180,7 @@ func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
 	}
 	v, known := record.SourceTextReadOf(w)
 	if !known || v == recordpb.SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED {
-		return v, fmt.Errorf("%q is not a reading this record can carry (leaf | summary_only | unread)", w)
+		return v, feov.Errorf(feov.Validation, "%q is not a reading this record can carry (leaf | summary_only | unread)", w)
 	}
 	return v, nil
 }
@@ -204,9 +208,9 @@ func citeFields(cmd *cobra.Command, body *recordpb.Cite, read recordpb.SourceTex
 func citeRefusal(err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
-		return fmt.Errorf("the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
+		return feov.Errorf(feov.Validation, "the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
 	case errors.Is(err, anchortext.ErrInFence):
-		return fmt.Errorf("the quote resolves inside a code fence — cite a prose sentence, not code")
+		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — cite a prose sentence, not code")
 	}
 	return anchortext.Refusal(err)
 }
@@ -240,26 +244,26 @@ func locateOCRQuote(run record.Run, entry fetchcache.Entry, url, span string, re
 	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
 		if !given {
 			if read == recordpb.SourceTextRead_SOURCE_TEXT_READ_LEAF {
-				return ocrCite{}, fmt.Errorf("a leaf citation of OCR-derived text names the span it quotes from the reading, with --%s, so the tool can record its page — the reading is at %s", flags.OCRQuote, fetchcache.OCRTextPath(run, entry.Sha))
+				return ocrCite{}, feov.Errorf(feov.Validation, "a leaf citation of OCR-derived text names the span it quotes from the reading, with --%s, so the tool can record its page — the reading is at %s", flags.OCRQuote, fetchcache.OCRTextPath(run, entry.Sha))
 			}
 			return out, nil
 		}
 		loc, lerr := fetchcache.LocateSpan(run, rec, span)
 		switch {
 		case errors.Is(lerr, fetchcache.ErrReadingIncomplete):
-			return ocrCite{}, fmt.Errorf("%v — `fetch --url %s` re-derives it", lerr, url)
+			return ocrCite{}, feov.Errorf(feov.Validation, "%v — `fetch --url %s` re-derives it", lerr, url)
 		case lerr != nil:
-			return ocrCite{}, fmt.Errorf("--%s %v", flags.OCRQuote, lerr)
+			return ocrCite{}, feov.Errorf(feov.Validation, "--%s %v", flags.OCRQuote, lerr)
 		}
 		out.loc = loc
 		return out, nil
 	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NONE:
 		if given {
-			return ocrCite{}, fmt.Errorf("--%s locates a span in the source's OCR reading, and %s has none — `fetch --url %s` reads a scan first", flags.OCRQuote, url, url)
+			return ocrCite{}, feov.Errorf(feov.Validation, "--%s locates a span in the source's OCR reading, and %s has none — `fetch --url %s` reads a scan first", flags.OCRQuote, url, url)
 		}
 	default:
 		if given {
-			return ocrCite{}, fmt.Errorf("--%s is for OCR-derived text, and this source's text is not OCR-derived, so there is no reading to locate a page in — quote the report sentence with --%s alone", flags.OCRQuote, flags.Quote)
+			return ocrCite{}, feov.Errorf(feov.Validation, "--%s is for OCR-derived text, and this source's text is not OCR-derived, so there is no reading to locate a page in — quote the report sentence with --%s alone", flags.OCRQuote, flags.Quote)
 		}
 	}
 	return out, nil

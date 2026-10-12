@@ -344,7 +344,7 @@ jobs:
         uses: actions/cache@v6  # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ runner.temp }}/cstack
-          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt') }}
+          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt', 'plugins/frank-exchange-of-views/tools/third_party/pins/build-cstack.sh') }}
       - name: C stack for the OCR engine (build on miss)
         if: steps.cstack.outputs.cache-hit != 'true'
         shell: bash
@@ -543,8 +543,11 @@ jobs:
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
+          # scripts/go.sum as well: the race step builds scripts/racescope, whose
+          # dependencies are this job's to cache.
           cache-dependency-path: |
             plugins/frank-exchange-of-views/tools/go.sum
+            scripts/go.sum
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.27: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -569,8 +572,11 @@ jobs:
       # test the REAL engine (`-tags tessocr` + the env build-cstack.sh emits); the
       # Windows legs prove the tag-less STUB compiles — the engine still ships for
       # Windows, its C stack built per target by the release job, and what a PR proves
-      # there is that the package type-checks engineless. The cache key is PINS.txt's
-      # content hash: same pins, same objects, and a pin bump misses by construction.
+      # there is that the package type-checks engineless. The cache key is the content
+      # hash of PINS.txt and of build-cstack.sh: same pins and same recipe, same objects — a
+      # pin bump or a change to how the stack is built misses by construction. The stack
+      # carries zig's own runtime cache (libc, libc++, compiler-rt) with it, which is what
+      # keeps each test binary's link from compiling them again.
       # THE RELEASE JOB READS NO CACHE (its own setup-go states the poisoning rule), so
       # this cache existing cannot reach a published byte.
       # NOT ON PUSH, for the same reason setup-go's cache above is not: a main push and a
@@ -586,7 +592,7 @@ jobs:
         uses: actions/cache@v6  # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ runner.temp }}/cstack
-          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt') }}
+          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt', 'plugins/frank-exchange-of-views/tools/third_party/pins/build-cstack.sh') }}
       - name: C stack for the OCR engine (build on miss)
         if: runner.os == 'Linux' && steps.cstack.outputs.cache-hit != 'true'
         shell: bash
@@ -607,19 +613,49 @@ jobs:
           CSTACK: ${{ runner.temp }}/cstack
         run: |
           eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
-          # fetchcache rides along since Wave 2 put the engine in the shipped graph
-          # (fetchcache imports tessocr): its fused read path deserves one run against
-          # the real engine, not only the pure-Go fake the default legs use.
-          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' ./internal/tessocr/ ./internal/fetchcache/
+          tagged=(-tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"')
+          # WHAT THIS STEP COSTS IS LINKING, so it links as little as it can and all of it at
+          # once. Measured on the three test binaries it built one after another: 209s of
+          # step for 70s of tests — each fully static external link is about 45s — and 49s
+          # of those tests were fetchcache's WHOLE suite, which swaps the engine for a fake
+          # in every test but one and had already run, identically, in the default leg.
+          #
+          # fetchcache's engine tests are the ones in files only the engine build compiles,
+          # and the list is derived from that build constraint rather than kept here: a new
+          # engine test joins by being written. (TestCorpusGoldens is one of them and skips
+          # in this job; the ocr-corpus job is where it runs.)
+          engine_tests="$(grep -l '^//go:build tessocr' internal/fetchcache/*_test.go \
+            | xargs grep -ho '^func Test[A-Za-z0-9_]*' | sed 's/^func //' | paste -sd '|' -)"
+          test -n "$engine_tests"
+          # The engine's own suite, whole.
+          go test "${tagged[@]}" ./internal/tessocr/ >"$RUNNER_TEMP/tessocr.txt" 2>&1 &
+          engine=$!
+          # Its two callers in the shipped graph, each narrowed to what needs the real engine.
           # The seat-probe board that cites OCR text builds only with the engine: the tagged
           # separated build exercises it for real, and the fixture test proves the engine reads
-          # the board's span. `-run` alternation exits 0 when one side matches nothing, so the
-          # fixture test's PASS line is required, not assumed. `shell: bash` sets pipefail, so
-          # the tee does not mask a failure.
-          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' -v \
-            -run '^TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine$|TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord' \
-            ./internal/seatprobe/ | tee "$RUNNER_TEMP/seatprobe.txt"
-          grep -q '^--- PASS: TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine ' "$RUNNER_TEMP/seatprobe.txt"
+          # the board's span.
+          go test "${tagged[@]}" -v \
+            -run "^(${engine_tests})\$|^TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine\$|TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord" \
+            ./internal/fetchcache/ ./internal/seatprobe/ >"$RUNNER_TEMP/callers.txt" 2>&1 &
+          callers=$!
+          rc=0
+          wait "$engine" || rc=1
+          echo "the engine's suite, built and run: ${SECONDS}s into the step"
+          wait "$callers" || rc=1
+          echo "its callers, built and run: ${SECONDS}s into the step"
+          cat "$RUNNER_TEMP/tessocr.txt" "$RUNNER_TEMP/callers.txt"
+          # `-run` alternation exits 0 when one side matches nothing, so every name asked for
+          # must have answered: a PASS for the fixture test, a PASS or a SKIP for each derived
+          # engine test.
+          grep -q '^--- PASS: TestScannedFixtureSpanIsFoundOnPage1ByTheRealEngine ' "$RUNNER_TEMP/callers.txt" || rc=1
+          for name in ${engine_tests//|/ }; do
+            grep -Eq "^--- (PASS|SKIP): ${name} " "$RUNNER_TEMP/callers.txt" || {
+              echo "::error::${name} was asked for and did not run"
+              rc=1
+            }
+          done
+          grep -q '^--- PASS: ' "$RUNNER_TEMP/callers.txt" || rc=1
+          exit "$rc"
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -660,42 +696,41 @@ jobs:
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
-      # LINUX ONLY (ruled 2026-09-05). With the sweep at the binary's full import graph the
-      # race leg became this job's critical path — 11–13 minutes per OS, measured on the
-      # #692 run — and the detector's findings are platform-independent: it instruments the
-      # same interleavings whichever kernel schedules them. What the Windows leg uniquely
-      # proves (the .exe build, the spawns, the path plumbing) the plain test leg above
-      # still proves. One OS pays the race tax; both keep the coverage that is actually
+      # LINUX ONLY (ruled 2026-09-05). The detector's findings are platform-independent: it
+      # instruments the same interleavings whichever kernel schedules them. What the Windows
+      # leg uniquely proves (the .exe build, the spawns, the path plumbing) the plain test leg
+      # above still proves. One OS pays the race tax; both keep the coverage that is actually
       # platform-shaped.
       #
-      # THE RACE SCOPE IS THE SHIPPED BINARY'S OWN IMPORT GRAPH, derived at run time from
-      # `go list -deps` — not ./..., and not a hand-kept package list free to drift from
-      # the graph it names. The module's test-only packages (releasegate/fuzz, testbuild,
-      # difftest, goldentest, the probe/hook shims) spend their concurrency SPAWNING the
-      # real binary as subprocesses, which no race detector observes from the parent;
-      # instrumenting those harnesses pays the race tax on the module's slowest packages
-      # without watching the product. Ruled 2026-09-03: race the feov binary's source, not
-      # the tests. Their logic still runs in the plain `go test` leg above. The previous
-      # shape raced ONE hand-picked test (the run-handle guard) to cover a harness race —
-      # a harness race can flake a test run but cannot ship, so it went with the rest.
-      # An empty list is refused rather than raced: `go test -race` with no packages would
-      # test the current directory and pass while measuring almost nothing. scripts/check
-      # holds this derivation and the local gate's (expandScope) to the same target.
+      # WHAT IS RACED IS CONCURRENCY, AND THE GATE PROVES IT REACHED ALL OF IT (ruled
+      # 2026-10-11). The detector reports a race between two goroutines of the test binary, so
+      # a test that starts none has nothing for it to find and still pays 12-26x: raced whole,
+      # this graph's two slowest packages took 1,012s and 846s, and the slowest starts no
+      # goroutine in source or tests. scripts/racescope takes the shipped binary's import graph
+      # (`go list -deps`, derived at run time, never a hand-kept list), finds every goroutine
+      # start in it by type information, races the tests that make one, and then runs those
+      # tests again under coverage and FAILS if a start in a non-test file went unexecuted —
+      # which the whole-graph form never checked, and which the served dashboard's watcher
+      # failed for as long as it existed. The step prints the derived set, every selected test
+      # that skipped, and every start it proved.
+      #
+      # What that derivation cannot see — a start reached only through a function value, a
+      # library call its table does not list — race-nightly.yml races once a day, whole graph.
+      #
+      # The module's test-only packages (releasegate/fuzz, testbuild, difftest, goldentest, the
+      # probe/hook shims) are outside the graph: they spend their concurrency SPAWNING the real
+      # binary as subprocesses, which no race detector observes from the parent. Their logic
+      # runs in the plain `go test` leg above.
+      #
+      # -timeout=30m per package: a test timeout catches a HANG. scripts/check holds the local
+      # gate to the same invocation and the same bound (raceTimeout).
       - if: runner.os == 'Linux'
-        run: |
-          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
-          test -n "$pkgs"
-          # -timeout=30m: a test timeout catches a HANG, and Go's default of ten minutes was
-          # catching a correct serial suite instead — internal/cli took 435s under -race on an
-          # idle box. scripts/check holds the local gate to the same bound (raceTimeout).
-          echo "$pkgs" | xargs go test -race -timeout=30m
-        # EXPLICIT even though the step is Linux-only now: this job sets no default
-        # shell, and a script whose syntax assumes bash should say so where it runs.
-        shell: bash
+        working-directory: scripts
+        run: go run ./racescope -module ../plugins/frank-exchange-of-views/tools -deps ./cmd/feov-record -timeout=30m
         env:
           CGO_ENABLED: "1"
-      # And ONE test out of releasegate/fuzz — the harness carve-out from the scope rule
-      # above, kept BY RULING ("keep fuzz on the hook", #686). The fuzz runner's seats are
+      # And ONE test out of releasegate/fuzz — a harness outside the graph above, raced
+      # BY RULING ("keep fuzz on the hook", #686). The fuzz runner's seats are
       # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a
       # real race two full debate runs under -race never reported, because the window closes
       # before a sibling seat arrives. A harness race cannot ship, but it makes fuzz verdicts
@@ -1490,6 +1525,9 @@ jobs:
       - name: Each agent definition and preloaded skill matches its source and the surface the tool renders (a seat must not be taught a surface the binary lacks)
         run: go run ./agentgen -check
         working-directory: scripts
+      - name: The engine script's seat block and envelope vocabulary match the record (a stale one dispatches a seat, or offers an envelope word, the record does not give)
+        run: go run ./devcmd/enginegen -check
+        working-directory: plugins/frank-exchange-of-views/tools
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second

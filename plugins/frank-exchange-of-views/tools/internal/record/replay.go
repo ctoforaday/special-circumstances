@@ -184,8 +184,8 @@ type Gap struct {
 	// closed it, not merely that it is closed.
 	ClosedByBench bool
 	// Material is the gap's materiality NOW: its class's default, and for a `by_grade` class its
-	// current severity against the floor. It is the Go carrier of the one definition; the gap
-	// view's "material" column is the other, and a test holds the two level.
+	// current severity against the floor. It is the gap view's "material" column (gap_grade's
+	// standing row), which FamilyOf reads.
 	Material bool
 }
 
@@ -282,38 +282,16 @@ func DocketGapByMotion(evs []*Event) map[string]string {
 	return out
 }
 
-// benchClosesGap says which dispositions end a gap's life on the board.
-//
-// # What this used to be, and why the shape was the bug
-//
-// It was `disposition != "" && disposition != DispositionRemanded` — a NEGATIVE rule, with the
-// closing set defined as everything left over. That reads as economical and it is a trap: a
-// disposition added to the vocabulary later is classified as CLOSING by default, silently, with no
-// author ever asked. Measured — `grade_adjusted` was added for a bench that had adjusted a grade
-// and explicitly kept the gap alive, and this predicate retired it. No test of the function's
-// stated behaviour could fail, because its stated behaviour was exactly what it did.
-//
-// The set is now on the values themselves (`(closes)` in record.proto), so adding a word without
-// answering the question is an init panic (see dispositionsWhere) rather than a default. What is
-// left here is the one thing that is genuinely about REPLAY and not about the vocabulary: an
-// unspecified disposition closes nothing, because it means the bench never said.
-func benchClosesGap(d recordpb.Disposition) bool {
-	return recordpb.Closes(d)
-}
-
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
 //
-// THE TWO VOCABULARIES HAVE CONVERGED, AND THIS COMMENT USED TO DENY IT. It read: "the hyphen is
-// the whole reason this function is not a call to recordpb.Word" — sitting directly above a body
-// that is exactly that call. `flags.Grade` spelled `low-medium` and `medium-high` when that was
-// written; it spells `low_medium` and `medium_high` now (flags/grade.go), MASS keys on the
-// underscored words (record.go), and the fuzz corpus that generates VALID grades says so in its
-// own header. One spelling, one surface, no join.
+// ONE SPELLING, ONE LIST. The word is the Grade enum's own (`low_medium`, `medium_high`): the grade
+// flag accepts exactly recordpb.GradeWords, MASS keys on the same words (record.go), and this is
+// recordpb.Word. No surface holds a second list of them.
 //
-// WHAT THE HAZARD WAS, KEPT BECAUSE THE SHAPE RECURS: while the two differed, a wrong separator
-// looked up to 0 in MASS, and GapMass multiplies likelihood by impact — so one character zeroed
-// the mass of every gap graded on either point, and a mass of zero is exactly what an ungraded gap
-// reports. The miss and the honest zero were the same number.
+// THE HAZARD A SECOND SPELLING CARRIES: a word MASS does not key on looks up to 0, and GapMass
+// multiplies likelihood by impact — so one wrong separator zeroes the mass of every gap graded on
+// either point, and a mass of zero is exactly what an ungraded gap reports. The miss and the honest
+// zero are the same number.
 //
 // NOT A GENERAL RULE ABOUT SEPARATORS, then or now. Disposition really is `defect_accepted` on the
 // seat's surface, AvenueRuling really is `out_of_scope` (avenue.go checked it), and a test
@@ -358,8 +336,8 @@ type Observation struct {
 }
 
 // NO GO FOLD OF THE RECORD EXISTS (plans/board-as-views.md wave 7). Every reader derives from
-// the gap view, the typed loader and the family (GapStates/FamilyOf), and the consistency oracle
-// holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by GapStates.
+// the gap view, the typed loader and the family (FamilyOf), and the consistency oracle
+// holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by FamilyOf.
 
 func allGapIDs(run Run) (map[string]bool, error) {
 	db, err := openRunForRead(run)
@@ -750,7 +728,7 @@ func validateClass(run Run, mint *recordpb.Mint) error {
 // and has never seen a field name.
 func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 	if coined.GetSlug() == "" {
-		return fmt.Errorf("record: class new requires --class (the slug being coined)")
+		return fmt.Errorf("requires --class (the slug being coined)")
 	}
 	for _, f := range []struct {
 		flag  string
@@ -761,13 +739,13 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 		{"distinguisher", coined.GetDistinguisher()},
 	} {
 		if f.value == "" {
-			return fmt.Errorf("record: class new requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
+			return fmt.Errorf("requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
 		}
 	}
 	// The verb always writes the default, and a migration fills one where the archive predates
 	// it, so a coining without one is refused rather than left for every mint of it to guess.
 	if coined.GetMaterialDefault() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
-		return fmt.Errorf("record: class new requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
+		return fmt.Errorf("requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
 	}
 	known, _, err := knownClasses(run)
 	if err != nil {

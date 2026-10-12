@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -58,7 +59,7 @@ func serveDashboard(out io.Writer, run record.Run, port int, render func() strin
 	}
 
 	srv := &http.Server{
-		Addr:      fmt.Sprintf("0.0.0.0:%d", port),
+		Addr:      net.JoinHostPort(dashboardBindHost, strconv.Itoa(port)),
 		Handler:   dashboardHandler(secret, render),
 		TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
 	}
@@ -101,6 +102,15 @@ func dashboardHandler(secret string, render func() string) http.HandlerFunc {
 // exist before binding, so the server's lifetime is bounded by the run's by construction.
 var runLiveMarker = filepath.Join(".claude", "run-live.json")
 
+// dashboardBindHost is the address the served dashboard listens on: every interface, because the
+// operator reads it from another machine on the LAN. dashboardWatchInterval is how often the
+// teardown watcher asks whether the run has ended. Variables, as runLiveMarker is, so a test
+// listens on loopback only and reaches the teardown without waiting out the interval.
+var (
+	dashboardBindHost      = "0.0.0.0"
+	dashboardWatchInterval = 3 * time.Second
+)
+
 // watchAndShutdown shuts srv down when the run ends, by EITHER of the two things that can say so.
 //
 // The marker going absent was the only signal, and its only remover is `capture` — so a run that
@@ -111,7 +121,7 @@ var runLiveMarker = filepath.Join(".claude", "run-live.json")
 // The RECORD is the second signal and the more truthful one: once the bench records the run's
 // outcome, the run is over whatever the filesystem still says.
 func watchAndShutdown(srv *http.Server, run record.Run) {
-	tick := time.NewTicker(3 * time.Second)
+	tick := time.NewTicker(dashboardWatchInterval)
 	defer tick.Stop()
 	for range tick.C {
 		if ended, _ := runHasEnded(runLiveMarker, run); ended {

@@ -60,7 +60,7 @@ func viewMaterial(t *testing.T, run Run) map[string]bool {
 	return out
 }
 
-// familyGaps is the Go family fold, per gap.
+// familyGaps is the family FamilyOf assembles, per gap.
 func familyGaps(t *testing.T, run Run) map[string]*Gap {
 	t.Helper()
 	fam, err := FamilyOf(run)
@@ -78,7 +78,7 @@ func appendOK(t *testing.T, id Identity, body proto.Message) {
 }
 
 // A claim-class defect changes what a reader concludes whatever it is graded, so a LOW gap of an
-// `always` class is material on both carriers of the definition.
+// `always` class is material.
 func TestMaterialAlwaysHoldsLowGrade(t *testing.T) {
 	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"claimy": recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS})
 	appendOK(t, lens, liveMint("G1", "claimy", recordpb.Grade_GRADE_LOW))
@@ -86,8 +86,8 @@ func TestMaterialAlwaysHoldsLowGrade(t *testing.T) {
 	if g.Mint.GetClassMaterial() != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {
 		t.Errorf("the mint was stamped %v, want the registry's always", g.Mint.GetClassMaterial())
 	}
-	if !g.Material || !viewMaterial(t, run)["G1"] {
-		t.Errorf("a low gap of an always class must be material: family %v, view %v", g.Material, viewMaterial(t, run)["G1"])
+	if !viewMaterial(t, run)["G1"] {
+		t.Error("a low gap of an always class must be material, and the gap view says it is not")
 	}
 }
 
@@ -95,14 +95,14 @@ func TestMaterialAlwaysHoldsLowGrade(t *testing.T) {
 func TestMaterialNeverReleasesHighGrade(t *testing.T) {
 	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{"shapey": recordpb.ClassMaterial_CLASS_MATERIAL_NEVER})
 	appendOK(t, lens, liveMint("G1", "shapey", recordpb.Grade_GRADE_HIGH))
-	if g := familyGaps(t, run)["G1"]; g.Material || viewMaterial(t, run)["G1"] {
-		t.Errorf("a high gap of a never class must not be material: family %v, view %v", g.Material, viewMaterial(t, run)["G1"])
+	if viewMaterial(t, run)["G1"] {
+		t.Error("a high gap of a never class must not be material, and the gap view says it is")
 	}
 }
 
-// THE TWO CARRIERS OF THE ONE DEFINITION AGREE, gap by gap, over every class default and the grades
-// either side of the by-grade floor — and on a regrade, because materiality reads the grade NOW.
-func TestFamilyGapMaterialMatchesView(t *testing.T) {
+// THE GAP VIEW STATES MATERIALITY, gap by gap, over every class default and the grades either side
+// of the by-grade floor — and on a regrade, because materiality reads the grade NOW.
+func TestTheGapViewStatesMaterialAcrossTheFloor(t *testing.T) {
 	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{
 		"a": recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS,
 		"n": recordpb.ClassMaterial_CLASS_MATERIAL_NEVER,
@@ -129,14 +129,8 @@ func TestFamilyGapMaterialMatchesView(t *testing.T) {
 	appendOK(t, lens, &recordpb.Regrade{GapId: proto.String("G9"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("b")})
 	want["G7"], want["G9"] = true, false
 
-	view, fam := viewMaterial(t, run), familyGaps(t, run)
+	view := viewMaterial(t, run)
 	for id, w := range want {
-		if fam[id] == nil {
-			t.Fatalf("%s is not in the family", id)
-		}
-		if fam[id].Material != view[id] {
-			t.Errorf("%s: the family says material=%v and the view says %v — two carriers of one definition", id, fam[id].Material, view[id])
-		}
 		if view[id] != w {
 			t.Errorf("%s: material=%v, want %v", id, view[id], w)
 		}

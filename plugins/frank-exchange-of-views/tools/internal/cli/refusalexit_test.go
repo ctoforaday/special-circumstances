@@ -37,23 +37,27 @@ func TestAnOperatorRefusalIsAnEnvelopeAndNotAnExit(t *testing.T) {
 		name string
 		args []string
 		code string
+		says string
 	}{
 		{
 			// A value present but ill-formed: the card set is closed, and `banana` is not in it.
 			name: "scorecard --card outside the set",
 			args: []string{"scorecard", "--card", "banana"},
 			code: "validation",
+			says: "the cards are red, blue and bench",
 		},
 		{
 			// Both of these refuse on a MISSING positional, before anything opens a run.
 			name: "dashboard with one positional",
 			args: []string{"dashboard", "only-one"},
 			code: "missing_field",
+			says: "takes two arguments, <run-dir> <workflow-transcript-dir>, and got 1",
 		},
 		{
 			name: "capture with one positional",
 			args: []string{"capture", "only-one"},
 			code: "missing_field",
+			says: "takes two arguments, <run-dir> <workflow-transcript-dir>, and got 1",
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -77,10 +81,10 @@ func TestAnOperatorRefusalIsAnEnvelopeAndNotAnExit(t *testing.T) {
 			if env["code"] != c.code {
 				t.Errorf("refusal code = %v, want %q (env %v)", env["code"], c.code, env)
 			}
-			// The usage line is still THERE — this moved which channel carries it, not whether a
-			// human is told what the command wanted.
-			if msg, _ := env["error"].(string); !strings.Contains(msg, "usage:") {
-				t.Errorf("refusal dropped the usage line a human reads: %v", env)
+			// WHAT THE COMMAND WANTED IS STILL SAID — the arguments it takes or the values the flag
+			// has — and the command's own name is the renderer's to print, in the envelope's `verb`.
+			if msg, _ := env["error"].(string); !strings.Contains(msg, c.says) {
+				t.Errorf("the refusal does not say %q: %v", c.says, env)
 			}
 		})
 	}

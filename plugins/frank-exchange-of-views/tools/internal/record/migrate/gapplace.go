@@ -121,7 +121,7 @@ func (p *placer) places(id, loc string) error {
 		return nil
 	}
 	if _, err := reportproj.Place(text, loc, id); err != nil {
-		return fmt.Errorf("migrate: this placement does not place in the report as the migrated run renders it (%v), and migration rewrites no stored location: %q", err, loc)
+		return fmt.Errorf("this placement does not place in the report as the migrated run renders it (%v), and migration rewrites no stored location: %q", err, loc)
 	}
 	return nil
 }
@@ -147,10 +147,10 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	}
 	start, end, ok := locate(text, old, b.GetExactSpan())
 	if !ok && b.GetExactSpan() {
-		return fmt.Errorf("migrate: this exact-span edit's old text no longer occurs in the report once the gaps' anchors stand in it, and migration rewrites no exact span: %q", old)
+		return fmt.Errorf("this exact-span edit's old text no longer occurs in the report once the gaps' anchors stand in it, and migration rewrites no exact span: %q", old)
 	}
 	if !ok {
-		return fmt.Errorf("migrate: this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
+		return fmt.Errorf("this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
 	}
 	if abuts {
 		b.Old = proto.String(old)

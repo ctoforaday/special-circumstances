@@ -1,6 +1,10 @@
 package seatclass
 
 import (
+	"slices"
+	"strconv"
+	"strings"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
@@ -25,6 +29,13 @@ type Seat struct {
 	Role string
 	Base string
 	Area string
+	// AgentType is the agent configuration the engine dispatches this seat under, spelled as the
+	// harness delivers it on a hook payload. Empty for the operator, which nothing dispatches.
+	//
+	// THE SEAT NAMES ITS CONFIGURATION, AND NOTHING NAMES IT BACK. record's attestation table —
+	// which roles a configuration may be seated as, and the one seat it always is — is computed
+	// from this column, so a configuration and its seat are written once, here.
+	AgentType string
 	// CommonWord marks an id that is ALSO an ordinary English word, so it cannot be guarded by
 	// NAME anywhere. `judge`, `frontier` and `operator` are the three: a report about its subject
 	// may say "a sitting judge", "the frontier of the field" or "the operator of the plant"
@@ -42,6 +53,11 @@ type Seat struct {
 // OperatorRole is the identity a human or a script acts under, outside the debate.
 const OperatorRole = "operator"
 
+// AgentTypePrefix is the plugin namespace the harness puts in front of every agent definition's
+// name: `agents/red-chair.md` is dispatched, and attested on a hook payload, as this plus
+// `red-chair`.
+const AgentTypePrefix = "frank-exchange-of-views:"
+
 // Seats is every seat id the engine can produce whose spelling is FIXED.
 //
 // The lens rows are GENERATED from flags.LensAreas rather than written out, so membership and
@@ -52,18 +68,24 @@ var Seats = roster()
 
 func roster() map[string]Seat {
 	m := map[string]Seat{
-		"red-chair":       {Role: "chair", Base: "red-chair"},
-		"blue-respond":    {Role: "blue", Base: "blue-respond"},
-		"blue-synthesize": {Role: "blue", Base: "blue-synthesize"},
-		"frontier":        {Role: "blue", Base: "frontier", CommonWord: true},
-		"judge":           {Role: "bench", Base: "judge", CommonWord: true},
+		"red-chair":       {Role: "chair", Base: "red-chair", AgentType: AgentTypePrefix + "red-chair"},
+		"blue-respond":    {Role: "blue", Base: "blue-respond", AgentType: AgentTypePrefix + "blue-researcher"},
+		"blue-synthesize": {Role: "blue", Base: "blue-synthesize", AgentType: AgentTypePrefix + "blue-synthesizer"},
+		"frontier":        {Role: "blue", Base: "frontier", AgentType: AgentTypePrefix + "blue-researcher", CommonWord: true},
+		"judge":           {Role: "bench", Base: "judge", AgentType: AgentTypePrefix + "lead-judge", CommonWord: true},
 		OperatorRole:      {Role: OperatorRole, CommonWord: true},
 	}
 	for _, a := range flags.LensAreas {
-		m["red-lens-"+a] = Seat{Role: "lens", Base: "red-lens", Area: a}
+		// One configuration per area, named for the seat: `agent_type` attests WHICH lens sat.
+		m["red-lens-"+a] = Seat{Role: "lens", Base: "red-lens", Area: a, AgentType: AgentTypePrefix + "red-lens-" + a}
 	}
 	return m
 }
+
+// Lane is what every lane seat is, whatever its number. A lane's ID is generated from the run's
+// lane count (record.LaneSeatIDs), so no row of Seats can carry one; its role, tier base and
+// configuration do not vary with the number and are stated once, here.
+var Lane = Seat{Role: "blue", Base: "blue-lane", AgentType: AgentTypePrefix + "blue-researcher"}
 
 // LaneSeatPrefix is how a lane seat id is SPELLED, and the one place that says so.
 //
@@ -78,6 +100,50 @@ const LaneSeatPrefix = "blue-lane-"
 // the run's lane count (record.LaneSeatIDs), so "is this a lane" is a comparison against that set
 // and "which lane" is a name the caller already holds. A pattern here could bound a shape and
 // never membership, and the coverage audit read the lane's INDEX back out of its name.
+
+// RoleOfSeat is the role a seat id is seated under, or "" for an id that is no seat.
+//
+// IT IS THE ONE ANSWER. A fixed seat's role is its row's; a lane's is Lane's, and an id is a lane
+// exactly when it is LaneSeatPrefix and a count a run could declare, spelled as record.LaneSeatIDs
+// spells it. Whether THIS run seats that lane is the cast's question (record.LaneSeatsOf). Every
+// other id has no role, however much of a seat's spelling it shares — debate.js's `roleOfSeat`
+// reads the same rows through the generated SEATS block.
+func RoleOfSeat(id string) string {
+	if s, ok := Seats[id]; ok {
+		return s.Role
+	}
+	if n, ok := strings.CutPrefix(id, LaneSeatPrefix); ok {
+		if k, err := strconv.Atoi(n); err == nil && k >= 1 && strconv.Itoa(k) == n {
+			return Lane.Role
+		}
+	}
+	return ""
+}
+
+// SeatsOfRole is the fixed seat ids seated under a role, sorted. The lanes are not among them: a
+// lane id exists only against a run's lane count.
+func SeatsOfRole(role string) []string {
+	var ids []string
+	for id, s := range Seats {
+		if s.Role == role {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// Roles is every role some seat is seated under, sorted.
+func Roles() []string {
+	var roles []string
+	for _, s := range Seats {
+		if !slices.Contains(roles, s.Role) {
+			roles = append(roles, s.Role)
+		}
+	}
+	slices.Sort(roles)
+	return roles
+}
 
 // SeatIDs is every seat id this roster names, for a reader that needs the NAMES rather than the
 // facts behind them — reportvoice builds its tell from it, so a seat that leaves the roster

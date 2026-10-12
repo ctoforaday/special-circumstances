@@ -32,7 +32,7 @@ feov-record: mint: requires --check, --check-kind, --impact, --likelihood, --sev
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -44,14 +44,14 @@ feov-record: mint: requires --class, --impact, --likelihood, --severity
       --class slug         REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check run it --severity catastrophic --problem bad grade
 exit 2
 stderr:
-feov-record: mint: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
+feov-record: mint: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -92,7 +92,7 @@ Flags:
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
-      --complexity grade                         what fixing it costs, on the same scale
+      --complexity grade                         what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable, on the same scale
       --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
@@ -104,7 +104,7 @@ Flags:
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -127,7 +127,7 @@ Global Flags:
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check run it --severity low --likelihood low --impact low --supersedes G-00000000 --problem dangling lineage
 exit 2
 stderr:
-feov-record: mint: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused
+feov-record: mint: --supersedes names G-00000000, which no mint event has created — dangling lineage refused
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check grep the sites --severity high --likelihood high --impact medium --complexity low --problem a real one
 exit 0
@@ -144,8 +144,8 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --class --problem: requires --check, --check-kind, --impact, --likelihood, --severity","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --problem: requires --class, --impact, --likelihood, --severity","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class: invalid argument \"catastrophic\" for \"--severity\" flag: \"catastrophic\" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity --supersedes: record: mint --supersedes names G-00000000, which no mint event has created — dangling lineage refused","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class: invalid argument \"catastrophic\" for \"--severity\" flag: \"catastrophic\" is not a grade — use one of: trivial | low | low_medium | medium | medium_high | high | certain | realized","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity --supersedes: --supersedes names G-00000000, which no mint event has created — dangling lineage refused","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══

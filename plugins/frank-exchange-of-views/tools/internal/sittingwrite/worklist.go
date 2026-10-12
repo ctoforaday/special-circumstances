@@ -51,12 +51,6 @@ const (
 		"follows as the reason this delivery failed rather than as your work."
 )
 
-// seatRoleOf is the surface role a seat id is dispatched under. A variable so the one branch nothing
-// can reach through the real tables — a seat the attestation table names and the roster does not —
-// is still driveable, because that branch is the one whose silence would be indistinguishable from a
-// clean board.
-var seatRoleOf = func(seat string) string { return seatclass.Seats[seat].Role }
-
 // injectWorkList renders the seat's work list for the SubagentStart hook to hand to the seat, or the
 // loud statement that it could not be rendered.
 //
@@ -72,14 +66,8 @@ func injectWorkList(run record.Run, agentType string, out io.Writer) {
 	if !known {
 		return
 	}
-	role := seatRoleOf(seat)
-	if role == "" {
-		// The attestation table and the roster disagree about a seat id. Loud, because the seat is
-		// about to work with no list at all and the cause is a code defect rather than a run's state.
-		fmt.Fprintf(out, "%s\n\n%s is not a seat the roster gives a role, so no work list could be projected for it.\n",
-			unreadable, seat)
-		return
-	}
+	// The seat is a roster row: the attestation table is the roster read by configuration.
+	role := seatclass.RoleOfSeat(seat)
 	b, err := record.WorkJSONBytes(run, role, seat)
 	if err != nil {
 		fmt.Fprintf(out, "%s\n\n%v\n", unreadable, err)

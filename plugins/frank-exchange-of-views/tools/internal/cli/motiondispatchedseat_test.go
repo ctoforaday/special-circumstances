@@ -9,18 +9,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
-// A MOTION IS FILED BY A SEAT THE ENGINE CREATED, AND NOTHING CHECKED THAT.
+// A MOTION IS FILED BY A SEAT THE ENGINE CREATED.
 //
-// The role guard lives in seat.Begin. When this was measured the motion verbs read their context
-// with seat.Of, which only parses flags — Begin was not on that path at all — and
-// record.CheckSeatRole took the command's parent as the role, which for `motion grade file` is the
-// SUBJECT "grade". No role table has that key, so the guard returned nil and the filing landed.
-// TestEveryWritingVerbRefusesWhatBeginRefuses holds every writing verb to Begin now.
-//
-// Measured on a real board before the fix:
-//
-//	blue position      --seat-id totally-invented   REFUSED
-//	motion grade file  --seat-id totally-invented   "motion M2 filed (grade)"
+// A motion's command parent is its SUBJECT ("grade"), which names no role, so there is no role to
+// hold the filer to — and the filer is still held to being a seat: seat.Begin refuses an id the
+// roster gives no role (record.RequireDispatchedSeat), and
+// TestEveryWritingVerbRefusesWhatBeginRefuses holds every writing verb to Begin. A motion under an
+// invented identity would be rendered in the report, ruled on, and joined to a gap.
 //
 // Every seat may FILE any motion; that asymmetry is the mechanism and this does not touch it. Being
 // a seat at all is not the optional half.

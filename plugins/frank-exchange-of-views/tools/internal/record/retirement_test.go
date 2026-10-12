@@ -308,11 +308,16 @@ func TestPassRefusedUntilSpotCheckCoversStaleAreas(t *testing.T) {
 func TestSpotCheckAreasValidatedAgainstCast(t *testing.T) {
 	run := retBoard(t).seed()
 	chair := Identity{Run: run, SeatID: "red-chair"}
-	for area, ok := range map[string]bool{"red-lens-architecture": false, "red-chair": false, evLens: true} {
+	// The refused areas come first and are refused FOR THE AREA: a spot-check is once per sitting,
+	// so one that lands makes every later one a refusal whatever it names.
+	for _, area := range []string{"red-lens-architecture", "red-chair", "blue-respond", "red-lens-banana"} {
 		_, err := Append(chair, &recordpb.SpotCheck{Areas: []string{area}, Reason: proto.String("r")})
-		if (err == nil) != ok {
-			t.Errorf("spot-check --areas %s: err=%v, want accepted=%v", area, err, ok)
+		if err == nil || !strings.Contains(err.Error(), "not a lens seat in this run's cast") {
+			t.Errorf("spot-check --areas %s is not refused as no lens seat of the cast: %v", area, err)
 		}
+	}
+	if _, err := Append(chair, &recordpb.SpotCheck{Areas: []string{evLens}, Reason: proto.String("r")}); err != nil {
+		t.Errorf("spot-check --areas %s, a cast lens, is refused: %v", evLens, err)
 	}
 }
 

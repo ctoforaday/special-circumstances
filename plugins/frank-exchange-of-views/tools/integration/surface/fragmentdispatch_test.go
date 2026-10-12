@@ -96,28 +96,13 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 	}
 	sort.Strings(fragments)
 
-	script, err := repotree.DebateJS()
-	if err != nil {
-		t.Fatal(err)
-	}
-	sites, err := debatejs.Sites(script)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ds, _, err := debatejs.CaptureRun(script, debatejs.Config{
-		Topic: "fragment dispatch", RunDir: t.TempDir(), BinDir: t.TempDir(), Lanes: 2,
-		Model: "haiku", JudgmentModel: "haiku", Backend: everySiteBackend(agentTypes),
-	})
-	if err != nil {
-		t.Fatalf("driving debate.js to every agent() call: %v", err)
-	}
+	ds, sites := driveEverySite(t, agentTypes, debatejs.Config{Topic: "fragment dispatch", Lanes: 2, Model: "haiku", JudgmentModel: "haiku"})
 
 	type pair struct {
 		site int
 		typ  string
 	}
 	read := map[pair]bool{}
-	siteRead := map[int]bool{}
 	typeRead := map[string]bool{}
 	rendered := map[string]bool{}
 	stillDuplicated := map[string]bool{}
@@ -133,7 +118,7 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 			t.Errorf("%s: the dispatch names an agent type with no definition to read it under: %v", where, err)
 			continue
 		}
-		siteRead[d.Site], typeRead[typ] = true, true
+		typeRead[typ] = true
 
 		// What this seat's sources include, and what it is handed. `authored` leaves out the
 		// manual agentgen inlines: each help page teaches its verb alone and repeats what it must.
@@ -225,13 +210,8 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 		}
 	}
 
-	// NOTHING ABOVE IS WORTH READING IF THE DRIVE MISSED A BUILDER, A SEAT OR A DUTY.
-	for _, l := range sites {
-		if !siteRead[l] {
-			t.Errorf("no dispatch was captured from the agent() call at debate.js:%d — the prompt it builds was not read. "+
-				"Script this gate's backend to reach it.", l)
-		}
-	}
+	// NOTHING ABOVE IS WORTH READING IF THE DRIVE MISSED A SEAT OR A DUTY. A missed builder has
+	// already failed the drive.
 	for _, typ := range agentTypes {
 		if !typeRead[typ] {
 			t.Errorf("no dispatch was captured under agent type %s — its constitution was read beside no prompt", typ)
@@ -273,6 +253,41 @@ var dOwnedDuplicates = map[string]map[string]bool{
 		"It holds two things no act of the sitting holds: what you ask the bench to weigh, and why you left untaken a route the record offered you — a repair a gap's fix prescribed that you did not make, a gap you rebutted rather than repaired.": true,
 		"It restates no edit, manifest row or motion: each carries its own reason on the record.": true,
 	},
+}
+
+// driveEverySite runs the shipped debate.js under everySiteBackend and returns every dispatch it
+// made, with the lines of the script's agent() calls. cfg carries the lane count and the two tier
+// models; the run directory and the backend are set here.
+//
+// A BUILDER THE DRIVE DID NOT REACH FAILS HERE, BY LINE. Every caller reads something off each
+// dispatch — its prompt, its agent type, its tier — and a call no dispatch came from is a builder
+// that reading never saw.
+func driveEverySite(t *testing.T, agentTypes []string, cfg debatejs.Config) ([]debatejs.Dispatch, []int) {
+	t.Helper()
+	script, err := repotree.DebateJS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sites, err := debatejs.Sites(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.RunDir, cfg.BinDir, cfg.Backend = t.TempDir(), t.TempDir(), everySiteBackend(agentTypes)
+	ds, _, err := debatejs.CaptureRun(script, cfg)
+	if err != nil {
+		t.Fatalf("driving debate.js to every agent() call: %v", err)
+	}
+	reached := map[int]bool{}
+	for _, d := range ds {
+		reached[d.Site] = true
+	}
+	for _, l := range sites {
+		if !reached[l] {
+			t.Errorf("no dispatch was captured from the agent() call at debate.js:%d — what it dispatches was not read. "+
+				"Script everySiteBackend to reach it.", l)
+		}
+	}
+	return ds, sites
 }
 
 // everySiteBackend scripts a run that reaches every agent() call in debate.js under every agent

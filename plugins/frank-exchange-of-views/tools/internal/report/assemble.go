@@ -288,13 +288,13 @@ func Assemble(run record.Run) (Assembled, error) {
 	}
 	fam, err := record.FamilyOf(run)
 	if err != nil {
-		return Assembled{}, fmt.Errorf("assemble: board: %w", err)
+		return Assembled{}, fmt.Errorf("reading the board: %w", err)
 	}
 	title := Title(run)
 
 	// The site is rendered BEFORE the index, because the index links it only if it is there.
 	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, fam)), 0o644); err != nil {
-		return Assembled{}, fmt.Errorf("assemble: write report.html: %w", err)
+		return Assembled{}, fmt.Errorf("write report.html: %w", err)
 	}
 	path, err := Write(run, title, docs, indexDoc(run, title, docs, fam))
 	if err != nil {

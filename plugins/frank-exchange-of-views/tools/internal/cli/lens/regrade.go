@@ -43,10 +43,10 @@ func newRegrade() *cobra.Command {
 	// requireOriginator and requireGap both pass an empty id through on the note that the
 	// missing-id refusal is the verb's own, and this verb had none.
 	seat.Require(c, flags.ID)
-	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
-	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
-	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
-	c.Flags().Var(&cx, flags.Complexity, flags.DescComplexity+", on the same scale")
+	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
+	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
+	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
+	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
 	return seat.Prose(c)
 }
 

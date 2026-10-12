@@ -3,20 +3,15 @@ package record
 import (
 	"fmt"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
-
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE ROSTER: the seat ids the engine can actually produce.
 //
-// `RequireDispatchedSeat` checks a PREFIX, so `red-lens-` admits `red-lens-banana` and
-// `red-lens-L99-oops`. That was the whole guard on a seat id's legitimacy, and it is the half
-// of identity the binding could not close: register is the one call that takes a seat's word for
-// who it is, so what it accepts had better be an id a dispatch could have created.
-//
-// THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. The vocabulary is —
+// Register is the one call that takes a seat's word for who it is, so what it accepts is an id a
+// dispatch could have created: a roster row, or a lane this run's cast seats. The vocabulary is —
 //
 //	lens   red-lens-<area>
 //	chair  red-chair
@@ -36,16 +31,11 @@ import (
 // agentbinding.go, where that loss is now UNREPRESENTABLE — so the id stopped needing to carry it
 // and nobody went back to collapse it.
 //
-// — and nothing could refuse anything against it, because a comment is not a check. Every id below
-// is verified against debate.js's own dispatch sites by TestTheRosterMatchesWhatTheEngineActuallyDispatches,
-// in both directions: a dispatched seat no shape admits, and a shape no dispatch produces.
-//
-// THAT SENTENCE WAS ITSELF AN UNCHECKED COMMENT until #675 — it named a test that did not exist,
-// in the paragraph arguing that a comment is not a check. What stood in its place reconciled these
-// shapes against `roleSeats`: two hand-written tables over here stating one vocabulary, neither of
-// them the engine. The bind reads the seat ids debate.js hands `recordClause` — the string a seat
-// is told to type at `register` — rather than the dispatch LABELS, which are a dashboard's text and
-// do not carry a seat id's shape at all.
+// — and a comment is not a check. integration/surface's
+// TestEveryDispatchSeatsItsSeatUnderItsOwnConfigurationAndTier RUNS debate.js to every agent() call
+// and holds each dispatch to the roster in both directions: a dispatched SEAT_ID the roster does not
+// carry, and a roster seat no dispatch seats. It reads the id out of the prompt — the string a seat
+// is told to type at `register` — never the dispatch LABEL, which is a dashboard's text.
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
 // none. A lens id is bounded twice — the pattern for its shape, `LensAreas` for its area (see
@@ -93,8 +83,8 @@ func AreaOf(seatID string) string { return seatclass.Seats[seatID].Area }
 // imports that package, so a second copy here is the one thing this arrangement exists to stop.
 //
 // It is what GENERATES the lens rows above, so membership and shape are no longer two questions
-// with two answers: an id is a lens seat exactly when this list named its area.
-// TestTheLensAreasMatchWhatTheEngineDeclares holds it against debate.js's own RED_AREAS, so
+// with two answers: an id is a lens seat exactly when this list named its area. The dispatch
+// identity test in integration/surface holds the lens seats debate.js dispatches to these rows, so
 // adding an area there and not here fails.
 var LensAreas = flags.LensAreas
 
@@ -147,23 +137,13 @@ func rolesAndSamplesAgree() error {
 		}
 	}
 	for role, id := range roleSample {
-		if r := roleOfSeatID(id); r == "" {
+		r := seatclass.RoleOfSeat(id)
+		if r == "" {
 			return fmt.Errorf("role %q samples %q, which is not an id the engine dispatches", role, id)
 		}
-		if r := roleOfSeatID(id); r != role {
+		if r != role {
 			return fmt.Errorf("role %q samples %q, whose own role is %q", role, id, r)
 		}
 	}
 	return nil
-}
-
-// roleOfSeatID is the role a seat id is dispatched under, or "" for an id that is not one.
-func roleOfSeatID(seatID string) string {
-	if s, ok := seatclass.Seats[seatID]; ok {
-		return s.Role
-	}
-	if IsLaneSeat(seatID, 1) {
-		return "blue"
-	}
-	return ""
 }

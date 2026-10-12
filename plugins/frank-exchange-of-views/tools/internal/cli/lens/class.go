@@ -2,6 +2,7 @@ package lens
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -108,7 +109,7 @@ func newClassNew() *cobra.Command {
 		}
 		md, ok := record.ClassMaterialOf(word)
 		if !ok {
-			return nil, fmt.Errorf("%q is not a material default — always | never | by_grade", word)
+			return nil, feov.Errorf(feov.Validation, "%q is not a material default — always | never | by_grade", word)
 		}
 		body := &recordpb.ClassNew{
 			Slug:            proto.String(seat.Str(cmd, flags.Class)),

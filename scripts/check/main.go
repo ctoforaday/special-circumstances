@@ -168,50 +168,6 @@ func anyNeedsBase(gs []gate) bool {
 // runGate executes one gate and captures its output. Output is CAPTURED rather than streamed
 // so the summary is readable; a failing gate prints its output in full, a passing one prints
 // nothing. Twelve gates streaming at once is how a real failure gets scrolled past.
-// expandScope replaces a deps:<target> scope marker with the module-local packages in the
-// target's import graph, resolved in dir at the moment the gate runs — the same derivation
-// the workflow's race step performs, so neither carrier holds a copy the other could drift
-// from. The module path comes from the module itself (`go list -m`), not a constant here.
-//
-// AN EMPTY EXPANSION IS AN ERROR, NEVER AN EMPTY GATE. `go test -race` with no packages
-// would test the current directory and report a pass that measured almost nothing — the
-// plausible zero again. A target that resolves to no module-local packages means the marker
-// or the module is broken, and the gate says so instead of going green.
-func expandScope(dir string, args []string) ([]string, error) {
-	out := make([]string, 0, len(args))
-	for _, a := range args {
-		if !strings.HasPrefix(a, depsScopePrefix) {
-			out = append(out, a)
-			continue
-		}
-		target := strings.TrimPrefix(a, depsScopePrefix)
-		mod := exec.Command("go", "list", "-m")
-		mod.Dir = dir
-		modOut, err := mod.Output()
-		if err != nil {
-			return nil, fmt.Errorf("expanding %s: go list -m in %s: %w", a, dir, err)
-		}
-		modPath := strings.TrimSpace(string(modOut))
-		deps := exec.Command("go", "list", "-deps", target)
-		deps.Dir = dir
-		depsOut, err := deps.Output()
-		if err != nil {
-			return nil, fmt.Errorf("expanding %s: go list -deps %s in %s: %w", a, target, dir, err)
-		}
-		var pkgs []string
-		for _, p := range strings.Split(strings.TrimSpace(string(depsOut)), "\n") {
-			if strings.HasPrefix(p, modPath) {
-				pkgs = append(pkgs, p)
-			}
-		}
-		if len(pkgs) == 0 {
-			return nil, fmt.Errorf("scope %s expanded to no packages under module %s — not measured, not clean", a, modPath)
-		}
-		out = append(out, pkgs...)
-	}
-	return out, nil
-}
-
 func runGate(root string, g gate, base string) result {
 	if g.skip != "" {
 		return result{gate: g, status: "SKIP", details: g.skip}
@@ -262,11 +218,15 @@ func runGate(root string, g gate, base string) result {
 		args = append(args, toolFlags(g)...)
 		cmd = exec.Command(bin, args...)
 	default:
-		args, err := expandScope(dir, g.args)
-		if err != nil {
-			return result{gate: g, status: "FAIL", took: time.Since(start), details: err.Error()}
+		// A deps: scope is derived and raced by scripts/racescope (raceGate). Handed to `go
+		// test` it would be read as a package path and fail on that, or one day not fail.
+		for _, a := range g.args {
+			if strings.HasPrefix(a, depsScopePrefix) {
+				return result{gate: g, status: "FAIL", took: time.Since(start),
+					details: "gate " + g.id + " hands the scope marker " + a + " to go test; a deps: scope is run by racescope"}
+			}
 		}
-		cmd = exec.Command("go", args...)
+		cmd = exec.Command("go", g.args...)
 	}
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
@@ -304,7 +264,7 @@ func buildTool(dir string, g gate) (bin string, cleanup func(), err error) {
 	if len(g.args) < 2 {
 		return "", func() {}, fmt.Errorf("gate %s: no package path in args %v", g.id, g.args)
 	}
-	// A gate id may carry a colon (feov-record:test), which a Windows path may not.
+	// A gate id may carry a colon (feov-record:race), which a Windows path may not.
 	name := strings.ReplaceAll(g.id, ":", "-")
 	tmp, err := os.MkdirTemp("", "check-"+name+"-")
 	if err != nil {

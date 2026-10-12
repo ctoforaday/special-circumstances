@@ -541,13 +541,11 @@ message Event {
   reserved 5;
   reserved "round";
 
-  // role is the seat's ROLE as a field. Readers used to recover it with
-  // strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
-  // renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
-  // the wrong party, silently. Stamped at the write from the seat id, and NOT PERSISTED: the store
-  // keeps (seat_id, ts, type, key) and no role column, so every read re-derives it from seat_id
-  // through PartyOf. That is why a role id can change spelling without a migration.
-  optional string role = 6;
+  // THE EVENT CARRIES NO ROLE. The party that wrote it is the role of its seat_id, read from the
+  // roster at every read (record.PartyOf), and the store keeps (seat_id, ts, type, key) and no
+  // role column. That is why a role can change spelling without a migration.
+  reserved 6;
+  reserved "role";
 
   optional EventType type = 7;
   optional string key = 8;
@@ -861,7 +859,7 @@ message Close {
     references: "mint.gap_id"
     why: "which gap this closes"
   }];
-  // A MERGE MAY CLOSE, AND MAY NOT CARRY. `subset` generates the CHECK from the vocabulary's own
+  // A CLOSE TAKES A WORD THAT CLOSES. `subset` generates the CHECK from the vocabulary's own
   // `closes` annotation, so the admitted words are never typed here.
   optional Disposition closure_class = 2 [(sql) = {
     subset: "closes"
@@ -1561,13 +1559,21 @@ message GradeMotion {
   optional Grade proposed = 3;
 }
 
-// GradeDimension is which axis of a gap's grading is contested.
+// GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
+// flag that sets an axis (`mint`, `regrade`, `finding`) and the menu of the axis a grade motion
+// contests both print the `(means)` here.
+//
+// Each axis is spelled as the flag that sets it, so a seat learns the pattern from any one of them.
+//
+// LIKELIHOOD's "never how likely the defect is to BE there" is the clause the likelihood/impact
+// split makes necessary: with one grade standing for both, the natural reading is the likelihood
+// of the defect being present, and a seat grading on that reading answers the wrong question.
 enum GradeDimension {
   GRADE_DIMENSION_UNSPECIFIED = 0;
-  GRADE_DIMENSION_SEVERITY = 1 [(means) = "how bad it is if it bites"];
-  GRADE_DIMENSION_LIKELIHOOD = 2 [(means) = "how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis"];
-  GRADE_DIMENSION_IMPACT = 3 [(means) = "how far the damage reaches"];
-  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what the fix costs; it is what makes defect_accepted arguable"];
+  GRADE_DIMENSION_SEVERITY = 1 [(means) = "how bad the defect is in itself"];
+  GRADE_DIMENSION_LIKELIHOOD = 2 [(means) = "how likely the CONSEQUENCE is — never how likely the defect is to BE there"];
+  GRADE_DIMENSION_IMPACT = 3 [(means) = "how bad the consequence is if it lands"];
+  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"];
 }
 
 // PetitionMotion is the constitutional short-circuit: any party seat may petition the bench.
@@ -1915,9 +1921,8 @@ message Register {
   //
   // agent_id says WHICH agent; this says which CONFIGURATION it was dispatched as, and the two
   // refuse different things. It is what lets `register` reject a seat id from the wrong family:
-  // the roster gate bounds an id's SHAPE and states plainly that it "bounds the SHAPE, never the
-  // membership", so before this field nothing could tell that a lead-judge agent had registered
-  // as `red-merge-r1`.
+  // the roster says an id is a seat, and this says a lead-judge agent may not register as
+  // `red-chair`.
   //
   // IT NAMES A CONFIGURATION AND NOT A SITTING. Every red seat now has its own configuration, so
   // the type says WHICH lens rather than merely that it is one — but a configuration is seated

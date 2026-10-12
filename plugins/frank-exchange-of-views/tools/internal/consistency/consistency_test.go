@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -145,6 +146,40 @@ func TestCarriedThenClosed(t *testing.T) {
 		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
+}
+
+// THE ORACLE HOLDS THE CLOSURE WORD. Red closes a gap `defect_accepted` and the chair's carry in the
+// next epoch restates it `repaired`: the family names the carry, and a family that named the first
+// close instead agrees on every other line — closed, by red — and is reported on the word.
+func TestTheOracleHoldsTheClosureWord(t *testing.T) {
+	dir := recordtest.TmpRun(t)
+	carry := recordtest.At(t, "red-chair", "red-chair:close:G1:carry", &recordpb.Close{
+		GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+		CarriedFrom: proto.String("1"), Prose: proto.String("carried")})
+	first := redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED)
+	recordtest.Seed(t, dir,
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		first,
+		chairSits(t, 2),
+		carry,
+	)
+	check(t, dir)
+
+	run := runtest.Open(t, dir)
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := *fam.Gap("G1")
+	g.Closure = first.GetClose()
+	var got []string
+	holdGap("G1", &gtGap{everClosed: true, lastCloser: "red", lastClass: "repaired", lastCloseEpoch: 2,
+		sev: g.Severity, lik: g.Likelihood, imp: g.Impact, cx: g.ComplexityCost}, &g,
+		func(rule, format string, args ...any) { got = append(got, rule) })
+	if len(got) != 1 || got[0] != "closure-reason" {
+		t.Errorf("a family naming the FIRST close of a carried gap: violations %q, want closure-reason alone", got)
+	}
 }
 
 // A carried-only gap stays open everywhere.

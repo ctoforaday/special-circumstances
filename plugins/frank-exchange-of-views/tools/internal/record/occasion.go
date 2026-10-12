@@ -5,6 +5,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // AN OCCASION IS WHAT A SITTING WAS CONVENED TO DO, and it is recorded exactly where the seat id
@@ -21,13 +22,13 @@ import (
 // only the first half an occasion could be asserted anywhere and would mean nothing, and a reader
 // could not tell a seat that answered the question from one that was never asked it.
 
-// benchRole is the role whose seat id does not determine its occasion. It keys roleSeats, so the
-// word has one spelling: a role renamed there and not here would silently stop owing an occasion,
-// which is precisely the miss this field exists to make impossible.
+// benchRole is the role whose seat id does not determine its occasion. It is the roster's word
+// for the bench's role: TestTheBenchRoleIsARosterRole fails a spelling no seat is seated under,
+// which would silently stop the bench owing an occasion.
 const benchRole = "bench"
 
 // SeatOwesOccasion reports whether a seat must say what its sitting was convened to do.
-func SeatOwesOccasion(seatID string) bool { return roleOfSeat(seatID) == benchRole }
+func SeatOwesOccasion(seatID string) bool { return seatclass.RoleOfSeat(seatID) == benchRole }
 
 // OccasionOf resolves the word a seat types into the schema's value. It refuses rather than
 // returning the zero, for the reason every resolver in enumof.go refuses: UNSPECIFIED is reserved
@@ -39,18 +40,7 @@ func OccasionOf(word string) (recordpb.Occasion, bool) {
 
 // OccasionWords is the vocabulary in schema order, skipping the UNSPECIFIED zero — derived from the
 // descriptor, so the words a refusal offers are the words the write path accepts.
-func OccasionWords() []string {
-	d := recordpb.Occasion(0).Descriptor().Values()
-	out := make([]string, 0, d.Len())
-	for i := 0; i < d.Len(); i++ {
-		v := d.Get(i)
-		if v.Number() == 0 {
-			continue
-		}
-		out = append(out, recordpb.Spelling(v))
-	}
-	return out
-}
+func OccasionWords() []string { return recordpb.Words(recordpb.Occasion(0).Descriptor()) }
 
 // checkOccasion holds a register's occasion against the seat making it, and returns the resolved
 // value to write. An empty word from a seat that owes nothing is the ordinary case and writes

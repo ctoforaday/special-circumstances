@@ -1,0 +1,113 @@
+package record
+
+import (
+	"reflect"
+	"strconv"
+	"strings"
+)
+
+// PlanField is one field of the relayed plan as record.Plan declares it.
+//
+// THE DECLARATION IS THE STRUCT, AND THIS IS ITS ONE WALK. Three readers need the plan's shape:
+// `dispatch next` prints it (encoding/json, off the same tags), capture classifies every relayed
+// field by what stands behind it, and the engine script's envelope schema tells the chair's
+// harness what a relay must look like. The second and third read this walk, so a field added to
+// the struct reaches the audit's table and the schema's generator at once, and neither holds a
+// list of its own.
+//
+// WHAT A GO TYPE CANNOT SAY IS A TAG ON THE FIELD: `desc` is the sentence the schema hands the
+// relaying seat, `bench` the sentence for the same field of the bench's party, `min` an integer's
+// floor and `pattern` a string's. A tag absent leaves the schema looser, never wrong.
+type PlanField struct {
+	Name string // the Go field
+	JSON string // the key the verb prints and a relay carries
+	// Type is the JSON type: integer, boolean, string or array.
+	Type string
+	// Defect is what the declaration states that no schema can carry — a Go kind with no JSON
+	// type here, a named string type with no declared set, a floor that is no integer. Empty on a
+	// sound field. The schema's generator refuses a plan holding one, and
+	// TestEveryPlanFieldIsOneASchemaCanCarry fails on it.
+	Defect string
+	// Optional: the verb omits the key when the value is empty (`omitempty`).
+	Optional bool
+	Desc     string
+	Bench    string
+	// Min is an integer's floor; nil where the field states none.
+	Min     *int
+	Pattern string
+	// Enum is the closed set of a string field whose Go type declares one.
+	Enum []string
+	// Elem is the JSON type of an array's scalar elements; empty for an array of structs.
+	Elem string
+	// Of is the element struct of an array of structs, and Items its fields.
+	Of    reflect.Type
+	Items []PlanField
+}
+
+// planEnums is the closed set of each named string type the plan carries.
+var planEnums = map[reflect.Type]func() []string{
+	reflect.TypeFor[BlockerKind](): func() []string {
+		ks := BlockerKinds()
+		out := make([]string, len(ks))
+		for i, k := range ks {
+			out[i] = string(k)
+		}
+		return out
+	},
+}
+
+// PlanFields is record.Plan's relayed fields in declaration order, nested structs included. A
+// field tagged `json:"-"` is never relayed and is not listed.
+func PlanFields() []PlanField { return fieldsOf(reflect.TypeFor[Plan]()) }
+
+func fieldsOf(t reflect.Type) []PlanField {
+	var out []PlanField
+	for i := range t.NumField() {
+		f := t.Field(i)
+		name, opts, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "-" || !f.IsExported() {
+			continue
+		}
+		p := PlanField{Name: f.Name, JSON: name, Optional: strings.Contains(opts, "omitempty"),
+			Desc: f.Tag.Get("desc"), Bench: f.Tag.Get("bench"), Pattern: f.Tag.Get("pattern")}
+		if m, ok := f.Tag.Lookup("min"); ok {
+			n, err := strconv.Atoi(m)
+			if err != nil {
+				p.Defect = "its floor " + strconv.Quote(m) + " is no integer"
+			}
+			p.Min = &n
+		}
+		p.Type = jsonTypeOf(f.Type)
+		if p.Type == "" {
+			p.Defect = "its Go type " + f.Type.String() + " has no JSON type here"
+		}
+		if set, ok := planEnums[f.Type]; ok {
+			p.Enum = set()
+		} else if f.Type.Kind() == reflect.String && f.Type != reflect.TypeFor[string]() {
+			p.Defect = "its Go type " + f.Type.String() + " is a named set of words, and planEnums declares no set for it"
+		}
+		if f.Type.Kind() == reflect.Slice {
+			if e := f.Type.Elem(); e.Kind() == reflect.Struct {
+				p.Of, p.Items = e, fieldsOf(e)
+			} else if p.Elem = jsonTypeOf(e); p.Elem == "" || p.Elem == "array" {
+				p.Defect = "its element type " + e.String() + " has no JSON type here"
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func jsonTypeOf(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.Int, reflect.Int32, reflect.Int64:
+		return "integer"
+	case reflect.Bool:
+		return "boolean"
+	case reflect.String:
+		return "string"
+	case reflect.Slice:
+		return "array"
+	}
+	return ""
+}
