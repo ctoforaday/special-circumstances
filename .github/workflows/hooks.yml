@@ -344,7 +344,7 @@ jobs:
         uses: actions/cache@v6  # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ runner.temp }}/cstack
-          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt') }}
+          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt', 'plugins/frank-exchange-of-views/tools/third_party/pins/build-cstack.sh') }}
       - name: C stack for the OCR engine (build on miss)
         if: steps.cstack.outputs.cache-hit != 'true'
         shell: bash
@@ -569,8 +569,11 @@ jobs:
       # test the REAL engine (`-tags tessocr` + the env build-cstack.sh emits); the
       # Windows legs prove the tag-less STUB compiles — the engine still ships for
       # Windows, its C stack built per target by the release job, and what a PR proves
-      # there is that the package type-checks engineless. The cache key is PINS.txt's
-      # content hash: same pins, same objects, and a pin bump misses by construction.
+      # there is that the package type-checks engineless. The cache key is the content
+      # hash of PINS.txt and of build-cstack.sh: same pins and same recipe, same objects — a
+      # pin bump or a change to how the stack is built misses by construction. The stack
+      # carries zig's own runtime cache (libc, libc++, compiler-rt) with it, which is what
+      # keeps each test binary's link from compiling them again.
       # THE RELEASE JOB READS NO CACHE (its own setup-go states the poisoning rule), so
       # this cache existing cannot reach a published byte.
       # NOT ON PUSH, for the same reason setup-go's cache above is not: a main push and a
@@ -586,7 +589,7 @@ jobs:
         uses: actions/cache@v6  # zizmor: ignore[cache-poisoning]
         with:
           path: ${{ runner.temp }}/cstack
-          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt') }}
+          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt', 'plugins/frank-exchange-of-views/tools/third_party/pins/build-cstack.sh') }}
       - name: C stack for the OCR engine (build on miss)
         if: runner.os == 'Linux' && steps.cstack.outputs.cache-hit != 'true'
         shell: bash
@@ -634,7 +637,9 @@ jobs:
           callers=$!
           rc=0
           wait "$engine" || rc=1
+          echo "the engine's suite, built and run: ${SECONDS}s into the step"
           wait "$callers" || rc=1
+          echo "its callers, built and run: ${SECONDS}s into the step"
           cat "$RUNNER_TEMP/tessocr.txt" "$RUNNER_TEMP/callers.txt"
           # `-run` alternation exits 0 when one side matches nothing, so every name asked for
           # must have answered: a PASS for the fixture test, a PASS or a SKIP for each derived
