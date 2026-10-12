@@ -1763,6 +1763,8 @@ migrate reads an old run's record — including a vocabulary this binary's reade
 
 THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurements taken from outside, from transcripts that are not part of a run, so the record holds the only copy of them and the manifest states how many came over. The manifest also states the epoch the source declared beside the one this binary wrote, so the move the migration exists to make is a fact you can read rather than infer.
 
+THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`), where that moves whole sections and nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its author's order. The manifest's report_order says which: no_report, in_order, reordered, as_written.
+
 Usage:
   feov-record migrate --from <oldRunDir> --to <newRunDir> [flags]
 

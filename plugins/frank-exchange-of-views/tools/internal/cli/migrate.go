@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // newMigrate is the operator's replay-as-migration: an old record's events re-driven, in
@@ -30,7 +32,11 @@ func newMigrate() *cobra.Command {
 			"THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurements taken from outside, " +
 			"from transcripts that are not part of a run, so the record holds the only copy of them and the manifest " +
 			"states how many came over. The manifest also states the epoch the source declared beside the one this " +
-			"binary wrote, so the move the migration exists to make is a fact you can read rather than infer.",
+			"binary wrote, so the move the migration exists to make is a fact you can read rather than infer.\n\n" +
+			"THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (" + report.TextOrder + "), where that moves whole sections and " +
+			"nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and " +
+			"the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its " +
+			"author's order. The manifest's report_order says which: " + strings.Join([]string{migrate.OrderNoReport, migrate.OrderInOrder, migrate.OrderReordered, migrate.OrderAsWritten}, ", ") + ".",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -78,6 +84,12 @@ func printManifest(cmd *cobra.Command, m *migrate.Manifest) {
 		if m.Out[w] != m.In[w] {
 			fmt.Fprintf(out, "  %s: %d -> %d\n", w, m.In[w], m.Out[w])
 		}
+	}
+	switch m.ReportOrder {
+	case migrate.OrderReordered:
+		fmt.Fprintln(out, "  the report's text is brought into the order it ships in: whole sections moved, every act replayed over it")
+	case migrate.OrderAsWritten:
+		fmt.Fprintln(out, "  the report's text is OUT OF THE ORDER IT SHIPS IN and is kept as written: its acts do not replay over the reordered text")
 	}
 	for w, why := range m.Accepted {
 		fmt.Fprintf(out, "  accepted loss of %q: %s\n", w, why)

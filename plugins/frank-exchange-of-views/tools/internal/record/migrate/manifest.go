@@ -53,8 +53,11 @@ type Manifest struct {
 	IDs         map[string]string `json:"ids,omitempty"` // archived id or finding label -> migrated id
 	// GapAnchors is what bringing the run's gaps onto anchors did: rewrites per shape, and by name the
 	// gaps whose quote never placed (they read gone) and those placed by the fallback.
-	GapAnchors GapPlacement   `json:"gap_anchors"`
-	Serialized map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
+	GapAnchors GapPlacement `json:"gap_anchors"`
+	// ReportOrder is what became of the order of the report's text (order.go): no_report, in_order,
+	// reordered, or as_written for a text out of order that reordering the base does not replay.
+	ReportOrder string         `json:"report_order"`
+	Serialized  map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`
@@ -88,6 +91,7 @@ func NewManifest(sourcePath string, files []SourceFile, unclassified []string, r
 		IDs:          res.IDs,
 		Serialized:   res.Serialized,
 		GapAnchors:   res.GapAnchors,
+		ReportOrder:  res.ReportOrder,
 		Unclassified: unclassified,
 	}
 }

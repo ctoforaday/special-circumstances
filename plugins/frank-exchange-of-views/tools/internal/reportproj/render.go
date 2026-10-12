@@ -257,11 +257,11 @@ func RenderFromRecord(run record.Run) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return replay(base, haveBase, ops)
+	return Replay(base, haveBase, ops)
 }
 
-// replay folds the ordered mutations over the frozen base.
-func replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
+// Replay folds the ordered mutations over the frozen base.
+func Replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
 	if !haveBase {
 		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")
 	}
