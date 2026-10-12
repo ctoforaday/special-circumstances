@@ -63,6 +63,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
 	"github.com/ctoforaday/special-circumstances/scripts/internal/goldenmods"
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
 )
 
 // mjsSuites are the .mjs suites that carry goldens. Enumerated, never globbed: `node
@@ -121,7 +122,7 @@ func runLegs(root string, update bool) bool {
 		// module whose `:test` gate runs this exact command in the same invocation (#626) —
 		// and never on an update run, where the gate does not record.
 		if by, ok := subsumed[mod]; ok && !update {
-			fmt.Printf("\n── go goldens in %s: not re-run — %s runs `go test -count=1 ./...` here in this same check\n", mod, by)
+			fmt.Printf("\n── go goldens in %s: not re-run — %s runs the same suite command here in this same check\n", mod, by)
 			continue
 		}
 		// -count=1 defeats Go's TEST CACHE. Without it an update run can be satisfied
@@ -129,8 +130,15 @@ func runLegs(root string, update bool) bool {
 		// stale while the command says "recorded". That happened: CI, which has no cache,
 		// caught goldens this runner had just claimed to update. A check satisfiable
 		// without doing the work is not a check.
-		if run(fmt.Sprintf("go goldens in %s%s", mod, suffix), filepath.Join(root, mod),
-			"go", []string{"test", "-count=1", "./..."}, update) {
+		//
+		// A module whose suite scripts/testsplit runs gets that same command here, so this
+		// leg and the module's `:test` gate stay one command; the tool passes -count=1 on
+		// both of its paths and hands UPDATE_GOLDENS through to every test process.
+		dir, args := filepath.Join(root, mod), []string{"test", "-count=1", "./..."}
+		if testsplit.Splits(mod) {
+			dir, args = filepath.Join(root, "scripts"), testsplit.SuiteArgs(filepath.Join(root, mod))
+		}
+		if run(fmt.Sprintf("go goldens in %s%s", mod, suffix), dir, "go", args, update) {
 			failed = true
 		}
 	}

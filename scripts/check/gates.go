@@ -50,7 +50,11 @@
 //	go run ./check -base main   the ref diff-based gates compare against (default origin/main)
 package main
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
+)
 
 // workflowPath is the authority FOR THE GATE SET, and the scoping matters: it is not the only
 // workflow in the repository. `.github/workflows/labels.yml` runs on `issues` events, marks an
@@ -78,6 +82,7 @@ const (
 	kindTest    kind = "test"    // go test over a module
 	kindRace    kind = "race"    // go test -race over some subset of a module
 	kindTool    kind = "tool"    // a dev tool, run via go run: under scripts/, or a plugin's tools/devcmd/
+	kindSuite   kind = "suite"   // go test over a module, driven by scripts/testsplit
 	kindNode    kind = "node"    // a node --test suite
 	kindExtern  kind = "extern"  // needs a binary this repo does not vendor
 	kindRelease kind = "release" // only meaningful on a tag
@@ -122,7 +127,10 @@ type gate struct {
 // leaving it in place would mean the local gate set can pass where CI fails, which is the
 // original defect wearing this tool's name. parity_test.go compares gate IDENTITY (which module,
 // which race scope, which tool), not argv, so declaring it here claims no coverage CI lacks.
-const noCache = "-count=1"
+//
+// One constant for both carriers: a suite gate passes it itself, and a module whose suite is
+// run by scripts/testsplit has it passed for it, on both of that tool's paths.
+const noCache = testsplit.NoCache
 
 // modules are the four Go modules. Enumerated rather than globbed for the same reason CI
 // enumerates them: a glob that matches nothing is a silent pass.
@@ -291,8 +299,7 @@ func gateSet() []gate {
 				why: "vet catches what compiles and cannot be right"},
 			gate{id: m.ciJob + ":fmt", kind: kindFmt, dir: m.dir, ciJob: m.ciJob,
 				why: "unformatted Go keeps reaching CI (#352)"},
-			gate{id: m.ciJob + ":test", kind: kindTest, dir: m.dir, args: []string{"test", noCache, "./..."}, ciJob: m.ciJob,
-				why: "the suite"},
+			suiteGate(m.dir, m.ciJob),
 		)
 		if scope, ok := raceScope[m.dir]; ok {
 			gs = append(gs, raceGate(m.dir, m.ciJob, scope))
@@ -362,6 +369,26 @@ func raceGate(dir, ciJob string, scope []string) gate {
 	}
 	return gate{id: ciJob + ":race", kind: kindRace, dir: dir,
 		args: append([]string{"test", "-race", noCache, raceTimeout}, scope...), ciJob: ciJob, why: why}
+}
+
+// suiteGate is a module's `:test` gate. A module with a row in internal/testsplit's table runs
+// its suite through scripts/testsplit — the whole of `./...`, the table's serial packages as
+// several processes each where the box has cores to spare — and every other module runs plain
+// `go test`. The tool passes -count=1 on both of its paths (testsplit.NoCache), which is why
+// this gate's own arguments do not show it.
+//
+// A KIND OF ITS OWN, NOT kindTool: CI does not run this tool. Its runners have four cores, where
+// splitting is slower than plain `go test` (measured; testsplit's defaultProcesses carries the
+// numbers), so the workflow's suite step is the plain command and the tool-parity tests, which
+// hold every kindTool gate to a `go run` line in the workflow, must not read this one.
+// TestTheSplitSuiteIsTheWorkflowsSuite holds the two together instead.
+func suiteGate(dir, ciJob string) gate {
+	if testsplit.Splits(dir) {
+		return gate{id: ciJob + ":test", kind: kindSuite, dir: "scripts", args: testsplit.SuiteArgs("../" + dir),
+			ciJob: ciJob, why: "the suite"}
+	}
+	return gate{id: ciJob + ":test", kind: kindTest, dir: dir, args: []string{"test", noCache, "./..."}, ciJob: ciJob,
+		why: "the suite"}
 }
 
 func baseName(p string) string {
