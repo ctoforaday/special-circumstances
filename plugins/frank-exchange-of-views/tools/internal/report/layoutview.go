@@ -135,6 +135,13 @@ func opens(lines []string, s Section) int {
 	return found
 }
 
+// LayoutHasNoText is what the bare layout says of itself on standard error, where it survives a
+// pipe. The bare form lists the sections and carries none of their text, so a search piped over it
+// finds nothing and reads as a clean report: on universe-m22 a gap's acceptance check was
+// `show report --assembled | grep -c <phrase>`, twice, and zero was the answer either way. A line
+// at the head of the listing is the first thing such a pipe discards.
+const LayoutHasNoText = "feov-record: `show report --assembled` LISTS THE SECTIONS WITHOUT THEIR TEXT — a search of this output finds no sentence of the report, and a count of zero here says nothing about what ships. `show report --assembled --json` carries each section's `text`."
+
 // Markdown is the layout as a seat reads it: one entry per section, in shipping order.
 func (l LayoutJSON) Markdown() string {
 	var b strings.Builder

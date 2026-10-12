@@ -557,7 +557,7 @@ func viewGroup(inquest bool) *cobra.Command {
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted)")
 			sub.Flags().Bool(flags.Assembled, false,
-				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it")
+				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it — a listing WITHOUT the sections' text, which the --json form carries")
 		}
 		// ONE ENTRY, BY THE TOKEN THE SEAT IS HOLDING. The same flag `report` takes for the same
 		// id — one declaration (flags.AnchorID), so both refuse a malformed id in the same words
@@ -831,7 +831,10 @@ func renderView(cmd *cobra.Command, want string) error {
 			} else if sel.Active() {
 				return feov.Errorf(feov.Validation, "--match and --quote select sections from the --json form of --assembled; the bare form prints every section")
 			}
-			_, werr := fmt.Fprint(cmd.OutOrStdout(), layout.Markdown())
+			if _, werr := fmt.Fprint(cmd.OutOrStdout(), layout.Markdown()); werr != nil {
+				return werr
+			}
+			_, werr := fmt.Fprintln(cmd.ErrOrStderr(), report.LayoutHasNoText)
 			return werr
 		}
 		var b []byte

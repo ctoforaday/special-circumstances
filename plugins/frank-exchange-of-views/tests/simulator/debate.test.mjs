@@ -392,6 +392,8 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   const evidence = firstPrompt(world, 'red-lens-evidence')
   for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
+    // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING: universe-m22's gap named the avenue row, its check could not pass, and the lens held it twice.
+    'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
     "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the stored script is what the re-run executes; a clean exit or '0 failing' is not an output", "read at the computation's anchor, gives the script and the output blue recorded"]) {

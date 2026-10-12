@@ -345,3 +345,38 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 		}
 	}
 }
+
+// THE BARE LAYOUT CARRIES NO SECTION TEXT, AND SAYS SO WHERE A PIPE CANNOT DROP IT. A search piped
+// over it finds no sentence of the report and reads as a clean one: on universe-m22 a gap's
+// acceptance check was the bare form through a count, twice, and zero was the answer whatever the
+// report held. The statement is on standard error, which reaches the seat beside the count; the
+// form that carries the text says nothing there.
+func TestTheBareAssembledLayoutSaysItCarriesNoText(t *testing.T) {
+	runDir := newRun(t)
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+		t.Fatal(err)
+	}
+	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n")
+	registerBlue(t, runDir)
+	const sentence = "91 is 7 x 13."
+	out, seen, err := runSeen(t, "show", "report", "--assembled", "--run", runDir, "--seat-id", blueSeat)
+	if err != nil {
+		t.Fatalf("the bare layout: %v\n%s", err, out)
+	}
+	if strings.Contains(out, sentence) {
+		t.Fatalf("the bare layout prints the report's text, so this test's premise is gone:\n%s", out)
+	}
+	if !strings.Contains(seen, report.LayoutHasNoText) {
+		t.Errorf("a search of the bare layout finds nothing and nothing says why; standard error carries:\n%q", seen)
+	}
+	out, seen, err = runSeen(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)
+	if err != nil {
+		t.Fatalf("--assembled --json: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, sentence) {
+		t.Errorf("the form the statement names does not carry the report's text:\n%s", out)
+	}
+	if strings.Contains(seen, report.LayoutHasNoText) {
+		t.Errorf("the form that carries the text says it carries none:\n%q", seen)
+	}
+}
