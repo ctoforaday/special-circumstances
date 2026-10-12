@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
 )
 
 // THIS IS THE HALF THAT MATTERS.
@@ -300,6 +301,16 @@ func TestEverySkippedGateSaysWhy(t *testing.T) {
 // exists to remove, reproduced inside it.
 func TestEverySuiteGateDefeatsTheTestCache(t *testing.T) {
 	for _, g := range gateSet() {
+		// A suite run by scripts/testsplit shows no -count=1 in the gate's arguments: the tool
+		// passes it on both of its paths, and its own tests hold it to that
+		// (TestBothPathsDefeatTheTestCache). What is held HERE is that such a gate runs that
+		// tool and nothing else.
+		if g.kind == kindSuite {
+			if len(g.args) < 2 || g.args[1] != "./testsplit" {
+				t.Errorf("suite gate %q runs %v — a tool that is not testsplit, whose cache defeat nothing here vouches for", g.id, g.args)
+			}
+			continue
+		}
 		if g.kind != kindTest && g.kind != kindRace {
 			continue
 		}
@@ -313,6 +324,45 @@ func TestEverySuiteGateDefeatsTheTestCache(t *testing.T) {
 			t.Errorf("gate %q runs %v without %s — a cached PASS is byte-identical to a real one, "+
 				"and only the local run has a cache to be fooled by", g.id, g.args, noCache)
 		}
+	}
+}
+
+// A SPLIT SUITE IS STILL THE WORKFLOW'S SUITE. A module with a row in testsplit's table has its
+// suite run by that tool from `check` and from `golden`, both through testsplit.SuiteArgs. The
+// workflow runs plain `go test ./...` over the same module instead — its runners have too few
+// cores for splitting to pay — and the tool runs the whole of `./...` whatever it splits, so
+// the two cover the same packages. What is held here: the job still runs that plain suite, and
+// does not ALSO run the tool, which would be the suite twice on the slowest box.
+func TestTheSplitSuiteIsTheWorkflowsSuite(t *testing.T) {
+	wf := workflow(t)
+	var held int
+	for _, m := range modules {
+		if !testsplit.Splits(m.dir) {
+			continue
+		}
+		held++
+		var suite, tool int
+		for _, line := range strings.Split(jobBlock(t, wf, m.ciJob), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			if strings.Contains(trimmed, "go test ") && strings.HasSuffix(trimmed, " ./...") && !strings.Contains(trimmed, "-race") {
+				suite++
+			}
+			if strings.Contains(trimmed, "./testsplit") {
+				tool++
+			}
+		}
+		if suite != 1 {
+			t.Errorf("job %s runs plain `go test ... ./...` %d time(s), want once — it is the CI half of the local %s:test gate", m.ciJob, suite, m.ciJob)
+		}
+		if tool != 0 {
+			t.Errorf("job %s runs testsplit; on a four-core runner that is slower than the plain suite it also runs", m.ciJob)
+		}
+	}
+	if held == 0 {
+		t.Fatal("no module has a row in testsplit's table, and this test measured nothing")
 	}
 }
 

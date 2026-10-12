@@ -369,9 +369,9 @@ func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
 
 // sittingOfBlueRespond is the sitting blue-respond's work list is read in: the latest of
 // record.BlueSittings, read while the run is running. sat is false for every other seat, and for a
-// blue-respond the record holds no dispatched sitting of. The gaps the list names as found closed
-// (engagedOf) are read off it — the sitting PositionSittings holds to a position — so the list
-// cannot excuse a position over one set of gaps and name another.
+// blue-respond the record holds no dispatched sitting of. Once blue has registered for its dispatch,
+// the gaps the list names as found closed (engagedOf) are read off it — the sitting PositionSittings
+// holds to a position — so the list cannot excuse a position over one set of gaps and name another.
 func sittingOfBlueRespond(evs []*Event, win WindowIndex, seatID string) (BlueSitting, bool) {
 	if seatID != blueRespondSeat {
 		return BlueSitting{}, false
@@ -383,15 +383,16 @@ func sittingOfBlueRespond(evs []*Event, win WindowIndex, seatID string) (BlueSit
 	return ss[len(ss)-1], true
 }
 
-// EngagedJSON is what blue-respond's dispatch engaged it on, as its sitting found it — the work
-// list's `engaged` (WorkJSON.Engaged).
+// EngagedJSON is what the dispatch blue-respond is to sit for engaged it on — the work list's
+// `engaged` (WorkJSON.Engaged).
 type EngagedJSON struct {
 	// GapIDs are the gaps the dispatch named, in its order.
 	GapIDs []string `json:"gap_ids"`
-	// FoundClosed is each of those a close preceded this sitting's register on — its lens sat first
-	// and closed it. It is what the sitting's envelope names as found closed, and when it holds
+	// FoundClosed is each of those a close landed on after the dispatch and before this sitting's
+	// register — its lens sat first and closed it — or, where the sitting has not registered yet,
+	// before this read. It is what the sitting's envelope names as found closed, and when it holds
 	// every gap of GapIDs the sitting owes no position. Never omitted: an empty list
-	// is "every engaged gap was open when you sat".
+	// is "every engaged gap is open".
 	FoundClosed []FoundClosedJSON `json:"found_closed"`
 }
 
@@ -403,10 +404,26 @@ type FoundClosedJSON struct {
 	Fate         string `json:"fate"`
 }
 
-// engagedOf is the engaged block of blue-respond's sitting, or nil where sittingOfBlueRespond finds
-// none.
+// engagedOf is the engaged block of the dispatch blue-respond is to sit for, or nil where no
+// dispatch names it.
+//
+// IT IS KEYED ON THE DISPATCH, NOT ON THE REGISTER. Blue reads its work list with its dispatch,
+// before it registers, and a block read off its latest registered sitting names the dispatch
+// before: universe-wave-b's blue was dispatched on one set of gaps and read another in `engaged` in
+// four epochs running, and read the whole board to choose between them. So a dispatch the seat has
+// not sat for (owedSitting — the reading the "you have not registered" item on this list comes
+// from) is the block, split by the closes that have landed since its row (engagementOf); once the
+// seat registers, the block is the sitting's own (sittingOfBlueRespond), which is that same split
+// read up to the register.
 func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
-	s, sat := sittingOfBlueRespond(evs, win, seatID)
+	if seatID != blueRespondSeat {
+		return nil
+	}
+	live := Live(evs)
+	s, sat := sittingOfBlueRespond(live, win, seatID)
+	if d, owed := owedSitting(live, win, seatID); owed {
+		s, sat = engagementOf(live, d, int64(len(live))), true
+	}
 	if !sat {
 		return nil
 	}

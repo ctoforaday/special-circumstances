@@ -596,8 +596,8 @@ type WorkJSON struct {
 	// Counterparty answers "has the other side acted, and on what" — a question the record could
 	// always answer and no view would.
 	Counterparty CounterpartyJSON `json:"counterparty"`
-	// Engaged is the dispatch blue-respond is sitting for and which of its gaps the sitting found
-	// already closed. An object for blue-respond once its dispatched sitting is on the record, its
+	// Engaged is the dispatch blue-respond is to sit for — the latest naming it, registered for or
+	// not — and which of its gaps are found closed. An object for blue-respond once a dispatch names it, its
 	// found_closed list explicit even when empty; null for every other seat — none is dispatched to
 	// answer a gap another seat can close first. The key is never omitted: the help's field tree
 	// names it, and a top-level key a reader was told of and cannot find reads as a failed read.
@@ -753,6 +753,14 @@ type WorkGapJSON struct {
 	// regrade this gap. requireOriginator refuses any other seat, so a reader that has to derive
 	// this is deriving a refusal it could have been handed.
 	YoursToClose bool `json:"yours_to_close"`
+	// RegradesOwed is every grade motion on this gap that was ACCEPTED and that no regrade has
+	// followed, on the list of the seat whose regrade the write path admits — the gap's minting
+	// lens: the motion, the axis it contested and the grade the ruling accepted. It is the
+	// structured twin of the list's "had a grade motion ACCEPTED and no regrade followed it" item,
+	// from the same reader (regradesAfforded), so the sentence and the fields cannot name different
+	// motions. Never omitted: an empty list is "no accepted grade waits on you here", on every
+	// other seat's list as on a gap nobody contested.
+	RegradesOwed []OwedRegradeJSON `json:"regrades_owed"`
 	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
 	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
@@ -1133,6 +1141,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				// from any other seat; a reader deriving this from MintedBy is deriving a refusal
 				// it could have been handed. Empty reader (the oracle) is nobody's list, so false.
 				YoursToClose: reader != "" && g.MintedBy == reader,
+				RegradesOwed: []OwedRegradeJSON{},
 				CheckKind:    g.CheckKind, AwaitingProof: g.AwaitingProof,
 				Remanded: g.Remanded, DocketReopensOn: g.DocketReopensOn, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
@@ -1269,6 +1278,15 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	w := workJSONOfGaps(gaps, epoch-1, backingOf(evs), seatID)
 	w.Sitting = SittingOf(evs, win.IDs(evs), win, gaps, role, seatID)
 	if role == "lens" {
+		// The lens arm of the sitting's list states these in a sentence (availableOf); the fields
+		// are the same reader's rows, joined to the gap they are about.
+		for _, o := range regradesAfforded(evs, win, gaps, mintedBy(evs), seatID) {
+			for i := range w.Open {
+				if w.Open[i].ID == o.GapID {
+					w.Open[i].RegradesOwed = o.Motions
+				}
+			}
+		}
 		// THE MINTS LEFT, ON THE LIST A LENS DECIDES "GAP OR FINDING" FROM. It is not read off the
 		// snapshot above: the count and the measure are the write path's own reads
 		// (lensMintStanding), so the list states the number the next mint is judged against. The

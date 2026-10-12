@@ -82,7 +82,7 @@ func main() {
 
 // subsumeGoldenLegs tells the golden gate which of its go legs THIS run already executes.
 //
-// golden's go leg per module is `go test -count=1 ./...` — byte-for-byte the module's `:test`
+// golden's go leg per module is the module's suite command — byte-for-byte the module's `:test`
 // gate — so a check run that includes both runs the same suite twice, sequentially: ~620s of a
 // ~1550s local run re-deriving a result the run already has (#626). The subsumption is only
 // claimed when the module's test gate is actually in the selected set (an `-only golden` run
@@ -199,7 +199,7 @@ func runGate(root string, g gate, base string) result {
 		return result{gate: g, status: "PASS", took: took}
 	case kindNode:
 		cmd = exec.Command("node", g.args...)
-	case kindTool:
+	case kindTool, kindSuite:
 		// BUILT, then run — never `go run`. `go run` collapses ANY non-zero exit to 1, so a
 		// tool's exit code cannot reach this function through it: exitNotMeasured (3) arrived
 		// here as 1 and was reported as a failure, indistinguishable from a real one. Measured
