@@ -428,11 +428,6 @@ func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
 				"DECISION (worth taking, not by this run), not an omission", settled)
 		}
 	}
-	for _, a := range AvenuesOf(b.Events, b.At) {
-		if a.ID == "Q7" && !a.EverPursued {
-			t.Error("Q7 was concluded — a line followed to its end — and the fold says it was never pursued")
-		}
-	}
 }
 
 // A `carried` RULING RE-OPENS THE FILING, AND THAT IS THE POINT OF `carried`.

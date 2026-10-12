@@ -19,7 +19,7 @@ func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
 	md := strings.Join([]string{
 		"# report", "",
 		"## The Catechism", "", "Q1: kept  as-is.  ", "", // trailing spaces preserved inside
-		"```", "## Technical foundations", "not a heading — inside a fence", "```", "",
+		"```", "## Open questions", "not a heading — inside a fence", "```", "",
 		"## Analysis", "", "the analysis.", "",
 	}, "\n")
 	a := &assembly{blue: part(md)}
@@ -37,14 +37,15 @@ func TestSectionCopiesVerbatimAndIsFenceAware(t *testing.T) {
 	if !strings.Contains(cat, "Q1: kept  as-is.") {
 		t.Errorf("catechism not copied verbatim: %q", cat)
 	}
-	// The fenced "## Technical foundations" must NOT end the Catechism section.
+	// The fenced "## Open questions" must NOT end the Catechism section.
 	if !strings.Contains(cat, "not a heading — inside a fence") {
 		t.Errorf("a ## inside a code fence wrongly ended the section: %q", cat)
 	}
-	// A real "## Technical foundations" section does not exist (only the fenced one), so it
-	// is reported missing rather than authored.
-	if got := lift(a, row("Technical foundations")); !strings.Contains(got, "not authored here") || strings.Contains(got, "inside a fence") {
-		t.Errorf("a fenced heading was mistaken for a real one, or a missing section was authored: %q", got)
+	// A real "## Open questions" section does not exist (only the fenced one), so the row ships
+	// NOTHING: no text is authored in its place, and no line about the run or its seats stands in
+	// the reader's document for it (universe-m21 shipped two such lines).
+	if got := lift(a, row("Open questions")); got != "" {
+		t.Errorf("a fenced heading was mistaken for a real one, or a missing section was given text: %q", got)
 	}
 	// ONE READING OF A HEADING, for the lift and for everything else that reads one: case, runs
 	// of whitespace, an anchor on the heading line, the note reference the weave leaves where a
@@ -143,10 +144,11 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	}
 }
 
-// THE FATE WORD MUST NOT CLAIM A HISTORY THE RECORD DOES NOT HOLD. `abandoned` reads as "tried,
-// then died", and `move` accepts abandoning straight from `proposed` — once each in #861's B and
-// B3, both real attempts whose seat skipped the `pursued` move. The row says which it was.
-func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
+// THE ROW'S TAG IS THE FATE THE SEAT RECORDED, WHATEVER PATH LED TO IT. `abandoned` means tried and
+// died, and a seat that abandons straight from `proposed` chose that word for a line it ran — on
+// universe-m21 a hypothesis a computed result refuted, printed as "[abandoned before pursuit]"
+// beside the proof that computes it. `concluded` straight from `proposed` gets the plain tag too.
+func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("sieve to the square root")}),
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("the bound is 9, so the sieve adds nothing")}),
@@ -157,8 +159,11 @@ func TestAnAbandonmentWithNoPursuitSaysSo(t *testing.T) {
 	if !strings.Contains(alt, "**sieve to the square root** [abandoned] —") {
 		t.Errorf("a line pursued and then abandoned keeps the plain tag:\n%s", alt)
 	}
-	if !strings.Contains(alt, "**check a computer-algebra system** [abandoned before pursuit] —") {
-		t.Errorf("a line abandoned with no pursued step must say so:\n%s", alt)
+	if !strings.Contains(alt, "**check a computer-algebra system** [abandoned] —") {
+		t.Errorf("a line abandoned straight from proposed carries the fate its seat recorded:\n%s", alt)
+	}
+	if strings.Contains(alt, "before pursuit") {
+		t.Errorf("the row says something about the path that no seat recorded:\n%s", alt)
 	}
 }
 
@@ -344,11 +349,9 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 			}
 		}
 	}
-	// The avenue rule reaches the seats that write the report in the table's own sentence.
-	for _, seat := range []string{"blue-synthesize", "blue-lane-1"} {
-		if !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
-			t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, AvenueSections)
-		}
+	// The avenue rule reaches the seat that records an approach's fate in the table's own sentence.
+	if seat := "blue-lane-1"; !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
+		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, AvenueSections)
 	}
 }
 
@@ -385,7 +388,7 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 // run. Not refused: Proofs and Motions, composed into other documents under names a subject uses.
 func TestTheHeadingsRefusedInTheReportsTextAreTheRuling(t *testing.T) {
 	refused := []string{"Outcome", "Risk matrix", "Research areas", "Future research directions", "Alternatives considered",
-		"Additional findings", "Bibliography", "The board", "The debate", "How this run was conducted", "The verdict's basis",
+		"Bibliography", "The board", "The debate", "How this run was conducted", "The verdict's basis",
 		"Log (what the run told the operator)", "Record verification", "Claims retired", "Superseded bench statements"}
 	if got := RefusedHeadings(); !slices.Equal(got, refused) {
 		t.Errorf("the refused headings are\n  %q\nwant\n  %q", got, refused)
@@ -457,7 +460,6 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		{"# t\n\n## TL;DR\nx\n\n## Alternatives  Considered\ny\n", "## Alternatives  Considered", "Alternatives considered"},
 		{"## risk matrix<!--fx:F-00000aaa-->\n", "## risk matrix<!--fx:F-00000aaa-->", "Risk matrix"},
 		{"  ## The Board (in full)\n", "## The Board (in full)", "The board"},
-		{"## Additional findings\n", "## Additional findings", "Additional findings"},
 		{"# t\n**outcome:** VERIFIED\n\n## TL;DR\nx\n", "**outcome:** VERIFIED", "Outcome"},
 	} {
 		line, s, found := ComposedIn("", tc.doc)
@@ -477,6 +479,9 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 		"## Analysis\n\n```\n## Risk matrix\n```\n",
 		"## Alternatives considered and rejected\n",
 		"## Analysis\n\n**Outcome:** the test passes.\n",
+		// No heading stands above the report's own sections, so none is the tool's to refuse there.
+		"## Additional findings\n",
+		"## Technical foundations\nx\n\n## Analysis\ny\n\n## " + bodyHeading + "\nz\n",
 	} {
 		if line, _, found := ComposedIn("", doc); found {
 			t.Errorf("ComposedIn(%q) found %q; that text claims no section the tool composes", doc, line)
@@ -739,8 +744,8 @@ func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 }
 
 // EVERY LINE OF THE REPORT'S TEXT SHIPS, ONCE. The text is parted among the rows that place it —
-// the title, the first section under each lifted heading, and the rest under "Additional
-// findings" — and nothing is in none of them. universe-m20 lost a section, a proof and fifteen
+// the title, the first section under each lifted heading, and the rest as the body — and nothing
+// is in none of them. universe-m20 lost a section, a proof and fifteen
 // other anchors to a list of headings the composer left out; the composer keeps no such list.
 func TestEveryLineOfTheReportsTextShipsOnce(t *testing.T) {
 	blue := strings.Join([]string{
@@ -750,12 +755,16 @@ func TestEveryLineOfTheReportsTextShipsOnce(t *testing.T) {
 		"```", "# a comment in a code block", "```",
 		"",
 		"## TL;DR", "lifted to the top.", "",
-		"## Analysis", "also lifted.", "",
+		"## Open questions", "also lifted.", "",
+		// Headings the table no longer places: sections of the report's own, in the body.
+		"## Technical foundations", "what is established.", "",
+		"## Analysis", "the argument.", "",
+		"## Additional findings", "a section its author gave that name.", "",
 		// What the write refuses and a migrated record can still hold: kept whole, anchors and all.
 		"## Alternatives considered", "an approach weighed<!--proof:P-00000001-->.", "",
 		"## Risk Matrix", "a risk row.", "",
-		"## Analysis", "a second section under a lifted heading.", "",
-		"##  analysis (in full)", "and a third, spelled another way.", "",
+		"## Open questions", "a second section under a lifted heading.", "",
+		"##  open questions (in full)", "and a third, spelled another way.", "",
 		"## Appendix: raw benchmarks", "novel blue content.", "",
 	}, "\n")
 	got := part(blue)
@@ -783,11 +792,21 @@ func TestEveryLineOfTheReportsTextShipsOnce(t *testing.T) {
 	if strings.Contains(got.rest, "lifted to the top") || strings.Contains(got.rest, "also lifted") {
 		t.Errorf("a lifted section is embedded a second time:\n%s", got.rest)
 	}
-	if got.lifted["analysis"] != "## Analysis\nalso lifted." {
-		t.Errorf("the lift takes the first section under the heading: %q", got.lifted["analysis"])
+	if got.lifted["open questions"] != "## Open questions\nalso lifted." {
+		t.Errorf("the lift takes the first section under the heading: %q", got.lifted["open questions"])
+	}
+	// THE BODY IS THE REPORT'S OWN SECTIONS IN THE ORDER WRITTEN, whatever they are named: the two
+	// headings the table once placed and the one it once wrote above the body are sections like
+	// any other.
+	body := "## Technical foundations\nwhat is established.\n\n## Analysis\nthe argument.\n\n## Additional findings\na section its author gave that name.\n\n## Alternatives considered"
+	if !strings.Contains(got.rest, body) {
+		t.Errorf("the body does not hold the report's own sections whole and in the order written:\n%s", got.rest)
+	}
+	if len(got.lifted) != 2 {
+		t.Errorf("the table lifts %d section(s) of this report, want TL;DR and Open questions: %v", len(got.lifted), got.lifted)
 	}
 	// A perfectly-scoped report (only lifted sections) leaves nothing to embed.
-	if e := part("# t\n\n## TL;DR\nx\n\n## Analysis\ny\n").rest; e != "" {
+	if e := part("# t\n\n## TL;DR\nx\n\n## Open questions\ny\n").rest; e != "" {
 		t.Errorf("a report of lifted sections alone should leave nothing to embed, got:\n%s", e)
 	}
 }

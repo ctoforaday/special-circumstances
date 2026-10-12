@@ -1,12 +1,14 @@
-prompt sha256: c3ff7a7c65b0e335ef5356de21ccc130c48a63384906aa3c0e8d02546457e5af
+prompt sha256: ff2ef7bd2845e6bf13fbe17a54d17892836453eab143cc4c7d4e269274930588
 
 Red lens sitting, area logic, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `avenues` projection (the tool renders it fresh from the avenue events on the record).
 Blue's DECLINED and ABANDONED avenues are the case AGAINST its own design, and nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
 Attack the reasons, not just the conclusions: a declined avenue whose stated reason does not hold is a finding, and so is an abandoned one whose obituary is wrong.
 RECONCILE THE RECORD AGAINST THE DOCUMENT: the avenues the report actually took must be the ones on the record.
-A section built on an avenue that was never proposed is undeclared scope; an avenue still at `proposed`, or at `pursued` and NOT moved this sitting, is a decision nobody made.
-Both are findings.
+Assembly prints every avenue in the report, with its fate and its reason, in sections the report's text does not hold: read them in the report's assembled form before you grade an avenue.
+Where the two tell the reader different things — one approach under two fates; a fate the report's own text or a proof contradicts, as an approach printed as declined that a section carries; a section built on an approach that is no avenue — that is a candidate gap, anchored to the avenue and weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer.
+A contradiction left as a finding ships: a finding about an avenue is on no seat's work list and obliges nobody.
+An avenue still at `proposed`, or at `pursued` and NOT moved this sitting, is a decision nobody made, and that is a finding.
 Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that sitting — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 A line declared in the first epoch and never revisited is the common case, and there 'pursued' means only 'I intend to' — nothing falsifies it.
 YOUR SITTING IS ON YOUR WORK LIST: read `sitting.last_sitting` first — its kind decides what to audit.

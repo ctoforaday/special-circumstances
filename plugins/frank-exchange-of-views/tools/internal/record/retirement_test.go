@@ -441,3 +441,31 @@ func TestAnEmptyWorkListSaysSoRatherThanReturningNothing(t *testing.T) {
 		t.Error("stating that the list is empty made the sitting incomplete — having nothing to do is not work")
 	}
 }
+
+// THE SENTENCE IS NOT SAID TO A SEAT DISPATCHED TO WRITE. The frontier, a lane and the synthesizer
+// hold no item for the avenues, the draft or the report they were dispatched to write, so their
+// list is empty before they have begun; "no other projection holds work for you … ending your turn
+// now is the correct act" there denies the dispatch. universe-m21's synthesizer read it, looked at
+// nothing else on the record, and proposed five approaches the record already held. Blue's
+// responding seat is dispatched onto gaps, which are items, and keeps the sentence.
+func TestTheEmptyListSentenceIsNotSaidToASeatDispatchedToWrite(t *testing.T) {
+	seats := []string{"frontier", "blue-lane-1", "blue-synthesize", blueRespondSeat}
+	b := newStage(t).cast(append([]string{evLens, "red-chair", "judge"}, seats...)...).ingest()
+	for _, seat := range seats {
+		b.register(seat) // a sitting that has opened and recorded nothing: the list as dispatch delivers it
+	}
+	run := b.seed()
+	for _, seat := range seats {
+		s := sittingOfRunT(t, run, "blue", seat)
+		told := listsItem(s, "this list is complete, not empty")
+		if want := seat == blueRespondSeat; told != want {
+			t.Errorf("%s: told its list is complete and its turn should end = %v, want %v: %+v", seat, told, want, s.Open)
+		}
+		if seat != blueRespondSeat && len(s.Open) != 0 {
+			t.Errorf("%s holds items on a record with nothing for it: %+v", seat, s.Open)
+		}
+		if !s.Complete {
+			t.Errorf("%s: a list with nothing owed is not complete", seat)
+		}
+	}
+}

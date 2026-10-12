@@ -398,6 +398,23 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // finds is read through the run's cache so every later seat reads the same bytes.
   assert.ok(!/heredoc/.test(evidence) && !/curl/.test(evidence), 'the lens prompt contradicts its manual on heredocs or bypasses the shared source cache')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
+  // AN AVENUE THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The avenues print
+  // in the report beside the body, so the reader sees both halves. On universe-m21 two lenses filed
+  // eleven findings about approaches printed under two fates and minted none: the clause said "Both
+  // are findings", a finding about an avenue is on no seat's work list, and the report shipped the
+  // contradictions. The lens reads the avenue sections as they ship before it grades one.
+  for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
+    const p = firstPrompt(world, seat)
+    assert.ok(/that is a candidate gap, anchored to the avenue/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no avenue/.test(p),
+      `${seat} is not told that an avenue contradicting the report is a gap`)
+    assert.ok(/read them in the report's assembled form before you grade an avenue/.test(p), `${seat} is not told to read the avenue sections as they ship`)
+    assert.ok(/A contradiction left as a finding ships: a finding about an avenue is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an avenue contradiction as a finding`)
+    // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch spends a
+    // lens's budget — one mint, in a smoke — on a duplicate row, against the same prompt's "not on
+    // nitpicks"; and the lens that filed findings on universe-m21 had judged by the answer alone.
+    assert.ok(/weighed like any other: by what it changes for a reader, who decides by what was tried as well as by the answer/.test(p) && !/YOU MINT A GAP/.test(p),
+      `${seat} is told to mint whatever the mismatch changes for a reader`)
+  }
   assert.ok(!/STEELMAN DUTY/.test(evidence) && !/take slice|instance \d+ of/.test(evidence), 'the evidence seat verifies sources and owns no slice')
 
   // THE FULL RE-READ IS SCOPED TO THE KIND THAT ORDERS IT, and this is the measurement that put it
@@ -426,7 +443,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
-    'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
+    'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
@@ -613,19 +630,42 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
     'the synthesis prompt restates the verbs\' report content rule instead of pointing at it')
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
   assert.ok(synth.includes('## The board') && synth.includes('is FABRICATION') && synth.includes('ONLY WHAT YOU CAN AUTHOR'))
+  // THE REPORT'S SECTIONS ARE ITS AUTHOR'S TO NAME. The prompt listed "technical foundations,
+  // analysis" among what blue authors, the same prompt asks that each section name the reader's
+  // question, and on universe-m21 the report had neither heading: it shipped a "not authored"
+  // line under each and a gap for lacking them.
+  assert.ok(/the sections of your argument under headings you choose/.test(synth) && !/technical foundations|Additional findings/i.test(synth),
+    'the synthesis prompt names a heading the report owes, or one the tool writes above its sections')
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  assert.ok(/AVENUES/.test(synth) && /dead ends matter most/.test(synth) && /CONSIDERED, not only the one you took/.test(synth))
-  // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL. The sentence here read "alternatives reach
-  // the reader under their own headings" with no actor, among imperatives to blue, and the
-  // synthesizer wrote those headings. The prompt says who composes the three sections, which fate
-  // lands under which, and that blue writes none of them; and its list of the tool's sections
-  // names all three and the bibliography.
-  assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(synth) && /You write none of those three headings in the report/.test(synth))
-  assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(synth))
+  // THE SYNTHESIZER RECORDS NO AVENUE, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
+  // approaches are the frontier's and the lanes', who did the work. Handed the lanes' avenue
+  // paragraph on universe-m21, it proposed five approaches that were already on the record without
+  // reading it, and the report printed one approach as concluded and as abandoned. What it is told
+  // is what the report holds of them: the tool composes the three sections, and the report carries
+  // no list of approaches under any heading.
+  assert.ok(!/AVENUES:/.test(synth) && !/the hypothesis that would be true if it paid off/.test(synth) && !/NO FATE IS OWED/.test(synth) && !/The line you propose/.test(synth),
+    'the synthesis prompt carries the avenue paragraph: the synthesizer is asked to record approaches')
+  assert.ok(/The approaches the research considered are among them: each is an avenue on the record, where what became of it is said, and the report carries no list of them\./.test(synth),
+    'the synthesis prompt must say the report carries no list of the approaches')
   for (const h of ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Bibliography']) {
     assert.ok(synth.includes('Do NOT write any of') && synth.includes('`## ' + h + '`'), 'the synthesis prompt does not name ## ' + h + ' among the sections assembly composes')
   }
   assert.ok(!/reach the reader under their own headings|left for a later run/.test(synth), 'the synthesis prompt cues blue to head a section of its own with the avenues')
+  // AN APPROACH IS RECORDED WITH THE FATE IT HAD, AND NO FATE IS OWED AN ENTRY: the lanes' paragraph.
+  // A prompt that asks for "what you considered and declined" is read as asking for a declined
+  // avenue: on universe-m21 a lane with nothing it had weighed and set down ran a check, then
+  // proposed and declined it four seconds later, and the report printed one approach as concluded
+  // and as declined. "Your part is the record: you put each approach on it" pressed the same way.
+  for (const lane of labelsOf(world, 'blue-lane').map((c) => c.prompt)) {
+    assert.ok(/AVENUES:/.test(lane) && /NO FATE IS OWED AN ENTRY/.test(lane) && /declined is ONLY an approach you weighed and did not run/.test(lane),
+      'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
+    assert.ok(!/not only the one you took/.test(lane) && !/considered and declined is what makes/.test(lane) && !/dead ends matter most/.test(lane) && !/you put each approach on it/.test(lane),
+      'the avenue clause presses for an entry')
+    // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
+    // fate lands under which, and that blue writes none of them.
+    assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))
+    assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
+  }
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of
   // 39 results carried the literal "not computed", which the verb's own help concedes — the rows

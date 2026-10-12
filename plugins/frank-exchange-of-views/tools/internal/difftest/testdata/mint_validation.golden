@@ -110,7 +110,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    avenue   an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind
@@ -166,21 +166,13 @@ indistinguishable from one that never looked._
 
 **Outcome:** NONE (no terminal outcome on the record)
 
-## TL;DR
+## S2
 
-_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+A claim sits under S2.
 
-## The Catechism
+## S4
 
-_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
-
-## Technical foundations
-
-_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
-
-## Analysis
-
-_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+A claim sits under S4.
 
 ## Risk matrix
 
@@ -201,17 +193,3 @@ _(none on the record)_
 ## Alternatives considered
 
 _(none on the record)_
-
-## Open questions
-
-_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
-
-## Additional findings
-
-## S2
-
-A claim sits under S2.
-
-## S4
-
-A claim sits under S4.

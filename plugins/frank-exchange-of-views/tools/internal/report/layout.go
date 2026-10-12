@@ -29,8 +29,15 @@ import (
 // heading composed into another document is refused when what stands under it is an account of
 // the run its author cannot know — the board, the debate, the verdict's basis. "Proofs" and
 // "Motions" are neither: a section of that name in the report's text meets no section of the
-// tool's in report.md, ships whole and once under "Additional findings", and is what a report
-// on a theorem or on a legislature calls a section of its own.
+// tool's in report.md, ships whole and once among the report's own sections, and is what a
+// report on a theorem or on a legislature calls a section of its own.
+//
+// THE REPORT'S STRUCTURE IS ITS AUTHOR'S. The table places the three sections a report is asked
+// to carry, and every other section of its text ships as the body, in the order written, under
+// the heading its author gave it. A row for a heading the report need not have is a slot that
+// reads as unfilled: universe-m21's sections named the reader's questions, and it shipped a line
+// under two fixed headings saying neither was authored, with its argument after the tool's
+// sections under a heading of the tool's.
 
 // Who composes a section.
 const (
@@ -44,7 +51,7 @@ type Section struct {
 	File string
 	// Heading names the section. It ships as "## <Heading>" unless Line is set: assembly writes
 	// that line above a section the tool composes (block), and the report's own carries its
-	// author's.
+	// author's. The body's row (embeds) names what it holds and ships no heading of that name.
 	Heading string
 	// Line is how a section with no heading opens: it ships as one line that starts with this.
 	Line string
@@ -61,7 +68,7 @@ type Section struct {
 	// heading the tool composes is refused in the report's text.
 	SubjectHeading bool
 
-	// embeds marks the section that carries the report's own sections under their own headings.
+	// embeds marks the body: the report's own sections, each under the heading its author gave it.
 	embeds bool
 	// fate, on an avenue section, is which avenue statuses it holds.
 	fate func(status string) bool
@@ -94,7 +101,8 @@ const (
 
 	blueTextPath = "The report's text: the opening synthesis writes it and blue's `edit` amends it."
 	liftedFrom   = "the section of this name in the report's text, lifted whole"
-	liftedPath   = blueTextPath + " A report with no section of this name ships a line saying so in its place."
+	liftedPath   = blueTextPath + " A report with no section of this name ships without one."
+	bodyHeading  = "The report's own sections"
 	noSeatPath   = "No seat's act reaches it."
 
 	// The two sections a pass over the whole document writes, after the rows are composed: the
@@ -117,8 +125,12 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { _, q := heading(a.blue.title); return q }},
 	{File: FileReport, Heading: "TL;DR", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
 	{File: FileReport, Heading: "The Catechism", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	{File: FileReport, Heading: "Technical foundations", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	{File: FileReport, Heading: "Analysis", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
+	// THE BODY: after the two surfaces that open the report and before every section the tool
+	// composes, so the reader meets the argument before the record's account of it.
+	{File: FileReport, Heading: bodyHeading, Composer: Blue, embeds: true,
+		From:    "every part of the report's text that no other row places, whole and in the order written, each section under the heading its author gave it",
+		Path:    blueTextPath + " Each section stands under a heading of its author's choosing, and assembly writes none above it.",
+		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
 	{File: FileReport, Heading: "Risk matrix", Composer: Tool,
 		From:    "the open gaps on the board, one row for each: its problem, its grades and its required fix",
 		Path:    "No act of blue's adds a row. A lens's `mint` opens a gap and with it a row, and the lens's `close` takes the row out; blue's `edit` answering the gap is what the lens closes on. A risk the report itself argues for is prose in the section that makes the claim.",
@@ -129,12 +141,6 @@ var layout = []Section{
 	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: avenues},
 	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: rejected, compose: avenues},
 	{File: FileReport, Heading: "Open questions", Composer: Blue, From: liftedFrom, Path: liftedPath, compose: lift},
-	// THE HEADING NAMES WHAT THE TEXT IS, not which seat wrote it: this is the one document where
-	// attribution is forbidden. The section is omitted when the report's text holds nothing more.
-	{File: FileReport, Heading: "Additional findings", Composer: Tool, embeds: true,
-		From:    "every part of the report's text that no row above lifts, whole and in the order written, each section under the heading its author gave it",
-		Path:    "The report's text, under a heading of its own: the opening synthesis writes the section and blue's `edit` adds or amends one. Assembly writes this heading above them; the report's text does not carry it.",
-		compose: func(a *assembly, _ Section) string { return a.blue.rest }},
 	{File: FileReport, Heading: bibliographyHeading, Composer: Tool,
 		From: "the citations and proofs anchored in the text: each anchor becomes a numbered note where it stands, the notes follow the body, and each cited source is listed once",
 		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
@@ -280,7 +286,7 @@ func RefusedHeadings() []string {
 
 // OwnInTheReport finishes a sentence about a SubjectHeading section, wherever one is described:
 // what a section of that name in the report's text is.
-const OwnInTheReport = "a section of that name in the report's text is the report's own, and ships whole in " + FileReport + " under Additional findings"
+const OwnInTheReport = "a section of that name in the report's text is the report's own, and ships whole in " + FileReport + " among the report's own sections"
 
 // SubjectHeadingsNote names the sections the tool composes in other documents under a name the
 // report's text may use, on the pages that list the refused ones.
@@ -464,15 +470,15 @@ type blueText struct {
 }
 
 // part splits the report's text among the rows that place it. NOTHING IS LEFT OVER: the title
-// line, the first section under each lifted heading, and the rest, which ships whole under
-// "Additional findings" — a second section under a lifted heading, text before the first heading
-// and a section under a heading the tool composes included. Of the last, a live seat writes only
-// one under a SubjectHeading; a record migrated from before the refusal can hold any, and ships it
-// there with every anchor it carries.
+// line, the first section under each lifted heading, and the rest, which ships whole as the body
+// — a second section under a lifted heading, text before the first heading and a section under a
+// heading the tool composes included. Of the last, a live seat writes only one under a
+// SubjectHeading; a record migrated from before the refusal can hold any, and ships it there with
+// every anchor it carries.
 func part(blue string) blueText {
 	lifts := map[string]bool{}
 	for _, s := range layout {
-		if s.Composer == Blue && s.Line == "" {
+		if s.Composer == Blue && s.Line == "" && !s.embeds {
 			lifts[normalizeHeading(s.Heading)] = true
 		}
 	}
@@ -508,11 +514,6 @@ func part(blue string) blueText {
 	return out
 }
 
-// lift copies blue's section verbatim, or says in one line that it is missing — never authoring
-// a replacement.
-func lift(a *assembly, s Section) string {
-	if text, ok := a.blue.lifted[normalizeHeading(s.Heading)]; ok {
-		return text
-	}
-	return fmt.Sprintf("## %s\n\n_(blue/report.md has no \"## %s\" section — not authored here; blue owns this surface and red audits it.)_", s.Heading, s.Heading)
-}
+// lift copies blue's section verbatim. A report with no section of that name ships none, and the
+// assembled layout is where a seat reads that the row is not in the set.
+func lift(a *assembly, s Section) string { return a.blue.lifted[normalizeHeading(s.Heading)] }

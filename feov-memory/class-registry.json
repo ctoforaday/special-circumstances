@@ -162,9 +162,9 @@
     {
       "slug": "structure-noncompliance",
       "material_default": "never",
-      "definition": "the living report's analytical core omits a structural element the protocol's report template requires (e.g. a graded likelihood x impact x complexity risk matrix), carrying the raw material only as unordered prose",
+      "definition": "the report's structure does not carry its argument: material a reader has to take in order is present only as unordered prose, or a part of the answer has no place in it. The report's sections are its author's to name and order, and a heading the report does not have is not this",
       "neighbor": "risk-cross-term-ungraded",
-      "distinguisher": "risk-cross-term-ungraded is two risks that ARE discussed but not jointly graded; structure-noncompliance is the ABSENCE of the required graded-matrix element entirely, for ALL risks, not just an interacting pair",
+      "distinguisher": "risk-cross-term-ungraded is two risks that ARE discussed but not jointly graded; structure-noncompliance is material the report holds with no order a reader can follow it by, whatever its subject",
       "_promoted": "gblock, 2026-09-11"
     },
     {

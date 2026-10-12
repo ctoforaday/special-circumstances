@@ -127,7 +127,7 @@ how bad this is: low | low_medium | medium | medium_high | high | certain | real
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    avenue   an avenue, by its id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor
+    avenue   an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
 §14 (on 3 pages):
@@ -375,7 +375,7 @@ Usage:
 
 Flags:
       --about string                    → SHARED §11
-      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it
+      --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an avenue reaches no seat's work list; a gap anchors to an avenue the same way, and a material one is on blue's
   -h, --help                            help for finding
       --impact grade                    how bad the consequence is if it lands
       --key string                      your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. Only finding and mint take a handle: no other verb on this surface has this flag
@@ -732,7 +732,7 @@ Use "feov-record show [command] --help" for more information about a command.
 $ feov-record show avenues --help
 the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],ever_pursued,seat_id,ruling}]}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -845,7 +845,7 @@ THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just 
 
 --json gives the same lines structured: `lines` is every line you asked for — the whole report, the window under --anchor, the matching lines under --match or --quote — each with its `line` number and the section `heading` it sits under, and `head` is the report head they were read at. Under --match or --quote, `selection` says how many lines matched and of how many. The bare call is the form to READ; this is the form to select from.
 
-THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Additional findings, Bibliography, The board, The debate, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. Blue's `ingest` and `edit` refuse report text that carries one. --assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`.
+THIS IS THE REPORT'S TEXT, NOT THE ASSEMBLED REPORT. Assembly places this text among sections it composes from the record, and none of those is in what this prints: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements. Blue's `ingest` and `edit` refuse report text that carries one. --assembled reads the set as the run ships it: every section in shipping order, who composes it and from what, and how content reaches it. With --assembled --json each section that ships carries its `text` as the reader gets it, anchors resolved — the form in which a composed section is read or audited: pipe it to `jq` and select on `heading`.
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[{line,heading,text}]}
 

@@ -6,7 +6,12 @@
              audited by red every sitting (red
              re-reads the full report each sitting), and LIFTED VERBATIM here. A synthesis
              surface authored at assembly would be authored after red's last audit, so it
-             lives in the audited document instead. A missing one is flagged, never filled.
+             lives in the audited document instead. A missing one is never filled: it ships
+             nothing, and the report view's assembled form says the section is not in the set.
+
+  THE REPORT'S STRUCTURE IS ITS AUTHOR'S. report.md's [BLUE] entries below are the three surfaces
+  the report is asked to carry and the body between them; no other heading is required of it, and
+  none is audited for being absent. What is audited is whether the structure carries the argument.
 
     [RECORD] — composed by the tool from the record + board. The source of truth is the
                record, records/record.db; the views are rendered from it on read, never materialized.
@@ -45,9 +50,14 @@
 
 ## The Catechism                         <!-- [BLUE] the agreed answers, the case against at full strength (see catechism_template.md) -->
 
-## Technical foundations                 <!-- [BLUE] what is established, with leaf-node citations -->
-
-## Analysis                              <!-- [BLUE] the argument from foundations to conclusions -->
+## <The report's own sections>           <!-- [BLUE] the body: every section of the report's text that is not one of the
+                                              lifted surfaces, whole and in the order written, each under the heading
+                                              its author gave it — a heading that names the reader's question the
+                                              section answers. No heading stands above them and this entry is not one.
+                                              A [RECORD] heading of this template written into the report's text is
+                                              refused when the report is frozen and at every edit; the refusal says how
+                                              content reaches that section, and the report view's assembled form lists
+                                              it for all of them. -->
 
 ## Risk matrix                           <!-- [RECORD] every open gap's grades, from the board -->
 
@@ -66,22 +76,12 @@
                                               opposite of its fate. -->
 
 ## Alternatives considered               <!-- [RECORD] avenues DECLINED (weighed, not taken) and ABANDONED (tried, died) —
-                                              each with its reason (the counter), in the subject's terms. A line abandoned
-                                              with no `pursued` step on the record is tagged [abandoned before pursuit], so
-                                              the tag never claims a pursuit the record does not hold. Who proposed a
+                                              each with its reason (the counter), in the subject's terms. The tag is the
+                                              fate its seat recorded, whatever path led to it. Who proposed a
                                               line, the path its status took and red's ruling are the debate,
                                               not the subject: they render in avenues.md and judgments.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
-
-## Additional findings
-                                         <!-- [RECORD] the heading; [BLUE] everything under it: every part of the
-                                              report's text that is not one of the lifted surfaces above, whole and in
-                                              the order written, each section under its author's own heading. Omitted
-                                              when the report's text holds nothing more. A [RECORD] heading of this
-                                              template written into the report's text is refused when the report is
-                                              frozen and at every edit; the refusal says how content reaches that
-                                              section, and the report view's assembled form lists it for all of them. -->
 
 ## Bibliography                          <!-- [RECORD] COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
                                               not type a note or a reference by hand: assembly weaves every invisible

@@ -322,7 +322,15 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// The statement is an ITEM rather than a field because `open` is what a seat reads; a seat that
 	// checks one place and finds a sentence has been answered, where a seat that finds `[]` has not.
 	// It is non-blocking, because having nothing to do is not an obligation.
-	if len(s.Open) == 0 {
+	//
+	// IT IS SAID TO A SEAT WHOSE WORK ARRIVES AS ITEMS, AND TO NO OTHER. The frontier, a lane and
+	// the synthesizer — every blue seat but the responding one — are dispatched to write: the
+	// avenues, a draft, the report. No plan names them and nothing they owe is ever an item, so an
+	// empty list is what theirs always is, and "ending your turn now is the correct act" tells such
+	// a seat to stop before it has started. universe-m21's synthesizer quoted "no other projection
+	// holds work for you" as its only evidence about the record, and proposed five approaches the
+	// record already held.
+	if len(s.Open) == 0 && (role != "blue" || seatID == blueRespondSeat) {
 		may("nothing is owed and nothing is available: this list is complete, not empty — no other projection holds work for you, and ending your turn now is the correct act")
 	}
 	s.Complete = !s.Blocked()

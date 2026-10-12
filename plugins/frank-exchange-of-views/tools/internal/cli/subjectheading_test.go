@@ -17,8 +17,8 @@ import (
 // The tool composes sections of those names in evidence.md and judgments.md, never in report.md,
 // and both are what a subject calls a section of its own: a report on a theorem has proofs, one on
 // an assembly has motions. Text under either meets no section of the tool's, so it ingests, edits,
-// and ships whole and once under "Additional findings", while the tool's two sections are composed
-// from the record exactly as they are without it.
+// and ships whole and once among the report's own sections, while the tool's two sections are
+// composed from the record exactly as they are without it.
 func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 	ownProofs := []string{"Lemma one: seven divides ninety-one.", "Lemma two: thirteen divides ninety-one.", "- The quotient of the first division is thirteen."}
 	ownMotions := []string{"The assembly moved to adopt the factorisation.", "| Motion | Carried |", "| --- | --- |", "| Adopt | ✓ |"}
@@ -62,13 +62,13 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 		body[d.File] = d.Body
 	}
 	shipped := body[report.FileReport]
-	at := strings.Index(shipped, "## Additional findings")
-	if at < 0 {
-		t.Fatalf("report.md has no Additional findings:\n%s", shipped)
+	at := strings.Index(shipped, "## TL;DR")
+	if at < 0 || strings.Contains(shipped, "## Additional findings") {
+		t.Fatalf("report.md has no TL;DR, or a heading of the tool's above the report's own sections:\n%s", shipped)
 	}
 	for _, h := range []string{"## Proofs", "## Motions"} {
 		if n := strings.Count(shipped, h+"\n"); n != 1 || strings.Index(shipped, h+"\n") < at {
-			t.Errorf("report.md carries %q %d time(s), want once, under Additional findings:\n%s", h, n, shipped)
+			t.Errorf("report.md carries %q %d time(s), want once, in the body:\n%s", h, n, shipped)
 		}
 	}
 	for _, ln := range slices.Concat(ownProofs, ownMotions) {
@@ -81,7 +81,7 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 			}
 		}
 		if n != 1 || strings.Index(shipped, ln) < at {
-			t.Errorf("the set carries the report's own line %q %d time(s), want once, in report.md under Additional findings", ln, n)
+			t.Errorf("the set carries the report's own line %q %d time(s), want once, in report.md's body", ln, n)
 		}
 	}
 	// The tool's sections: one of each, in its own document, holding what the record holds.
@@ -104,9 +104,9 @@ func TestAReportsOwnProofsAndMotionsShipAsTheReports(t *testing.T) {
 			if !s.OwnInReport || !s.Ships || s.Composer != report.Tool || s.File == report.FileReport || strings.Contains(s.Text, "Lemma") || strings.Contains(s.Text, "assembly moved") {
 				t.Errorf("the layout's %s row: %+v", s.Heading, s)
 			}
-		case "Additional findings":
+		case "The report's own sections":
 			if !slices.Equal(s.AuthoredHeadings, []string{"Proofs", "Motions"}) {
-				t.Errorf("Additional findings holds %v, want the report's own Proofs and Motions", s.AuthoredHeadings)
+				t.Errorf("the body holds %v, want the report's own Proofs and Motions", s.AuthoredHeadings)
 			}
 		default:
 			if s.OwnInReport {

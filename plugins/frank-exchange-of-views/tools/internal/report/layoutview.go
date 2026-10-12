@@ -1,7 +1,9 @@
 package report
 
 import (
+	"crypto/rand"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -30,7 +32,7 @@ type LayoutSection struct {
 	// OwnInReport is set for a section the tool composes in another document under a name the
 	// report's text may use: a section of that name there is the report's own.
 	OwnInReport bool `json:"own_in_report,omitempty"`
-	// AuthoredHeadings is the headings of the report's own sections that ship inside this one.
+	// AuthoredHeadings is the headings of the report's own sections, on the row that is the body.
 	AuthoredHeadings []string `json:"authored_headings,omitempty"`
 	// Text is the section as it ships: anchors resolved, notes numbered.
 	Text string `json:"text,omitempty"`
@@ -45,12 +47,15 @@ type LayoutJSON struct {
 // table in shipping order, and what each holds. It assembles the set and slices the result, so
 // what it prints is what ships.
 //
-// A ROW SHIPS WHEN ASSEMBLY COMPOSED IT, never because a line of the document reads as its
-// opening: a line of the report's own text can open as a section's does. The document is read
-// only for where a composed row's text begins — the first line that opens it after the row
-// before it — and a row's text runs to the next row that ships.
+// A ROW SHIPS WHEN ASSEMBLY COMPOSED IT, AND STANDS WHERE ASSEMBLY PUT IT, never where a line of
+// the document reads as its opening: a line of the report's own text can open as a section's
+// does, the body opens under no heading of the table's, and a section in it can carry the heading
+// of a row after it (a record from before the refusal holds such). Assembly writes a mark line
+// above each block it composes here, in the table's order, and the row's text runs to the next
+// row that ships. The mark is drawn for the call, so no line of the report's text is one.
 func Layout(run record.Run) (LayoutJSON, error) {
-	docs, composed, err := assemble(run)
+	mark := "\x00" + rand.Text()
+	docs, composed, err := assemble(run, mark)
 	if err != nil {
 		return LayoutJSON{}, err
 	}
@@ -60,15 +65,23 @@ func Layout(run record.Run) (LayoutJSON, error) {
 		rendered[d.File] = strings.Split(render(d, title, docs), "\n")
 	}
 	starts := make([]int, len(layout))
-	at := map[string]int{} // per file: the line after the one the previous row opened on
 	for i, s := range layout {
 		starts[i] = -1
-		// The title is the head render writes on every document.
-		if lines := rendered[s.File]; lines != nil && (composed[s.Heading] || s.compose == nil && s.Line != "") {
-			if starts[i] = opens(lines, at[s.File], s); starts[i] < 0 {
-				return LayoutJSON{}, fmt.Errorf("report: assembly composed %q for %s and the document does not open it", s.Heading, s.File)
+		lines := rendered[s.File]
+		switch {
+		case lines == nil:
+			continue
+		case s.compose != nil && composed[s.Heading]:
+			if starts[i] = slices.Index(lines, mark); starts[i] >= 0 {
+				rendered[s.File] = slices.Delete(lines, starts[i], starts[i]+1)
 			}
-			at[s.File] = starts[i] + 1
+		case s.compose == nil && (composed[s.Heading] || s.Line != ""):
+			starts[i] = opens(lines, s)
+		default:
+			continue
+		}
+		if starts[i] < 0 {
+			return LayoutJSON{}, fmt.Errorf("report: assembly composed %q for %s and the document does not open it", s.Heading, s.File)
 		}
 	}
 	var out LayoutJSON
@@ -88,7 +101,7 @@ func Layout(run record.Run) (LayoutJSON, error) {
 			row.Ships = true
 			row.Text = strings.TrimSpace(strings.Join(lines[start:end], "\n"))
 			if s.embeds {
-				eachLine(strings.Join(lines[start+1:end], "\n"), func(_, t string, fenced bool) {
+				eachLine(strings.Join(lines[start:end], "\n"), func(_, t string, fenced bool) {
 					if _, ok := headingKey(t); ok && !fenced {
 						row.AuthoredHeadings = append(row.AuthoredHeadings, strings.TrimPrefix(t, "## "))
 					}
@@ -100,15 +113,15 @@ func Layout(run record.Run) (LayoutJSON, error) {
 	return out, nil
 }
 
-// opens is the line at or after from on which s opens: the first, or for a section a pass over
-// the whole document writes after the rows, the last; -1 when none does.
-func opens(lines []string, from int, s Section) int {
-	found := -1
-	n := 0
+// opens is the line a row no block of assembly's places opens on: the title, the first line that
+// starts as it does, which is the head render writes on every document; and a section a pass over
+// the whole document writes after the rows, the last heading of its name. -1 when none does.
+func opens(lines []string, s Section) int {
+	found, n := -1, 0
 	eachLine(strings.Join(lines, "\n"), func(_, t string, fenced bool) {
 		i := n
 		n++
-		if fenced || i < from || found >= 0 && s.compose != nil {
+		if fenced {
 			return
 		}
 		if s.Line != "" {
@@ -134,8 +147,11 @@ func (l LayoutJSON) Markdown() string {
 			b.WriteString("\n" + file + "\n")
 		}
 		name := "## " + s.Heading
-		if s.Line != "" {
+		switch {
+		case s.Line != "":
 			name = s.Heading + " (no heading: one line, opening `" + s.Line + "`)"
+		case s.Heading == bodyHeading:
+			name = s.Heading + " (no heading of the tool's: each section ships under the heading its author gave it)"
 		}
 		ships := ""
 		if !s.Ships {
@@ -146,7 +162,7 @@ func (l LayoutJSON) Markdown() string {
 			fmt.Fprintf(&b, "    in the report's text: this entry is the tool's section, in %s; %s\n", s.File, OwnInTheReport)
 		}
 		if len(s.AuthoredHeadings) > 0 {
-			fmt.Fprintf(&b, "    holds the report's own sections: %s\n", strings.Join(s.AuthoredHeadings, "; "))
+			fmt.Fprintf(&b, "    as the record stands: %s\n", strings.Join(s.AuthoredHeadings, "; "))
 		}
 	}
 	return b.String()
