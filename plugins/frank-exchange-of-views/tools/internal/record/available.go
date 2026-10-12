@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -156,8 +157,13 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// insertNumbered refuses a second regrade of one gap in one sitting. regradesAfforded holds
 		// all three, so no line here offers a seat an act its own write path refuses.
 		minted := mintedBy(evs)
-		for _, id := range regradesAfforded(evs, win, gaps, minted, seatID) {
-			add("gap " + id + " had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
+		//
+		// IT NAMES THE AXIS AND THE GRADE EACH RULING ACCEPTED, off the same reader the gap's
+		// `regrades_owed` field is filled from (WorkOfSeat). Without them the item said a regrade
+		// was owed and not which way: universe-wave-b's architecture lens found the motion's
+		// dimension and proposed grade on no surface it holds, and regraded another axis upward.
+		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
+			add("gap " + o.GapID + " had a grade motion ACCEPTED and no regrade followed it: " + o.accepted() + " — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
 		for _, key := range citedClaimsWithoutVerify(evs) {
 			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
@@ -281,8 +287,43 @@ func mintedBy(evs []*Event) map[string]string {
 	return out
 }
 
+// OwedRegradeJSON is one accepted grade motion that still waits for its regrade, as the gap's work
+// item carries it (WorkGapJSON.RegradesOwed): the motion, the axis it contested and the grade the
+// ruling accepted for that axis — the GradeDimension and Grade words, as the filing holds them.
+type OwedRegradeJSON struct {
+	MotionID  string `json:"motion_id"`
+	Dimension string `json:"dimension"`
+	Proposed  string `json:"proposed"`
+}
+
+// owedRegrade is one gap's owed regrade: every accepted grade motion on it that no regrade has
+// followed, in ruling order. One row per gap, because a sitting records one regrade of a gap and
+// that one act carries every axis.
+type owedRegrade struct {
+	GapID   string
+	Motions []OwedRegradeJSON
+}
+
+// accepted states each waiting motion's axis and grade for the work item's sentence. A filing that
+// states no axis or no grade says so in its place: an empty word would read as an axis named "".
+func (o owedRegrade) accepted() string {
+	word := func(w, missing string) string {
+		if w == "" {
+			return missing
+		}
+		return w
+	}
+	parts := make([]string, 0, len(o.Motions))
+	for _, m := range o.Motions {
+		parts = append(parts, fmt.Sprintf("%s to %s (motion %s)", word(m.Dimension, "an axis the motion does not state"), word(m.Proposed, "a grade the motion does not state"), m.MotionID))
+	}
+	return strings.Join(parts, ", ")
+}
+
 // regradesAfforded is each gap whose accepted grade motion still waits for its regrade, and whose
-// regrade record.Append admits from seatID now.
+// regrade record.Append admits from seatID now, with every such motion's axis and accepted grade.
+// It is the one reader of "which regrade does a ruling still wait for": the work item's sentence
+// (availableOf) and the gap's `regrades_owed` field (WorkOfSeat) both come from here.
 //
 // THE DEBT IS THE REGRADE AFTER THE RULING. An accepted grade motion asks the minting lens to move
 // the grade, and a regrade recorded before the ruling answers nothing the ruling said. Any regrade
@@ -324,7 +365,7 @@ func mintedBy(evs []*Event) map[string]string {
 // replacement, and says WHICH ruling a motion carries and WHERE it sits — the first that stands,
 // in the place it was first made. This function asks it for the verdict and the place together,
 // so the regrade is weighed against the ruling whose verdict is read.
-func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []string {
+func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []owedRegrade {
 	latest := win.LatestSittingOf(seatID)
 	lastRegrade := map[string]int64{}    // gap → position of its last regrade, by any seat
 	heldThisSitting := map[string]bool{} // gap → the seat's current sitting holds a regrade of it
@@ -344,21 +385,25 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 			open[g.ID] = true
 		}
 	}
-	var out []string
-	seen := map[string]bool{}
+	var out []owedRegrade
+	row := map[string]int{} // gap → its row of out
 	for _, m := range motionsAt(evs, places, win) {
 		if m.Subject != "grade" || m.Ruling != "accepted" {
 			continue
 		}
 		id := m.GapID
-		if id == "" || seen[id] || minted[id] != seatID || !open[id] || heldThisSitting[id] {
+		if id == "" || minted[id] != seatID || !open[id] || heldThisSitting[id] {
 			continue
 		}
 		if at, regraded := lastRegrade[id]; regraded && at > m.ruled {
 			continue
 		}
-		seen[id] = true
-		out = append(out, id)
+		k, listed := row[id]
+		if !listed {
+			k, row[id] = len(out), len(out)
+			out = append(out, owedRegrade{GapID: id})
+		}
+		out[k].Motions = append(out[k].Motions, OwedRegradeJSON{MotionID: m.ID, Dimension: m.Fields["dimension"], Proposed: m.Fields["proposed"]})
 	}
 	return out
 }
