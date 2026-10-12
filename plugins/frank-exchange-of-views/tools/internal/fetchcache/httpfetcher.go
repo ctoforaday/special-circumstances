@@ -353,7 +353,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 				u.Host, maxPaceWait)
 		}
 		if w > 0 {
-			time.Sleep(w)
+			paceSleep(w)
 		}
 		paceTrace(u.Host, w)
 	}
@@ -392,7 +392,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 		}
 		backoffHost(u.Host, wait)
 		if wait <= retryAfterCap {
-			time.Sleep(wait)
+			paceSleep(wait)
 			return h.fetchOnceRetry(rawURL, attempt+1, skipRobots, charged)
 		}
 	}

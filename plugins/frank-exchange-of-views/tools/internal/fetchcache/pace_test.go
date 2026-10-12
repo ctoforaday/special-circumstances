@@ -47,6 +47,27 @@ func fastHost(t *testing.T, rawURL string) {
 	t.Cleanup(func() { delete(hostIntervals, host) })
 }
 
+// recordedWaits replaces the fetcher's sleep with a record of each wait it asked for, for one
+// test. What such a test asserts is the wait OWED — which the pacer computes and the fetcher
+// passes on — so it holds on any box at any load, where a wall-clock reading also measures the
+// machine.
+func recordedWaits(t *testing.T) *[]time.Duration {
+	t.Helper()
+	var waits []time.Duration
+	prev := paceSleep
+	paceSleep = func(d time.Duration) { waits = append(waits, d) }
+	t.Cleanup(func() { paceSleep = prev })
+	return &waits
+}
+
+func total(waits []time.Duration) time.Duration {
+	var sum time.Duration
+	for _, w := range waits {
+		sum += w
+	}
+	return sum
+}
+
 func tempPaceDir(t *testing.T) {
 	t.Helper()
 	prev := paceDir
@@ -553,30 +574,33 @@ func TestARedirectChainIsChargedOncePerHost(t *testing.T) {
 	}))
 	defer srv.Close()
 
+	waits := recordedWaits(t)
 	start := time.Now()
 	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/a"); err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
-	elapsed := time.Since(start)
 	if hits != 3 {
 		t.Fatalf("the chain made %d content requests, expected 3 — this test is not measuring what it thinks", hits)
 	}
-	// THE THRESHOLD IS DERIVED FROM THE FLOOR, NOT CHOSEN. A charged hop waits at least the
-	// host's published delay, so anything under that delay proves no hop was charged — while a
-	// fixed small number is a bet on how fast the box is. This assertion was `> 5*time.Second`
-	// and failed at 5.04s under `-race` on a box at load 34: a timing test that measures the
-	// machine instead of the behaviour, which is the flake this repository keeps warning about.
-	if elapsed > published/2 {
-		t.Errorf("a three-hop chain took %v against a published delay of %v — hops were charged separately", elapsed, published)
+	// THE THRESHOLD IS DERIVED FROM THE FLOOR, NOT CHOSEN, AND IT IS READ FROM THE WAITS THE
+	// FETCHER ASKED FOR, NOT FROM A CLOCK. A charged hop waits at least the host's published
+	// delay, so a total under that delay proves no hop was charged. This assertion was once
+	// `elapsed > 5*time.Second` and failed at 5.04s under `-race` on a box at load 34: a timing
+	// test that measures the machine instead of the behaviour.
+	if asked := total(*waits); asked > published/2 {
+		t.Errorf("a three-hop chain asked to wait %v (%v) against a published delay of %v — hops were charged separately", asked, *waits, published)
 	}
 
-	// AND THE FLOOR STILL BITES ON A SECOND DOCUMENT. This must not become "pacing is off".
-	start = time.Now()
+	// AND THE FLOOR STILL BITES ON A SECOND DOCUMENT. This must not become "pacing is off". The
+	// host's next slot is at least the published delay after the first asking, so what is owed
+	// now is that delay less whatever has already passed.
+	*waits = nil
+	owed := published - time.Since(start)
 	if _, err := NewHTTPFetcher().Fetch(srv.URL + "/other"); err != nil {
 		t.Fatalf("second fetch: %v", err)
 	}
-	if waited := time.Since(start); waited < published {
-		t.Errorf("a second document from the same host waited %v, want at least the published %v", waited, published)
+	if asked := total(*waits); asked < owed {
+		t.Errorf("a second document from the same host asked to wait %v (%v), want at least %v of the published %v", asked, *waits, owed, published)
 	}
 }
 

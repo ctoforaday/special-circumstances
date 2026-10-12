@@ -198,8 +198,14 @@ func intervalFor(host string) time.Duration {
 	return iv
 }
 
-// paceLoopback lets a test exercise the paced path against a fixture server on this machine. It is the
-// one seam here, and it exists because the alternative is worse: the tests that matter most —
+// paceSleep is how the fetcher waits out a host's floor or its Retry-After. A variable so a test
+// of WHETHER a wait is owed reads the wait the fetcher asked for instead of sitting through it: a
+// published Crawl-delay is tens of seconds, and one test that slept a real one was 43 of this
+// package's 50 seconds.
+var paceSleep = time.Sleep
+
+// paceLoopback lets a test exercise the paced path against a fixture server on this machine. It is
+// the seam on WHO is paced, and it exists because the alternative is worse: the tests that matter most —
 // does a 503 raise the floor, is a redirect TARGET paced — can only be driven through the real
 // transport, and the real transport can only reach a server on this machine.
 var paceLoopback bool
