@@ -14,7 +14,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
-  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
   - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
@@ -670,7 +670,7 @@ Flags:
 (Global Flags:) → SHARED §10
 ==============================================================================
 $ feov-record show work --help
-**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
+**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left. ON THE CHAIR'S LIST a blocking item holds a PASS, and one with `another_seat_clears` is the board's state: another seat's act clears it, and it is not the chair's to clear. No other seat's list holds one.
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an avenue never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
@@ -692,7 +692,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §7
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -724,7 +724,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
-  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
   - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.
@@ -1518,7 +1518,7 @@ Flags:
 (Global Flags:) → SHARED §12
 ==============================================================================
 $ feov-record show work --help
-**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
+**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left. ON THE CHAIR'S LIST a blocking item holds a PASS, and one with `another_seat_clears` is the board's state: another seat's act clears it, and it is not the chair's to clear. No other seat's list holds one.
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an avenue never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
@@ -1540,7 +1540,7 @@ Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_wit
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §13
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §2
 
@@ -1572,7 +1572,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A seat is one agent's place in the run, registered under a seat id whose role decides the surface it is given.
   - A side is red or blue: red audits the report and passes or fails it, blue researches, writes and repairs it.
   - A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
-  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+  - The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - A lane is one of blue's parallel first passes at the report, written by one researcher under one method.
   - The synthesizer is the blue seat that merges the lane drafts into the report by union and writes the report's authored surfaces.

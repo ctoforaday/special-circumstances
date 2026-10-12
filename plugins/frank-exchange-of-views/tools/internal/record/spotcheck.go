@@ -2,105 +2,65 @@ package record
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE W1.8 ARCHIVE SPOT-CHECK FLOOR, COMPUTED FROM THE BOARD.
+// THE SPOT-CHECKS ON THE RECORD, JOINED TO THE BOARD.
 //
-// The duty: re-verify sampled archived closures every epoch, because a closure index is only as
-// good as the last time anyone looked. It was born from a real defect — run 5's round-2 merge
-// reported that the spot-check "had degraded to same-seat self-attestation", the seat vouching
-// for blocks it was about to write itself.
+// A spot-check is owed before a PASS and at no other time, and the write enforces it: a PASS is
+// refused while a stale area stands that no spot-check in the chair's sitting names
+// (BlockerStaleArea, passblockers.go). Nothing here is a second statement of that rule. This file
+// is the reader's account of the spot-checks the chair filed — which closures each re-read, and
+// what the board says the archive held at that point, a number no seat can author.
 //
-// W1.8 specified the repair as an ENFORCEMENT: key the floor on the archive's state at epoch
-// START, so the obligation exists exactly when there is something to sample. What shipped was an
-// envelope self-report — the chair wrote `archive_spot_checks[]` and the script compared it
-// against `prevArchiveBlocks`, ANOTHER NUMBER THE CHAIR REPORTED. That gate was deleted on
-// 2026-07-19, correctly, with its own epitaph: "they compared numbers the merge made up (a haiku
-// smoke self-reported archive_blocks:22 in an epoch where the true archived count was 0). The tool
-// board is the count authority; capture audits the truth from disk."
-//
-// Neither replacement authority was built. The `chair spot-check` verb was created to carry the
-// receipt, and for a year the receipt went nowhere: the only code that touched the event was the
-// validation switch permitting it to be written. So the fix for a self-attestation defect was, in
-// net effect, a better place to write the self-attestation.
-//
-// This is the floor W1.8 asked for. The archive's size at the start of epoch R is REPLAYED from
-// the board — a number no seat can author — and two things are checked against it: an epoch that
-// owed a sample and recorded none, and an epoch that claimed an empty archive the board says was
-// not empty. The second is the direct heir of the run-5 degeneracy.
+// One claim in a spot-check is checkable against that number: "there was nothing to sample". A
+// spot-check that says so while the board holds archived closures is reported to the reader as a
+// claim the record contradicts.
 
-// SpotCheck is one epoch's discharge of the duty, joined to what the board says was actually
-// available to sample.
+// SpotCheck is one spot-check the chair filed, joined to what the board says was available to
+// sample.
 type SpotCheck struct {
 	Epoch   int
 	Sitting int
 	SeatID  string
 	// Sampled are the archived closures the chair says it re-verified.
 	Sampled []string
-	// Prose is what the sample found, or why there was nothing to sample. ONE channel: it was
-	// `notes` and `reason`, two payload keys filled by different branches of one verb, so the
-	// report rendered whichever the seat happened to reach for and dropped the other.
+	// Prose is what the sample found, or why there was nothing to sample.
 	Prose string
 	// None is a claim that there was nothing to sample.
 	None       bool
 	NoneReason string
-	// Archived is the board's count of closures available at the START of this epoch — the
-	// authority the claim is checked against.
+	// Archived is the board's count of closures available at the START of this epoch — what the
+	// claim is read against.
 	Archived int
 }
 
-// SpotCheckAudit replays the floor: the discharges recorded, the epochs that owed one and
-// recorded nothing, and the discharges whose emptiness claim the board contradicts.
-//
-// ONE COMPUTATION, TWO READERS. verify enforces it and the report renders it; deriving the floor
-// twice would be two definitions free to disagree, which is the shape of defect this whole audit
-// keeps finding.
-func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []SpotCheck) {
+// SpotCheckAudit joins each recorded spot-check to the board: the spot-checks in order, and those
+// whose emptiness claim the board contradicts.
+func SpotCheckAudit(f Family) (checks []SpotCheck, falseEmpty []SpotCheck) {
 	if len(f.Gaps) == 0 && len(f.Events) == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
 	// The archive at the START of epoch R: every gap closed in an epoch strictly before R.
 	// Replayed state, not a reported count.
-	// A CLOSURE IN EPOCH 0 IS NOT COUNTED AS AN EARLY CLOSURE. ClosedEpoch is the epoch of the
-	// gap's last closing event; 0 is a closure before the chair's first sitting, and the floor
-	// counts it in no epoch's archive.
 	//
 	// The epoch is the closing event's, derived by the record from the chair's stored sittings
 	// (events_w), so no seat-id shape stands between a closure and its epoch.
 	archivedBefore := func(epoch int) int {
 		n := 0
 		for _, g := range f.Gaps {
-			if g != nil && g.HasClosed && g.ClosedEpoch > 0 && g.ClosedEpoch < epoch {
+			if g != nil && g.HasClosed && g.ClosedEpoch < epoch {
 				n++
 			}
 		}
 		return n
 	}
 
-	// An epoch is only OWED a sample if the chair actually sat in it. Demanding one from an epoch
-	// the chair never entered would fail a run for a duty nobody was there to discharge — the
-	// epoch-number keying W1.8 replaced, in a new spelling.
-	mergeSat := map[int]bool{}
-	discharged := map[int]bool{}
 	// THE STORED EPOCH, because the number goes on a recorded ACT (the spot-check the chair filed),
 	// and the record holds which of the chair's sittings each act is in.
 	for _, e := range f.Live() {
-		w := f.At.Of(e)
-		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
-		// epoch where the chair registered and then the run ended — a ceiling hit, a PASS, a
-		// halt between the two — owed a sample it never had the chance to take. The floor is
-		// about work the chair DID, so the announcement does not count as work.
-		//
-		// Found by the sweep at 1 seed in 60 once an unrelated change shifted the RNG stream:
-		// rare, real, and exactly the kind of gate that would have fired on a live run months
-		// later with nobody able to say why.
-		if PartyOf(e) == "chair" && e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
-			mergeSat[w.Epoch] = true
-		}
 		// The BODY is the type test. Named `body` because the projection struct this loop fills
 		// is ALSO called SpotCheck — record.SpotCheck is the audit row, recordpb.SpotCheck the
 		// event body.
@@ -108,38 +68,25 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		if !ok {
 			continue
 		}
-		round := w.Epoch
-		discharged[round] = true
+		w := f.At.Of(e)
 		sc := SpotCheck{
-			Epoch: round, Sitting: w.Sitting, SeatID: e.GetSeatId(),
-			// ONE PROSE CHANNEL. `notes` and `reason` were two payload keys filled by different
-			// branches of one verb; SpotCheck.reason is the field that replaces BOTH, so a
-			// record written under `notes` maps here and not to nothing.
+			Epoch: w.Epoch, Sitting: w.Sitting, SeatID: e.GetSeatId(),
 			Sampled: body.GetIds(), Prose: body.GetReason(),
-			Archived: archivedBefore(round),
+			Archived: archivedBefore(w.Epoch),
 		}
-		// PRESENT AND TRUE, exactly as before: the old read asked Get("none") for presence and
-		// then required the value to be a true bool. An absent `none` is false here, and a
-		// recorded `none: false` is a seat NOT claiming an empty archive — the same two answers.
+		// An absent `none` is false here, and a recorded `none: false` is a seat NOT claiming an
+		// empty archive — the same answer.
 		if body.GetNone() {
 			sc.None = true
 			sc.NoneReason = body.GetReason()
 		}
 		checks = append(checks, sc)
-		// THE CLAIM THE BOARD CAN REFUSE. "There was nothing to sample" is checkable, and it is
-		// the exact shape run 5's degeneracy took.
+		// THE CLAIM THE BOARD CAN CONTRADICT. "There was nothing to sample" is checkable.
 		if sc.None && sc.Archived > 0 {
 			falseEmpty = append(falseEmpty, sc)
 		}
 	}
-
-	for round := range mergeSat {
-		if archivedBefore(round) > 0 && !discharged[round] {
-			debt = append(debt, round)
-		}
-	}
-	sort.Ints(debt)
-	return checks, debt, falseEmpty
+	return checks, falseEmpty
 }
 
 // Describe renders one spot-check as a reader-facing line.

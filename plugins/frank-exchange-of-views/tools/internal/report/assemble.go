@@ -956,17 +956,15 @@ func correctnessManifest(fam record.Family) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// archiveSpotChecks renders red's re-verification of its own closure archive — which closures it
-// re-read each epoch, what that found, and any epoch that owed a sample and did not take one.
+// archiveSpotChecks renders red's re-verification of its own closure archive — which closures the
+// chair re-read in each spot-check it filed, and what that found.
 //
-// The closure index is the report's claim that a gap was dealt with, and it is only as good as
-// the last time anyone looked. Red looked, recorded which closures it re-read, and the reader was
-// never told — the receipt sat on the record with no consumer at all. The DEBT is rendered beside
-// the discharges rather than left to the exit code, because a reader deciding how much to trust
-// the closure index needs to know which sittings checked it and which did not.
+// The closure index is the report's claim that a gap was dealt with. A reader deciding how much to
+// trust it is shown which sittings re-read it; a spot-check claiming an empty archive the board
+// contradicts is shown as that.
 func archiveSpotChecks(fam record.Family) string {
-	checks, debt, falseEmpty := record.SpotCheckAudit(fam)
-	if len(checks) == 0 && len(debt) == 0 {
+	checks, falseEmpty := record.SpotCheckAudit(fam)
+	if len(checks) == 0 {
 		return ""
 	}
 	var b strings.Builder
@@ -977,14 +975,6 @@ func archiveSpotChecks(fam record.Family) string {
 	}
 	for _, sc := range falseEmpty {
 		fmt.Fprintf(&b, "- **#%d (%s) claimed there was nothing to sample, and the board shows %d archived closure(s) at the start of epoch %d.** The claim does not survive the record.\n", sc.Sitting, sc.SeatID, sc.Archived, sc.Epoch)
-	}
-	if len(debt) > 0 {
-		fmt.Fprintf(&b, "\n**%d epoch(s) entered with a non-empty archive and sampled none of it", len(debt))
-		var rs []string
-		for _, r := range debt {
-			rs = append(rs, fmt.Sprintf("epoch %d", r))
-		}
-		fmt.Fprintf(&b, " (%s).** Those closures went un-re-examined; weigh the closure index accordingly.\n", strings.Join(rs, ", "))
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -1430,12 +1420,6 @@ func collapseBlanks(s string) string {
 // and already checked there" (#415, #417) — a claim that was not true of any surface a human
 // sees. Rendering the result here makes it true in the register the sentence meant: the record
 // IS checked, and the check is visible to the reader deciding how much to trust it.
-//
-// This follows the precedent one section above rather than inventing one. archiveSpotChecks
-// already renders a verify-class invariant computed by replay, and says why it renders instead
-// of gating: "the DEBT is rendered beside the discharges rather than left to the exit code,
-// because a reader deciding how much to trust the closure index needs to know which sittings
-// checked it and which did not." Same reasoning, applied to the other six.
 //
 // IT IS A SECTION, NOT A GATE. Nothing here changes an exit code. `verify` keeps its non-zero
 // exit for CI and the fuzzer; assembly reports. A new failure mode in the bench's terminal act

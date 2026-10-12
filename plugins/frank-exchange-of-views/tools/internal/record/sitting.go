@@ -72,6 +72,12 @@ type Item struct {
 	// the blocking items alone; nothing here invents an obligation. What changed is that work a
 	// seat may do no longer has to be absent in order to not be owed.
 	Blocks bool `json:"blocks"`
+	// AnotherSeatClears marks a blocking item this seat's own act cannot clear: it is on the list
+	// because it holds what the seat is working toward, and it is the board's state rather than
+	// the seat's debt. Only the chair's list carries any — the PASS gate's blockers whose owner is
+	// not the chair (Blocker.ChairOwned): an open material gap its minter closes, a ready lens, a
+	// motion whose gavel is another seat's. Every other seat's blocking items are its own.
+	AnotherSeatClears bool `json:"another_seat_clears,omitempty"`
 }
 
 // SittingJSON is the seat's work: everything open to it, whether the sitting is finished, and —
@@ -252,18 +258,23 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		// A gap's item stands in the gap's place on the board, and an open gap that holds nothing
 		// is listed there too, as work that is not owed.
 		blockers := passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps))
-		gapItem := map[string]string{}
+		// EACH ITEM SAYS WHETHER THE CHAIR CLEARS IT, by the gate's own predicate (ChairOwned), so
+		// the digest counts as the chair's debt only what the chair can clear.
+		hold := func(b Blocker) {
+			s.Open = append(s.Open, Item{What: b.WorkItem(), Blocks: true, AnotherSeatClears: !b.ChairOwned()})
+		}
+		gapItem := map[string]Blocker{}
 		for _, b := range blockers {
 			if b.Kind == BlockerStrandedGap || b.Kind == BlockerMaterialGap {
-				gapItem[b.Subject] = b.WorkItem()
+				gapItem[b.Subject] = b
 			}
 		}
 		for _, g := range gaps {
 			if !g.Open {
 				continue
 			}
-			if it, holds := gapItem[g.ID]; holds {
-				add(it)
+			if b, holds := gapItem[g.ID]; holds {
+				hold(b)
 				continue
 			}
 			grade, _ := g.Severity.(string)
@@ -272,7 +283,7 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		}
 		for _, b := range blockers {
 			if b.Kind != BlockerStrandedGap && b.Kind != BlockerMaterialGap {
-				add(b.WorkItem())
+				hold(b)
 			}
 		}
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
@@ -341,6 +352,28 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	s.Complete = !s.Blocked()
 	return s
 }
+
+// Owed is the blocking items this seat's own act clears, and Board the blocking items another
+// seat must clear, each in list order. Together they are every blocking item, so a reader that
+// counts a seat's debt counts Owed and states Board as what the board holds.
+func (s SittingJSON) Owed() (owed, board []Item) {
+	for _, it := range s.Open {
+		switch {
+		case !it.Blocks:
+		case it.AnotherSeatClears:
+			board = append(board, it)
+		default:
+			owed = append(owed, it)
+		}
+	}
+	return owed, board
+}
+
+// HoldsPass reports whether this seat's blocking items hold a PASS rather than the end of its
+// turn. The chair's do: its blocking items are the PASS gate's blockers and its verdict, and
+// nothing else (the chair arm of SittingOf), so a chair sitting with a PASS out of view ends with
+// them open. Every other seat's blocking items are owed in the sitting that lists them.
+func (s SittingJSON) HoldsPass() bool { return s.Role == "chair" }
 
 // Blocked reports whether anything open is stopping closure. It is the one place `complete` is
 // derived from, so the field and the per-item flag cannot disagree.
@@ -435,29 +468,8 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 	return e
 }
 
-// seatDidThisSitting is seatDid for a duty the seat owes EVERY SITTING: only its acts in the sitting
-// the write path stored them in count (thisSitting). seatDid reads the whole record,
-// so the first sitting's act discharged every later one: a seat that sat again and filed nothing
-// read `complete` because its earlier sitting's act was on the record. A seat that
-// has never sat has no earlier sitting to borrow from, so the whole record is its sitting.
-//
-// IT ATTRIBUTES, SO A REPAIR OPENS NO WINDOW (#1026). This is a reader of "which sitting does this
-// act belong to", so it reads the stored sitting, the one definition every attribution reader
-// shares: the write path stores a register that names a repaired sitting, and its acts, in the sitting it names.
-// Starting the window at the seat's latest register of ANY kind put the repair's own register there, so inside a repair the work list said
-// the log channel was open for a sitting that had already filed there. The seat was told to file
-// something it had done, on the one surface it reads to find out what is left.
-func seatDidThisSitting(evs []*Event, win WindowIndex, seatID string, typ recordpb.EventType) bool {
-	for _, e := range thisSitting(evs, win, seatID) {
-		if e.GetType() == typ {
-			return true
-		}
-	}
-	return false
-}
-
-// thisSitting is the seat's own live events in the window seatDidThisSitting reads: the acts the
-// write path stored in the seat's latest sitting. That sitting opened at the hook's bracket or at a
+// thisSitting is the seat's own live events in its latest sitting: the acts the write path stored
+// there. That sitting opened at the hook's bracket or at a
 // register, and a register under the bracketed agent joined it — so a log filed between the
 // bracket and that register is in the sitting, as the record says. A seat that has never sat has
 // no earlier sitting to borrow from: its acts are in none, and that is its window.
@@ -502,7 +514,7 @@ func logsThisSitting(evs []*Event, win WindowIndex, seatID string) (seatEntries,
 // predicate exists to excuse, and sitting_open/sitting_close are the hooks' own. Counting any of
 // them would make every sitting look busy and the empty case unreachable.
 //
-// It reads the same window seatDidThisSitting does (thisSitting), so "this sitting" means one thing
+// It reads the one window every per-sitting reader does (thisSitting), so "this sitting" means one thing
 // on this surface: the seat's acts the write path stored in its latest sitting — opened by its
 // register, or by the hook's sitting_open where the configuration names one seat.
 func sittingRecordedNothing(evs []*Event, win WindowIndex, seatID string) bool {

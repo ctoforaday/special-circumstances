@@ -406,3 +406,28 @@ func TestAViolatedCheckReportsFail(t *testing.T) {
 		t.Errorf("a PASS over an open gap must be FAIL, got %+v (status %q)", got, got.Status())
 	}
 }
+
+// A CHAIR SITTING WITHOUT A SPOT-CHECK IS A SOUND RECORD. The spot-check is owed before a PASS and
+// at no other time, and the write refuses the PASS (record's
+// TestPassRefusedUntilSpotCheckCoversStaleAreas), so no invariant here holds a sitting to one: a
+// chair that sat over an archived closure, acted, and sampled nothing fails no check. This is the
+// shape of the 2026-10-12 smoke's eighth chair sitting.
+func TestAChairSittingWithoutASpotCheckFailsNoInvariant(t *testing.T) {
+	chair := func(body proto.Message) *record.Event { return recordtest.Event(t, "red-chair", body) }
+	b := &boardT{
+		GapOrder: []string{"G1"},
+		Gaps: map[string]*record.Gap{
+			"G1": {ID: "G1", Open: false, HasClosed: true, ClosedEpoch: 1, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
+		},
+		Events: []*record.Event{
+			chair(&recordpb.Register{}),
+			chair(&recordpb.Register{}),
+			chair(&recordpb.Position{Text: proto.String("a PASS is not in view")}),
+		},
+	}
+	for _, c := range Run(b.fam(t)) {
+		if c.Status() == "FAIL" {
+			t.Errorf("%s fails a record whose chair sat without a spot-check: %v", c.Name, c.Violations)
+		}
+	}
+}

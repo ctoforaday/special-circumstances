@@ -357,7 +357,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   const p = chair.prompt
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay its JSON VERBATIM as `plan`/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /FAIL over a converged board is refused/.test(p))
-  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /the spot-check; its assertable empty form/.test(p) && /VOTE EVERY AVENUE/.test(p) && /RULE ON BLUE'S AVENUES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /its assertable empty form only when the archive was empty when you sat/.test(p) && /VOTE EVERY AVENUE/.test(p) && /RULE ON BLUE'S AVENUES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|avenue) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   assert.ok(chair.opts.schema.properties.plan && chair.opts.schema.required.includes('plan'), 'the envelope carries the plan')
@@ -377,7 +377,8 @@ test('the chair is told lenses retire and re-arm once, a PASS needs no lens read
   assert.ok(/retires after two sittings with no fresh material mint, is re-armed ONCE when the head moves, and retires for good if that sitting is barren/.test(p), 're-arm once')
   assert.ok(/permits a PASS only when no lens is ready — every lens retired with no re-arm owed, or retired for good — and nothing another seat must clear holds it\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
   assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(p), 'the stale areas')
-  assert.ok(/name in it every stale area the plan lists before a PASS/.test(p), 'the spot-check duty names the stale areas')
+  assert.ok(/The spot-check is owed before a PASS and at no other time: name in it every stale area the plan lists/.test(p), 'the spot-check is owed before a PASS, and names the stale areas')
+  assert.ok(!/every sitting it is not empty/.test(p) && !/Re-sample the archive/.test(p), 'no sitting without a PASS in view owes a spot-check')
   assert.ok(/YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record/.test(p), 'the by-class listing')
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
   for (const clause of ['is re-armed ONCE when the head moves', 'The plan permits a PASS only when no lens is ready', "each stale area's pin", 'YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS', 'active lenses, and retired lenses a head move re-arms once']) {

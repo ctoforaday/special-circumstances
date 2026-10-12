@@ -8,7 +8,7 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 1 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ register --run {RUN} --seat-id red-lens-evidence
@@ -27,7 +27,7 @@ $ position --run {RUN} --seat-id red-chair --reason red's round position
 exit 0
 stdout:
 position recorded
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
@@ -42,9 +42,10 @@ $ closing --run {RUN} --seat-id red-chair --id GAP001 --reason red's closing
 exit 0
 stdout:
 closing filed for GAP001
-2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
 $ position --run {RUN} --seat-id blue-respond --reason blue's round position
 exit 0
@@ -94,11 +95,12 @@ $ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contes
 exit 0
 stdout:
 motion MOTION002 filed (docket)
-4 STILL TO CLEAR before you may end your turn (of 5 item(s) open to you):
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+2 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
   · motion MOTION001 (grade, ruled by the chair seat) was filed and never ruled — PASS is refused while it stands
-  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (2) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · motion MOTION002 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
 
 $ motion docket rule --run {RUN} --seat-id judge --id MOTION002 --as remanded --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --reopens-on the figure recomputed from its source --reason the rationale body
 exit 0

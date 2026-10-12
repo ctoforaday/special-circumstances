@@ -1959,32 +1959,28 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// The rulings live in answerDisputes now, where the ask is, so the id never leaves the
 		// bookkeeping that minted it.
-		// W1.8 archive spot-check — the chair's duty, and now ENFORCED from the board
-		// (verify.archiveSpotCheckFloor).
+		// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME, and the driver models both
+		// halves. A lens retired for good does not sit again, so the plan lists each whose pin the
+		// head has moved past, and the PASS gate refuses a verdict until a spot-check this sitting
+		// names every one: with stale areas on the plan the drive always files it, or every run
+		// whose lenses retired for good ends UNVERIFIED on the refusal and VERIFIED goes undriven.
+		// With none, the chair samples the archive in about half its sittings and files nothing in
+		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
+		// drive that filed one every sitting would never put that in front of the oracle.
 		//
-		// THE OLD DRIVER MODELLED A NON-COMPLIANT SEAT AND NOTHING NOTICED. It fired at 45%, so
-		// most rounds skipped the duty outright, and its comment claimed "--none is always valid
-		// (an empty archive at round start)" — which is false whenever the archive is not empty,
-		// and is EXACTLY the self-attestation the duty exists to prevent. Both passed because
-		// the event had no reader.
-		//
-		// It now models a seat that discharges the duty honestly: sample when there is something
-		// to sample, and claim emptiness only when the board agrees.
-		// AND IT READS THE STALE AREAS THE PLAN NAMES. A lens retired for good does not sit again,
-		// so the plan lists each whose pin the head has moved past, and the PASS gate refuses a
-		// verdict until a spot-check this sitting names every one. A drive that never passed
-		// --areas modelled a chair that skipped the read, and every run whose lenses retired for
-		// good ended UNVERIFIED on the refusal, so VERIFIED went undriven.
-		sc := r.do("spot-check", seatID)
-		if stale := r.staleAreas(); len(stale) > 0 {
-			sc.set("--areas", strings.Join(stale, ","))
-		}
-		if closed := r.closedGapIDs(); len(closed) > 0 {
-			sc.set("--ids", closed[r.rng.Intn(len(closed))]).
-				set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
-		} else {
-			sc.bare("--none").
-				set("--reason", "fuzz: the archive was empty at round start").run()
+		// An emptiness claim is made only when the board agrees.
+		if stale := r.staleAreas(); len(stale) > 0 || r.coin(50) {
+			sc := r.do("spot-check", seatID)
+			if len(stale) > 0 {
+				sc.set("--areas", strings.Join(stale, ","))
+			}
+			if closed := r.closedGapIDs(); len(closed) > 0 {
+				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
+					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
+			} else {
+				sc.bare("--none").
+					set("--reason", "fuzz: the archive was empty at round start").run()
+			}
 		}
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
 		// rejected 18 of its own 86 avenues and red rejected none, because it could not.
