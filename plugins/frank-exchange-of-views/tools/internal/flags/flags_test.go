@@ -3,6 +3,8 @@ package flags
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // The two flag types are the CLI's validation boundary: a grade that gets past
@@ -11,20 +13,26 @@ import (
 // record whose truth is "lineage none". Both are stated as invariants in the
 // source comments, so both are tested as contracts rather than as line coverage.
 
-func TestGradeValueSetAcceptsEveryCanonicalGrade(t *testing.T) {
-	for _, g := range Grades {
-		t.Run(string(g), func(t *testing.T) {
+// The flag accepts exactly the record's grade scale: every word the Grade enum declares, and
+// nothing the write path would then refuse.
+func TestGradeValueSetAcceptsEveryGradeTheRecordDeclares(t *testing.T) {
+	words := recordpb.GradeWords()
+	if len(words) == 0 {
+		t.Fatal("the record declares no grade — nothing was checked")
+	}
+	for _, g := range words {
+		t.Run(g, func(t *testing.T) {
 			var v GradeValue
-			if err := v.Set(string(g)); err != nil {
+			if err := v.Set(g); err != nil {
 				t.Fatalf("Set(%q) = %v, want accepted", g, err)
 			}
-			if v.Grade != g {
+			if string(v.Grade) != g {
 				t.Errorf("Grade = %q, want %q", v.Grade, g)
 			}
 			if !v.Given() {
 				t.Error("Given() = false after a successful Set")
 			}
-			if got := v.String(); got != string(g) {
+			if got := v.String(); got != g {
 				t.Errorf("String() = %q, want %q", got, g)
 			}
 		})
@@ -50,6 +58,8 @@ func TestGradeValueSetRejections(t *testing.T) {
 		{"internal whitespace is not trimmed away", "low medium"},
 		{"a whole list is not one grade", "low,high"},
 		{"unicode lookalike", "hıgh"},
+		// The enum's zero is "the seat never said", which is not a grade a seat may say.
+		{"the scale's unspecified zero", "unspecified"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -60,7 +70,7 @@ func TestGradeValueSetRejections(t *testing.T) {
 			}
 			// The refusal must NAME what would have worked — that is the whole
 			// reason parsing moved out of the domain and into this package.
-			for _, want := range GradeNames() {
+			for _, want := range recordpb.GradeWords() {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("refusal does not offer %q: %s", want, err)
 				}
@@ -86,8 +96,8 @@ func TestGradeValueSetTrimsSurroundingSpace(t *testing.T) {
 			t.Errorf("Set(%q) = %v, want accepted after trimming", in, err)
 			continue
 		}
-		if v.Grade != High {
-			t.Errorf("Set(%q) gave %q, want %q", in, v.Grade, High)
+		if v.Grade != "high" {
+			t.Errorf("Set(%q) gave %q, want %q", in, v.Grade, "high")
 		}
 	}
 }
@@ -124,42 +134,23 @@ func TestGradeValueSetIsIdempotentAndFailureIsNotDestructive(t *testing.T) {
 	if err := v.Set("certain"); err != nil {
 		t.Fatal(err)
 	}
-	if v.Grade != Certain {
-		t.Errorf("Grade = %q, want the last value %q", v.Grade, Certain)
+	if v.Grade != "certain" {
+		t.Errorf("Grade = %q, want the last value %q", v.Grade, "certain")
 	}
 	if err := v.Set("bogus"); err == nil {
 		t.Fatal("bogus was accepted")
 	}
-	if v.Grade != Certain || !v.Given() {
+	if v.Grade != "certain" || !v.Given() {
 		t.Errorf("a rejected Set clobbered the prior value: Grade=%q Given=%v", v.Grade, v.Given())
 	}
 }
 
-// GradeNames and Grades must not drift: the help text is generated from the same
-// list validation reads, which is the point of having one canonical slice.
-func TestGradeNamesMirrorsGradesAndUsageIsGeneratedFromIt(t *testing.T) {
-	names := GradeNames()
-	if len(names) != len(Grades) {
-		t.Fatalf("GradeNames() has %d entries, Grades has %d", len(names), len(Grades))
-	}
-	for i, g := range Grades {
-		if names[i] != string(g) {
-			t.Errorf("GradeNames()[%d] = %q, want %q — order is part of the contract", i, names[i], g)
-		}
-	}
-	// Mutating the returned slice must not reach the canonical list.
-	names[0] = "clobbered"
-	if GradeNames()[0] != string(Grades[0]) {
-		t.Error("GradeNames() aliases the canonical order; a caller can corrupt validation")
-	}
-	usage := GradeUsage("how bad this is")
-	if !strings.HasPrefix(usage, "how bad this is: ") {
-		t.Errorf("GradeUsage lost its caller's text: %q", usage)
-	}
-	for _, g := range GradeNames() {
-		if !strings.Contains(usage, g) {
-			t.Errorf("usage omits %q, so help and validation have drifted: %q", g, usage)
-		}
+// The help states the scale in the record's order, after the caller's own words: one list, read
+// by the flag's validation, its refusal and its usage.
+func TestGradeUsageIsTheCallersTextThenTheRecordsScale(t *testing.T) {
+	want := "what this grades: " + strings.Join(recordpb.GradeWords(), " | ")
+	if got := GradeUsage("what this grades"); got != want {
+		t.Errorf("GradeUsage = %q, want %q", got, want)
 	}
 }
 

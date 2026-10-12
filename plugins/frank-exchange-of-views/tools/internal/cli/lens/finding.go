@@ -122,9 +122,9 @@ func newFinding() *cobra.Command {
 
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the finding's id")
 	seat.Supplies(c, "id", "the tool mints it (record.NewID), at random — an id a seat chose would name a finding the record does not hold")
-	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))
-	c.Flags().Var(&likelihood, flags.Likelihood, flags.DescLikelihood)
-	c.Flags().Var(&impact, flags.Impact, flags.DescImpact)
+	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
+	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))
+	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
 	// A finding anchors by --quote OR by --about-kind/--about, and the handler refuses one with
 	// neither — so the marker states the condition, not the bare word.
 	flags.Text(c, flags.Quote, "REQUIRED unless --about-kind/--about name the subject — "+flags.DescQuote+". The finding anchor is placed there")

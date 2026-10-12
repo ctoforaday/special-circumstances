@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 // record's own — the list its write path resolves against — so the envelope cannot offer a word
 // the tool refuses or omit one it accepts.
 type vocabulary struct {
-	grades          []string // record.GradeWords
+	grades          []string // recordpb.GradeWords
 	dimensions      []string // a grade motion's `dimension`
 	petitionRulings []string // a petition motion's ruling
 	reliefBinds     []string // a petition ruling's `binds`
@@ -47,7 +48,7 @@ type vocabulary struct {
 
 func vocabularyFromTheRecord() (vocabulary, error) {
 	v := vocabulary{
-		grades:            record.GradeWords(),
+		grades:            recordpb.GradeWords(),
 		dimensions:        seatWords(record.MotionFields["grade"]["dimension"]),
 		petitionRulings:   seatWords(record.MotionVerdicts["petition"]),
 		reliefBinds:       seatWords(record.MotionFields["petition"]["binds"]),

@@ -63,18 +63,8 @@ var MotionVerdicts = map[string][]EnumValue{
 // it replaces — which is the half-state that reads as done, one layer below where that rule is
 // usually applied.
 var MotionFields = map[string]map[string][]EnumValue{
-	"grade": {"dimension": {
-		ev("severity", "how bad the defect is in itself"),
-		ev("likelihood", flags.DescLikelihood),
-		ev("impact", flags.DescImpact),
-		// ALL FOUR AXES ARE THEIR FLAG NAMES. This value spent releases spelled `complexity_cost`
-		// — the PAYLOAD key — while the flag was `--cx`, and the comment here documented the trap
-		// rather than removing it: three dimensions matched their flags and the fourth matched
-		// neither, which is a trap a seat walks into by learning the pattern from the other three
-		// (measured). The flag is `--complexity` and so is the dimension; the payload key stays
-		// `complexity_cost`, which is a schema name no seat types.
-		ev("complexity", flags.DescComplexity+" — the axis to contest when the fix is worth more than the defect"),
-	}},
+	// FROM THE SCHEMA, not typed here: the four axes and what each means are GradeDimension's.
+	"grade": {"dimension": evsOf(recordpb.GradeDimension(0).Descriptor())},
 	"petition": {
 		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass
 		// carried a different four, and the write path resolves against the enum — so `ethical`
@@ -94,6 +84,23 @@ var MotionFields = map[string]map[string][]EnumValue{
 		// GRANTED — so no granted petition could be recorded at all.
 		"binds": evsOf(recordpb.RulingBinds(0).Descriptor()),
 	},
+}
+
+// AxisMeans is what one grade axis means: the `(means)` on its GradeDimension value, which is the
+// sentence the dimension menu above prints. A flag that sets the axis prints it too, so the seat
+// grading a gap and the seat contesting the grade read one definition.
+//
+// It panics on an axis with no meaning — a schema defect, met when a verb's flags are built.
+func AxisMeans(d recordpb.GradeDimension) string {
+	vd := d.Descriptor().Values().ByNumber(d.Number())
+	if vd == nil {
+		panic(fmt.Sprintf("record: %d is not a grade axis", d.Number()))
+	}
+	means, err := recordpb.EnumValueDoc(vd)
+	if err != nil {
+		panic("record: " + err.Error())
+	}
+	return means
 }
 
 // MotionFieldEnum builds the enum entry for one of those fields, so the CLI's help and the write

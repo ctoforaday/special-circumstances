@@ -875,24 +875,23 @@ func TestAFindingIDIsRefusedASecondTimeAndAFreshOneLands(t *testing.T) {
 	}
 }
 
-// TestMASSKeysAreExactlyTheCanonicalGrades binds MASS's grade set to flags.Grades — the single
-// grade authority. Add/remove/rename a grade in flags and this fails until MASS is updated, so the
-// mass mapping can never carry a grade the validator rejects (or miss one it accepts). This is the
-// cross-package binding record.GRADES used to lack (it was a second, untested grade list).
+// TestMASSKeysAreExactlyTheCanonicalGrades holds MASS's key set to the grade scale
+// (recordpb.GradeWords), the words the grade flag accepts: the mass mapping carries no grade the
+// flag refuses and misses none it accepts.
 func TestMASSKeysAreExactlyTheCanonicalGrades(t *testing.T) {
 	got := make([]string, 0, len(MASS))
 	for k := range MASS {
 		got = append(got, k)
 	}
 	sort.Strings(got)
-	want := flags.GradeNames()
+	want := recordpb.GradeWords()
 	sort.Strings(want)
 	if len(got) != len(want) {
-		t.Fatalf("MASS has %d grades, flags.Grades has %d:\n got=%v\nwant=%v", len(got), len(want), got, want)
+		t.Fatalf("MASS has %d grades, the scale has %d:\n got=%v\nwant=%v", len(got), len(want), got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("MASS grade set diverges from flags.Grades:\n got=%v\nwant=%v", got, want)
+			t.Fatalf("MASS grade set diverges from the scale:\n got=%v\nwant=%v", got, want)
 		}
 	}
 }

@@ -96,10 +96,21 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	if len(MotionVerdicts["petition"]) == 0 {
 		t.Error("MotionVerdicts lost the petition rulings")
 	}
-	// The four grade axes, likewise: they were declared on `dispute` and read by
-	// `dispute-respond`'s join. One table now.
-	if got := strings.Join(Names(MotionFields["grade"]["dimension"]), "|"); got != "severity|likelihood|impact|complexity" {
+	// The four grade axes, likewise, and what each means: the menu a grade motion's filer reads is
+	// GradeDimension's own words and sentences, in its order.
+	dims := MotionFields["grade"]["dimension"]
+	if got := strings.Join(Names(dims), "|"); got != "severity|likelihood|impact|complexity" {
 		t.Errorf("the grade dimensions moved or changed: %q — the ruling is matched to the filing on (gap, dimension), so a change here silently unpairs asks from answers", got)
+	}
+	for _, v := range dims {
+		d, ok := GradeDimensionOf(v.Name)
+		if !ok {
+			t.Errorf("the dimension menu offers %q, which is not a GradeDimension", v.Name)
+			continue
+		}
+		if want := AxisMeans(d); v.Means != want {
+			t.Errorf("the dimension menu says %q means %q; the axis's one definition is %q", v.Name, v.Means, want)
+		}
 	}
 }
 

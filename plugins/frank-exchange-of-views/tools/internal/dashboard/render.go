@@ -14,11 +14,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
-// sevCode: grade codes for phone-width tables. sevRank orders them high→low for a stable,
-// sensible mint-breakdown render (JS used insertion order; structural equivalence lets us
-// pick any stable order, and high-first reads best).
+// sevCode: grade codes for phone-width tables — a display abbreviation, which the record does not
+// carry. A grade with no code renders as its whole word.
 var sevCode = map[string]string{"certain": "c", "high": "h", "medium_high": "mh", "medium": "m", "low_medium": "lm", "low": "l", "trivial": "t", "realized": "r"}
-var sevRank = map[string]int{"certain": 7, "high": 6, "medium_high": 5, "medium": 4, "low_medium": 3, "low": 2, "trivial": 1, "realized": 0}
 var shortName = map[string]string{"frontier": "front", "blue lanes": "lanes", "synthesis": "synth", "assembly": "asm"}
 
 func round(f float64) float64 { return math.Round(f) }
@@ -195,12 +193,12 @@ func sevRow(t *recordpb.TelemetryLine) string {
 	if len(tallies) == 0 {
 		return "—"
 	}
-	// SORTED BY SEVERITY RANK FOR DISPLAY, which is this file's concern and unchanged. The
+	// SORTED HEAVIEST GRADE FIRST FOR DISPLAY, by the weight the Grade enum declares. The
 	// producer's order is first-appearance and deliberate (the schema chose `repeated` over a map
 	// so ordering is owned rather than left to an encoder); neither order is the other's business.
 	sorted := append([]*recordpb.SeverityTally(nil), tallies...)
 	sort.Slice(sorted, func(i, j int) bool {
-		return sevRank[recordpb.Word(sorted[i].GetGrade())] > sevRank[recordpb.Word(sorted[j].GetGrade())]
+		return recordpb.GradeMass(sorted[i].GetGrade()) > recordpb.GradeMass(sorted[j].GetGrade())
 	})
 	parts := make([]string, 0, len(sorted))
 	for _, tl := range sorted {

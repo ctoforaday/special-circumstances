@@ -239,9 +239,9 @@ func bodyMap(m proto.Message) (map[string]any, error) {
 
 // gradeWord adds PRESENCE to GradeStr, and nothing else.
 //
-// The vocabulary is GradeStr's — one spelling now, `low_medium`, after flags.Grade converged on
-// the schema's word; GradeStr's own header carries what the join was and why it was not a general
-// rule. This function must never re-implement it: a second copy of that mapping is how MASS lookups
+// The vocabulary is GradeStr's — the schema's word, `low_medium`; GradeStr's own header carries
+// the hazard of a second spelling and why it is not a general rule about separators. This function
+// must never re-implement it: a second copy of that mapping is how MASS lookups
 // silently return 0, which is the same number an ungraded gap reports.
 //
 // What is local here is the JSON view's presence contract, which GradeStr cannot express because it

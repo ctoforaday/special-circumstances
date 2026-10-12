@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
@@ -975,7 +976,7 @@ func TestEveryEnumValueNamedInAPromptIsAccepted(t *testing.T) {
 	// checked against that vocabulary instead of being skipped.
 	for _, f := range []string{flags.Severity, flags.Likelihood, flags.Impact, flags.Complexity, flags.Proposed} {
 		byFlag[f] = map[string]bool{}
-		for _, g := range flags.GradeNames() {
+		for _, g := range recordpb.GradeWords() {
 			byFlag[f][g] = true
 		}
 	}

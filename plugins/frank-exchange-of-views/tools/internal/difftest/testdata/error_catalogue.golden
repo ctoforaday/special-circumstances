@@ -6,7 +6,7 @@ feov-record: mint: requires --check, --check-kind, --impact, --likelihood, --sev
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -17,7 +17,7 @@ feov-record: mint: requires --class, --impact, --likelihood, --severity
       --class slug         REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -27,7 +27,7 @@ feov-record: mint: requires --impact, --likelihood, --severity
 
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -37,7 +37,7 @@ feov-record: mint: requires --impact, --likelihood, --severity
 
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
@@ -47,13 +47,13 @@ feov-record: mint: requires --impact, --likelihood, --severity
 
       --impact grade       REQUIRED — how bad the consequence is if it lands
       --likelihood grade   REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --severity grade     REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade     REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
 
 ── mint with bad grade
 exit 2
-feov-record: mint: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
+feov-record: mint: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -94,7 +94,7 @@ Flags:
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
-      --complexity grade                         what fixing it costs, on the same scale
+      --complexity grade                         what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable, on the same scale
       --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
@@ -106,7 +106,7 @@ Flags:
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --severity grade                           REQUIRED — how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -510,7 +510,7 @@ feov-record: motion grade file: invalid argument "banana" for "--dimension" flag
     severity    how bad the defect is in itself
     likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
     impact      how bad the consequence is if it lands
-    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable
 
 file a grade motion — the tool assigns its id.
 
@@ -537,7 +537,7 @@ Flags:
       --dimension dimension-value   REQUIRED — the grade axis you contest
   -h, --help                        help for file
       --id gap-id                   REQUIRED — the gap this motion is about
-      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --proposed grade              REQUIRED — the grade you say it should be: trivial | low | low_medium | medium | medium_high | high | certain | realized
       --reason string               REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Enumerated values:
@@ -545,7 +545,7 @@ Enumerated values:
     severity    how bad the defect is in itself
     likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there
     impact      how bad the consequence is if it lands
-    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text

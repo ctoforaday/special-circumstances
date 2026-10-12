@@ -303,17 +303,14 @@ func benchClosesGap(d recordpb.Disposition) bool {
 
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
 //
-// THE TWO VOCABULARIES HAVE CONVERGED, AND THIS COMMENT USED TO DENY IT. It read: "the hyphen is
-// the whole reason this function is not a call to recordpb.Word" — sitting directly above a body
-// that is exactly that call. `flags.Grade` spelled `low-medium` and `medium-high` when that was
-// written; it spells `low_medium` and `medium_high` now (flags/grade.go), MASS keys on the
-// underscored words (record.go), and the fuzz corpus that generates VALID grades says so in its
-// own header. One spelling, one surface, no join.
+// ONE SPELLING, ONE LIST. The word is the Grade enum's own (`low_medium`, `medium_high`): the grade
+// flag accepts exactly recordpb.GradeWords, MASS keys on the same words (record.go), and this is
+// recordpb.Word. No surface holds a second list of them.
 //
-// WHAT THE HAZARD WAS, KEPT BECAUSE THE SHAPE RECURS: while the two differed, a wrong separator
-// looked up to 0 in MASS, and GapMass multiplies likelihood by impact — so one character zeroed
-// the mass of every gap graded on either point, and a mass of zero is exactly what an ungraded gap
-// reports. The miss and the honest zero were the same number.
+// THE HAZARD A SECOND SPELLING CARRIES: a word MASS does not key on looks up to 0, and GapMass
+// multiplies likelihood by impact — so one wrong separator zeroes the mass of every gap graded on
+// either point, and a mass of zero is exactly what an ungraded gap reports. The miss and the honest
+// zero are the same number.
 //
 // NOT A GENERAL RULE ABOUT SEPARATORS, then or now. Disposition really is `defect_accepted` on the
 // seat's surface, AvenueRuling really is `out_of_scope` (avenue.go checked it), and a test
