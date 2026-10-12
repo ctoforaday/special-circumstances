@@ -15,15 +15,15 @@ import (
 //   - K: consecutive exchanges on one gap with no movement before it is at impasse.
 //   - KMax: total exchanges on one gap before it is at impasse regardless — the monotone bound
 //     that a regrade per exchange cannot reset.
-//   - MintBudget (M): the FLOOR of the gaps one lens may mint in the run, superseding mints
-//     included. A lens's budget is max(M, ceil(units / per)), its units read off the record
+//   - MintBudget (M): the FLOOR of the gaps one lens may hold open at once; a gap that closes
+//     frees a mint. A lens's budget is max(M, ceil(units × mints / per)), its units read off the record
 //     at each mint — see mintScales (mintbudget.go) for each area's unit and ratio.
 //   - ConvergenceFraction: the board-mass fraction of the run's peak below which a FAIL over a
 //     board with nothing material is refused (§III.B.2.1).
 //   - MaxEpochs: the chair sittings the run gets. The sitting that opens epoch MaxEpochs
 //     dispatches nobody, and a run with parties still ready there ends CEILING (PlanDispatch).
 //
-// A smoke run is M = 1, KMax = 2: one mint per lens unless the report is large enough to buy more.
+// A smoke run is M = 3, KMax = 2: three open gaps per lens unless the report is large enough to buy more.
 type Params struct {
 	K                   int     `json:"k"`
 	KMax                int     `json:"kMax"`
@@ -34,7 +34,7 @@ type Params struct {
 
 // DefaultParams are the values setup writes when the operator names none. They are a starting
 // point the gate run measures (plans/roundless.md §V), stated as such.
-var DefaultParams = Params{K: 2, KMax: 6, MintBudget: 5, ConvergenceFraction: 0.25, MaxEpochs: 12}
+var DefaultParams = Params{K: 2, KMax: 6, MintBudget: 15, ConvergenceFraction: 0.25, MaxEpochs: 12}
 
 // RunParams reads the run's terms. A run with no run-config.json, or one written before these
 // were recorded, gets the defaults — a real answer, and the same one setup would have written —
