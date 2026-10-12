@@ -499,6 +499,27 @@ impasse or closes; and either no material gap is open and every lens has sat aga
 `exhausted` arm (`debate.js:1268`, `verdict.go:75`) is replaced by this — CEILING's definition is
 unchanged; the budget is what guarantees the state is reached.
 
+**Amended 2026-10-12 — three rulings by gblock, after universe-m22; the text above is the plan as
+decided and is left as it was.** m22's logic lens had minted its budget of 3 by epoch 3 and had itself closed two of
+them; holding one gap open, it was refused a real misdescription in that sitting, which went into
+a finding — a finding obliges nobody — and shipped in a VERIFIED report.
+
+1. **The budget counts the gaps a lens holds OPEN, not the gaps it mints in the run.** Open is the
+   gap view's `open` — no closing act of either arm stands — so a gap that closes, by its lens on
+   any disposition or by the bench, frees a mint, and a defect the budget refuses is recorded as a
+   finding and minted, crediting that finding, once one has. A superseding mint is a new open gap
+   and takes a mint; the gap it replaces holds its own until its lens closes it.
+2. **A smoke's floor is `M = 3`** (`K_max = 2` stands).
+3. **Every budget is three times as generous**: the default floor is 15, and each area's rate over
+   its unit is tripled (`mintScales`, `tools/internal/record/mintbudget.go`, is the table).
+
+**What the amendment costs the argument above.** `gaps ≤ M × L` becomes `gaps open at once ≤ M × L`:
+the budget no longer bounds the gaps a run mints in total, so "total exchanges ≤ `M × L × K_max`"
+does not hold and the budget alone does not terminate a run. What ends a run in which a lens goes
+on minting is lens retirement (three sittings in a row without a fresh material mint) when the
+lens stops, and the epoch limit (`maxEpochs`, CEILING with the limit as its reason)
+when it does not.
+
 ### §III.B.2.1 Triviality must not hold the report open — the refusal, corrected
 
 `divergent` exists (`schema.sql:988-991`) and refuses nothing. The audit found its predicate wrong
