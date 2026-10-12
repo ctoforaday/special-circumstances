@@ -148,9 +148,6 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 			}
 			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
 		}
-		if anyClosedGap(gaps) && !seatDidThisSitting(evs, win, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
-			add("the closure archive is not empty and this sitting has sampled none of it")
-		}
 	case "lens":
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
 		//
@@ -282,15 +279,6 @@ func mintedBy(evs []*Event) map[string]string {
 		}
 	}
 	return out
-}
-
-func anyClosedGap(gaps []WorkGapState) bool {
-	for _, g := range gaps {
-		if !g.Open {
-			return true
-		}
-	}
-	return false
 }
 
 // regradesAfforded is each gap whose accepted grade motion still waits for its regrade, and whose

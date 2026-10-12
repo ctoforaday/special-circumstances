@@ -187,7 +187,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the archive and records red's verdict.
+The chair is red's running seat: it relays who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's verdict.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

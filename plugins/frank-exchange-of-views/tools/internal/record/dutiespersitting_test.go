@@ -131,20 +131,22 @@ func TestNoBlueSeatIsToldARevisionIsMissing(t *testing.T) {
 	}
 }
 
-// THE CHAIR RE-SAMPLES THE ARCHIVE EVERY SITTING it is not empty — its item already said "this
-// sitting has sampled none of it", and read the whole record.
-func TestTheSpotCheckIsOwedEverySittingTheArchiveHoldsAClosure(t *testing.T) {
-	sampled := func() *stage {
-		return newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").closeGap(evLens, "G1").
-			register("red-chair").add("red-chair", &recordpb.SpotCheck{Ids: []string{"G1"}, Reason: proto.String("the anchor still resolves")})
+// THE SPOT-CHECK IS OWED BEFORE A PASS AND AT NO OTHER TIME. A chair sitting over a non-empty
+// closure archive that has sampled none of it has no item saying it owes a sample: the one
+// spot-check item a chair's list carries is the stale area that holds its PASS.
+func TestAChairSittingOverAnUnsampledArchiveOwesNoSpotCheck(t *testing.T) {
+	unsampled := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").closeGap(evLens, "G1").
+		register("red-chair")
+	s := sittingOfRunT(t, unsampled.seed(), "chair", "red-chair")
+	if len(s.Open) == 0 {
+		t.Fatal("the chair's work list is empty, so this test read nothing")
 	}
-	const unsampled = "this sitting has sampled none of it"
-	if listed(sittingOfRunT(t, sampled().seed(), "chair", "red-chair"), unsampled) {
-		t.Fatal("the chair sampled the archive this sitting and is told it has not")
-	}
-	if !listed(sittingOfRunT(t, sampled().register("red-chair").seed(), "chair", "red-chair"), unsampled) {
-		t.Fatal("the chair's next sitting has sampled nothing, and the work list does not say so")
+	for _, it := range s.Open {
+		w := strings.ToLower(it.What)
+		if strings.Contains(w, "sampled") || (strings.Contains(w, "spot-check") && !strings.Contains(w, "behind its pin")) {
+			t.Errorf("the chair's work list states a spot-check duty outside the PASS refusal: %q", it.What)
+		}
 	}
 }
 
@@ -191,7 +193,7 @@ func TestWhatABlueSittingOwesIsWhatItFoundOpenWhetherOrNotItHasEnded(t *testing.
 	}
 }
 
-// A REPAIR DOES NOT RE-OPEN WHAT THE SITTING IT REPAIRS ALREADY DID (#1026). seatDidThisSitting is
+// A REPAIR DOES NOT RE-OPEN WHAT THE SITTING IT REPAIRS ALREADY DID (#1026). thisSitting is
 // a reader that ATTRIBUTES — it answers "did this sitting file its log", not "has this turn" — so
 // its window is the sitting the record stored the acts in, from its OPENING (a hook's bracket or a
 // register), never a repair's own register. Starting it at the seat's latest register of any kind

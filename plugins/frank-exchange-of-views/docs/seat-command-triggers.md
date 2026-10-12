@@ -67,7 +67,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `lens close` | a gap answered, with an anchor naming who checked what with which tool — the ORIGINATOR closes (roundless §III.B.3); another seat's close is refused at the record | — | CLEAN |
 | `lens regrade` | change a gap's grade in place | debate.js prose "apply the new grade in the ledger" never named the verb, so a seat may re-mint or edit instead | EXECUTED (#325, verified 2026-08-13): named in debate.js and in red-auditor.md. The 2026-08-12 elicitation then found a chair seat listing it unprompted — *"Regrade R1-1 without closing it — lower severity, keep it open until blue actually edits"* — which is the move from *never perceived* to *weighed* the naming was for |
 | `lens near-match` | before minting: is this gap already on the board, open or closed? | the archive read the lens would otherwise do by hand — and the screen the chair did by eye before lenses minted (roundless §III.B.3) | CLEAN (read-only, records nothing). Same elicitation result as `regrade` — unnamed in the prompts, unlisted by the seats |
-| `chair spot-check` | the chair sitting's archive spot-check duty | the envelope array is deleted | RESOLVED (#317): the verb is the single channel and its floor is computed from the board |
+| `chair spot-check` | before a PASS: the chair reads the changes behind each stale area and names the areas, and the archived closures it re-verified | the envelope array is deleted | RESOLVED (#317): the verb is the single channel; the PASS is refused until a spot-check this sitting names every stale area, and the archive's size is replayed from the board |
 | `chair position` | the sitting's RED narrative | a hand-written `### RED` section in debate.md | EXECUTED: the transcript is rendered from `position` events |
 | `chair closing` | a closing argument on a docketed item | — | CLEAN |
 | `lens class list` | needing to know what classes exist — before minting against one, and before coining a new one | reading the checked-in `feov-memory/class-registry.json` or the generated Go source, OUTSIDE the run directory | EXECUTED: the coining check refuses a class the registry does not know, and nothing on any seat's surface could say what it knows, so the only way to answer was to leave the record tool — the one place a seat is told it should never need to go |
@@ -171,8 +171,7 @@ One mechanism for the three propose→rule exchanges, each ask carrying an id it
    was taken as the tidy other half of a real fix, and nobody asked what the half would DO.
 3. **petition filing / spot-check / manifest-row → the record verb is the single source.** The verb
    event is canonical; the envelope carries a routing ref, not the data.
-   **EXECUTED — #315 (petition filing), #317 (spot-check, with its W1.8 floor now computed from the
-   board), #318 (manifest-row).**
+   **EXECUTED — #315 (petition filing), #317 (spot-check), #318 (manifest-row).**
 4. ~~**certify → fold into `outcome`.**~~ **REVERSED (#328, 2026-08-09) — `certify` stays its own
    verb.** The original decision read a certification as part of the terminal verdict. It is not:
    a certification is *the bench asking a human to re-examine something*, and a verdict is *the

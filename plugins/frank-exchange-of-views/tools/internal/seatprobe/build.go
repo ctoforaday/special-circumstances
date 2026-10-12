@@ -201,7 +201,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 			continue
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
-		// to sample, so a board that wants the duty exercised has to give it something.
+		// to sample, so a board that wants the verb exercised has to give it something.
 		if _, err := exec("close", "--run", run.Dir(), "--seat-id", minter,
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
