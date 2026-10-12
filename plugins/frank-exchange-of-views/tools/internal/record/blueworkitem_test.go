@@ -176,3 +176,64 @@ func TestBluesWorkListNamesTheEngagedGapsItFoundClosed(t *testing.T) {
 		t.Errorf("a lens's work list has engaged = %v (present %v), want the key with null", v, present)
 	}
 }
+
+// THE ENGAGED BLOCK IS THE DISPATCH BLUE IS TO SIT FOR, BEFORE ITS REGISTER AS AFTER. Blue reads its
+// work list with its dispatch — before it registers — and the list names the gaps of the latest
+// dispatch naming it, with each one closed since that row. Keyed on the latest REGISTERED sitting,
+// the block named the dispatch before: across four epochs of universe-wave-b blue read one set of
+// gaps in its dispatch and another in `engaged`, and read the whole board to choose between them.
+func TestBluesEngagedBlockNamesTheDispatchItHasNotYetRegisteredFor(t *testing.T) {
+	const laterGap = "G-00000004"
+	staged := func(registered bool) Run {
+		b := newStage(t).cast(evLens, "red-chair", blueSeatID).ingest().register(evLens).
+			mint(evLens, quotedGap, "high").mint(evLens, proseGap, "high").mint(evLens, closedGap, "high").mint(evLens, laterGap, "high").
+			bracket("red-chair", "chair-a").dispatch(1, blueSeatID, quotedGap, proseGap).
+			registerAs(blueSeatID, "blue-a").
+			bracket("red-chair", "chair-b").dispatch(1, blueSeatID, closedGap, laterGap).
+			closeGap(evLens, closedGap)
+		if registered {
+			b = b.registerAs(blueSeatID, "blue-b")
+		}
+		return b.seed()
+	}
+	for _, c := range []struct {
+		name       string
+		registered bool
+	}{{"before the second register", false}, {"after the second register", true}} {
+		t.Run(c.name, func(t *testing.T) {
+			w, err := WorkOfSeat(staged(c.registered), "blue", blueSeatID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e := w.Engaged
+			if e == nil {
+				t.Fatal("blue-respond's work list has a null engaged; two dispatches name it")
+			}
+			if got := strings.Join(e.GapIDs, " "); got != closedGap+" "+laterGap {
+				t.Errorf("engaged gap_ids = %q, want the second dispatch's %q", got, closedGap+" "+laterGap)
+			}
+			want := FoundClosedJSON{ID: closedGap, ClosedBySeat: evLens, Fate: "repaired"}
+			if len(e.FoundClosed) != 1 || e.FoundClosed[0] != want {
+				t.Errorf("found_closed = %+v, want exactly %+v", e.FoundClosed, want)
+			}
+		})
+	}
+
+	// A first dispatch not yet registered for is named too: the block is null only where no
+	// dispatch names blue-respond.
+	first, err := WorkOfSeat(newStage(t).cast(evLens, "red-chair", blueSeatID).ingest().register(evLens).mint(evLens, quotedGap, "high").
+		bracket("red-chair", "chair-a").dispatch(1, blueSeatID, quotedGap).seed(), "blue", blueSeatID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := first.Engaged; e == nil || strings.Join(e.GapIDs, " ") != quotedGap || e.FoundClosed == nil {
+		t.Errorf("engaged before blue's first register = %+v, want the dispatch's gap and an empty found_closed", e)
+	}
+	none, err := WorkOfSeat(newStage(t).cast(evLens, "red-chair", blueSeatID).ingest().register(evLens).seed(), "blue", blueSeatID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if none.Engaged != nil {
+		t.Errorf("engaged = %+v with no dispatch naming blue-respond, want null", none.Engaged)
+	}
+}

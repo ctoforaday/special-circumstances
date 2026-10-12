@@ -596,8 +596,8 @@ type WorkJSON struct {
 	// Counterparty answers "has the other side acted, and on what" — a question the record could
 	// always answer and no view would.
 	Counterparty CounterpartyJSON `json:"counterparty"`
-	// Engaged is the dispatch blue-respond is sitting for and which of its gaps the sitting found
-	// already closed. An object for blue-respond once its dispatched sitting is on the record, its
+	// Engaged is the dispatch blue-respond is to sit for — the latest naming it, registered for or
+	// not — and which of its gaps are found closed. An object for blue-respond once a dispatch names it, its
 	// found_closed list explicit even when empty; null for every other seat — none is dispatched to
 	// answer a gap another seat can close first. The key is never omitted: the help's field tree
 	// names it, and a top-level key a reader was told of and cannot find reads as a failed read.
