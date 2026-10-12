@@ -108,8 +108,18 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 			t.Errorf("the dimension menu offers %q, which is not a GradeDimension", v.Name)
 			continue
 		}
-		if want := AxisMeans(d); v.Means != want {
-			t.Errorf("the dimension menu says %q means %q; the axis's one definition is %q", v.Name, v.Means, want)
+		// ONE DEFINITION OF EACH AXIS, and the menu opens with it. The complexity axis carries a
+		// second fact there and nowhere else — why it is the one to contest — which is a fact
+		// about a motion: the page a lens grades from prints the definition alone.
+		want := AxisMeans(d)
+		if d == recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY {
+			if strings.Contains(want, "contest") {
+				t.Errorf("the complexity axis's definition carries the motion's contest clause, so every page that grades on it prints it: %q", want)
+			}
+			want += " — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"
+		}
+		if v.Means != want {
+			t.Errorf("the dimension menu says %q means %q, want %q", v.Name, v.Means, want)
 		}
 	}
 }

@@ -49,7 +49,7 @@ func newProve() *cobra.Command {
 			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT sentence in the report (as `show report` serves it) this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
 		}
 		if strings.TrimSpace(script) == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --script: the path (under the run directory) of the program that settles it")
+			return nil, feov.Errorf(feov.MissingField, "requires --script: the path of the program that settles it — absolute, or relative to the run directory")
 		}
 
 		// CRASH-RETRY AND KEY COLLISION LOOK IDENTICAL AT THE KEY, AND ARE OPPOSITE FACTS.
@@ -149,7 +149,7 @@ func newProve() *cobra.Command {
 	}))
 
 	flags.Text(c, flags.Quote, flags.DescQuote)
-	c.Flags().String(flags.Script, "", "path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")
+	c.Flags().String(flags.Script, "", "path of the program that settles it (.py, .js, .mjs, .sh or .go). An ABSOLUTE path is read where it lies, so a script drafted in your scratchpad is passed from there; a relative path is read from the run directory. The tool keeps its own copy with the proof, so nothing of yours is written into the run directory")
 	seat.Require(c, flags.Quote, flags.Script)
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")

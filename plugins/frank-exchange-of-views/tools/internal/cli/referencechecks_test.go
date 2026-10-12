@@ -123,6 +123,9 @@ var referenceChecks = []struct {
 		extra: []string{"--carried-from", "1", "--reason", "r"}},
 	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "G2",
 		extra: []string{"--id", "G1", "--carried-from", "1", "--reason", "r"}},
+	// A READ'S REFERENCE IS CHECKED TOO: the changes view scoped to a gap nobody minted answers
+	// with nothing, which reads as a gap nobody has answered.
+	{verb: []string{"show", "changes"}, flag: "--id", against: "the board", bogus: "G2"},
 }
 
 // stageClassRegistry writes a registry into the run's RESOLVED record directory.
