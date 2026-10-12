@@ -1,0 +1,80 @@
+---
+# THE WHOLE GRAPH UNDER THE RACE DETECTOR, ONCE A DAY.
+#
+# The pull-request gate (`hooks`, feov-record job) races the tests in the shipped binary's
+# import graph that start a goroutine, and proves every start in a non-test file was executed.
+# It finds those starts by type information, and there are two it cannot find:
+#
+#   - a start reached only through a function VALUE or an interface, and
+#   - a library call that runs our callback on its own goroutine and is not a row of
+#     scripts/internal/racescope's table.
+#
+# This run is where either surfaces: every test of every package in the graph, under the
+# detector. A race it finds reached main up to a day earlier — that is the stated cost of
+# scoping the pull-request gate (ruled 2026-10-11) — and the fix for a red here is the race
+# itself, then usually a table row.
+#
+# # Why a workflow of its own, and not a step in the scheduled `hooks` run
+#
+# A step there does not reliably execute. The scheduled `hooks` run is red for reasons of its
+# own (#855), its feov-record matrix cancels the Linux leg when the Windows leg fails, and the
+# race step is then skipped. A backstop that is skipped on the nights it matters is not one,
+# and its red would be indistinguishable from the standing one. `nightly-alarm` watches this
+# workflow by name and files its failure in an issue of its own.
+#
+# # What it does not need
+#
+# The OCR engine's C stack. The race sweep covers the DEFAULT build — the engine's stub — here
+# as everywhere (scripts/check/gates.go, raceScope, states why), so the tagged build's
+# dependencies are not built.
+name: race-nightly
+
+on:
+  # Cron is UTC, off :00 because GitHub sheds scheduled load at the top of the hour, and an
+  # hour after `hooks` so the two do not queue for the same runners.
+  schedule:
+    - cron: "47 10 * * *"
+  # By hand, on any branch: how a suspected race is reproduced at whole-graph depth without
+  # waiting for the schedule. `nightly-alarm` treats a dispatched failure like a scheduled one.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  race-nightly:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/frank-exchange-of-views/tools
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # No remote access after checkout, so the token has no reason to persist
+          # into .git/config where any later step could read it.
+          persist-credentials: false
+      # Every test database's fsync lands in RAM, as in the feov-record job.
+      - name: tmpfs for TEMP
+        run: |
+          mkdir -p /dev/shm/tmp
+          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v7
+        with:
+          # No cache: this job is on nobody's critical path, and a run that restores nothing
+          # has nothing to vouch for.
+          cache: false
+          go-version: "1.27"
+      # An empty list is refused rather than raced: `go test -race` with no packages would
+      # test the current directory and pass while measuring almost nothing.
+      #
+      # -timeout=30m per package: a test timeout catches a HANG, and Go's default of ten
+      # minutes was catching a correct serial suite instead — internal/cli took 435s under
+      # -race on an idle box. scripts/check holds every race leg to this bound (raceTimeout).
+      - name: the feov-record binary's whole import graph, under the race detector
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
+          test -n "$pkgs"
+          echo "$pkgs" | xargs go test -race -timeout=30m

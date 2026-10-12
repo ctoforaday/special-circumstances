@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -13,7 +16,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -177,5 +182,154 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 		if !strings.Contains(why, want) {
 			t.Errorf("the reason must carry %q so the operator learns capture was skipped: %q", want, why)
 		}
+	}
+}
+
+// lockedBuffer is serveDashboard's output, written on the serving goroutine and read by the test.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+// THE SERVED DASHBOARD, RUN TO ITS OWN TEARDOWN. serveDashboard is the one place the shipped
+// binary starts a goroutine of its own, and it does it twice over: the watcher that polls for the
+// run's end, and the connection goroutines that render the page from the same record. This serves
+// a live run on loopback, reads the page through the real socket while the watcher is polling —
+// so a render on a connection goroutine overlaps runHasEnded on the watcher's — then ends the run
+// and waits for the server to close itself.
+//
+// The directive is what puts this test in the race gate and holds it there: scripts/racescope
+// refuses a goroutine start in shipped source that no test declares, and refuses this
+// declaration if the test stops executing those starts.
+//
+//racescope:covers internal/cli/dashboard_serve.go:serveDashboard
+func TestTheServedDashboardAnswersWhileWatchedAndClosesWhenTheRunEnds(t *testing.T) {
+	run := runtest.Open(t, newRun(t))
+	marker := filepath.Join(recordtest.TmpRun(t), "run-live.json")
+	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	prevMarker, prevHost, prevInterval := runLiveMarker, dashboardBindHost, dashboardWatchInterval
+	runLiveMarker, dashboardBindHost, dashboardWatchInterval = marker, "127.0.0.1", 2*time.Millisecond
+	t.Cleanup(func() {
+		runLiveMarker, dashboardBindHost, dashboardWatchInterval = prevMarker, prevHost, prevInterval
+	})
+	render := func() string {
+		return dashboard.RenderHTML(dashboard.BuildModel(run, "", dashboard.Config{}, float64(time.Now().UnixMilli())))
+	}
+	// The certificate is minted per invocation and never leaves the process, so there is no root
+	// to verify it against; the secret in the path is the only credential this server has.
+	client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
+	}}
+
+	// serveDashboard binds the port it is given, so the test has to name a free one, and a port
+	// that was free a moment ago can be taken. A bind that loses that race is retried on another.
+	var (
+		out  *lockedBuffer
+		done chan error
+		base string
+	)
+	for attempt := 0; base == ""; attempt++ {
+		probe, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		port := probe.Addr().(*net.TCPAddr).Port
+		probe.Close()
+
+		out, done = &lockedBuffer{}, make(chan error, 1)
+		go func() { done <- serveDashboard(out, run, port, render) }()
+		secret := regexp.MustCompile(fmt.Sprintf(`:%d/([0-9a-f]{48})`, port))
+		deadline := time.Now().Add(30 * time.Second)
+		for base == "" {
+			select {
+			case err := <-done:
+				if attempt < 5 && err != nil && strings.Contains(err.Error(), "address already in use") {
+					deadline = time.Time{}
+				} else {
+					t.Fatalf("serveDashboard returned before the run ended: %v\n%s", err, out.String())
+				}
+			default:
+			}
+			if deadline.IsZero() {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("the served dashboard never answered on port %d:\n%s", port, out.String())
+			}
+			if m := secret.FindStringSubmatch(out.String()); m != nil {
+				if resp, err := client.Get(fmt.Sprintf("https://127.0.0.1:%d/%s", port, m[1])); err == nil {
+					resp.Body.Close()
+					base = fmt.Sprintf("https://127.0.0.1:%d/%s", port, m[1])
+					break
+				}
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	// From here the server is up. Whatever happens next, end the run and wait for the watcher
+	// before the package variables are put back: it reads them on its own goroutine.
+	ended := false
+	t.Cleanup(func() {
+		if !ended {
+			_ = os.Remove(marker)
+			<-done
+		}
+	})
+
+	// The page, through the socket, while the watcher polls every 2ms: enough requests that many
+	// polls land inside them.
+	for i := 0; i < 25; i++ {
+		resp, err := client.Get(base)
+		if err != nil {
+			t.Fatalf("request %d: %v", i, err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), "generated by feov-record dashboard") {
+			t.Fatalf("request %d = %d, %d bytes; want 200 and the rendered page", i, resp.StatusCode, len(body))
+		}
+	}
+	if resp, err := client.Get(base + "x"); err != nil {
+		t.Fatal(err)
+	} else if resp.Body.Close(); resp.StatusCode != http.StatusNotFound {
+		t.Errorf("a path that is not the secret = %d through the socket, want 404", resp.StatusCode)
+	}
+	// Still serving: the run is live, so nothing may have torn it down.
+	select {
+	case err := <-done:
+		t.Fatalf("the server closed while its run was live: %v", err)
+	default:
+	}
+
+	// The run ends. The watcher is the only thing that can close the server now.
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		ended = true
+		if err != nil {
+			t.Errorf("serveDashboard = %v, want a clean return once the run ended", err)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("the run ended and the served dashboard is still listening")
+	}
+	if !strings.Contains(out.String(), "torn down") {
+		t.Errorf("the teardown is not reported:\n%s", out.String())
 	}
 }
