@@ -127,11 +127,13 @@ func init() {
 	seat.HelpValues["RefusedHeadings"] = strings.Join(report.RefusedHeadings(), ", ")
 	seat.HelpValues["SubjectHeadingsNote"] = report.SubjectHeadingsNote
 	seat.HelpValues["WovenNotesRule"] = report.WovenNotesRule
+	seat.HelpValues["TextOrderRule"] = report.TextOrderRule
 }
 
 // composedRefusal refuses report text that claims what the tool writes: a section it composes
 // (report.ComposedIn, which reads the assembler's own table of sections), or a footnote label of
-// the shape the weave numbers its notes with (report.WovenNoteIn). It is asked of the document a
+// the shape the weave numbers its notes with (report.WovenNoteIn); and text that holds a section
+// out of the order the report ships in (orderRefusal). It is asked of the document a
 // write would leave — the file ingest is about to freeze, the report an edit has planned — against
 // the report as it stood (was; empty at ingest), so a heading an edit completes from parts is
 // caught as one it writes whole, and a claim the record already holds is not laid on the edit that
@@ -162,13 +164,43 @@ func composedRefusal(was, doc string) error {
 func wovenNoteRefusal(was, doc string) error {
 	label, s, found := report.WovenNoteIn(was, doc)
 	if !found {
-		return nil
+		return orderRefusal(was, doc)
 	}
 	return feov.Errorf(feov.Validation, "the report's text would carry the footnote label %q, and a label of that shape is assembly's to write: it numbers the report's notes %s, in %s, from %s. "+
 		"A note typed by hand under such a label ships beside the tool's note of the same label, and a reader is shown one of the two. "+
 		"NOTHING IS RECORDED by this call. HOW CONTENT REACHES IT: %s "+
 		"WHAT TO DO: take every reference of that shape this write adds, and the `[^…]:` line that defines it, out of the text. A source or a computation goes by the way above. %s",
 		label, report.WovenNoteLabels, s.File, s.From, s.Path, strings.TrimSuffix(report.NoteInCode, "."))
+}
+
+// orderRefusal refuses report text that holds a line out of the order the report ships in
+// (report.OutOfOrderIn, which reads the order off the assembler's table). The text ships as it is
+// written, so a section out of place in it is out of place in the reader's report, and the write is
+// the one act that can say so: every later reader takes the order as its author's. Like the
+// refusals above it is for what the write adds (report.added): a record migrated with its text as
+// written can hold a section out of place, and an edit that leaves it there, or moves it to its
+// place, is not the one that put it there.
+func orderRefusal(was, doc string) error {
+	m, found := report.OutOfOrderIn(was, doc)
+	if !found {
+		return nil
+	}
+	side := "before"
+	if m.After {
+		side = "after"
+	}
+	beside := []rune(m.Beside)
+	if len(beside) > 120 {
+		beside = append(beside[:120], '…')
+	}
+	return feov.Errorf(feov.Validation, "the report's text would carry %q %s %q, and %s. "+
+		"The report ships in the order its text is written, and its text stands in this order: %s. "+
+		"NOTHING IS RECORDED by this call. "+
+		"WHAT TO DO: move the section to its place, whole, with every line under it and every anchor it holds. In the file, before it is frozen, move the lines. "+
+		"In an edit, quote the section and what stands between it and its place as one span, as `show report` prints them, and write the same text in --new with the section where it belongs: "+
+		"every anchor the span holds stays on its sentence. Where what stands on the wrong side is text this write adds, write that text on the right side instead. "+
+		"Where the section is a second one under its name, give it a heading of its own or join it to the first",
+		m.Line, side, string(beside), m.Belongs, report.TextOrder)
 }
 
 // voiceCensus renders the whole-document census as lines an author can act on.

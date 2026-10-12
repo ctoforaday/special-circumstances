@@ -43,7 +43,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	const sha = "feed0000face2222"
 	seedProof(t, runDir, sha, "console.log('interleavings:', 0);", "interleavings: 0\n")
 
-	// ALL THREE CLASSES, IN BLUE'S AUDITED REPORT — which is the surface lifted VERBATIM, so it
+	// ALL THREE CLASSES, IN BLUE'S AUDITED REPORT — which is the surface that ships as WRITTEN, so it
 	// is the one where a missed weave would show up first.
 	blue := strings.Join([]string{
 		"# Whether the eviction path is safe — research report",
@@ -93,7 +93,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
 		Text: proto.String("the model check settles the interleaving"),
 	})
-	// ANCHORS IN RECORD-DERIVED TEXT TOO, not only in blue's lifted sections. A seat's own prose
+	// ANCHORS IN RECORD-DERIVED TEXT TOO, not only in the report's own sections. A seat's own prose
 	// carries tokens into the findings and transcript sections, which are composed from the event
 	// log rather than copied — a different code path to the same page, and the reason
 	// the strip runs over the FINAL output rather than over blue's content alone.

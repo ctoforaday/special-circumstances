@@ -16,7 +16,7 @@ import (
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
 // assembled report.md combines the two ownership classes correctly: blue's audited sections
-// are lifted verbatim, and the verdict, findings, avenues and debate are composed from the
+// ship as written, and the verdict, findings, avenues and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
 	runDir := newRun(t)
@@ -36,12 +36,11 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Analysis",
 		"From single-writer it follows that reads never observe a torn value.",
 		"",
-		"## Open questions",
-		"Does the eviction path hold under a clock step?",
-		"",
-		// A section of the report's own, written after one the table lifts: it ships in the body.
 		"## Appendix: eviction traces",
 		"Three traces of the eviction path.",
+		"",
+		"## Open questions",
+		"Does the eviction path hold under a clock step?",
 		"",
 	}, "\n")
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
@@ -152,7 +151,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	docket, deb, index := read(FileDocket), read(FileDebate), read(FileIndex)
 
 	for _, want := range []string{
-		// Blue-authored, lifted verbatim.
+		// Blue-authored, shipped as written.
 		"# Whether the cache is coherent — research report",
 		"## TL;DR\nThe cache is coherent under the documented invariants",
 		"Q1: is it worth our time? Yes",
@@ -274,6 +273,9 @@ func TestAssembleEndToEnd(t *testing.T) {
 	rows := map[string]bool{}
 	for _, s := range layout {
 		rows[s.File+"\x00"+normalizeHeading(s.Heading)] = true
+		for _, h := range s.first {
+			rows[s.File+"\x00"+normalizeHeading(h)] = true
+		}
 	}
 	shipped := map[string]bool{}
 	for _, f := range Files() {
@@ -310,15 +312,21 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	})
 	for _, s := range layout {
-		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" && !s.embeds {
-			wantOrder = append(wantOrder, normalizeHeading(s.Heading))
+		if s.File == FileReport && s.Line == "" && s.Heading != "Bibliography" {
+			for _, h := range s.first {
+				wantOrder = append(wantOrder, normalizeHeading(h))
+			}
+			if !s.embeds {
+				wantOrder = append(wantOrder, normalizeHeading(s.Heading))
+			}
 		}
 	}
 	if strings.Join(order, "|") != strings.Join(wantOrder, "|") {
 		t.Errorf("report.md's sections ship as %v, and the table's order is %v", order, wantOrder)
 	}
 	// THE REPORT'S OWN SECTIONS ARE THE BODY: in the order written, under their author's headings
-	// and no other, after the Catechism and before the first section the tool composes.
+	// and no other, after the Catechism and before the first section the tool composes; and the
+	// section that closes the text ships after the tool's.
 	body := "## Technical foundations\nThe invalidation protocol is single-writer.\n\n## Analysis\nFrom single-writer it follows that reads never observe a torn value.\n\n## Appendix: eviction traces\nThree traces of the eviction path.\n\n## Risk matrix\n"
 	if at := strings.Index(got, body); at < 0 || at < strings.Index(got, "## The Catechism") {
 		t.Errorf("the report's own sections do not ship as the body, whole and in the order written, between the Catechism and the risk matrix:\n%s", got)

@@ -4,10 +4,16 @@
 
     [BLUE] — authored by blue INSIDE the report (the synthesizer writes it, then `edit`),
              audited by red every sitting (red
-             re-reads the full report each sitting), and LIFTED VERBATIM here. A synthesis
-             surface authored at assembly would be authored after red's last audit, so it
-             lives in the audited document instead. A missing one is never filled: it ships
-             nothing, and the report view's assembled form says the section is not in the set.
+             re-reads the full report each sitting), and SHIPPED AS WRITTEN here, in the
+             order written. A synthesis surface authored at assembly would be authored after
+             red's last audit, so it lives in the audited document instead. A missing one is
+             never filled: it ships nothing.
+
+  ONE ORDER. The report's text ships in the order its author writes it, and that order is the
+  one below: the title, TL;DR, The Catechism, the report's own sections, Open questions. Freezing
+  the report and every edit refuse a text that holds one of those out of its place, and the
+  refusal names the section and where it belongs. The [RECORD] sections of report.md stand
+  between the report's own sections and Open questions; assembly moves no line of the text.
 
   THE REPORT'S STRUCTURE IS ITS AUTHOR'S. report.md's [BLUE] entries below are the three surfaces
   the report is asked to carry and the body between them; no other heading is required of it, and
@@ -50,8 +56,8 @@
 
 ## The Catechism                         <!-- [BLUE] the agreed answers, the case against at full strength (see catechism_template.md) -->
 
-## <The report's own sections>           <!-- [BLUE] the body: every section of the report's text that is not one of the
-                                              lifted surfaces, whole and in the order written, each under the heading
+## <The report's own sections>           <!-- [BLUE] the body: every other section of the report's text, whole and in the
+                                              order written, each under the heading
                                               its author gave it — a heading that names the reader's question the
                                               section answers. No heading stands above them and this entry is not one.
                                               A [RECORD] heading of this template written into the report's text is
@@ -81,7 +87,8 @@
                                               line, the path its status took and red's ruling are the debate,
                                               not the subject: they render in avenues.md and judgments.md. -->
 
-## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding -->
+## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding.
+                                              The last section of the report's text. -->
 
 ## Bibliography                          <!-- [RECORD] COMPOSED AT ASSEMBLY from the cite events — do NOT author it, and do
                                               not type a note or a reference by hand: assembly weaves every invisible

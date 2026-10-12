@@ -22,7 +22,7 @@ import (
 func newAssemble() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "assemble",
-		Short:        "assemble the run's documents for the human reader, from the record — blue's audited sections lifted verbatim, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`",
+		Short:        "assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 	}

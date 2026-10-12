@@ -151,7 +151,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the assembled layout before any report: %v\n%s", err, out)
 	}
-	order := []string{"report.md", "Title (no heading", "Outcome (no heading", "## TL;DR — NOT IN THE SET", "## The Catechism — NOT IN THE SET",
+	order := []string{"report.md", "Title (no heading", "Outcome (no heading",
 		"The report's own sections (no heading of the tool's: each section ships under the heading its author gave it) — NOT IN THE SET", "## Risk matrix", "## Research areas",
 		"## Future research directions", "## Alternatives considered", "## Open questions — NOT IN THE SET", "## Bibliography — NOT IN THE SET",
 		"docket.md", "## The board", "run.md", "## How this run was conducted"}
@@ -164,10 +164,12 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		at += i
 	}
 	for _, want := range []string{"composed by: tool, from the open gaps on the board", "how content reaches it: No act of blue's adds a row",
-		"composed by: blue, from the section of this name in the report's text, lifted whole", "`avenue move`",
+		"composed by: blue, from the section of this name in the report's text, which closes it", "`avenue move`",
 		// A section the report does not have ships nothing, and this is where a seat reads that.
-		"A report with no section of this name ships without one.",
-		"composed by: blue, from every part of the report's text that no other row places, whole and in the order written", "assembly writes none above it"} {
+		"a report with no section of this name ships without one.",
+		// The order the write holds is on the entries of the sections it places.
+		"The write holds `## TL;DR` and `## The Catechism` first among them, in that order, where the text carries them.", "The write holds it last in the text",
+		"composed by: blue, from the report's text up to the section that closes it, whole and in the order written", "assembly writes none above it"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the layout does not say %q:\n%s", want, out)
 		}
@@ -208,7 +210,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	if s := by["Research areas"]; !s.Ships || !strings.Contains(s.Text, "whether trial division to 9 settles it") || s.Composer != report.Tool {
 		t.Errorf("Research areas does not carry the avenue just proposed: %+v", s)
 	}
-	if s := by["The report's own sections"]; !s.Ships || len(s.AuthoredHeadings) != 1 || s.AuthoredHeadings[0] != "Appendix: the divisions" || !strings.HasPrefix(s.Text, "## Appendix: the divisions\n") || !strings.Contains(s.Text, "91 / 7 = 13.") {
+	if s := by["The report's own sections"]; !s.Ships || !slices.Equal(s.AuthoredHeadings, []string{"TL;DR", "Appendix: the divisions"}) || !strings.HasPrefix(s.Text, "## TL;DR\n") || !strings.HasSuffix(s.Text, "91 / 7 = 13.") {
 		t.Errorf("the body does not carry the report's own section under its author's heading: %+v", s)
 	}
 	for _, h := range []string{"Technical foundations", "Analysis", "Additional findings"} {

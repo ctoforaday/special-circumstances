@@ -6,7 +6,7 @@ package report
 // dependency would be load-bearing for the deliverable of every run, and the surface it would
 // buy is a superset of what any composer here produces. What the assembler emits is a closed
 // set — headings, fenced code, GFM tables, lists, blockquotes, rules, footnotes and a handful
-// of inline forms — and the one open surface (blue's lifted prose) is written by a model
+// of inline forms — and the one open surface (the report's own prose) is written by a model
 // following the same template.
 //
 // WHAT IT DOES NOT DO IS AS IMPORTANT: it does not round-trip. The markdown files are the
