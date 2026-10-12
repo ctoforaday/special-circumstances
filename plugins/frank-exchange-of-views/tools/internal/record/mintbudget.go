@@ -201,11 +201,11 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	area := AreaOf(seatID)
 	if area == "" {
 		return feov.Errorf(feov.Validation,
-			"record: mint refused — %q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
+			"%q is not a lens seat on the engine's roster, so there is no area to size a mint budget for",
 			seatID)
 	}
 	if _, err := mintScaleOf(area); err != nil {
-		return feov.Errorf(feov.Validation, "record: mint refused — %s: %v", seatID, err)
+		return feov.Errorf(feov.Validation, "%s: %v", seatID, err)
 	}
 	// THE BUDGET JUDGES WHAT A LENS MAY DO NEXT; an archived mint is what a lens DID under the budget
 	// of its day, and a replay counts it against today's: the floor is the archive's own, but the
@@ -230,7 +230,7 @@ func requireMintWithinBudget(run Run, seatID string) error {
 	b, err := lensBudgetAt(run, area, p.MintBudget)
 	if err != nil {
 		return feov.Errorf(feov.Validation,
-			"record: mint refused — %s has minted %d gap(s), the floor of its budget (mintBudget in inputs/run-config.json is %d), "+
+			"%s has minted %d gap(s), the floor of its budget (mintBudget in inputs/run-config.json is %d), "+
 				"and the %s lens's budget above the floor, one mint per %d %s, cannot be read: %v. "+
 				"A mint past the floor waits on that measure rather than guessing it. "+
 				"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
@@ -240,7 +240,7 @@ func requireMintWithinBudget(run Run, seatID string) error {
 		return nil
 	}
 	return feov.Errorf(feov.Validation,
-		"record: mint refused — %s has minted %d gap(s), its whole budget. The %s lens's budget is the larger of the run's floor "+
+		"%s has minted %d gap(s), its whole budget. The %s lens's budget is the larger of the run's floor "+
 			"(mintBudget in inputs/run-config.json) and one mint per %d %s: %s, and it grows as the report does. "+
 			"The budget is where a trifle's cost lands: with %d mints for this report, none of them is spent on a nitpick. "+
 			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",

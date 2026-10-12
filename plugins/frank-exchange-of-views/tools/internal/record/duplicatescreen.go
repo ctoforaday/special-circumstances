@@ -42,18 +42,19 @@ func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
 	// not share an answer.
 	f, err := FamilyOf(run)
 	if err != nil {
-		// CODED AND NAMED AS THE MINT'S REFUSAL: bare, the seat read a sentence about a docket
-		// ruling with no "mint refused" and no code, and could not tell its own act was the one
-		// turned away. Conflict is the record contradicting itself, which is what a fold that
-		// cannot complete is; the cause stays reachable through Unwrap.
-		return feov.Wrap(feov.Conflict, err, "record: mint refused — the board could not be read, so the screen cannot run: %v", err)
+		// CODED AND SAID AS THE SCREEN'S REFUSAL: the read's own sentence, bare, is about whatever
+		// row it tripped on and carries no code, and a seat reading it cannot tell that its mint is
+		// what was turned away. The renderer names the command; this says what the command could
+		// not do. Conflict is the record contradicting itself, which is what a fold that cannot
+		// complete is; the cause stays reachable through Unwrap.
+		return feov.Wrap(feov.Conflict, err, "the board could not be read, so the screen cannot run: %v", err)
 	}
 	// A DISTINCTION IS FROM A GAP THAT EXISTS. The field is a seat's claim that it read the gap; a
 	// claim about a gap the board has never held is a claim about nothing.
 	for _, id := range m.GetDistinctFrom() {
 		if f.Gap(id) == nil {
 			return feov.Errorf(feov.Validation,
-				"record: mint refused — --distinct-from %s names no gap on the board; it answers the duplicate screen, so it names a gap the screen matched", id)
+				"--distinct-from %s names no gap on the board; it answers the duplicate screen, so it names a gap the screen matched", id)
 		}
 	}
 	if Migrating {
@@ -85,7 +86,7 @@ func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
 		return nil
 	}
 	return feov.Errorf(feov.Validation,
-		"record: mint refused — the board already holds an open gap this may be:\n  %s\n"+
+		"the board already holds an open gap this may be:\n  %s\n"+
 			"Read each. If one IS this defect, do not mint it again: file a finding about that gap, which reaches the seat that minted it. "+
 			"If this gap replaces one, mint with --supersedes <id>. If you read it and this is a different defect, mint with --distinct-from <id> — "+
 			"that is your claim, on the record, that they differ.",

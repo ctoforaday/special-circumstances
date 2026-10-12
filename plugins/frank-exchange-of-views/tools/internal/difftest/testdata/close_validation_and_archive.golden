@@ -46,7 +46,7 @@ Run `feov-record close --help` for what it takes, flag by flag.
 $ close --run {RUN} --seat-id red-lens-evidence --id G-00000000 --verified-by L1 --verified-with git show --verified-against 7bc501e:x --reason checked
 exit 2
 stderr:
-feov-record: close: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
+feov-record: close: --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
@@ -70,7 +70,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id: requires --reason, --verified-against, --verified-by, --verified-with","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --reason --verified-against --verified-by --verified-with: record: the --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --id --reason --verified-against --verified-by --verified-with: --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `close` with --as --id --verified-against --verified-by --verified-with: requires --reason","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
 {"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_CLOSE"}
 

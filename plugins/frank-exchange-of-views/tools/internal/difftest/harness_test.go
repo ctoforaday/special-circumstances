@@ -120,7 +120,9 @@ func capture(c *exec.Cmd) invocation {
 	} else if err != nil {
 		code = -1
 	}
-	return invocation{stdout: so.String(), stderr: se.String(), code: code}
+	inv := invocation{stdout: so.String(), stderr: se.String(), code: code}
+	noteRefusal(c.Args[1:], inv)
+	return inv
 }
 
 var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)

@@ -266,6 +266,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	}
 
 	var b strings.Builder
+	walkedBefore := walkedSoFar()
 	for _, c := range cases {
 		argv := m.resolve(c.argv)
 		if !hasFlag(argv, "--run") {
@@ -277,6 +278,12 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		inv := capture(command(bin, argv...))
 		out := normalizeOutput(inv, runDir, m)
 		fmt.Fprintf(&b, "── %s\nexit %d\n%s%s\n", c.name, out.code, out.stdout, out.stderr)
+	}
+	// THE CATALOGUE IS WALKED, NOT ONLY PRINTED: each refusal it drives is counted for how many
+	// times it names its command, and the package fails on any that is not once. A walk that
+	// stopped reading would pass every row, so the number it read is held to the catalogue's size.
+	if walked := walkedSoFar() - walkedBefore; walked < len(cases)*3/4 {
+		t.Errorf("%d of the catalogue's %d rows were read as refusals — the once-walk is not reading what the binary prints", walked, len(cases))
 	}
 	compareGolden(t, "error_catalogue", b.String())
 }

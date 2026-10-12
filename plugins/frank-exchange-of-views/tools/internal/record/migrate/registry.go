@@ -54,7 +54,7 @@ type LossError struct {
 }
 
 func (e LossError) Error() string {
-	return fmt.Sprintf("migrate: %q is untranslatable: %s", e.Word, e.Reason)
+	return fmt.Sprintf("%q is untranslatable: %s", e.Word, e.Reason)
 }
 
 // newBody constructs a concrete instance of the body message a word names.
@@ -68,7 +68,7 @@ func identityBody(old OldEvent) (proto.Message, error) {
 	// An old word resolves against the CURRENT vocabulary: the arm's name is the word.
 	fd, ok := recordpb.BodyField(old.Word)
 	if !ok {
-		return nil, fmt.Errorf("migrate: the current vocabulary does not declare %q (%s) and the registry has no entry for it — "+
+		return nil, fmt.Errorf("the current vocabulary does not declare %q (%s) and the registry has no entry for it — "+
 			"author a translation or rule it a loss; skipping it silently is the one answer this tool refuses to give",
 			old.Word, "old event")
 	}
@@ -80,13 +80,13 @@ func identityBody(old OldEvent) (proto.Message, error) {
 	for name, vals := range old.Lists {
 		lf := m.Descriptor().Fields().ByName(protoreflect.Name(name))
 		if lf == nil || !lf.IsList() {
-			return nil, fmt.Errorf("migrate: old table %s_%s holds a list the current %q body does not carry — map it or drop it, with a reason, in a registry entry", old.Word, name, old.Word)
+			return nil, fmt.Errorf("old table %s_%s holds a list the current %q body does not carry — map it or drop it, with a reason, in a registry entry", old.Word, name, old.Word)
 		}
 		list := m.Mutable(lf).List()
 		for _, v := range vals {
 			pv, err := scalarValue(lf, v)
 			if err != nil {
-				return nil, fmt.Errorf("migrate: %s_%s: %w", old.Word, name, err)
+				return nil, fmt.Errorf("%s_%s: %w", old.Word, name, err)
 			}
 			list.Append(pv)
 		}
@@ -94,7 +94,7 @@ func identityBody(old OldEvent) (proto.Message, error) {
 	for arm, cols := range old.Arms {
 		af := m.Descriptor().Fields().ByName(protoreflect.Name(arm))
 		if af == nil || af.Message() == nil {
-			return nil, fmt.Errorf("migrate: old table %s_%s holds a oneof arm the current %q body does not carry — map it or drop it, with a reason, in a registry entry", old.Word, arm, old.Word)
+			return nil, fmt.Errorf("old table %s_%s holds a oneof arm the current %q body does not carry — map it or drop it, with a reason, in a registry entry", old.Word, arm, old.Word)
 		}
 		sub := m.NewField(af).Message()
 		if err := fillFields(sub, cols, old.Word+"_"+arm); err != nil {
@@ -118,11 +118,11 @@ func fillFields(m protoreflect.Message, cols map[string]any, table string) error
 			if base, ok := strings.CutSuffix(name, "_case"); ok && md.Oneofs().ByName(protoreflect.Name(base)) != nil {
 				continue
 			}
-			return fmt.Errorf("migrate: old column %s.%s has no field on the current body — map it or drop it, with a reason, in a registry entry", table, name)
+			return fmt.Errorf("old column %s.%s has no field on the current body — map it or drop it, with a reason, in a registry entry", table, name)
 		}
 		pv, err := scalarValue(fd, v)
 		if err != nil {
-			return fmt.Errorf("migrate: %s.%s: %w", table, name, err)
+			return fmt.Errorf("%s.%s: %w", table, name, err)
 		}
 		m.Set(fd, pv)
 	}

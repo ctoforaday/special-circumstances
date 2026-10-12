@@ -59,7 +59,7 @@ func refuseMintReportVoice(m *recordpb.Mint) error {
 	if len(hits) == 0 {
 		return nil
 	}
-	return fmt.Errorf("record: mint refused — the first sentence of the problem and of the fix prints in the report's risk matrix while the gap is open, a --new replacement becomes the report's text when blue accepts it, and the report is written to a reader of the subject:\n  - %s\nWrite all three to that reader. The run's part — which seat, which gap, which lane — goes in --reason, beside a --problem that says what is wrong",
+	return fmt.Errorf("the first sentence of the problem and of the fix prints in the report's risk matrix while the gap is open, a --new replacement becomes the report's text when blue accepts it, and the report is written to a reader of the subject:\n  - %s\nWrite all three to that reader. The run's part — which seat, which gap, which lane — goes in --reason, beside a --problem that says what is wrong",
 		strings.Join(hits, "\n  - "))
 }
 
@@ -76,6 +76,6 @@ func refuseCorroborationTitleVoice(v *recordpb.Verify) error {
 	if len(hits) == 0 {
 		return nil
 	}
-	return fmt.Errorf("record: corroborate refused — a corroboration that backs the claim is a footnote, its title prints in the source's note and Bibliography entry, and the report is written to a reader of the subject:\n  - %s\nGive the source's own title — author, work, publisher. Which seat found it, and how, goes in --reason",
+	return fmt.Errorf("a corroboration that backs the claim is a footnote, its title prints in the source's note and Bibliography entry, and the report is written to a reader of the subject:\n  - %s\nGive the source's own title — author, work, publisher. Which seat found it, and how, goes in --reason",
 		strings.Join(hits, "\n  - "))
 }

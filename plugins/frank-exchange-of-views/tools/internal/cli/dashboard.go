@@ -36,7 +36,7 @@ func newDashboard() *cobra.Command {
 			// moves 1 -> 2 here, which is the point rather than a side effect: every other
 			// refusal in this tool is 2, and 1 was this one site disagreeing.
 			if len(args) < 2 {
-				return feov.Errorf(feov.MissingField, "usage: %s dashboard <run-dir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]", InvokedAs())
+				return feov.Errorf(feov.MissingField, "takes two arguments, <run-dir> <workflow-transcript-dir>, and got %d — `%s dashboard --help` lists its flags", len(args), InvokedAs())
 			}
 			transcriptDir := args[1]
 			// Same reasoning as capture: a positional run directory nobody validated renders a

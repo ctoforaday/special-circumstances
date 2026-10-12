@@ -177,7 +177,7 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 			}
 			// The refusal is the MINT's, coded, and names the read as its cause — not the read's
 			// own sentence, bare.
-			if !strings.HasPrefix(err.Error(), "record: mint refused — the board could not be read, so the screen cannot run: ") {
+			if !strings.HasPrefix(err.Error(), "the board could not be read, so the screen cannot run: ") {
 				t.Fatalf("%s: the refusal is not the mint's own, naming the read: %v", tc.name, err)
 			}
 			if feov.CodeOf(err) != string(feov.Conflict) {

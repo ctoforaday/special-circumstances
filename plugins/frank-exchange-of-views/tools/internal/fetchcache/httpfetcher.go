@@ -266,17 +266,17 @@ func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool, charged ma
 			return resp, final, err
 		}
 		if hop >= maxRedirects {
-			return nil, nil, fmt.Errorf("fetch: stopped after %d redirects, last at %s", maxRedirects, cur)
+			return nil, nil, fmt.Errorf("stopped after %d redirects, last at %s", maxRedirects, cur)
 		}
 		next, rerr := final.Parse(loc)
 		if rerr != nil {
-			return nil, nil, fmt.Errorf("fetch: %s redirected to an unparseable location %q", cur, loc)
+			return nil, nil, fmt.Errorf("%s redirected to an unparseable location %q", cur, loc)
 		}
 		if next.Scheme != "http" && next.Scheme != "https" {
-			return nil, nil, fmt.Errorf("fetch: %s redirected out of the web, to %s", cur, next.Scheme)
+			return nil, nil, fmt.Errorf("%s redirected out of the web, to %s", cur, next.Scheme)
 		}
 		if seen[next.String()] {
-			return nil, nil, fmt.Errorf("fetch: %s redirects in a loop, back to %s", rawURL, next)
+			return nil, nil, fmt.Errorf("%s redirects in a loop, back to %s", rawURL, next)
 		}
 		seen[next.String()] = true
 		cur = next.String()
@@ -286,10 +286,10 @@ func (h *httpFetcher) followRedirects(rawURL string, skipRobots bool, charged ma
 func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool, charged map[string]bool) (out *Response, final *url.URL, location string, err error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
+		return nil, nil, "", fmt.Errorf("unparseable url %q: %w", rawURL, err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, nil, "", fmt.Errorf("fetch: refused scheme %q — only http and https are fetched", u.Scheme)
+		return nil, nil, "", fmt.Errorf("refused scheme %q — only http and https are fetched", u.Scheme)
 	}
 	// THE CHAIN LENGTH IS THE BOUND; THIS DEADLINE IS A BACKSTOP DERIVED FROM IT.
 	//
@@ -304,7 +304,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("fetch: %w", err)
+		return nil, nil, "", err
 	}
 	// IDENTIFY OURSELVES OR BE REFUSED. Go sends "Go-http-client/1.1" by default, which major
 	// sources block outright. Measured on the 2026-08-04 smoke: blue tried to cite the Fundamental
@@ -347,7 +347,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 		charged[u.Host] = true
 		w, ok := reserveSlot(u.Host, 0)
 		if !ok {
-			return nil, nil, "", fmt.Errorf("fetch: %s is saturated — this machine already has more than %v "+
+			return nil, nil, "", fmt.Errorf("%s is saturated — this machine already has more than %v "+
 				"of queued requests waiting for that host, so this one is refused rather than added to the "+
 				"queue. It is a fact about how much this box is asking of one origin, not about the source",
 				u.Host, maxPaceWait)
@@ -360,7 +360,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 	dialed := time.Now()
 	resp, err := h.client.Do(req)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("fetch: %w", err)
+		return nil, nil, "", err
 	}
 	defer resp.Body.Close()
 	wireTrace(rawURL, resp.StatusCode, time.Since(dialed), time.Since(started))
@@ -455,7 +455,7 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 	if enc := strings.TrimSpace(strings.ToLower(resp.Header.Get("Content-Encoding"))); enc != "" && enc != "identity" {
 		decoded, derr := decodeCoding(enc, resp.Body, h.maxBytes)
 		if derr != nil {
-			return nil, nil, "", fmt.Errorf("fetch: %s answered with Content-Encoding %q: %w", rawURL, enc, derr)
+			return nil, nil, "", fmt.Errorf("%s answered with Content-Encoding %q: %w", rawURL, enc, derr)
 		}
 		resp.Body = io.NopCloser(decoded)
 		decodedAs = enc
@@ -474,12 +474,12 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 		// "corrupt input before offset 3" with no coding named sends the reader looking at the
 		// network instead of at the header that lied.
 		if decodedAs != "" {
-			return nil, nil, "", fmt.Errorf("fetch: reading %s, which declared Content-Encoding %q: %w", rawURL, decodedAs, rerr)
+			return nil, nil, "", fmt.Errorf("reading %s, which declared Content-Encoding %q: %w", rawURL, decodedAs, rerr)
 		}
-		return nil, nil, "", fmt.Errorf("fetch: reading %s: %w", rawURL, rerr)
+		return nil, nil, "", fmt.Errorf("reading %s: %w", rawURL, rerr)
 	}
 	if int64(len(b)) > h.maxBytes {
-		return nil, nil, "", fmt.Errorf("fetch: %s is larger than the %d MiB this tool reads in one document "+
+		return nil, nil, "", fmt.Errorf("%s is larger than the %d MiB this tool reads in one document "+
 			"(it sent more than %d bytes). That is a bound on one read, NOT a judgement that the source is wrong: "+
 			"a dataset, a video or a whole-issue archive lands here legitimately. If it is a paper, ask `oa` for "+
 			"another copy — a repository's version of the same article is often a fraction of the publisher's",

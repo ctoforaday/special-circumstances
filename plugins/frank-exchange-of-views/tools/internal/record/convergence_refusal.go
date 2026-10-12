@@ -99,7 +99,7 @@ func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
 	if len(own) > 0 {
 		pass = "issue `--as PASS` once your own items are done: " + strings.Join(own, "; ")
 	}
-	return fmt.Errorf("record: verdict FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
+	return fmt.Errorf("FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
 		"A FAIL here holds the report open on gaps that change no reader decision. Raise something material — a material finding, by its class or else graded medium or above, minted as a gap — or %s; the gaps that are not material stay open on the board",
 		c.Mass, c.Fraction*100, c.Peak, pass)
 }
