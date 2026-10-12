@@ -581,7 +581,7 @@ test('the assembler authors nothing, stamps the outcome the record derives, and 
   assert.ok(/WHY this outcome is the right read of the board/.test(asm) && !/your account of the sitting/.test(asm),
     'the assemble prompt asks for a recap of the sitting rather than the judgement')
   assert.ok(/An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record\./.test(asm))
-  assert.ok(!asm.includes('open_questions'), 'assembly lifts blue\'s audited section, never receives it')
+  assert.ok(!asm.includes('open_questions'), 'assembly reads blue\'s audited section from the record, never receives it')
 })
 
 // ── bookends and prompt clauses carried forward ─────────────────────────────────────────────
