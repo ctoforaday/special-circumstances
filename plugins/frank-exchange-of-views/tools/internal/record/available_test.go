@@ -1,6 +1,7 @@
 package record
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -188,7 +189,7 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		on := slices.Contains(regradesAfforded(r.evs, r.win, gaps, mintedBy(r.evs), regradeLens), "G1")
+		on := slices.ContainsFunc(regradesAfforded(r.evs, r.win, gaps, mintedBy(r.evs), regradeLens), func(o owedRegrade) bool { return o.GapID == "G1" })
 		if got := sittingOfRunT(t, run, "lens", regradeLens).Open; mentions(got, regradeOwed) != on {
 			t.Fatalf("regradesAfforded lists G1 = %v and the work list disagrees: %v", on, hows(got))
 		}
@@ -334,6 +335,84 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 			t.Errorf("a motion whose first ruling REJECTED it afforded a regrade")
 		}
 	})
+}
+
+// THE OWED REGRADE NAMES THE AXIS AND THE GRADE THE RULING ACCEPTED, as fields on the gap's work
+// item and in the item's sentence. universe-wave-b's architecture lens read "a grade motion
+// ACCEPTED and no regrade followed it" at two sittings, could find the motion's dimension and
+// proposed grade on no surface it holds (seat logs 552, 638), and regraded impact UP after the
+// chair accepted impact low and complexity medium.
+func TestTheOwedRegradeNamesTheAcceptedAxisAndGrade(t *testing.T) {
+	filed := func(id string, d recordpb.GradeDimension, g recordpb.Grade) *Event {
+		return recordtest.Event(t, "blue-respond", &recordpb.Motion{
+			MotionId: proto.String(id),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"), Dimension: recordtest.P(d), Proposed: recordtest.P(g)}},
+		})
+	}
+	owedOn := func(run Run, seat string) ([]OwedRegradeJSON, []Item) {
+		t.Helper()
+		w, err := WorkOfSeat(run, "lens", seat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return workItemT(t, w, "G1").RegradesOwed, w.Sitting.Open
+	}
+	dir := newRun(t)
+	recordtest.Seed(t, dir, mintsGap(t, regradeLens, "G1"), registers(t, regradeLens),
+		filed("M1", recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY, recordpb.Grade_GRADE_MEDIUM),
+		gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED),
+		filed("M2", recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_LOW),
+		gradeMotionRuled(t, "M2", recordpb.GradeRuling_GRADE_RULING_REJECTED))
+	run := mustRun(t, dir)
+	id := Identity{Run: run, SeatID: regradeLens}
+
+	complexity := OwedRegradeJSON{MotionID: "M1", Dimension: "complexity", Proposed: "medium"}
+	got, items := owedOn(run, regradeLens)
+	if !reflect.DeepEqual(got, []OwedRegradeJSON{complexity}) {
+		t.Errorf("regrades_owed = %+v, want exactly %+v — the accepted motion, and not the rejected one", got, complexity)
+	}
+	if want := regradeOwed + ": complexity to medium (motion M1) —"; !mentions(items, want) {
+		t.Errorf("no item reads %q: %v", want, hows(items))
+	}
+	if mentions(items, "M2") || mentions(items, "severity to low") {
+		t.Errorf("the item names the REJECTED motion: %v", hows(items))
+	}
+
+	// Another seat's list owes nothing on the gap, and says so with the empty list.
+	if got, items := owedOn(run, "red-lens-logic"); got == nil || len(got) != 0 || mentions(items, regradeOwed) {
+		t.Errorf("a lens that did not mint G1 reads regrades_owed = %+v and items %v, want an empty list and no item", got, hows(items))
+	}
+
+	// A second accepted motion is a second entry on the ONE item: a sitting records one regrade of
+	// a gap, so every accepted axis is stated where that one act is decided.
+	recordtest.Seed(t, dir, filed("M3", recordpb.GradeDimension_GRADE_DIMENSION_IMPACT, recordpb.Grade_GRADE_LOW),
+		gradeMotionRuled(t, "M3", recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
+	impact := OwedRegradeJSON{MotionID: "M3", Dimension: "impact", Proposed: "low"}
+	got, items = owedOn(run, regradeLens)
+	if !reflect.DeepEqual(got, []OwedRegradeJSON{complexity, impact}) {
+		t.Errorf("regrades_owed = %+v, want both accepted motions in ruling order", got)
+	}
+	if want := regradeOwed + ": complexity to medium (motion M1), impact to low (motion M3) —"; !mentions(items, want) {
+		t.Errorf("no item reads %q: %v", want, hows(items))
+	}
+	n := 0
+	for _, it := range items {
+		if strings.Contains(it.What, regradeOwed) {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d items name G1's owed regrade, want one: %v", n, hows(items))
+	}
+
+	// THE RULE THE LIST ALREADY HOLDS (regradesAfforded): ANY regrade of the gap after the ruling
+	// discharges it, whichever axis it moves. A regrade of likelihood alone clears both entries —
+	// the lens has answered the rulings on the record, in its basis.
+	mustAppend(t, id, &recordpb.Regrade{GapId: proto.String("G1"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("b")})
+	if got, items := owedOn(run, regradeLens); len(got) != 0 || mentions(items, regradeOwed) {
+		t.Errorf("after a regrade of another axis: regrades_owed = %+v, items %v; want none — any regrade after the ruling discharges it", got, hows(items))
+	}
 }
 
 // A duty says WHAT is owed, so these read `what`. They used to read `how` — an invocation this
