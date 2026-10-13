@@ -173,10 +173,11 @@ func note(args []string, err error, out []byte, inProcess bool) {
 		// what this buys: a closed set whose values are never all driven is a set whose
 		// unreached members nothing has ever run.
 		if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
-			if execValues[name] == nil {
-				execValues[name] = map[string]bool{}
+			at := k + " --" + name
+			if execValues[at] == nil {
+				execValues[at] = map[string]bool{}
 			}
-			execValues[name][args[i+1]] = true
+			execValues[at][args[i+1]] = true
 		}
 	}
 }
@@ -185,7 +186,10 @@ func note(args []string, err error, out []byte, inProcess bool) {
 // Flags end the path, so `graph --format dot` is "graph" and `blue show --view x` is
 // "blue show".
 // execFlags: command path -> the flag names ever passed to it.
-// execValues: flag name -> the values ever passed for it.
+// execValues: "<command path> --<flag>" -> the values ever passed for it. THE COMMAND PATH IS PART
+// OF THE KEY because one flag name carries different closed sets on different verbs, and a word two
+// sets share was counted for both: keyed on the flag alone, `--as rejected` on a grade ruling stood
+// in for `--as rejected` on an avenue move, and the avenue fate could leave the drive unnoticed.
 var (
 	execFlags  = map[string]map[string]bool{}
 	execValues = map[string]map[string]bool{}
