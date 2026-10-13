@@ -283,6 +283,8 @@ type runner struct {
 	// is; it fails the run.
 	quotesRefused    int
 	quoteAdmittedErr string
+	// quoteDrives counts the lens drives that reached sourceQuoteRefused, which fires on every seventh.
+	quoteDrives int
 	// positionAdmittedErr is the first position the tool ADMITTED from a seat that owes none. It
 	// fails the run: the verb is on the whole blue role's surface, and the refusal is what keeps a
 	// position off the record where only the bench and the chair read it.
@@ -529,11 +531,25 @@ func (r *runner) orderRefused(seatID string) {
 // for it. Under `refutes` or `absent` a quote the report does not hold is the subject of a PASS
 // blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask
 // (universe-m23).
+//
+// IT DRAWS NOTHING FROM THE RUN'S RNG. Every seventh lens drive fires, and the outcome and the verb
+// turn with that count: a draw here would move every later draw of the run, and the forced
+// UNVERIFIED seed ends elsewhere when one does.
 func (r *runner) sourceQuoteRefused(seatID string) {
-	outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+	r.mu.Lock()
+	n := r.quoteDrives
+	r.quoteDrives++
+	r.mu.Unlock()
+	if n%7 != 0 {
+		return
+	}
+	n /= 7
+	outcome := verifyOutcomes[n%len(verifyOutcomes)]
 	args := []string{"corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/" + seatID, "--title", "fuzz source quoted for " + seatID}
-	if anchor := r.someCitation(); anchor != "" && r.coin(50) {
-		args = []string{"verify", "--seat-id", seatID, "--anchor", anchor}
+	if b, ok := r.board(); ok && (n/len(verifyOutcomes))%2 == 1 {
+		if sources := record.EvidenceJSONOf(b.Events, b.At).Sources; len(sources) > 0 {
+			args = []string{"verify", "--seat-id", seatID, "--anchor", sources[n%len(sources)].Anchor}
+		}
 	}
 	out, err := r.exec(append(args, "--quote", "The fuzz source states this in its own words, and the report does not.",
 		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim")...)
@@ -2645,7 +2661,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					}
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", page).run()
 				})
-				r.maybe(15, func() { r.sourceQuoteRefused(seatID) })
+				r.sourceQuoteRefused(seatID)
 				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				axes := func(c *cmd) *cmd {
