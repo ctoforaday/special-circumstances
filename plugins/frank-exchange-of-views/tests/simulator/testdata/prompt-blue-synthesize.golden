@@ -1,4 +1,4 @@
-prompt sha256: 7891f67eea92e7b33430611b2eb34e89b769c52d838c264ccd4690535722bee8
+prompt sha256: aa7e88fb6f67cdbfcffc4d63f5877e8f96ece9b7491e1b954be65882691e288b
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -22,11 +22,6 @@ FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's h
 Do this ONCE; if it refuses, the tool records the refusal — log what you expected.
 Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze.
 THE FREEZE TAKES THE FILE: once frozen, the report is in the record and no longer at that path — a file tool finds nothing there, so read it and change it by your seat's own acts.
-PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if an instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench ON THE RECORD (class, basis, relief) — the bench hears it at the next chair sitting, before any party of that epoch sits; never sanctioned, and it does not pause your duties.
-LOG (blue-synthesize), on the record: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
-The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.
-YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU.
-Conclusions about the report and disputes with another seat's gap are findings, not log entries.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
@@ -37,12 +32,7 @@ SEARCH with the search tool your session offers; where it offers none, or the to
 SEAT_ID: blue-synthesize.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
-THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT.
-Your whole surface — every command you may run, each under a header naming it and followed by the help it prints — is part of your own configuration, in front of you before you act.
-READ IT BEFORE YOU CHOOSE, not the one entry for the verb you already picked, and read it before you have decided what to do: deciding first is what makes the reading pointless.
-A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id blue-synthesize <command> --help.
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS — A COMMAND, OR A FLAG ON THAT COMMAND'S OWN PAGE.
-Do not work from memory, do not carry a name from a previous sitting or a flag from another command's page, and do not assume a command is named after the thing it writes.
+YOUR CONFIGURATION HOLDS YOUR WHOLE SURFACE, and a single command's own page prints at "/opt/feov/bin/feov-record" --seat-id blue-synthesize <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.

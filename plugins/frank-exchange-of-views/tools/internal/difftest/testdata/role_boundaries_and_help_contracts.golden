@@ -124,7 +124,6 @@ Available Commands:
   assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
-  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -210,7 +209,6 @@ Available Commands:
   carry       restate an earlier sitting's closure, when the work is done and you are not re-attesting it
   closing     your closing argument on one docketed gap, when the bench is about to rule on it
   dispatch    `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
-  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   position    your sitting's position — the argument the bench reads when it rules, rendered as this sitting's RED section
@@ -297,7 +295,6 @@ Available Commands:
   assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
-  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
