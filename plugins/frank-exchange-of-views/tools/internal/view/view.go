@@ -804,8 +804,8 @@ func AvenueBody(evs []*record.Event, win record.WindowIndex) string {
 			"_Unsettled and not moved this epoch: "+strings.Join(ids, ", ")+". Each owes a move or a",
 			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this epoch just",
 			"as a fate does; an avenue declared once and never revisited records an intention, not a",
-			"choice. An approach that ran is `concluded` or `rejected`; `concluded`, `rejected`, `declined`,",
-			"`abandoned` and `deferred` are settled and never appear here._", "")
+			"choice. An approach that ran is `concluded` or `rejected`; every fate but `proposed` and `pursued`",
+			"is settled and never appears here._", "")
 	}
 	return strings.Join(avenue, "\n") + "\n"
 }

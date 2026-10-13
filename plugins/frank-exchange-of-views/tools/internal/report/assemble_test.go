@@ -465,6 +465,9 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 			seen[key] = true
 		}
 		if s.fate != nil {
+			if !strings.Contains(s.From, "the question it asks, its hypothesis, its fate, and what was found or why it stands there") {
+				t.Errorf("avenue section %q: its row does not say what a row of it holds: from %q", s.Heading, s.From)
+			}
 			for _, f := range fatesOf(s) {
 				if !strings.Contains(s.Path, "`"+f+"`") || !strings.Contains(s.From, f) {
 					t.Errorf("avenue section %q holds %q and its row does not say so: from %q, path %q", s.Heading, f, s.From, s.Path)

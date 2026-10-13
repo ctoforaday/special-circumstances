@@ -11,16 +11,26 @@ import (
 
 // AN ARCHIVED FATE ARRIVES AS THE SEAT RECORDED IT. `rejected` — an approach that ran and refuted
 // its hypothesis — is a fate this binary's epoch adds, and `abandoned` now means only a line that
-// was started and gave no answer. An archived `abandoned` may have been a refutation: the record
-// holds the seat's word and nothing that tells the two apart, so migration carries every avenue act
-// forward under the fate it was filed with and re-reads none of them. The archived m20 run holds an
-// abandoned avenue beside concluded and declined ones, at the epoch before the fate existed.
+// was started and gave no answer. An archived `abandoned` may have been a refutation, and an
+// archived `pursued` may be where an approach came to rest: the record holds the seat's word and
+// nothing that tells them apart, so migration carries every avenue act forward under the fate it
+// was filed with and re-reads none of them. Two archives, because one holds no act of every fate:
+// m20 has abandoned beside concluded and declined, and b9 — a record older than the stated epoch
+// — has pursued.
 func TestAnArchivedAvenueFateMigratesAsRecorded(t *testing.T) {
-	const archive = "2026-10-11_is-91-prime-m20.tar.gz"
+	for archive, holds := range map[string]string{
+		"2026-10-11_is-91-prime-m20.tar.gz": "abandoned",
+		"2026-09-11_is-91-prime-b9.tar.gz":  "pursued",
+	} {
+		t.Run(holds, func(t *testing.T) { archivedFatesMigrateAsRecorded(t, archive, holds) })
+	}
+}
+
+func archivedFatesMigrateAsRecorded(t *testing.T, archive, holds string) {
 	src := recordtest.RequireArchive(t, archive)
 	epoch, stated := statedEpoch(t, src)
-	if !stated || epoch >= record.EventSchema {
-		t.Fatalf("%s states epoch %d (stated %v): this test needs a record older than the binary's %d", archive, epoch, stated, record.EventSchema)
+	if stated && epoch >= record.EventSchema {
+		t.Fatalf("%s states epoch %d: this test needs a record older than the binary's %d", archive, epoch, record.EventSchema)
 	}
 	fates := func(db *sql.DB) map[string]int {
 		t.Helper()
@@ -41,8 +51,8 @@ func TestAnArchivedAvenueFateMigratesAsRecorded(t *testing.T) {
 		return out
 	}
 	want := fates(openRO(t, src))
-	if want["abandoned"] == 0 {
-		t.Fatalf("%s holds no abandoned avenue act, so nothing here could have been re-read: %v", archive, want)
+	if want[holds] == 0 {
+		t.Fatalf("%s holds no %s avenue act, so nothing here could have been re-read: %v", archive, holds, want)
 	}
 
 	res, dst := migrateArchive(t, archive)
@@ -59,21 +69,21 @@ func TestAnArchivedAvenueFateMigratesAsRecorded(t *testing.T) {
 	if got["rejected"] != 0 {
 		t.Errorf("the migrated record holds %d rejected avenue act(s): no archived seat filed that fate", got["rejected"])
 	}
-	// The fold reads the same fates the acts carry: the avenue the archive left abandoned is abandoned.
+	// The fold reads the same fates the acts carry: an avenue the archive left at the fate is at it.
 	fam, err := record.FamilyOf(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
-	abandoned := 0
+	held := 0
 	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
 		if a.Status == "rejected" {
 			t.Errorf("avenue %s reads rejected after migration", a.ID)
 		}
-		if a.Status == "abandoned" {
-			abandoned++
+		if a.Status == holds {
+			held++
 		}
 	}
-	if abandoned == 0 {
-		t.Error("no avenue of the migrated record reads abandoned; the archive ships one under that fate")
+	if held == 0 {
+		t.Errorf("no avenue of the migrated record reads %s; the archive ships one under that fate", holds)
 	}
 }

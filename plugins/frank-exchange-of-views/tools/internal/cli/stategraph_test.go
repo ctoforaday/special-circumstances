@@ -541,18 +541,23 @@ func avenueProbe() entityProbe {
 		return probeAct{"move:" + status, []string{"avenue", "move", "--id", "Q1",
 			"--as", status, "--reason", "what became of it"}}
 	}
+	// Every status the vocabulary offers is built and probed, because a fate nobody can leave is
+	// exactly what this gate is for and `deferred` and `abandoned` are the two most likely to be
+	// one. The states and the moves are read off the enum: a hand-kept list left `concluded` out
+	// until the fate after it was added, and nothing compared the two.
+	states, acts := []string{"unproposed"}, []probeAct{avenuePropose()}
+	for _, fate := range record.AvenueStatusNames() {
+		states = append(states, fate)
+		if fate != "proposed" {
+			acts = append(acts, moveTo(fate))
+		}
+	}
+	acts = append(acts, probeAct{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
+		"--reason", "worth this run's time"}})
 	return entityProbe{
 		name: "avenue", id: "Q1",
-		// Every status the vocabulary offers is built and probed, because a fate nobody can leave
-		// is exactly what this gate is for and `deferred` and `abandoned` are the two most likely
-		// to be one.
-		states: []string{"unproposed", "proposed", "pursued", "concluded", "rejected", "declined", "abandoned", "deferred"},
-		acts: []probeAct{
-			avenuePropose(),
-			moveTo("pursued"), moveTo("concluded"), moveTo("rejected"), moveTo("declined"), moveTo("abandoned"), moveTo("deferred"),
-			{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
-				"--reason", "worth this run's time"}},
-		},
+		states: states,
+		acts:   acts,
 		buildTo: func(t *testing.T, state string) string {
 			t.Helper()
 			runDir := adversarialRun(t)
