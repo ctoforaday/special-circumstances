@@ -30,21 +30,23 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // becomes a report section, so the rule stops being self-attested and starts
 // leaving artifacts.
 //
-// THREE STATUSES, each answering a different question:
+// THE STATUSES, each answering a different question:
 //
-//	declined   considered, never run     — was the rejection REASONED, or decoration?
-//	abandoned  pursued, then died        — what killed it? (the negative result)
-//	pursued    became the report's spine — does the report reflect it honestly?
+//	declined   considered, never run          — was setting it aside REASONED, or decoration?
+//	abandoned  started, and no answer came    — what stopped it?
+//	refuted    ran, and its hypothesis did not hold — what did it find? (the negative result)
+//	concluded  ran, and the hypothesis held   — what did it find?
+//	pursued    became the report's spine      — does the report reflect it honestly?
 //
-// `abandoned` is the most valuable and the most routinely lost: dead ends are
-// exactly what a future run needs so it does not re-walk them, and they are
-// direct feedstock for the sleeper service's subject mining. Nothing in the
+// `refuted` and `abandoned` are the most valuable and the most routinely lost: negative
+// results and dead ends are exactly what a future run needs so it does not re-walk them, and
+// they are direct feedstock for the sleeper service's subject mining. Nothing in the
 // engine preserved them before this verb — they died in a seat's context.
 //
 // TWO FORMS, AND THEY ARE TWO VERBS (#246).
 //
 //	propose  --reason "<the approach>" --hypothesis "<what would be true if it pays off>"
-//	move     --id A1 --as pursued|concluded|declined|abandoned|deferred --reason "<what changed>"
+//	move     --id A1 --as pursued|concluded|refuted|declined|abandoned|deferred --reason "<what changed>"
 //
 // The move form is the whole point. Measured over 86 avenue events in six runs: ZERO
 // were ever recorded twice and ZERO statuses ever changed, because there was no id and no update
@@ -57,8 +59,9 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // which by being refused. The whole `conditionallyRequired` mechanism in the seat package existed
 // to describe this one verb, and it is gone with the split.
 //
-// --hypothesis is what makes a later move checkable: a line that says what would be true if it
-// paid off can be abandoned against its own claim rather than on a shrug.
+// --hypothesis is what makes a later move checkable: an avenue that says what would be true if it
+// paid off is concluded or refuted against its own claim rather than set down on a shrug. It is
+// the ONLY place a predicted result goes: the line is the question, and it is never rewritten.
 func newAvenue() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "avenue",
@@ -113,13 +116,13 @@ func newAvenuePropose() *cobra.Command {
 		body.Line = proto.String(why)
 		body.Reason = proto.String(why)
 		// THE ADVISORY, over exactly what `avenues()` composes into report.md from this act: the
-		// line (which is also the reason — propose writes the same resolved prose to both) and the
-		// method, rendered there as _(method)_. Not the hypothesis: report.md never shows it, so
-		// advising on it would be noise about text no reader of the report sees.
+		// line (which is also the reason — propose writes the same resolved prose to both), the
+		// hypothesis, printed under its own label on the avenue's row, and the method, rendered
+		// there as _(method)_.
 		//
 		// Measured before this existed: arm A of the #861 smoke carried a process-voice tell in
 		// Alternatives considered that came from a blue lane's line, through a verb no advisory saw.
-		tells := spanVoiceTells(why, seat.Str(cmd, flags.Method))
+		tells := spanVoiceTells(why, seat.Str(cmd, flags.Hypothesis), seat.Str(cmd, flags.Method))
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -135,7 +138,7 @@ func newAvenuePropose() *cobra.Command {
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
 	seat.Require(c, flags.Reason)
-	flags.Text(c, flags.Hypothesis, "what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
+	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, refuted where it did not — so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

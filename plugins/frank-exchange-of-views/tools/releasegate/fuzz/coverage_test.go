@@ -2,6 +2,7 @@ package fuzz
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -131,10 +132,20 @@ func unreachedFlags() []string {
 }
 
 func unreachedEnumValues() []string {
+	// A VALUE IS DRIVEN WHERE A VERB THAT RECORDS THE TYPE PASSED IT: seen is keyed on the event
+	// type and the flag, folded from the command paths cli.CommandRecords maps to that type.
+	records := cli.CommandRecords()
 	execMu.Lock()
 	seen := map[string]map[string]bool{}
-	for k, v := range execValues {
-		seen[k] = v
+	for at, values := range execValues {
+		path, flag, _ := strings.Cut(at, " --")
+		k := records[path] + " --" + flag
+		if seen[k] == nil {
+			seen[k] = map[string]bool{}
+		}
+		for v := range values {
+			seen[k][v] = true
+		}
 	}
 	execMu.Unlock()
 
@@ -148,7 +159,7 @@ func unreachedEnumValues() []string {
 			// (TestFuzzDebate fails on zero source=TOOL estoppel entries); `refusal` and `failure`
 			// are NOT asserted by this sweep — a tool-written entry of either is counted nowhere here.
 			for _, v := range record.Names(record.SeatFilable(e.Values)) {
-				if seen[e.Flag][v] {
+				if seen[typ+" --"+e.Flag][v] {
 					continue
 				}
 				k := typ + " --" + e.Flag + " " + v

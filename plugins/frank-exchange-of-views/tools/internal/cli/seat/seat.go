@@ -938,7 +938,7 @@ func Prose(c *cobra.Command) *cobra.Command {
 // Prose is where the flag is registered; TestReasonIsNamesOnlyProseVerbs refuses a key no prose
 // verb carries, so a renamed verb cannot silently fall back to the generic text.
 var ReasonIs = map[string]string{
-	"propose":      "the avenue — research prose for a reader of the SUBJECT, printed in the report word for word",
+	"propose":      "the avenue's LINE: the question it asks, holding no predicted result — research prose for a reader of the SUBJECT, printed in the report word for word as the question",
 	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the avenue",
 	"finding":      "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
 	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",

@@ -1,4 +1,4 @@
-prompt sha256: e40117916288e60554d6014cfce53a6d5709c4ebe098d27a5caa4ff7a64257cb
+prompt sha256: a2494dd63f6b2142ad52842f74d5e7494afbd08e968e03b7f9dbd40a775289f5
 
 Blue lane 3 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `avenues` projection — where each carries an id and its hypothesis,.
@@ -7,16 +7,17 @@ Your assigned METHOD: local-repo critical-stance (audit the subject artifacts/co
 YOUR SOURCES, IN PROSE (not footnotes): a lane writes its part of the report and does not cite — record each intended source as prose beside the claim (its URL, title, and access date) so the synthesizer can cite it once with the tool.
 Do NOT mint footnote labels; citations are tool-managed at synthesis and a hand-typed label backs nothing.
 Write your part of the report, in full, to research/2026-01-01_golden/blue/candidates/lane-3.md.
-AVENUES: each approach the research took or weighed is on the record once — with the hypothesis that would be true if it paid off, and later with the fate it ACTUALLY had and what changed your mind.
-The fate says what happened to the approach: one you ran that answered what it set out to test is concluded; one you ran that died is abandoned; declined is ONLY an approach you weighed and did not run.
+AVENUES: each approach the research took or weighed is on the record once — as the question it asks, with the hypothesis that would be true if it paid off kept apart from the question, and later with the fate it ACTUALLY had and what was found.
+The fate says what happened to the approach: one you ran whose hypothesis held is concluded; one you ran whose hypothesis the data contradicted is refuted, and a refutation is an answer; one you started that gave no answer — the method broke, the data was unavailable, the question was given up — is abandoned; declined is ONLY an approach you weighed and did not run; deferred is one left for a later run.
 NO FATE IS OWED AN ENTRY.
 A sitting that weighed nothing and set it down has no declined avenue, and that record is complete: an approach thought up, or run, so that there is one to decline is a false entry, and a declined line whose reason reports a result is one too.
 The hypothesis is what makes the account honest, and a dead end you really reached is worth its line: one on the record is one the next run does not re-walk.
 THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU.
-At assembly it composes three sections of the report from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned.
-That gives the reader what was followed, what was deferred and what was rejected as three things, not one list of winners.
+At assembly it composes three sections of the report from the avenues on the record: Research areas holds each avenue that is proposed, pursued, concluded or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned.
+That gives the reader what was run, what was deferred and what was set aside as three things, not one list of winners.
 You write none of those three headings in the report, and no list of the approaches considered and their fates under any other heading: a report that carries one of those headings is refused, and a hand copy elsewhere is a second account nothing checks against the record.
-The line you propose and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
+The line you propose, its hypothesis and the reason you give when you move it ARE PRINTED IN THE REPORT word for word, each under its own label — the question, the hypothesis, what was found — so write them as research prose for a reader of the SUBJECT — the question the avenue asks and what was found about it, never the steps you took.
+THE LINE IS THE QUESTION AND HOLDS NO PREDICTED RESULT: what you expect to find is the hypothesis, and a line that states a result is printed as the question whatever the research then finds.
 Recording each approach with the fate it had is what makes "explore the alternatives" checkable instead of self-attested.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.

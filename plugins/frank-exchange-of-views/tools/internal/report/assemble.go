@@ -595,18 +595,21 @@ func truncateRunes(s string, n int) string {
 
 // THE LIFECYCLE OF A RESEARCH TOPIC, in the three descriptive areas a reader gets:
 //
-//	Research areas               `pursued` — followed, and what it yielded. AND `proposed`: a line
-//	                             put forward and not yet resolved is research this run has taken
-//	                             on, and its row carries the undecided state so the heading does
-//	                             not have to lie about it.
-//	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not
-//	                             rejected. --reason says what a later run should pick it up FOR,
+//	Research areas               the approaches the research RAN: `pursued` (running), `concluded`
+//	                             (ran, the hypothesis held) and `refuted` (ran, the hypothesis was
+//	                             refuted) — a refutation is an answer, and it stands beside the
+//	                             confirmations. AND `proposed`: a line put forward and not yet
+//	                             resolved is research this run has taken on, and its row carries
+//	                             the undecided state so the heading does not have to lie about it.
+//	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not set
+//	                             aside. --reason says what a later run should pick it up FOR,
 //	                             and it reaches the report as a proposal a human selects.
-//	Alternatives considered      `declined` (weighed, not taken) and `abandoned` (tried, died).
+//	Alternatives considered      `declined` (weighed, never run) and `abandoned` (started, and no
+//	                             answer came).
 //
 // # It rendered TWO, and the missing ones made the report say something false
 //
-// Taking `rejected` as the complement of `pursued` puts `deferred` AND `proposed` under
+// Taking the set-aside lines as the complement of `pursued` puts `deferred` AND `proposed` under
 // "Alternatives considered" — wrong in a way no reader can detect, since only the `[deferred]`
 // tag on the row contradicts the heading above it. Narrowing the pair instead makes them vanish
 // from the report entirely, which is the failure the status enum's own Why warns about ("it
@@ -621,28 +624,40 @@ func truncateRunes(s string, n int) string {
 // researching, and red's per-epoch support verdict is what stops it sitting there undecided,
 // rather than a heading that describes the omission.
 //
-// `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
+// setAside stays a COMPLEMENT so a status no predicate names cannot silently match nothing. The
+// fate `refuted` is NOT set aside: it is named in ran, with the other approaches that ran.
 //
 // The sentence a seat reads is written from these three predicates: AvenueSections, in layout.go.
-func accepted(status string) bool {
-	return status == "pursued" || status == "concluded" || status == "proposed"
+func taken(status string) bool { return ran(status) || status == "proposed" }
+
+// ran is the fates of an approach that RAN: its reason is what it FOUND, where the reason of any
+// other is WHY it stands where it does.
+func ran(status string) bool {
+	return status == "pursued" || status == "concluded" || status == "refuted"
 }
 func deferred(status string) bool { return status == "deferred" }
 
-func rejected(status string) bool { return !accepted(status) && !deferred(status) }
+func setAside(status string) bool { return !taken(status) && !deferred(status) }
 
 // avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
 // avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
 // line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
 // and as an alternative to itself.
 //
-// A ROW IS THE LINE AND ITS FATE, IN THE SUBJECT'S TERMS — and nothing about who or how. It used
+// A ROW SAYS FOUR THINGS, EACH UNDER ITS OWN LABEL: the question the avenue asks, the hypothesis
+// that was tested, the fate, and what was found. The row was `- **line** _(method)_ [fate] —
+// reason`, with the hypothesis recorded and never printed. A line that carried a predicted result
+// then stood in bold beside a finding that contradicted it, and read as a claim of the report's:
+// four shipped reports (universe-m7, m12, m19, m22) hold such a row. Labelled, the question is a
+// question and the hypothesis is a hypothesis whatever became of it.
+//
+// A ROW IS IN THE SUBJECT'S TERMS — and says nothing about who or how. It used
 // to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
 // ruling with its opinion, and a sentence that blue had moved against that ruling. All four are
 // the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
 // report text: avenues.md (view.AvenueBody) ships the seat, path and ruling, and
 // judgments.md the ruling's opinion with the other motions. The fate word
-// itself stays, because it is subject content: `abandoned` means the line was tried and died. What a reader of the report
+// itself stays, because it is subject content: `refuted` means the approach ran and its hypothesis did not hold. What a reader of the report
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
 func avenues(a *assembly, s Section) string {
@@ -652,26 +667,27 @@ func avenues(a *assembly, s Section) string {
 		if !want(a.Status) {
 			continue
 		}
-		method := ""
+		row := "- **Question:** " + inItem(a.Line, "  ")
 		if a.Method != "" {
-			method = fmt.Sprintf(" _(%s)_", a.Method)
+			row += fmt.Sprintf(" _(%s)_", a.Method)
 		}
-		reason := ""
-		if a.Reason != "" {
-			reason = " — " + a.Reason
+		if a.Hypothesis != "" {
+			row += "\n  - **Hypothesis:** " + inItem(a.Hypothesis, "    ")
 		}
-		status := ""
-		// THE ROW CARRIES THE STATUS WHENEVER THE HEADING DOES NOT SETTLE IT. `pursued` is what
-		// "Research areas" means, so it is left off; `proposed` shares that heading and must say
-		// so, or the reader cannot tell a line this run FOLLOWED from one it merely named.
-		if a.Status != "pursued" {
-			status = fmt.Sprintf(" [%s]", a.Status) // abandoned vs declined vs deferred is the shape of the counter
-		}
-		// THE TAG IS THE FATE THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
-		// abandoned straight from `proposed` was tried and died by the fate's own meaning, exactly as
-		// one concluded straight from `proposed` was followed to its end; a missing `pursued` step is
+		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
+		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
+		// exactly as one concluded or refuted straight from `proposed` ran; a missing `pursued` step is
 		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
-		row := fmt.Sprintf("- **%s**%s%s%s", a.Line, method, status, reason)
+		row += "\n  - **Fate:** " + a.Status + "."
+		// A PROPOSAL'S REASON IS ITS LINE: `avenue propose` writes the one text to both fields, so
+		// until the avenue is moved there is nothing found, and the question is not printed twice.
+		if a.Reason != "" && a.Reason != a.Line {
+			label := "Why"
+			if ran(a.Status) {
+				label = "Found"
+			}
+			row += fmt.Sprintf(" **%s:** %s", label, inItem(a.Reason, "    "))
+		}
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`
 		// verdict on each line — a vocabulary that made PRESENCE the question. Presence is not a
@@ -690,6 +706,21 @@ func avenues(a *assembly, s Section) string {
 		body = strings.Join(rows, "\n")
 	}
 	return body
+}
+
+// inItem keeps prose of several lines inside the list item that prints it: every further line is
+// indented to the item's text and ends the one before it with a hard break, and blank lines go.
+// A blank or unindented line ends a list item — in markdown and in mdToHTML alike — so a line
+// written as paragraphs otherwise leaves its own row, and the hypothesis and fate under it read
+// as rows of their own.
+func inItem(prose, indent string) string {
+	var lines []string
+	for _, ln := range strings.Split(prose, "\n") {
+		if ln = strings.TrimSpace(ln); ln != "" {
+			lines = append(lines, ln)
+		}
+	}
+	return strings.Join(lines, "  \n"+indent)
 }
 
 // withdrawnClaims renders the claims blue REMOVED from the report, from the retire events.

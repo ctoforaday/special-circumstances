@@ -393,6 +393,8 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   const evidence = firstPrompt(world, 'red-lens-evidence')
   for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
+    // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING: universe-m22's gap named the avenue row, its check could not pass, and the lens held it twice.
+    'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
     "a gap that is not material — by its class, or graded below medium — does not hold the gate", "the stored script is what the re-run executes; a clean exit or '0 failing' is not an output", "read at the computation's anchor, gives the script and the output blue recorded"]) {
@@ -657,6 +659,14 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
     assert.ok(synth.includes('Do NOT write any of') && synth.includes('`## ' + h + '`'), 'the synthesis prompt does not name ## ' + h + ' among the sections assembly composes')
   }
   assert.ok(!/reach the reader under their own headings|left for a later run/.test(synth), 'the synthesis prompt cues blue to head a section of its own with the avenues')
+  // THE FRONTIER WRITES THE LINES EVERY LATER SEAT INHERITS, before any research. Asked for
+  // "the approach you would follow and the hypothesis that would be true if it paid off" it wrote
+  // the prediction into the line: universe-m22's "…showing that a single passing test is not
+  // evidence of primality" shipped as the question beside the finding that contradicts it.
+  const frontier = firstPrompt(world, 'frontier')
+  assert.ok(/ITS LINE IS THE QUESTION the avenue asks .* with no answer in it/.test(frontier) && /ITS HYPOTHESIS IS YOUR PREDICTION/.test(frontier) && /A result you expect goes in the hypothesis, never in the line\./.test(frontier),
+    'the frontier prompt must say the line is the question and the prediction is the hypothesis')
+  assert.ok(!/it takes the approach you would follow and the hypothesis/.test(frontier), 'the frontier prompt runs the line and the hypothesis together')
   // AN APPROACH IS RECORDED WITH THE FATE IT HAD, AND NO FATE IS OWED AN ENTRY: the lanes' paragraph.
   // A prompt that asks for "what you considered and declined" is read as asking for a declined
   // avenue: on universe-m21 a lane with nothing it had weighed and set down ran a check, then
@@ -665,12 +675,21 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   for (const lane of labelsOf(world, 'blue-lane').map((c) => c.prompt)) {
     assert.ok(/AVENUES:/.test(lane) && /NO FATE IS OWED AN ENTRY/.test(lane) && /declined is ONLY an approach you weighed and did not run/.test(lane),
       'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
+    // A REFUTATION HAS A FATE OF ITS OWN. With none, universe-m22's lane filed a refuted hypothesis
+    // as abandoned, a lens read the same line as concluded, and the gap between the words held the gate.
+    assert.ok(/one you ran whose hypothesis the data contradicted is refuted, and a refutation is an answer/.test(lane) && /one you started that gave no answer .* is abandoned/.test(lane),
+      'the avenue clause must tell a contradicted hypothesis (refuted) from a line that gave no answer (abandoned)')
+    assert.ok(!/one you ran that died is abandoned/.test(lane), 'the avenue clause calls an approach that ran abandoned')
+    // THE LINE IS THE QUESTION. A line that carries its predicted result is printed as the question
+    // beside whatever the research finds, and no act rewrites it.
+    assert.ok(/THE LINE IS THE QUESTION AND HOLDS NO PREDICTED RESULT: what you expect to find is the hypothesis/.test(lane),
+      'the avenue clause must keep the predicted result out of the line')
     assert.ok(!/not only the one you took/.test(lane) && !/considered and declined is what makes/.test(lane) && !/dead ends matter most/.test(lane) && !/you put each approach on it/.test(lane),
       'the avenue clause presses for an entry')
     // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
     // fate lands under which, and that blue writes none of them.
     assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))
-    assert.ok(/Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
+    assert.ok(/Research areas holds each avenue that is proposed, pursued, concluded or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
   }
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of

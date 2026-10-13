@@ -228,7 +228,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
-  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
+  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, refuted, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
   - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and is the seat readied for it, a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
@@ -333,13 +333,13 @@ Use "feov-record [command] --help" for more information about a command.
 $ feov-record avenue move --help
 say what became of an avenue you proposed — every open avenue owes this before your sitting ends
 
-An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. A line you followed to its END — it answered what it set out to test — is `concluded`, and owes nothing further; `abandoned` is only for a line that died.
+An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. An approach you RAN ends at what it found, and owes nothing further: `concluded` where the hypothesis held, `refuted` where what it found contradicted it — a refutation is an answer, and the report prints it beside the confirmations. `abandoned` is only for an approach you started that gave no answer, and `declined` only for one you never ran.
 
-The fate is not the point; the account of what changed it is — an avenue abandoned against its own stated hypothesis is evidence of choosing, one abandoned on a shrug is not.
+The fate is not the point; the account of what settled it is — an avenue given its fate against its own stated hypothesis is evidence of choosing, one set down on a shrug is not.
 
-THE REASON IS PRINTED IN THE REPORT, on the avenue's own row, in the section the fate you give it here puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+THE REASON IS PRINTED IN THE REPORT, on the avenue's own row beside its question and its hypothesis, in the section the fate you give it here puts it under: as what was found for an approach that ran, and as why it stands there for one that did not. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued, concluded or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
 
-Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
+Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. A reason states the outcome; it does not narrate an earlier version of itself, and a move that corrects one says only what stands. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -356,10 +356,11 @@ Enumerated values:
   --as
     proposed   you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move
     pursued    you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end
-    concluded  you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this
+    concluded  you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`
+    refuted    you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this
     deferred   not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet
-    declined   you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if it answered what it set out to test, `abandoned` if it died
-    abandoned  you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it
+    declined   you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
+    abandoned  you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `refuted`, not this
 ========
 $ feov-record avenue propose --help
 put an avenue on the record, when something is worth trying and a later run needs to know you chose it
@@ -368,7 +369,9 @@ The tool assigns the id. It starts as `proposed` — the state that OWES a move 
 
 You may propose one AT ANY POINT in a run, not only at the start: an avenue that occurs to you in your third sitting is exactly the one a later run needs.
 
-WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, as this avenue's row in the section its fate puts it under. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued or concluded, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, on this avenue's row in the section its fate puts it under, each part under its own label: the line as the question the avenue asks, the hypothesis as its hypothesis. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: Research areas holds each avenue that is proposed, pursued, concluded or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
+
+THE LINE IS THE QUESTION THE AVENUE ASKS, AND IT HOLDS NO ANSWER. A result you expect is a prediction, and the prediction is the hypothesis: "whether a single Fermat test settles whether 91 is prime" is a line, and "a passing test in one base is no evidence of primality" is its hypothesis. A line that states a result is printed as the question whatever the research then finds, and it stands as proposed: no act rewrites a line.
 
 So write it as research prose for a reader of the SUBJECT — the question the avenue asks, not a log of what you did to ask it. No provenance or attribution tags, no notes to another seat, no narration of the run: "whether 91's factorisation follows from a divisibility test short of trial division" is a line, "ran this lane's slice against the last avenue and grepped the repo" is a diary. Who moved it, the path it took and red's ruling are already on the record, and ship in avenues.md.
 
@@ -379,9 +382,9 @@ So write it as research prose for a reader of the SUBJECT — the question the a
 IF WHAT YOU RECORDED WAS WRONG, say so in a move of the avenue.
 
 Flags:
-      --hypothesis string   what would be TRUE if this avenue pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug
+      --hypothesis string   your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, refuted where it did not — so the fate is checkable rather than a shrug
       --method string       the source class or technique it belonged to, when that is what distinguishes it
-      --reason string       REQUIRED — the avenue — research prose for a reader of the SUBJECT, printed in the report word for word
+      --reason string       REQUIRED — the avenue's LINE: the question it asks, holding no predicted result — research prose for a reader of the SUBJECT, printed in the report word for word as the question
 ========
 $ feov-record cite --help
 attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
@@ -718,7 +721,7 @@ Usage:
   feov-record show [command]
 
 Available Commands:
-  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
+  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, refuted, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
@@ -731,7 +734,7 @@ Available Commands:
 Use "feov-record show [command] --help" for more information about a command.
 ========
 $ feov-record show avenues --help
-the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
+the exploration space: avenues taken, concluded, refuted, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
 
@@ -821,7 +824,7 @@ OUTPUT WITH --assembled --json: {sections:[{file,heading,line,composer,from,path
 
 Flags:
       --anchor id     read the report AT one anchor id (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match, --quote and --assembled are each refused with it
-      --assembled     read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form
+      --assembled     read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it — a listing WITHOUT the sections' text, which the --json form carries. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form
       --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut. Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json
       --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else. Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json
       --window int    ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
