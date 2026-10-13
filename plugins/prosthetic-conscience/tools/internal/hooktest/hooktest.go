@@ -13,6 +13,8 @@ package hooktest
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +31,7 @@ func Isolated(m *testing.M) int {
 		return 1
 	}
 	defer os.RemoveAll(dir)
+	keepGoCaches()
 	// USERPROFILE as well as HOME: os.UserHomeDir reads the first on Unix and the second on
 	// Windows, and gray-area's suite already failed on the Windows leg for exactly this.
 	for _, k := range []string{"HOME", "USERPROFILE", "XDG_STATE_HOME"} {
@@ -38,4 +41,30 @@ func Isolated(m *testing.M) int {
 		}
 	}
 	return m.Run()
+}
+
+// keepGoCaches pins the Go build and module caches to where they are NOW, before the home
+// directory moves.
+//
+// Both default to paths under the home directory, so a test that shells out to `go build` after
+// the redirect was handed an EMPTY cache in a directory about to be deleted — and compiled the
+// standard library and every dependency from nothing, on every run. Measured in internal/doctor:
+// the test that builds every command for every published platform took 49.5s of this module's
+// 62s suite, and 15.7s with the caches kept.
+//
+// They are not the state this package exists to protect. The build cache is content-addressed
+// and safe under concurrent writers, and nothing a test asserts on is read from either. A value
+// the caller already set is left alone, and a machine with no `go` on PATH is left as it was:
+// a test that needs one says so itself.
+func keepGoCaches() {
+	out, err := exec.Command("go", "env", "GOCACHE", "GOMODCACHE").Output()
+	if err != nil {
+		return
+	}
+	paths := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for i, k := range []string{"GOCACHE", "GOMODCACHE"} {
+		if i < len(paths) && strings.TrimSpace(paths[i]) != "" && os.Getenv(k) == "" {
+			_ = os.Setenv(k, strings.TrimSpace(paths[i]))
+		}
+	}
 }
