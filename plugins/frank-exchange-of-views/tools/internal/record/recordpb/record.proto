@@ -394,7 +394,7 @@ enum SourceOutcome {
   SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"];
   SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none"];
   SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry"];
-  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was"];      // says nothing, as against says otherwise
+  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise"];      // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
   SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"];
 }
 
@@ -415,7 +415,7 @@ enum Confidence {
 enum Soundness {
   SOUNDNESS_UNSPECIFIED = 0;
   SOUNDNESS_SOUND = 1 [(means) = "you READ the script and it computes what it claims to compute"];
-  SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"];
+  SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to"]; // the dangerous cell, because it looks maximally credible
 }
 
 // AvenueStatus is an avenue's fate. The avenues projection groups BY status, so
@@ -434,15 +434,15 @@ enum AvenueStatus {
   // as `concluded`, and the gap between the two words held the gate. It is an answer, so it ships
   // beside the concluded lines; `abandoned` is left for the line that produced none.
   AVENUE_STATUS_REFUTED = 7 [(means) = "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this"];
-  AVENUE_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet"];
+  AVENUE_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR"]; // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
   // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
   // on universe-m21 a lane ran a check, then proposed the approach and declined it with the
   // check's result as the reason, and the report printed it as rejected beside the section that
   // carries it. The record holds no link from a proof or a section to an avenue, so no write can
   // tell a declined line that was run from one that was not; the fate's own meaning is where the
   // seat is told.
-  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"];
-  AVENUE_STATUS_ABANDONED = 5 [(means) = "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `refuted`, not this"];
+  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"];
+  AVENUE_STATUS_ABANDONED = 5 [(means) = "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this"]; // what stopped it is the part a future run needs: it stops a later run re-walking it
 }
 
 // MotionSubject is what a motion is ABOUT. The ruling vocabulary is keyed on it, which is why
@@ -1477,7 +1477,7 @@ enum LogType {
   // channel cost a call per sitting and returned nothing an operator could triage.
   reserved 1;
   reserved "LOG_TYPE_NOMINAL";
-  LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
+  LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT)"]; // an error nobody learns about is one nothing improves on
   LOG_TYPE_REQUEST = 3 [(seat_may_file) = true, (means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
   LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (defined_term) = "friction"];
   // REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.

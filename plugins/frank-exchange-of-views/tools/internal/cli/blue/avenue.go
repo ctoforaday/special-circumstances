@@ -72,6 +72,9 @@ func newAvenue() *cobra.Command {
 	return c
 }
 
+// propose is open at any point in a run because an avenue that occurs to a seat in its third sitting
+// is exactly the one a later run needs. --hypothesis exists so the fate is judged against a stated
+// prediction: checkable, where a fate with none is a shrug.
 func newAvenuePropose() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("propose", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -138,11 +141,14 @@ func newAvenuePropose() *cobra.Command {
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
 	seat.Require(c, flags.Reason)
-	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, refuted where it did not — so the fate is checkable rather than a shrug")
+	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, refuted where it did not")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }
 
+// move: the fate is not the point; the account of what settled it is. An avenue given its fate
+// against its own stated hypothesis is evidence of choosing, and one set down on a shrug is not —
+// which is why the reason is required where the record requires it and printed in the report.
 func newAvenueMove() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("move", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()

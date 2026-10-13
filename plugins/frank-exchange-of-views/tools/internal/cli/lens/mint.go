@@ -25,6 +25,11 @@ import (
 // The id is TOOL-assigned, one run-global sequence (G<n>). Letting seats choose produced
 // four different "R5-1"s in one round of run 3, and the collision class dies here
 // rather than being policed downstream.
+//
+// The duplicate screen runs AT THE WRITE because another lens may mint while this one works, so a
+// `near-match` read earlier cannot answer for the board as the mint finds it. A soft tell in the
+// printed text ("this run", "epoch 3") is flagged and not refused because a subject can use those
+// words too. What to do where a matched gap IS this defect is on the page (help/mint.md), once.
 func newMint() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 	var supersedes, foundBy, distinctFrom flags.CSV
@@ -269,7 +274,7 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&cx, flags.Complexity, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)+", on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
-	c.Flags().Var(&distinctFrom, flags.DistinctFrom, "comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it")
+	c.Flags().Var(&distinctFrom, flags.DistinctFrom, "comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect")
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right

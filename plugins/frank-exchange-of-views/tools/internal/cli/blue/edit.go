@@ -39,6 +39,9 @@ import (
 // Crash-safety is EVENT-FIRST: the event is appended only AFTER validation succeeds (so a
 // mis-quote never lands a phantom op), then the write is applied; a crash between leaves the
 // event durable and the write reconciled idempotently on retry — no wedge, no phantom op.
+//
+// --accept still requires --reason because accepting red's text is a decision, not a transcription:
+// the argument for the change is blue's own.
 func newEdit() *cobra.Command {
 	c := seat.Prose(seat.New("edit", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
