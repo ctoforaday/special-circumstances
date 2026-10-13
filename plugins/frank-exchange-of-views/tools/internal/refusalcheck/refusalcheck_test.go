@@ -44,6 +44,12 @@ func TestAgainTellsARepeatedNameFromADiagnosis(t *testing.T) {
 		{"avenue", "see `feov-record avenue review`", false},
 		{"scorecard", `--card "x" is not a scorecard. usage: feov-record scorecard --run <dir>`, true},
 		{"fetch", "fetch: https://example.org returned HTTP 404", true},
+		{"show report", "render: no base has been ingested for this run — there is nothing to render", true},
+		{"show report", "no base has been ingested for this run — there is nothing to render", false},
+		{"show report", "replaying edit 3 of 5: the quote is gone", false},
+		{"show board", "connecting: still busy after 5s", true},
+		{"carry", "record: asking the record for its open gaps: no such table", false},
+		{"finding", "--about-kind takes one of section|avenue|gap and was given nothing", false},
 		{"", `no command named "x" exists, on your surface or on any other seat's`, false},
 		{"", "lens: you named no command", true},
 	} {

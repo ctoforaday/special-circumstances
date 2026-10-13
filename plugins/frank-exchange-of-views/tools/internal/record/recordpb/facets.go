@@ -71,10 +71,10 @@ func FacetEnum(name string) protoreflect.EnumDescriptor {
 func EnumFacet(vd protoreflect.EnumValueDescriptor, name string) (value protoreflect.EnumNumber, declared bool, err error) {
 	xt, ok := facets[name]
 	if !ok {
-		return 0, false, fmt.Errorf("recordpb: %q is not a declared value facet (have %v)", name, FacetNames())
+		return 0, false, fmt.Errorf("%q is not a declared value facet (have %v)", name, FacetNames())
 	}
 	if !IsEnum(name) {
-		return 0, false, fmt.Errorf("recordpb: facet %q is not an enum facet", name)
+		return 0, false, fmt.Errorf("facet %q is not an enum facet", name)
 	}
 	opts := vd.Options()
 	if opts == nil || !proto.HasExtension(opts, xt) {
@@ -124,11 +124,11 @@ func FacetNames() []string {
 func Facet(vd protoreflect.EnumValueDescriptor, name string) (value bool, declared bool, err error) {
 	xt, ok := facets[name]
 	if !ok {
-		return false, false, fmt.Errorf("recordpb: %q is not a declared value facet (have %v) — "+
+		return false, false, fmt.Errorf("%q is not a declared value facet (have %v) — "+
 			"an unresolved facet name would silently admit every value, so it refuses instead", name, FacetNames())
 	}
 	if numericFacets[name] || IsEnum(name) {
-		return false, false, fmt.Errorf("recordpb: facet %q is not boolean — read it with Number or EnumFacet", name)
+		return false, false, fmt.Errorf("facet %q is not boolean — read it with Number or EnumFacet", name)
 	}
 	opts := vd.Options()
 	if opts == nil || !proto.HasExtension(opts, xt) {
@@ -143,10 +143,10 @@ func Facet(vd protoreflect.EnumValueDescriptor, name string) (value bool, declar
 func Number(vd protoreflect.EnumValueDescriptor, name string) (value float64, declared bool, err error) {
 	xt, ok := facets[name]
 	if !ok {
-		return 0, false, fmt.Errorf("recordpb: %q is not a declared value facet (have %v)", name, FacetNames())
+		return 0, false, fmt.Errorf("%q is not a declared value facet (have %v)", name, FacetNames())
 	}
 	if !numericFacets[name] {
-		return 0, false, fmt.Errorf("recordpb: facet %q is not numeric — read it with Facet", name)
+		return 0, false, fmt.Errorf("facet %q is not numeric — read it with Facet", name)
 	}
 	opts := vd.Options()
 	if opts == nil || !proto.HasExtension(opts, xt) {

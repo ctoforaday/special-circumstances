@@ -70,7 +70,7 @@ const DefaultWindow = 3
 // window would read as "the report says nothing here", which is a different fact and a false one.
 func ReadAround(report, anchorID string, n int) (Window, error) {
 	if n < 0 {
-		return Window{}, fmt.Errorf("anchor: a window of %d lines is not a window", n)
+		return Window{}, fmt.Errorf("a window of %d lines is not a window", n)
 	}
 	token := Token(anchorID)
 	lines := strings.Split(report, "\n")
@@ -82,7 +82,7 @@ func ReadAround(report, anchorID string, n int) (Window, error) {
 				// TWO OCCURRENCES IS NOT A WINDOW, IT IS A BUG UPSTREAM. An anchor is minted once
 				// and `edit` refuses a duplicate, so a second one means the invariant broke;
 				// picking either would hide that behind a plausible answer.
-				return Window{}, fmt.Errorf("anchor: anchor %s appears on lines %d AND %d — an anchor is unique by construction "+
+				return Window{}, fmt.Errorf("anchor %s appears on lines %d AND %d — an anchor is unique by construction "+
 					"(blue's `edit` refuses one that duplicates), so two occurrences is a broken invariant rather than an ambiguous read",
 					anchorID, at+1, i+1)
 			}
@@ -90,7 +90,7 @@ func ReadAround(report, anchorID string, n int) (Window, error) {
 		}
 	}
 	if at < 0 {
-		return Window{}, fmt.Errorf("anchor: anchor %s (%s) is not in the report — it is a stale reference or belongs to another run. "+
+		return Window{}, fmt.Errorf("anchor %s (%s) is not in the report — it is a stale reference or belongs to another run. "+
 			"`show findings` lists every finding anchor; `show evidence` resolves citation and proof anchors; `show board` resolves a gap anchor, with the gap's minted text where its quote never placed",
 			anchorID, token)
 	}

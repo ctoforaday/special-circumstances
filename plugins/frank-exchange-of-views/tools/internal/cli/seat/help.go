@@ -196,7 +196,7 @@ func helpFor(name string) helpDoc {
 	}
 	d, err := parseHelp(render(name))
 	if err != nil {
-		panic(fmt.Sprintf("seat: help/%s.md: %v", name, err))
+		panic(fmt.Sprintf("help/%s.md: %v", name, err))
 	}
 	helpCache[name] = d
 	registeredKeys[name] = true

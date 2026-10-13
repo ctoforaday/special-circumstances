@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/thediveo/enumflag/v2"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -123,46 +125,58 @@ func CompletionHelp(vs []EnumValue) enumflag.Help[string] {
 	return h
 }
 
-// Refuse builds the message a seat gets for a value outside the set.
+// Refuse builds the sentence a seat gets for a value outside the set, with the set under it.
 //
 // IT IS NOT enumflag's, AND THAT MATTERS. enumflag says `must be 'FAIL', 'PASS'`, which is
-// correct and teaches nothing. Ours names the NEAR-MISS — "\"pass\" differs from \"PASS\" only in
+// correct and teaches nothing. Ours names the NEAR-MISS — "it differs from \"PASS\" only in
 // case" — and then says what the mistype WOULD have done, because the refusal is where a seat
 // actually meets the design and a seat that is merely told it is wrong guesses again.
 //
 // So enumflag parses and this speaks. The set is the same table, so they cannot disagree about
 // what is legal; they only differ in how much they explain.
-func Refuse(flag, got string, vs []EnumValue, why string) error {
-	detail := ""
-	switch {
-	case strings.TrimSpace(got) == "":
-		detail = "nothing was passed, and "
-	default:
-		// THE NEAR MISS IS NAMED, AND THE SEPARATOR HALF WAS MISSING. Case was detected and said
-		// so; a hyphen for an underscore — `too-thin` for `too_thin`, `defect-accepted` for
-		// `defect_accepted` — got the bare set with no hint that the word was RIGHT and only its
-		// punctuation wrong. Flag names take dashes and values take the schema's underscores, so
-		// this is the mistake the surface's own two conventions invite, and it is the one the
-		// refusal had nothing to say about.
-		//
-		// recordpb.SameWord already decides exactly this class (case and separators, nothing
-		// wider). The machinery to say it was here; the sentence was not.
+//
+// IT IS A PREDICATE OVER THE FLAG AND NEVER NAMES IT. The flag reaches the seat once, from the
+// parser's own field: seat.RefuseBadValue writes `--<flag> ` in front of this. A sentence that
+// named the flag and the value itself said both twice under the parser's wrapper — `invalid
+// argument "" for "--about-kind" flag: --about-kind must be one of … (got "")` — before it said
+// anything.
+//
+// THE WHY IS ITS OWN SENTENCE. Joined to what precedes it with ", and", it reads as one thought
+// only where the why happens to be a consequence of the mistype: "nothing was passed, and an
+// absence has no sentence to quote" turned a field's rationale into a remark on the empty value.
+func Refuse(got string, vs []EnumValue, why string) error {
+	set := strings.Join(Names(vs), "|")
+	said := fmt.Sprintf("takes one of %s, not %q", set, got)
+	if strings.TrimSpace(got) == "" {
+		said = fmt.Sprintf("takes one of %s and was given nothing", set)
+	} else {
+		// THE NEAR MISS IS NAMED, in both of its halves: case, and a hyphen for an underscore —
+		// `too-thin` for `too_thin`, `defect-accepted` for `defect_accepted`. Flag names take
+		// dashes and values take the schema's underscores, so the second is the mistake the
+		// surface's own two conventions invite. recordpb.SameWord decides exactly this class
+		// (case and separators, nothing wider).
 		for _, want := range vs {
 			switch {
 			case strings.EqualFold(got, want.Name):
-				detail = fmt.Sprintf("%q differs from %q only in case, and ", got, want.Name)
+				said += fmt.Sprintf(": it differs from %q only in case", want.Name)
 			case recordpb.SameWord(got, want.Name):
-				detail = fmt.Sprintf("%q is %q with different punctuation — flags take dashes, values take the schema's underscores — and ", got, want.Name)
+				said += fmt.Sprintf(": it is %q with different punctuation — flags take dashes, values take the schema's underscores", want.Name)
 			default:
 				continue
 			}
 			break
 		}
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "--%s must be one of %s (got %q) — %s%s\n\n%s",
-		flag, strings.Join(Names(vs), "|"), got, detail, why, Menu(vs))
-	return fmt.Errorf("%s", strings.TrimRight(b.String(), "\n"))
+	return fmt.Errorf("%s", strings.TrimRight(said+". "+sentence(why)+"\n\n"+Menu(vs), "\n"))
+}
+
+// sentence is s with its first letter raised, so a clause written to follow a comma stands alone.
+func sentence(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	if size == 0 {
+		return s
+	}
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 // evsOf builds the value list for an enum FROM ITS DESCRIPTOR, so a hand-written table stops

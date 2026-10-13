@@ -506,7 +506,7 @@ func renderPagePNG(inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, index int, 
 	}
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, toGray(rendered.Result.RenderedImage)); err != nil {
-		return nil, fmt.Errorf("encoding: %w", err)
+		return nil, fmt.Errorf("encoding the page image: %w", err)
 	}
 	return buf.Bytes(), nil
 }

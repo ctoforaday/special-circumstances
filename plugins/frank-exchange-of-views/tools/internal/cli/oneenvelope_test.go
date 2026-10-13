@@ -90,7 +90,7 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		{kind: "record validation", seat: chair, args: []string{"spot-check", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
 			verb: "spot-check", path: "spot-check", role: "chair", code: "error", logged: true},
 		{kind: "bad value, its message several lines long", seat: chair, args: []string{"verdict", "--as", "MAYBE"},
-			verb: "verdict", path: "verdict", role: "chair", code: "validation", teaches: true, logged: true},
+			verb: "verdict", path: "verdict", role: "chair", code: "validation", short: true, logged: true},
 
 		// A failure nothing coded is not the caller's ill-formed input.
 		{kind: "uncoded failure", seat: "operator", args: []string{"fetch", "--url", "http://127.0.0.1:1/x"},
@@ -112,13 +112,13 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 		{kind: "missing required flag", seat: bench, args: []string{"outcome"},
 			verb: "outcome", path: "outcome", role: "bench", code: "missing_field", short: true, logged: true},
 		{kind: "bad value", seat: lens, args: []string{"finding", "--quote", "q", "--reason", "r", "--severity", "banana"},
-			verb: "finding", path: "finding", role: "lens", code: "validation", teaches: true, logged: true},
+			verb: "finding", path: "finding", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments", seat: lens, args: []string{"near-match", "extra"},
-			verb: "near-match", path: "near-match", role: "lens", code: "validation", teaches: true, logged: true},
+			verb: "near-match", path: "near-match", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments, refused by the verb's own check", seat: chair, args: []string{"dispatch", "later"},
 			verb: "dispatch", path: "dispatch", role: "chair", code: "validation", teaches: true, logged: true},
 		{kind: "flag group", seat: chair, args: []string{"spot-check", "--none", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
-			verb: "spot-check", path: "spot-check", role: "chair", code: "validation", teaches: true, logged: true},
+			verb: "spot-check", path: "spot-check", role: "chair", code: "validation", short: true, logged: true},
 
 		// Who is asking.
 		{kind: "seat id disagrees with the registration", seat: lens, env: []string{"FEOV_AGENT_ID=" + boundAgent},

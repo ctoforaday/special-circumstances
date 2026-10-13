@@ -94,10 +94,10 @@ func listsOf(c *cobra.Command) string {
 	return "what it takes, flag by flag"
 }
 
-// A FLAG REFUSAL IS A FEW LINES, NOT THE PAGE. A required flag left out and a flag the verb does
-// not have are each answered by a handful of facts the command tree already holds — which flags
-// are owed and what each is for; which verbs do take the flag that was typed, and what this verb
-// takes instead — so the refusal states those and names the page. The whole page under either
+// A REFUSAL COBRA RAISES IS A FEW LINES, NOT THE PAGE. A required flag left out and a flag the verb
+// does not have are each answered by a handful of facts the command tree already holds — which
+// flags are owed and what each is for; which verbs do take the flag that was typed, and what this
+// verb takes instead — so the refusal states those and names the page. The whole page under either
 // was 3–5 KB a call, and a seat that batches four calls on one guess reads it four times.
 //
 // Both forms carry the same text: there is no page for the JSON envelope to stand a pointer in for.
@@ -109,11 +109,11 @@ func listsOf(c *cobra.Command) string {
 // the required annotation that the call did not set — and never recovered from cobra's message.
 // It returns nil when no required flag is missing, so a caller cannot render an empty list.
 func RefuseMissingFlags(c *cobra.Command, cause error) error {
-	owed := pflag.NewFlagSet(c.Name(), pflag.ContinueOnError)
+	var owed []*pflag.Flag
 	var names []string
 	c.Flags().VisitAll(func(f *pflag.Flag) {
 		if req := f.Annotations[cobra.BashCompOneRequiredFlag]; len(req) > 0 && req[0] == "true" && !f.Changed {
-			owed.AddFlag(f)
+			owed = append(owed, f)
 			names = append(names, "--"+f.Name)
 		}
 	})
@@ -121,7 +121,7 @@ func RefuseMissingFlags(c *cobra.Command, cause error) error {
 		return nil
 	}
 	return &Refusal{
-		Diagnosis: "requires " + strings.Join(names, ", ") + "\n\n" + strings.TrimRight(owed.FlagUsagesWrapped(0), "\n"),
+		Diagnosis: "requires " + strings.Join(names, ", ") + "\n\n" + usageOf(c, owed...),
 		Path:      c.CommandPath(), Lists: listsOf(c), Cause: cause,
 	}
 }
@@ -151,8 +151,14 @@ func RefuseUnknownFlag(c *cobra.Command, name, said string, answered bool, cause
 			b.WriteString(" — not one of this verb's flags, and no verb on this surface takes it.")
 		}
 	}
-	// WHAT THIS VERB TAKES: every flag it parsed against, less the ones every command shares (the
-	// root's) and its `--help`. A view under a group takes the group's flags, so they are listed.
+	b.WriteString("\n" + ownFlags(c))
+	return &Refusal{Diagnosis: b.String(), Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
+}
+
+// ownFlags is the line that says WHAT THIS VERB TAKES: every flag it parsed against, less the ones
+// every command shares (the root's) and its `--help`. A view under a group takes the group's
+// flags, so they are listed.
+func ownFlags(c *cobra.Command) string {
 	var own []string
 	global := c.Root().PersistentFlags()
 	c.Flags().VisitAll(func(f *pflag.Flag) {
@@ -161,11 +167,109 @@ func RefuseUnknownFlag(c *cobra.Command, name, said string, answered bool, cause
 		}
 	})
 	if len(own) == 0 {
-		b.WriteString("\nThis verb takes no flags of its own.")
-	} else {
-		b.WriteString("\nThis verb's flags: " + strings.Join(own, ", ") + ".")
+		return "This verb takes no flags of its own."
 	}
-	return &Refusal{Diagnosis: b.String(), Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
+	return "This verb's flags: " + strings.Join(own, ", ") + "."
+}
+
+// usageOf is the flags' own lines as the verb's page prints them — the name, the placeholder that
+// names the value's type, and what the flag is for.
+func usageOf(c *cobra.Command, fs ...*pflag.Flag) string {
+	set := pflag.NewFlagSet(c.Name(), pflag.ContinueOnError)
+	for _, f := range fs {
+		set.AddFlag(f)
+	}
+	return strings.TrimRight(set.FlagUsagesWrapped(0), "\n")
+}
+
+// A VALUE, AN ARGUMENT AND A FLAG GROUP ARE ANSWERED THE SAME WAY, for the same reason: each is a
+// mistake about ONE flag, or a handful, and the page under it was the other twenty. What a seat
+// needs to make the next call is the flag, what it was given and what it takes; the word that has
+// no flag in front of it and the flags a word can follow; the flags a group ties together and
+// each one's own line. The command tree holds every one of those.
+
+// RefuseBadValue is the refusal for a value a flag does not take: the flag, what its own Value
+// said of what it was given, and what it accepts.
+//
+// `said` COMPLETES `--<flag> …`. Every Value this tree declares refuses with a predicate that names
+// what it was handed and what it takes — `"huge" is not a grade — use one of: …`, `takes one of
+// section|avenue|gap and was given nothing` — so the flag is written here once, from the parser's
+// field, and the parser's own wrapper (`invalid argument "x" for "--flag" flag: `) is not printed
+// in front of a sentence that already says both. A Value of the standard library's refuses in the
+// library's words (`strconv.ParseInt: parsing "abc": invalid syntax`); for those `said` is "" and
+// the sentence is built from the flag's declared type.
+//
+// WHAT IT ACCEPTS HAS ONE SOURCE PER KIND OF FLAG. An enumerated flag's sentence carries its set,
+// value by value with what each is for — the table the page's own menu is rendered from — and
+// `carriesSet` says so. Any other flag gets its usage line, which is where its page says what it
+// takes.
+func RefuseBadValue(c *cobra.Command, f *pflag.Flag, given, said string, carriesSet bool, cause error) error {
+	if said == "" {
+		said = fmt.Sprintf("takes %s, not %q", article(f.Value.Type()), given)
+	}
+	d := "--" + f.Name + " " + said
+	if !carriesSet {
+		d += "\n\n" + usageOf(c, f)
+	}
+	return &Refusal{Diagnosis: d, Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
+}
+
+// article puts "a" or "an" before a type word: `an int`, `a bool`.
+func article(word string) string {
+	if strings.ContainsRune("aeiou", rune(strings.ToLower(word + " ")[0])) {
+		return "an " + word
+	}
+	return "a " + word
+}
+
+// RefuseStrayArgs is the refusal for a word the verb has no place for. `said` is the diagnosis —
+// the words, as typed. A stray word is nearly always a VALUE that lost its flag (an unquoted
+// sentence, a flag word left out), so what follows it is the flags a value can go behind.
+func RefuseStrayArgs(c *cobra.Command, said string, cause error) error {
+	return &Refusal{Diagnosis: said + "\n" + ownFlags(c), Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
+}
+
+// groupAnnotations are the three annotations cobra's flag groups are declared with
+// (MarkFlagsRequiredTogether, MarkFlagsOneRequired, MarkFlagsMutuallyExclusive), each beside the
+// test that says a group so marked is violated by the flags set: how many of its `n` flags the
+// call set.
+var groupAnnotations = map[string]func(set, n int) bool{
+	"cobra_annotation_required_if_others_set": func(set, n int) bool { return set > 0 && set < n },
+	"cobra_annotation_one_required":           func(set, _ int) bool { return set == 0 },
+	"cobra_annotation_mutually_exclusive":     func(set, _ int) bool { return set > 1 },
+}
+
+// RefuseFlagGroup is the refusal for a flag group violated: cobra's sentence, which names the
+// group by its flags' bare names, and under it each of those flags' own usage lines — which is
+// what says which of two the call wants, or what the missing ones carry.
+//
+// THE GROUPS ARE READ FROM THE FLAGS, where cobra wrote them, and never out of its sentence. It
+// returns nil when no group it can read is violated, and the caller answers with the page: a
+// refusal that printed no flag would name a group and explain none of it.
+func RefuseFlagGroup(c *cobra.Command, said string, cause error) error {
+	seen := map[string]bool{}
+	var in []*pflag.Flag
+	c.Flags().VisitAll(func(f *pflag.Flag) {
+		for key, violated := range groupAnnotations {
+			for _, group := range f.Annotations[key] {
+				names := strings.Fields(group)
+				set := 0
+				for _, n := range names {
+					if g := c.Flags().Lookup(n); g != nil && g.Changed {
+						set++
+					}
+				}
+				if violated(set, len(names)) && !seen[f.Name] {
+					seen[f.Name] = true
+					in = append(in, f)
+				}
+			}
+		}
+	})
+	if len(in) == 0 {
+		return nil
+	}
+	return &Refusal{Diagnosis: said + "\n\n" + usageOf(c, in...), Path: c.CommandPath(), Lists: listsOf(c), Cause: cause}
 }
 
 // declarers is the one walk that answers "which verbs take this flag": the runnable commands
