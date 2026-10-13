@@ -84,6 +84,11 @@ type Section struct {
 // block is the section as assembly places it, or "" for one this run has nothing under.
 func (s Section) block(a *assembly) string {
 	text := s.compose(a, s)
+	if s.Composer == Tool {
+		// WHAT ASSEMBLY COMPOSES OPENS NO FOOTNOTE (notes.go): the weave runs over the document
+		// after this, and is the one writer of a note in it.
+		text = EscapeNotes(text)
+	}
 	if s.Composer == Tool && s.Line == "" && strings.TrimSpace(text) != "" {
 		return "## " + s.Heading + "\n\n" + text
 	}

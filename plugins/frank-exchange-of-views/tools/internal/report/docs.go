@@ -117,7 +117,7 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// its final fate and carries neither who moved it, the path it took nor the ruling beside it,
 	// because those are the debate. It is the SAME rendering `show avenues` prints
 	// (view.AvenueBody), whole, not a section of the table and not a second account.
-	inq := view.AvenueBody(evs, fam.At)
+	inq := EscapeNotes(view.AvenueBody(evs, fam.At))
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
@@ -196,7 +196,7 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// is not on the record is still stated (it is a defect, and a silent drop reads as clean).
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			docs[i].Body = evidenceDoc(run, proofs, used)
+			docs[i].Body = EscapeNotes(evidenceDoc(run, proofs, used))
 			composed[evidenceHeading] = docs[i].Body != ""
 		}
 	}

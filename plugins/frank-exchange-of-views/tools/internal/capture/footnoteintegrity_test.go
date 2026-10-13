@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
@@ -94,5 +95,44 @@ func TestFootnoteIntegrityIgnoresFootnotesInsideCode(t *testing.T) {
 func TestFootnoteIntegritySkipsBeforeAssembly(t *testing.T) {
 	if a := FootnoteIntegrity(runtest.Open(t, t.TempDir())); a.Verdict != "SKIP" {
 		t.Fatalf("verdict = %s, want SKIP (%s)", a.Verdict, a.Detail)
+	}
+}
+
+// A SEAT'S WORDS ARE NOT A REFERENCE ONCE ASSEMBLY HAS ESCAPED THEM, and they are one where it has
+// not. The two lines are the wave B smoke's: a finding in the board document naming the report's
+// footnote, which report.md defines and docket.md does not, and a log entry in the run document
+// quoting a regex. Printed raw, each is a reference with no definition in its document — the board
+// document's became a citation link to nowhere in report.html — and the audit says so.
+func TestFootnoteIntegrityReadsAnEscapedNoteAsText(t *testing.T) {
+	const (
+		finding = "P-c53c6b2c, the other anchor on the same sentence and the one footnote %s cites, still types the constants."
+		logged  = "- **red-lens-evidence** (friction): the form grep -o '%s{0,120}term%s{0,120}', fails with a complexity-limit error."
+	)
+	set := func(open string) string {
+		run := writeReport(t, "# A report\n\nThe norms multiply to 8281[^P5].\n\n[^P5]: The norms of 7, 3 + 2i and 3 − 2i multiply to 8281.\n")
+		for name, body := range map[string]string{
+			"docket.md": "# the board\n\n### F-76352127 (dark-side)\n" + fmt.Sprintf(finding, open+"P5]") + "\n",
+			"run.md":    "# the run\n\n" + fmt.Sprintf(logged, open+"<>]", open+"<>]") + "\n",
+		} {
+			if err := os.WriteFile(filepath.Join(run, name), []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return run
+	}
+	escaped := FootnoteIntegrity(runtest.Open(t, set(`\[^`)))
+	if escaped.Verdict != "PASS" || !strings.Contains(escaped.Detail, "1 footnote(s) referenced, 1 defined") {
+		t.Errorf("escaped seat text is counted as a reference: %s — %s", escaped.Verdict, escaped.Detail)
+	}
+	raw := FootnoteIntegrity(runtest.Open(t, set("[^")))
+	if raw.Verdict != "FAIL" {
+		t.Fatalf("seat text printed raw opens a footnote in each document and the audit passed it: %s", raw.Detail)
+	}
+	// EACH LABEL IS REPORTED AS CODE: the detail is printed in the run document, where a bare
+	// label is the next audit's dangling reference.
+	for _, want := range []string{"`docket.md:[^P5]`", "`run.md:[^<>]`"} {
+		if !strings.Contains(raw.Detail, want) {
+			t.Errorf("the detail does not name %s:\n%s", want, raw.Detail)
+		}
 	}
 }
