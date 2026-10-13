@@ -674,12 +674,12 @@ func avenues(a *assembly, s Section) string {
 		if !want(a.Status) {
 			continue
 		}
-		row := "- **Question:** " + a.Line
+		row := "- **Question:** " + inItem(a.Line, "  ")
 		if a.Method != "" {
 			row += fmt.Sprintf(" _(%s)_", a.Method)
 		}
 		if a.Hypothesis != "" {
-			row += "\n  - **Hypothesis:** " + a.Hypothesis
+			row += "\n  - **Hypothesis:** " + inItem(a.Hypothesis, "    ")
 		}
 		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
@@ -697,7 +697,7 @@ func avenues(a *assembly, s Section) string {
 			if ran(a.Status) {
 				label = "Found"
 			}
-			row += fmt.Sprintf(" **%s:** %s", label, a.Reason)
+			row += fmt.Sprintf(" **%s:** %s", label, inItem(a.Reason, "    "))
 		}
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
 		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`
@@ -717,6 +717,21 @@ func avenues(a *assembly, s Section) string {
 		body = strings.Join(rows, "\n")
 	}
 	return body
+}
+
+// inItem keeps prose of several lines inside the list item that prints it: every further line is
+// indented to the item's text and ends the one before it with a hard break, and blank lines go.
+// A blank or unindented line ends a list item — in markdown and in mdToHTML alike — so a line
+// written as paragraphs otherwise leaves its own row, and the hypothesis and fate under it read
+// as rows of their own.
+func inItem(prose, indent string) string {
+	var lines []string
+	for _, ln := range strings.Split(prose, "\n") {
+		if ln = strings.TrimSpace(ln); ln != "" {
+			lines = append(lines, ln)
+		}
+	}
+	return strings.Join(lines, "  \n"+indent)
 }
 
 // withdrawnClaims renders the claims blue REMOVED from the report, from the retire events.

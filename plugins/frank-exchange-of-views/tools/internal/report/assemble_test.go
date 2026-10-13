@@ -199,6 +199,32 @@ func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 	}
 }
 
+// A ROW IS ONE LIST ITEM HOWEVER MANY PARAGRAPHS ITS PROSE HOLDS. The archived sleeper-service-plan
+// and quadratic-formula runs hold lines written as two and three paragraphs; printed as written,
+// the blank line ended the item, the later paragraphs stood outside the list, and the hypothesis
+// and fate opened a list of their own. Markdown and the site read the same rule: a line indented
+// under an item, with no blank line before it, continues the item.
+func TestAnAvenueRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
+	board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"),
+		Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REJECTED), Method: proto.String("census"),
+		Line: proto.String("APPROACH: census the plan.\n\nARGUMENT: ordering is scarce."), Hypothesis: proto.String("one exists\nand it is explicit"),
+		Reason: proto.String("none exists.\n\nThe plan names no function.")})})
+	got := avenueSection(t, board, "Research areas")
+	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce. _(census)_\n" +
+		"  - **Hypothesis:** one exists  \n    and it is explicit\n" +
+		"  - **Fate:** rejected — ran, and what it found refuted the hypothesis. **Found:** none exists.  \n    The plan names no function."
+	if !strings.Contains(got, want) {
+		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
+	}
+	html := mdToHTML(got, FileReport, anchors{}, map[string]int{})
+	if n := strings.Count(html, "<ul>"); n != 2 {
+		t.Errorf("the row opens %d lists on the site; one row is one item holding one nested list:\n%s", n, html)
+	}
+	if strings.Contains(html, "<p>") {
+		t.Errorf("a paragraph of the row stands outside its list on the site:\n%s", html)
+	}
+}
+
 // EVERY FATE PRINTS AS THE WORD ITS SEAT FILED, AND `rejected` ALONE CARRIES A GLOSS. Bare,
 // `rejected` reads as an approach turned down; every other fate says what it is, and a gloss on one
 // would describe records it does not fit — an archived `abandoned` whose reason is a refutation, an
