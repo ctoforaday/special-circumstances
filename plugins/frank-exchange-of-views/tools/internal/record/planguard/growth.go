@@ -71,7 +71,7 @@ var createTable = regexp.MustCompile(`(?i)CREATE\s+TABLE\s+"?([A-Za-z_][A-Za-z0-
 func GrowthTables() (map[string]bool, error) {
 	ddl, err := recordsql.Schema()
 	if err != nil {
-		return nil, fmt.Errorf("planguard: deriving the growth set: %w", err)
+		return nil, fmt.Errorf("deriving the growth set: %w", err)
 	}
 	prefix, err := enumPrefix()
 	if err != nil {
@@ -86,12 +86,12 @@ func GrowthTables() (map[string]bool, error) {
 		out[name] = true
 	}
 	if !out[EventsTable] {
-		return nil, fmt.Errorf("planguard: the schema declares no %q table — the derivation read "+
+		return nil, fmt.Errorf("the schema declares no %q table — the derivation read "+
 			"something other than the record's DDL, and a growth set without the events table "+
 			"guards nothing that matters", EventsTable)
 	}
 	if len(out) <= 1 {
-		return nil, fmt.Errorf("planguard: derived only %d growth table(s) — the schema answered "+
+		return nil, fmt.Errorf("derived only %d growth table(s) — the schema answered "+
 			"too little for this to be guarding the record", len(out))
 	}
 	return out, nil
@@ -105,7 +105,7 @@ func enumPrefix() (string, error) {
 	name := recordsql.EnumTableName(ed)
 	i := strings.Index(name, "_")
 	if i <= 0 {
-		return "", fmt.Errorf("planguard: cannot read the enum-table prefix out of %q", name)
+		return "", fmt.Errorf("cannot read the enum-table prefix out of %q", name)
 	}
 	return name[:i+1], nil
 }

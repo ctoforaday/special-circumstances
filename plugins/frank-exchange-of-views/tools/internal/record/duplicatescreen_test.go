@@ -176,8 +176,14 @@ func TestAMintMatchingAnOpenGapIsAskedWhichItIs(t *testing.T) {
 				t.Fatalf("%s: a mint was admitted over a board that could not be read", tc.name)
 			}
 			// The refusal is the MINT's, coded, and names the read as its cause — not the read's
-			// own sentence, bare.
-			if !strings.HasPrefix(err.Error(), "the board could not be read, so the screen cannot run: ") {
+			// own sentence, bare. Live, the budget counts the lens's open gaps off the board before
+			// the screen reads it, so the first read to fail is the budget's; a replay skips the
+			// budget and the screen's is.
+			want := "the board could not be read, so the gaps red-lens-computation holds open cannot be counted against its mint budget: "
+			if tc.migrating {
+				want = "the board could not be read, so the screen cannot run: "
+			}
+			if !strings.HasPrefix(err.Error(), want) {
 				t.Fatalf("%s: the refusal is not the mint's own, naming the read: %v", tc.name, err)
 			}
 			if feov.CodeOf(err) != string(feov.Conflict) {

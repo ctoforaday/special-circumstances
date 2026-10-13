@@ -163,7 +163,7 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 	for _, row := range rows {
 		enc, err := json.Marshal(telemetryWire(row))
 		if err != nil {
-			return nil, fmt.Errorf("view: encoding telemetry epoch %d: %w", row.GetEpoch(), err)
+			return nil, fmt.Errorf("encoding telemetry epoch %d: %w", row.GetEpoch(), err)
 		}
 		lines = append(lines, string(enc))
 	}

@@ -520,15 +520,17 @@ func Invoke(root *cobra.Command, argv []string, seatID string) (*cobra.Command, 
 // group violated — it gives the code their producer implies and the answer the command tree holds.
 //
 // Cobra's own sentences name a flag word and stop: which word was missed, and nothing about what
-// the word wants or what else the verb takes. Two of them are answered in a few lines, on every
-// command under the root: required flags left out get each missing flag's own usage line
-// (seat.RefuseMissingFlags), and a flag the verb does not have gets the verbs on this surface that
-// do take it beside this verb's own flags (seat.RefuseUnknownFlag). Each names the verb's
-// `--help` and prints none of it.
+// the word wants or what else the verb takes. Each is answered in a few lines, on every command
+// under the root: required flags left out get each missing flag's own usage line
+// (seat.RefuseMissingFlags); a flag the verb does not have gets the verbs on this surface that do
+// take it beside this verb's own flags (seat.RefuseUnknownFlag); a value a flag does not take gets
+// the flag, what it was given and what it accepts (seat.RefuseBadValue); a word with no flag in
+// front of it gets this verb's flags (seat.RefuseStrayArgs); and a flag group violated gets the
+// usage line of each flag in it (seat.RefuseFlagGroup). Each names the verb's `--help` and prints
+// none of it.
 //
-// The rest — a bad value, wrong arguments, a flag group violated — get the verb's whole page on a
-// SEAT VERB, the diagnosis leading: the answer there is the flag table itself. A handler's refusal
-// is a teaching message already (seat.Taught marks them).
+// A refusal of cobra's that none of those reads gets the verb's whole page on a SEAT VERB, the
+// diagnosis leading. A handler's refusal is a teaching message already (seat.Taught marks them).
 //
 // THE REFUSAL IS LOGGED AS RETURNED, once its diagnosis is final: the log entry and the rendered
 // forms read the same sentence.
@@ -565,9 +567,13 @@ func ExecuteRoot(root *cobra.Command) (*cobra.Command, error) {
 
 // answerCobraRefusal gives a refusal cobra raised its code and its answer, by producer.
 func answerCobraRefusal(cmd *cobra.Command, err error) error {
+	// THE PRODUCERS ARE ASKED BEFORE THE CODE IS GIVEN: coding rewrites one of their sentences.
 	missing := isMissingRequired(cmd, err)
+	stray := isRefusal(err, cobra.NoArgs(cmd, cmd.Flags().Args()))
+	group := isRefusal(err, cmd.ValidateFlagGroups())
 	err = codeCobraRefusal(cmd, err)
 	var unknown *pflag.NotExistError
+	var invalid *pflag.InvalidValueError
 	switch {
 	case cmd == cmd.Root():
 		// No verb resolved, so there is no verb's flags to answer with.
@@ -579,6 +585,23 @@ func answerCobraRefusal(cmd *cobra.Command, err error) error {
 	case errors.As(err, &unknown):
 		said, answered := translateUnknownFlag(cmd, unknown.GetSpecifiedName(), unknown.Error())
 		return seat.RefuseUnknownFlag(cmd, unknown.GetSpecifiedName(), said, answered, err)
+	case errors.As(err, &invalid):
+		// THE FLAG AND THE VALUE ARE THE PARSER'S FIELDS, and the sentence is the flag's own Value's
+		// — except a standard-library Value's, which is the library's parse error and names
+		// neither what the flag takes nor the flag.
+		f, said := invalid.GetFlag(), invalid.Unwrap().Error()
+		var library *strconv.NumError
+		if errors.As(invalid.Unwrap(), &library) {
+			said = ""
+		}
+		_, enumerated := enumhelp.Registered(cmd)[f.Name]
+		return seat.RefuseBadValue(cmd, f, invalid.GetValue(), said, enumerated, err)
+	case stray:
+		return seat.RefuseStrayArgs(cmd, err.Error(), err)
+	case group:
+		if short := seat.RefuseFlagGroup(cmd, err.Error(), err); short != nil {
+			return short
+		}
 	}
 	if seat.RecordType(cmd) != "" {
 		return seat.TeachCause(cmd, err.Error(), err)
@@ -608,7 +631,7 @@ func codeCobraRefusal(cmd *cobra.Command, err error) error {
 	if errors.As(err, &coded) {
 		return err
 	}
-	same := func(e error) bool { return e != nil && e.Error() == err.Error() }
+	same := func(e error) bool { return isRefusal(err, e) }
 	switch {
 	case isMissingRequired(cmd, err):
 		return feov.Wrap(feov.MissingField, err, "%s", err.Error())
@@ -621,6 +644,10 @@ func codeCobraRefusal(cmd *cobra.Command, err error) error {
 	}
 	return err
 }
+
+// isRefusal says whether `again` — one of cobra's checks, re-run on the resolved command — is
+// the refusal `err`: the same function over the same state, compared whole.
+func isRefusal(err, again error) bool { return again != nil && again.Error() == err.Error() }
 
 // quotedArgs is an argument list as the seat typed it, each word quoted.
 func quotedArgs(args []string) string {

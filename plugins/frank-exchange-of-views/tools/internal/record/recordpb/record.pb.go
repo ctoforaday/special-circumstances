@@ -3746,7 +3746,7 @@ type SpotCheck struct {
 	// nothing to sample — the same field, split by which branch wrote it.
 	Reason *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	// The lens seats whose area the chair read the changes against this sitting — the plan's
-	// stale_areas, each a lens retired for good whose pin the report head has moved past. A PASS is
+	// stale_areas, each a retired lens whose pin the report head has moved past. A PASS is
 	// refused until a spot-check in the chair's sitting names every stale area. Validated against the
 	// cast at the write.
 	Areas         []string `protobuf:"bytes,5,rep,name=areas,proto3" json:"areas,omitempty"`
@@ -6576,8 +6576,8 @@ func (x *Cast) GetLaneSeatIds() []string {
 // ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
 // are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
 // the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
-// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — ready by its
-// retirement state — and gap_ids is empty, which is "lineage none", not "unknown".
+// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the report
+// head moved past its last sitting — and gap_ids is empty, which is "lineage none", not "unknown".
 type Dispatch struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Pin    *int64                 `protobuf:"varint,1,opt,name=pin,proto3,oneof" json:"pin,omitempty"`

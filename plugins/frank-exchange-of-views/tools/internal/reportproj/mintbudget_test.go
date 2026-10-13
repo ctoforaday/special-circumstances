@@ -40,7 +40,7 @@ func b4Report() string {
 }
 
 // The worked example: B4's record (29 paragraphs, 11 citations, 11 claims, 6 proofs) under a
-// smoke run's floor of 1, through the renderer this package registers.
+// floor of 1, through the renderer this package registers.
 func TestTheB4MintBudgets(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	if err := record.StageForRun(runtest.Open(t, runDir), "x"); err != nil {
@@ -65,7 +65,7 @@ func TestTheB4MintBudgets(t *testing.T) {
 	}
 	recordtest.Seed(t, runDir, evs...)
 	run := runtest.Open(t, runDir)
-	for seat, want := range map[string]int{"red-lens-evidence": 6, "red-lens-computation": 3, "red-lens-logic": 4, "red-lens-voice": 6} {
+	for seat, want := range map[string]int{"red-lens-evidence": 17, "red-lens-computation": 9, "red-lens-logic": 11, "red-lens-voice": 18} {
 		b, err := record.LensMintBudget(run, seat)
 		if err != nil {
 			t.Errorf("%s: %v", seat, err)
@@ -76,20 +76,20 @@ func TestTheB4MintBudgets(t *testing.T) {
 		}
 	}
 
-	// And through the write path: the voice lens mints six, and the seventh is refused.
+	// And through the write path: the voice lens holds eighteen open, and the nineteenth is refused.
 	voice := record.Identity{Run: run, SeatID: "red-lens-voice"}
 	if _, _, err := record.RegisterSeat(voice, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	for i := 1; i <= 7; i++ {
+	for i := 1; i <= 19; i++ {
 		_, err := record.Append(voice, &recordpb.Mint{GapId: proto.String(fmt.Sprintf("G%d", i)), Class: proto.String("x"), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
-		if i <= 6 && err != nil {
-			t.Fatalf("mint %d of a budget of 6 was refused: %v", i, err)
+		if i <= 18 && err != nil {
+			t.Fatalf("mint %d of a budget of 18 was refused: %v", i, err)
 		}
-		if i == 7 && (err == nil || !strings.Contains(err.Error(), "max(floor 1, ceil(29 prose paragraphs in the current report / 5)) = 6")) {
-			t.Fatalf("the seventh mint was not refused with the arithmetic: %v", err)
+		if i == 19 && (err == nil || !strings.Contains(err.Error(), "max(floor 1, ceil(29 prose paragraphs in the current report × 3 mints / 5)) = 18")) {
+			t.Fatalf("the nineteenth mint was not refused with the arithmetic: %v", err)
 		}
 	}
 }

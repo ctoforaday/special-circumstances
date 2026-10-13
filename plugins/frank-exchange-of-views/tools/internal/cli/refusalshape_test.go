@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/refusalcheck"
 )
 
 // NO MESSAGE IS WRITTEN WITH A COMMAND'S NAME AT ITS HEAD, in any layer a command reaches.
@@ -29,7 +30,7 @@ import (
 // surface and the operator's.
 
 // refusalLayers are the packages a command reaches, below internal/.
-var refusalLayers = []string{"cli", "record", "fetchcache", "proof", "report", "bluedoc", "reportproj", "view"}
+var refusalLayers = []string{"cli", "record", "fetchcache", "proof", "report", "bluedoc", "reportproj", "view", "anchor", "anchortext", "flags"}
 
 // messageMakers are the calls whose string argument is a message: the error constructors, and the
 // formatters a message is built with before it reaches one.
@@ -94,6 +95,11 @@ func composedHead(message string, names, roles []string) string {
 		if strings.HasPrefix(rest, "%s"+tail) {
 			return "%s" + tail
 		}
+	}
+	// A STAGE'S NAME, where a command's would stand: `render: no base has been ingested`. The
+	// rendered gates hold the one reading of it.
+	if stage := refusalcheck.StageHead(message); stage != "" {
+		return stage + ":"
 	}
 	return ""
 }
@@ -208,6 +214,8 @@ func TestTheMessageGateTellsAHeadFromASentence(t *testing.T) {
 		"a carry restates an earlier closure":                false,
 		"closing it twice double-counts closure history":     false,
 		"recordsql: opening %s: %w":                          false,
+		"render: replaying edit %d of %d: %w":                true,
+		"replaying edit %d of %d: %w":                        false,
 		"%s was minted --check-kind computation":             false,
 		"mints are budgeted: this lens has %d left":          false,
 		"record: a %s names the gap it is about":             false,

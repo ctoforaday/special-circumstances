@@ -434,8 +434,8 @@ func TestTheDispatchVerbRefusesASeatOutsideTheCast(t *testing.T) {
 	}
 }
 
-// PASS waits for every cast lens to stop being ready — each retired with no re-arm owed, or retired
-// for good. A lens engaged that has opened no sitting since has not sat, so it is still active.
+// PASS waits for every cast lens to stop being ready — each has sat at the head, or has retired. A
+// lens engaged that has opened no sitting since has not sat, so it is still ready.
 func TestPassIsRefusedWhileAnyCastLensIsReady(t *testing.T) {
 	logic := "red-lens-logic"
 	pass := &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}
@@ -474,8 +474,8 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	}
 }
 
-// A lens's mint budget is the record's count of its mints against the run's term, superseding
-// mints included; the chair is not a lens and is not bounded here.
+// A lens's mint budget is the record's count of its open gaps against the run's term, a
+// superseding mint's included; the chair is not a lens and is not bounded here.
 func TestAMintPastTheBudgetIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeRunConfig(t, runDir, `{"mintBudget":1}`)
@@ -496,7 +496,7 @@ func TestAMintPastTheBudgetIsRefused(t *testing.T) {
 		t.Fatalf("the second mint past a budget of 1 landed: %v", err)
 	}
 	if _, err := Append(lensID, mint("G3", "G1")); err == nil || !strings.Contains(err.Error(), "budget") {
-		t.Fatalf("a superseding mint past the budget landed — lineage is a new gap: %v", err)
+		t.Fatalf("a superseding mint landed at the cap with the gap it replaces still open: %v", err)
 	}
 	// Another lens has its own budget.
 	other := Identity{Run: run, SeatID: "red-lens-logic"}

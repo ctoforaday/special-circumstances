@@ -71,7 +71,7 @@ permitted (VERIFIED), or every open material gap at its limit (CEILING): the ben
 the one more exchange the remand grants its minting lens and blue left it at impasse, and the
 bench remanded it again — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
-impasse (k-max), the floor of the gaps a lens may mint (mint-budget), which the record raises
+impasse (k-max), the floor of the gaps a lens may hold open at once (mint-budget), which the record raises
 with the report's size in each lens's unit — citations, proofs, claims or prose paragraphs — and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
 plan the same for three chair sittings in a row — the same parties readied against the same

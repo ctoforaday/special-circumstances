@@ -767,7 +767,7 @@
     },
     {
       "term": "lens retirement",
-      "definition": "Lens retirement is the record's state for a lens that has stopped finding material: two sittings without a fresh material gap retire it, a head move re-arms it once, and a barren re-arm retires it for good.",
+      "definition": "Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire it, and a head move does not ready a retired lens.",
       "seats": [
         "lens",
         "chair",
@@ -778,7 +778,7 @@
     },
     {
       "term": "stale area",
-      "definition": "A stale area is the area of a lens retired for good whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.",
+      "definition": "A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.",
       "seats": [
         "chair",
         "operator"

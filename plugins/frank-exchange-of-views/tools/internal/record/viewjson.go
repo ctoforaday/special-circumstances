@@ -1290,8 +1290,9 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		// THE MINTS LEFT, ON THE LIST A LENS DECIDES "GAP OR FINDING" FROM. It is not read off the
 		// snapshot above: the count and the measure are the write path's own reads
 		// (lensMintStanding), so the list states the number the next mint is judged against. The
-		// seat's mints are its own acts and nothing else moves the count; the units may move under
-		// a blue edit, as they may between this read and the mint.
+		// count is the seat's open gaps, so its own mint or close moves it and so does a bench ruling
+		// that closes one; the units may move under a blue edit, as they may between this read and
+		// the mint.
 		//
 		// LAST, AND NEVER BLOCKING: it is a fact about the run's terms, neither owed nor work, and
 		// it follows the statement that the list is empty where SittingOf made one.

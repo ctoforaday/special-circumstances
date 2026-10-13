@@ -1045,7 +1045,14 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
 			}
-			args := append([]string{tc.args[0], tc.args[1], "--run", runDir, "--seat-id", seatID}, tc.args[2:]...)
+			// EVERY OTHER VALUE IS ONE THE VERB TAKES, or the refusal is of that value and the
+			// missing flag is never looked for: the gap is the one minted above, by its own id.
+			args := append([]string{tc.args[0], "--run", runDir, "--seat-id", seatID}, tc.args[1:]...)
+			for i, a := range args {
+				if a == "G1" {
+					args[i] = onlyID(t, runDir, "G")
+				}
+			}
 			_, err := runAt(t, args...)
 			if err == nil {
 				t.Fatal("the verb was accepted without its reason")
