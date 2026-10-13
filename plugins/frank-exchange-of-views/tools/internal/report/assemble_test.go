@@ -145,7 +145,7 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
 	})
 	alt := avenueSection(t, board, "Alternatives considered")
-	const fate = "\n  - **Fate:** abandoned — started, and no answer came. **Why:** "
+	const fate = "\n  - **Fate:** abandoned. **Why:** "
 	if !strings.Contains(alt, "- **Question:** sieve to the square root"+fate+"the bound is 9, so the sieve adds nothing") {
 		t.Errorf("a line pursued and then abandoned keeps the plain fate:\n%s", alt)
 	}
@@ -179,12 +179,12 @@ func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 	for name, want := range map[string]string{
 		"a rejected avenue prints its hypothesis as one and says it did not hold": "- **Question:** whether one Fermat test settles it _(computation)_\n" +
 			"  - **Hypothesis:** a passing test is no evidence of primality\n" +
-			"  - **Fate:** rejected — ran, and refuted what it tested. **Found:** a passing test is evidence, not proof",
+			"  - **Fate:** rejected — ran, and what it found refuted the hypothesis. **Found:** a passing test is evidence, not proof",
 		"an avenue with no hypothesis prints no hypothesis line": "- **Question:** whether trial division settles it\n" +
-			"  - **Fate:** concluded — ran, and confirmed what it tested. **Found:** 7 divides 91",
+			"  - **Fate:** concluded. **Found:** 7 divides 91",
 		"an avenue never moved has found nothing, and its question is not printed twice": "- **Question:** whether a sieve is faster\n" +
 			"  - **Hypothesis:** it is\n" +
-			"  - **Fate:** proposed — not yet taken up.",
+			"  - **Fate:** proposed.",
 	} {
 		if !strings.Contains(research+"\n", want+"\n") {
 			t.Errorf("%s; want the row\n%s\nin\n%s", name, want, research)
@@ -194,26 +194,39 @@ func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 		t.Errorf("a question is printed in bold, as a claim of the report's would be:\n%s", research)
 	}
 	alt := avenueSection(t, board, "Alternatives considered")
-	if want := "  - **Hypothesis:** one does\n  - **Fate:** declined — weighed, never run. **Why:** the bound is 9"; !strings.Contains(alt, want) {
+	if want := "  - **Hypothesis:** one does\n  - **Fate:** declined. **Why:** the bound is 9"; !strings.Contains(alt, want) {
 		t.Errorf("an approach that did not run found nothing: its reason is why it stands there; want\n%s\nin\n%s", want, alt)
 	}
 }
 
-// EVERY FATE THE RECORD DECLARES IS SAID IN WORDS ON THE ROW, and only an approach that ran reports
-// a finding. The glosses are a table beside the enum, so a fate added to the enum alone would print
-// as a bare word — and `rejected`, bare, reads as an approach turned down.
+// EVERY FATE PRINTS AS THE WORD ITS SEAT FILED, AND `rejected` ALONE CARRIES A GLOSS. Bare,
+// `rejected` reads as an approach turned down; every other fate says what it is, and a gloss on one
+// would describe records it does not fit — an archived `abandoned` whose reason is a refutation, an
+// archived `pursued` that is where an approach came to rest. Only an approach that ran reports what
+// it FOUND. A fate the enum gains fails here until its label is decided.
 func TestEveryAvenueFateIsSaidOnItsRow(t *testing.T) {
-	for _, status := range record.AvenueStatusNames() {
-		said, ok := avenueFates[status]
-		if !ok || said.means == "" {
-			t.Errorf("the fate %q has no gloss for the avenue row", status)
-		}
-		if said.ran && !taken(status) {
-			t.Errorf("the fate %q is glossed as an approach that ran and is not listed under Research areas", status)
-		}
+	label := map[string]string{
+		"proposed": "Why", "pursued": "Found", "concluded": "Found", "rejected": "Found",
+		"deferred": "Why", "declined": "Why", "abandoned": "Why",
 	}
-	if len(avenueFates) != len(record.AvenueStatusNames()) {
-		t.Errorf("the row glosses %d fates and the record declares %d", len(avenueFates), len(record.AvenueStatusNames()))
+	for _, status := range record.AvenueStatusNames() {
+		st := recordpb.AvenueStatus(recordpb.AvenueStatus_value["AVENUE_STATUS_"+strings.ToUpper(status)])
+		board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"),
+			Status: st.Enum(), Line: proto.String("whether a sieve is faster"), Reason: proto.String("the bound is 9")})})
+		fate := status
+		if status == "rejected" {
+			fate += " — ran, and what it found refuted the hypothesis"
+		}
+		want := "- **Question:** whether a sieve is faster\n  - **Fate:** " + fate + ". **" + label[status] + ":** the bound is 9"
+		var got string
+		for _, heading := range []string{"Research areas", "Future research directions", "Alternatives considered"} {
+			if s := avenueSection(t, board, heading); strings.Contains(s, "**Question:**") {
+				got = s
+			}
+		}
+		if !strings.Contains(got+"\n", want+"\n") {
+			t.Errorf("the fate %q: want the row\n%s\ngot\n%s", status, want, got)
+		}
 	}
 }
 

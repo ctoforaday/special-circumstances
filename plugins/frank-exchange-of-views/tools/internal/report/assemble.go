@@ -625,33 +625,26 @@ func truncateRunes(s string, n int) string {
 // rather than a heading that describes the omission.
 //
 // setAside stays a COMPLEMENT so a status no predicate names cannot silently match nothing. The
-// fate `rejected` is NOT set aside: it is named in taken, with the other approaches that ran.
+// fate `rejected` is NOT set aside: it is named in ran, with the other approaches that ran.
 //
 // The sentence a seat reads is written from these three predicates: AvenueSections, in layout.go.
-func taken(status string) bool {
-	return status == "pursued" || status == "concluded" || status == "rejected" || status == "proposed"
+func taken(status string) bool { return ran(status) || status == "proposed" }
+
+// ran is the fates of an approach that RAN: its reason is what it FOUND, where the reason of any
+// other is WHY it stands where it does.
+func ran(status string) bool {
+	return status == "pursued" || status == "concluded" || status == "rejected"
 }
 func deferred(status string) bool { return status == "deferred" }
 
 func setAside(status string) bool { return !taken(status) && !deferred(status) }
 
-// avenueFates is how each fate reads on an avenue's row: what the word means for the approach, in
-// a clause that binds to the hypothesis printed above it, and whether the approach ran — the
-// reason of one that ran is what it FOUND, the reason of any other is WHY it stands where it does.
-// `rejected` is the one a bare word misstates: unglossed, it reads as an approach turned down.
-// TestEveryAvenueFateIsSaidOnItsRow fails a fate the enum declares and this does not gloss.
-var avenueFates = map[string]struct {
-	means string
-	ran   bool
-}{
-	"proposed":  {means: "not yet taken up"},
-	"pursued":   {means: "followed, with no final fate recorded", ran: true},
-	"concluded": {means: "ran, and confirmed what it tested", ran: true},
-	"rejected":  {means: "ran, and refuted what it tested", ran: true},
-	"deferred":  {means: "left for later"},
-	"declined":  {means: "weighed, never run"},
-	"abandoned": {means: "started, and no answer came"},
-}
+// rejectedMeans is printed beside the one fate a bare word misstates: unglossed, `rejected` reads
+// as an approach turned down. NO OTHER FATE IS GLOSSED, because a gloss says more than the record
+// holds: a record made before `rejected` existed keeps the fate its seat filed, and there
+// `abandoned` is also the refuted approach and `pursued` the resting state of one that ended.
+// `rejected` has only ever been filed under the meaning printed here.
+const rejectedMeans = "ran, and what it found refuted the hypothesis"
 
 // avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
 // avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
@@ -663,8 +656,7 @@ var avenueFates = map[string]struct {
 // reason`, with the hypothesis recorded and never printed. A line that carried a predicted result
 // then stood in bold beside a finding that contradicted it, and read as a claim of the report's:
 // four shipped reports (universe-m7, m12, m19, m22) hold such a row. Labelled, the question is a
-// question, the hypothesis is a hypothesis whatever became of it, and the fate line says in words
-// whether it held.
+// question and the hypothesis is a hypothesis whatever became of it.
 //
 // A ROW IS IN THE SUBJECT'S TERMS — and says nothing about who or how. It used
 // to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
@@ -693,17 +685,16 @@ func avenues(a *assembly, s Section) string {
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
 		// exactly as one concluded or rejected straight from `proposed` ran; a missing `pursued` step is
 		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
-		said := avenueFates[a.Status]
 		row += "\n  - **Fate:** " + a.Status
-		if said.means != "" {
-			row += " — " + said.means
+		if a.Status == "rejected" {
+			row += " — " + rejectedMeans
 		}
 		row += "."
 		// A PROPOSAL'S REASON IS ITS LINE: `avenue propose` writes the one text to both fields, so
 		// until the avenue is moved there is nothing found, and the question is not printed twice.
 		if a.Reason != "" && a.Reason != a.Line {
 			label := "Why"
-			if said.ran {
+			if ran(a.Status) {
 				label = "Found"
 			}
 			row += fmt.Sprintf(" **%s:** %s", label, a.Reason)

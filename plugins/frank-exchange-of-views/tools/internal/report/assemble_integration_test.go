@@ -229,7 +229,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("avenues.md missing %q\n---\n%s", want, avenueDoc)
 		}
 	}
-	if !strings.Contains(got, "- **Question:** rewrite the cache lock-free\n  - **Fate:** abandoned — started, and no answer came. **Why:** cost exceeds the benefit at this scale") {
+	if !strings.Contains(got, "- **Question:** rewrite the cache lock-free\n  - **Fate:** abandoned. **Why:** cost exceeds the benefit at this scale") {
 		t.Errorf("an avenue abandoned with no pursued step carries the plain fate in report.md:\n%s", got)
 	}
 	if !strings.Contains(index, "[Avenues](avenues.md)") {

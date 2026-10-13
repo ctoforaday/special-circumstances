@@ -75,7 +75,9 @@
                                               taken on, and what it yielded: `concluded` ran and its hypothesis held,
                                               `rejected` ran and its hypothesis was refuted. Every avenue row is
                                               labelled: the question it asks, its hypothesis, its fate, and what was
-                                              found — or, for an approach that did not run, why it stands there. -->
+                                              found — or, for an approach that did not run, why it stands there. The
+                                              fate is the word its seat filed; `rejected` alone is followed by what it
+                                              means, because the bare word reads as an approach turned down. -->
 
 ## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not set aside: worth taking and not by THIS
                                               run. --reason says what a later run should pick it up FOR. It reaches the
