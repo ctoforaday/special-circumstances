@@ -8116,13 +8116,13 @@ const file_record_proto_rawDesc = "" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x10\xb0\xb5\x18\x01ʵ\x18\bfriction\x12\xaa\x02\n" +
 	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\xb1\x03\n" +
 	"\x10LOG_TYPE_FAILURE\x10\a\x1a\x9a\x03\x8a\xb5\x18\x91\x03a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this\xb0\xb5\x18\x00\x12\x89\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\xdc\x03\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00\"\x04\b\x01\x10\x01*\x10LOG_TYPE_NOMINAL*\xe8\x02\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12A\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a#\x8a\xb5\x18\x1fhow bad the defect is in itself\x12p\n" +
 	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1aP\x8a\xb5\x18Lhow likely the CONSEQUENCE is — never how likely the defect is to BE there\x12F\n" +
-	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a*\x8a\xb5\x18&how bad the consequence is if it lands\x12\xab\x01\n" +
-	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a\x8a\x01\x8a\xb5\x18\x85\x01what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable*\x8b\x04\n" +
+	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a*\x8a\xb5\x18&how bad the consequence is if it lands\x128\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a\x18\x8a\xb5\x18\x14what fixing it costs*\x8b\x04\n" +
 	"\rPetitionClass\x12\x1e\n" +
 	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aX\x8a\xb5\x18Tproceeding would require asserting what you believe false, or burying a real finding\x12J\n" +

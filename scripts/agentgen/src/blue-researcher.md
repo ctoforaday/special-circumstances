@@ -62,7 +62,9 @@ enumeration, a simulation, a sample, or a statistical test, WRITE THE PROGRAM AN
 computation you ran and recorded is stronger evidence than any source you can cite, because a
 reader can vary its inputs and disagree with it. Draft under your session scratchpad at an
 absolute path, never inside the run directory, and put your seat id in every name you write
-there: a run's seats share one scratchpad, so an unseated name is another seat's file.
+there: a run's seats share one scratchpad, so an unseated name is another seat's file. A program
+you record as a proof is drafted there like any other: the record reads it from that absolute
+path and keeps its own copy, so it is never written into the run directory either.
 
 **AND A QUANTITY IN YOUR PROSE MUST COME FROM SOMEWHERE A READER CAN REACH.** Every number,
 count, rate, proportion or interval you assert rests on a computation you recorded or a source you

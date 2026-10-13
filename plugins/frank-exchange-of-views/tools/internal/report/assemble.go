@@ -148,7 +148,7 @@ func weaveCitations(md string, sources []record.Source) string {
 		if l := pageLocator(s.Pages); l != "" {
 			locator = ", " + l
 		}
-		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s\n", citationNote(n), citationTitle(s), locator, s.URL, accessed(s.AccessDate),
+		fmt.Fprintf(&out, "%s: %s%s. %s%s%s%s\n", citationNote(n), EscapeNotes(citationTitle(s)), locator, s.URL, accessed(s.AccessDate),
 			retractionNote(s.WorkStatus), abstractNote(s.SourceCompleteness == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT))
 		if !listed[s.URL] {
 			listed[s.URL] = true

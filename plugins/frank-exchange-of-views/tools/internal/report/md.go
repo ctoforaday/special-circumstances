@@ -449,6 +449,9 @@ func inline(s string) string {
 		spans = append(spans, "<code>"+escape(strings.Trim(m, "`"))+"</code>")
 		return fmt.Sprintf("\x00%d\x00", len(spans)-1)
 	})
+	// AN ESCAPED `[^` IS TEXT (notes.go): lifted out as a code span is, so the reference pattern
+	// below does not read it, and restored as the two characters without their backslash.
+	s = strings.ReplaceAll(s, noteEscape, "\x00note\x00")
 	s = escape(s)
 	s = reFootRef.ReplaceAllString(s, `<sup class="fnref"><a href="#fn-$1">$1</a></sup>`)
 	s = reLink.ReplaceAllString(s, `<a href="$2">$1</a>`)
@@ -461,7 +464,7 @@ func inline(s string) string {
 	for i, span := range spans {
 		s = strings.ReplaceAll(s, fmt.Sprintf("\x00%d\x00", i), span)
 	}
-	return s
+	return strings.ReplaceAll(s, "\x00note\x00", noteOpen)
 }
 
 // reHardBreak is markdown's two-trailing-spaces line break, applied after escaping so it

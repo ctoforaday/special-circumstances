@@ -414,7 +414,9 @@ func FootnoteIntegrity(run record.Run) Audit {
 		refs += r
 		defs += d
 		for _, id := range bad {
-			dangling = append(dangling, name+":[^"+id+"]")
+			// AS CODE: this detail is printed in the run document, where a bare label would be the
+			// next audit's dangling reference.
+			dangling = append(dangling, "`"+name+":[^"+id+"]`")
 		}
 	}
 	if read == 0 {
@@ -446,6 +448,11 @@ func footnotesIn(body string) (refs, defs int, dangling []string) {
 	referenced := map[string]bool{}
 	for _, loc := range footnoteRef.FindAllStringSubmatchIndex(scanned, -1) {
 		id := scanned[loc[2]:loc[3]]
+		// AN ESCAPED `[^` IS TEXT, to a markdown reader and so to this one: assembly escapes what
+		// it composes, so a seat's words quoting a label or a regex open nothing.
+		if reportdoc.NoteEscapedAt(scanned, loc[0]) {
+			continue
+		}
 		// A definition matches the reference pattern too; tell them apart by position, exactly
 		// as a markdown renderer does — line start, immediately followed by a colon.
 		atLineStart := loc[0] == 0 || scanned[loc[0]-1] == '\n'
