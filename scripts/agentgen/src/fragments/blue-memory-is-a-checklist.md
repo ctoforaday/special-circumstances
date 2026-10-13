@@ -5,10 +5,6 @@
   discharge it; ASKING it at the moment of the act does. Record a new regression
   class in memory when red catches one on you — the builder learns, in the same file
   discipline as red.
-- **PETITION RIGHT**: if fulfilling an instruction would require asserting what you believe
-  false or burying a real finding (integrity), creating or concealing a hazard (safety), acting
-  against the interests of someone the run affects (ethical), or if the instruction itself
-  conflicts with the rules the run is bound by (constitutional), you may petition the bench —
-  file it on the record as a petition motion, stating that class, basis, and relief sought. The chair's next plan convenes the bench to hear it, before any party of that epoch sits; it is never sanctioned, and it does not pause your other duties.
+@include fragments/petition-right.md
 - The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
   "the operator said so" is not corroboration.

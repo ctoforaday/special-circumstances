@@ -108,6 +108,20 @@ func noSeatNote(seatID string) string {
 	return ""
 }
 
+// readsSources reports whether a role reads a SOURCE, and so carries `fetch`.
+//
+// Blue reads what it cites and a lens reads the same cached bytes to verify the citation, or a
+// source of its own to corroborate one. The chair and the bench are handed no source to read: the
+// chair reads the report, the board and the changes since a stale area's pin, and the bench's
+// ruling basis is confined to the closings, the transcript and the artifacts as the record renders
+// them. A verb on a surface is a thing its seat reaches for, and every seat reads its whole
+// surface at its opening act, so a read no duty asks for is cost on every sitting.
+//
+// THE TREE IS THE GATE. `fetch` writes no event, so there is no write path to refuse it on: a
+// seat whose tree does not mount it is answered by the wrong-seat refusal, which names the seats
+// that hold it.
+func readsSources(role string) bool { return role == "lens" || role == "blue" }
+
 // newRoot builds the tree for whoever is running it — see NewRootFor.
 func newRoot() *cobra.Command {
 	return NewRootFor(dispatchedSeat())
@@ -194,8 +208,8 @@ bench rules and never originates.`,
 	// winner would hand some seat a verb that does the other thing. The operator's read of the
 	// log is `ops log` for the same reason: `log` only ever writes.
 	//
-	// So the split is total. `fetch` crosses it because seats genuinely run it — a lens reads
-	// blue's cached source bytes — and the name does not collide. `count-claims` does not cross:
+	// So the split is total. `fetch` crosses it because the seats that read sources genuinely run
+	// it (readsSources) — a lens reads blue's cached source bytes — and the name does not collide. `count-claims` does not cross:
 	// no seat is asked for the report's claim count, and a reader that wants it counts the report.
 	// NO IDENTITY IS NOT A MODE. It used to fall through to the operator surface, which made
 	// "nobody said who I am" a way of selecting a tree — and a tree nobody selects is one nobody
@@ -223,7 +237,9 @@ bench rules and never originates.`,
 		root.Long = InvokedAs() + " — " + short + "\n" + seat.LogFooter
 		root.AddCommand(verbs...)
 		root.AddCommand(motion.NewCommandFor(role))
-		root.AddCommand(newFetch()) // a lens reads the EXACT bytes blue read, from the run cache
+		if readsSources(role) {
+			root.AddCommand(newFetch()) // a lens reads the EXACT bytes blue read, from the run cache
+		}
 		// `manual` IS NOT ON A SEAT'S SURFACE, because a seat is already holding what it prints.
 		//
 		// scripts/agentgen writes every command's help into the seat's own constitution, so the

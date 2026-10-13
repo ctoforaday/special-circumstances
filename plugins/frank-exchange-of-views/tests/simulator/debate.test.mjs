@@ -708,7 +708,7 @@ test('priors-are-poison: no cross-run scorecard seed reaches any chair, even whe
   assert.ok(!world.calls.some((c) => /SCORECARD/i.test(c.prompt)), 'no prompt names a scorecard')
 })
 
-test('every seat prompt carries the log clause, the speed clause and the record contract; bench sittings carry the law clause', async () => {
+test('every seat prompt carries the speed clause and the record contract, and leaves the log duty to the constitution; bench sittings carry the law clause', async () => {
   const world = makeWorld(makeResponder({
     // A stub plan: the record never permits a PASS over a bench motion, but the terminal sitting's
     // prompt is what this reads, and the bench-owned blocker is what convenes it.
@@ -719,7 +719,11 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     const c = labelsOf(world, seat)[0]
     assert.ok(c, `${seat} sat`)
     assert.ok(!/envelope's log/.test(c.prompt) && !/says so in the envelope/.test(c.prompt), `${seat} is told to log in its envelope — the record is the one channel`)
-    assert.ok(/AUDIENCE IS THE OPERATOR/.test(c.prompt) && /LOG \([^)]*\), on the record/.test(c.prompt) && /what you expected and why/.test(c.prompt) && /disputes with another seat's gap are findings/.test(c.prompt), `${seat} lost the operator channel`)
+    // THE LOG DUTY IS THE CONSTITUTION'S, ONCE. It is unconditional, so the seat's definition states
+    // it (the log fragments under scripts/agentgen/src/fragments) and the prompt restates none of it.
+    assert.ok(!/LOG \([^)]*\)/.test(c.prompt) && !/cost you a call, a guess or an act/.test(c.prompt) && !/RETOOL YOU/i.test(c.prompt), `${seat}: the prompt restates the log duty its constitution states`)
+    const definition = readFileSync(new URL(`../../agents/${c.opts.agentType.split(':')[1]}.md`, import.meta.url), 'utf8')
+    assert.ok(definition.includes('THE LOG IS FOR WHATEVER COST YOU A CALL, A GUESS OR AN ACT') && /what you expected, and where the expectation came from/.test(definition), `${seat} lost the operator channel: its constitution does not state the log duty`)
     // THE RETIRED SHAPES, in both directions. The first four told a seat the log was owed whatever
     // happened, and seats padded it; the last two narrowed it to what BLOCKED a seat, and on
     // universe-m13 every seat classed its refusals and guesses as its own mistakes and filed nothing.
@@ -733,9 +737,13 @@ test('every seat prompt carries the log clause, the speed clause and the record 
     assert.ok(!/DECLARE:/.test(p), `${seat} re-teaches declare beside its help page`)
   }
   const lens = firstPrompt(world, 'red-lens-evidence')
-  // THE SURFACE ARRIVES WITH THE SEAT: the constitution carries every command's own --help, so
-  // the prompt directs a READ of what the seat holds, and a single page is still the re-check.
-  assert.ok(/YOU ARE ALREADY HOLDING IT/.test(lens) && /READ IT BEFORE YOU CHOOSE/.test(lens) && lens.includes('--seat-id red-lens-evidence <command> --help'), 'the lens lost the surface-reading directive')
+  // THE SURFACE ARRIVES WITH THE SEAT, AND SO DOES THE DUTY TO READ IT: the constitution carries
+  // every command's own --help and the one statement of the read-it-whole duty (the
+  // surface-discovery fragment). The prompt adds what only the sitting knows — where one page prints.
+  assert.ok(/YOUR CONFIGURATION HOLDS YOUR WHOLE SURFACE/.test(lens) && lens.includes('--seat-id red-lens-evidence <command> --help'), 'the lens lost the pointer to its surface and to one page of it')
+  assert.ok(!/IS A GUESS/.test(lens) && !/READ IT BEFORE YOU CHOOSE/.test(lens), 'the lens prompt restates the surface-reading duty its constitution states')
+  const audit = readFileSync(new URL('../../skills/adversarial-audit/SKILL.md', import.meta.url), 'utf8')
+  assert.ok(/Before you act, read your WHOLE SURFACE/.test(audit) && /is a guess/.test(audit), 'the red seats lost the surface-reading directive: the skill they preload does not state it')
   // AND IT DOES NOT SEND THE SEAT AFTER A DOCUMENT IT WAS GIVEN. Both retired shapes: the
   // page-by-page walk `manual` replaced, and the `manual` fetch the constitution replaced.
   assert.ok(!/for EVERY group that page listed/.test(lens) && !lens.includes('<group> --help'), 'the lens still carries the page-by-page walk the manual replaced')
@@ -808,7 +816,11 @@ test('W2c: no plan convenes it, no sitting — whatever an envelope carries; gra
   }))
   await world.run(script, ARGS)
   assert.ok(firstPrompt(world, 'blue-respond').includes('BENCH RELIEF IN EFFECT') && firstPrompt(world, 'blue-respond').includes('scope narrowed'))
-  assert.ok(firstPrompt(world, 'blue-synthesize').includes('PETITIONS:'), 'the right is stated at the seat')
+  // THE RIGHT IS STATED AT THE SEAT, ONCE: in its constitution, and in no prompt.
+  assert.ok(!world.calls.some((c) => /PETITIONS:|you may petition the bench/.test(c.prompt)), 'a prompt restates the petition right')
+  for (const held of ['../../agents/blue-synthesizer.md', '../../agents/blue-researcher.md', '../../skills/adversarial-audit/SKILL.md']) {
+    assert.ok(readFileSync(new URL(held, import.meta.url), 'utf8').includes('**PETITION RIGHT**'), `${held}: the right is stated at the seat`)
+  }
 })
 
 test('W2j: a bench holding binds every seat that follows it, across sittings', async () => {
@@ -952,7 +964,7 @@ test('the lens constitutions say a lens mints and the chair runs the debate', ()
     const md = readFileSync(new URL(`../../agents/red-lens-${area}.md`, import.meta.url), 'utf8')
     assert.ok(md.includes('the record readies you for your first look and again when the report head has moved since you last sat — three sittings in a row without fresh material retire you, and a head move does not ready you after that'), `red-lens-${area}: readiness is a moved head, until retirement`)
     assert.ok(!/re-arm/.test(md) && !/two sittings without one retire you/.test(md), `red-lens-${area}: no lens is told it sits twice at one head`)
-    assert.ok(md.includes('the title of a source you corroborate all reach the report') && md.includes('replacement text you prescribe'), `red-lens-${area}: the title and the prescription are red text the report prints`)
+    assert.ok(md.includes("a corroborating source's title ships in the source's note and Bibliography entry") && md.includes('replacement text you prescribe'), `red-lens-${area}: the title and the prescription are red text the report prints`)
   }
 })
 

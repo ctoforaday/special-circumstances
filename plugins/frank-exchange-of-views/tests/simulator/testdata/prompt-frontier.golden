@@ -1,4 +1,4 @@
-prompt sha256: 3498b89c32af61927bf32523dbdbb08f82794ac2188d93bbdea0a3eeecb28759
+prompt sha256: c0dbc41120124409e752ed57200b182be68b435467790fbd831402adc6cb8629
 
 Research debate opening for topic: "the seat prompt contract".
 Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN AVENUE — the verb is under a group of its own in your role's help.
@@ -19,12 +19,7 @@ SEARCH with the search tool your session offers; where it offers none, or the to
 SEAT_ID: frontier.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
-THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND YOU ARE ALREADY HOLDING IT.
-Your whole surface — every command you may run, each under a header naming it and followed by the help it prints — is part of your own configuration, in front of you before you act.
-READ IT BEFORE YOU CHOOSE, not the one entry for the verb you already picked, and read it before you have decided what to do: deciding first is what makes the reading pointless.
-A single command's own page is still there when you want to re-check one: "/opt/feov/bin/feov-record" --seat-id frontier <command> --help.
-A NAME YOU DID NOT READ IN THE HELP THIS SITTING IS A GUESS — A COMMAND, OR A FLAG ON THAT COMMAND'S OWN PAGE.
-Do not work from memory, do not carry a name from a previous sitting or a flag from another command's page, and do not assume a command is named after the thing it writes.
+YOUR CONFIGURATION HOLDS YOUR WHOLE SURFACE, and a single command's own page prints at "/opt/feov/bin/feov-record" --seat-id frontier <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
 EVERY READ IS A PROJECTION OF THE RECORD, never a file you open.

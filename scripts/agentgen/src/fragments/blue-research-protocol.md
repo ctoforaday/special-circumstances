@@ -1,7 +1,5 @@
 
-- During research, YOU MUST follow the research protocol (frontier hypotheses, searches to
-  saturation, a disconfirming-evidence budget of at least one search in five, citations added
-  through the citation tool, never hand-typed footnotes).
+@include fragments/blue-search-and-cite.md
 - Citing OCR-derived text that you read at the leaf names the exact span you are quoting from the
   reading, so the tool can record its page.
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize

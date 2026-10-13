@@ -116,7 +116,7 @@ THE LOG IS FOR WHATEVER COST YOU A CALL, A GUESS OR AN ACT: a refusal; a verb, f
 
 <!-- BEGIN GENERATED SURFACE — scripts/agentgen writes this. DO NOT EDIT BY HAND. -->
 
-Your surface — the bench surface, rendered from the record tool's own `manual`. Every command you may run is below, each under a header naming it and followed by the help it prints. A command you did not read here is a guess, and so is a flag you did not read under that command's own header.
+Your surface — the bench surface, rendered from the record tool's own `manual`: every command you may run, each under a header naming it and followed by the help it prints.
 
 WORDS THIS SURFACE USES — one word for each concept, and it is the same word on every page, prompt and constitution you read:
   - The report is the research prose written for a reader of the subject: one document from a lane's text to what the run assembles at its end, named by its stage only where the stage matters — your part of the report, the report as `show report` serves it, which is the only way a seat reads it, and the copy assembled for the human reader once the run is over.
@@ -165,7 +165,7 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (the last block of 21 pages — every page below that carries no marker for it):
+§2 (the last block of 20 pages — every page below that carries no marker for it):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -227,7 +227,6 @@ Available Commands:
   assemble    assemble the run's documents for the human reader, from the record — the report's audited text as it is written, the rest composed; no inputs. It prints the verdict it stamped: the documents are the human's, and a seat reads the report with `show report`
   certify     what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
   declare     a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
-  fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   halt        stop the run at a safety or consent boundary, when continuing would itself be the harm
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -279,21 +278,6 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a new declaration.
 
 Flags:
       --reason string   REQUIRED — the holding: how the whole record is to be READ. → SHARED §4
-========
-$ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
-
-A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells is rebuilt from the rules themselves: the lattice says where the cells are, each cell holds the words inside it, and the rows keep their binding. Where the rules bind no usable grid — a figure, a box, a table of marks the reading lost — the page falls back to plain text WITH the reason and the measurement on the record. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.
-
-Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.
-
-AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.
-
-Flags:
-      --at string     with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. A priority question needs the FIRST time something was visible, which the newest capture cannot answer
-      --ocr           read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread (default true)
-      --url string    REQUIRED — the http/https URL to read
-      --via backend   reach the source through a named backend: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — live the URL itself (the same as omitting this); archive what the page said on a date (right for web pages, usually the landing page for a subscription article); oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer when there is none to get); arxiv the preprint, in whichever form this tool can take — its PDF, or arXiv's own HTML rendering where the PDF is over the fetch cap, which HAS NO PAGE NUMBERS and must be quoted as the HTML; eric the US education index's record, with its full text where ERIC holds an authorised copy; auto tries arxiv, oa, archive, metadata in that order. A refused live fetch falls back through that same order
 ========
 $ feov-record halt --help
 stop the run at a safety or consent boundary, when continuing would itself be the harm
@@ -628,21 +612,11 @@ Flags:
       --window int    ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
 ========
 $ feov-record show work --help
-**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left. ON THE CHAIR'S LIST a blocking item holds a PASS, and one with `another_seat_clears` is the board's state: another seat's act clears it, and it is not the chair's to clear. No other seat's list holds one.
+**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an avenue never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
-FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer. Blue still sitting and blue having said nothing are the same silence on the record, and they want different acts from you: one is waiting, the other is a fact to state.
-
-A LENS'S LIST STATES ITS MINT BUDGET, and it is the count a mint is refused on: `sitting.mint_budget` is the gaps you minted that are `open` now, your `budget` — the most you may hold open at once: the larger of the run's `floor` and `mints` for every `per` of the `units` your area is sized by, named in `unit` — and the mints `left` to you. A gap of yours that closes frees one. `measured: false` says the units cannot be read, and `budget` and `left` are then the floor's. An item states the same numbers; decide gap or finding from it. Absent on every other role's list.
-
 `open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse.
-
-AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE, and the gap says which: `regrades_owed` is each grade motion on the gap that was ACCEPTED and that no regrade has followed — the `motion_id`, the `dimension` it contested and the `proposed` grade the ruling accepted — on the minting lens's list, and empty on every other. The item in `sitting.open` that names the gap states the same motions.
-
-WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair.
-
-`engaged` IS BLUE'S RESPONSE SITTING'S, and null on every other seat's list: `gap_ids` are the gaps its dispatch named — the latest dispatch naming blue, before blue registers for it as well as after — and `found_closed` is each of them its lens closed after that dispatch and before blue sat, with the seat that closed it and the `fate` that close gave. A gap there owes no answer and no manifest row, and when it holds every gap of `gap_ids` the sitting owes no position. An empty `found_closed` says every engaged gap was open when blue sat.
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 

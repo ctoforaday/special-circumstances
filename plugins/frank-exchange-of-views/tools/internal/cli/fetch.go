@@ -17,7 +17,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
-// newFetch is the cached web read that REPLACES WebFetch for every seat.
+// newFetch is the cached web read that REPLACES WebFetch for every seat that reads a source
+// (readsSources): blue and the lenses, and the operator.
 //
 // Like verify/count-claims it is a root operator command, not a seat verb: reading a URL
 // is not an act on the record, so it takes no seat identity and writes no event. What it
