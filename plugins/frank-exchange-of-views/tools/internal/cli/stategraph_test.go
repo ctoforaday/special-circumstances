@@ -526,7 +526,7 @@ func avenueMotionProbe() entityProbe {
 // ---- the avenue ----
 //
 // Its lifecycle has TWO AXES and only one of them is the state. Blue MOVES a line between
-// `proposed`, `pursued`, `concluded`, `rejected`, `declined`, `abandoned` and `deferred`; red RULES it `endorsed`,
+// `proposed`, `pursued`, `concluded`, `refuted`, `declined`, `abandoned` and `deferred`; red RULES it `endorsed`,
 // `out_of_scope` or `too_thin`. The status is the state — it is what the line IS — and the ruling
 // is content, which is why a first ruling reads here as an ordinary act that does not move the
 // state rather than as a transition.

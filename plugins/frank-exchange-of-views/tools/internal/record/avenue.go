@@ -53,7 +53,7 @@ type Avenue struct {
 	Epoch      int      // the epoch the current status was set in
 	History    []string // "r0 pursued", "r2 abandoned" …
 	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "started, and no
-	// answer came" by the enum's own meaning, and `concluded` and `rejected` are approaches that ran
+	// answer came" by the enum's own meaning, and `concluded` and `refuted` are approaches that ran
 	// and answered; a seat reaches any of them straight from `proposed`, so the absence of a `pursued`
 	// step says how many moves the seat recorded and nothing about whether the line was taken. History
 	// holds the path.
@@ -151,7 +151,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// deliberately — `Word(t.Status)` would pass a typed nil pointer into an interface
 			// that is not nil, and panic on the absent case this line exists to handle.
 			//
-			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/rejected/
+			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/refuted/
 			// deferred/declined/abandoned carries an underscore. AvenueRuling's words do (`out_of_scope`,
 			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())

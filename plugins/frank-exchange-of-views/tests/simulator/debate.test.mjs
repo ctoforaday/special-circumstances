@@ -677,8 +677,8 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
       'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
     // A REFUTATION HAS A FATE OF ITS OWN. With none, universe-m22's lane filed a refuted hypothesis
     // as abandoned, a lens read the same line as concluded, and the gap between the words held the gate.
-    assert.ok(/one you ran whose hypothesis the data refuted is rejected, and a refutation is an answer/.test(lane) && /one you started that gave no answer .* is abandoned/.test(lane),
-      'the avenue clause must tell a refuted hypothesis (rejected) from a line that gave no answer (abandoned)')
+    assert.ok(/one you ran whose hypothesis the data contradicted is refuted, and a refutation is an answer/.test(lane) && /one you started that gave no answer .* is abandoned/.test(lane),
+      'the avenue clause must tell a contradicted hypothesis (refuted) from a line that gave no answer (abandoned)')
     assert.ok(!/one you ran that died is abandoned/.test(lane), 'the avenue clause calls an approach that ran abandoned')
     // THE LINE IS THE QUESTION. A line that carries its predicted result is printed as the question
     // beside whatever the research finds, and no act rewrites it.
@@ -689,7 +689,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
     // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
     // fate lands under which, and that blue writes none of them.
     assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))
-    assert.ok(/Research areas holds each avenue that is proposed, pursued, concluded or rejected, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
+    assert.ok(/Research areas holds each avenue that is proposed, pursued, concluded or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
   }
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of

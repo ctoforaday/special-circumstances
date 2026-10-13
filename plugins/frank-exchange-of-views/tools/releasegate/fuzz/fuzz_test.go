@@ -1848,7 +1848,7 @@ var checkKinds = []string{"document", "computation", "source"}
 
 // `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
 // registry declares, and no run has ever recorded.
-var avenueStatus = []string{"proposed", "pursued", "concluded", "rejected", "abandoned", "declined", "deferred"}
+var avenueStatus = []string{"proposed", "pursued", "concluded", "refuted", "abandoned", "declined", "deferred"}
 
 // nextAvenueStatus round-robins the undirected avenue's fate so every value is driven BY
 // CONSTRUCTION rather than by luck.

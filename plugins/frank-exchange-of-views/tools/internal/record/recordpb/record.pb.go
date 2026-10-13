@@ -842,11 +842,11 @@ const (
 	// universe-m13 blue moved four confirmed hypotheses to `abandoned`, "the hypothesis was satisfied,
 	// not that they failed", and the report listed every successful line as a dead end.
 	AvenueStatus_AVENUE_STATUS_CONCLUDED AvenueStatus = 6
-	// REJECTED IS AN APPROACH THAT RAN AND ANSWERED NO. A refutation had no fate of its own: on
+	// REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. A refutation had no fate of its own: on
 	// universe-m22 a lane marked a refuted hypothesis `abandoned`, the logic lens read the same line
 	// as `concluded`, and the gap between the two words held the gate. It is an answer, so it ships
 	// beside the concluded lines; `abandoned` is left for the line that produced none.
-	AvenueStatus_AVENUE_STATUS_REJECTED AvenueStatus = 7
+	AvenueStatus_AVENUE_STATUS_REFUTED  AvenueStatus = 7
 	AvenueStatus_AVENUE_STATUS_DEFERRED AvenueStatus = 3
 	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
 	// on universe-m21 a lane ran a check, then proposed the approach and declined it with the
@@ -865,7 +865,7 @@ var (
 		1: "AVENUE_STATUS_PROPOSED",
 		2: "AVENUE_STATUS_PURSUED",
 		6: "AVENUE_STATUS_CONCLUDED",
-		7: "AVENUE_STATUS_REJECTED",
+		7: "AVENUE_STATUS_REFUTED",
 		3: "AVENUE_STATUS_DEFERRED",
 		4: "AVENUE_STATUS_DECLINED",
 		5: "AVENUE_STATUS_ABANDONED",
@@ -875,7 +875,7 @@ var (
 		"AVENUE_STATUS_PROPOSED":    1,
 		"AVENUE_STATUS_PURSUED":     2,
 		"AVENUE_STATUS_CONCLUDED":   6,
-		"AVENUE_STATUS_REJECTED":    7,
+		"AVENUE_STATUS_REFUTED":     7,
 		"AVENUE_STATUS_DEFERRED":    3,
 		"AVENUE_STATUS_DECLINED":    4,
 		"AVENUE_STATUS_ABANDONED":   5,
@@ -7945,12 +7945,12 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\x93#\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\x92#\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12<\n" +
-	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1a%\x8a\xb5\x18\x1da marker placed in the report\xb8\xb5\x18\x01\x12\x7f\n" +
-	"\x11EVENT_TYPE_AVENUE\x10\x03\x1ah\x8a\xb5\x18`an avenue, from proposed through pursued to concluded, rejected, deferred, declined or abandoned\xb8\xb5\x18\x02\x12q\n" +
+	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1a%\x8a\xb5\x18\x1da marker placed in the report\xb8\xb5\x18\x01\x12~\n" +
+	"\x11EVENT_TYPE_AVENUE\x10\x03\x1ag\x8a\xb5\x18_an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned\xb8\xb5\x18\x02\x12q\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aW\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +
 	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x02\x12\x83\x01\n" +
@@ -8045,16 +8045,16 @@ const file_record_proto_rawDesc = "" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
 	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12\xb8\x01\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\x83\x0f\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\xfd\x0e\n" +
 	"\fAvenueStatus\x12\x1d\n" +
 	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12\x9a\x01\n" +
 	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x1a~\x8a\xb5\x18zyou intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move\x12\xb5\x01\n" +
-	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a\x99\x01\x8a\xb5\x18\x94\x01you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end\x12\x96\x02\n" +
-	"\x17AVENUE_STATUS_CONCLUDED\x10\x06\x1a\xf8\x01\x8a\xb5\x18\xf3\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `rejected`, and one that gave no answer is `abandoned`\x12\xbe\x02\n" +
-	"\x16AVENUE_STATUS_REJECTED\x10\a\x1a\xa1\x02\x8a\xb5\x18\x9c\x02you RAN the approach and what it found REFUTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this\x12\x86\x02\n" +
-	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\xc7\x02\n" +
-	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1a\xaa\x02\x8a\xb5\x18\xa5\x02you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `rejected` if what it found refuted the hypothesis, `abandoned` if it was started and no answer came\x12\xd1\x02\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1a\xb3\x02\x8a\xb5\x18\xae\x02you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `rejected`, not this*\xc2\x04\n" +
+	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a\x99\x01\x8a\xb5\x18\x94\x01you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end\x12\x95\x02\n" +
+	"\x17AVENUE_STATUS_CONCLUDED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc2\x02\n" +
+	"\x15AVENUE_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this\x12\x86\x02\n" +
+	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\xbf\x02\n" +
+	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1a\xa2\x02\x8a\xb5\x18\x9d\x02you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\xd0\x02\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1a\xb2\x02\x8a\xb5\x18\xad\x02you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xc2\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +

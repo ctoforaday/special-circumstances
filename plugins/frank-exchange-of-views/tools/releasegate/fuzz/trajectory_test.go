@@ -188,8 +188,8 @@ func note(args []string, err error, out []byte, inProcess bool) {
 // execFlags: command path -> the flag names ever passed to it.
 // execValues: "<command path> --<flag>" -> the values ever passed for it. THE COMMAND PATH IS PART
 // OF THE KEY because one flag name carries different closed sets on different verbs, and a word two
-// sets share was counted for both: keyed on the flag alone, `--as rejected` on a grade ruling stood
-// in for `--as rejected` on an avenue move, and the avenue fate could leave the drive unnoticed.
+// sets share is counted for both when the key is the flag alone: the word passed to one verb stands
+// in for the same word on another, and a value can leave its own verb's drive unnoticed.
 var (
 	execFlags  = map[string]map[string]bool{}
 	execValues = map[string]map[string]bool{}

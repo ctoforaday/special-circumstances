@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// AN ARCHIVED FATE ARRIVES AS THE SEAT RECORDED IT. `rejected` — an approach that ran and refuted
+// AN ARCHIVED FATE ARRIVES AS THE SEAT RECORDED IT. `refuted` — an approach that ran and refuted
 // its hypothesis — is a fate this binary's epoch adds, and `abandoned` now means only a line that
 // was started and gave no answer. An archived `abandoned` may have been a refutation, and an
 // archived `pursued` may be where an approach came to rest: the record holds the seat's word and
@@ -66,8 +66,8 @@ func archivedFatesMigrateAsRecorded(t *testing.T, archive, holds string) {
 	if !maps.Equal(got, want) {
 		t.Errorf("avenue acts by fate: the archive holds %v and the migrated record %v", want, got)
 	}
-	if got["rejected"] != 0 {
-		t.Errorf("the migrated record holds %d rejected avenue act(s): no archived seat filed that fate", got["rejected"])
+	if got["refuted"] != 0 {
+		t.Errorf("the migrated record holds %d refuted avenue act(s): no archived seat filed that fate", got["refuted"])
 	}
 	// The fold reads the same fates the acts carry: an avenue the archive left at the fate is at it.
 	fam, err := record.FamilyOf(dst)
@@ -76,8 +76,8 @@ func archivedFatesMigrateAsRecorded(t *testing.T, archive, holds string) {
 	}
 	held := 0
 	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
-		if a.Status == "rejected" {
-			t.Errorf("avenue %s reads rejected after migration", a.ID)
+		if a.Status == "refuted" {
+			t.Errorf("avenue %s reads refuted after migration", a.ID)
 		}
 		if a.Status == holds {
 			held++

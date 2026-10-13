@@ -4,7 +4,7 @@ say what became of an avenue you proposed — every open avenue owes this before
 
 ## detail
 
-An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. An approach you RAN ends at what it found, and owes nothing further: `concluded` where the hypothesis held, `rejected` where what it found refuted the hypothesis — a refutation is an answer, and the report prints it beside the confirmations. `abandoned` is only for an approach you started that gave no answer, and `declined` only for one you never ran.
+An open avenue — proposed or pursued — owes this before your sitting ends; re-recording `pursued` with what you learned is a REAFFIRMATION and settles it for this sitting. An approach you RAN ends at what it found, and owes nothing further: `concluded` where the hypothesis held, `refuted` where what it found contradicted it — a refutation is an answer, and the report prints it beside the confirmations. `abandoned` is only for an approach you started that gave no answer, and `declined` only for one you never ran.
 
 The fate is not the point; the account of what settled it is — an avenue given its fate against its own stated hypothesis is evidence of choosing, one set down on a shrug is not.
 

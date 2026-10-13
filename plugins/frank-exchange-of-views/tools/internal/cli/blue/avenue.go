@@ -34,11 +34,11 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 //
 //	declined   considered, never run          — was setting it aside REASONED, or decoration?
 //	abandoned  started, and no answer came    — what stopped it?
-//	rejected   ran, and refuted its hypothesis — what did it find? (the negative result)
+//	refuted    ran, and its hypothesis did not hold — what did it find? (the negative result)
 //	concluded  ran, and the hypothesis held   — what did it find?
 //	pursued    became the report's spine      — does the report reflect it honestly?
 //
-// `rejected` and `abandoned` are the most valuable and the most routinely lost: negative
+// `refuted` and `abandoned` are the most valuable and the most routinely lost: negative
 // results and dead ends are exactly what a future run needs so it does not re-walk them, and
 // they are direct feedstock for the sleeper service's subject mining. Nothing in the
 // engine preserved them before this verb — they died in a seat's context.
@@ -46,7 +46,7 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // TWO FORMS, AND THEY ARE TWO VERBS (#246).
 //
 //	propose  --reason "<the approach>" --hypothesis "<what would be true if it pays off>"
-//	move     --id A1 --as pursued|concluded|rejected|declined|abandoned|deferred --reason "<what changed>"
+//	move     --id A1 --as pursued|concluded|refuted|declined|abandoned|deferred --reason "<what changed>"
 //
 // The move form is the whole point. Measured over 86 avenue events in six runs: ZERO
 // were ever recorded twice and ZERO statuses ever changed, because there was no id and no update
@@ -60,7 +60,7 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // to describe this one verb, and it is gone with the split.
 //
 // --hypothesis is what makes a later move checkable: an avenue that says what would be true if it
-// paid off is concluded or rejected against its own claim rather than set down on a shrug. It is
+// paid off is concluded or refuted against its own claim rather than set down on a shrug. It is
 // the ONLY place a predicted result goes: the line is the question, and it is never rewritten.
 func newAvenue() *cobra.Command {
 	c := &cobra.Command{
@@ -138,7 +138,7 @@ func newAvenuePropose() *cobra.Command {
 	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
 	// arrives later and teaches less.
 	seat.Require(c, flags.Reason)
-	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, rejected where it did not — so the fate is checkable rather than a shrug")
+	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this avenue pays off. The report prints it as the avenue's hypothesis, and the fate is judged against it — concluded where it held, refuted where it did not — so the fate is checkable rather than a shrug")
 	flags.Text(c, flags.Method, "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
 }

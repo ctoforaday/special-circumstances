@@ -442,7 +442,7 @@ func answerDrives() []answerDrive {
 		}},
 		{name: "avenue", row: rowAvenue, helps: []string{"blue avenue propose", "blue avenue move"}, drive: func(d drive) {
 			proposeQ1(d.t, d.run)
-			for _, status := range []string{"pursued", "deferred", "declined", "abandoned", "concluded", "rejected", "proposed"} {
+			for _, status := range []string{"pursued", "deferred", "declined", "abandoned", "concluded", "refuted", "proposed"} {
 				d.admitted("a move to "+status, "blue-respond", "avenue", "move", "--id", "Q1", "--as", status, "--reason", "moved to "+status)
 			}
 			d.admitted("register another blue seat", "blue-synthesize", "register")
