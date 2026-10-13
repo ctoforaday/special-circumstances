@@ -457,12 +457,12 @@ func connect(db *sql.DB) error {
 			return nil
 		}
 		if !isBusy(err) {
-			return fmt.Errorf("connecting: %w", err)
+			return fmt.Errorf("connecting to the record: %w", err)
 		}
 		if time.Now().After(deadline) {
 			// An exhausted wait reads differently from an immediate refusal: the budget is
 			// named, so a reader can tell the two apart.
-			return fmt.Errorf("connecting: still busy after %v: %w", openBusyBudget, err)
+			return fmt.Errorf("connecting to the record: still busy after %v: %w", openBusyBudget, err)
 		}
 		// Jittered, unlike SQLite's own fixed schedule: waiters released together should not
 		// wake together and collide again.

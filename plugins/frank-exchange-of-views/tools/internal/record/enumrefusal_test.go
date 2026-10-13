@@ -23,12 +23,12 @@ func TestARefusalNamesWhichKindOfNearMissItWas(t *testing.T) {
 	vs := []EnumValue{ev("endorsed", "worth this run's time"), ev("too_thin", "does not carry its budget"), ev("out_of_scope", "not THIS question")}
 
 	for _, c := range []struct{ name, got, want string }{
-		{"separator", "too-thin", `"too-thin" is "too_thin" with different punctuation`},
-		{"case", "TOO_THIN", `"TOO_THIN" differs from "too_thin" only in case`},
-		{"separator on a longer value", "out-of-scope", `"out-of-scope" is "out_of_scope" with different punctuation`},
+		{"separator", "too-thin", `not "too-thin": it is "too_thin" with different punctuation`},
+		{"case", "TOO_THIN", `not "TOO_THIN": it differs from "too_thin" only in case`},
+		{"separator on a longer value", "out-of-scope", `not "out-of-scope": it is "out_of_scope" with different punctuation`},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			err := Refuse("as", c.got, vs, "the ruling binds the coming seats")
+			err := Refuse(c.got, vs, "the ruling binds the coming seats")
 			if err == nil {
 				t.Fatalf("%q was accepted", c.got)
 			}
@@ -41,11 +41,19 @@ func TestARefusalNamesWhichKindOfNearMissItWas(t *testing.T) {
 	// AND A GENUINELY WRONG WORD GETS NO NEAR-MISS CLAIM. Telling a seat its value is "the right
 	// word with different punctuation" when it is not sends it to look for a typo that is not
 	// there — worse than the bare set, because it carries the tool's authority.
-	err := Refuse("as", "banana", vs, "the ruling binds the coming seats")
+	err := Refuse("banana", vs, "the ruling binds the coming seats")
 	for _, unwanted := range []string{"different punctuation", "only in case"} {
 		if strings.Contains(err.Error(), unwanted) {
 			t.Errorf("a wrong word was reported as a near miss (%q):\n%v", unwanted, err)
 		}
+	}
+	// THE SENTENCE IS A PREDICATE: the flag is written in front of it once, by the refusal's
+	// composer, so it opens at what the flag takes and names no flag itself.
+	if !strings.HasPrefix(err.Error(), `takes one of endorsed|too_thin|out_of_scope, not "banana". The ruling binds the coming seats`) {
+		t.Errorf("the refusal does not open as a predicate over its flag, the why a sentence of its own:\n%v", err)
+	}
+	if empty := Refuse("", vs, "the ruling binds the coming seats"); !strings.HasPrefix(empty.Error(), "takes one of endorsed|too_thin|out_of_scope and was given nothing. The ruling") {
+		t.Errorf("an empty value is not refused as nothing given:\n%v", empty)
 	}
 	// It must still list what WOULD have worked.
 	if !strings.Contains(err.Error(), "too_thin") {

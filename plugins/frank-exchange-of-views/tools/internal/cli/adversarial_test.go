@@ -185,7 +185,7 @@ func adversarialCases() []adversarialCase {
 			name:    "a dimension outside the four is refused",
 			setup:   []seatStep{mint},
 			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1", "--dimension", "vibes", "--proposed", "low", "--reason", "contesting an axis that does not exist"},
-			refused: "--dimension must be one of severity|likelihood|impact|complexity",
+			refused: "--dimension takes one of severity|likelihood|impact|complexity",
 			guards: "The ruling is matched to the filing on (gap, dimension), so an axis outside the " +
 				"four is a motion filed against nothing. `blue dispute` enum-checked it; the " +
 				"replacement took any string until the old verb was deleted and the two compared. " +
@@ -209,7 +209,7 @@ func adversarialCases() []adversarialCase {
 			// from the enum now, so its order follows declaration: integrity and safety kept their
 			// numbers (they were the two that worked), ethical and constitutional took fresh ones
 			// because the numbers they would have reused are reserved.
-			refused: "--class must be one of integrity|safety|ethical|constitutional",
+			refused: "--class takes one of integrity|safety|ethical|constitutional",
 			guards: "The bench is convened PER CLASS; a fifth is a petition heard under whichever " +
 				"standard the ruling seat happened to imagine. Refused at PARSE now, with the " +
 				"four classes and what each is for — the seat learns the vocabulary from the refusal.",

@@ -70,7 +70,7 @@ func TestAnUnregisteredAgentFilesNoMotionWithoutARegister(t *testing.T) {
 	t.Setenv(seatenv.AgentVar, "agent_bench_never_registered")
 	before := motionsOnRecord(t, runDir)
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "judge",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "x"); err == nil || !strings.Contains(err.Error(), "register") {
+		"--id", "G-00000000", "--dimension", "severity", "--proposed", "low", "--reason", "x"); err == nil || !strings.Contains(err.Error(), "register") {
 		t.Errorf("an unregistered agent's filing on the bench's surface, whose register the tool cannot perform for it, = %v; want it refused naming the register", err)
 	}
 	if after := motionsOnRecord(t, runDir); after != before {

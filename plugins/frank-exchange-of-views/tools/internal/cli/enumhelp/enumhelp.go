@@ -77,7 +77,7 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 	// the entire reason the set is closed. Substituting the usage line ("the seat's terminal
 	// act") loses it, which the error-catalogue golden caught the moment it was tried.
 	v := enumflag.NewWithoutDefault(new(string), typeName(name, e.Values), record.Identifiers(e.Values), enumflag.EnumCaseSensitive)
-	c.Flags().Var(&speaking{Value: v, flag: name, values: e.Values, why: e.Why}, name, usage)
+	c.Flags().Var(&speaking{Value: v, values: e.Values, why: e.Why}, name, usage)
 	register(c, name, e.Values)
 	_ = v.RegisterCompletion(c, name, record.CompletionHelp(e.Values))
 }
@@ -85,7 +85,7 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 // speaking wraps enumflag's Value so the PARSING is the library's and the REFUSAL is ours.
 //
 // enumflag rejects with `must be 'FAIL', 'PASS'` — correct, and it teaches nothing. This project's
-// own message names the near-miss ("\"pass\" differs from \"PASS\" only in case"), says what the
+// own sentence names the near-miss ("it differs from \"PASS\" only in case"), says what the
 // mistype would have done, and prints the menu. That is not decoration: the refusal is where a
 // seat meets the design, and a probe measured a seat learning its whole surface from what the
 // tool printed back at it after a failure.
@@ -94,14 +94,13 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 // is a message layer and never a second definition of what is legal.
 type speaking struct {
 	pflag.Value
-	flag   string
 	values []record.EnumValue
 	why    string
 }
 
 func (s *speaking) Set(v string) error {
 	if err := s.Value.Set(v); err != nil {
-		return record.Refuse(s.flag, v, s.values, s.why)
+		return record.Refuse(v, s.values, s.why)
 	}
 	return nil
 }
