@@ -2,10 +2,12 @@ package record
 
 import (
 	"database/sql"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -446,6 +448,15 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // The match is deliberately loose — any finding by any lens quoting the same claim answers it.
 // A stricter join (same seat, same epoch) would refuse a contradiction one lens found and
 // another raised, which is the collaboration the lens roles exist for.
+//
+// QUOTING THE CLAIM IS THE MATCHER'S QUESTION, NOT STRING EQUALITY. Both quotes are placed in the
+// report by anchortext, which reads whitespace runs as one separator and drops trailing
+// punctuation, so two spellings of one sentence place at one span — and a finding that quotes the
+// contradicted clause with the rest of its sentence is about that clause. A finding answers a
+// claim when the claim is located in the finding's quote, by that matcher. Held to equal strings,
+// universe-m22's lens filed F-42c69faa on the sentence holding the clause it had just read
+// against a source, and the gate held until it filed a second finding on the clause alone; on
+// universe-m19 a finding one full stop shorter than the claim did not answer it.
 func unansweredContradictions(evs []*Event) []string {
 	var out []string
 	for _, c := range unansweredContradictionsBy(evs) {
@@ -465,13 +476,19 @@ type contradiction struct {
 // unansweredContradictionsBy is unansweredContradictions with each claim's reader: the seat of the
 // LATEST contradicting verify of the claim, so a re-read by another lens makes that lens the owner.
 func unansweredContradictionsBy(evs []*Event) []contradiction {
-	answered := map[string]bool{}
+	var quoted []string // every finding's quote
 	for _, e := range evs {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
 			if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
-				answered[loc] = true
+				quoted = append(quoted, loc)
 			}
 		}
+	}
+	answered := func(claim string) bool {
+		return slices.ContainsFunc(quoted, func(loc string) bool {
+			start, _ := anchortext.LocateSpan(loc, claim)
+			return start >= 0
+		})
 	}
 	at := map[string]int{} // claim -> its place in out
 	var out []contradiction
@@ -481,7 +498,7 @@ func unansweredContradictionsBy(evs []*Event) []contradiction {
 			continue
 		}
 		claim := strings.TrimSpace(v.GetClaim())
-		if claim == "" || answered[claim] {
+		if claim == "" || answered(claim) {
 			continue
 		}
 		if k, seen := at[claim]; seen {

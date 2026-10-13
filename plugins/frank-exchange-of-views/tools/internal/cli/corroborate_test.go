@@ -158,6 +158,38 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 	}
 }
 
+// A REFUTING CORROBORATION IS CLEARED BY THE FINDING ITS READER FILES, through the verbs: the
+// quote the corroboration was held to is one a finding can place.
+func TestARefutingCorroborationIsClearedByAFindingAtItsQuote(t *testing.T) {
+	runDir := corroborateRun(t)
+	contradictions := func() []string {
+		t.Helper()
+		b, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+	}
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
+		"--quote", "the finding prose lands in a quoted sentence.", "--as", "refutes", "--confidence", "high",
+		"--reason", "the source says the opposite at page 9"); err != nil {
+		t.Fatal(err)
+	}
+	if got := contradictions(); len(got) != 1 {
+		t.Fatalf("unanswered contradictions = %v, want the one just recorded", got)
+	}
+	// The finding quotes the whole sentence, as `show report` prints it; the claim is a clause of it.
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "k1",
+		"--quote", corroborated, "--reason", "the source says the opposite at page 9",
+		"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+		t.Fatal(err)
+	}
+	if got := contradictions(); len(got) != 0 {
+		t.Errorf("unanswered contradictions = %v after a finding at the sentence, want none", got)
+	}
+}
+
 // THE QUOTE MUST BE IN THE LIVE REPORT, so a corroboration of a claim blue has since edited
 // away is refused rather than spliced blind — the same rule blue's own cite is held to.
 func TestACorroborationOfAnAbsentClaimIsRefused(t *testing.T) {

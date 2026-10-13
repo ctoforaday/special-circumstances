@@ -185,6 +185,55 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}
 }
 
+// A FINDING ANSWERS THE CLAIM IT QUOTES, AS THE MATCHER READS A QUOTE.
+//
+// The claim and the finding's quote are each placed in the report by anchortext, which reads a
+// whitespace run as one separator and drops trailing punctuation. Compared as strings, a finding
+// on the sentence holding the contradicted clause answered nothing (universe-m22 filed a second
+// finding on the clause alone to pass the gate), and neither did one a full stop shorter
+// (universe-m19).
+func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
+	const claim = "so the claim that a base-3 test accepts 91 rests on computation alone."
+	for _, tc := range []struct {
+		name, quote string
+		answers     bool
+	}{
+		{"the same words", claim, true},
+		{"without its full stop", strings.TrimSuffix(claim, "."), true},
+		{"wrapped over two lines", strings.Replace(claim, " rests ", "\n  rests ", 1), true},
+		{"the sentence holding the clause", "The sequence lists no such entry, " + claim + " That is thin.", true},
+		{"another sentence", "The sequence lists no such entry.", false},
+		{"part of the claim", "a base-3 test accepts 91", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := recordtest.TmpRun(t)
+			lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
+			if _, _, err := RegisterSeat(lens, "", ""); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Append(lens, corroboration("", "https://example.org/says-otherwise", claim, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Append(lens, &recordpb.Finding{
+				Id: proto.String("F-f0000001"), Location: proto.String(tc.quote),
+				Text:       proto.String("the source says the opposite"),
+				Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+				Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
+				Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			}); err != nil {
+				t.Fatal(err)
+			}
+			err := passRefusalOver(t, mustRun(t, runDir), BlockerContradiction)
+			if tc.answers && err != nil {
+				t.Errorf("a finding quoting %q left the contradiction of %q unanswered: %v", tc.quote, claim, err)
+			}
+			if !tc.answers && err == nil {
+				t.Errorf("a finding quoting %q answered the contradiction of %q, which it does not quote", tc.quote, claim)
+			}
+		})
+	}
+}
+
 // THE PROTECTED-ANCHOR SET IS ONE SET, and red's citations are in it.
 //
 // Two detectors guard the same property — the hookgate lockdown (via CitationLabels) and the
