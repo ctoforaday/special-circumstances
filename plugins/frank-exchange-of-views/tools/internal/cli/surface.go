@@ -123,8 +123,8 @@ func commandsByPath() map[string]*cobra.Command {
 // sharedAcrossSeats reports whether a typed path is ONE contract however many seats' trees mount
 // it, and so keeps one join key rather than one per role.
 //
-// `motion` is one object however many seats can reach it; `fetch` is the operator command seats
-// genuinely run — a lens reads blue's cached bytes; and `manual` is mounted on every surface and
+// `motion` is one object however many seats can reach it; `fetch` is the operator command the seats
+// that read sources genuinely run — a lens reads blue's cached bytes; and `manual` is mounted on every surface and
 // does the same thing on each — prints that surface's help. Keying them per role would turn one contract into four rows
 // nobody can keep in step.
 func sharedAcrossSeats(path string) bool {

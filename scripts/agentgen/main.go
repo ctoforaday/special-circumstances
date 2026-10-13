@@ -224,9 +224,11 @@ func renderSurface(bin, seat, role string) ([]byte, error) {
 	if len(lines) != 2 {
 		return nil, fmt.Errorf("the %s surface rendered no body", role)
 	}
-	head := fmt.Sprintf("Your surface — the %s surface, rendered from the record tool's own `manual`. "+
-		"Every command you may run is below, each under a header naming it and followed by the help it prints. "+
-		"A command you did not read here is a guess, and so is a flag you did not read under that command's own header.", role)
+	// THE HEADER LABELS THE BLOCK AND STATES NO DUTY. Reading the whole surface before acting, and
+	// treating an unread name as a guess, is one fragment (fragments/surface-discovery.md) that every
+	// seat holds once; a second wording here is the copy the next edit misses.
+	head := fmt.Sprintf("Your surface — the %s surface, rendered from the record tool's own `manual`: "+
+		"every command you may run, each under a header naming it and followed by the help it prints.", role)
 	return append([]byte(head+"\n"), lines[1]...), nil
 }
 

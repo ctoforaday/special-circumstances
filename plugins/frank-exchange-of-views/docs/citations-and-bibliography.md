@@ -25,7 +25,7 @@ flowchart TB
 
 ## 1. Fetch — getting the bytes
 
-`fetch` replaces WebFetch for every seat. It is a cached, hash-verified read, and both sides read
+`fetch` replaces WebFetch for every seat that reads a source — blue and the lenses; the chair and the bench read none and do not carry it. It is a cached, hash-verified read, and both sides read
 the same bytes.
 
 **Asking politely.** The client identifies itself as this tool and impersonates no browser
