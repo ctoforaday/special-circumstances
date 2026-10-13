@@ -7,8 +7,7 @@ change the report — the only path into report.md, and how every repair lands
 A raw write or a shell edit of the report is denied.
 
 TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on a gap, you can
-apply that text instead of retyping it. Your argument for the change is still required and still
-yours — accepting is a decision, not a transcription.
+apply that text instead of retyping it. Your argument for the change is still required.
 
 Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
 that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words.

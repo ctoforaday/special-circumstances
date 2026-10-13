@@ -42,9 +42,25 @@ func newFetch() *cobra.Command {
 		// fetchcache/pageread.go; the openai.com 403 that shipped a question "open rather than
 		// resolved" (#592) is at fetchcache/httpfetcher.go and egress_test.go. None of it changes
 		// what a seat does, so the page carries only the instruction each one produced.
-		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.\n\n" +
-			"A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells is rebuilt from the rules themselves: the lattice says where the cells are, each cell holds the words inside it, and the rows keep their binding. Where the rules bind no usable grid — a figure, a box, a table of marks the reading lost — the page falls back to plain text WITH the reason and the measurement on the record. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.\n\n" +
-			"Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.\n\n" +
+		//
+		// THE SAME RULE HOLDS FOR THE ENGINE'S MECHANISM, WHICH IS HERE AND NOT ON THE PAGE.
+		// Why the read is by offset and limit: a 67-page paper pasted into a seat's context is
+		// waste whether legible or not. The OCR engine is deterministic and reproducible — no
+		// model, credentials or network, seconds per document — and its text is keyed to the
+		// engine identity so an audit re-derives it byte for byte. Two table paths feed the one
+		// instruction the page gives (rows, or plain text with the reason): a ruled table of
+		// MARKS is reconstructed with confidence stats on the record, and falls back when it
+		// cannot place its marks or its measured grid is far larger than the rows and columns it
+		// recovered; a ruled table of TEXT cells is rebuilt from the rules themselves — the
+		// lattice says where the cells are, each cell holds the words inside it, the rows keep
+		// their binding — and falls back where the rules bind no usable grid (a figure, a box).
+		// A page already read is never re-derived: it carries a receipt checked against its image
+		// hash, so a retry or a crash resumes cleanly. Under <run>/cache/<sha>.pages/ the engine
+		// keeps its evidence for each page for debugging — tesseract's diagnostics, the word
+		// boxes of a ruled page, any table the dropout check refused — and never the page image.
+		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.\n\n" +
+			"A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary and named in the summary as ocr_derived text. A ruled table is reconstructed into |-separated rows; one the engine cannot reconstruct falls back to plain text WITH the reason stated. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.\n\n" +
+			"A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.\n\n" +
 			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

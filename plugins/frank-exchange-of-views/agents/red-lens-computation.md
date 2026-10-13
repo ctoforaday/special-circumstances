@@ -120,7 +120,7 @@ REQUIRED — your THINKING for this act, not your process — why you graded, cl
 REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
 
 §6 (on 2 pages):
-REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
+REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as
 
 §7 (on 2 pages):
 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs (the claim you are checking)
@@ -132,7 +132,7 @@ Enumerated values:
     supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was
+    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise
     unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
 
   --confidence
@@ -220,11 +220,8 @@ The material default decides whether a gap of that class holds the PASS gate —
 class whose defects change a conclusion or a figure, `never` for one whose defects change none,
 `by_grade` to take it from the grades. Choosing a class is choosing this too.
 
-Two kinds of row, and they carry different columns because the record holds different things
-about them. A class the registry staged carries its slug and its default. A class THIS RUN coined
-carries its definition and the class it sits nearest as well, because the coining recorded them —
-so those rows print what they have, and the staged rows print no blanks standing in for what was
-never staged.
+Two kinds of row. A class the registry staged carries its slug and its default. A class THIS RUN
+coined carries its definition and the class it sits nearest as well.
 
 This is the vocabulary, not a suggestion. A class outside it is refused, so the nearest one here
 is the one to name; and where none of them is close, that is the argument for coining. A class
@@ -237,8 +234,6 @@ coin a gap class the registry lacks, when nothing existing fits and you are abou
 
 Coin it BEFORE the mint that uses it; `mint` then names the slug like any other.
 
-The neighbour and the distinguisher are what keep the registry usable: a class nobody can tell apart from an existing one splits the same defect across two names.
-
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -246,7 +241,7 @@ The neighbour and the distinguisher are what keep the registry usable: a class n
 Flags:
       --class string                             REQUIRED — the slug you are coining — lowercase, hyphenated, and NOT one the registry already has
       --definition string                        REQUIRED — what this class is, in one line
-      --distinguisher string                     REQUIRED — the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating
+      --distinguisher string                     REQUIRED — the tie-break question that tells the two apart
       --material-default always|never|by_grade   where materiality starts for every gap of this class (default by_grade) — always for a class whose defects change a conclusion or a figure, never for one whose defects change none
       --neighbor string                          REQUIRED — the existing class it sits closest to
 
@@ -291,11 +286,11 @@ Enumerated values:
 $ feov-record corroborate --help
 go and find a source blue never cited, when the claim has no anchor but the source is obtainable
 
-It answers whether the claim is true in the WORLD — a finding answers whether the TEXT stands up — and makes "nobody cited this" checkable instead of merely raised.
+It answers whether the claim is true in the WORLD — a finding answers whether the TEXT stands up.
 
 To adjudicate a citation blue DID author, use `verify` instead: it names the citation by its anchor.
 
-YOUR TITLE IS PRINTED IN THE REPORT whenever the corroboration becomes a footnote — every outcome except refutes, absent and unreachable: it prints in the source's note and its Bibliography entry, beside its URL and the date you read it. Give the source's own title — author, work, publisher — not a note about how you found it or which seat you are. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in a title that prints. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a source's title can use those words too. How you found the source goes in your reason, which the report never prints.
+YOUR TITLE IS PRINTED IN THE REPORT whenever the corroboration becomes a footnote — every outcome except refutes, absent and unreachable: it prints in the source's note and its Bibliography entry, beside its URL and the date you read it. Give the source's own title — author, work, publisher — not a note about how you found it or which seat you are. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in a title that prints. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged. How you found the source goes in your reason, which the report never prints.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -318,11 +313,11 @@ Flags:
 (Enumerated values:) → SHARED §8
 ========
 $ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit: a 67-page paper pasted into your context is waste whether legible or not. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
 
-A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary — deterministic, reproducible, no model, credentials or network, seconds per document — and named in the summary as ocr_derived text keyed to the engine identity, so an audit can re-derive it byte for byte. Ruled tables of marks are reconstructed into |-separated rows with confidence stats on the record; one that cannot place its marks, or whose measured grid is far larger than the rows and columns it recovered, falls back to plain text WITH the failure stated. A ruled table of TEXT cells is rebuilt from the rules themselves: the lattice says where the cells are, each cell holds the words inside it, and the rows keep their binding. Where the rules bind no usable grid — a figure, a box, a table of marks the reading lost — the page falls back to plain text WITH the reason and the measurement on the record. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.
+A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary and named in the summary as ocr_derived text. A ruled table is reconstructed into |-separated rows; one the engine cannot reconstruct falls back to plain text WITH the reason stated. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.
 
-Pages already read are never re-derived: each carries a receipt checked against its image hash, so a retry or a crash resumes cleanly. Beside each page's reading, under <run>/cache/<sha>.pages/, the engine's evidence for it is kept for debugging — tesseract's own diagnostics for that page and, on ruled pages, the word boxes it read and any table the dropout check refused — never the page image. A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.
+A later fetch of the same URL is served from cache, so every seat reads identical bytes. It writes no record event. A failure is a non-zero error (pick another source), and fetch writes no log entry for it.
 
 AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host outside the allowlist answers 403 — the status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or about the SOURCE, and those are different findings. The refusal says which where it can; where you cannot tell, record the source as UNREACHABLE FROM HERE, not the question as unresolved.
 
@@ -364,15 +359,13 @@ an entry for the operator who can retool you — what it asserts, said in the po
 
 An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
 
-SAY WHAT THE ENTRY ASSERTS: the operator triages this channel by FILTERING on it instead of reading every entry, so it is the field that makes the channel worth reading.
+EVERY REFUSAL YOU GET, AND EVERY CALL OF YOURS THAT FAILS, IS ALREADY HERE: the tool records each refusal it gives you, with the flags you typed and never their values, and each tool call of yours that fails — a jq, a Read, a script — with what it was aimed at. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it.
 
-EVERY REFUSAL YOU GET, AND EVERY CALL OF YOURS THAT FAILS, IS ALREADY HERE: the tool records each refusal it gives you, with the flags you typed and never their values, and each tool call of yours that fails — a jq, a Read, a script — with what it was aimed at. Your entry adds what the tool cannot know — what you expected, and where the expectation came from. A guessed name is friction even when the guess was yours: something taught you to expect it, and that is what the operator retools. A refusal naming a verb you cannot find, or a fact the record holds that no view shows you, is a request: report it rather than engineer around it, because a workaround leaves no trace and the missing capability then looks exactly like one nobody wanted.
-
-THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so an entry retelling it is a diary the operator must read through to find the one sentence meant for them. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting where nothing cost you anything writes no entry.
+THE RECORD HOLDS WHAT YOU DID — which verbs you ran, which help pages you read, in what order — so do not retell it. Write what you CONCLUDED about the tooling: what you wanted and could not reach, what behaved differently from its own documentation, what cost you a call, a guess or an act — a workaround, a shape you misread, a harness guard, an act you set aside. A sitting where nothing cost you anything writes no entry.
 
 YOUR AUDIENCE IS THE OPERATOR who can retool you, not the other seats: nothing here is debate material, and the other side answers none of it.
 
-A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Silence is ambiguous only where the sitting DID things. One with no acts is not: the harness brackets it with your identity, so that you ran is on the record. Deriving the clean case from the emptiness beats asserting it. Your work list says which case you are in, by not asking.
+A SITTING THAT RECORDED NOTHING OWES NO ENTRY. Your work list says which case you are in, by not asking.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -386,7 +379,7 @@ Flags:
 
 Enumerated values:
   --type
-    defect    something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on
+    defect    something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT)
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair
     friction  Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
 ========
@@ -397,7 +390,7 @@ The gap id is TOOL-assigned.
 
 Screen first with `near-match`: a candidate overlapping a closed gap is a REOPEN, and a reopen carries its lineage rather than arriving as a fresh gap.
 
-THE MINT SCREENS THE OPEN BOARD ITSELF, at the write, because another lens may mint while you work: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
+THE MINT SCREENS THE OPEN BOARD ITSELF, at the write: where your gap overlaps one already open, it is refused once, naming that gap and who minted it. If it IS your defect, do not mint it again — file a finding about that gap, which reaches the seat that minted it. If yours replaces it, mint it as that gap's successor. If you read it and yours is a different defect, say so on the mint by naming it as distinct, which puts that claim on the record.
 
 YOUR MINT BUDGET CAPS THE GAPS YOU HOLD OPEN AT ONCE, not the gaps you mint in the run. Every open gap you minted takes one mint of it — one that is not material, and one you superseded and have not closed, as much as any other — and a gap that closes, by your `close` or by the bench's ruling, frees one. At the cap the mint is REFUSED with the arithmetic: record the defect as a finding, and mint it when a gap of yours has closed, crediting that finding as what surfaced it. Your work list states the count.
 
@@ -405,7 +398,7 @@ FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, s
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
-THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged, because a subject can use those words too. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
+THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 THE FIX AND ITS ACCEPTANCE CHECK NAME ONLY TEXT OR RECORD THE ANSWERING SEAT CAN CHANGE. Blue's `edit` changes the report's text, and blue rewrites no section the tool composes. On an avenue's row the question and the hypothesis stand as proposed — no act rewrites them — and the fate and what was found change only by blue's `avenue move`. A fix that names text no seat can change cannot be made, and a check that counts matches across the assembled report cannot pass while that text matches; no act amends a check after the mint. Where a residual sits in something no seat can change, `close` it as a defect owed elsewhere, naming what is owed, and `log` carries it to the operator.
 
@@ -420,7 +413,7 @@ Flags:
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --complexity grade                         what fixing it costs, on the same scale
-      --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect. Where one IS this defect, do not mint: file a finding about it, which reaches the seat that minted it
+      --distinct-from list                       comma-separated OPEN gaps the mint's duplicate screen matched that this gap is NOT — your claim, on the record, that you read each and it is a different defect
       --fix string                               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list                            comma-separated ids of the lens findings that surfaced it, as the findings view lists them
       --impact grade                             REQUIRED — how bad the consequence is if it lands
@@ -573,9 +566,9 @@ Flags:
 $ feov-record reproduce --help
 re-run a recorded computation and judge whether it proves the sentence it is attached to
 
-THIS COMMAND RE-RUNS THE SCRIPT ITSELF. You do not run it first: name the proof and the tool executes the recorded script, compares its output byte for byte against what was recorded, and stores that result. Running it by hand and then calling this to write down what you saw does the same work twice.
+THIS COMMAND RE-RUNS THE SCRIPT ITSELF. You do not run it first: name the proof and the tool executes the recorded script, compares its output byte for byte against what was recorded, and stores that result.
 
-What the tool CANNOT answer is whether the script establishes the claim it is anchored to — so it records whether it REPRODUCED, and you judge whether it PROVES. Those are two questions and only the first is mechanical: `print("7 is prime")` reproduces perfectly forever. That is why the soundness verdict is yours to give and why you must READ the script to give it.
+What the tool CANNOT answer is whether the script establishes the claim it is anchored to — so it records whether it REPRODUCED, and you judge whether it PROVES.
 
 READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. `show evidence`, read AT THE PROOF'S OWN ANCHOR, prints the script this call executes and the output blue recorded — its page says how, and the proof's row in the bare `show evidence` carries that anchor beside the sha256 this call takes. Read it, decide what it computes and whether that is the claim at its anchor, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.
 
@@ -596,7 +589,7 @@ Flags:
 Enumerated values:
   --as
     sound    you READ the script and it computes what it claims to compute
-    unsound  it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible
+    unsound  it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to
 ========
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
@@ -723,17 +716,17 @@ $ feov-record show work --help
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an avenue never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
-FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer. Blue still sitting and blue having said nothing are the same silence on the record, and they want different acts from you: one is waiting, the other is a fact to state.
+FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer.
 
 A LENS'S LIST STATES ITS MINT BUDGET, and it is the count a mint is refused on: `sitting.mint_budget` is the gaps you minted that are `open` now, your `budget` — the most you may hold open at once: the larger of the run's `floor` and `mints` for every `per` of the `units` your area is sized by, named in `unit` — and the mints `left` to you. A gap of yours that closes frees one. `measured: false` says the units cannot be read, and `budget` and `left` are then the floor's. An item states the same numbers; decide gap or finding from it. Absent on every other role's list.
 
-`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it, and that field answers it rather than leaving you to decode `found_by`. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse.
+`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse.
 
 AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE, and the gap says which: `regrades_owed` is each grade motion on the gap that was ACCEPTED and that no regrade has followed — the `motion_id`, the `dimension` it contested and the `proposed` grade the ruling accepted — on the minting lens's list, and empty on every other. The item in `sitting.open` that names the gap states the same motions.
 
 WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair.
 
-`estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. Re-raising one is relitigation, not diligence — new evidence against it is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
+`estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. New evidence against one is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
 

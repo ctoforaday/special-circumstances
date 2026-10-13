@@ -668,7 +668,7 @@ const (
 	SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE SourceOutcome = 2
 	SourceOutcome_SOURCE_OUTCOME_WEAK                 SourceOutcome = 3
 	SourceOutcome_SOURCE_OUTCOME_REFUTES              SourceOutcome = 4
-	SourceOutcome_SOURCE_OUTCOME_ABSENT               SourceOutcome = 5 // says nothing, as against says otherwise
+	SourceOutcome_SOURCE_OUTCOME_ABSENT               SourceOutcome = 5 // says nothing, as against says otherwise: a reader deciding what to do about it needs to know which it was
 	SourceOutcome_SOURCE_OUTCOME_UNREACHABLE          SourceOutcome = 6
 )
 
@@ -785,7 +785,7 @@ type Soundness int32
 const (
 	Soundness_SOUNDNESS_UNSPECIFIED Soundness = 0
 	Soundness_SOUNDNESS_SOUND       Soundness = 1
-	Soundness_SOUNDNESS_UNSOUND     Soundness = 2
+	Soundness_SOUNDNESS_UNSOUND     Soundness = 2 // the dangerous cell, because it looks maximally credible
 )
 
 // Enum value maps for Soundness.
@@ -847,7 +847,7 @@ const (
 	// as `concluded`, and the gap between the two words held the gate. It is an answer, so it ships
 	// beside the concluded lines; `abandoned` is left for the line that produced none.
 	AvenueStatus_AVENUE_STATUS_REFUTED  AvenueStatus = 7
-	AvenueStatus_AVENUE_STATUS_DEFERRED AvenueStatus = 3
+	AvenueStatus_AVENUE_STATUS_DEFERRED AvenueStatus = 3 // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
 	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
 	// on universe-m21 a lane ran a check, then proposed the approach and declined it with the
 	// check's result as the reason, and the report printed it as rejected beside the section that
@@ -855,7 +855,7 @@ const (
 	// tell a declined line that was run from one that was not; the fate's own meaning is where the
 	// seat is told.
 	AvenueStatus_AVENUE_STATUS_DECLINED  AvenueStatus = 4
-	AvenueStatus_AVENUE_STATUS_ABANDONED AvenueStatus = 5
+	AvenueStatus_AVENUE_STATUS_ABANDONED AvenueStatus = 5 // what stopped it is the part a future run needs: it stops a later run re-walking it
 )
 
 // Enum value maps for AvenueStatus.
@@ -1530,7 +1530,7 @@ type LogType int32
 
 const (
 	LogType_LOG_TYPE_UNSPECIFIED LogType = 0
-	LogType_LOG_TYPE_DEFECT      LogType = 2
+	LogType_LOG_TYPE_DEFECT      LogType = 2 // an error nobody learns about is one nothing improves on
 	LogType_LOG_TYPE_REQUEST     LogType = 3
 	LogType_LOG_TYPE_FRICTION    LogType = 4
 	// REFUSAL IS EVERY OTHER NO THE TOOL GIVES A SEAT, written by the tool at the moment it refuses.
@@ -8027,34 +8027,34 @@ const file_record_proto_rawDesc = "" +
 	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
 	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\xd4\x03\n" +
 	"\x14DISPOSITION_REMANDED\x10\a\x1a\xb9\x03\x8a\xb5\x18\xb0\x03NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states — a remand closes nothing, so it states a direction and never --final. If that exchange leaves it at impasse it is docketed again, if it moves the gap the gap's limits count afresh from the ruling, and a second remand at impasse leaves it open at its limit\x98\xb5\x18\x00\x12\xd8\x01\n" +
-	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\x8c\t\n" +
+	"\x10DISPOSITION_MOOT\x10\b\x1a\xc1\x01\x8a\xb5\x18\xb8\x01the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired\x98\xb5\x18\x01*\xc6\b\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\xf8\x01\n" +
 	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1a\xda\x01\x8a\xb5\x18\xd5\x01you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows\x12\x9a\x01\n" +
 	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1aq\x8a\xb5\x18mit supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement\x12j\n" +
 	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12~\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1ab\x8a\xb5\x18^you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry\x12\x86\x02\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xea\x01\x8a\xb5\x18\xe5\x01you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise, and a reader deciding what to do about it needs to know which it was\x12\xcd\x01\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1ab\x8a\xb5\x18^you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry\x12\xc0\x01\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xa4\x01\x8a\xb5\x18\x9f\x01you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise\x12\xcd\x01\n" +
 	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xac\x01\x8a\xb5\x18\xa7\x01you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit*\x95\x04\n" +
 	"\n" +
 	"Confidence\x12\x1a\n" +
 	"\x16CONFIDENCE_UNSPECIFIED\x10\x00\x12i\n" +
 	"\x0fCONFIDENCE_HIGH\x10\x01\x1aT\x8a\xb5\x18Pyou read the source at the leaf and would defend this determination as it stands\x12\xad\x01\n" +
 	"\x11CONFIDENCE_MEDIUM\x10\x02\x1a\x95\x01\x8a\xb5\x18\x90\x01you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement\x12\xcf\x01\n" +
-	"\x0eCONFIDENCE_LOW\x10\x03\x1a\xba\x01\x8a\xb5\x18\xb5\x01your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further*\xb9\x02\n" +
+	"\x0eCONFIDENCE_LOW\x10\x03\x1a\xba\x01\x8a\xb5\x18\xb5\x01your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further*\xfa\x01\n" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
-	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12\xb8\x01\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\xfd\x0e\n" +
+	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12z\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\xe6\f\n" +
 	"\fAvenueStatus\x12\x1d\n" +
 	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12\x9a\x01\n" +
 	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x1a~\x8a\xb5\x18zyou intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move\x12\xb5\x01\n" +
 	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a\x99\x01\x8a\xb5\x18\x94\x01you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end\x12\x95\x02\n" +
 	"\x17AVENUE_STATUS_CONCLUDED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc2\x02\n" +
-	"\x15AVENUE_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this\x12\x86\x02\n" +
-	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\xbf\x02\n" +
-	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1a\xa2\x02\x8a\xb5\x18\x9d\x02you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\xd0\x02\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1a\xb2\x02\x8a\xb5\x18\xad\x02you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xc2\x04\n" +
+	"\x15AVENUE_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this\x12m\n" +
+	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1aQ\x8a\xb5\x18Mnot this run. REQUIRES a reason saying what a later run should pick it up FOR\x12\x8f\x02\n" +
+	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1a\xf2\x01\x8a\xb5\x18\xed\x01you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x83\x02\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xc2\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
@@ -8108,10 +8108,10 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\x95\f\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\xd9\v\n" +
 	"\aLogType\x12\x18\n" +
-	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xef\x01\n" +
-	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd9\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\xb0\xb5\x18\x01\x12\xcf\x01\n" +
+	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xb3\x01\n" +
+	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\x9d\x01\x8a\xb5\x18\x94\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT)\xb0\xb5\x18\x01\x12\xcf\x01\n" +
 	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12'\n" +
 	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\x10\xb0\xb5\x18\x01ʵ\x18\bfriction\x12\xaa\x02\n" +
 	"\x10LOG_TYPE_REFUSAL\x10\x06\x1a\x93\x02\x8a\xb5\x18\x8a\x02the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from\xb0\xb5\x18\x00\x12\xb1\x03\n" +
