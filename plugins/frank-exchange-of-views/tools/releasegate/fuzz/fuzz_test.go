@@ -277,6 +277,12 @@ type runner struct {
 	// proof and for nothing else (readiedForReopened). The sweep gates it at zero. reopenedPlans
 	// counts the plans holding a reopened blocker, whoever they readied.
 	reopenedReadied, reopenedPlans int
+	// quotesRefused counts the verifications and corroborations the tool REFUSED for a quote the
+	// report does not hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
+	// the first such act the tool recorded, or refused without saying whose sentence the quote
+	// is; it fails the run.
+	quotesRefused    int
+	quoteAdmittedErr string
 	// positionAdmittedErr is the first position the tool ADMITTED from a seat that owes none. It
 	// fails the run: the verb is on the whole blue role's surface, and the refusal is what keeps a
 	// position off the record where only the bench and the chair read it.
@@ -515,6 +521,35 @@ func (r *runner) orderRefused(seatID string) {
 		}
 	default:
 		r.ordersRefused++
+	}
+}
+
+// sourceQuoteRefused drives a lens quoting the SOURCE's sentence as the claim, under any outcome,
+// and holds the tool to refusing it: the quote is the report's sentence whatever the source did
+// for it. Under `refutes` or `absent` a quote the report does not hold is the subject of a PASS
+// blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask
+// (universe-m23).
+func (r *runner) sourceQuoteRefused(seatID string) {
+	outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+	args := []string{"corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/" + seatID, "--title", "fuzz source quoted for " + seatID}
+	if anchor := r.someCitation(); anchor != "" && r.coin(50) {
+		args = []string{"verify", "--seat-id", seatID, "--anchor", anchor}
+	}
+	out, err := r.exec(append(args, "--quote", "The fuzz source states this in its own words, and the report does not.",
+		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim")...)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch {
+	case err == nil:
+		if r.quoteAdmittedErr == "" {
+			r.quoteAdmittedErr = seatID + " quoted the source's sentence under --as " + outcome + " and `" + args[0] + "` recorded it: " + firstLine(out)
+		}
+	case !strings.Contains(out, "REPORT's sentence"):
+		if r.quoteAdmittedErr == "" {
+			r.quoteAdmittedErr = seatID + "'s `" + args[0] + " --as " + outcome + "` was refused without saying the quote is the report's sentence: " + firstLine(out)
+		}
+	default:
+		r.quotesRefused++
 	}
 }
 
@@ -2610,6 +2645,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					}
 					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", page).run()
 				})
+				r.maybe(15, func() { r.sourceQuoteRefused(seatID) })
 				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				axes := func(c *cmd) *cmd {
@@ -2784,6 +2820,9 @@ type outcome struct {
 	positionsRefused int
 	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
 	ordersRefused int
+	// quotesRefused is the verifications and corroborations the tool refused for a quote the
+	// report does not hold (runner.quotesRefused).
+	quotesRefused int
 	// reopenedReadied is the plans that readied the evidence lens for a reopened citation or proof
 	// alone (runner.reopenedReadied), and reopenedPlans the plans that held a reopened blocker at
 	// all — what the zero of the first is read against.
@@ -3240,6 +3279,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.positionAdmittedErr != "" {
 		res.err = "position duty: " + r.positionAdmittedErr
+		return res
+	}
+	if r.quoteAdmittedErr != "" {
+		res.err = "quote the report does not hold: " + r.quoteAdmittedErr
 		return res
 	}
 	if r.orderAdmittedErr != "" {
@@ -3849,6 +3892,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.avenueMoves = r.avenueMoves
 	res.positionsRefused = r.positionsRefused
 	res.ordersRefused = r.ordersRefused
+	res.quotesRefused = r.quotesRefused
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
 	res.repeatsRefused = r.repeatsRefused
 	res.budgetRefused = r.budgetRefused
@@ -4522,6 +4566,7 @@ func TestFuzzDebate(t *testing.T) {
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
+	quotesRefused := 0                     // verifications and corroborations refused for a quote the report does not hold
 	ordersRefused := 0                     // edits refused for a section out of the order the report ships in
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0 // plans that readied the evidence lens for a reopened citation or proof alone, of those holding one
@@ -4599,6 +4644,7 @@ func TestFuzzDebate(t *testing.T) {
 			avenueMoves += o.avenueMoves
 			positionsRefused += o.positionsRefused
 			ordersRefused += o.ordersRefused
+			quotesRefused += o.quotesRefused
 			reopenedReadied += o.reopenedReadied
 			reopenedPlans += o.reopenedPlans
 			repeatsRefused += o.repeatsRefused
@@ -4729,6 +4775,12 @@ func TestFuzzDebate(t *testing.T) {
 		// refusal that holds it is reached only by the drive that writes a section out of place.
 		if ordersRefused == 0 {
 			t.Errorf("fuzz drove ZERO edits refused for a section out of order across %d runs — no drive wrote one, so the refusal that holds the order the report ships in is unexercised (false green)", completed)
+		}
+		// THE REPORT'S-SENTENCE GATE. The lens drive quotes a real span of the report under every
+		// outcome, so the refusal of a quote the report does not hold is reached only by the drive
+		// that quotes the source's sentence.
+		if quotesRefused == 0 {
+			t.Errorf("fuzz drove ZERO verifications or corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
 		}
 		// THE REPEATED-ACT GATE. No verb takes a correction: a seat that got an act wrong meets the
 		// refusal of its second, and that refusal names the act that answers the first. A drive

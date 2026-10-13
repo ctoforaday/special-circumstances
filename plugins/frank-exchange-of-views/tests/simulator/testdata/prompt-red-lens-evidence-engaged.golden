@@ -1,4 +1,4 @@
-prompt sha256: 33b0a9ec9c284ace3ad077437f7fffff95088ed16b64f82c76403238ef9348f1
+prompt sha256: e657db1ec09a26cf8ff8eb39b5b719529bf2e943b8529b29497aa71e8e036859
 
 Red lens sitting, area evidence, topic "the seat prompt contract".
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -8,8 +8,9 @@ A claim blue COMPUTED resolves to whether anyone has re-run it — an unaudited 
 A citation whose evidence entry lists pages is OCR text — a machine's reading of page images, which can misread: check it against one page's image and record which page.
 Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most.
 WHAT NOT TO RE-CHECK, because it is the sitting's whole economy: a claim verified at HIGH confidence in a prior sitting STAYS verified — do not re-fetch it UNLESS your work list says its sentence changed since, OR more than 2 epochs have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats).
-RECORD every claim you verify, naming the anchor you looked up and quoting the claim from the report.
+RECORD every claim you verify, naming the anchor you looked up.
 A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there is no anchor to name — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it.
+Either act quotes the REPORT's sentence, never the source's, whatever the source did.
 VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source.
 Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim through the run's cached read, so every seat after you reads the same bytes (an issue thread through `gh issue view <n> --comments`), and read it.
 WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation.
