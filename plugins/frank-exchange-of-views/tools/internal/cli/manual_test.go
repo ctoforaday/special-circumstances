@@ -143,11 +143,13 @@ func TestADroppedGroupPageHeldNothingButItsListing(t *testing.T) {
 	}
 }
 
-// EVERY PAGE IS THAT COMMAND'S OWN HELP, BYTE FOR BYTE, once its SHARED blocks are put back —
-// under a header naming it. A block lifted to SHARED whose marker was dropped fails here.
+// EVERY PAGE IS THAT COMMAND'S OWN HELP, BYTE FOR BYTE, once its SHARED blocks and the lines it
+// leaves off are put back — under a header naming it, on EVERY surface. There is no allowance: a
+// block whose marker was dropped, a closing block put back in the wrong place, a help flag restored
+// one column out all fail here, on the page they happened to.
 func TestEveryManualPageIsThatCommandsOwnHelp(t *testing.T) {
 	t.Parallel()
-	for _, seatID := range []string{record.SampleSeatOf("blue"), record.SampleSeatOf("lens")} {
+	for _, seatID := range everySurface() {
 		out, pages := manualOf(t, seatID)
 		if len(pages) < 10 {
 			t.Fatalf("%s: %d pages parsed — too few to be a surface", seatID, len(pages))
@@ -176,7 +178,7 @@ func TestEveryManualPageIsThatCommandsOwnHelp(t *testing.T) {
 }
 
 var markerID = regexp.MustCompile(`→ SHARED §(\d+)$`)
-var sharedLabel = regexp.MustCompile(`^§(\d+) \(on (\d+) pages\):$`)
+var sharedLabel = regexp.MustCompile(`^§(\d+) \((on|the last block of) (\d+) pages.*\):$`)
 
 // THE ECONOMY IS COMPLETE AND HONEST: every block that repeats verbatim on two pages is lifted, each
 // lifted block is marked on exactly as many pages as its label claims, and the manual comes out a
@@ -187,25 +189,43 @@ func TestTheManualLiftsEveryVerbatimRepeatAndMarksEachRemoval(t *testing.T) {
 		out, expanded := manualOf(t, seatID)
 		raw := diagnostics.ManualPages(out, InvokedAs())
 		claimed := map[string]int{}
+		closing := "none"
 		for _, l := range strings.Split(out, "\n") {
 			if m := sharedLabel.FindStringSubmatch(l); m != nil {
-				claimed[m[1]], _ = strconv.Atoi(m[2])
+				claimed[m[1]], _ = strconv.Atoi(m[3])
+				if m[2] != "on" {
+					closing = m[1]
+				}
 			}
 		}
 		if len(claimed) == 0 {
 			t.Fatalf("%s: nothing was lifted to SHARED — every page inherits the same global flags, so the economy did not run", role)
 		}
+		if closing == "none" {
+			t.Errorf("%s: no block closes its pages unmarked — the flags every command inherits are marked on every page again", role)
+		}
 		marked := map[string]int{}
 		paraPages := map[string]map[int]bool{}
 		for i, p := range raw {
+			marksClosing := false
 			for _, l := range strings.Split(p.Body, "\n") {
 				if m := markerID.FindStringSubmatch(l); m != nil {
-					marked[m[1]]++
+					marksClosing = marksClosing || m[1] == closing
+					if m[1] != closing {
+						marked[m[1]]++
+					}
 				}
+			}
+			// THE CLOSING BLOCK'S LABEL COUNTS THE PAGES IT CLOSES UNMARKED, so that is what is
+			// counted for it: the pages that carry no marker naming it.
+			if !marksClosing {
+				marked[closing]++
 			}
 			for _, para := range strings.Split(p.Body, "\n\n") {
 				para = strings.Trim(para, "\n")
-				if len(para) >= minShared {
+				// A command's own flag list stays on its page whoever else prints the same one —
+				// TestAPagesOwnFlagListIsNeverLiftedWhole — so it is not a repeat left unlifted.
+				if len(para) >= minShared && !strings.HasPrefix(para, diagnostics.ManualFlagsHeading+"\n") {
 					if paraPages[para] == nil {
 						paraPages[para] = map[int]bool{}
 					}
@@ -231,12 +251,178 @@ func TestTheManualLiftsEveryVerbatimRepeatAndMarksEachRemoval(t *testing.T) {
 		// how much the lifting saved. Counted in, it reads as lost economy on the smallest surface.
 		lifted := len(out) - len(wordsSection(out))
 		t.Logf("%s: manual %d chars (%d without the words section) against %d chars of the pages it stands for (%d%%), %d blocks in SHARED", role, len(out), lifted, whole, 100*lifted/whole, len(claimed))
-		// MEASURED 63–72% across the five surfaces (the operator's pages share least). A manual
+		// MEASURED 65–70% across the five surfaces (the operator's pages share least). A manual
 		// whose repeats stopped being lifted comes out at or above 100%, markers and all, so 80%
 		// is a bound that fires on the economy failing rather than on a page gaining a sentence.
 		if lifted > whole*8/10 {
 			t.Errorf("%s: the manual is %d chars against %d for the pages it stands for — the repeats are no longer being lifted", role, lifted, whole)
 		}
+	}
+}
+
+// NO PAGE SAYS WHAT EVERY PAGE WOULD SAY. On every surface: no page prints the help flag, a page
+// prints a Usage only where it says more than its own header, the manual says once what was left
+// off, and the surface's own page lists the inherited flags by reference instead of a second time.
+func TestNoManualPageRepeatsWhatIsSaidOnce(t *testing.T) {
+	t.Parallel()
+	for role, seatID := range everySurface() {
+		out, expanded := manualOf(t, seatID)
+		if !slices.Contains(strings.Split(out, "\n"), diagnostics.ManualLeftOff) {
+			t.Errorf("%s: the manual does not say what its pages leave off", role)
+		}
+		raw := diagnostics.ManualPages(out, InvokedAs())
+		usages := 0
+		for i, p := range raw {
+			name := strings.Join(p.Path, " ")
+			if strings.Contains(p.Body, "-h, --help") {
+				t.Errorf("%s: the page for %q prints the help flag", role, name)
+			}
+			standard := "Usage:\n  " + strings.TrimSpace(InvokedAs()+" "+name) + " [flags]\n\n"
+			if !strings.Contains(expanded[i].Body, "Usage:\n") {
+				t.Fatalf("%s: the help for %q has no Usage — this test would pass over nothing", role, name)
+			}
+			if strings.Contains(p.Body, "Usage:\n") {
+				usages++
+				if strings.Contains(expanded[i].Body, standard) {
+					t.Errorf("%s: the page for %q prints a Usage that only restates its header", role, name)
+				}
+			}
+		}
+		if usages == 0 || usages == len(raw) {
+			t.Errorf("%s: %d of %d pages print a Usage — the surface's own page says more than its header and a leaf does not, so both kinds exist", role, usages, len(raw))
+		}
+		own := raw[0].Body
+		if !strings.Contains(own, diagnostics.ManualEntriesLead) || strings.Contains(own, "--seat-id string") {
+			t.Errorf("%s: the surface's own page lists the inherited flags itself rather than by reference:\n%s", role, own[max(0, len(own)-600):])
+		}
+	}
+}
+
+func liftedOnce(t *testing.T, pages ...string) ([]sharedBlock, []string) {
+	t.Helper()
+	shared, bodies := shareRepeats(pages, make([]bool, len(pages)))
+	return shared, bodies
+}
+
+// PARAGRAPHS THAT ARE NEVER APART ARE ONE BLOCK UNDER ONE MARKER — and two that are apart on a
+// single page stay two, because one marker could not then say which of them a page carries.
+func TestParagraphsNeverApartAreLiftedAsOne(t *testing.T) {
+	t.Parallel()
+	a := "FREE TEXT AND THE SHELL. " + strings.Repeat("capture the value first. ", 4)
+	b := "  X=$(cat <<'EOF'\n  " + strings.Repeat("literal ", 12) + "\n  EOF\n  )"
+	page := func(lead string) string { return lead + "\n\n" + a + "\n\n" + b + "\n\nits own closing line\n" }
+	shared, bodies := liftedOnce(t, page("one"), page("two"), page("three"))
+	if len(shared) != 1 || shared[0].text != a+"\n\n"+b || shared[0].marks != 3 {
+		t.Fatalf("lifted %d blocks, want the two paragraphs as one block marked on 3 pages: %+v", len(shared), shared)
+	}
+	if n := strings.Count(bodies[0], "→ SHARED §"); n != 1 {
+		t.Errorf("the page carries %d markers for a pair that is never apart, want 1:\n%s", n, bodies[0])
+	}
+	// The second paragraph alone on a fourth page: the pair is no longer inseparable.
+	shared, _ = liftedOnce(t, page("one"), page("two"), page("three"), "four\n\n"+b+"\n")
+	if len(shared) != 2 {
+		t.Errorf("lifted %d blocks where one paragraph also appears without the other, want 2: %+v", len(shared), shared)
+	}
+}
+
+// THE SENTENCES SEVERAL FLAGS CLOSE WITH ARE LIFTED, AND EACH FLAG'S OWN SENTENCES STAY ON ITS
+// LINE. The cut falls where a sentence starts, never inside one, and a tail shared by fewer entries
+// than minTailEntries stays where it is.
+func TestASharedClosingSentenceIsLiftedAndTheFlagsOwnStay(t *testing.T) {
+	t.Parallel()
+	tail := "Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax."
+	page := func(noun string) string {
+		return "the " + noun + "\n\nFlags:\n      --quote text   select only the " + noun + " containing this text LITERALLY. " + tail + "\n"
+	}
+	nouns := []string{"avenues", "edits", "findings"}
+	shared, bodies := liftedOnce(t, page(nouns[0]), page(nouns[1]), page(nouns[2]))
+	if len(shared) != 1 || shared[0].text != tail || shared[0].marks != 3 {
+		t.Fatalf("lifted %+v, want the one closing sentence, marked on 3 entries", shared)
+	}
+	for i, noun := range nouns {
+		want := "      --quote text   select only the " + noun + " containing this text LITERALLY. " + diagnostics.ManualMarker("", 1)
+		if !strings.Contains(bodies[i], want+"\n") {
+			t.Errorf("the %s page does not keep its own sentence before the marker:\n%s", noun, bodies[i])
+		}
+	}
+	if shared, _ := liftedOnce(t, page(nouns[0]), page(nouns[1])); len(shared) != 0 {
+		t.Errorf("a tail on %d entries was lifted, and it takes %d: %+v", 2, minTailEntries, shared)
+	}
+	// AND ON A REAL SURFACE, AT THE OTHER PLACE A TAIL MAY BE CUT: the lens's filters each name what
+	// they select and then, after a dash, explain the filter in the same words.
+	out, _ := manualOf(t, record.SampleSeatOf("lens"))
+	if !regexp.MustCompile(`(?m)^\s+--\S.* — → SHARED §\d+$`).MatchString(out) {
+		t.Error("the lens manual lifts no explanation hung on a dash — its --match and --quote filters all close with the same one")
+	}
+}
+
+// A PAGE STILL SAYS WHICH FLAGS ITS COMMAND TAKES. Two commands with the same flags print the same
+// Flags section; each page keeps the section and every flag's name, and gives up the descriptions.
+func TestAPagesOwnFlagListIsNeverLiftedWhole(t *testing.T) {
+	t.Parallel()
+	match := "select only the entries matching this regex — " + strings.Repeat("every match is returned ", 3)
+	quote := "select only the entries containing this text — " + strings.Repeat("the span the verbs take ", 3)
+	flags := "Flags:\n      --match regex   " + match + "\n      --quote text    " + quote
+	shared, bodies := liftedOnce(t, "the debate\n\n"+flags+"\n", "the telemetry\n\n"+flags+"\n")
+	if len(shared) != 2 || shared[0].text != match || shared[1].text != quote {
+		t.Fatalf("lifted %+v, want the two descriptions and not the section", shared)
+	}
+	if want := "the debate\n\nFlags:\n      --match regex   → SHARED §1\n      --quote text    → SHARED §2\n"; bodies[0] != want {
+		t.Errorf("the page reads\n%q\nwant\n%q", bodies[0], want)
+	}
+	for role, seatID := range everySurface() {
+		out, _ := manualOf(t, seatID)
+		if strings.Contains(out, "("+diagnostics.ManualFlagsHeading+") → SHARED") {
+			t.Errorf("%s: a page's flag list is a marker — the page no longer says what its command takes", role)
+		}
+	}
+}
+
+// ONE BLOCK CLOSES ITS PAGES UNMARKED, AND ONLY WHERE THE RULE HAS NO EXCEPTION: a page that ends
+// some other way must mark the block, and where a page neither ends with it nor marks it, no block
+// closes anything and every page carries its marker.
+func TestTheClosingBlockIsUnmarkedOnlyWhereEveryPageAccountsForIt(t *testing.T) {
+	t.Parallel()
+	global := "Global Flags:\n      --json   " + strings.Repeat("emit a structured result ", 4)
+	ends := func(lead string) string { return lead + "\n\n" + global + "\n" }
+	shared, bodies := liftedOnce(t, ends("one"), ends("two"), "three\n\n"+global+"\n\nUse three.\n")
+	if len(shared) != 1 || shared[0].closes != 2 || shared[0].marks != 1 {
+		t.Fatalf("the block closes %d pages and is marked on %d, want 2 and 1: %+v", shared[0].closes, shared[0].marks, shared)
+	}
+	if bodies[0] != "one\n" || !strings.Contains(bodies[2], "→ SHARED §1\n\nUse three.") {
+		t.Errorf("a page it closes still carries it, or the page it does not close lost its marker:\n%q\n%q", bodies[0], bodies[2])
+	}
+	// A page without the block at all: "no marker means it ends with it" would be false there.
+	shared, bodies = liftedOnce(t, ends("one"), ends("two"), "three has none\n")
+	if len(shared) != 1 || shared[0].closes != 0 || shared[0].marks != 2 || !strings.Contains(bodies[0], "→ SHARED §1") {
+		t.Errorf("a block closes pages unmarked although one page neither ends with it nor marks it: %+v", shared)
+	}
+	// A page that did not run is exempt from the rule and keeps a marker of its own.
+	shared, bodies = shareRepeats([]string{ends("one"), ends("two"), ends("three")}, []bool{false, false, true})
+	if shared[0].closes != 2 || !strings.Contains(bodies[2], "→ SHARED §1") {
+		t.Errorf("a page printed as it came was closed without a marker: %+v\n%q", shared, bodies[2])
+	}
+}
+
+// A PAGE THE MANUAL CANNOT PUT BACK IS REFUSED, NOT PRINTED. A help that prints no help flag reads,
+// once lean, exactly like one that left it off — so the reader would add a line the command never
+// printed, and the command says so instead of handing a seat that page.
+func TestAManualThatWouldNotReadBackIsRefused(t *testing.T) {
+	// NOT PARALLEL: it stands a runHelp in, as TestAManualPageThatFailsIsReportedNotSkipped does.
+	orig := runHelp
+	t.Cleanup(func() { runHelp = orig })
+	runHelp = func(argv []string) (string, error) {
+		if argv[0] == "cite" {
+			return "a page with no flags section at all\n", nil
+		}
+		return orig(argv)
+	}
+	out, err := run(t, manualName, "--seat-id", "operator", "--for", record.SampleSeatOf("blue"))
+	if err == nil || !strings.Contains(err.Error(), "cite") {
+		t.Fatalf("a manual holding a page that cannot be put back returned %v — it must fail, naming the page", err)
+	}
+	if strings.Contains(out, diagnostics.ManualRule) {
+		t.Errorf("the manual was printed although it does not read back:\n%.300s", out)
 	}
 }
 

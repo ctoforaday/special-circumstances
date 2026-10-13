@@ -71,6 +71,122 @@ func TestExpandManualPutsEveryMarkerBack(t *testing.T) {
 	}
 }
 
+// THE FOUR OTHER WAYS A BLOCK COMES BACK, each on the smallest manual that uses it: the closing
+// block on a page that carries no marker for it, and not on one that marks it elsewhere; a block
+// of several paragraphs; a section's entries under a page's own heading; and a description's
+// closing sentences after the ones the flag keeps on its line.
+func TestExpandManualPutsBackWhatAPageDoesNotMark(t *testing.T) {
+	global := "Global Flags:\n      --json   emit JSON\n      --run string   the run"
+	pair := "FREE TEXT. Capture it first:\n\n  X=$(cat <<'EOF'\n  EOF\n  )"
+	tail := "Use this rather than the other."
+	text := "feov-record manual — lean\n\n" + ManualSharedHeading + "\n" +
+		ManualClosingLabel(1, 1) + "\n" + global + "\n\n" +
+		ManualSharedLabel(2, 2) + "\n" + pair + "\n\n" +
+		ManualSharedLabel(3, 3) + "\n" + tail + "\n\n" +
+		ManualRule + "\n" + ManualHeader("feov-record", []string{"a"}) + "\nabout a\n\n" + ManualMarker("(FREE TEXT. Capture it first:) ", 2) + "\n\nFlags:\n" + ManualMarker("      --quote text   select only the edits. ", 3) + "\n" +
+		ManualRule + "\n" + ManualHeader("feov-record", nil) + "\nthe surface\n\nFlags:\n" + ManualMarker(ManualEntriesLead, 1) + "\n  -v, --version   version\n\nUse it.\n" +
+		ManualRule + "\n" + ManualHeader("feov-record", []string{"b"}) + "\nabout b\n\n" + ManualMarker("(Global Flags:) ", 1) + "\n\nUse b.\n"
+	pages, err := ExpandManual(text, "feov-record")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"about a\n\n" + pair + "\n\nFlags:\n      --quote text   select only the edits. " + tail + "\n\n" + global + "\n",
+		"the surface\n\nFlags:\n      --json   emit JSON\n      --run string   the run\n  -v, --version   version\n\nUse it.\n",
+		"about b\n\n" + global + "\n\nUse b.\n",
+	}
+	for i, p := range pages {
+		if p.Body != want[i] {
+			t.Errorf("page %d expands to\n%q\nwant\n%q", i, p.Body, want[i])
+		}
+	}
+}
+
+// WHAT A PAGE LEAVES OFF COMES BACK EXACTLY, AND ONLY WHAT WAS LEFT OFF. The help flag returns at
+// its sorted place and its section's column, or as a section of its own; the Usage block returns
+// before the Flags section; and a page whose shape the restoration would get wrong keeps its lines.
+func TestALeanPageRestoresToTheHelpItCameFrom(t *testing.T) {
+	const bin = "feov-record"
+	global := "\nGlobal Flags:\n      --json   emit JSON\n"
+	for name, c := range map[string]struct {
+		path       []string
+		help, lean string
+	}{
+		"the help flag between two others": {
+			[]string{"verify"},
+			"judge it\n\nUsage:\n  feov-record verify [flags]\n\nFlags:\n      --anchor string   which\n  -h, --help            help for verify\n      --reason string   why\n" + global,
+			"judge it\n\nFlags:\n      --anchor string   which\n      --reason string   why\n" + global,
+		},
+		"the help flag last": {
+			[]string{"class", "new"},
+			"coin it\n\nUsage:\n  feov-record class new [flags]\n\nFlags:\n      --define string   what\n  -h, --help            help for new\n" + global,
+			"coin it\n\nFlags:\n      --define string   what\n" + global,
+		},
+		"no flag but help": {
+			[]string{"class", "list"},
+			"list them\n\nUsage:\n  feov-record class list [flags]\n\nFlags:\n  -h, --help   help for list\n" + global,
+			"list them\n" + global,
+		},
+		"no flag but help, and nothing after it": {
+			[]string{"assemble"},
+			"build it\n\nUsage:\n  feov-record assemble [flags]\n\nFlags:\n  -h, --help   help for assemble\n",
+			"build it\n",
+		},
+		"the surface's own page keeps a Usage that says more": {
+			nil,
+			"the surface\n\nUsage:\n  feov-record [flags]\n  feov-record [command]\n\nFlags:\n  -h, --help      help for feov-record\n      --json      emit JSON\n  -v, --version   version for feov-record\n",
+			"the surface\n\nUsage:\n  feov-record [flags]\n  feov-record [command]\n\nFlags:\n      --json      emit JSON\n  -v, --version   version for feov-record\n",
+		},
+		// Restored before the Flags section, the Usage would land after the aliases it precedes:
+		// the page keeps it, and gives up only the help flag.
+		"a Usage that is not directly before the flags stays": {
+			[]string{"fetch"},
+			"read it\n\nUsage:\n  feov-record fetch [flags]\n\nAliases:\n  fetch, get\n\nFlags:\n  -h, --help         help for fetch\n      --url string   where\n" + global,
+			"read it\n\nUsage:\n  feov-record fetch [flags]\n\nAliases:\n  fetch, get\n\nFlags:\n      --url string   where\n" + global,
+		},
+	} {
+		lean := LeanManualPage(bin, c.path, c.help)
+		if lean != c.lean {
+			t.Errorf("%s: the lean page is\n%q\nwant\n%q", name, lean, c.lean)
+		}
+		if got := RestoreManualPage(bin, c.path, lean); got != c.help {
+			t.Errorf("%s: the lean page restores to\n%q\nwant\n%q", name, got, c.help)
+		}
+	}
+	// A page with no help flag at all cannot be told from one that left it off: it is handed back
+	// whole, and it does not restore to itself — which is what the writer's read-back refuses.
+	const odd = "no flags here\n"
+	if lean := LeanManualPage(bin, []string{"odd"}, odd); lean != odd || RestoreManualPage(bin, []string{"odd"}, lean) == odd {
+		t.Errorf("a page that prints no help flag came back lean as %q, or restores to itself", lean)
+	}
+}
+
+// THE LICENCE IS THE LINE: a manual that does not say it left the Usage and the help flag off is
+// read as printed, and one that says so has them put back — except on a page that did not run.
+func TestExpandManualRestoresOnlyWhereTheManualSaysItLeftOff(t *testing.T) {
+	page := func(p string) string {
+		return ManualRule + "\n" + ManualHeader("feov-record", []string{p}) + "\nabout " + p + "\n\nFlags:\n      --reason string   why\n"
+	}
+	failed := ManualRule + "\n" + ManualHeader("feov-record", []string{"c"}) + "\n" + ManualFailedLead + ", so what follows is its error: boom\npartial\n"
+	asPrinted, err := ExpandManual("feov-record manual\n\n"+page("a"), "feov-record")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "about a\n\nFlags:\n      --reason string   why\n"; asPrinted[0].Body != want {
+		t.Errorf("a manual that left nothing off was changed in the reading: %q", asPrinted[0].Body)
+	}
+	restored, err := ExpandManual("feov-record manual\n\n"+ManualLeftOff+"\n\n"+page("a")+failed, "feov-record")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "about a\n\nUsage:\n  feov-record a [flags]\n\nFlags:\n  -h, --help            help for a\n      --reason string   why\n"; restored[0].Body != want {
+		t.Errorf("the page restores to %q, want %q", restored[0].Body, want)
+	}
+	if want := ManualFailedLead + ", so what follows is its error: boom\npartial\n"; restored[1].Body != want {
+		t.Errorf("a page that did not run was given lines it never printed: %q", restored[1].Body)
+	}
+}
+
 func TestRedirectTarget(t *testing.T) {
 	for cmd, want := range map[string]string{
 		`"/b/feov-record" manual > /s/m.txt`:       "/s/m.txt",
