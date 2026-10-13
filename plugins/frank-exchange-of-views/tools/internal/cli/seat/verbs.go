@@ -274,7 +274,10 @@ var views = []struct {
 	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion` and `rule`", "Every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks a PASS verdict, and this is the only way to read what it asks. Written by `motion <subject> file` and `rule`", "", true, record.MotionsJSON{}, true},
 	{"debate", "WHAT EACH SIDE ARGUED, epoch by epoch — the transcript, in order. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`", "the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`", "", false, record.DebateJSON{}, true},
 	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`", "every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`", "", false, record.ChangesJSON{}, false},
-	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `" + anchor.Token("C-…") + "` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `" + anchor.Token("P-…") + "` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.\n\nA `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` or a `reproduce` from a sitting opened after `edit` removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `" + anchor.Token("P-…") + "` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
+	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `" + anchor.Token("C-…") + "` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `" + anchor.Token("P-…") + "` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.\n\n" +
+		"A PROOF'S VERDICT IS THE OBJECT AT `verified`, NOT FIELDS OF ITS ROW: `.proofs[].verified.reproduced` and `.proofs[].verified.sound`, with the lens's `note` beside them, and `verified: null` is the one sign that nobody re-ran it. " +
+		"The row itself has no `reproduced` and no `sound`, and `jq` prints null for a field a row does not have — so a filter that rebuilds the object from the row, `{anchor, verified: {reproduced, sound}}`, prints null for every proof, verified or not. Write `.verified` whole, or `.verified.reproduced`. " +
+		"`counts.proofs_unverified` is how many proofs carry no verdict: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level.\n\nA `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` or a `reproduce` from a sitting opened after `edit` removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `" + anchor.Token("P-…") + "` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
 	{"avenues", "WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "", false, record.AvenuesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
@@ -491,15 +494,6 @@ func viewGroup(inquest bool) *cobra.Command {
 		// The seat's own default — its pending work and whether the sitting is finished.
 		return renderView(cmd, "")
 	}
-	// --id LIVES ON THE GROUP so the refusal below it can fire.
-	//
-	// It was registered on `changes` alone, which meant `show telemetry --id R1-1` never reached
-	// renderView: cobra rejected an unknown flag first and answered `unknown flag: --id`. The
-	// refusal written for that case — naming `changes` as the one view --id scopes — was
-	// unreachable, and the message a seat actually got did not say where --id does work. A
-	// carefully argued error nobody can reach is the same as no error at all.
-	c.PersistentFlags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID,
-		"scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)")
 	for _, v := range views {
 		if v.inquest {
 			continue // the bench's own group; see Inquest
@@ -551,13 +545,29 @@ func viewGroup(inquest bool) *cobra.Command {
 		// "only the edits matching"); `entries` is the honest default for a projection whose rows have
 		// no better word, rather than a name invented per view in a list that would go stale.
 		AddSelectorFlags(sub, selectorNoun(v.name))
+		// --id IS DECLARED ON THE ONE VIEW IT SCOPES. A flag printed on a page is a flag that works
+		// there: declared on the group, it stood in every view's `Global Flags` block beside the
+		// run and the seat, and two lenses in one run typed `show board --id <gap>` off that block.
+		// On any other view it is a flag the view does not have, and that refusal names the views
+		// and verbs on the seat's surface that do take it (RefuseUnknownFlag).
+		if v.name == "changes" {
+			sub.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID,
+				"scope this projection to one gap — red's required_fix beside the edits answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)")
+		}
 		if v.name == "report" {
+			// WHICH SELECTORS COMBINE IS SAID BESIDE EACH ONE, because a seat reads the line of the
+			// flag it is about to type and not the page above it: in one run --window was typed
+			// without --anchor twice and --match beside a bare --assembled three times, each a
+			// refused call. The refusals below (renderView) say the same things at the call.
 			sub.Flags().Var(flags.AnchorID(), flags.Anchor,
-				"read the report AT one anchor `id` (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back")
+				"read the report AT one anchor `id` (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match, --quote and --assembled are each refused with it")
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
-				"with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted)")
+				"ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted)")
 			sub.Flags().Bool(flags.Assembled, false,
-				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it")
+				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form")
+			for _, name := range []string{flags.Match, flags.Quote} {
+				sub.Flags().Lookup(name).Usage += reportSelectorBound
+			}
 		}
 		// ONE ENTRY, BY THE TOKEN THE SEAT IS HOLDING. The same flag `report` takes for the same
 		// id — one declaration (flags.AnchorID), so both refuse a malformed id in the same words
@@ -582,12 +592,23 @@ func atAnchorShapeSuffix(name string) string {
 	return "\n\nOUTPUT WITH --anchor (JSON — `source` or `proof`, whichever the anchor names): " + jsonshape.Tree(record.EvidenceAtJSON{})
 }
 
+// reportSelectorBound closes --match and --quote on the report's page with what each combines
+// with there: the pair is every view's, and only this view has an anchor read and an assembled form.
+const reportSelectorBound = ". Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json"
+
 // assembledShapeSuffix is the field tree of the report view's assembled layout, for the same reason.
+//
+// THE TWO JSON FORMS SPELL `heading` DIFFERENTLY, and the page says so where the field is listed:
+// a line of the report's text carries the heading line it sits under as written, hash marks and
+// all, and a section of the assembled set carries its name. A seat that selected on one form's
+// spelling in the other got nothing back, twice in one run.
 func assembledShapeSuffix(name string) string {
 	if name != "report" {
 		return ""
 	}
-	return "\n\nOUTPUT WITH --assembled --json: " + jsonshape.Tree(report.LayoutJSON{})
+	return "\n\nOUTPUT WITH --assembled --json: " + jsonshape.Tree(report.LayoutJSON{}) +
+		"\n\n`heading` IS SPELLED TWO WAYS. In --assembled --json it is the section's bare name — `Research areas`, no `#` marks. " +
+		"In the --json `lines` it is the heading line as the report writes it — `## Research areas`."
 }
 
 // evidenceAt reads the one evidence entry at an anchor, and for a proof joins the artifact the
@@ -626,19 +647,6 @@ func renderView(cmd *cobra.Command, want string) error {
 	run, rerr := Of(cmd).RequireRun()
 	if rerr != nil {
 		return rerr
-	}
-	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
-	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored). Silently
-	// dropping it is the worse failure — a seat that asked for one gap's edits and received
-	// every edit would read the answer as the answer to its question.
-	//
-	// CHECKED FIRST, BEFORE ANY VIEW DISPATCH, and that placement is the whole fix. It used to
-	// sit at the BOTTOM of this function, after every early-returning handler — so `show
-	// telemetry --id R1-1` reached the telemetry writer, printed the unscoped series and exited
-	// 0, which is precisely the failure the paragraph above describes. A guard is only a guard
-	// at the point the request arrives.
-	if scope := Str(cmd, flags.ID); scope != "" && want != "changes" && want != "" {
-		return feov.Errorf(feov.Validation, "--id scopes `show changes` and nothing else; the %s view has no scoped form, and answering it unscoped would hand you a different question's answer", want)
 	}
 	if want == "" {
 		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views

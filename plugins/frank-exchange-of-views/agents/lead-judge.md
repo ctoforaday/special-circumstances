@@ -163,7 +163,7 @@ needed and what you would have done with 'log', as a request — a missing
 capability is a fact about the tooling, and the log is how it reaches the operator
 who can retool you.
 
-§2 (on 15 pages):
+§2 (on 22 pages):
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
@@ -197,18 +197,10 @@ EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules)
 §9 (on 3 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
-§10 (on 7 pages):
-Global Flags:
-      --id gap-id        scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
-      --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
-
-§11 (on 2 pages):
+§10 (on 2 pages):
 select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§12 (on 2 pages):
+§11 (on 2 pages):
 select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ==============================================================================
@@ -638,8 +630,7 @@ Available Commands:
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch, and every act you record says where you then stand, so you rarely need to ask. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
 
 Flags:
-  -h, --help        help for show
-      --id gap-id   scope the changes projection to one gap — red's required_fix beside the edits answering it. For part of a projection by its TEXT rather than by a gap, every view takes --match (a regex) or --quote (a literal, the same span the acting verbs take)
+  -h, --help   help for show
 
 (Global Flags:) → SHARED §2
 
@@ -662,7 +653,7 @@ Flags:
       --match regex   select only the avenues matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the avenues containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record show board --help
 THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
@@ -681,10 +672,10 @@ Usage:
 Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
   -h, --help            help for board
-      --match regex     → SHARED §11
-      --quote text      → SHARED §12
+      --match regex     → SHARED §10
+      --quote text      → SHARED §11
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record show changes --help
 every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`
@@ -700,13 +691,16 @@ Usage:
 
 Flags:
   -h, --help          help for changes
+      --id gap-id     scope this projection to one gap — red's required_fix beside the edits answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
       --match regex   select only the edits matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the edits containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.
+
+A PROOF'S VERDICT IS THE OBJECT AT `verified`, NOT FIELDS OF ITS ROW: `.proofs[].verified.reproduced` and `.proofs[].verified.sound`, with the lens's `note` beside them, and `verified: null` is the one sign that nobody re-ran it. The row itself has no `reproduced` and no `sound`, and `jq` prints null for a field a row does not have — so a filter that rebuilds the object from the row, `{anchor, verified: {reproduced, sound}}`, prints null for every proof, verified or not. Write `.verified` whole, or `.verified.reproduced`. `counts.proofs_unverified` is how many proofs carry no verdict: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level.
 
 A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` or a `reproduce` from a sitting opened after `edit` removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.
 
@@ -733,7 +727,7 @@ Flags:
       --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record show findings --help
 Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps
@@ -754,7 +748,7 @@ Flags:
       --match regex   select only the findings matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
       --quote text    select only the findings containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
@@ -767,6 +761,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {head,lines:[
 
 OUTPUT WITH --assembled --json: {sections:[{file,heading,line,composer,from,path,ships,own_in_report,authored_headings:[string],text}]}
 
+`heading` IS SPELLED TWO WAYS. In --assembled --json it is the section's bare name — `Research areas`, no `#` marks. In the --json `lines` it is the heading line as the report writes it — `## Research areas`.
+
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 (X=$(cat <<'EOF') → SHARED §4
@@ -775,14 +771,14 @@ Usage:
   feov-record show report [flags]
 
 Flags:
-      --anchor id     read the report AT one anchor id (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back
-      --assembled     read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it
+      --anchor id     read the report AT one anchor id (F-…, C-…, P-… or G-…) rather than whole — you get the LIVE text there, its section heading, and line numbers to quote back. Takes --window and --json beside it and no other selector: --match, --quote and --assembled are each refused with it
+      --assembled     read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form
   -h, --help          help for report
-      --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
-      --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
-      --window int    with --anchor: how many paragraphs of content either side of it (blank lines are kept, not counted) (default 3)
+      --match regex   select only the report lines matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut. Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json
+      --quote text    select only the report lines containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else. Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json
+      --window int    ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 ==============================================================================
 $ feov-record show work --help
 **YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left. ON THE CHAIR'S LIST a blocking item holds a PASS, and one with `another_seat_clears` is the board's state: another seat's act clears it, and it is not the chair's to clear. No other seat's list holds one.
@@ -818,9 +814,9 @@ Usage:
 
 Flags:
   -h, --help          help for work
-      --match regex   → SHARED §11
-      --quote text    → SHARED §12
+      --match regex   → SHARED §10
+      --quote text    → SHARED §11
 
-(Global Flags:) → SHARED §10
+(Global Flags:) → SHARED §2
 
 <!-- END GENERATED SURFACE -->

@@ -64,7 +64,7 @@ var MotionVerdicts = map[string][]EnumValue{
 // usually applied.
 var MotionFields = map[string]map[string][]EnumValue{
 	// FROM THE SCHEMA, not typed here: the four axes and what each means are GradeDimension's.
-	"grade": {"dimension": evsOf(recordpb.GradeDimension(0).Descriptor())},
+	"grade": {"dimension": gradeMotionAxes()},
 	"petition": {
 		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass
 		// carried a different four, and the write path resolves against the enum — so `ethical`
@@ -86,9 +86,30 @@ var MotionFields = map[string]map[string][]EnumValue{
 	},
 }
 
+// complexityContest is what a grade MOTION adds to the complexity axis, and it is declared here,
+// where the motion's menu is built, because it is a fact about contesting a grade and not about
+// the axis: the lens setting the grade reads what the axis means and nothing more, and the seat
+// choosing which axis to contest reads why this one is the lever.
+const complexityContest = "the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"
+
+// gradeMotionAxes is the dimension menu of a grade motion: GradeDimension's four axes with each
+// one's meaning, and on complexity the contest clause after it. An enum with no complexity axis
+// is a schema this table no longer describes, and it says so when the table is built.
+func gradeMotionAxes() []EnumValue {
+	axes := evsOf(recordpb.GradeDimension(0).Descriptor())
+	complexity := recordpb.Word(recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY)
+	for i := range axes {
+		if axes[i].Name == complexity {
+			axes[i].Means += " — " + complexityContest
+			return axes
+		}
+	}
+	panic("record: GradeDimension has no " + complexity + " axis for the grade motion's menu to describe")
+}
+
 // AxisMeans is what one grade axis means: the `(means)` on its GradeDimension value, which is the
-// sentence the dimension menu above prints. A flag that sets the axis prints it too, so the seat
-// grading a gap and the seat contesting the grade read one definition.
+// sentence the dimension menu above opens each axis with. A flag that sets the axis prints it too,
+// so the seat grading a gap and the seat contesting the grade read one definition.
 //
 // It panics on an axis with no meaning — a schema defect, met when a verb's flags are built.
 func AxisMeans(d recordpb.GradeDimension) string {

@@ -1573,7 +1573,7 @@ enum GradeDimension {
   GRADE_DIMENSION_SEVERITY = 1 [(means) = "how bad the defect is in itself"];
   GRADE_DIMENSION_LIKELIHOOD = 2 [(means) = "how likely the CONSEQUENCE is — never how likely the defect is to BE there"];
   GRADE_DIMENSION_IMPACT = 3 [(means) = "how bad the consequence is if it lands"];
-  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what fixing it costs — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"];
+  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what fixing it costs"];
 }
 
 // PetitionMotion is the constitutional short-circuit: any party seat may petition the bench.

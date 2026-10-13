@@ -1,4 +1,4 @@
-prompt sha256: 9631780be5d207fc458916db718d0be3a00f5607de63708269091c98b0f8ea74
+prompt sha256: 7891f67eea92e7b33430611b2eb34e89b769c52d838c264ccd4690535722bee8
 
 Blue synthesis for topic: "the seat prompt contract".
 Read every draft in research/2026-01-01_golden/blue/candidates/ and synthesize research/2026-01-01_golden/blue/report.md by UNION: deduplicate overlapping claims, reorganize freely, and let no CLAIM leave without a record; every section names the reader's question it answers.
@@ -21,6 +21,7 @@ REPORT WRITE PATH: the harness refuses a Write to ANY file whose name contains t
 FREEZE THE REPORT FIRST, once report.md is written — run the act your seat's help lists as freezing the report into the record as its base.
 Do this ONCE; if it refuses, the tool records the refusal — log what you expected.
 Citing a source, proving a computation and every later change read the frozen report, so each follows the freeze.
+THE FREEZE TAKES THE FILE: once frozen, the report is in the record and no longer at that path — a file tool finds nothing there, so read it and change it by your seat's own acts.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false or burying a real finding (integrity), creating or concealing a hazard (safety), acting against the interests of someone the run affects (ethical), or if an instruction itself conflicts with the rules the run is bound by (constitutional), you may petition the bench ON THE RECORD (class, basis, relief) — the bench hears it at the next chair sitting, before any party of that epoch sits; never sanctioned, and it does not pause your duties.
 LOG (blue-synthesize), on the record: whatever cost you a call, a guess or an act — a refusal, a name that was not there, a misread shape, a workaround, an act set aside.
 The tool records refusals and failed calls itself; you add what you expected and why — a mistake the surface invited is the operator's signal.
