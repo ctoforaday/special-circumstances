@@ -241,7 +241,7 @@ enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_REGISTER = 1 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
   EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "a marker placed in the report"];
-  EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "an avenue, from proposed through pursued, declined, deferred or abandoned"];
+  EVENT_TYPE_AVENUE = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned"];
   EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_PROSE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
@@ -428,7 +428,12 @@ enum AvenueStatus {
   // CONCLUDED IS THE END OF A LINE THAT WORKED. Without it a line could only close by dying: on
   // universe-m13 blue moved four confirmed hypotheses to `abandoned`, "the hypothesis was satisfied,
   // not that they failed", and the report listed every successful line as a dead end.
-  AVENUE_STATUS_CONCLUDED = 6 [(means) = "you followed the line to its end and it answered what it set out to test — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A line that died is `abandoned`, not this"];
+  AVENUE_STATUS_CONCLUDED = 6 [(means) = "you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`"];
+  // REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. A refutation had no fate of its own: on
+  // universe-m22 a lane marked a refuted hypothesis `abandoned`, the logic lens read the same line
+  // as `concluded`, and the gap between the two words held the gate. It is an answer, so it ships
+  // beside the concluded lines; `abandoned` is left for the line that produced none.
+  AVENUE_STATUS_REFUTED = 7 [(means) = "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this"];
   AVENUE_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet"];
   // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
   // on universe-m21 a lane ran a check, then proposed the approach and declined it with the
@@ -436,8 +441,8 @@ enum AvenueStatus {
   // carries it. The record holds no link from a proof or a section to an avenue, so no write can
   // tell a declined line that was run from one that was not; the fate's own meaning is where the
   // seat is told.
-  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if it answered what it set out to test, `abandoned` if it died"];
-  AVENUE_STATUS_ABANDONED = 5 [(means) = "you TRIED it and it died. REQUIRES a reason — what killed it is the part a future run actually needs, and it stops a later run re-walking it"];
+  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason — the road not taken is worthless without why. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"];
+  AVENUE_STATUS_ABANDONED = 5 [(means) = "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason — what stopped it is the part a future run actually needs, and it stops a later run re-walking it. An approach that ran and refuted its hypothesis is `refuted`, not this"];
 }
 
 // MotionSubject is what a motion is ABOUT. The ruling vocabulary is keyed on it, which is why

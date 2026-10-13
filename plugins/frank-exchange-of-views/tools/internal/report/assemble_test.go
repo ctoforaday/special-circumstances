@@ -145,14 +145,109 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
 	})
 	alt := avenueSection(t, board, "Alternatives considered")
-	if !strings.Contains(alt, "**sieve to the square root** [abandoned] —") {
-		t.Errorf("a line pursued and then abandoned keeps the plain tag:\n%s", alt)
+	const fate = "\n  - **Fate:** abandoned. **Why:** "
+	if !strings.Contains(alt, "- **Question:** sieve to the square root"+fate+"the bound is 9, so the sieve adds nothing") {
+		t.Errorf("a line pursued and then abandoned keeps the plain fate:\n%s", alt)
 	}
-	if !strings.Contains(alt, "**check a computer-algebra system** [abandoned] —") {
+	if !strings.Contains(alt, "- **Question:** check a computer-algebra system"+fate+"no such system is available here") {
 		t.Errorf("a line abandoned straight from proposed carries the fate its seat recorded:\n%s", alt)
 	}
 	if strings.Contains(alt, "before pursuit") {
 		t.Errorf("the row says something about the path that no seat recorded:\n%s", alt)
+	}
+}
+
+// THE ROW SAYS WHAT WAS ASKED, WHAT WAS EXPECTED, WHAT BECAME OF IT AND WHAT WAS FOUND, each under
+// its own label, so a reader cannot take the question or the hypothesis for a claim of the
+// report's. On universe-m22 the line "…showing that a single passing test is not evidence of
+// primality" stood in bold beside the finding that a passing test IS evidence; the hypothesis was
+// on the record and printed nowhere.
+func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
+	av := func(id string, st recordpb.AvenueStatus, line, hyp, reason string) *record.Event {
+		return recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String(id), Status: st.Enum(),
+			Line: proto.String(line), Hypothesis: proto.String(hyp), Reason: proto.String(reason)})
+	}
+	board := famOf(t, []*record.Event{
+		av("Q1", recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED, "whether one Fermat test settles it", "a passing test is no evidence of primality", "whether one Fermat test settles it"),
+		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Method: proto.String("computation"),
+			Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REFUTED), Reason: proto.String("a passing test is evidence, not proof")}),
+		av("Q2", recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED, "whether trial division settles it", "", "7 divides 91"),
+		av("Q3", recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED, "whether a sieve is faster", "it is", "whether a sieve is faster"),
+		av("Q4", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "whether a lookup table exists", "one does", "the bound is 9"),
+	})
+	research := avenueSection(t, board, "Research areas")
+	for name, want := range map[string]string{
+		"a refuted avenue prints its hypothesis as one and says it did not hold": "- **Question:** whether one Fermat test settles it _(computation)_\n" +
+			"  - **Hypothesis:** a passing test is no evidence of primality\n" +
+			"  - **Fate:** refuted. **Found:** a passing test is evidence, not proof",
+		"an avenue with no hypothesis prints no hypothesis line": "- **Question:** whether trial division settles it\n" +
+			"  - **Fate:** concluded. **Found:** 7 divides 91",
+		"an avenue never moved has found nothing, and its question is not printed twice": "- **Question:** whether a sieve is faster\n" +
+			"  - **Hypothesis:** it is\n" +
+			"  - **Fate:** proposed.",
+	} {
+		if !strings.Contains(research+"\n", want+"\n") {
+			t.Errorf("%s; want the row\n%s\nin\n%s", name, want, research)
+		}
+	}
+	if strings.Contains(research, "**whether") {
+		t.Errorf("a question is printed in bold, as a claim of the report's would be:\n%s", research)
+	}
+	alt := avenueSection(t, board, "Alternatives considered")
+	if want := "  - **Hypothesis:** one does\n  - **Fate:** declined. **Why:** the bound is 9"; !strings.Contains(alt, want) {
+		t.Errorf("an approach that did not run found nothing: its reason is why it stands there; want\n%s\nin\n%s", want, alt)
+	}
+}
+
+// A ROW IS ONE LIST ITEM HOWEVER MANY PARAGRAPHS ITS PROSE HOLDS. The archived sleeper-service-plan
+// and quadratic-formula runs hold lines written as two and three paragraphs; printed as written,
+// the blank line ended the item, the later paragraphs stood outside the list, and the hypothesis
+// and fate opened a list of their own. Markdown and the site read the same rule: a line indented
+// under an item, with no blank line before it, continues the item.
+func TestAnAvenueRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
+	board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"),
+		Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REFUTED), Method: proto.String("census"),
+		Line: proto.String("APPROACH: census the plan.\n\nARGUMENT: ordering is scarce."), Hypothesis: proto.String("one exists\nand it is explicit"),
+		Reason: proto.String("none exists.\n\nThe plan names no function.")})})
+	got := avenueSection(t, board, "Research areas")
+	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce. _(census)_\n" +
+		"  - **Hypothesis:** one exists  \n    and it is explicit\n" +
+		"  - **Fate:** refuted. **Found:** none exists.  \n    The plan names no function."
+	if !strings.Contains(got, want) {
+		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
+	}
+	html := mdToHTML(got, FileReport, anchors{}, map[string]int{})
+	if n := strings.Count(html, "<ul>"); n != 2 {
+		t.Errorf("the row opens %d lists on the site; one row is one item holding one nested list:\n%s", n, html)
+	}
+	if strings.Contains(html, "<p>") {
+		t.Errorf("a paragraph of the row stands outside its list on the site:\n%s", html)
+	}
+}
+
+// EVERY FATE PRINTS AS THE WORD ITS SEAT FILED, WITH NO GLOSS. A gloss says more than the record
+// holds — an archived `abandoned` whose reason is a refutation, an archived `pursued` that is where
+// an approach came to rest — so the word stands alone. Only an approach that ran reports what it
+// FOUND. A fate the enum gains fails here until its label is decided.
+func TestEveryAvenueFateIsSaidOnItsRow(t *testing.T) {
+	label := map[string]string{
+		"proposed": "Why", "pursued": "Found", "concluded": "Found", "refuted": "Found",
+		"deferred": "Why", "declined": "Why", "abandoned": "Why",
+	}
+	for _, status := range record.AvenueStatusNames() {
+		st := recordpb.AvenueStatus(recordpb.AvenueStatus_value["AVENUE_STATUS_"+strings.ToUpper(status)])
+		board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"),
+			Status: st.Enum(), Line: proto.String("whether a sieve is faster"), Reason: proto.String("the bound is 9")})})
+		want := "- **Question:** whether a sieve is faster\n  - **Fate:** " + status + ". **" + label[status] + ":** the bound is 9"
+		var got string
+		for _, heading := range []string{"Research areas", "Future research directions", "Alternatives considered"} {
+			if s := avenueSection(t, board, heading); strings.Contains(s, "**Question:**") {
+				got = s
+			}
+		}
+		if !strings.Contains(got+"\n", want+"\n") {
+			t.Errorf("the fate %q: want the row\n%s\ngot\n%s", status, want, got)
+		}
 	}
 }
 
@@ -168,7 +263,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 	}
 	alt := avenueSection(t, board, "Alternatives considered")
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
-		t.Errorf("a rejected avenue is an alternative considered, its reason the counter:\n%s", alt)
+		t.Errorf("an abandoned avenue is an alternative considered, its reason the counter:\n%s", alt)
 	}
 	if !strings.Contains(alt, "third-party audit") {
 		t.Errorf("a declined avenue is also an alternative considered:\n%s", alt)
@@ -188,7 +283,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 //
 // It ranged over `record.AvenueStatuses`, which is `[]EnumValue`, and passed the STRUCT to
 // `Set("status", status)`. `Payload.Str` returns "" for a non-string, so `a.Status` was the empty
-// string on all five iterations. With `rejected` defined as the complement of `accepted`, "" fell
+// string on all five iterations. With setAside defined as the complement of taken, "" fell
 // into alternatives every time and `in != inAlt` held — so it passed, five times, having exercised
 // no status at all. A test whose entire subject is "every status reaches a section" had never seen
 // one. Found 2026-08-16 while adding the third section. It ranges over AvenueStatusNames() now.
@@ -200,7 +295,8 @@ func TestAvenuesSplitByFate(t *testing.T) {
 //	                     which is a decision. Filing it under "Alternatives considered" said the
 //	                     opposite of its fate, and only the `[deferred]` tag on the row
 //	                     contradicted the heading above it.
-//	declined, abandoned  Alternatives considered — weighed and not taken, or tried and died
+//	concluded, refuted  "Research areas" — an approach that ran and answered, whichever way
+//	declined, abandoned  Alternatives considered — weighed and never run, or started with no answer
 //	proposed             "Research areas", beside `pursued`, with `[proposed]` on its own row. A
 //	                     first cut excluded it from every section (TestFuzzDebate refused: a seat's
 //	                     recorded reasoning must reach the reader) and a second gave it a fourth
@@ -214,6 +310,7 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
 		"pursued":   "research",
 		"concluded": "research", // a line followed to its end is one the research took
+		"refuted":   "research", // a refutation is an answer: it stands beside the confirmations
 		"proposed":  "research", // an undecided line IS an area this run is researching
 		"deferred":  "future",
 		"declined":  "alternatives",
@@ -363,6 +460,9 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 			seen[key] = true
 		}
 		if s.fate != nil {
+			if !strings.Contains(s.From, "the question it asks, its hypothesis, its fate, and what was found or why it stands there") {
+				t.Errorf("avenue section %q: its row does not say what a row of it holds: from %q", s.Heading, s.From)
+			}
 			for _, f := range fatesOf(s) {
 				if !strings.Contains(s.Path, "`"+f+"`") || !strings.Contains(s.From, f) {
 					t.Errorf("avenue section %q holds %q and its row does not say so: from %q, path %q", s.Heading, f, s.From, s.Path)
@@ -526,7 +626,7 @@ func TestAvenueRulingAndSeatStayOutOfTheReport(t *testing.T) {
 		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
 	})
 	exp := avenueSection(t, board, "Research areas")
-	if !strings.Contains(exp, "- **survey the adjacent literature**") {
+	if !strings.Contains(exp, "- **Question:** survey the adjacent literature\n") {
 		t.Fatalf("the line itself must still reach the report:\n%s", exp)
 	}
 	for _, leak := range []string{"out_of_scope", "a real question, not THIS run's", "against red's", "ruled", "(blue-r"} {

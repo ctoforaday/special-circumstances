@@ -28,7 +28,7 @@ import (
 // blue has put forward and not yet resolved, which is the state the old shape could not
 // express at all (everything had to be declared already-pursued or already-dead).
 // `deferred` is the fate that had no name: a direction worth taking, and not by THIS run.
-// It is not `declined` (judged not worth it) and not `abandoned` (tried, died) — it is kept,
+// It is not `declined` (weighed, never run) and not `abandoned` (started, no answer) — it is kept,
 // and it is the carrier for bootstrapping a later run. Deliberately a PROPOSAL for a human
 // to select rather than a seed: a run that queues its own successor is a loop with no human
 // in it.
@@ -52,10 +52,11 @@ type Avenue struct {
 	Reason     string   // the reason attached to the CURRENT status
 	Epoch      int      // the epoch the current status was set in
 	History    []string // "r0 pursued", "r2 abandoned" …
-	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "tried, and it
-	// died" by the enum's own meaning, and `concluded` is a line followed to its end; a seat reaches
-	// either straight from `proposed`, so the absence of a `pursued` step says how many moves the
-	// seat recorded and nothing about whether the line was taken. History holds the path.
+	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "started, and no
+	// answer came" by the enum's own meaning, and `concluded` and `refuted` are approaches that ran
+	// and answered; a seat reaches any of them straight from `proposed`, so the absence of a `pursued`
+	// step says how many moves the seat recorded and nothing about whether the line was taken. History
+	// holds the path.
 	SeatID string // who last moved it — attribution the one-line row has always carried
 	// Ruling, RulingWhy and RuledEpoch are the line's FIRST ruling that stands, all three from
 	// that one act: the rule the write enforces and motion_answers states.
@@ -150,8 +151,8 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// deliberately — `Word(t.Status)` would pass a typed nil pointer into an interface
 			// that is not nil, and panic on the absent case this line exists to handle.
 			//
-			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/deferred/
-			// declined/abandoned carries an underscore. AvenueRuling's words do (`out_of_scope`,
+			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/refuted/
+			// deferred/declined/abandoned carries an underscore. AvenueRuling's words do (`out_of_scope`,
 			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())
 			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()

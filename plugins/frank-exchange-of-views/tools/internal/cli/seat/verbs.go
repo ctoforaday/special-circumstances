@@ -278,7 +278,7 @@ var views = []struct {
 		"A PROOF'S VERDICT IS THE OBJECT AT `verified`, NOT FIELDS OF ITS ROW: `.proofs[].verified.reproduced` and `.proofs[].verified.sound`, with the lens's `note` beside them, and `verified: null` is the one sign that nobody re-ran it. " +
 		"The row itself has no `reproduced` and no `sound`, and `jq` prints null for a field a row does not have — so a filter that rebuilds the object from the row, `{anchor, verified: {reproduced, sound}}`, prints null for every proof, verified or not. Write `.verified` whole, or `.verified.reproduced`. " +
 		"`counts.proofs_unverified` is how many proofs carry no verdict: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level.\n\nA `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` or a `reproduce` from a sitting opened after `edit` removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.\n\nTO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `" + anchor.Token("P-…") + "` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `" + anchor.Token("C-…") + "` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.\n\nTHIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `" + anchor.Token("F-…") + "` is a finding's, which `show findings` resolves, and a `" + anchor.Token("G-…") + "` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`", "", true, record.EvidenceJSON{}, false},
-	{"avenues", "WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "the exploration space: avenues taken, concluded, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "", false, record.AvenuesJSON{}, false},
+	{"avenues", "WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, refuted, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "the exploration space: avenues taken, concluded, refuted, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`", "", false, record.AvenuesJSON{}, false},
 	{"telemetry", "HOW THE NUMBERS MOVED ACROSS EPOCHS — a trend, not a snapshot: one line per epoch (chair sitting), and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads — the bench's signal for whether the findings are still changing character or merely recurring", "", true, view.TelemetryLineShape(), true},
 }
 
@@ -564,7 +564,7 @@ func viewGroup(inquest bool) *cobra.Command {
 			sub.Flags().Int(flags.Window, anchor.DefaultWindow,
 				"ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted)")
 			sub.Flags().Bool(flags.Assembled, false,
-				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form")
+				"read the ASSEMBLED report set rather than the report's text: every section in shipping order, who composes it and how content reaches it — a listing WITHOUT the sections' text, which the --json form carries. With --json, --match and --quote select its sections; without --json they are refused beside it, and --anchor and --window are refused beside it in either form")
 			for _, name := range []string{flags.Match, flags.Quote} {
 				sub.Flags().Lookup(name).Usage += reportSelectorBound
 			}
@@ -839,7 +839,10 @@ func renderView(cmd *cobra.Command, want string) error {
 			} else if sel.Active() {
 				return feov.Errorf(feov.Validation, "--match and --quote select sections from the --json form of --assembled; the bare form prints every section")
 			}
-			_, werr := fmt.Fprint(cmd.OutOrStdout(), layout.Markdown())
+			if _, werr := fmt.Fprint(cmd.OutOrStdout(), layout.Markdown()); werr != nil {
+				return werr
+			}
+			_, werr := fmt.Fprintln(cmd.ErrOrStderr(), report.LayoutHasNoText)
 			return werr
 		}
 		var b []byte

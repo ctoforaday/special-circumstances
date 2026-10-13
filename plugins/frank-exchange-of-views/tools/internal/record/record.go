@@ -1306,8 +1306,9 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			// behind it.
 			return fmt.Errorf("requires --%s (what you are going to try — an unnamed avenue teaches a future run nothing)", flags.ForPayloadKey("line"))
 		}
-		// A declined or abandoned avenue with no reason is the decoration this verb
-		// exists to prevent: the road not taken is worthless without why.
+		// An avenue given a fate with no reason is the decoration this verb exists to prevent: the
+		// road not taken is worthless without why, and an approach that ran with nothing said about
+		// what it found reads as one that was dropped.
 		// The guard excludes the zero, so the reason rule never reports a missing status as a
 		// missing reason. An unset status is refused before this arm by the required-field walk
 		// (recordpb.CheckRequired at the top of validate), which names `--as` because `status` is
@@ -1320,10 +1321,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			if st == recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED {
 				return fmt.Errorf("record: a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
 			}
-			if st == recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED {
-				return fmt.Errorf("record: a concluded avenue requires --reason — what the line found, in the subject's terms. It is printed in the report beside the line, and a line that ended with nothing said about what it found reads as one that was dropped")
+			if st == recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED || st == recordpb.AvenueStatus_AVENUE_STATUS_REFUTED {
+				return fmt.Errorf("record: a %s avenue requires --reason — what the approach found, in the subject's terms. It is printed in the report on the avenue's row, and an approach that ran with nothing said about what it found reads as one that was dropped", recordpb.Word(st))
 			}
-			return fmt.Errorf("record: a %s avenue requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
+			return fmt.Errorf("record: a %s avenue requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
 	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S AVENUES.
 	//
