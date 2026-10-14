@@ -109,11 +109,13 @@ func TestEveryRulingFateHandsBlueADuty(t *testing.T) {
 			switch chair {
 			case 1:
 				e["plan"] = planJSON(t, record.Plan{Head: 2, Docket: gaps,
-					Parties: []record.Party{{SeatID: "judge", GapIDs: gaps, Occasions: []string{"docket"}}}})
+					Parties:  []record.Party{{SeatID: "judge", GapIDs: gaps, Occasions: []string{"docket"}}},
+					Blockers: []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}})
 			case 2:
 				e["plan"] = planJSON(t, record.Plan{Head: 2,
 					Parties:    []record.Party{{SeatID: "blue-respond", GapIDs: gaps}},
-					RemandOwed: []record.RemandOwed{{GapID: owed, Direction: direction}}})
+					RemandOwed: []record.RemandOwed{{GapID: owed, Direction: direction}},
+					Blockers:   []record.PlanBlocker{{Kind: record.BlockerMaterialGap, Subject: owed, Owner: "red-lens-logic"}}})
 			default:
 				e["plan"] = planJSON(t, record.Plan{Head: 2, PassPermitted: true})
 				e["verdict"] = "PASS"

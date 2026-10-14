@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -179,14 +180,58 @@ func (v vocabulary) renderPlan(b *strings.Builder) error {
 	if len(props) == 0 {
 		return fmt.Errorf("record.Plan relays no field")
 	}
-	b.WriteString(block("PLAN", required, props))
+	rule, emptyOnlyWith, err := emptyOnlyWithOf(v.plan)
+	if err != nil {
+		return err
+	}
+	var extra []prop
+	if rule != "" {
+		extra = append(extra, prop{"anyOf", rule})
+	}
+	b.WriteString(block("PLAN", required, props, extra...))
 	fmt.Fprintf(b, "const PLAN_FIELD_TYPES = %s\n", object(types...))
+	fmt.Fprintf(b, "const PLAN_EMPTY_ONLY_WITH = %s\n", object(emptyOnlyWith...))
 	b.WriteString("const PLAN_ITEM_TYPES = {\n")
 	for _, t := range itemTypes {
 		fmt.Fprintf(b, "  %s: %s,\n", t.key, t.val)
 	}
 	b.WriteString("}\n")
 	return nil
+}
+
+// emptyOnlyWithOf is the plan's one EmptyOnlyWith rule as a schema clause — the list non-empty, or
+// the boolean true — and as the table the engine's own check walks. A rule naming no boolean of
+// the plan, or held by a nested field or by a second field, is refused: the clause is written for
+// one rule on the plan itself.
+func emptyOnlyWithOf(fs []record.PlanField) (string, []prop, error) {
+	var rules []prop
+	var list, flag string
+	for _, f := range fs {
+		for _, i := range f.Items {
+			if i.EmptyOnlyWith != "" {
+				return "", nil, fmt.Errorf("record.Plan's %s.%s states an emptyonlywith rule, and the schema states one only on the plan's own fields", f.JSON, i.JSON)
+			}
+		}
+		if f.EmptyOnlyWith == "" {
+			continue
+		}
+		at := slices.IndexFunc(fs, func(g record.PlanField) bool { return g.JSON == f.EmptyOnlyWith })
+		if f.Type != "array" || f.Optional || at < 0 || fs[at].Type != "boolean" || fs[at].Optional {
+			return "", nil, fmt.Errorf("record.Plan's %s is empty only with %q, and the schema states that rule only for a required list and a required boolean of the plan", f.JSON, f.EmptyOnlyWith)
+		}
+		rules = append(rules, prop{f.JSON, js(f.EmptyOnlyWith)})
+		list, flag = f.JSON, f.EmptyOnlyWith
+	}
+	switch len(rules) {
+	case 0:
+		return "", nil, nil
+	case 1:
+	default:
+		return "", nil, fmt.Errorf("record.Plan states %d emptyonlywith rules, and the schema states one", len(rules))
+	}
+	rule := "[" + object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"enum", "[true]"})})}) +
+		", " + object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"minItems", "1"})})}) + "]"
+	return rule, rules, nil
 }
 
 // renderParties writes a party's two shapes from record.Party's fields.
@@ -278,7 +323,7 @@ func (v vocabulary) schemaOf(f record.PlanField, desc string) string {
 				required = append(required, prop{val: js(i.JSON)})
 			}
 		}
-		ps = append(described(ps, desc), prop{"items", object(prop{"type", js("object")}, prop{"required", list(vals(required))}, prop{"properties", object(props...)})})
+		ps = append(described(ps, desc), prop{"items", object(prop{"type", js("object")}, prop{"required", list(vals(required))}, prop{"additionalProperties", "false"}, prop{"properties", object(props...)})})
 	default:
 		if f.Type == "array" {
 			ps = append(ps, prop{"items", object(prop{"type", js(f.Elem)})})
@@ -317,14 +362,24 @@ func list(vs []string) string { return "[" + strings.Join(vs, ", ") + "]" }
 
 func words(ws []string) string { return list(each(ws, js)) }
 
-// block is an object schema declared as a constant, one property to a line.
-func block(name string, required, props []prop) string {
+// block is an object schema declared as a constant, one property to a line, then any keys of the
+// schema itself that follow its properties.
+//
+// CLOSED: A KEY THE DECLARATION DOES NOT HOLD IS REFUSED. The verb prints exactly the keys the
+// declaration walks (TestThePlanWalkListsTheKeysTheVerbPrints), so a key it does not hold was added
+// on the way. Open, the schema took o3's re-sent relay — its first, nested inside a `plan` key, with
+// the required fields added beside it and emptied — and the engine dispatched nobody on it.
+func block(name string, required, props []prop, extra ...prop) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "const %s = {\n  type: 'object',\n  required: %s,\n  properties: {\n", name, list(vals(required)))
+	fmt.Fprintf(&b, "const %s = {\n  type: 'object',\n  required: %s,\n  additionalProperties: false,\n  properties: {\n", name, list(vals(required)))
 	for _, p := range props {
 		fmt.Fprintf(&b, "    %s: %s,\n", p.key, p.val)
 	}
-	b.WriteString("  },\n}\n")
+	b.WriteString("  },\n")
+	for _, p := range extra {
+		fmt.Fprintf(&b, "  %s: %s,\n", p.key, p.val)
+	}
+	b.WriteString("}\n")
 	return b.String()
 }
 

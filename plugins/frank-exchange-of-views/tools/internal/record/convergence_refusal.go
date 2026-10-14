@@ -72,14 +72,22 @@ func convergenceOf(run Run) (Convergence, error) {
 
 // requireFailIsNotConvergent refuses a FAIL over a board that has converged: nothing material is
 // open, its mass is a small fraction of the run's peak, and this epoch minted nothing fresh and
-// material. Red must raise something material, or PASS — the report is not held open by gaps that
-// change no reader decision.
+// material. The report is not held open by gaps that change no reader decision.
 //
 // IT STANDS ONLY WHERE A PASS IS THE CHAIR'S TO RECORD. While a blocker another seat must clear
 // holds the PASS — a petition the bench has not ruled, a contradiction no lens has raised, a
 // citation or proof unchecked since its sentence changed — the refusal's "or issue `--as PASS`" is
 // false, and refusing the FAIL too left the chair able to record no verdict at all (#1202). The
 // chair's own items (the avenue review, the stale-area spot-check) do not lift it: the refusal names them, and the PASS is the chair's once it has done them.
+//
+// THE REFUSAL NAMES ONLY THE CHAIR'S OWN ACTS, because the chair is the one seat that reads it. It
+// told the chair to "raise something material — a material finding … minted as a gap", which is a
+// lens's `finding` and `mint`; the chair has neither, and no route to ready a lens
+// (plans/feov-lens-bar.md D6). What the chair CAN do with a defect that still stops it over a
+// converged board is record no verdict and say why, so the run ends unverified on the record: in its
+// position, which the bench reads in the transcript and the report renders under the epoch's
+// no-verdict heading, or in the stale area's spot-check where the defect lies in one.
+// TestTheConvergenceRefusalNamesOnlyTheChairsActs walks the rendered text against the chair's tree.
 func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
 	var own []string
 	for _, b := range blockers {
@@ -95,11 +103,12 @@ func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
 	if !c.Holds {
 		return nil
 	}
-	pass := "issue `--as PASS`"
+	pass := "Where nothing still stops you, issue `--as PASS`."
 	if len(own) > 0 {
-		pass = "issue `--as PASS` once your own items are done: " + strings.Join(own, "; ")
+		pass = "Where nothing still stops you but your own items, issue `--as PASS` once they are done: " + strings.Join(own, "; ") + "."
 	}
 	return fmt.Errorf("FAIL refused — the board has converged: open mass %.1f is below %.0f%% of this run's peak %.1f, nothing open is material, and this epoch minted no fresh material gap. "+
-		"A FAIL here holds the report open on gaps that change no reader decision. Raise something material — a material finding, by its class or else graded medium or above, minted as a gap — or %s; the gaps that are not material stay open on the board",
+		"A FAIL here holds the report open on gaps that change no reader decision. %s "+
+		"Where a defect does, record no verdict and state the defect in your `position` — or, where it lies in a stale area, in that area's `spot-check`; the gaps that are not material stay open on the board",
 		c.Mass, c.Fraction*100, c.Peak, pass)
 }

@@ -206,7 +206,8 @@ func TestAFaithfulRelayIsHeldToTheRecordAtItsOwnSittingsEnd(t *testing.T) {
 }
 
 // drivenEpochs runs debate.js with the chair relaying plans[i] at its (i+1)th sitting and a plan
-// readying nobody after, and reports how many chair sittings the debate ran to.
+// readying nobody, with nothing holding a PASS, after, and reports how many chair sittings the
+// debate ran to.
 func drivenEpochs(t *testing.T, plans []map[string]any) int {
 	t.Helper()
 	chair := 0
@@ -215,7 +216,7 @@ func drivenEpochs(t *testing.T, plans []map[string]any) int {
 			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++
-			e["plan"] = map[string]any{"head": 2, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false,
+			e["plan"] = map[string]any{"head": 2, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": true,
 				"ceiling": false, "max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}}
 			if chair <= len(plans) {
 				e["plan"] = plans[chair-1]

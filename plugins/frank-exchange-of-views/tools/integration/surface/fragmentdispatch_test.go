@@ -322,7 +322,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 		if seatID == "red-chair" {
 			chair++
 			if chair == 1 {
-				e["plan"] = plan(parties, []any{gap}, []any{}, false)
+				e["plan"] = plan(parties, []any{gap}, debatejs.HeldBy(parties), false)
 			} else {
 				e["plan"] = plan([]any{}, []any{}, []any{map[string]any{"kind": "unruled_motion", "subject": "M-1", "owner": "judge"}}, true)
 				e["verdict"] = "PASS"

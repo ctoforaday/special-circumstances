@@ -138,6 +138,28 @@ func OccasionOf(prompt string) string {
 // capture run reaches at all.
 type Envelope map[string]any
 
+// HeldBy is the blockers a stubbed plan readying parties states, as `dispatch next` would: a plan
+// that permits no PASS names what holds it (record.Plan's Blockers is empty only when PassPermitted
+// is true), and each party the verb readies is readied by a blocker on the gate's list. One per
+// party, of the kinds the engine does not route on — a material gap for each gap a party is engaged
+// on, a ready lens for a party engaged on none — so a stub that states no blockers of its own relays
+// a plan the envelope schema accepts and the engine routes exactly as before.
+func HeldBy(parties []any) []any {
+	out := []any{}
+	for _, p := range parties {
+		m, _ := p.(map[string]any)
+		seat, _ := m["seat_id"].(string)
+		gaps, _ := m["gap_ids"].([]any)
+		if len(gaps) == 0 {
+			out = append(out, map[string]any{"kind": "lens_ready", "subject": seat, "owner": seat})
+		}
+		for _, g := range gaps {
+			out = append(out, map[string]any{"kind": "material_gap", "subject": g, "owner": seat})
+		}
+	}
+	return out
+}
+
 // Backend answers one dispatch. seatID is empty when the prompt carried no SEAT_ID (the frontier
 // re-prompt); label is always set.
 type Backend func(seatID, label, prompt string) Envelope
