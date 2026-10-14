@@ -356,7 +356,8 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay its JSON VERBATIM as `plan`/.test(p))
-  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /FAIL over a converged board is refused/.test(p))
+  assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
+  assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /its assertable empty form only when the archive was empty when you sat/.test(p) && /VOTE EVERY AVENUE/.test(p) && /RULE ON BLUE'S AVENUES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|avenue) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')

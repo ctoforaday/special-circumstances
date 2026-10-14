@@ -309,7 +309,7 @@ enum Grade {
 enum Verdict {
   VERDICT_UNSPECIFIED = 0;
   VERDICT_PASS = 1 [(means) = "nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word"];
-  VERDICT_FAIL = 2 [(means) = "a material defect still stops you — a FAIL over a converged board is refused"];
+  VERDICT_FAIL = 2 [(means) = "the board, as it stands, still stops you — refused over a converged board"];
 }
 
 // RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an

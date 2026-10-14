@@ -1,4 +1,4 @@
-prompt sha256: acf6e4c9f673c56452a4e77a9fb240027109c9c1388653f4c9f4f5f703e1f641
+prompt sha256: 1aad6c6505abd492f667bc38b2b8bfde34d50dd8d017223b389b6e693d3c539c
 
 Red chair, topic "the seat prompt contract".
 You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.
@@ -30,7 +30,7 @@ Relay its JSON VERBATIM as `plan` in your envelope; the workflow dispatches what
 ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan: the workflow reads what still stands at the end of your sitting off the plan you relay, and capture holds every plan you relay to the record as it stands there.
 Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded — or, with epoch_limit_reached, the run has reached its epoch limit and nobody further is dispatched.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY.
-When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL with the material defect that stops you, raised as a finding for its lens to mint; a FAIL over a converged board is refused (raise something material, or pass).
+When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified — the tool refuses a PASS the board does not permit, so you cannot pass early — or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak.
 Otherwise record no verdict this sitting.
 Your recorded verdict is the ONE fact the run's outcome is derived from.
 A LENS SITS AGAIN ONLY WHEN THE REPORT HAS MOVED, AND RETIRES WHEN IT STOPS FINDING MATERIAL.

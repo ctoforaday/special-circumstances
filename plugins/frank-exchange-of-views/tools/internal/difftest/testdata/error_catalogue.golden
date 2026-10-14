@@ -124,7 +124,7 @@ exit 2
 feov-record: verdict: --as takes one of PASS|FAIL, not "pass": it differs from "PASS" only in case. A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
     PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
-    FAIL  a material defect still stops you — a FAIL over a converged board is refused
+    FAIL  the board, as it stands, still stops you — refused over a converged board
 
 Run `feov-record verdict --help` for what it takes, flag by flag.
 
@@ -133,7 +133,7 @@ exit 2
 feov-record: verdict: --as takes one of PASS|FAIL, not "banana". A PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass
 
     PASS  nothing on the board holds the gate — `show work` marks what does, and a refused PASS names every one — and this is CHECKED against the board, not taken on your word
-    FAIL  a material defect still stops you — a FAIL over a converged board is refused
+    FAIL  the board, as it stands, still stops you — refused over a converged board
 
 Run `feov-record verdict --help` for what it takes, flag by flag.
 
