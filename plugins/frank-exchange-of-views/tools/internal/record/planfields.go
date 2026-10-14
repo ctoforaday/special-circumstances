@@ -1,7 +1,9 @@
 package record
 
 import (
+	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -17,7 +19,8 @@ import (
 //
 // WHAT A GO TYPE CANNOT SAY IS A TAG ON THE FIELD: `desc` is the sentence the schema hands the
 // relaying seat, `bench` the sentence for the same field of the bench's party, `min` an integer's
-// floor and `pattern` a string's. A tag absent leaves the schema looser, never wrong.
+// floor and `pattern` a string's, and `emptyonlywith` names the boolean of the same struct that is
+// true whenever a list is empty. A tag absent leaves the schema looser, never wrong.
 type PlanField struct {
 	Name string // the Go field
 	JSON string // the key the verb prints and a relay carries
@@ -35,6 +38,9 @@ type PlanField struct {
 	// Min is an integer's floor; nil where the field states none.
 	Min     *int
 	Pattern string
+	// EmptyOnlyWith is the JSON key of the boolean, in the same struct, that is true whenever this
+	// list is empty; "" where the field states no such rule.
+	EmptyOnlyWith string
 	// Enum is the closed set of a string field whose Go type declares one.
 	Enum []string
 	// Elem is the JSON type of an array's scalar elements; empty for an array of structs.
@@ -69,7 +75,8 @@ func fieldsOf(t reflect.Type) []PlanField {
 			continue
 		}
 		p := PlanField{Name: f.Name, JSON: name, Optional: strings.Contains(opts, "omitempty"),
-			Desc: f.Tag.Get("desc"), Bench: f.Tag.Get("bench"), Pattern: f.Tag.Get("pattern")}
+			Desc: f.Tag.Get("desc"), Bench: f.Tag.Get("bench"), Pattern: f.Tag.Get("pattern"),
+			EmptyOnlyWith: f.Tag.Get("emptyonlywith")}
 		if m, ok := f.Tag.Lookup("min"); ok {
 			n, err := strconv.Atoi(m)
 			if err != nil {
@@ -95,7 +102,37 @@ func fieldsOf(t reflect.Type) []PlanField {
 		}
 		out = append(out, p)
 	}
+	for i, p := range out {
+		if p.EmptyOnlyWith == "" {
+			continue
+		}
+		flag := slices.IndexFunc(out, func(o PlanField) bool { return o.JSON == p.EmptyOnlyWith })
+		switch {
+		case p.Type != "array":
+			out[i].Defect = "it is no list, and only a list is empty"
+		case flag < 0 || out[flag].Type != "boolean":
+			out[i].Defect = "its emptyonlywith names " + strconv.Quote(p.EmptyOnlyWith) + ", which is no boolean of " + t.String()
+		}
+	}
 	return out
+}
+
+// relayable refuses a plan that breaks a rule its declaration states (PlanField.EmptyOnlyWith): the
+// engine's envelope schema is written from the same declaration, so such a plan is one the chair's
+// harness refuses however faithfully the chair relays it.
+func relayable(p Plan) error {
+	v := reflect.ValueOf(p)
+	for _, f := range PlanFields() {
+		if f.EmptyOnlyWith == "" || v.FieldByName(f.Name).Len() > 0 {
+			continue
+		}
+		for _, g := range PlanFields() {
+			if g.JSON == f.EmptyOnlyWith && !v.FieldByName(g.Name).Bool() {
+				return fmt.Errorf("the plan's `%s` is empty and its `%s` is false; the plan states `%s` empty only when `%s` is true, so this plan is one no relay of it can carry", f.JSON, g.JSON, f.JSON, g.JSON)
+			}
+		}
+	}
+	return nil
 }
 
 func jsonTypeOf(t reflect.Type) string {

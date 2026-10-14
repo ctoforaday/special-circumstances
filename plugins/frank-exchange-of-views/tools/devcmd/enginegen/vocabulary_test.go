@@ -28,7 +28,7 @@ func sampleVocabulary() vocabulary {
 				{Name: "GapIDs", JSON: "gap_ids", Type: "array", Elem: "string", Desc: "a party's gaps", Bench: "the bench's docket"},
 				{Name: "Occasions", JSON: "occasions", Type: "array", Elem: "string", Optional: true, Desc: "absent", Bench: "what it sits for"},
 			}},
-			{Name: "Debts", JSON: "debts", Type: "array", Desc: "what the run's owed", Of: reflect.TypeFor[sampleDebt](), Items: []record.PlanField{
+			{Name: "Debts", JSON: "debts", Type: "array", Desc: "what the run's owed", EmptyOnlyWith: "ceiling", Of: reflect.TypeFor[sampleDebt](), Items: []record.PlanField{
 				{Name: "Kind", JSON: "kind", Type: "string", Enum: []string{"infra", "source"}},
 				{Name: "Why", JSON: "why", Type: "string", Pattern: `\S`, Desc: "never blank"},
 				{Name: "Note", JSON: "note", Type: "string", Optional: true},
@@ -42,7 +42,7 @@ func sampleVocabulary() vocabulary {
 // The region states each set as the record holds it, a party's two shapes, and the plan as its
 // declaration reads: every key, what is required, each field's type, floor, pattern, set and
 // sentence, and the two type tables — where an optional field is in the schema and in neither
-// table.
+// table. Every object is closed, and a list declared empty only with a boolean is held to it.
 func TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared(t *testing.T) {
 	got, err := renderVocabulary(sampleVocabulary())
 	if err != nil {
@@ -60,6 +60,7 @@ const KEYED_BLOCKER_KINDS = ['reopened']
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids', 'occasions'],
+  additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['judge'] },
     gap_ids: { type: 'array', items: { type: 'string' }, description: "the bench's docket" },
@@ -69,6 +70,7 @@ const BENCH_PARTY = {
 const LENS_OR_BLUE_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids'],
+  additionalProperties: false,
   properties: {
     seat_id: { type: 'string', enum: ['blue-respond', 'red-lens-evidence'] },
     gap_ids: { type: 'array', items: { type: 'string' }, description: "a party's gaps" },
@@ -78,15 +80,18 @@ const LENS_OR_BLUE_PARTY = {
 const PLAN = {
   type: 'object',
   required: ['head', 'parties', 'debts', 'ceiling'],
+  additionalProperties: false,
   properties: {
     head: { type: 'integer', minimum: 0, description: "the report's head" },
     parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
-    debts: { type: 'array', description: "what the run's owed", items: { type: 'object', required: ['kind', 'why'], properties: { kind: { type: 'string', enum: ['infra', 'source'] }, why: { type: 'string', pattern: '\\S', description: 'never blank' }, note: { type: 'string' } } } },
+    debts: { type: 'array', description: "what the run's owed", items: { type: 'object', required: ['kind', 'why'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['infra', 'source'] }, why: { type: 'string', pattern: '\\S', description: 'never blank' }, note: { type: 'string' } } } },
     ceiling: { type: 'boolean' },
     to_file: { type: 'array', items: { type: 'string' } },
   },
+  anyOf: [{ required: ['ceiling'], properties: { ceiling: { enum: [true] } } }, { required: ['debts'], properties: { debts: { minItems: 1 } } }],
 }
 const PLAN_FIELD_TYPES = { head: 'integer', parties: 'array', debts: 'array', ceiling: 'boolean' }
+const PLAN_EMPTY_ONLY_WITH = { debts: 'ceiling' }
 const PLAN_ITEM_TYPES = {
   parties: { seat_id: 'string', gap_ids: 'array' },
   debts: { kind: 'string', why: 'string' },
@@ -116,6 +121,10 @@ func TestAVocabularyAHarnessCouldNotValidateAgainstIsRefused(t *testing.T) {
 		{"a key that is no word", func(v *vocabulary) { v.plan[0].JSON = "report-head" }, `"report-head" is not a word`},
 		{"a word a script string cannot carry", func(v *vocabulary) { v.grades = []string{"lo'w"} }, "cannot carry"},
 		{"a sentence holding both quotes", func(v *vocabulary) { v.plan[0].Desc = `the report's "head"` }, "cannot carry"},
+		{"an emptyonlywith naming no boolean of the plan", func(v *vocabulary) { v.plan[2].EmptyOnlyWith = "head" }, `debts is empty only with "head"`},
+		{"an emptyonlywith on a field that is no list", func(v *vocabulary) { v.plan[2].EmptyOnlyWith = ""; v.plan[0].EmptyOnlyWith = "ceiling" }, `head is empty only with "ceiling"`},
+		{"an emptyonlywith on a nested field", func(v *vocabulary) { v.plan[2].Items[2].EmptyOnlyWith = "ceiling" }, "debts.note states an emptyonlywith rule"},
+		{"two emptyonlywith rules", func(v *vocabulary) { v.plan[4].EmptyOnlyWith = "ceiling"; v.plan[4].Optional = false }, "2 emptyonlywith rules"},
 	}
 	for _, c := range cases {
 		v := sampleVocabulary()

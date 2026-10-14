@@ -1,0 +1,239 @@
+{
+ "printed": {
+  "head": 222,
+  "parties": [
+   {
+    "seat_id": "red-lens-adversary",
+    "gap_ids": []
+   },
+   {
+    "seat_id": "red-lens-architecture",
+    "gap_ids": []
+   },
+   {
+    "seat_id": "red-lens-computation",
+    "gap_ids": []
+   },
+   {
+    "seat_id": "red-lens-dark-side",
+    "gap_ids": [
+     "G-50fd6f4f"
+    ]
+   },
+   {
+    "seat_id": "red-lens-evidence",
+    "gap_ids": []
+   },
+   {
+    "seat_id": "red-lens-logic",
+    "gap_ids": [
+     "G-3762ae5e"
+    ]
+   },
+   {
+    "seat_id": "red-lens-voice",
+    "gap_ids": [
+     "G-2b8b3e6e"
+    ]
+   },
+   {
+    "seat_id": "blue-respond",
+    "gap_ids": [
+     "G-2b8b3e6e",
+     "G-3762ae5e",
+     "G-50fd6f4f"
+    ]
+   }
+  ],
+  "docket": [],
+  "remand_owed": [],
+  "exchanges": [
+   {
+    "gap_id": "G-50fd6f4f",
+    "count": 1,
+    "unresolved": 0
+   },
+   {
+    "gap_id": "G-3762ae5e",
+    "count": 1,
+    "unresolved": 0
+   },
+   {
+    "gap_id": "G-2b8b3e6e",
+    "count": 1,
+    "unresolved": 0
+   }
+  ],
+  "pass_permitted": false,
+  "stale_areas": [],
+  "ceiling": false,
+  "max_epochs": 12,
+  "epoch_limit_reached": false,
+  "blockers": [
+   {
+    "kind": "material_gap",
+    "subject": "G-2b8b3e6e",
+    "owner": "red-lens-voice"
+   },
+   {
+    "kind": "material_gap",
+    "subject": "G-3762ae5e",
+    "owner": "red-lens-logic"
+   },
+   {
+    "kind": "material_gap",
+    "subject": "G-50fd6f4f",
+    "owner": "red-lens-dark-side"
+   },
+   {
+    "kind": "reopened",
+    "subject": "C-a74028f3",
+    "owner": "red-lens-evidence"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-adversary",
+    "owner": "red-lens-adversary"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-architecture",
+    "owner": "red-lens-architecture"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-computation",
+    "owner": "red-lens-computation"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-dark-side",
+    "owner": "red-lens-dark-side"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-evidence",
+    "owner": "red-lens-evidence"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-logic",
+    "owner": "red-lens-logic"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-voice",
+    "owner": "red-lens-voice"
+   }
+  ],
+  "why": [
+   "red-lens-adversary: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-architecture: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-computation: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-dark-side: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-evidence: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-logic: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-voice: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "G-2b8b3e6e: open, material, 1 exchange(s) (0 stalled) — below its limits",
+   "G-3762ae5e: open, material, 1 exchange(s) (0 stalled) — below its limits",
+   "G-50fd6f4f: open, material, 1 exchange(s) (0 stalled) — below its limits",
+   "red-lens-evidence has not sat since edit 219, which left a citation or proof unchecked since its sentence changed — ready, to check each as it now stands",
+   "C-a74028f3's sentence changed at edit 219 and no sitting opened since has checked it (its last check is event 167) — PASS is not permitted until a lens checks it from a sitting opened after the edit. red-lens-evidence owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
+  ]
+ },
+ "relays": [
+  {
+   "accepted": true,
+   "envelope": {
+    "notes": "Sitting at head 222. Registered, asked the record who sits, read the full report and all eight avenues, recorded one avenue review, recorded the chair position, and asked again as the last act. No verdict recorded: pass_permitted is false (three open material gaps, C-a74028f3 reopened by edit 219 and unchecked, seven lenses ready). No gap docketed, no closings owed, no spot-check owed (stale_areas empty). No motions outstanding. Nothing cost a call, guess or act, so no log entry.",
+    "plan": {
+     "head": 222,
+     "parties": [
+      {
+       "seat_id": "red-lens-adversary",
+       "gap_ids": []
+      },
+      {
+       "seat_id": "red-lens-architecture",
+       "gap_ids": []
+      },
+      {
+       "seat_id": "red-lens-computation",
+       "gap_ids": []
+      },
+      {
+       "seat_id": "red-lens-dark-side",
+       "gap_ids": [
+        "G-50fd6f4f"
+       ]
+      },
+      {
+       "seat_id": "red-lens-evidence",
+       "gap_ids": []
+      },
+      {
+       "seat_id": "red-lens-logic",
+       "gap_ids": [
+        "G-3762ae5e"
+       ]
+      },
+      {
+       "seat_id": "red-lens-voice",
+       "gap_ids": [
+        "G-2b8b3e6e"
+       ]
+      },
+      {
+       "seat_id": "blue-respond",
+       "gap_ids": [
+        "G-2b8b3e6e",
+        "G-3762ae5e",
+        "G-50fd6f4f"
+       ]
+      }
+     ],
+     "docket": [],
+     "remand_owed": [],
+     "exchanges": [
+      {
+       "gap_id": "G-50fd6f4f",
+       "count": 1,
+       "unresolved": 0
+      },
+      {
+       "gap_id": "G-3762ae5e",
+       "count": 1,
+       "unresolved": 0
+      },
+      {
+       "gap_id": "G-2b8b3e6e",
+       "count": 1,
+       "unresolved": 0
+      }
+     ],
+     "pass_permitted": false,
+     "stale_areas": [],
+     "ceiling": false,
+     "max_epochs": 12,
+     "epoch_limit_reached": false,
+     "blockers": [],
+     "why": [
+      "red-lens-adversary: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "red-lens-architecture: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "red-lens-computation: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "red-lens-dark-side: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "red-lens-evidence: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "red-lens-logic: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "red-lens-voice: head 222 moved past its last sitting's pin 48 — audits the report (1 sitting(s) in a row with no fresh material mint; it retires at 3)",
+      "G-2b8b3e6e: open, material, 1 exchange(s) (0 stalled) — below its limits",
+      "G-3762ae5e: open, material, 1 exchange(s) (0 stalled) — below its limits",
+      "G-50fd6f4f: open, material, 1 exchange(s) (0 stalled) — below its limits",
+      "red-lens-evidence has not sat since edit 219, which left a citation or proof unchecked since its sentence changed — ready, to check each as it now stands",
+      "C-a74028f3's sentence changed at edit 219 and no sitting opened since has checked it (its last check is event 167) — PASS is not permitted until a lens checks it from a sitting opened after the edit. red-lens-evidence owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
+     ]
+    },
+    "verdict": null
+   }
+  }
+ ]
+}

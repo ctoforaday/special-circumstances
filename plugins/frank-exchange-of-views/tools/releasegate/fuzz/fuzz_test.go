@@ -347,6 +347,10 @@ type runner struct {
 	// reported `estoppels=0` with nothing between the two numbers to say which step lost it —
 	// which is how a red gate could name the guard as gone when the drive had simply declined.
 	estoppelMisses map[string]int
+	// schemas holds each dispatch's envelope schema compiled, and schemaRefusals every envelope
+	// one of them refused, by seat (envelopeschema_test.go).
+	schemas        envelopeSchemas
+	schemaRefusals []string
 	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
 	// missing dispute event; without this it cannot distinguish a drive that never ran from one
 	// that ran and was told no, and those want opposite fixes.
@@ -872,7 +876,7 @@ func (r *runner) rulePending(seatID, occasion string) []any {
 		if _, err := r.exec(args...); err == nil {
 			r.petitionRuledAt[id] = occasion
 		}
-		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "relief": opinion, "binds": binds})
+		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion, "relief": opinion, "binds": binds})
 	}
 	r.petitioned = nil
 	return rulings
@@ -2335,11 +2339,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.disputedThisRound = nil
 		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
-		disputes := r.disputedThisRound
+		// AN ARRAY, NEVER null, as the envelope schema demands: a Go nil slice marshals as null,
+		// and the harness refuses the envelope for it.
+		disputes := append([]map[string]any{}, r.disputedThisRound...)
 		// debate.js rejects an EMPTY manifest on a round with open gaps — a repair must show its
 		// receipt. #318: the envelope is a ROUTING REF now, gap ids only; the rows themselves are
 		// on the record, written by the manifest-row calls above against this same `open` set.
-		var manifest []any
+		manifest := []any{}
 		for _, id := range engaged {
 			manifest = append(manifest, id)
 		}
@@ -2399,7 +2405,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// THE ENVELOPE IS THE BENCH'S ACCOUNT OF WHAT IT RULED, in JUDGE_ENVELOPE's shape: debate.js
 		// builds the ruling every later seat is handed from it, so a remand row with no reopens_on
 		// would hand blue a remand owing no direction while the record holds one.
-		var res []any
+		res := []any{} // an array, never null — the schema refuses null
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
 			row := map[string]any{"gap_id": id, "disposition": "remanded", "settled": settledByFuzzBench,
@@ -2831,6 +2837,14 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 			}
 			r.models = append(r.models, mdl)
 		}
+		// THE SCHEMA THE HARNESS HOLDS THIS SEAT'S ENVELOPE TO, read on the loop like every other
+		// look at the VM; nil for a seat whose return is prose.
+		var schema any
+		if opts != nil {
+			if v := opts.Get("schema"); v != nil && !goja.IsUndefined(v) && !goja.IsNull(v) {
+				schema = v.Export()
+			}
+		}
 		// THE SEAT'S WORK LEAVES THE LOOP (#630 phase 3).
 		//
 		// This built the envelope INLINE and resolved an already-settled promise, so the
@@ -2850,6 +2864,11 @@ func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 		p, resolve, reject := vm.NewPromise()
 		go func() {
 			env := r.envelopeFor(seatID, prompt)
+			if env != nil && schema != nil {
+				if why := r.schemas.refusal(schema, env); why != "" {
+					r.noteSchemaRefusal(seatID, why)
+				}
+			}
 			loop.RunOnLoop(func(vm *goja.Runtime) {
 				if env == nil {
 					// A seat that produced nothing is a rejection, not a silent fulfilment with
@@ -3199,6 +3218,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// same silent loss the causes exist to explain.
 	defer func() { res.applyMisses, res.estoppelMisses = r.applyMisses, r.estoppelMisses }()
 	result, settledErr := driveDebate(r, wrapped)
+	if len(r.schemaRefusals) > 0 {
+		res.err = fmt.Sprintf("the harness refuses %d envelope(s) under the schema their dispatch carried:\n  %s", len(r.schemaRefusals), strings.Join(r.distinctSchemaRefusals(), "\n  "))
+		return res
+	}
 	if settledErr != "" {
 		res.err = settledErr
 		return res
@@ -5599,6 +5622,13 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	r := newRunner(bin, runDir, newLockedRand(1))
 	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)
+	}
+	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
+	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
+	// and the run reached UNVERIFIED without one seat dispatched — through the refusal, not the path.
+	unverifiedCast, unverifiedLanes := record.CastFor(nil, 3)
+	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: unverifiedCast, LaneSeatIds: unverifiedLanes}); err != nil {
+		t.Fatalf("write the cast: %v", err)
 	}
 	r.register("blue", "blue-synthesize")
 	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize"); err != nil {
