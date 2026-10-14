@@ -255,8 +255,9 @@ func MotionsOf(evs []*Event, win WindowIndex) []*Motion { return motionsAt(evs, 
 //
 // A MOTION'S ANSWER IS ITS FIRST RULING THAT STANDS — the rule the write enforces
 // (requireUnanswered) and motion_answers states in SQL.
-// TestEveryMotionReaderStatesFirstWins holds this walk, AvenuesOf and the view to it on a record
-// seeded past the write.
+// TestEveryMotionReaderStatesTheRulingThatStands holds this walk, AvenuesOf and the view to one
+// answer; recordsql's TestMotionAnswersStatesFirstWinsOnce holds the view to first-wins on the two
+// rulings only a raw insert produces.
 //
 // Each filing, proposal and ruling carries the epoch and sitting the record stored it in (win): a
 // filing made in a sitting-record repair is the repaired sitting's, and one made before its
