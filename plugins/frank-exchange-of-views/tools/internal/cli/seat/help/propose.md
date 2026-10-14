@@ -6,7 +6,7 @@ put an avenue on the record, when something is worth trying and a later run need
 
 The tool assigns the id. It starts as `proposed` — the state that OWES a move — so say what became of it with `avenue move`.
 
-You may propose one AT ANY POINT in a run, not only at the start: an avenue that occurs to you in your third sitting is exactly the one a later run needs.
+You may propose one AT ANY POINT in a run, not only at the start.
 
 WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, on this avenue's row in the section its fate puts it under, each part under its own label: the line as the question the avenue asks, the hypothesis as its hypothesis. {{.AvenueSectionsRule}}
 

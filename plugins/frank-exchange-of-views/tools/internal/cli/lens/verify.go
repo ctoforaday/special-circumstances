@@ -184,6 +184,10 @@ func pageList(pages []int32) string {
 // The mirror of `verify` and not a mode of it. There is no anchor to name — blue never cited
 // this — so the source is named the way every source in this system is named, by --url and
 // --title, and both are required here because nothing else identifies what red read.
+//
+// It exists so that "nobody cited this" is checkable instead of merely raised. A soft tell in a
+// title ("this run", "epoch 3") is flagged and not refused because a real source's title can use
+// those words too.
 func newCorroborate() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("corroborate", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		return writeVerify(s, cmd, &recordpb.Verify{
@@ -212,7 +216,7 @@ func verifyAxes(c *cobra.Command) {
 	// `refutes` quotes the sentence that does the refuting, which is the source's.
 	flags.Text(c, flags.Quote, flags.DescQuote+". It is the REPORT's claim under every --as value — the sentence the source backs, the sentence it contradicts, or the sentence it says nothing about — and never the SOURCE's words, which go in --reason")
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
-	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts")
+	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
 

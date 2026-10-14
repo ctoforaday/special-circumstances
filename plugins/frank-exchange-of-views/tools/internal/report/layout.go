@@ -590,10 +590,11 @@ var wovenNote = regexp.MustCompile(`(?i)\[\^p?[0-9]+\]`)
 var WovenNoteLabels = "`" + citationNote(1) + "`, `" + citationNote(2) + "` … for citations and `" + proofNote(1) + "`, `" + proofNote(2) + "` … for proofs"
 
 // WovenNotesRule is the rule on the pages of the verbs that write report text. The way in is the
-// Bibliography row's Path: the notes are that section's.
+// Bibliography row's Path: the notes are that section's. Why the label is refused: a hand-typed note
+// would ship beside the tool's note of the same label, and a reader is shown one of the two — the
+// refusal says so (blue/ingest.go); the page states the rule.
 var WovenNotesRule = "NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: " + WovenNoteLabels +
-	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded: " +
-	"it would ship beside the tool's note of the same label, and a reader is shown one of the two. " + notesRow().Path + " " + NoteInCode
+	". A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded. " + notesRow().Path + " " + NoteInCode
 
 // NoteInCode says how text that is not a footnote carries such a label.
 const NoteInCode = "Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there."

@@ -46,6 +46,11 @@ func newClass() *cobra.Command {
 // is a projection of the record; this was the one that was not, because it did not exist.
 //
 // READ-ONLY, and it records nothing: a seat asking what the words are has not yet done anything.
+//
+// TWO KINDS OF ROW, AND THE PAGE STATES ONLY WHAT EACH CARRIES. They carry different columns because
+// the record holds different things about them: a coined class has its definition and neighbour
+// because the coining recorded them, so a coined row prints what it has and a staged row prints no
+// blank standing in for what was never staged.
 func newClassList() *cobra.Command {
 	return seat.New("list", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -98,6 +103,10 @@ func (r classListResult) Human() string {
 	return sb.String()
 }
 
+// class new: the neighbour and the distinguisher are REQUIRED because they are what keep the
+// registry usable — a class nobody can tell apart from an existing one splits the same defect across
+// two names; without a distinguisher a new class is a synonym and the registry stops discriminating.
+// The page and the flag say what to pass; the write's refusal (record/replay.go) says this.
 func newClassNew() *cobra.Command {
 	c := seat.Records(seat.New("new", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		// THE DEFAULT IS ALWAYS WRITTEN. A coined class with no default on the record would leave
@@ -127,7 +136,7 @@ func newClassNew() *cobra.Command {
 	c.Flags().String(flags.Class, "", "the slug you are coining — lowercase, hyphenated, and NOT one the registry already has")
 	flags.Text(c, flags.Definition, "what this class is, in one line")
 	c.Flags().String(flags.Neighbor, "", "the existing class it sits closest to")
-	flags.Text(c, flags.Distinguisher, "the tie-break question that tells the two apart — without it a new class is a synonym, and the registry stops discriminating")
+	flags.Text(c, flags.Distinguisher, "the tie-break question that tells the two apart")
 	enumhelp.Flag(c, flags.MaterialDefault, record.MustEnum("class_new", "material_default"),
 		"where materiality starts for every gap of this class (default by_grade) — always for a class whose defects change a conclusion or a figure, never for one whose defects change none")
 	// COBRA SAYS THE TRIO TRAVELS TOGETHER. It was a boolean plus three optional flags checked
