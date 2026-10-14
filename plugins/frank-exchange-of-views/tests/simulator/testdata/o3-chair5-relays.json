@@ -1,0 +1,581 @@
+{
+ "printed": {
+  "head": 409,
+  "parties": [
+   {
+    "seat_id": "red-lens-logic",
+    "gap_ids": [
+     "G-77367f7e"
+    ]
+   },
+   {
+    "seat_id": "red-lens-voice",
+    "gap_ids": [
+     "G-198e2158"
+    ]
+   },
+   {
+    "seat_id": "blue-respond",
+    "gap_ids": [
+     "G-198e2158",
+     "G-77367f7e"
+    ]
+   },
+   {
+    "seat_id": "judge",
+    "gap_ids": [
+     "G-d918c44d",
+     "G-39cd1128"
+    ],
+    "occasions": [
+     "docket"
+    ]
+   }
+  ],
+  "docket": [
+   "G-d918c44d",
+   "G-39cd1128"
+  ],
+  "remand_owed": [
+   {
+    "gap_id": "G-198e2158",
+    "direction": "One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it."
+   }
+  ],
+  "exchanges": [
+   {
+    "gap_id": "G-77367f7e",
+    "count": 0,
+    "unresolved": 0
+   },
+   {
+    "gap_id": "G-198e2158",
+    "count": 2,
+    "unresolved": 0
+   },
+   {
+    "gap_id": "G-d918c44d",
+    "count": 2,
+    "unresolved": 0
+   },
+   {
+    "gap_id": "G-39cd1128",
+    "count": 2,
+    "unresolved": 0
+   }
+  ],
+  "pass_permitted": false,
+  "stale_areas": [
+   {
+    "seat_id": "red-lens-adversary",
+    "pin": 306
+   },
+   {
+    "seat_id": "red-lens-architecture",
+    "pin": 306
+   },
+   {
+    "seat_id": "red-lens-computation",
+    "pin": 306
+   },
+   {
+    "seat_id": "red-lens-dark-side",
+    "pin": 306
+   },
+   {
+    "seat_id": "red-lens-evidence",
+    "pin": 306
+   },
+   {
+    "seat_id": "red-lens-voice",
+    "pin": 306
+   }
+  ],
+  "ceiling": false,
+  "max_epochs": 12,
+  "epoch_limit_reached": false,
+  "blockers": [
+   {
+    "kind": "material_gap",
+    "subject": "G-198e2158",
+    "owner": "red-lens-voice"
+   },
+   {
+    "kind": "material_gap",
+    "subject": "G-d918c44d",
+    "owner": "red-lens-adversary"
+   },
+   {
+    "kind": "material_gap",
+    "subject": "G-39cd1128",
+    "owner": "red-lens-logic"
+   },
+   {
+    "kind": "material_gap",
+    "subject": "G-77367f7e",
+    "owner": "red-lens-logic"
+   },
+   {
+    "kind": "contradiction",
+    "subject": "if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7",
+    "owner": "red-lens-dark-side"
+   },
+   {
+    "kind": "lens_ready",
+    "subject": "red-lens-logic",
+    "owner": "red-lens-logic"
+   },
+   {
+    "kind": "stale_area",
+    "subject": "red-lens-adversary",
+    "owner": "red-chair"
+   },
+   {
+    "kind": "stale_area",
+    "subject": "red-lens-architecture",
+    "owner": "red-chair"
+   },
+   {
+    "kind": "stale_area",
+    "subject": "red-lens-computation",
+    "owner": "red-chair"
+   },
+   {
+    "kind": "stale_area",
+    "subject": "red-lens-dark-side",
+    "owner": "red-chair"
+   },
+   {
+    "kind": "stale_area",
+    "subject": "red-lens-evidence",
+    "owner": "red-chair"
+   },
+   {
+    "kind": "stale_area",
+    "subject": "red-lens-voice",
+    "owner": "red-chair"
+   },
+   {
+    "kind": "unruled_motion",
+    "subject": "M-3122275e",
+    "owner": "judge"
+   },
+   {
+    "kind": "unruled_motion",
+    "subject": "M-66342d24",
+    "owner": "judge"
+   }
+  ],
+  "why": [
+   "red-lens-adversary: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+   "red-lens-architecture: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+   "red-lens-computation: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+   "red-lens-dark-side: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+   "red-lens-evidence: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+   "red-lens-logic: head 409 moved past its last sitting's pin 306 — audits the report (0 sitting(s) in a row with no fresh material mint; it retires at 3)",
+   "red-lens-voice: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+   "G-198e2158: at impasse (2 exchange(s) (0 stalled)) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it.",
+   "G-d918c44d: docketed and unruled — the bench is ready",
+   "G-39cd1128: docketed and unruled — the bench is ready",
+   "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits",
+   "red-lens-dark-side has sat since it read a source contradicting \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\", and no finding raises it — readied once per contradiction, so not again",
+   "a source red-lens-dark-side read contradicts or does not support \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\" and no finding raises it — PASS is not permitted until one does"
+  ]
+ },
+ "relays": [
+  {
+   "accepted": false,
+   "envelope": {
+    "plan": {
+     "plan": {
+      "head": 409,
+      "parties": [
+       {
+        "seat_id": "red-lens-logic",
+        "gap_ids": [
+         "G-77367f7e"
+        ]
+       },
+       {
+        "seat_id": "red-lens-voice",
+        "gap_ids": [
+         "G-198e2158"
+        ]
+       },
+       {
+        "seat_id": "blue-respond",
+        "gap_ids": [
+         "G-198e2158",
+         "G-77367f7e"
+        ]
+       },
+       {
+        "seat_id": "judge",
+        "gap_ids": [
+         "G-d918c44d",
+         "G-39cd1128"
+        ],
+        "occasions": [
+         "docket"
+        ]
+       }
+      ],
+      "docket": [
+       "G-d918c44d",
+       "G-39cd1128"
+      ],
+      "remand_owed": [
+       {
+        "gap_id": "G-198e2158",
+        "direction": "One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it."
+       }
+      ],
+      "exchanges": [
+       {
+        "gap_id": "G-77367f7e",
+        "count": 0,
+        "unresolved": 0
+       },
+       {
+        "gap_id": "G-198e2158",
+        "count": 2,
+        "unresolved": 0
+       },
+       {
+        "gap_id": "G-d918c44d",
+        "count": 2,
+        "unresolved": 0
+       },
+       {
+        "gap_id": "G-39cd1128",
+        "count": 2,
+        "unresolved": 0
+       }
+      ],
+      "pass_permitted": false,
+      "stale_areas": [
+       {
+        "seat_id": "red-lens-adversary",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-architecture",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-computation",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-dark-side",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-evidence",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-voice",
+        "pin": 306
+       }
+      ],
+      "ceiling": false,
+      "max_epochs": 12,
+      "epoch_limit_reached": false,
+      "blockers": [
+       {
+        "kind": "material_gap",
+        "subject": "G-198e2158",
+        "owner": "red-lens-voice"
+       },
+       {
+        "kind": "material_gap",
+        "subject": "G-d918c44d",
+        "owner": "red-lens-adversary"
+       },
+       {
+        "kind": "material_gap",
+        "subject": "G-39cd1128",
+        "owner": "red-lens-logic"
+       },
+       {
+        "kind": "material_gap",
+        "subject": "G-77367f7e",
+        "owner": "red-lens-logic"
+       },
+       {
+        "kind": "contradiction",
+        "subject": "if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7",
+        "owner": "red-lens-dark-side"
+       },
+       {
+        "kind": "lens_ready",
+        "subject": "red-lens-logic",
+        "owner": "red-lens-logic"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-adversary",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-architecture",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-computation",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-dark-side",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-evidence",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-voice",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "unruled_motion",
+        "subject": "M-3122275e",
+        "owner": "judge"
+       },
+       {
+        "kind": "unruled_motion",
+        "subject": "M-66342d24",
+        "owner": "judge"
+       }
+      ],
+      "why": [
+       "red-lens-adversary: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-architecture: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-computation: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-dark-side: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-evidence: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-logic: head 409 moved past its last sitting's pin 306 — audits the report (0 sitting(s) in a row with no fresh material mint; it retires at 3)",
+       "red-lens-voice: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "G-198e2158: at impasse (2 exchange(s) (0 stalled)) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it.",
+       "G-d918c44d: docketed and unruled — the bench is ready",
+       "G-39cd1128: docketed and unruled — the bench is ready",
+       "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits",
+       "red-lens-dark-side has sat since it read a source contradicting \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\", and no finding raises it — readied once per contradiction, so not again",
+       "a source red-lens-dark-side read contradicts or does not support \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\" and no finding raises it — PASS is not permitted until one does"
+      ]
+     },
+     "verdict": null
+    }
+   }
+  },
+  {
+   "accepted": true,
+   "envelope": {
+    "plan": {
+     "plan": {
+      "head": 409,
+      "parties": [
+       {
+        "seat_id": "red-lens-logic",
+        "gap_ids": [
+         "G-77367f7e"
+        ]
+       },
+       {
+        "seat_id": "red-lens-voice",
+        "gap_ids": [
+         "G-198e2158"
+        ]
+       },
+       {
+        "seat_id": "blue-respond",
+        "gap_ids": [
+         "G-198e2158",
+         "G-77367f7e"
+        ]
+       },
+       {
+        "seat_id": "judge",
+        "gap_ids": [
+         "G-d918c44d",
+         "G-39cd1128"
+        ],
+        "occasions": [
+         "docket"
+        ]
+       }
+      ],
+      "docket": [
+       "G-d918c44d",
+       "G-39cd1128"
+      ],
+      "remand_owed": [
+       {
+        "gap_id": "G-198e2158",
+        "direction": "One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it."
+       }
+      ],
+      "exchanges": [
+       {
+        "gap_id": "G-77367f7e",
+        "count": 0,
+        "unresolved": 0
+       },
+       {
+        "gap_id": "G-198e2158",
+        "count": 2,
+        "unresolved": 0
+       },
+       {
+        "gap_id": "G-d918c44d",
+        "count": 2,
+        "unresolved": 0
+       },
+       {
+        "gap_id": "G-39cd1128",
+        "count": 2,
+        "unresolved": 0
+       }
+      ],
+      "pass_permitted": false,
+      "stale_areas": [
+       {
+        "seat_id": "red-lens-adversary",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-architecture",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-computation",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-dark-side",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-evidence",
+        "pin": 306
+       },
+       {
+        "seat_id": "red-lens-voice",
+        "pin": 306
+       }
+      ],
+      "ceiling": false,
+      "max_epochs": 12,
+      "epoch_limit_reached": false,
+      "blockers": [
+       {
+        "kind": "material_gap",
+        "subject": "G-198e2158",
+        "owner": "red-lens-voice"
+       },
+       {
+        "kind": "material_gap",
+        "subject": "G-d918c44d",
+        "owner": "red-lens-adversary"
+       },
+       {
+        "kind": "material_gap",
+        "subject": "G-39cd1128",
+        "owner": "red-lens-logic"
+       },
+       {
+        "kind": "material_gap",
+        "subject": "G-77367f7e",
+        "owner": "red-lens-logic"
+       },
+       {
+        "kind": "contradiction",
+        "subject": "if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7",
+        "owner": "red-lens-dark-side"
+       },
+       {
+        "kind": "lens_ready",
+        "subject": "red-lens-logic",
+        "owner": "red-lens-logic"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-adversary",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-architecture",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-computation",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-dark-side",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-evidence",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "stale_area",
+        "subject": "red-lens-voice",
+        "owner": "red-chair"
+       },
+       {
+        "kind": "unruled_motion",
+        "subject": "M-3122275e",
+        "owner": "judge"
+       },
+       {
+        "kind": "unruled_motion",
+        "subject": "M-66342d24",
+        "owner": "judge"
+       }
+      ],
+      "why": [
+       "red-lens-adversary: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-architecture: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-computation: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-dark-side: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-evidence: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "red-lens-logic: head 409 moved past its last sitting's pin 306 — audits the report (0 sitting(s) in a row with no fresh material mint; it retires at 3)",
+       "red-lens-voice: retired (pin 306) — its last 3 sittings minted no fresh material; not ready",
+       "G-198e2158: at impasse (2 exchange(s) (0 stalled)) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: One more exchange. Blue re-voices the Sourcing sentence so none of the check's words remain, and states the limit about the subject: the definition is stated from an encyclopedia and from Euclid's Elements, and its statement in modern number-theory textbooks is outside the sources this answer relies on. The minting lens red-lens-voice then re-runs the check at the new head. If it returns zero lines, the gap closes on the lens's act. If any other line matches, the lens names that line in the same exchange and the gap stays open on it.",
+       "G-d918c44d: docketed and unruled — the bench is ready",
+       "G-39cd1128: docketed and unruled — the bench is ready",
+       "G-77367f7e: open, material, 0 exchange(s) (0 stalled) — below its limits",
+       "red-lens-dark-side has sat since it read a source contradicting \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\", and no finding raises it — readied once per contradiction, so not again",
+       "a source red-lens-dark-side read contradicts or does not support \"if n < 3,215,031,751, it is enough to test a = 2, 3, 5, and 7\" and no finding raises it — PASS is not permitted until one does"
+      ]
+     },
+     "verdict": null,
+     "head": 409,
+     "parties": [],
+     "docket": [],
+     "exchanges": [],
+     "remand_owed": [],
+     "stale_areas": [],
+     "ceiling": false,
+     "max_epochs": 12,
+     "epoch_limit_reached": false,
+     "blockers": [],
+     "why": [],
+     "pass_permitted": false
+    }
+   }
+  }
+ ]
+}

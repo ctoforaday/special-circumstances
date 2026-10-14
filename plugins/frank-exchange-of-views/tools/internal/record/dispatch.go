@@ -113,7 +113,13 @@ type Plan struct {
 	// seat that clears it. A blocker whose owner is not the chair readies that owner, once per cause
 	// (Why says which); one still standing when the debate ends with the bench as its owner is what
 	// the terminal bench sitting rules.
-	Blockers []PlanBlocker `json:"blockers" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each"`
+	//
+	// EMPTY ONLY WHEN A PASS IS PERMITTED. PassPermitted is a report ingested, nobody ready and every
+	// blocker the chair's; without it the plan has a party (each readied by a blocker on this list),
+	// no report (no_report), or a blocker another seat owns. The engine's schema refuses a relay that
+	// breaks it: o3's chair, refused a nested relay, re-sent the fields with `parties` and `blockers`
+	// emptied, and the engine read the fabricated plan as the record's word that nobody sits.
+	Blockers []PlanBlocker `json:"blockers" emptyonlywith:"pass_permitted" desc:"everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true"`
 	Why      []string      `json:"why"` // the readiness of each source, in words a reader can check against the board
 }
 
@@ -168,7 +174,11 @@ func PlanDispatch(run Run) (Plan, error) {
 	if err != nil {
 		return emptyPlan(), err
 	}
-	return foldPlan(params, r), nil
+	plan := foldPlan(params, r)
+	if err := relayable(plan); err != nil {
+		return emptyPlan(), err
+	}
+	return plan, nil
 }
 
 // errNoCast is the dispatch's refusal of a record that holds no cast.

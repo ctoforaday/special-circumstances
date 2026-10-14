@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -85,4 +86,72 @@ func TestThePlanWalkListsTheKeysTheVerbPrints(t *testing.T) {
 		}
 	}
 	agree(PlanFields(), printed(full), printed(Plan{}), "")
+}
+
+// A PLAN THAT PERMITS NO PASS NAMES WHAT HOLDS IT. `blockers` is empty only when `pass_permitted`
+// is true: PassPermitted is a report ingested, nobody ready and every blocker the chair's, so a
+// plan without it has a party (each readied by a blocker on the gate's list), no report (the
+// no_report blocker), or a blocker another seat owns. The declaration says so on the field, and
+// the schema the chair's relay is held to is written from it.
+func TestThePlanDeclaresItsBlockersEmptyOnlyWhenAPassIsPermitted(t *testing.T) {
+	for _, f := range PlanFields() {
+		if f.JSON != "blockers" {
+			continue
+		}
+		if f.EmptyOnlyWith != "pass_permitted" {
+			t.Fatalf("Plan.Blockers declares EmptyOnlyWith %q, want pass_permitted", f.EmptyOnlyWith)
+		}
+		return
+	}
+	t.Fatal("record.Plan relays no `blockers`")
+}
+
+// A rule naming no boolean of its own struct is a defect of the declaration, refused at the walk.
+func TestAnEmptyOnlyWithNamingNoBooleanIsADefect(t *testing.T) {
+	type spoiled struct {
+		List []string `json:"list" emptyonlywith:"missing"`
+		Head int      `json:"head"`
+	}
+	type spoiledType struct {
+		List []string `json:"list" emptyonlywith:"head"`
+		Head int      `json:"head"`
+	}
+	type scalar struct {
+		Flag bool `json:"flag" emptyonlywith:"flag"`
+	}
+	for name, fs := range map[string][]PlanField{
+		"a key the struct does not hold": fieldsOf(reflect.TypeFor[spoiled]()),
+		"a key that is no boolean":       fieldsOf(reflect.TypeFor[spoiledType]()),
+		"a field that is no list":        fieldsOf(reflect.TypeFor[scalar]()),
+	} {
+		if fs[0].Defect == "" {
+			t.Errorf("%s: the walk accepts %+v", name, fs[0])
+		}
+	}
+}
+
+// THE VERB NEVER PRINTS A PLAN ITS SCHEMA REFUSES. A plan that permits no PASS and names no blocker
+// is refused at the source, loudly, rather than handed to a chair whose harness will refuse every
+// faithful relay of it.
+func TestAPlanBreakingItsDeclaredRuleIsUnrelayable(t *testing.T) {
+	ok := emptyPlan()
+	ok.PassPermitted = true
+	if err := relayable(ok); err != nil {
+		t.Errorf("a PASS-permitted plan with no blockers is refused: %v", err)
+	}
+	held := emptyPlan()
+	held.Blockers = []PlanBlocker{{Kind: BlockerNoReport}}
+	if err := relayable(held); err != nil {
+		t.Errorf("a plan naming what holds the PASS is refused: %v", err)
+	}
+	bad := emptyPlan()
+	err := relayable(bad)
+	if err == nil {
+		t.Fatal("a plan that permits no PASS and names no blocker is relayable")
+	}
+	for _, w := range []string{"blockers", "pass_permitted"} {
+		if !strings.Contains(err.Error(), w) {
+			t.Errorf("the refusal %q does not name %s", err, w)
+		}
+	}
 }

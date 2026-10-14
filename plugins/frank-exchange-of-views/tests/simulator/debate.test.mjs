@@ -183,7 +183,7 @@ test('CEILING: the reason names a standing reopened citation or proof, and only 
 })
 
 test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons are the account', async () => {
-  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'] }) })] }))
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], blockers: [blocker('M-00000001', 'judge')] }) })] }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
   assert.deepEqual(out.termination, { pass_permitted: false, ceiling: false, epoch_limit_reached: false, why: ['G-00000001: docket motion M-00000001 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied'], no_progress: null })
@@ -263,7 +263,8 @@ test('the valve keys on the blockers capture holds to the record, and on no othe
 
 // ── the epoch limit: a run TERM, and the record's word, like the carried ceiling ────────────
 const limitPlan = (over = {}) => plan([], { ceiling: true, epoch_limit_reached: true, max_epochs: 4,
-  why: ['G-00000001: open, material, 1 exchange(s) (0 stalled) — below its limits', "epoch limit 4 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"], ...over })
+  why: ['G-00000001: open, material, 1 exchange(s) (0 stalled) — below its limits', "epoch limit 4 reached — this chair sitting opens the run's last epoch, so the 2 party(ies) above are not dispatched"],
+  blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 const toTheLimit = (last) => [...[11, 12, 13].map((head) => chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')], { head }) })), chairEnv({ plan: last }), passChair()]
 
 test('EPOCH LIMIT: the plan at the last epoch ends the debate CEILING with the limit named, apart from the carried ceiling', async () => {
@@ -355,7 +356,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   await world.run(script, ARGS)
   const chair = labelsOf(world, 'red-chair')[0]
   const p = chair.prompt
-  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay its JSON VERBATIM as `plan`/.test(p))
+  assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay the plan object it prints, copied whole, VERBATIM as `plan`/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
   assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /its assertable empty form only when the archive was empty when you sat/.test(p) && /VOTE EVERY AVENUE/.test(p) && /RULE ON BLUE'S AVENUES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
@@ -1068,16 +1069,60 @@ const relayEnds = async (env) => {
 // both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
 // there, 42 minutes in. The envelope below is that sitting's plan, verdict and notes, off its transcript.
 // `exchanges` is the one field written into it here: the plan carries an entry per engaged gap, and
-// the sitting's transcript states no count for any of the four.
+// the sitting's transcript states no count for any of the four. The rebuilt plan also dropped every
+// blocker, and a plan that permits no PASS names what holds it, so the schema refuses that relay
+// now; the empty occasions lists are accepted once its blockers stand.
 test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and blue — is accepted by the schema and dispatches its parties', async () => {
-  const env = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
-  assert.deepEqual(env.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
-  assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the relay, as the harness did in the run')
+  const relayed = JSON.parse(readFileSync(new URL('./testdata/m16-chair6-relay.json', import.meta.url), 'utf8'))
+  assert.deepEqual(relayed.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
+  assert.deepEqual([relayed.plan.blockers, relayed.plan.pass_permitted], [[], false], 'the fixture dropped every blocker')
+  assert.ok(!schemaAccepts(await chairSchema(), relayed), 'the schema refuses a plan that permits no PASS and names nothing holding it')
+  const env = { ...relayed, plan: { ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) } }
+  assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the empty occasions lists')
   const { world, out } = await relayEnds(env)
   assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),
     ['red-lens-adversary #1 · test', 'red-lens-architecture #1 · test', 'blue-respond #1 · test'])
   assert.ok(labelsOf(world, 'blue-respond #1')[0].prompt.includes('You are engaged on: G14, G15, G16, G17.'))
   assert.equal(out.verdict, 'VERIFIED')
+})
+
+// o3 (2026-10-13): chair sitting 5 nested its whole envelope under `plan`; the harness refused it for
+// missing every plan field, and the chair re-sent the nest with each field added beside it, emptied.
+// The open schema took that relay, the engine read its empty `parties` as the record's word that
+// nobody sits, and the run ended UNVERIFIED with the four parties the record dispatched never
+// sitting. Both relays and the plan the verb printed are off the sitting's transcript.
+test('o3: chair sitting 5\'s re-sent relay — the plan nested under `plan`, the fields beside it emptied — is refused; the plan the verb printed is accepted and dispatches its four parties', async () => {
+  const { printed, relays } = JSON.parse(readFileSync(new URL('./testdata/o3-chair5-relays.json', import.meta.url), 'utf8'))
+  assert.deepEqual(relays.map((r) => r.accepted), [false, true], 'the fixture is the refused relay and the one the harness took')
+  const [, taken] = relays
+  assert.deepEqual([Object.keys(taken.envelope.plan).includes('plan'), taken.envelope.plan.parties, taken.envelope.plan.blockers], [true, [], []], 'the taken relay is the nest with its fields emptied')
+  const schema = await chairSchema()
+  for (const r of relays) assert.ok(!schemaAccepts(schema, r.envelope), 'the schema refuses each relay the chair sent')
+  const { plan: _nested, verdict: _verdict, ...beside } = taken.envelope.plan
+  assert.ok(!schemaAccepts(schema, { plan: beside }), 'the emptied fields alone are refused: a plan that permits no PASS names what holds it')
+  assert.ok(schemaAccepts(schema, { plan: printed, verdict: null }), 'the plan the verb printed is accepted')
+  assert.ok(!schemaAccepts(schema, { plan: { ...printed, plan: printed, verdict: null } }), 'a key the verb does not print is refused, beside a faithful plan too')
+  const { world } = await relayEnds({ plan: printed, verdict: null })
+  assert.deepEqual(['red-lens-logic', 'red-lens-voice', 'blue-respond', 'judge'].map((s) => world.calls.some((c) => c.opts.label.startsWith(`${s} `))), [true, true, true, true], 'each party the record dispatched sits')
+})
+
+// m3 (2026-10-13): chair sitting 3 relayed the plan with `blockers` emptied, where the verb printed
+// eleven; the schema took it, and capture's dispatch-parity audit failed the run on it afterwards.
+test('m3: chair sitting 3\'s relay — every blocker dropped from a plan with eight parties — is refused', async () => {
+  const { printed, relays } = JSON.parse(readFileSync(new URL('./testdata/m3-chair3-relays.json', import.meta.url), 'utf8'))
+  const [only] = relays
+  assert.deepEqual([only.accepted, only.envelope.plan.blockers.length, printed.blockers.length, only.envelope.plan.parties.length], [true, 0, 11, 8], 'the fixture is the relay the harness took')
+  const schema = await chairSchema()
+  assert.ok(!schemaAccepts(schema, only.envelope), 'the schema refuses the relay')
+  assert.ok(schemaAccepts(schema, { ...only.envelope, plan: printed }), 'the plan the verb printed is accepted')
+})
+
+// A RELAY THE HARNESS LETS THROUGH EMPTIED STOPS THE RUN, NAMING IT. The schema refuses it first; the
+// engine's own check stands behind the schema, and an emptied plan never reads as "nobody sits".
+test('a plan that permits no PASS and names nothing holding it stops the run rather than ending the debate', async () => {
+  const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([], { blockers: [] }) }), passChair()] }))
+  await assert.rejects(world.run(script, ARGS), /red-chair sitting 1 relayed a plan whose `blockers` is empty and whose `pass_permitted` is false/)
+  assert.equal(labelsOf(world, 'judge · assemble').length, 0, 'no outcome is recorded on an emptied plan')
 })
 
 // EACH SHAPE THE PLAN CHECK REFUSES IS ONE THE SCHEMA REFUSES FIRST — named, so a reader sees which

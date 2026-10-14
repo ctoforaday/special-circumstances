@@ -106,12 +106,21 @@ func party(seat string, gaps ...string) map[string]any {
 	return map[string]any{"seat_id": seat, "gap_ids": g}
 }
 
+// plan is a relayed plan as the verb prints it: one that permits no PASS names what holds it — its
+// parties' own blockers (debatejs.HeldBy), and at the ceiling the material gap at its limit.
 func plan(parties []any, pass, ceiling bool, docket []any, why string) map[string]any {
 	if docket == nil {
 		docket = []any{}
 	}
+	blockers := []any{}
+	switch {
+	case ceiling:
+		blockers = []any{map[string]any{"kind": "material_gap", "subject": "G1", "owner": "red-lens-evidence"}}
+	case !pass:
+		blockers = debatejs.HeldBy(parties)
+	}
 	return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
-		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": []any{}}
+		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers}
 }
 
 func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch, debatejs.Outcome, *board) {
@@ -144,7 +153,9 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 			case m.ceiling:
 				e["plan"] = plan([]any{}, false, true, nil, "every open material gap is at its limit")
 			case m.stall:
-				e["plan"] = plan([]any{}, false, false, nil, "G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied")
+				p := plan([]any{}, false, false, nil, "G1: docket motion M1 stands unruled and the bench has sat since it was filed — one bench sitting per docketing, so this gap is not re-readied")
+				p["blockers"] = []any{map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}}
+				e["plan"] = p
 			case m.halt:
 				engaged = []any{"G1"}
 				// A petition on the record convenes the bench, through the plan; the halt is its ruling.

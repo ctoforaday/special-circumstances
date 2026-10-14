@@ -9,9 +9,13 @@ import (
 )
 
 // planWith is a chair's relayed plan: the parties and blockers given, every other field as
-// `dispatch next` prints it on a board with nothing else to say.
+// `dispatch next` prints it on a board with nothing else to say — the parties' own blockers where
+// none is given, and a PASS permitted where nobody is ready and nothing holds it.
 func planWith(parties, blockers []any) map[string]any {
-	return map[string]any{"head": 2, "parties": parties, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false,
+	if len(blockers) == 0 {
+		blockers = HeldBy(parties)
+	}
+	return map[string]any{"head": 2, "parties": parties, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": len(blockers) == 0, "ceiling": false,
 		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{"test"}, "stale_areas": []any{}, "blockers": blockers}
 }
 
