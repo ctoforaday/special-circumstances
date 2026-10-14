@@ -602,6 +602,7 @@ func debateMD(in Input) []byte {
 	// below name it without recomputing the join per event. The twin in record/viewjson.go
 	// (DebateJSONOf) builds the same map for the same reason.
 	docketGapOf := record.DocketGapByMotion(in.Events)
+	archive := record.ArchiveOf(in.Gaps)
 
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
@@ -631,6 +632,13 @@ func debateMD(in Input) []byte {
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](l.Event); ok {
 				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), l.Markdown(c.GetText())))
+			}
+		}
+		// THE SPOT-CHECK IS PART OF RED'S ARGUMENT: a defect the chair finds in a stale area is
+		// stated there, with no verdict recorded, and the bench reads it here.
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_SPOT_CHECK, "chair") {
+			if sc, ok := record.SpotCheckOf(l.Event, in.At, archive); ok {
+				parts = append(parts, "### RED SPOT-CHECK\n"+l.Markdown(sc.Describe()))
 			}
 		}
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
