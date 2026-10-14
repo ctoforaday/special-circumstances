@@ -149,6 +149,13 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 						t.Errorf("%s --as %s: the refusal does not say %q: %v", verb[0], as, want, err)
 					}
 				}
+				// Report text that occurs twice names no one sentence, and the refusal says how to
+				// make it name one.
+				_, err = run(t, append(append(verb, "--run", runDir, "--seat-id", "red-lens-evidence"),
+					"--quote", "finding", "--as", as, "--confidence", "high", "--reason", "r")...)
+				if err == nil || !strings.Contains(err.Error(), "more than once") {
+					t.Errorf("%s --as %s: a quote the report holds twice was not refused as occurring more than once: %v", verb[0], as, err)
+				}
 			}
 			if got := verifies(t, runDir); got != before {
 				t.Errorf("the refusals left %d verification(s) on the record, want none", got-before)
