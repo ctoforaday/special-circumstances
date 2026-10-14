@@ -32,7 +32,8 @@ import (
 // where an event of it changes the output: a verdict per epoch (debate), a finding that answers a
 // contradicting check, an edit that reopens an anchor and a retire that takes a reopened one out
 // of the report (evidence), a mint crediting a finding
-// (findings), a docket ruling settling a gap (board, debate, motions), a check backing an open gap's
+// (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
+// spot-check is read against (debate), a check backing an open gap's
 // anchor (board), and a ruled avenue (motions). It holds a CORRECTION of a correctable act in every
 // view that declares one, because the narrowed read loads corrections without being asked (eventsOfAt)
 // and a view whose struck act renders as standing differs from the whole record only where one exists.
@@ -124,6 +125,13 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified at the leaf")}),
+		// The chair's spot-check, read against the archive the closes replay (debate), struck and
+		// restated in its sitting.
+		recordtest.At(t, "red-chair", "red-chair:spot_check:#9", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
+			Ids: []string{"G1"}, Reason: str("the area reads clean")}),
+		recordtest.At(t, "red-chair", "red-chair:spot_check:#9~1", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
+			Ids: []string{"G1"}, Reason: str("the area's new paragraph contradicts the table")}),
+		correctionOf(t, "red-chair", "red-chair:spot_check:#9"),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
 	)
 	run := mustRun(t, dir)
