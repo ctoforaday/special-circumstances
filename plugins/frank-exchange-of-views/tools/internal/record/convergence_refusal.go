@@ -60,7 +60,7 @@ func convergenceOf(run Run) (Convergence, error) {
 		return c, err
 	}
 	if !found {
-		return c, fmt.Errorf("record: convergence_at has no row at this record's newest event, so whether the board has converged cannot be read: the view does not answer for the record it is over")
+		return c, fmt.Errorf("convergence_at has no row at this record's newest event, so whether the board has converged cannot be read: the view does not answer for the record it is over")
 	}
 	fraction, err := runConvergenceFraction(run)
 	if err != nil {

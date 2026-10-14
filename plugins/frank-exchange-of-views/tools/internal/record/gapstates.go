@@ -47,7 +47,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	    "close_event", "bench_close_event", "closed_by_bench"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
-		return r, fmt.Errorf("record: asking the record for its gap states: %w", err)
+		return r, fmt.Errorf("asking the record for its gap states: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {

@@ -358,7 +358,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	    "close_event", "bench_close_event", "closed_by_bench"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
-		return out, fmt.Errorf("record: asking the record for its board: %w", err)
+		return out, fmt.Errorf("asking the record for its board: %w", err)
 	}
 	defer rows.Close()
 	credited, unrendered := map[string]bool{}, false
@@ -508,7 +508,7 @@ func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBe
 	}
 	c := &closeState{closedByBench: closedByBench}
 	miss := func(column string, id int64) error {
-		return fmt.Errorf("record: gap %s: the gap view names event %d as its %s, and the events this read loaded hold no such act", gapID, id, column)
+		return fmt.Errorf("gap %s: the gap view names event %d as its %s, and the events this read loaded hold no such act", gapID, id, column)
 	}
 	var last *Event
 	if closeEvent.Valid {
@@ -531,7 +531,7 @@ func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBe
 		}
 	}
 	if last == nil {
-		return nil, fmt.Errorf("record: gap %s: the gap view names no red close and says the bench did not close it", gapID)
+		return nil, fmt.Errorf("gap %s: the gap view names no red close and says the bench did not close it", gapID)
 	}
 	c.closedEpoch = win.Of(last).Epoch
 	return c, nil
@@ -974,7 +974,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
-		return r, fmt.Errorf("record: asking the record for its work list: %w", err)
+		return r, fmt.Errorf("asking the record for its work list: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -1030,7 +1030,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
 		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, byID, r.win)
 		if err != nil {
-			return nil, fmt.Errorf("record: the work list cannot be computed: %w", err)
+			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
 		if c != nil {
 			g.Fate = c.reason()
@@ -1762,7 +1762,7 @@ func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
 	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
 	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."pos", c."event_id"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking which edits changed a gap's sentence: %w", err)
+		return nil, fmt.Errorf("asking which edits changed a gap's sentence: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {

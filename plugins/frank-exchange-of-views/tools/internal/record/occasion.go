@@ -54,20 +54,20 @@ func checkOccasion(seatID, word string) (*recordpb.Occasion, error) {
 	if word == "" {
 		if owes {
 			return nil, feov.Errorf(feov.MissingField,
-				"record: %s registers with no --occasion. The bench is one seat asked four different questions, so its id cannot say which sitting this is — name it: %s",
+				"%s registers with no --occasion. The bench is one seat asked four different questions, so its id cannot say which sitting this is — name it: %s",
 				seatID, strings.Join(OccasionWords(), " | "))
 		}
 		return nil, nil
 	}
 	if !owes {
 		return nil, feov.Errorf(feov.RoleViolation,
-			"record: %s passed --occasion, and only the bench carries one. Every other seat's id already says what its sitting is for, so an occasion here would be a second answer to a question the record has already settled",
+			"%s passed --occasion, and only the bench carries one. Every other seat's id already says what its sitting is for, so an occasion here would be a second answer to a question the record has already settled",
 			seatID)
 	}
 	occ, ok := OccasionOf(word)
 	if !ok {
 		return nil, feov.Errorf(feov.Validation,
-			"record: %q is not an occasion. The bench sits for one of: %s",
+			"%q is not an occasion. The bench sits for one of: %s",
 			word, strings.Join(OccasionWords(), " | "))
 	}
 	return &occ, nil

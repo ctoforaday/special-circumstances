@@ -80,7 +80,7 @@ func (x WindowIndex) IDs(evs []*Event) []int64 {
 func (x WindowIndex) Of(e *Event) recordsql.Window {
 	w, ok := x.of[e]
 	if !ok {
-		panic(fmt.Sprintf("record: no window for a %s event by %s — the slice holds an event the loader did not produce, so it has no stored sitting", e.GetType(), e.GetSeatId()))
+		panic(fmt.Sprintf("no window for a %s event by %s — the slice holds an event the loader did not produce, so it has no stored sitting", e.GetType(), e.GetSeatId()))
 	}
 	return w
 }
@@ -137,6 +137,6 @@ func (x WindowIndex) LastEpoch(evs []*Event) int {
 // about the record's newest acts, which a narrowed slice need not hold.
 func (x WindowIndex) mustBeWhole(what string) {
 	if x.latest == nil {
-		panic(fmt.Sprintf("record: no whole-record window index to ask for %s — the index was built by hand or by a narrowed read, so it does not hold the record's newest acts", what))
+		panic(fmt.Sprintf("no whole-record window index to ask for %s — the index was built by hand or by a narrowed read, so it does not hold the record's newest acts", what))
 	}
 }

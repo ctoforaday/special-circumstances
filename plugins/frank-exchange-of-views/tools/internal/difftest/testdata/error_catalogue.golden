@@ -525,7 +525,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 
 ── a second regrade of a gap in one sitting
 exit 2
-feov-record: regrade: record: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new regrade at your next sitting, while the gap is open (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair sits and states its position
 exit 0
@@ -537,7 +537,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, no
 
 ── a second position in one sitting
 exit 2
-feov-record: position: record: red-chair has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+feov-record: position: red-chair has already recorded a position this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new position at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair's spot-check
 exit 0
@@ -549,7 +549,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, no
 
 ── a second spot-check in one sitting
 exit 2
-feov-record: spot-check: record: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
+feov-record: spot-check: red-chair has already recorded a spot_check this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in a new spot-check at your next sitting (a sitting holds one, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the chair's verdict
 exit 0
@@ -560,7 +560,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, no
 
 ── a second verdict in one sitting
 exit 2
-feov-record: verdict: record: red-chair has already recorded a verdict this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it; the record is append-only and both stay visible
+feov-record: verdict: red-chair has already recorded a verdict this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. The first stands. If it was wrong, say so in the verdict of your next sitting (a sitting holds one, and this sitting's stands); after a PASS no chair sitting follows and nothing answers it; the record is append-only and both stay visible
 
 ── repeat target: blue's closing on GAP001
 exit 0
@@ -569,7 +569,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a second closing on a gap in one sitting
 exit 2
-feov-record: closing: record: blue-respond has already recorded a closing on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+feov-record: closing: blue-respond has already recorded a closing on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new closing on the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: blue's manifest row for GAP001
 exit 0
@@ -578,7 +578,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a second manifest row for a gap in one sitting
 exit 2
-feov-record: manifest-row: record: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
+feov-record: manifest-row: blue-respond has already recorded a manifest_row on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a new manifest row for the gap at your next sitting (a sitting holds one per --id, and this sitting's stands); the record is append-only and both stay visible
 
 ── repeat target: the lens closes GAP001
 exit 0
@@ -603,7 +603,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 
 ── a second carry of a gap in one sitting
 exit 2
-feov-record: carry: record: red-chair has already recorded a close on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and both stay visible
+feov-record: carry: red-chair has already recorded a close on "GAP001" this sitting — the record keeps your first one rather than quietly replacing it (a retried write lands on the same key on purpose). The first stands. If it was wrong, say so in a docket motion on the gap; the record is append-only and both stay visible
 
 ── bunch target: a finding on a plain sentence
 exit 0

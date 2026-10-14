@@ -57,7 +57,7 @@ func RunParams(run Run) (Params, error) {
 			return nil
 		}
 		if *v < 1 {
-			return fmt.Errorf("record: run-config.json %s = %d — a limit below 1 %s; setup writes 1 or more", name, *v, below1)
+			return fmt.Errorf("run-config.json %s = %d — a limit below 1 %s; setup writes 1 or more", name, *v, below1)
 		}
 		*dst = *v
 		return nil
@@ -110,7 +110,7 @@ func readRunConfig(run Run) (*runConfig, error) {
 	}
 	var rc runConfig
 	if err := json.Unmarshal(b, &rc); err != nil {
-		return nil, fmt.Errorf("record: inputs/run-config.json does not parse: %w", err)
+		return nil, fmt.Errorf("inputs/run-config.json does not parse: %w", err)
 	}
 	return &rc, nil
 }
@@ -122,7 +122,7 @@ func (rc *runConfig) fraction() (float64, error) {
 	}
 	f := *rc.ConvergenceFraction
 	if !(f > 0 && f <= 1) {
-		return DefaultParams.ConvergenceFraction, fmt.Errorf("record: run-config.json convergenceFraction = %v — a fraction of the run's peak board mass, in (0, 1]", f)
+		return DefaultParams.ConvergenceFraction, fmt.Errorf("run-config.json convergenceFraction = %v — a fraction of the run's peak board mass, in (0, 1]", f)
 	}
 	return f, nil
 }

@@ -142,7 +142,7 @@ func RecordsDir(runDir string) (string, error) {
 	switch {
 	case hasPtr && env != "" && !samePath(env, ptr):
 		// Silently preferring either one writes half a run into each root.
-		return "", fmt.Errorf("record: %s is set to %s but run %s already keeps its record at %s — "+
+		return "", fmt.Errorf("%s is set to %s but run %s already keeps its record at %s — "+
 			"a run has ONE record root; unset %s to use the established one, or point it at that same path",
 			RecordRootEnv, env, abs, ptr, RecordRootEnv)
 	case hasPtr:
@@ -152,7 +152,7 @@ func RecordsDir(runDir string) (string, error) {
 		// a run with a full history as a board of zeros. Measured shape, not a hypothetical: the
 		// seat probe builds each board on a temp root it removes afterwards, leaving exactly this.
 		if _, err := os.Stat(ptr); err != nil {
-			return "", fmt.Errorf("record: run %s keeps its record at %s, which is no longer there (%v) — "+
+			return "", fmt.Errorf("run %s keeps its record at %s, which is no longer there (%v) — "+
 				"the events are gone or the directory moved. This is NOT an empty run and will not be reported as one; "+
 				"re-declare the root with %s=<path> if it moved", abs, ptr, err, RecordRootEnv)
 		}
@@ -162,7 +162,7 @@ func RecordsDir(runDir string) (string, error) {
 	}
 
 	if _, err := os.Stat(filepath.Join(abs, separatedMarker)); err == nil {
-		return "", fmt.Errorf("record: run %s was written with its record OUTSIDE the run directory "+
+		return "", fmt.Errorf("run %s was written with its record OUTSIDE the run directory "+
 			"(%s is present) and the resolver has no pointer for it — the pointer lives in the user cache and "+
 			"does not survive a cleaned cache or a copied run directory. Re-declare the root: %s=<path>. "+
 			"REPORTING AN EMPTY BOARD HERE WOULD BE A LIE — the record exists and is simply not reachable",
@@ -191,7 +191,7 @@ func adoptRoot(absRun, root string) (string, error) {
 	// and every projection would render a board missing its own history with no anomaly to show
 	// for it. The events are not lost, so the fix is to move them deliberately, not to guess here.
 	if ents, err := os.ReadDir(filepath.Join(absRun, "records")); err == nil && len(ents) > 0 {
-		return "", fmt.Errorf("record: run %s already keeps events in its own records/ and cannot be "+
+		return "", fmt.Errorf("run %s already keeps events in its own records/ and cannot be "+
 			"separated now — those shards would be orphaned where nothing reads them. Separate a run BEFORE "+
 			"its first register, or move records/ to %s yourself and delete the original",
 			absRun, root)
@@ -203,7 +203,7 @@ func adoptRoot(absRun, root string) (string, error) {
 	back := filepath.Join(root, runBackPointer)
 	switch b, err := os.ReadFile(back); {
 	case err == nil && !samePath(strings.TrimSpace(string(b)), absRun):
-		return "", fmt.Errorf("record: %s already holds the record of run %s — two runs cannot share one "+
+		return "", fmt.Errorf("%s already holds the record of run %s — two runs cannot share one "+
 			"record root, their events would merge into one board wearing both runs' history; give run %s its own",
 			root, strings.TrimSpace(string(b)), absRun)
 	case err != nil && !os.IsNotExist(err):
@@ -224,7 +224,7 @@ func adoptRoot(absRun, root string) (string, error) {
 	// re-adopt and hand the run a fresh empty root. Adoption happens at the first write to the
 	// record, so a run directory nobody can write to is not a case worth degrading for.
 	if err := os.WriteFile(filepath.Join(absRun, separatedMarker), []byte(markerText), 0o644); err != nil {
-		return "", fmt.Errorf("record: cannot mark %s as separated (%w) — without the marker a later "+
+		return "", fmt.Errorf("cannot mark %s as separated (%w) — without the marker a later "+
 			"read cannot tell this run from one whose directory was deleted, and would silently adopt a "+
 			"fresh empty root in place of the record", absRun, err)
 	}
@@ -267,7 +267,7 @@ func readRootPointer(absRun string) (string, bool, error) {
 	}
 	root := strings.TrimSpace(string(b))
 	if root == "" {
-		return "", false, fmt.Errorf("record: the record-root pointer at %s is empty — delete it and re-declare %s", p, RecordRootEnv)
+		return "", false, fmt.Errorf("the record-root pointer at %s is empty — delete it and re-declare %s", p, RecordRootEnv)
 	}
 	return root, true, nil
 }

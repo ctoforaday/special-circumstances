@@ -69,14 +69,14 @@ func requireOncePerSitting(q interface {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
 	case err != nil:
-		return fmt.Errorf("record: asking whether %s has already recorded a %s this sitting: %w", seatID, word, err)
+		return fmt.Errorf("asking whether %s has already recorded a %s this sitting: %w", seatID, word, err)
 	}
 	tail := ""
 	if a := SupersedingAnswer(typ, body); a != "" {
 		tail = " " + a
 	}
 	return feov.Errorf(feov.Validation,
-		"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
+		"%s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
 			"the record keeps your first one rather than quietly replacing it.%s",
 		seatID, word, tail)
 }
