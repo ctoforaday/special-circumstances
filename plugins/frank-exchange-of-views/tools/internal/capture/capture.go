@@ -1807,7 +1807,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	}
 	redEpochs := 0
 	if fam != nil {
-		dj := record.DebateJSONOfEvents(fam.Events, fam.At)
+		dj := record.DebateJSONOfFamily(*fam)
 		for _, r := range dj.Epochs {
 			if len(r.Red) > 0 {
 				redEpochs++

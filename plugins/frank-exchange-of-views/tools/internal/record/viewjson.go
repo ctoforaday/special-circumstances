@@ -1573,6 +1573,10 @@ type DebateEpochJSON struct {
 	Lead         []DebateOpinionJSON `json:"lead"`
 	RedClosings  []DebateClosingJSON `json:"red_closings"`
 	BlueClosings []DebateClosingJSON `json:"blue_closings"`
+	// SpotChecks is each spot-check the chair filed this epoch, as SpotCheck.Describe renders it —
+	// what it names and what it found. A defect the chair finds in a stale area is stated there,
+	// with no verdict recorded.
+	SpotChecks []string `json:"spot_checks"`
 	// Struck is every act of this epoch's transcript that its seat corrected in the sitting that
 	// wrote it — listed with what it said, who struck it and why. The arrays above hold the acts
 	// that stand; this is where the struck ones remain visible.
@@ -1604,13 +1608,15 @@ type DebateOpinionJSON struct {
 
 // DebateJSONOf groups the record's events by epoch exactly as render.go's debate loop does:
 // position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
-// dispute/dispute-respond→Disputes, a docket motion's ruling→Lead. The grouping is
+// spot-check→SpotChecks, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
-// families debateView declares. A caller holding merged events uses DebateJSONOfEvents.
-func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
+// families debateView declares. A caller holding the whole family uses DebateJSONOfFamily.
+//
+// The archive is the board's, for the count each spot-check is read against.
+func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) DebateJSON {
 	out := DebateJSON{Epochs: []DebateEpochJSON{}}
 
 	epochOrder := append([]int{}, epochs...)
@@ -1632,6 +1638,9 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 			text = b.GetText()
 		case *recordpb.MotionRule:
 			text = b.GetOpinion()
+		case *recordpb.SpotCheck:
+			sc, _ := SpotCheckOf(l.Event, win, archive)
+			text = sc.Describe()
 		default:
 			continue
 		}
@@ -1654,7 +1663,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 			return s
 		}
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
-			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, Struck: []DebateStruckJSON{}}
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, Struck: []DebateStruckJSON{}}
 		rj.Struck = append(rj.Struck, struckIn[r]...)
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
@@ -1671,6 +1680,11 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "chair") {
 			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
 				rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
+			}
+		}
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_SPOT_CHECK, "chair") {
+			if sc, ok := SpotCheckOf(e, win, archive); ok {
+				rj.SpotChecks = append(rj.SpotChecks, sc.Describe())
 			}
 		}
 		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
@@ -1712,35 +1726,42 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex) DebateJSON {
 	return out
 }
 
-// DebateJSONOfEvents is DebateJSONOf for a caller holding the WHOLE stream (a board's events, the
-// oracle's walk): the epoch skeleton derives from every event, exactly as the board-shaped
-// signature derived it.
-func DebateJSONOfEvents(evs []*Event, win WindowIndex) DebateJSON {
+// DebateJSONOfFamily is DebateJSONOf for a caller holding the WHOLE family (a board's events and
+// gaps, the oracle's walk): the epoch skeleton derives from every event, exactly as the board-shaped
+// signature derived it, and the archive from the family's gaps.
+func DebateJSONOfFamily(f Family) DebateJSON {
 	var epochs []int
 	seen := map[int]bool{}
-	for _, e := range evs {
-		if r := win.Of(e).Epoch; !seen[r] {
+	for _, e := range f.Events {
+		if r := f.At.Of(e).Epoch; !seen[r] {
 			seen[r] = true
 			epochs = append(epochs, r)
 		}
 	}
-	return DebateJSONOf(epochs, evs, win)
+	return DebateJSONOf(epochs, f.Events, f.At, ArchiveOf(f.Gaps))
 }
 
-// debateView is the structured debate read from the record: the transcript's families, and the
-// chair's recorded verdicts each epoch's `verdict` is read from.
+// debateView is the structured debate read from the record: the transcript's families, the chair's
+// recorded verdicts each epoch's `verdict` is read from, and the closing acts the archive behind
+// each spot-check is replayed from.
 var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*Event, win WindowIndex) (DebateJSON, error) {
 	epochs, err := epochsAt(q)
 	if err != nil {
 		return DebateJSON{}, err
 	}
-	return DebateJSONOf(epochs, evs, win), nil
+	archive, err := archiveOfGapView(q, evs, win)
+	if err != nil {
+		return DebateJSON{}, err
+	}
+	return DebateJSONOf(epochs, evs, win, archive), nil
 },
 	recordpb.EventType_EVENT_TYPE_POSITION,
 	recordpb.EventType_EVENT_TYPE_CLOSING,
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-	recordpb.EventType_EVENT_TYPE_VERDICT)
+	recordpb.EventType_EVENT_TYPE_VERDICT,
+	recordpb.EventType_EVENT_TYPE_SPOT_CHECK,
+	recordpb.EventType_EVENT_TYPE_CLOSE)
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }
