@@ -98,10 +98,9 @@ func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 // THE QUOTE IS THE REPORT'S SENTENCE UNDER EVERY OUTCOME, ON BOTH VERBS.
 //
 // A source that contradicts a claim, or is silent on it, leaves a PASS blocker whose subject is
-// the quote, and the finding that clears it must quote the report. Held to the report only where
-// the source backed the claim, a quote of the SOURCE's words under `refutes` was recorded
-// (universe-m23, event 367: "91 is not a prime number. It is a composite number.") and nothing
-// could clear the blocker it left.
+// the quote, and the finding that clears it must quote the report: a quote of the SOURCE's words
+// would leave a blocker nothing can clear. Each verb under each outcome is refused, and the
+// refusals leave nothing on the record.
 func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 	const sourceWords = "91 is not a prime number. It is a composite number."
 	verifies := func(t *testing.T, runDir string) int {
@@ -145,7 +144,7 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 				if err == nil {
 					t.Fatalf("%s --as %s recorded a quote the report does not hold", verb[0], as)
 				}
-				for _, want := range []string{"--quote", "REPORT's sentence", "contradicts", "says nothing about", "--reason", "cache"} {
+				for _, want := range []string{"--quote", "REPORT's sentence", "contradicts", "says nothing about", "--reason", "show report"} {
 					if !strings.Contains(err.Error(), want) {
 						t.Errorf("%s --as %s: the refusal does not say %q: %v", verb[0], as, want, err)
 					}

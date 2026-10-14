@@ -211,10 +211,9 @@ func newCorroborate() *cobra.Command {
 // is of that, and when it was read. Registered from one place so the two verbs cannot drift into
 // describing the same four fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
-	// The quote is the report's claim under every outcome (writeVerify holds it there), and the
-	// flag says so where a seat reads it: a lens that reads "the claim you are checking" beside
-	// `refutes` quotes the sentence that does the refuting, which is the source's.
-	flags.Text(c, flags.Quote, flags.DescQuote+". It is the REPORT's claim under every --as value — the sentence the source backs, the sentence it contradicts, or the sentence it says nothing about — and never the SOURCE's words, which go in --reason")
+	// The flag names whose sentence the quote is because, beside `refutes`, the sentence that does
+	// the refuting is the source's, and writeVerify refuses it.
+	flags.Text(c, flags.Quote, flags.DescQuote+". It is the REPORT's sentence under every --as value, never the source's")
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
@@ -365,9 +364,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// the source backs the claim, the quote is where the citation's marker stands. Where the source
 	// contradicts the claim or is silent on it, the quote is the subject of a PASS blocker that a
 	// finding quoting that sentence clears (record.unansweredContradictionsBy), and a finding's
-	// quote is held to the report by this same placement — so a quote the report does not hold is a
-	// blocker no seat can clear. On universe-m23 a lens quoted the SOURCE's sentence under
-	// `refutes`, and the run ended UNVERIFIED on a board that was otherwise clean.
+	// quote is held to the report by this same placement — so a quote the report does not hold
+	// would be a blocker no seat can clear.
 	if err := seat.Places(run, body.GetLabel(), body.GetClaim(), claimRefusal); err != nil {
 		return nil, err
 	}
@@ -432,9 +430,9 @@ func claimRefusal(err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
 		return feov.Errorf(feov.Validation,
-			"--quote was not found in report.md. It is the REPORT's sentence — the claim you read the source against — in the report's exact words, whatever the source did for it: the sentence it backs, the sentence it contradicts, or the sentence it says nothing about. "+
-				"What the SOURCE says is never the quote: its words go in --reason, and the source itself is in the run's cache. "+
-				"The whole string is matched, so a heading prepended to it matches nothing; a sentence blue has edited is quoted as it now stands")
+			"--quote was not found in report.md. It is the REPORT's sentence — the claim you read the source against, in the report's exact words — whatever the source did for it: the sentence it backs, the sentence it contradicts, or the sentence it says nothing about. "+
+				"What the SOURCE says is never the quote: its words go in --reason. "+
+				"The whole string is matched, so a heading prepended to it matches nothing; a sentence blue has edited is quoted in its edited words, as `show report` prints it")
 	case errors.Is(err, anchortext.ErrInFence):
 		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — the claim a source is read against is a prose sentence, not code")
 	}

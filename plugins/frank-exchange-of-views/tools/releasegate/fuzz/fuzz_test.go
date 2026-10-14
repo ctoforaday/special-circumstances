@@ -529,8 +529,7 @@ func (r *runner) orderRefused(seatID string) {
 // sourceQuoteRefused drives a lens quoting the SOURCE's sentence as the claim, under any outcome,
 // and holds the tool to refusing it: the quote is the report's sentence whatever the source did
 // for it. Under `refutes` or `absent` a quote the report does not hold is the subject of a PASS
-// blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask
-// (universe-m23).
+// blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask.
 //
 // IT DRAWS NOTHING FROM THE RUN'S RNG. Every seventh lens drive fires, and the outcome and the verb
 // turn with that count: a draw here would move every later draw of the run, and the forced

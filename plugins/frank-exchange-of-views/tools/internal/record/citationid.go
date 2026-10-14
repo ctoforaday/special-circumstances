@@ -453,10 +453,8 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // report by anchortext, which reads whitespace runs as one separator and drops trailing
 // punctuation, so two spellings of one sentence place at one span — and a finding that quotes the
 // contradicted clause with the rest of its sentence is about that clause. A finding answers a
-// claim when the claim is located in the finding's quote, by that matcher. Held to equal strings,
-// universe-m22's lens filed F-42c69faa on the sentence holding the clause it had just read
-// against a source, and the gate held until it filed a second finding on the clause alone; on
-// universe-m19 a finding one full stop shorter than the claim did not answer it.
+// claim when the claim is located in the finding's quote, by that matcher. A finding on PART of
+// the claim, or on another sentence, answers nothing: it does not quote what the source read.
 func unansweredContradictions(evs []*Event) []string {
 	var out []string
 	for _, c := range unansweredContradictionsBy(evs) {

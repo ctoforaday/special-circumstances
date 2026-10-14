@@ -188,10 +188,9 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 // A FINDING ANSWERS THE CLAIM IT QUOTES, AS THE MATCHER READS A QUOTE.
 //
 // The claim and the finding's quote are each placed in the report by anchortext, which reads a
-// whitespace run as one separator and drops trailing punctuation. Compared as strings, a finding
-// on the sentence holding the contradicted clause answered nothing (universe-m22 filed a second
-// finding on the clause alone to pass the gate), and neither did one a full stop shorter
-// (universe-m19).
+// whitespace run as one separator and drops trailing punctuation. A finding answers the claim
+// when it quotes all of it — in the matcher's reading, alone or inside a longer quote — and
+// answers nothing when it quotes part of it or another sentence.
 func TestAFindingAnswersTheClaimItQuotes(t *testing.T) {
 	const claim = "so the claim that a base-3 test accepts 91 rests on computation alone."
 	for _, tc := range []struct {

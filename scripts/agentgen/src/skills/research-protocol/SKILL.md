@@ -16,8 +16,7 @@ Research that survives an adversary.
   claim. A reader cares that the text has appropriate references, not which seat inserted them.
   A `refutes` or `absent` reading is not a reference backing the sentence and is never spliced: it
   is red finding the text unsupported, which is a defect, and it goes to the board as a finding —
-  a PASS is refused until one is raised for it. Every reading quotes the REPORT's sentence, the
-  one the source backs, contradicts or is silent on; the source's words go in the reason.
+  a PASS is refused until one is raised for it.
 
 ## The exchange is TOOL-MEDIATED
 
