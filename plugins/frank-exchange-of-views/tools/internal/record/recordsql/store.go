@@ -392,7 +392,7 @@ func openUncached(path string) (*sql.DB, error) {
 	// meet has to be waited out before the first of them — and it is met at connect, not at a read.
 	if err := connect(db); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("recordsql: preparing %s: %w", path, err)
+		return nil, fmt.Errorf("preparing %s: %w", path, err)
 	}
 
 	// WHETHER THIS OPEN CREATED THE RECORD is decided inside the transaction that creates it, and
@@ -404,7 +404,7 @@ func openUncached(path string) (*sql.DB, error) {
 	created, err := ensureSchema(db)
 	if err != nil {
 		db.Close()
-		return nil, fmt.Errorf("recordsql: preparing %s: %w", path, err)
+		return nil, fmt.Errorf("preparing %s: %w", path, err)
 	}
 	// A DATABASE THIS BINARY DID NOT CREATE is held to this binary's columns before anything reads
 	// it. Its tables and views are the creating binary's (ensureSchema applies once), so a view
@@ -591,7 +591,7 @@ func declaredViews() (map[string]string, error) {
 func requireDeclaredSchema(db *sql.DB) error {
 	tables, cols, err := declaredSchema()
 	if err != nil {
-		return fmt.Errorf("recordsql: reading this binary's own schema: %w", err)
+		return fmt.Errorf("reading this binary's own schema: %w", err)
 	}
 	var lacks, absent []string
 	for _, t := range tables {
@@ -618,7 +618,7 @@ func requireDeclaredSchema(db *sql.DB) error {
 	}
 	views, err := declaredViews()
 	if err != nil {
-		return fmt.Errorf("recordsql: reading this binary's own views: %w", err)
+		return fmt.Errorf("reading this binary's own views: %w", err)
 	}
 	names := make([]string, 0, len(views))
 	for v := range views {
@@ -661,16 +661,16 @@ func requireDeclaredSchema(db *sql.DB) error {
 		return err
 	} else if ok && epoch != recordpb.EventSchema {
 		if epoch > recordpb.EventSchema {
-			return fmt.Errorf("recordsql: this run's record was written at event-schema epoch %d and this binary writes %d — %s",
+			return fmt.Errorf("this run's record was written at event-schema epoch %d and this binary writes %d — %s",
 				epoch, recordpb.EventSchema, newerRunAdvice)
 		}
-		return fmt.Errorf("recordsql: this run's record was written at event-schema epoch %d and this binary writes %d — %s",
+		return fmt.Errorf("this run's record was written at event-schema epoch %d and this binary writes %d — %s",
 			epoch, recordpb.EventSchema, olderRunAdvice)
 	}
 	if len(lacks) == 0 {
 		return nil
 	}
-	return fmt.Errorf("recordsql: %s — %s", strings.Join(lacks, "; "), olderRunAdvice)
+	return fmt.Errorf("%s — %s", strings.Join(lacks, "; "), olderRunAdvice)
 }
 
 // ensureSchema applies the schema if this database does not have it, DECIDING INSIDE THE
@@ -816,7 +816,7 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 // gets NULL, and every reader that counts sittings then counts none rather than inventing one.
 func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error) {
 	if err := tx.QueryRow(`SELECT COALESCE(max("id"), 0) + 1 FROM "events"`).Scan(&id); err != nil {
-		return 0, nil, fmt.Errorf("recordsql: minting the event's id: %w", err)
+		return 0, nil, fmt.Errorf("minting the event's id: %w", err)
 	}
 	if seat, opens := recordpb.SeatOpeningSitting(ev); opens {
 		// A REGISTER UNDER AN AGENT THE HARNESS ALREADY BRACKETED JOINS THAT SITTING RATHER THAN
@@ -830,7 +830,7 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error
 				`SELECT max(e."id") FROM "events" e JOIN "sitting_open" o ON o."event_id" = e."id"
 				  WHERE o."agent_id" = ? AND o."seat_id" = ? AND e."sitting_id" = e."id"`,
 				agent, seat).Scan(&bracket); err != nil {
-				return 0, nil, fmt.Errorf("recordsql: asking whether %s was already bracketed into a sitting: %w", agent, err)
+				return 0, nil, fmt.Errorf("asking whether %s was already bracketed into a sitting: %w", agent, err)
 			}
 			if bracket.Valid {
 				return id, bracket.Int64, nil
@@ -841,7 +841,7 @@ func sittingOf(tx *sql.Tx, ev *recordpb.Event) (id int64, sitting any, err error
 	var open sql.NullInt64
 	if err := tx.QueryRow(
 		`SELECT max("id") FROM "sittings" WHERE "seat_id" = ?`, ev.GetSeatId()).Scan(&open); err != nil {
-		return 0, nil, fmt.Errorf("recordsql: asking which sitting of %s this act joins: %w", ev.GetSeatId(), err)
+		return 0, nil, fmt.Errorf("asking which sitting of %s this act joins: %w", ev.GetSeatId(), err)
 	}
 	if !open.Valid {
 		return id, nil, nil
@@ -866,12 +866,12 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 		id, ev.GetSeatId(), ev.GetTs(),
 		recordpb.Word(ev.GetType()), nullable(ev.GetKey()), sitting,
 	); err != nil {
-		return 0, fmt.Errorf("recordsql: recording the event: %w", err)
+		return 0, fmt.Errorf("recording the event: %w", err)
 	}
 
 	body, ok := recordpb.Body(ev)
 	if !ok {
-		return 0, fmt.Errorf("recordsql: event %d carries no body — every EventType names a body message", id)
+		return 0, fmt.Errorf("event %d carries no body — every EventType names a body message", id)
 	}
 	return id, insertBody(tx, id, body.ProtoReflect())
 }
@@ -927,7 +927,7 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 	stmt := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)", table,
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
-		return fmt.Errorf("recordsql: recording a %s: %w", table, err)
+		return fmt.Errorf("recording a %s: %w", table, err)
 	}
 
 	for _, fd := range lists {
@@ -938,7 +938,7 @@ func insertBody(tx *sql.Tx, eventID int64, m protoreflect.Message) error {
 				fmt.Sprintf("INSERT INTO %q (\"event_id\", \"ord\", \"value\") VALUES (?, ?, ?)", lt),
 				eventID, i, listValue(fd, l.Get(i)),
 			); err != nil {
-				return fmt.Errorf("recordsql: recording %s.%s: %w", table, fd.Name(), err)
+				return fmt.Errorf("recording %s.%s: %w", table, fd.Name(), err)
 			}
 		}
 	}
@@ -982,7 +982,7 @@ func insertArm(tx *sql.Tx, eventID int64, table string, m protoreflect.Message) 
 	stmt := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)", table,
 		strings.Join(cols, ", "), strings.TrimSuffix(strings.Repeat("?, ", len(vals)), ", "))
 	if _, err := tx.Exec(stmt, vals...); err != nil {
-		return fmt.Errorf("recordsql: recording a %s: %w", table, err)
+		return fmt.Errorf("recording a %s: %w", table, err)
 	}
 	return nil
 }

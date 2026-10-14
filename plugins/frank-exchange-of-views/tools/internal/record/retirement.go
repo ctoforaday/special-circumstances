@@ -139,7 +139,7 @@ func staleAreasOf(folds []lensFold, head int64) []StaleArea {
 func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
 	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes_count" = 0`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its fresh material gaps: %w", err)
+		return nil, fmt.Errorf("asking the record for its fresh material gaps: %w", err)
 	}
 	defer rows.Close()
 	out := map[string]bool{}

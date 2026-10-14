@@ -93,7 +93,7 @@ const minStaleFloor = 6 * time.Minute
 // record cannot be read must not both arrive as "very old".
 func lastActivity(run Run, merged Merged) (Activity, error) {
 	if len(merged.Events) == 0 {
-		return Activity{}, fmt.Errorf("record: no events in %s — a run that has written nothing "+
+		return Activity{}, fmt.Errorf("no events in %s — a run that has written nothing "+
 			"is not a run that has gone quiet, and reporting it as an age would make the two the same", run.Dir())
 	}
 	var newest Activity
@@ -108,7 +108,7 @@ func lastActivity(run Run, merged Merged) (Activity, error) {
 		}
 	}
 	if newest.At.IsZero() {
-		return Activity{}, fmt.Errorf("record: %d event(s) in %s and not one had a parseable ts — "+
+		return Activity{}, fmt.Errorf("%d event(s) in %s and not one had a parseable ts — "+
 			"the ordering key replay depends on is absent, so nothing here can be aged", len(merged.Events), run.Dir())
 	}
 	return newest, nil

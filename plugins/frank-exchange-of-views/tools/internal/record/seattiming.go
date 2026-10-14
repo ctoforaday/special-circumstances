@@ -78,13 +78,13 @@ func SeatTimingOf(run Run) (SeatTiming, error) {
 	brows, err := db.Query(`SELECT "agent_id", "bucket", "turns", "span_ms", "output_tokens"
 	  FROM "seat_time_decomposition" ORDER BY "agent_id", "bucket"`)
 	if err != nil {
-		return out, fmt.Errorf("record: reading the seat time decomposition: %w", err)
+		return out, fmt.Errorf("reading the seat time decomposition: %w", err)
 	}
 	for brows.Next() {
 		var b SeatTimeBucket
 		if err := brows.Scan(&b.AgentID, &b.Bucket, &b.Turns, &b.SpanMillis, &b.OutputTokens); err != nil {
 			brows.Close()
-			return out, fmt.Errorf("record: scanning a time bucket: %w", err)
+			return out, fmt.Errorf("scanning a time bucket: %w", err)
 		}
 		out.Buckets = append(out.Buckets, b)
 	}
@@ -97,20 +97,20 @@ func SeatTimingOf(run Run) (SeatTiming, error) {
 	// "measured" is about whether the measurement was taken, never about what it found.
 	var rows int
 	if err := db.QueryRow(`SELECT count(*) FROM "seat_turn"`).Scan(&rows); err != nil {
-		return out, fmt.Errorf("record: counting the per-turn measurements: %w", err)
+		return out, fmt.Errorf("counting the per-turn measurements: %w", err)
 	}
 	out.Measured = rows > 0
 
 	trows, err := db.Query(`SELECT "agent_id", "turn_idx", "span_ms", "is_thinking", "is_tool", "output_tokens"
 	  FROM "seat_turn_span" ORDER BY "agent_id", "turn_idx"`)
 	if err != nil {
-		return out, fmt.Errorf("record: reading the seat turn spans: %w", err)
+		return out, fmt.Errorf("reading the seat turn spans: %w", err)
 	}
 	defer trows.Close()
 	for trows.Next() {
 		var t SeatTurnSpan
 		if err := trows.Scan(&t.AgentID, &t.TurnIdx, &t.SpanMillis, &t.IsThinking, &t.IsTool, &t.OutputTokens); err != nil {
-			return out, fmt.Errorf("record: scanning a turn span: %w", err)
+			return out, fmt.Errorf("scanning a turn span: %w", err)
 		}
 		out.Turns = append(out.Turns, t)
 	}

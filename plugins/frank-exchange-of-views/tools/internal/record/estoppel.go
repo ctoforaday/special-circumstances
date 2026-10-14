@@ -272,7 +272,7 @@ func EditSpans(run Run) ([]EditSpan, error) {
 	}
 	rows, err := db.Query(`SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: reading the recorded edits: %w", err)
+		return nil, fmt.Errorf("reading the recorded edits: %w", err)
 	}
 	defer rows.Close()
 	var out []EditSpan

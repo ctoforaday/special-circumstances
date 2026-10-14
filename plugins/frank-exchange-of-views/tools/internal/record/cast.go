@@ -171,7 +171,7 @@ func castAt(q recordsql.Querier) ([]string, error) {
 	  WHERE v."event_id" = (SELECT MAX("event_id") FROM "cast")
 	  ORDER BY v."ord"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its cast: %w", err)
+		return nil, fmt.Errorf("asking the record for its cast: %w", err)
 	}
 	defer rows.Close()
 	var out []string
