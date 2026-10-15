@@ -10,12 +10,9 @@ import (
 // its peak board mass, and no fresh MATERIAL mint in the point's epoch (a run minting one fresh
 // trifle per sitting must still trip it). MaxSeverityMass is reported beside it and decides nothing.
 //
-// ONE DEFINITION, TWO READERS. The quantities are the convergence_at view's row for the point; the
-// rule over them is atFraction. The FAIL refusal reads the row at the record's newest event, where
-// the board as it stood is the board now; the scorecard's detector (ConvergenceVsVerdict) reads the
-// row at each verdict afterwards. So the detector flags a FAIL exactly where the rule held when it
-// was issued — a FAIL the refusal stood aside for, because another seat held the PASS or a
-// migration replayed it — and a later regrade does not move a past verdict's answer.
+// The quantities are the convergence_at view's row for the point; the rule over them is atFraction.
+// The FAIL refusal reads the row at the record's newest event, where the board as it stood is the
+// board now.
 type Convergence struct {
 	Mass, Peak, MaxSeverityMass float64
 	MaterialOpen                int
