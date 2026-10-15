@@ -181,7 +181,19 @@ func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 	if onRecord(t, stage, proj) {
 		t.Error("a run whose outcome is recorded still made the live run ambiguous")
 	}
-	if !strings.Contains(out, "FEOV_RUN='"+filepath.Join(proj, "a")+"'") {
+	// The command is read out of the hook's JSON, not matched in it raw: on Windows the path's
+	// backslashes are escaped in the encoding, and the seat runs the decoded command.
+	var got struct {
+		HookSpecificOutput struct {
+			UpdatedInput struct {
+				Command string `json:"command"`
+			} `json:"updatedInput"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("the hook's answer is not JSON: %v: %q", err, out)
+	}
+	if !strings.Contains(got.HookSpecificOutput.UpdatedInput.Command, "FEOV_RUN='"+filepath.Join(proj, "a")+"'") {
 		t.Errorf("the one live run was not injected: %q", out)
 	}
 }
