@@ -64,13 +64,17 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 		return nil, err
 	}
 	r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia)}
-	// THE SITTING'S TOOL-CALL COUNT STARTS HERE. The count is keyed by the dispatch number — this
-	// seat's count of registers, which is not the record's sitting ordinal (a bracket-only sitting
-	// moves one and not the other) — so each register starts a fresh count. An operator
-	// is never limited; an agent with no id cannot be counted.
+	// THE SITTING'S TOOL-CALL COUNT STARTS HERE, keyed by the sitting this register opened or
+	// joined: the seat's stored sitting count, the number every `#N` on the record reads. A register
+	// that opens a sitting starts a fresh count; one that joins its bracket's sitting, or a second
+	// register in one sitting, keeps counting in that sitting. An operator is never limited; an
+	// agent with no id cannot be counted.
 	if agent := seatenv.AgentID(); agent != "" && s.SeatID != record.OperatorRole {
-		if err := sittingcap.Open(s.Identity().Run.Dir(), agent,
-			sittingcap.Header{SeatID: s.SeatID, Sitting: dispatch}); err != nil {
+		sitting, err := record.SittingsOf(s.Identity().Run, s.SeatID)
+		if err == nil {
+			err = sittingcap.Open(s.Identity().Run.Dir(), agent, sittingcap.Header{SeatID: s.SeatID, Sitting: sitting})
+		}
+		if err != nil {
 			r.TurnLimitUnarmed = err.Error()
 		}
 	}

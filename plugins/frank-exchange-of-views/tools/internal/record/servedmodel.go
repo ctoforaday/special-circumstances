@@ -47,11 +47,15 @@ func (s SeatModel) Measured() bool { return s.Served != "" }
 // Substituted reports a substitution the harness itself declared.
 func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested != s.Served }
 
-// SeatModels returns one row per seat that registered, in first-register order.
+// SeatModels returns one row per seat that sat, in the order each first opened a sitting.
 //
-// THE LAST REGISTER WINS, matching SeatOfAgent: a re-dispatched seat writes a fresh register, and
-// the latest one names the agent of the seat's latest sitting that registered. A seat re-dispatched
-// into a substituted environment must not be masked by its first, clean dispatch.
+// A SITTING IS THE STORED ONE (f.At): the hook's bracket opens it where the configuration seats one
+// seat, and a register opens it where no bracket did. The agent is the one on the event that opened
+// it — the bracket's, or the register's — so a seat bound and seated by its bracket alone has a row.
+//
+// THE LATEST SITTING WINS: a re-dispatched seat opens a fresh sitting, and its opening names the
+// agent of that sitting. A seat re-dispatched into a substituted environment must not be masked by
+// its first, clean dispatch.
 // SUBSTITUTION IS DETECTED HERE, NOT AT REGISTER. `run` supplies the configured tier per class;
 // pass an empty Run to skip the comparison and report only what answered.
 func SeatModels(run Run, f Family) []SeatModel {
@@ -62,21 +66,20 @@ func SeatModels(run Run, f Family) []SeatModel {
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
 	for _, e := range f.Events {
-		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
+		seat, opens := f.At.Opens(e)
+		if !opens {
 			continue
 		}
-		seat := e.GetSeatId()
 		row := bySeat[seat]
 		if row == nil {
 			row = &SeatModel{SeatID: seat, Class: TierClassOfSeat(run, seat)}
 			bySeat[seat] = row
 			order = append(order, seat)
 		}
-		r := e.GetRegister()
-		agent := r.GetAgentId()
+		agent := recordpb.AgentOpening(e)
 		if agent == "" {
 			row.Served, row.Requested, row.NotMeasured = "", "",
-				"this register carries no agent id, so the seat's trajectory cannot be named"
+				"the event that opened this seat's sitting carries no agent id, so the seat's trajectory cannot be named"
 			continue
 		}
 		obs, err := servedmodel.Observe(agent)

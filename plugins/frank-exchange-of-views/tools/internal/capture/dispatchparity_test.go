@@ -13,9 +13,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// The relay is audited: every register between two dispatches is a named party or the chair, and
+// The relay is audited: every sitting opened between two dispatches is a named party's or the chair's, and
 // every named party sat. A stray seat and an absent party each FAIL, by name.
-func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
+func TestDispatchedPartiesAndSittingsAgree(t *testing.T) {
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
 		n++
@@ -48,7 +48,7 @@ func TestDispatchedPartiesAndRegistersAgree(t *testing.T) {
 	stray := append(append([]*record.Event{}, head...), reg("blue-respond"), reg("red-lens-voice"), reg("red-chair"))
 	dir2 := t.TempDir()
 	recordtest.Seed(t, dir2, stray...)
-	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice registered after dispatch 2") {
+	if a := DispatchParityAudit(runtest.Open(t, dir2), nil, false); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice sat after dispatch 2") {
 		t.Fatalf("a seat nobody dispatched sat unnoticed: %s: %s", a.Verdict, a.Detail)
 	}
 
@@ -138,7 +138,7 @@ func TestAWarmChairsDispatchesAreGroupedByWhoSat(t *testing.T) {
 	recordtest.Seed(t, dir3, warm(false, true)...)
 	a := DispatchParityAudit(runtest.Open(t, dir3), nil, false)
 	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-voice was named in dispatch 2 and sat no sitting before the next") ||
-		!strings.Contains(a.Detail, "red-lens-voice registered after dispatch 3 and was not a party to it") {
+		!strings.Contains(a.Detail, "red-lens-voice sat after dispatch 3 and was not a party to it") {
 		t.Fatalf("a party that sat only after the next dispatch = %s: %s", a.Verdict, a.Detail)
 	}
 }
@@ -246,7 +246,7 @@ func TestABenchIsAnsweredByASittingOfEachOccasionItsRowConvened(t *testing.T) {
 		t.Errorf("a bench convened for both that sat only to hear petitions = %s: %s", a.Verdict, a.Detail)
 	}
 	a = audit(append(bench([]string{"G1"}, dock), benchReg(dock), benchReg(pet), terminal, assemble)...)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge registered for petition after dispatch 1, whose row convened it for [docket]") {
+	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "judge sat for petition after dispatch 1, whose row convened it for [docket]") {
 		t.Errorf("a petition sitting no row convened = %s: %s", a.Verdict, a.Detail)
 	}
 }

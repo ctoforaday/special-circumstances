@@ -41,7 +41,7 @@ func CardHeader(card string) string {
 	}, "\n")
 }
 
-// RenderCard produces the STATS block of one card: what a seat's in-run self-read prints, and
+// RenderCard produces the STATS block of one card: what the operator's `scorecard` prints, and
 // what capture appends to the card's file. The card does not appear in the body; the caller
 // heads it.
 func RenderCard(rows []Row, runLabel string) string {

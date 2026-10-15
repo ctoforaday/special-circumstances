@@ -60,7 +60,7 @@ type StaleArea struct {
 // material now.
 func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool) []lensFold {
 	cast := castOfEvents(evs)
-	ds, registers := dispatchLedger(evs, ids, win)
+	ds, openings := dispatchLedger(evs, ids, win)
 	var out []lensFold
 	for _, seat := range cast {
 		if seatclass.RoleOfSeat(seat) != "lens" {
@@ -73,7 +73,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			if d.seat != seat {
 				continue
 			}
-			r, ok := sittingFor(registers[seat], d)
+			r, ok := sittingFor(openings[seat], d)
 			if !ok {
 				continue
 			}
@@ -277,7 +277,7 @@ type LastSittingJSON struct {
 // a prior sitting is a dispatch d before D whose sitting opened before D, so an unsat earlier
 // dispatch cannot borrow the current opening.
 func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastSittingJSON {
-	ds, registers := dispatchLedger(evs, ids, win)
+	ds, openings := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow
 	for i := len(ds) - 1; i >= 0; i-- {
 		if ds[i].seat == seatID {
@@ -294,7 +294,7 @@ func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string
 		if d.seat != seatID || d.at >= cur.at {
 			continue
 		}
-		if r, ok := sittingFor(registers[seatID], d); ok && r < cur.at {
+		if r, ok := sittingFor(openings[seatID], d); ok && r < cur.at {
 			prior = &ds[i]
 		}
 	}

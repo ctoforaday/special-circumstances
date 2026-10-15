@@ -8,11 +8,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 )
 
-// registers builds a board of register events, one per (seat, served, requested) triple. An empty
-// requested means the harness declared no swap; an empty served means NOTHING MEASURED.
+// registers builds a board of register events, one per (seat, served, requested) triple, seeded and
+// loaded back so each carries its stored sitting. An empty requested means the harness declared no
+// swap; an empty served means NOTHING MEASURED.
 func registers(t *testing.T, rows ...[3]string) record.Family {
 	t.Helper()
 	var evs []*record.Event
@@ -25,7 +27,13 @@ func registers(t *testing.T, rows ...[3]string) record.Family {
 		}
 		evs = append(evs, recordtest.Event(t, r[0], reg))
 	}
-	return record.NewFamily(nil, record.Merged{Events: evs})
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir, evs...)
+	fam, err := record.FamilyOf(runtest.Open(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fam
 }
 
 // THE SUBSTITUTION HAS TO REACH THE READER, because the reader is the only party who can act on

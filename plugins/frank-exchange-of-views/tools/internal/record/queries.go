@@ -231,9 +231,11 @@ func epochsAt(q recordsql.Querier) ([]int, error) {
 	return out, nil
 }
 
-// RegisteredSeats lists the seat ids that registered in this run, in event order — every seat
-// the BUILD registered, whether or not it then sat.
-func RegisteredSeats(run Run) ([]string, error) {
+// SeatsThatSat lists the owner of each sitting the record stores, in the order the sittings opened
+// — one entry per sitting, so a seat that sat twice is listed twice. A sitting is the stored one
+// (the `sittings` view): the hook's bracket opens it where the configuration seats one seat, a
+// register opens it where no bracket did, so a seat seated by its bracket alone is listed.
+func SeatsThatSat(run Run) ([]string, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
@@ -241,9 +243,9 @@ func RegisteredSeats(run Run) ([]string, error) {
 	if db == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id" ORDER BY r."event_id"`)
+	rows, err := db.Query(`SELECT "seat_id" FROM "sittings" ORDER BY "id"`)
 	if err != nil {
-		return nil, fmt.Errorf("asking the record for its registered seats: %w", err)
+		return nil, fmt.Errorf("asking the record which seats sat: %w", err)
 	}
 	defer rows.Close()
 	var out []string

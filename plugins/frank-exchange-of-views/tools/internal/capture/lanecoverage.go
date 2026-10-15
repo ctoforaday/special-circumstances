@@ -108,7 +108,7 @@ func LaneCoverageAudit(run record.Run) Audit {
 	case len(extra) > 0:
 		// Unambiguous: no legitimate dispatch produces a lane the config never asked for.
 		return Audit{Check: "lane-coverage", Verdict: "FAIL",
-			Detail: detail + fmt.Sprintf("; %s registered beyond the declared count, which no dispatch of this config could have produced — the engine and the run's own config disagree about how wide synthesis was",
+			Detail: detail + fmt.Sprintf("; the cast names %s beyond the declared count, which no dispatch of this config could have produced — the engine and the run's own config disagree about how wide synthesis was",
 				strings.Join(extra, ", "))}
 	case len(missing) > 0:
 		return Audit{Check: "lane-coverage", Verdict: "WARN",

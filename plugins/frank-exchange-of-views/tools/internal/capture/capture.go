@@ -714,7 +714,7 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 				owed++
 			}
 			name = fmt.Sprintf("blue sitting %d, engaged on %s still open when it sat, ", p.Ordinal, strings.Join(s.Open, ", "))
-			why = "the record cannot close it (blue has not registered since and its agent's stop is not on the record)"
+			why = "the record cannot close it (no sitting of blue's has opened since and its agent's stop is not on the record)"
 		} else {
 			chairs++
 		}
