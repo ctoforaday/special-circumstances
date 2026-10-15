@@ -223,7 +223,7 @@ func (a *attributor) attribute(at int) (Channel, string, bool) {
 
 // promptTextBlock reports whether p is `.attachment.prompt[j].text` for a block j whose TYPE is
 // text — read from the decoded prompt, exactly as a message block's type is, so a `text` key on
-// some other kind of block is not taken for somebody's words. promptText reads the same blocks.
+// some other kind of block is not taken for somebody's words.
 func (a *attributor) promptTextBlock(p []step) bool {
 	if len(p) != 4 || !is(p[:2], "attachment", "prompt") || p[2].idx < 0 || p[3].key != "text" {
 		return false

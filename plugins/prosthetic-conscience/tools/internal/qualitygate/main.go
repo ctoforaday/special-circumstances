@@ -376,15 +376,3 @@ func Unit() hookunit.Unit {
 		},
 	}
 }
-
-// Main is the process boundary: it wires the real environment in and returns the
-// exit code, so cmd/ stays a three-line shim and this stays testable.
-func Main() int {
-	return run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, env{
-		projectDir:  os.Getenv("CLAUDE_PROJECT_DIR"),
-		qltyPresent: toolchain.Present("qlty"),
-		mode:        parseMode(os.Getenv("SC_QUALITY_GATE")),
-		timeout:     parseTimeout(os.Getenv("SC_QUALITY_GATE_TIMEOUT_SECONDS")),
-		exec:        execQlty,
-	})
-}
