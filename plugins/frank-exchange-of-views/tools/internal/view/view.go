@@ -807,7 +807,7 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			ids[i] = a.ID
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
-			"_Unsettled and no fate recorded this epoch: "+strings.Join(ids, ", ")+". Each owes a fate or a",
+			"_Unsettled and not recorded this epoch: "+strings.Join(ids, ", ")+". Each owes a record or a",
 			"REAFFIRMATION — re-recording `underway` with what you learned settles it for this epoch just",
 			"as a fate does; an inquiry declared once and never revisited records an intention, not a",
 			"choice. An approach that ran is `confirmed` or `refuted`; every fate but `proposed` and `underway`",
