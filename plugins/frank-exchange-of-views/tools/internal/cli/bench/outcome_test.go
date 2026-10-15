@@ -5,10 +5,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/spf13/cobra"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -80,10 +83,19 @@ func TestOutcomeAssertsOnlyUnverifiedAndAlwaysWithAnAccount(t *testing.T) {
 						t.Errorf("verdict_basis = %q, want %q — the record could not derive this word, and the outcome must say so", o.GetVerdictBasis(), record.VerdictAsserted)
 					}
 				}
+				// THE RUN STOPS COUNTING AS LIVE for everyone but the seat that recorded it (#1255).
+				mark, err := os.ReadFile(filepath.Join(runDir, runlive.OutcomeMark))
+				if err != nil || !strings.Contains(string(mark), `"agent_bench"`) {
+					t.Errorf("a recorded outcome left no mark naming its agent beside the run: %q, %v", mark, err)
+				}
 				return
 			}
 			if err == nil {
 				t.Fatal("accepted an outcome the contract forbids")
+			}
+			// A REFUSED OUTCOME ENDS NOTHING: a mark here would drop a live run from every hook.
+			if _, err := os.Stat(filepath.Join(runDir, runlive.OutcomeMark)); !os.IsNotExist(err) {
+				t.Errorf("a refused outcome left a mark beside the run: %v", err)
 			}
 			if !strings.Contains(err.Error(), tc.wantSay) {
 				t.Errorf("the refusal does not say %q: %v", tc.wantSay, err)

@@ -127,7 +127,8 @@ func TestASittingFailureIsSaidOnTheNextToolCall(t *testing.T) {
 
 // AN UNUSABLE MARKER ON PRETOOLUSE: the run directory was simply never injected, and the seat then
 // hit "no run directory" from a different layer. Recorded in the marker's project; cleared by a
-// usable one; and two runs open — legitimate — is not a fault.
+// usable one. TWO LIVE RUNS ARE SAID, naming both (#1255) — the hook injected nothing for either and
+// said nothing — and a run whose outcome is recorded beside a live one is no second live run.
 func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	proj := t.TempDir()
@@ -161,9 +162,27 @@ func TestPreRecordsOnlyAFaultyMarker(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	pre(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`)
+	_, msg := messageOf(t, pre(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`))
+	if !onRecord(t, stage, proj) {
+		t.Fatal("two live runs were not recorded — every seat of both runs acts uninjected, and nothing says so")
+	}
+	for _, want := range []string{"- " + stage + " in " + proj, filepath.Join(proj, "a"), filepath.Join(proj, "b")} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the fault must be said with %q: %q", want, msg)
+		}
+	}
+
+	// THE ENDED RUN YIELDS: b's outcome is recorded, so a is the one live run — injected, and the
+	// fault clears.
+	if err := os.WriteFile(filepath.Join(proj, "b", runlive.OutcomeMark), []byte(`{"agentId":"a-bench"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := pre(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`)
 	if onRecord(t, stage, proj) {
-		t.Error("two runs open were recorded as a fault")
+		t.Error("a run whose outcome is recorded still made the live run ambiguous")
+	}
+	if !strings.Contains(out, "FEOV_RUN='"+filepath.Join(proj, "a")+"'") {
+		t.Errorf("the one live run was not injected: %q", out)
 	}
 }
 

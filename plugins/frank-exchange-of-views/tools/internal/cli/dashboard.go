@@ -75,12 +75,11 @@ func newDashboard() *cobra.Command {
 				return nil
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "dashboard:", out, "(watching — regenerates every 15s until the run ends)")
-			// TWO SIGNALS, because the marker alone was not enough (#270). `capture` is the only
-			// thing that removes .claude/run-live.json, and capture is optional: a run that was
-			// killed or never captured left this watcher regenerating a dead run forever. The
-			// RECORD is the second signal and the more truthful one — once the bench records the
-			// outcome, the run is over whatever the filesystem still says.
-			marker := filepath.Join(".claude", "run-live.json")
+			// MORE THAN THE MARKER, because the marker alone was not enough (#270). `capture` is the
+			// only thing that removes this run's row from .claude/run-live.json, and capture is
+			// optional: a run that was killed or never captured left this watcher regenerating a
+			// dead run forever. The RECORD is the second signal and the more truthful one — once the
+			// bench records the outcome, the run is over whatever the filesystem still says.
 			ticker := time.NewTicker(15 * time.Second)
 			defer ticker.Stop()
 			// THE TICK IS THE SCHEDULE, NOT THE REASON. Every 15s this called BuildModel
@@ -108,7 +107,7 @@ func newDashboard() *cobra.Command {
 					// redundant render and cannot lose an update.
 					seen = current
 				}
-				if ended, why := runHasEnded(marker, run); ended {
+				if ended, why := runHasEnded(dashboardProject, run); ended {
 					_ = generate()
 					fmt.Fprintln(cmd.OutOrStdout(), why+" — final render written, watcher exiting")
 					return nil

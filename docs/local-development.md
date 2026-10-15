@@ -227,9 +227,10 @@ env -u FEOV_RUN -u FEOV_RUN_FROM_WRAPPER -u FEOV_AGENT_ID -u FEOV_AGENT_TYPE -u 
 `feov-record` call against an archived run.
 
 **A run-live marker claims every subagent in its project.** While `.claude/run-live.json` names a
-run, the SubagentStart/Stop hooks attribute every subagent in that project to it — a dev session's
-included. Run the engine from its own source tree (a detached worktree), never from the worktree you
-develop in.
+live run — one whose directory exists and whose outcome is not yet recorded — the SubagentStart/Stop
+hooks attribute every subagent in that project to it, a dev session's included. Run the engine from
+its own source tree (a detached worktree), never from the worktree you develop in. `setup` refuses a
+second live run in one project, and prunes the rows of runs that are no longer live.
 
 **The box is shared.** Other sessions run their own gates here. Check `uptime` before timing
 anything: a load average of 30 on four cores makes `go test` hit its 600s timeout and look like a

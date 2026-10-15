@@ -26,7 +26,7 @@ package recordpb
 // that join once, at the one moment it holds the record, and stores the answer; a bracket whose
 // configuration seats several seats (blue's lanes) carries none, so blue keeps paying for its own
 // register. A bracket with no seat opens nothing, which is also the safe answer for the hazard the
-// run harness has anyway: while `.claude/run-live.json` names a run, SubagentStart attributes every
+// run harness has anyway: while `.claude/run-live.json` names a live run, SubagentStart attributes every
 // subagent in that project to it, a dev session's included.
 //
 // A REGISTER WHOSE BODY DOES NOT DECODE OPENS A SITTING. The repair is a claim the BODY carries, so
