@@ -758,14 +758,14 @@ SELECT
   ids."motion_id"                                        AS "motion_id",
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
-  fr."avenue"                                            AS "avenue",
+  fr."inquiry"                                           AS "inquiry",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
   -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", fr."avenue", rd."disposition") AS "ruling",
+  COALESCE(fr."grade", fr."petition", fr."inquiry", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq",
   fa."reason"                                            AS "appeal_reason",
@@ -790,32 +790,32 @@ LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 -- substance; the LATEST avenue event carries the status; the LATEST avenue-subject
 -- ruling carries red's answer, including a later ruling that carried no word — an unset arm
 -- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
-CREATE VIEW "avenue_state" AS
+CREATE VIEW "inquiry_state" AS
 SELECT
-  p."avenue_id"                        AS "avenue_id",
+  p."inquiry_id"                       AS "inquiry_id",
   pe."seat_id"                         AS "proposed_by",
   pe."id"                           AS "proposed_seq",
-  fp."line"                            AS "line",
+  fp."question"                        AS "question",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  lr."avenue"                          AS "avenue_ruling",
+  lr."inquiry"                         AS "inquiry_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
 -- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
 -- place, and its replacement does not become the line's LATEST status.
-FROM (SELECT a0."avenue_id" AS "avenue_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
-        FROM "avenue" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
-        WHERE COALESCE(a0."avenue_id", '') != '' AND a0."supersedes_status" IS NULL
-        GROUP BY a0."avenue_id") p
-JOIN "avenue" fp ON fp."event_id" = p."pid"
+FROM (SELECT a0."inquiry_id" AS "inquiry_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
+        FROM "inquiry" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
+        WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
+        GROUP BY a0."inquiry_id") p
+JOIN "inquiry" fp ON fp."event_id" = p."pid"
 JOIN "events" pe ON pe."id" = p."pid"
-LEFT JOIN "avenue" ls ON ls."event_id" =
-  (SELECT x."event_id" FROM "avenue" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
-     WHERE x."avenue_id" = p."avenue_id" ORDER BY lx."pos" DESC LIMIT 1)
+LEFT JOIN "inquiry" ls ON ls."event_id" =
+  (SELECT x."event_id" FROM "inquiry" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
+     WHERE x."inquiry_id" = p."inquiry_id" ORDER BY lx."pos" DESC LIMIT 1)
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'avenue' ORDER BY ly."pos" DESC LIMIT 1)
+     WHERE y."motion_id" = p."inquiry_id" AND y."subject" = 'inquiry' ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
