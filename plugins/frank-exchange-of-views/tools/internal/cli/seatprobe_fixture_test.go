@@ -133,7 +133,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 
 	for i, a := range b.Inquiries {
 		if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
-			"--question", a.Line, "--hypothesis", a.Hypothesis); err != nil {
+			"--question", a.Question, "--hypothesis", a.Hypothesis); err != nil {
 			t.Fatalf("inquiry %d: %v", i, err)
 		}
 		if a.Ruled == "" {

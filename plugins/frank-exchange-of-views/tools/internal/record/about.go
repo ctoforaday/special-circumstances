@@ -37,7 +37,7 @@ func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, erro
 		return nil, nil, fmt.Errorf("%q is not a thing this can be about (section | inquiry | gap)", kind)
 	}
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
-	// borrowed from a nearby paragraph: an avenue id either names a line this run proposed or it
+	// borrowed from a nearby paragraph: an inquiry id either names an inquiry this run proposed or it
 	// does not. A section name is not checked — the report's headings are blue's to change mid-run,
 	// and refusing on a stale one would refuse the finding rather than the staleness.
 	switch k {

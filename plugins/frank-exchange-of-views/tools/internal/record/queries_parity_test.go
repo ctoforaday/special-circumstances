@@ -65,7 +65,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")}); err != nil {
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(blue, &recordpb.BlueEdit{Answers: proto.String("G2"),
@@ -133,7 +133,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("the stranded refusal = %v, want the stranded pair named", err)
 	}
 
-	// requireAvenue: the proposed line resolves, an unknown one is refused.
+	// requireInquiry: the proposed inquiry resolves, an unknown one is refused.
 	if err := requireInquiry(recordOf(t, run), "Q1", "--id"); err != nil {
 		t.Errorf("requireInquiry(Q1) = %v", err)
 	}

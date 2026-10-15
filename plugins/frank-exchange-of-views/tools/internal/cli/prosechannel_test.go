@@ -89,15 +89,10 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 
 // recordTypeOf is the event a verb writes.
 //
-// SMALL, AND CHECKED — which is the part that was missing either way. It began as a hand-kept
-// switch defended as "SMALL on purpose". I replaced it with a bare schema lookup on the verb name,
-// on the argument that the table was a second list beside the descriptor. That was wrong: a verb
-// and the event it writes are DIFFERENT NAMES, deliberately — `avenue` writes an `avenue`
-// — so the lookup resolved nothing and the test asserted against a word the schema does not carry.
-//
-// The mapping is real and irreducible, so it stays; what it now does is RESOLVE through the
-// descriptor, so a stale entry fails here naming the word it could not find rather than passing
-// on a miss. See [[facts-are-fields]] clause 4: find every reader before removing an encoding.
+// SMALL, AND CHECKED. A verb and the event it writes may carry different names, so the mapping is
+// a table; it RESOLVES through the descriptor, so a stale entry fails here naming the word it could
+// not find rather than passing on a miss. See [[facts-are-fields]] clause 4: find every reader
+// before removing an encoding.
 func recordTypeOf(t *testing.T, args []string) recordpb.EventType {
 	t.Helper()
 	word := args[0]

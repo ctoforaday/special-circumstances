@@ -40,7 +40,7 @@ func TestTheKindsTableSaysWhatEachKindMeans(t *testing.T) {
 	if got, want := Kinds(), []string{"finding", "citation", "proof", "gap"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Kinds() = %v, want %v — the walk order every reader reports in", got, want)
 	}
-	// AN ID NO ROW CLAIMS HAS NO KIND — an avenue's, a motion's, a lower-case letter, a word. It is no
+	// AN ID NO ROW CLAIMS HAS NO KIND — an inquiry's, a motion's, a lower-case letter, a word. It is no
 	// finding, backs nothing, counts as no claim, its label passes through unchanged, and the token
 	// spelled from it is one no reader takes for an anchor.
 	for _, id := range []string{"Q-00000003", "M-00000003", "G3", "f-00001a2b", "banana"} {

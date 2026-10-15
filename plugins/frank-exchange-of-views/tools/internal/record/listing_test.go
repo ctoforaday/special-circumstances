@@ -159,7 +159,7 @@ func TestStruckTextIsTrimmedSoTheStrikeRenders(t *testing.T) {
 	}
 }
 
-// THE AVENUES AND THE EVIDENCE LIST A STRUCK ACT, never drop it.
+// THE INQUIRIES AND THE EVIDENCE LIST A STRUCK ACT, never drop it.
 func TestInquiryAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
 	prop := func(line string) *recordpb.Inquiry {
 		return &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String(line), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}

@@ -15,7 +15,7 @@ import (
 //
 // An id is minted at random, so a table row written before its run exists cannot spell one. A row
 // names its subject by POSITION instead — G1 is the first gap the run minted, M2 the second motion
-// filed, Q1 the first avenue proposed — and the driver resolves the handle against the record at
+// filed, Q1 the first inquiry proposed — and the driver resolves the handle against the record at
 // the moment the step runs. The handle never reaches the tool: what the verb is handed is the id
 // the record minted.
 

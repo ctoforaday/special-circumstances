@@ -17,10 +17,10 @@ import (
 
 // THE TOOL LOGS EVERY REFUSAL IT GIVES A SEAT, because the seats do not.
 //
-// universe-m13: `--key` on `avenue move`, `--acceptance-check` for `--check`, a mint past its
-// budget, a projection read with a flag it does not take — every seat classed its own refusals as
-// mistakes and the log stayed empty. The guess is the operator's signal: a flag a seat reached for
-// is one the surface taught it to expect.
+// A seat classes its own refusals as mistakes and logs none, so the tool logs every refusal: a
+// wrong flag name, a mint past its budget, a projection read with a flag it does not take.
+// The guess is the operator's signal: a flag a seat reached for is one the surface taught it to
+// expect.
 func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	refusals := func(t *testing.T, runDir string) []string {
 		t.Helper()

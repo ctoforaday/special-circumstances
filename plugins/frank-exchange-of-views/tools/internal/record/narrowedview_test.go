@@ -34,7 +34,7 @@ import (
 // of the report (evidence), a mint crediting a finding
 // (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
 // spot-check is read against (debate), a check backing an open gap's
-// anchor (board), and a ruled avenue (motions). It holds a CORRECTION of a correctable act in every
+// anchor (board), and a ruled inquiry (motions). It holds a CORRECTION of a correctable act in every
 // view that declares one, because the narrowed read loads corrections without being asked (eventsOfAt)
 // and a view whose struck act renders as standing differs from the whole record only where one exists.
 func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
@@ -83,8 +83,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: str("blue's position")}),
 		recordtest.Event(t, "red-chair", &recordpb.Closing{GapId: str("G1"), Text: str("red closes on G1")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: str("Q1"),
-			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: str("a direction")}),
-		// The chair rules the avenue, which makes it a direction motion.
+			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: str("a question")}),
+		// The chair rules the inquiry, which makes it an inquiry motion.
 		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1", &recordpb.MotionRule{MotionId: str("Q1"),
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY), Opinion: str("worth the run's time"),
 			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),

@@ -92,14 +92,13 @@ func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 	}
 }
 
-// AN AVENUE THAT CONTRADICTS WHAT THE READER IS TOLD IS ANSWERED THROUGH A GAP, AND ONLY A GAP.
+// AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS ANSWERED THROUGH A GAP, AND ONLY A GAP.
 //
-// The avenues print in the report beside the body, so an approach printed as declined that a
-// section carries is a contradiction on the reader's page. On universe-m21 two lenses filed eleven
-// findings about such avenues and minted none; a finding about an avenue is on no seat's work
-// list, blue's responding seat answers its list, and the report shipped the contradictions. The
-// gap anchored to the same avenue is on blue's list with what it is about, and `finding`'s own
-// page says which of the two reaches anybody.
+// The inquiries print in the report beside the body, so an approach printed as declined that a
+// section carries is a contradiction on the reader's page. A finding about an inquiry is on no
+// seat's work list, and blue's responding seat answers its list. The gap anchored to the same
+// inquiry is on blue's list with what it is about, and `finding`'s own page says which of the two
+// reaches anybody.
 func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond", "--question", "test primality by trial division"); err != nil {

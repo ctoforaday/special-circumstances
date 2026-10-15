@@ -229,7 +229,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
 		// stdout, and composing it from a loop index is a hope about someone else's counter.
 		out, err := exec("inquiry", "propose", "--run", run.Dir(), "--seat-id", "blue-respond",
-			"--question", a.Line, "--hypothesis", a.Hypothesis)
+			"--question", a.Question, "--hypothesis", a.Hypothesis)
 		if err != nil {
 			return fmt.Errorf("inquiry %d: %w", i+1, err)
 		}

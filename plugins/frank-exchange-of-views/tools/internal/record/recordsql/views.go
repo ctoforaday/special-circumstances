@@ -335,8 +335,8 @@ WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root")
 -- EVERY ACT, WHERE IT STANDS IN AN ORDERING, AND WHEN IT STOPPED STANDING. Its position "pos" is its
 -- own id, or — for a replacement — the id of the act at the ROOT of its chain: a correction takes its
 -- target's place in every ordering, so a reader picking the FIRST or the LATEST act orders by "pos",
--- and a replacement cannot jump ahead of a later act by the same seat (a line of avenue's proposal
--- corrected after it was moved must not become the line's latest status). "struck_seq" is the
+-- and a replacement cannot jump ahead of a later act by the same seat (an inquiry's proposal
+-- corrected after its fate was recorded must not become the inquiry's latest status). "struck_seq" is the
 -- events.id of the correction that struck it, NULL while nothing has.
 --
 -- TWO AXES, AND THEY ANSWER DIFFERENT QUESTIONS. "pos" ORDERS the acts that stand; WHETHER an act
@@ -751,7 +751,7 @@ SELECT
 -- ruling and the FIRST appeal are the ones that count, and a second of either is refused at the
 -- write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
 -- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because an avenue motion has no filing row (the avenue's proposal IS the
+-- because an inquiry motion has no filing row (the inquiry's proposal IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
@@ -784,10 +784,9 @@ LEFT JOIN "motion_appeal" fa ON fa."event_id" =
     WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
--- A AVENUE, whole: proposed by whom, saying what, where its status stands now, and
--- how red last ruled the avenue — the join that used to live in three separate readers
--- (the Avenues fold, AvenueRuling, and the report's rows). The proposal row carries the
--- substance; the LATEST avenue event carries the status; the LATEST avenue-subject
+-- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
+-- how red last ruled the inquiry. The proposal row carries the
+-- substance; the LATEST inquiry event carries the status; the LATEST inquiry-subject
 -- ruling carries red's answer, including a later ruling that carried no word — an unset arm
 -- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
 CREATE VIEW "inquiry_state" AS
@@ -801,8 +800,8 @@ SELECT
   lr."inquiry"                         AS "inquiry_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
--- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
--- place, and its replacement does not become the line's LATEST status.
+-- Only the acts that stand, in their "pos" order: a proposal corrected after its fate was recorded keeps its
+-- place, and its replacement does not become the inquiry's LATEST status.
 FROM (SELECT a0."inquiry_id" AS "inquiry_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
         FROM "inquiry" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL

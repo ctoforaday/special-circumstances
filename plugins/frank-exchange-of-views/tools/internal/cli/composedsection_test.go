@@ -24,11 +24,10 @@ import (
 // A SECTION THE TOOL COMPOSES IS REFUSED AT THE WRITE, through the real verbs, AND THE REFUSAL
 // SAYS HOW CONTENT REACHES IT.
 //
-// universe-m20: blue's report carried a "## Alternatives considered" section. Assembly composes
-// that section from the avenues, so blue's never shipped — and nothing said so while a proof, two
-// gaps and thirteen findings were anchored in it and lenses audited it for five sittings. The
-// author reads the refusal at ingest and at edit, the two acts that put text in the report; each
-// names the heading, what assembly composes the section from, and the way in.
+// Assembly composes the "## Alternatives considered" section from the inquiries, so a section of
+// that name in blue's report never ships. The author reads the refusal at ingest and at edit, the
+// two acts that put text in the report; each names the heading, what assembly composes the
+// section from, and the way in.
 
 const composedSection = "## Alternatives considered\n\n- A probable-prime test was weighed and rejected.\n"
 

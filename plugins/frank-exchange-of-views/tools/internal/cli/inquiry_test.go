@@ -53,7 +53,7 @@ func TestInquiryRecordKeepsItsSubstance(t *testing.T) {
 	}
 	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "every implementation agrees at n=7; the hypothesis is dead"); err != nil {
-		t.Fatalf("move: %v", err)
+		t.Fatalf("record: %v", err)
 	}
 
 	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries")
@@ -67,11 +67,11 @@ func TestInquiryRecordKeepsItsSubstance(t *testing.T) {
 	}
 }
 
-// A move that says nothing is the unfalsifiable status this replaces.
+// A fate recorded with nothing said is an unfalsifiable status.
 func TestInquiryRecordRequiresWhatChanged(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a line"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a question"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
@@ -90,27 +90,25 @@ func TestInquiryRecordRefusesAnUnknownID(t *testing.T) {
 	_, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
 		"--id", "Q9", "--as", "underway", "--reason", "why")
 	if err == nil {
-		t.Fatal("a move against an inquiry nobody proposed was accepted")
+		t.Fatal("a fate recorded against an inquiry nobody proposed was accepted")
 	}
 	if !strings.Contains(err.Error(), handleText(t, runDir, "Q9")) {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
 }
 
-// THE AMBIGUITY IS STRUCTURAL NOW, not policed. Proposing and moving were one verb that read
-// --id to decide which contract applied, so passing the wrong combination was something the
-// handler had to catch. They are two verbs, and `propose` simply has no --id to pass.
-func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
+// THE AMBIGUITY IS STRUCTURAL, not policed. Proposing and recording a fate are two verbs, and
+// `propose` simply has no --id to pass.
+func TestProposeHasNoIDToConfuseTheRecordWith(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
 	if _, err := runAt(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
-		"--id", "Q1", "--question", "a line"); err == nil {
+		"--id", "Q1", "--question", "a question"); err == nil {
 		t.Fatal("`propose --id` was accepted; the two contracts are still reachable through one shape")
 	}
 }
 
-// RED RULES AND NEVER PROPOSES. Across the corpus red rejected zero avenues because it had
-// no verb to; this is that verb.
+// RED RULES AND NEVER PROPOSES: the ruling is red's act on an inquiry.
 func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
@@ -118,8 +116,8 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 		"--question", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
 		t.Fatal(err)
 	}
-	// A direction motion joins on the LINE's own id: it has no `file` verb because the
-	// proposal IS the filing, which is why A1 works here and no M-number is minted.
+	// An inquiry motion joins on the inquiry's own id: it has no `file` verb because the
+	// proposal IS the filing, which is why Q1 works here and no M-number is minted.
 	if _, err := runAt(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--as", "out_of_scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
@@ -138,7 +136,7 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 func TestRulingRequiresAReason(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a line"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a question"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runAt(t, "inquiry-rule", "--run", runDir, "--seat-id", "red-chair",
@@ -151,13 +149,12 @@ func TestRulingRequiresAReason(t *testing.T) {
 func TestRedCannotProposeAnInquiry(t *testing.T) {
 	runDir := newRun(t)
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "red-chair",
-		"--question", "red's own direction"); err == nil {
-		t.Fatal("red proposed a research direction; directing research is what a gap's required_fix does")
+		"--question", "red's own inquiry"); err == nil {
+		t.Fatal("red proposed an inquiry; directing research is what a gap's required_fix does")
 	}
 }
 
-// The awaiting-a-decision block is what makes the revisit duty checkable rather than hoped
-// for — the measured failure was that nothing ever asked blue to choose again after round 0.
+// The awaiting-a-decision block is what makes the revisit duty checkable rather than hoped for.
 func TestOpenInquiriesAreSurfacedAsOwingADecision(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)

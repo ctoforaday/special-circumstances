@@ -15,7 +15,7 @@
 // BYTE-IDENTITY NOTES:
 //   - `+(x).toFixed(2)` (epoch to 2 decimals, then Number→string dropping trailing zeros) is
 //     jsToFixed2Num.
-//   - The two OBJECT-valued rows (avenues byStatus; citation_yield_by_epoch) render via
+//   - The two OBJECT-valued rows (inquiries byStatus; citation_yield_by_epoch) render via
 //     JSON.stringify in INSERTION order; Go maps sort, so they are built as literal JSON strings
 //     (objJSON) preserving first-seen order — never marshaled from a map.
 package scorecard
@@ -443,7 +443,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Joint: "reads WITH the report: breadth means nothing if the underway inquiry was chosen before the others were weighed"})
 	} else if fam == nil {
 		// NOT MEASURED IS NOT ZERO. Without a board this row has not been computed, and saying
-		// "no avenues recorded" would be the same defect one layer up.
+		// "no inquiries recorded" would be the same defect one layer up.
 		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "inquiries", Cls: "diagnostic",
 			Note: "NOT MEASURED — the record could not be read, so this is not a statement about the run"})
 	} else {
@@ -451,7 +451,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Note: "no inquiries recorded — think-around-problem is back to self-attested for this run"})
 	}
 
-	// thin_avenue_reasons
+	// thin_inquiry_reasons
 	thinNote := ""
 	if len(thinLines) > 0 {
 		n := thinLines

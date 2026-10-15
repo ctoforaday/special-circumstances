@@ -722,7 +722,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 	// The dangerous variant is the eleventh, which was NOT a restatement: `close` exempts a carry
 	// from the closure argument, and `prose` was annotated required anyway, so the exemption was
 	// refused before it could run and `chair carry --id R2-3 --carried-from 2` — the invocation
-	// its own help documents — was rejected. That annotation is conditional now, like Avenue.line.
+	// its own help documents — was rejected. That annotation is conditional now, like Inquiry.question.
 	// The lesson is the ordering: anything an annotation makes UNCONDITIONAL is decided before a
 	// single line here executes, so a `required` marking silently deletes every exemption below.
 	//
@@ -795,7 +795,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
 		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
 		// were document probes. An optional field would be answered the same way the
-		// avenue --hypothesis was before it was required, which is to say not at all. Making
+		// inquiry propose --hypothesis was before it was required, which is to say not at all. Making
 		// red state what would settle each check is the behaviour change; `document` stays a
 		// legitimate answer, but it now has to be chosen.
 		//
@@ -1296,22 +1296,18 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 			return err
 		}
 	case *recordpb.Inquiry:
-		// EVERY AVENUE HAS AN ID, exactly as every gap, finding and citation does. A
+		// EVERY INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an
 		// asymmetry every reader then has to learn.
-		// A MOVE names an avenue that exists. A proposal ASSIGNS the id, so only a move (which
-		// carries supersedes_status) is checked against the record.
-		// avenue_id IS Avenue.avenue_id. The record has spelled this concept both ways for
-		// releases — the CLI writes `avenue_id`, the schema and the frozen key census carry
-		// `avenue_id`, and the seat-facing verb is `avenue` — and the schema's name is
-		// the one that survives. Named here because it is a rename by judgement, not a match.
+		// A RECORDED FATE names an inquiry that exists. A proposal ASSIGNS the id, so only a
+		// recorded fate (which carries supersedes_status) is checked against the record.
 		if b.GetSupersedesStatus() != "" {
 			if err := requireInquiry(q, b.GetInquiryId(), "--id"); err != nil {
 				return err
 			}
 		}
-		// A PROPOSAL IS THE AVENUE SUBJECT'S FILING, so the seat that rules on avenues proposes none
-		// (rulerfiles.go). A move files nothing.
+		// A PROPOSAL IS THE INQUIRY SUBJECT'S FILING, so the seat that rules on inquiries proposes none
+		// (rulerfiles.go). A recorded fate files nothing.
 		if b.SupersedesStatus == nil {
 			if err := requireFilerHoldsNoGavel(seatID, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, true); err != nil {
 				return err
@@ -1336,8 +1332,8 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// missing reason. An unset status is refused before this arm by the required-field walk
 		// (recordpb.CheckRequired at the top of validate), which names `--as` because `status` is
 		// `required`. An explicit zero is refused at the insert by the `status` column's foreign
-		// key into `enum_avenue_status`, which holds declared values only. Every other
-		// AvenueStatus is a declared value.
+		// key into `enum_inquiry_status`, which holds declared values only. Every other
+		// InquiryStatus is a declared value.
 		if st := b.GetStatus(); st != recordpb.InquiryStatus_INQUIRY_STATUS_UNSPECIFIED &&
 			st != recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY &&
 			st != recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED && b.GetReason() == "" {
@@ -1349,21 +1345,19 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 			}
 			return fmt.Errorf("a %s inquiry requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
-	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S AVENUES.
+	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S INQUIRIES.
 	//
-	// The retired `avenue review` carried three checks; ONE survives and the other two retired
-	// with the shape rather than being dropped. `--id must be present` and `--id must name a line
-	// the record has` policed a PER-LINE vote, and there is no per-line vote: the lines reach the
-	// report on the worklist, generated from the record, so presence is not a question and the
-	// review names no line at all. Nothing dangles because nothing is joined.
+	// The inquiry review names no inquiry: the inquiries reach the report on the worklist,
+	// generated from the record, so presence is not a question. Nothing dangles because nothing
+	// is joined.
 	//
-	// The survivor is the one that mattered, and it is the `friction --none` rule verbatim: a
+	// The one check is the `friction --none` rule verbatim: a
 	// review with no quoted text is the self-attestation this channel exists to end. TrimSpace,
 	// not `== ""`, because a --reason of one space discharges the duty and says nothing — the
 	// stricter of the two tests is kept deliberately.
 	case *recordpb.InquiryReview:
 		if strings.TrimSpace(b.GetReason()) == "" {
-			return fmt.Errorf("requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where an avenue's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
+			return fmt.Errorf("requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where an inquiry's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
 		}
 	case *recordpb.Halt:
 	case *recordpb.Certify:
@@ -1476,7 +1470,7 @@ func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
 }
 
 // rulingWord is the ruling as a seat spells it, and "" when nothing was ruled. It is the one
-// reading of a ruling's word: the write's refusal, MotionsOf and AvenuesOf all call it.
+// reading of a ruling's word: the write's refusal, MotionsOf and InquiriesOf all call it.
 //
 // THE VERDICT SET IS KEYED ON THE SUBJECT — the schema's `ruling` oneof carries one arm per
 // subject — so there is no single field to read, and it reads whichever arm is set. An unset arm

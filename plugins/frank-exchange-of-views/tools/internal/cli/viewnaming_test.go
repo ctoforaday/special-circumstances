@@ -12,26 +12,17 @@ import (
 
 // A SEAT NAVIGATES BY WHAT IT READS, SO EVERY VIEW MUST NAME THE VERB THAT FILLS IT.
 //
-// MEASURED, 2026-08-10, from a haiku seat's transcript on the seatprobe board:
-//
-//	FEOV blue show --view avenues     <- it read the projection
-//	FEOV blue avenue --id A1 --decision pursued --conclusion "..."   <- INVENTED
-//	FEOV blue avenue --id A1 --decision pursued --conclusion "..."            <- invented flags
-//	FEOV blue avenue --help                    <- only NOW did it read the contract
-//
-// It built a verb name out of the VIEW name, singularised, and invented two flags to go with it.
-// The verb is `avenue`; nothing in the projection it had just read says so. In 32 tool calls that
-// seat read `--help` exactly once, and only after two invented calls failed — so the working
-// theory that a seat learns its surface from `<role> --help` is false in practice. It learns it
-// from what the tool prints back.
+// A seat that reads a projection builds a verb name out of the VIEW name, singularised, and
+// invents flags to go with it: it reads `--help` late, if at all, so it learns its surface from
+// what the tool prints back rather than from `<role> --help`.
 //
 // That makes a projection's name a de facto API, and a projection that names a concept without
 // naming the verb that writes it is teaching a name that does not work.
 //
 // # What this test does and does not claim
 //
-// It does NOT require the view and the verb to share a name — `avenues` is the right
-// word for the reader of a report and `avenue` is the right word for the seat proposing one, and
+// It does NOT require the view and the verb to share a name — `inquiries` is the right
+// word for the reader of a report and `inquiry` is the right word for the seat proposing one, and
 // collapsing them would cost more than it saves. It requires only that the view's own help SAY
 // which verb fills it, so the seat that reads the projection has the verb in the same breath.
 
@@ -103,7 +94,7 @@ func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
 		}
 		if !named {
 			t.Errorf("`%s --help` describes view %q without naming any verb that fills it (%s).\n"+
-				"A seat reads the projection and builds a verb name out of it: measured, one read `--view inquiries` and typed `blue inquiry`, which does not exist. Name the verb in the view's own description so the two arrive together.",
+				"A seat reads the projection and builds a verb name out of it. Name the verb in the view's own description so the two arrive together.",
 				seat.GroupOf(view), view, strings.Join(writers, ", "))
 		}
 	}
@@ -132,8 +123,8 @@ func TestViewWritersHasNoStaleEntries(t *testing.T) {
 // runs a command which is refused, and the refusal it gets — "unknown view" — reads as its own
 // mistake rather than the tool's.
 //
-// This is the `--view avenues` failure in reverse. There, a seat invented a VERB from a
-// view name; here the tool invents a VIEW name for a seat. Both come from a projection vocabulary
+// This is the reverse of a seat inventing a VERB from a view name: here the tool invents a VIEW
+// name for a seat. Both come from a projection vocabulary
 // referenced in prose that nothing checks, which is why the check is mechanical: every `--view X`
 // written anywhere in the tree must name a projection that exists.
 func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {

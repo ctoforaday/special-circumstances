@@ -43,7 +43,7 @@ const (
 type Blocker struct {
 	Kind BlockerKind
 	// Subject is what holds it: a gap id, a claim, a lens seat, a motion id — "" for the kinds that
-	// are about the run as a whole (no_report, avenue_review).
+	// are about the run as a whole (no_report, inquiry_review).
 	Subject string
 	// Owner is the seat whose act clears it — the gap's minter, the lens that read the
 	// contradicting source, the ready lens, the motion's gavel-holder, the chair for its own
@@ -83,7 +83,7 @@ type blockerKind struct {
 	// on them. It is true for a kind that meets BOTH conditions: the stream alone answers it, so it
 	// can be asked of the record as it stood at a past sitting's end; and no act of the chair's own
 	// sitting moves it other than a motion it files or rules, after which it asks for its plan
-	// again. The gap kinds and the lens kinds read SQL as it stands now. The avenue review is the
+	// again. The gap kinds and the lens kinds read SQL as it stands now. The inquiry review is the
 	// chair's own act of the sitting that relays the plan: due when it asks, recorded before it
 	// ends, so a faithful relay would depart on it at every sitting.
 	relayHeld bool
@@ -293,8 +293,8 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: motion (%s) filed and never ruled — %s", b.Subject, b.Detail, planHold(b, "PASS is not permitted while it stands"))
 		},
 	},
-	// THE AVENUES ARE READ ONCE, EVERY EPOCH. One statement per epoch, not one per line: presence is
-	// not the question, because the lines are generated onto the page from the record. What the
+	// THE INQUIRIES ARE READ ONCE, EVERY EPOCH. One statement per epoch, not one per inquiry: presence is
+	// not the question, because the inquiries are generated onto the page from the record. What the
 	// read owes is a judgement on whether the BODY delivered them, and where it did not, a gap. The
 	// report is regenerated each epoch, so a review recorded before this epoch's edits answers a
 	// question about a document that no longer exists.
@@ -413,7 +413,7 @@ func kindRank(k BlockerKind) int {
 
 // eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
 // contradiction no finding raises, a citation or proof unchecked since its sentence changed, no
-// ingested report, an unruled motion, an avenue review not yet recorded this epoch. ids is evs's
+// ingested report, an unruled motion, an inquiry review not yet recorded this epoch. ids is evs's
 // places, aligned with it.
 //
 // IT ANSWERS FOR THE STREAM IT IS HANDED. Asked of a prefix of the record, it says what held a PASS

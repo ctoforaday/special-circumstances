@@ -30,7 +30,7 @@ func HoldsGavel(role string, subj recordpb.MotionSubject) bool {
 }
 
 // requireFilerHoldsNoGavel refuses a filing on a subject by the seat that rules it. proposal marks
-// the one subject whose filing is not a motion body: an avenue's is its proposal.
+// the one subject whose filing is not a motion body: an inquiry's is its proposal.
 //
 // Migrate replays what an archive holds, and an archive holds such filings: the docket pair
 // migrate synthesises for a record that predates docket motions is filed and ruled by the bench
@@ -85,7 +85,7 @@ func filingRoles(subj recordpb.MotionSubject) []string {
 	return out
 }
 
-// Article is the indefinite article for a subject word — "an avenue", "a grade".
+// Article is the indefinite article for a subject word — "an inquiry", "a grade".
 func Article(word string) string {
 	if word != "" && strings.ContainsRune("aeiou", rune(word[0])) {
 		return "an"

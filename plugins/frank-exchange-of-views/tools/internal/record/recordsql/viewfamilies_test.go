@@ -138,7 +138,7 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 	db := store(t)
 	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{
 		InquiryId: proto.String("Q1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
-		Question: proto.String("a direction")})); err != nil {
+		Question: proto.String("a question")})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{
@@ -146,7 +146,7 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 		SupersedesStatus: proto.String("proposed")})); err != nil {
 		t.Fatal(err)
 	}
-	// Two direction rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
+	// Two inquiry rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
 	// not an invitation to read the older word.
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
@@ -166,11 +166,11 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 		Scan(&line, &status, &ruling); err != nil {
 		t.Fatal(err)
 	}
-	if line != "a direction" {
-		t.Errorf("line = %q, want the PROPOSAL's substance — a move must not blank it", line)
+	if line != "a question" {
+		t.Errorf("question = %q, want the PROPOSAL's substance — a recorded fate must not blank it", line)
 	}
 	if status != "underway" {
-		t.Errorf("status = %q, want the latest move's", status)
+		t.Errorf("status = %q, want the latest recorded fate's", status)
 	}
 	if ruling.Valid {
 		t.Errorf("inquiry_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
@@ -180,6 +180,6 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Errorf("inquiry has %d rows for one line moved once, want 1", n)
+		t.Errorf("inquiry has %d rows for one inquiry whose fate was recorded once, want 1", n)
 	}
 }

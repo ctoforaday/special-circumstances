@@ -412,7 +412,7 @@ func mentions(ds []Item, want string) bool {
 	return false
 }
 
-// avenueAt builds one `avenue` event, so a test can place a line at a status in a round.
+// inquiryAt builds one `inquiry` event, so a test can place an inquiry at a status in a round.
 func inquiryAt(t *testing.T, id, status string) *Event {
 	t.Helper()
 	st, ok := InquiryStatusOf(status)
@@ -422,7 +422,7 @@ func inquiryAt(t *testing.T, id, status string) *Event {
 	return recordtest.Event(t, "blue-respond", &recordpb.Inquiry{
 		InquiryId: proto.String(id),
 		Status:    &st,
-		Question:  proto.String("a line"),
+		Question:  proto.String("a question"),
 	})
 }
 
@@ -433,18 +433,13 @@ func chairSits(t *testing.T) *Event {
 	return recordtest.Event(t, "red-chair", &recordpb.Register{})
 }
 
-// A REAFFIRMED LINE STOPS NAGGING; A NEGLECTED ONE DOES NOT. They used to be the same bytes.
+// A REAFFIRMED INQUIRY STOPS NAGGING; A NEGLECTED ONE DOES NOT.
 //
-// StaleAvenues and availableOf each carried `Status == "proposed" || Status == "pursued"` and
-// nothing else, while the affordance's text said an avenue "has no fate THIS ROUND" and
-// StaleAvenues' own doc said "an avenue still open LATE IN A RUN". Neither read `Avenue.Round`,
-// which was populated on every event.
-//
-// So blue moving a line to `pursued` this round with what it learned — the enum's own definition
-// of that status, "you are following it, OR YOU FOLLOWED IT" — produced the identical line to a
-// line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
-// and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
-func TestAUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
+// Recording an inquiry as `underway` this round with what it learned — the enum's own definition
+// of that status, "you are working the question and it is still open" — settles it for the round,
+// and an inquiry untouched since round 0 is stale. The fates that mean stop (`declined`,
+// `abandoned`, `deferred`) settle it too: the channel expresses carrying on as well as giving up.
+func TestAnUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	b := loadedFamilyT(t, nil, []*Event{
 		// Epoch 0: the base phase, before any chair has sat.
 		inquiryAt(t, "Q1", "proposed"),
@@ -458,7 +453,7 @@ func TestAUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 		chairSits(t),
 		chairSits(t),
 		inquiryAt(t, "Q2", "underway"), // reaffirmed in the current epoch
-		inquiryAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a move whenever asked
+		inquiryAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a fate whenever asked
 		inquiryAt(t, "Z", "underway"),  // carries the epoch forward
 	})
 
@@ -468,17 +463,17 @@ func TestAUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	}
 
 	if stale["Q2"] {
-		t.Error("A2 was reaffirmed as `underway` in the current epoch and is still reported as owing a decision — " +
-			"recording exactly what the enum asks for must settle the line, or the only way to clear it is to abandon it")
+		t.Error("Q2 was reaffirmed as `underway` in the current epoch and is still reported as owing a decision — " +
+			"recording exactly what the enum asks for must settle the inquiry, or the only way to clear it is to abandon it")
 	}
 	if !stale["Q3"] {
-		t.Error("A3 has sat at `underway` since epoch 0 and is NOT reported — that is the neglect this exists to catch")
+		t.Error("Q3 has sat at `underway` since epoch 0 and is NOT reported — that is the neglect this exists to catch")
 	}
 	if !stale["Q6"] {
-		t.Error("A6 is `proposed` — the enum calls that \"the state that owes a move\", with no round condition")
+		t.Error("Q6 is `proposed` — the enum says it \"owes a fate\", with no round condition")
 	}
-	// CONCLUDED IS A SETTLED FATE FOR A LINE THAT WORKED. Without it a line could only stop nagging
-	// by dying: universe-m13's blue moved four confirmed hypotheses to `abandoned` to settle them.
+	// CONFIRMED IS A SETTLED FATE FOR AN INQUIRY THAT WORKED. Without it an inquiry could only stop
+	// nagging by dying.
 	for _, settled := range []string{"Q4", "Q5", "Q7"} {
 		if stale[settled] {
 			t.Errorf("%s is at a settled fate and is reported as owing a decision — `deferred` in particular is a "+

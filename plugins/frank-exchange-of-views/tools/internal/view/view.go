@@ -695,7 +695,7 @@ func debateMD(in Input) []byte {
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag()))+"\n"+l.Markdown(t.GetOpinion()))
 					continue
 				}
-				// Otherwise only the PETITION subject: a grade or direction ruling answers a
+				// Otherwise only the PETITION subject: a grade or inquiry ruling answers a
 				// motion the motions view already renders with its ask beside it. A petition
 				// ruling is the bench acting on the run itself, and its opinion is the operative
 				// part.
@@ -728,7 +728,7 @@ func debateMD(in Input) []byte {
 	return []byte(strings.Join(debateParts, "\n") + "\n")
 }
 
-// avenueMD — the exploration space grouped by fate. Trailing newline (render.go parity).
+// inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
 	body := InquiryBody(in.Events, in.At)
@@ -741,24 +741,23 @@ func inquiryMD(in Input) []byte {
 	return []byte(strings.Join(inquiry, "\n") + "\n" + body)
 }
 
-// AvenueBody is the avenues projection WITHOUT its heading, or "" when the run recorded no
-// avenue — the ONE rendering behind both `show avenues` and the shipped
-// avenues.md (report.AssembleAll), so the view a seat reads and the document a human reads
-// cannot drift into two accounts of the same directions.
+// InquiryBody is the inquiries projection WITHOUT its heading, or "" when the run recorded no
+// inquiry — the ONE rendering behind both `show inquiries` and the shipped
+// inquiries.md (report.AssembleAll), so the view a seat reads and the document a human reads
+// cannot drift into two accounts of the same inquiries.
 //
-// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot avenue entries by
-// status. An avenue now has an id, a hypothesis, a status that MOVES with a stated reason,
-// and red's ruling — so the projection renders the DECISION: what was proposed, what became of it,
-// why, and what red said about it. That sequence is the evidence of choosing; a flat list by final
-// status records only the outcome — which is exactly what report.md now carries, and why the path
-// has to ship somewhere.
+// THE CHOOSING, NOT JUST THE PLAN. An inquiry has an id, a hypothesis, a fate recorded with a
+// stated reason, and red's ruling — so the projection renders the DECISION: what was proposed,
+// what became of it, why, and what red said about it. That sequence is the evidence of choosing; a
+// flat list by final status records only the outcome — which is exactly what report.md carries,
+// and why the path has to ship somewhere.
 func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 	avs := record.InquiriesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
 	}
-	// AvenuesOf folds the acts that stand; the wording a correction struck is listed under its
-	// line, marked — a corrected proposal must not read as one that was always worded this way.
+	// InquiriesOf folds the acts that stand; the wording a correction struck is listed under its
+	// inquiry, marked — a corrected proposal must not read as one that was always worded this way.
 	struckWording := record.StruckInquiryTexts(evs)
 	var inquiry []string
 	byStatus := map[string][]*record.Inquiry{}
@@ -776,7 +775,7 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			if a.Method != "" {
 				method = fmt.Sprintf(" _(%s)_", a.Method)
 			}
-			// The one-line row keeps its shape — line, method, reason, seat — and the
+			// The one-line row keeps its shape — question, method, reason, seat — and the
 			// lifecycle adds to it rather than replacing it.
 			head := a.ID + " " + a.Question
 			reason := ""
@@ -790,7 +789,7 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			if a.Hypothesis != "" {
 				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
 			}
-			// The history is what makes a move legible as a CHOICE rather than a state.
+			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
 				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
 			}

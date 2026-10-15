@@ -359,8 +359,8 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay the plan object it prints, copied whole, VERBATIM as `plan`/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
-  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /its assertable empty form only when the archive was empty when you sat/.test(p) && /VOTE EVERY AVENUE/.test(p) && /RULE ON BLUE'S AVENUES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
-  assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|avenue) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
+  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /its assertable empty form only when the archive was empty when you sat/.test(p) && /VOTE EVERY INQUIRY/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   assert.ok(chair.opts.schema.properties.plan && chair.opts.schema.required.includes('plan'), 'the envelope carries the plan')
   assert.ok(!chair.opts.schema.properties.gaps, 'and no gap list — the record holds the board')
@@ -395,7 +395,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   const evidence = firstPrompt(world, 'red-lens-evidence')
   for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
-    // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING: universe-m22's gap named the avenue row, its check could not pass, and the lens held it twice.
+    // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
     'ANCHOR EVERY FINDING TO A QUOTED SENTENCE', "ids of your findings and of the gaps you mint are the tool's to assign", 'read it whole in consecutive windows',
     'counts LINES, not occurrences',
@@ -408,17 +408,15 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   // finds is read through the run's cache so every later seat reads the same bytes.
   assert.ok(!/heredoc/.test(evidence) && !/curl/.test(evidence), 'the lens prompt contradicts its manual on heredocs or bypasses the shared source cache')
   assert.ok(/STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-logic')) && /STEELMAN DUTY/.test(firstPrompt(world, 'red-lens-dark-side')), 'logic and dark-side audit the declines')
-  // AN AVENUE THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The avenues print
-  // in the report beside the body, so the reader sees both halves. On universe-m21 two lenses filed
-  // eleven findings about approaches printed under two fates and minted none: the clause said "Both
-  // are findings", a finding about an avenue is on no seat's work list, and the report shipped the
-  // contradictions. The lens reads the avenue sections as they ship before it grades one.
+  // AN INQUIRY THAT CONTRADICTS WHAT THE READER IS TOLD IS A GAP, NOT A FINDING. The inquiries print
+  // in the report beside the body, so the reader sees both halves. The lens reads the inquiry
+  // sections as they ship before it grades one.
   for (const seat of ['red-lens-logic', 'red-lens-dark-side']) {
     const p = firstPrompt(world, seat)
-    assert.ok(/that is a candidate gap, anchored to the avenue/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no avenue/.test(p),
-      `${seat} is not told that an avenue contradicting the report is a gap`)
-    assert.ok(/read them in the report's assembled form before you grade an avenue/.test(p), `${seat} is not told to read the avenue sections as they ship`)
-    assert.ok(/A contradiction left as a finding ships: a finding about an avenue is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an avenue contradiction as a finding`)
+    assert.ok(/that is a candidate gap, anchored to the inquiry/.test(p) && /one approach under two fates/.test(p) && /a fate the report's own text or a proof contradicts/.test(p) && /a section built on an approach that is no inquiry/.test(p),
+      `${seat} is not told that an inquiry contradicting the report is a gap`)
+    assert.ok(/read them in the report's assembled form before you grade an inquiry/.test(p), `${seat} is not told to read the inquiry sections as they ship`)
+    assert.ok(/A contradiction left as a finding ships: a finding about an inquiry is on no seat's work list and obliges nobody/.test(p) && !/Both are findings/.test(p), `${seat} is told to file an inquiry contradiction as a finding`)
     // THE BAR IS THE ONE EVERY GAP MEETS. A clause that orders a mint for every mismatch spends a
     // lens's budget — three open gaps, in a smoke — on a duplicate row, against the same prompt's "not on
     // nitpicks"; and the lens that filed findings on universe-m21 had judged by the answer alone.
@@ -453,7 +451,7 @@ test('blue is engaged on named gaps, works from the report and its work list, an
   for (const want of ['READ YOUR MANUAL FIRST', 'together, in one message', 'the report and your work list', 'YOUR WORK LIST CARRIES YOUR GAPS, EACH AS ONE WORK ITEM', 'that text beside the span it replaces',
     'the work items carry it, and the record is authoritative', 'the gaps the bench has ruled closed are on the list too', 'you name it in found_closed from that list',
     'REMANDED comes with a stated research direction you owe', 'YOU MAY COMPUTE AN ANSWER', 'DOCUMENT-PROBE', 'deferred acceptance test',
-    'AVENUES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
+    'INQUIRIES ARE A LIVING RECORD', 'THREE paths', 'ESTOPS', 'OWNERSHIP BINDS, AS IT DID AT SYNTHESIS', "TL;DR, Catechism, the report's own sections, open questions, your citations", 'and the report carries no list of them', 'each edit naming the gap it answers', 'a grade motion on the axis', 'Compact and reorganize prose', 'retired on the record',
     'PROPAGATE EVERY CORRECTION TO ALL SITES', 'NULL TURN', 'AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP', 'manifest array',
     'where the gap changes no reader decision or asks for complexity that does not pay, argue `defect_accepted` with that reason', "materiality is the class's default: always, never, or by grade from medium"]) {
     assert.ok(first.includes(want), `blue lost: ${want}`)
@@ -504,7 +502,7 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   for (const c of world.calls) {
     const body = c.prompt.replace(/--help\b|--seat-id\b|--run\b|--reason(-file)?\b|--comments\b/g, '')
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
-    assert.ok(!/\b(show (board|work|motions|closings|changes)|class new|dispatch next|motion (grade|avenue|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
+    assert.ok(!/\b(show (board|work|motions|closings|changes)|class new|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
       `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|class new|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
   }
 })
@@ -631,7 +629,7 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(!/minority|lane marker|exactly ONE lane/.test(synth), 'the synthesis prompt orders provenance into prose again')
   assert.ok(/every section names the reader's question it answers/.test(synth), "the synthesis is written to the reader's question")
   // THE CONTENT RULE IS THE VERBS', and the prompt points at it rather than restating it: the rule is
-  // on every verb whose text the report prints (edit, ingest, avenue's propose and move, and
+  // on every verb whose text the report prints (edit, ingest, the inquiry's propose and record, and
   // prove's note and cite's title, which the Bibliography prints),
   // so a copy here is a second statement of a contract nothing keeps in step.
   assert.ok(/THE REPORT'S CONTENT RULE .* is on the verbs that write report text/.test(synth),
@@ -647,47 +645,41 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   assert.ok(/the sections of your argument under headings you choose/.test(synth) && !/technical foundations|Additional findings/i.test(synth),
     'the synthesis prompt names a heading the report owes, or one the tool writes above its sections')
   assert.ok(/reorganize freely/i.test(synth) && /retired on the record/.test(synth))
-  // THE SYNTHESIZER RECORDS NO AVENUE, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
-  // approaches are the frontier's and the lanes', who did the work. Handed the lanes' avenue
-  // paragraph on universe-m21, it proposed five approaches that were already on the record without
-  // reading it, and the report printed one approach as concluded and as abandoned. What it is told
-  // is what the report holds of them: the tool composes the three sections, and the report carries
-  // no list of approaches under any heading.
-  assert.ok(!/AVENUES:/.test(synth) && !/the hypothesis that would be true if it paid off/.test(synth) && !/NO FATE IS OWED/.test(synth) && !/The line you propose/.test(synth),
-    'the synthesis prompt carries the avenue paragraph: the synthesizer is asked to record approaches')
-  assert.ok(/The approaches the research considered are among them: each is an avenue on the record, where what became of it is said, and the report carries no list of them\./.test(synth),
+  // THE SYNTHESIZER RECORDS NO INQUIRY, AND ITS PROMPT ASKS FOR NONE. It merges the drafts; the
+  // approaches are the frontier's and the lanes', who did the work. What it is told is what the
+  // report holds of them: the tool composes the three sections, and the report carries no list of
+  // approaches under any heading.
+  assert.ok(!/INQUIRIES:/.test(synth) && !/the hypothesis that would be true if it paid off/.test(synth) && !/NO FATE IS OWED/.test(synth) && !/The question you propose/.test(synth),
+    'the synthesis prompt carries the inquiry paragraph: the synthesizer is asked to record approaches')
+  assert.ok(/The approaches the research considered are among them: each is an inquiry on the record, where what became of it is said, and the report carries no list of them\./.test(synth),
     'the synthesis prompt must say the report carries no list of the approaches')
   for (const h of ['Risk matrix', 'Research areas', 'Future research directions', 'Alternatives considered', 'Bibliography']) {
     assert.ok(synth.includes('Do NOT write any of') && synth.includes('`## ' + h + '`'), 'the synthesis prompt does not name ## ' + h + ' among the sections assembly composes')
   }
-  assert.ok(!/reach the reader under their own headings|left for a later run/.test(synth), 'the synthesis prompt cues blue to head a section of its own with the avenues')
-  // THE FRONTIER WRITES THE LINES EVERY LATER SEAT INHERITS, before any research. Asked for
-  // "the approach you would follow and the hypothesis that would be true if it paid off" it wrote
-  // the prediction into the line: universe-m22's "…showing that a single passing test is not
-  // evidence of primality" shipped as the question beside the finding that contradicts it.
+  assert.ok(!/reach the reader under their own headings|left for a later run/.test(synth), 'the synthesis prompt cues blue to head a section of its own with the inquiries')
+  // THE FRONTIER WRITES THE QUESTIONS EVERY LATER SEAT INHERITS, before any research: the
+  // prediction goes in the hypothesis, never in the question.
   const frontier = firstPrompt(world, 'frontier')
-  assert.ok(/ITS LINE IS THE QUESTION the avenue asks .* with no answer in it/.test(frontier) && /ITS HYPOTHESIS IS YOUR PREDICTION/.test(frontier) && /A result you expect goes in the hypothesis, never in the line\./.test(frontier),
-    'the frontier prompt must say the line is the question and the prediction is the hypothesis')
-  assert.ok(!/it takes the approach you would follow and the hypothesis/.test(frontier), 'the frontier prompt runs the line and the hypothesis together')
+  assert.ok(/ITS QUESTION IS WHAT the inquiry asks .* with no answer in it/.test(frontier) && /ITS HYPOTHESIS IS YOUR PREDICTION/.test(frontier) && /A result you expect goes in the hypothesis, never in the question\./.test(frontier),
+    'the frontier prompt must say the question holds no answer and the prediction is the hypothesis')
+  assert.ok(!/it takes the approach you would follow and the hypothesis/.test(frontier), 'the frontier prompt runs the question and the hypothesis together')
   // AN APPROACH IS RECORDED WITH THE FATE IT HAD, AND NO FATE IS OWED AN ENTRY: the lanes' paragraph.
   // A prompt that asks for "what you considered and declined" is read as asking for a declined
-  // avenue: on universe-m21 a lane with nothing it had weighed and set down ran a check, then
-  // proposed and declined it four seconds later, and the report printed one approach as concluded
-  // and as declined. "Your part is the record: you put each approach on it" pressed the same way.
+  // inquiry. "Your part is the record: you put each approach on it" presses the same way.
   for (const lane of labelsOf(world, 'blue-lane').map((c) => c.prompt)) {
-    assert.ok(/AVENUES:/.test(lane) && /NO FATE IS OWED AN ENTRY/.test(lane) && /declined is ONLY an approach you weighed and did not run/.test(lane),
-      'the avenue clause must say an approach carries the fate it had and that having no declined avenue is a complete record')
-    // A REFUTATION HAS A FATE OF ITS OWN. With none, universe-m22's lane filed a refuted hypothesis
-    // as abandoned, a lens read the same line as concluded, and the gap between the words held the gate.
-    assert.ok(/one you ran whose hypothesis the data contradicted is refuted, and a refutation is an answer/.test(lane) && /one you started that gave no answer .* is abandoned/.test(lane),
-      'the avenue clause must tell a contradicted hypothesis (refuted) from a line that gave no answer (abandoned)')
-    assert.ok(!/one you ran that died is abandoned/.test(lane), 'the avenue clause calls an approach that ran abandoned')
-    // THE LINE IS THE QUESTION. A line that carries its predicted result is printed as the question
-    // beside whatever the research finds, and no act rewrites it.
-    assert.ok(/THE LINE IS THE QUESTION AND HOLDS NO PREDICTED RESULT: what you expect to find is the hypothesis/.test(lane),
-      'the avenue clause must keep the predicted result out of the line')
+    assert.ok(/INQUIRIES:/.test(lane) && /NO FATE IS OWED AN ENTRY/.test(lane) && /A sitting that weighed nothing and set it down has no declined inquiry, and that record is complete/.test(lane),
+      'the inquiry clause must say an approach carries the fate it had and that having no declined inquiry is a complete record')
+    // A REFUTATION HAS A FATE OF ITS OWN. The clause tells the lane to record the fate the approach
+    // really had and sends it to the page of the act that records it for what each fate means.
+    assert.ok(/Record the fate the approach really had; what each fate means is on the page of the act that records it/.test(lane),
+      'the inquiry clause must tell the lane to record the fate the approach had and where each fate is defined')
+    assert.ok(!/one you ran that died is abandoned/.test(lane), 'the inquiry clause calls an approach that ran abandoned')
+    // THE QUESTION HOLDS NO PREDICTED RESULT. A question that carries its predicted result is printed
+    // as the question beside whatever the research finds, and no act rewrites it.
+    assert.ok(/THE QUESTION HOLDS NO PREDICTED RESULT: what you expect to find is the hypothesis/.test(lane),
+      'the inquiry clause must keep the predicted result out of the question')
     assert.ok(!/not only the one you took/.test(lane) && !/considered and declined is what makes/.test(lane) && !/dead ends matter most/.test(lane) && !/you put each approach on it/.test(lane),
-      'the avenue clause presses for an entry')
+      'the inquiry clause presses for an entry')
     // THE INQUIRY SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
     // fate lands under which, and that blue writes none of them.
     assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))

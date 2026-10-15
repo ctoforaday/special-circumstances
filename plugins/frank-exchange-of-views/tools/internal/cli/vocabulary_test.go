@@ -118,10 +118,8 @@ func dedupe(in []string) []string {
 // So the mapping is asserted, not trusted: for every field record declares required, the
 // verb's help must actually say REQUIRED.
 func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
-	// THE VERBS COME FROM THE TREE, not from a table of what exists. This gate used to carry a
-	// hand-kept event-type -> role map, and it broke the moment a verb that carried two contracts
-	// was split into the two verbs it already was: `avenue` became a GROUP, the map still
-	// named it, and the check read a help page with no flags on it.
+	// THE VERBS COME FROM THE TREE, not from a table of what exists. A hand-kept event-type -> role
+	// map goes stale when a verb becomes a group.
 	//
 	// An event type now has one verb or several — `verify` and `corroborate` both write a verify,
 	// `close` and `carry` both write a close — so every LEAF that writes the type is checked.

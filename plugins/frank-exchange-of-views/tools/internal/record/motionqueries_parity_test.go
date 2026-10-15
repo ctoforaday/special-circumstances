@@ -9,9 +9,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// avenueRulingFold is the fold AvenueRuling replaced, kept HERE as the parity oracle: the
+// inquiryRulingFold is the fold InquiryRuling replaced, kept HERE as the parity oracle: the
 // query and the fold read the same record, and this test refuses to let them disagree. A record
-// the fold cannot read fails the test: "" is the fold's answer for an avenue red has not ruled.
+// the fold cannot read fails the test: "" is the fold's answer for an inquiry red has not ruled.
 func inquiryRulingFold(t *testing.T, run Run, inquiryID string) string {
 	t.Helper()
 	b, err := FamilyOf(run)
@@ -36,7 +36,7 @@ func inquiryRulingFold(t *testing.T, run Run, inquiryID string) string {
 // ask-and-answer joins that used to be hand-written per reader (the eight-reader defect
 // views.go's motion_state documents). The fixture walks one motion through its whole
 // lifecycle — filed, ruled — asserting each guard's answer at each state, and rules
-// one avenue to hold AvenueRuling to its fold.
+// one inquiry to hold InquiryRuling to its fold.
 func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
@@ -101,10 +101,10 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 
-	// An avenue: subject resolution falls through to the avenue, and the ruling read
+	// An inquiry: subject resolution falls through to the inquiry, and the ruling read
 	// agrees with the fold at every state.
 	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")}); err != nil {
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")}); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, "Q1"); err != nil || got != "inquiry" {

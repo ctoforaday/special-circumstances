@@ -63,7 +63,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		t.Errorf("the run document does not carry the log entry's words escaped:\n%s", r)
 	}
 	// THE THREE WRITERS OUTSIDE THE TABLE: the note the weave defines, which carries blue's words
-	// after the tool's label; the evidence document's heading for the same proof; and the avenues
+	// after the tool's label; the evidence document's heading for the same proof; and the inquiries
 	// document.
 	if rep := body[report.FileReport]; !strings.Contains(rep, `which the class \[^\s] never matches`) {
 		t.Errorf("the proof note's definition carries blue's words as a second reference:\n%s", rep)

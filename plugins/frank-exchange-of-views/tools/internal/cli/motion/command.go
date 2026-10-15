@@ -1,12 +1,7 @@
 // Package motion is the ONE adjudication mechanism (#344).
 //
-// Three exchanges — a grade dispute, a petition, a ruling on a proposed direction — were three
-// verb pairs with three vocabularies and no shared identity. `ruling`/`ruling`/`response` for one
-// concept, three renderers, and nothing tying an ask to its answer. #315 found the petition
-// FILING unrendered while the avenue RULING was found unrendered SEPARATELY in the same sweep,
-// because nothing said they were the same mechanism; #312 is the same root.
-//
-// A motion has an ID, and the ask and its answer join on it.
+// One mechanism covers a grade dispute, a petition and a ruling on a proposed inquiry: an ask and
+// its answer join on the motion id.
 //
 // # Why this is a top-level group and not a role's verb set
 //
@@ -22,7 +17,7 @@
 // # Why the subjects are SUBGROUPS and not a --on flag
 //
 // Their contracts diverge: a grade motion needs --dimension and --proposed and is ruled by the
-// merge; a petition needs --class and --relief and is ruled by the BENCH; a direction needs
+// merge; a petition needs --class and --relief and is ruled by the BENCH; an inquiry needs
 // neither and has no filing verb at all (the proposal IS the filing). Cobra cannot express
 // "required only when --on=grade", so a flag-discerned subject would put three contracts into
 // hand-written RunE validation — a flag combination policed by prose, which is the shape this
@@ -51,10 +46,8 @@ import (
 func NewCommandFor(actingRole string) *cobra.Command {
 	c := &cobra.Command{
 		Use: "motion",
-		// THE ROLL IS BUILT, NOT TYPED. This said "a grade dispute, a petition, or a ruling on a
-		// direction" — three, written out — and `docket` made it four without making it wrong in
-		// any way a reader or a gate could see. Composed from the schema, a fifth subject cannot
-		// leave this line saying four.
+		// THE ROLL IS BUILT, NOT TYPED: composed from the schema, so a new subject cannot leave
+		// this line short of the subjects there are.
 		Short:        "file and rule on a motion — " + GavelRoll() + ". One mechanism, one id.",
 		SilenceUsage: true,
 	}
@@ -62,7 +55,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	// in internal/record, which cannot import this package, told blocked seats to rule motions
 	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
 	// now, so a subject cannot be added with a gavel in one place and not the other.
-	// A SUBJECT IS MOUNTED WHERE IT HOLDS A VERB FOR THIS ROLE. An avenue motion has a ruling and no
+	// A SUBJECT IS MOUNTED WHERE IT HOLDS A VERB FOR THIS ROLE. An inquiry motion has a ruling and no
 	// filing, so it is on its ruler's surface alone: mounted bare on the others it is a page that
 	// offers no act, and a seat that names it is told whose it is (cli's teachUnknownSubcommand).
 	mount := func(s *cobra.Command) {
@@ -127,8 +120,8 @@ func rulerFor(name string) string {
 	return r
 }
 
-// subject builds one subgroup. `direction` gets no `file`: red rules on a line blue already
-// proposed, so a filing verb here would be a second way to say what `blue avenue` already says.
+// subject builds one subgroup. `inquiry` gets no `file`: red rules on an inquiry blue already
+// proposed, so a filing verb here would be a second way to say what `blue inquiry propose` already says.
 func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cobra.Command {
 	ruler := rulerFor(name)
 	subj := mustSubject(name)

@@ -46,23 +46,17 @@ type Gap struct {
 	//
 	// They are ARGUMENTS, not restatements. A closing that says "this gap should close because it
 	// should close" hands the bench a board it cannot weigh, and then scoring what it did with the
-	// weighing is scoring a coin flip — the same defect Avenue.RuledWhy exists for.
+	// weighing is scoring a coin flip — the same defect Inquiry.RuledWhy exists for.
 	RedClosing, BlueClosing string
 }
 
-// Avenue is a proposed avenue, and red's ruling on it if there is one.
+// Inquiry is a proposed inquiry, and red's ruling on it if there is one.
 type Inquiry struct {
-	Line, Hypothesis string
-	// Ruled, when set, is the fate red has already given it — which is what makes a
-	// move the seat's next act rather than a fresh proposal.
+	Question, Hypothesis string
+	// Ruled, when set, is the fate red has already given it — which is what makes
+	// recording a fate the seat's next act rather than a fresh proposal.
 	Ruled string
 	// RuledWhy is red's ARGUMENT for that fate, and a board is not honest without it.
-	//
-	// MEASURED 2026-08-16, by asking a seat instead of watching one. A blue seat on `docket` read
-	// `inquest motions` twice and `inquest debate` once and then reported: "the `ruling` field just says
-	// 'endorsed' or 'too-thin' or 'rejected', but there might be elaboration in a red seat's
-	// transcript that I can't see from here." It was RIGHT. Build wrote every ruling with
-	// "ruled <verdict> on the line as it was proposed" — a reason that restates the verdict.
 	//
 	// Boards ask a seat to ACCEPT a ruling or answer it, and each of those is a judgement
 	// about the ARGUMENT behind it. Handing a seat a verdict with no argument and then scoring
@@ -87,7 +81,7 @@ type Motion struct {
 	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
 	// docket motion on the gap the seat's next move rather than a fresh grade motion.
 	Ruled string
-	// RuledWhy is the ruler's argument. See Avenue.RuledWhy for why a board without one is not a
+	// RuledWhy is the ruler's argument. See Inquiry.RuledWhy for why a board without one is not a
 	// board: a seat asked whether to answer a refusal it cannot read is being scored on a guess.
 	RuledWhy string
 }
@@ -295,7 +289,7 @@ Each claim below rests on a cited source.
 	}
 }
 
-// docket: blue's gaps have been adjudicated and its lines ruled. This sitting is arguing, not
+// docket: blue's gaps have been adjudicated and its inquiries ruled. This sitting is arguing, not
 // repairing — the verbs are the ones a seat reaches for when it disagrees.
 func docket() Board {
 	return Board{
@@ -352,11 +346,11 @@ Reversibility under load was not tested.
 				"grade stands until there is a measurement, not until there is a sentence in Limits.",
 		}},
 		Inquiries: []Inquiry{
-			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
-				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
+			{Question: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
+				RuledWhy: "this is the one inquiry here that PRODUCES a fact rather than an opinion about a fact. " +
 					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
 					"it narrows G2 rather than closing it."},
-			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
+			{Question: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
 				RuledWhy: "the hypothesis is that a standard form exists, and a survey that finds no standard " +
 					"form cannot distinguish `there is none` from `we looked in the wrong places`. Name the three " +
 					"systems and what specifically would count as documenting a reversal, and it stops being thin."},
@@ -427,7 +421,7 @@ Figures were read from the deployed configuration.
 			},
 		},
 		Inquiries: []Inquiry{
-			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
+			{Question: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
@@ -439,8 +433,8 @@ Figures were read from the deployed configuration.
 	}
 }
 
-// adjudicate: the chair's OTHER sitting. Blue has answered, contested a grade and proposed a
-// line; this board is about responding, not sweeping.
+// adjudicate: the chair's OTHER sitting. Blue has answered, contested a grade and proposed an
+// inquiry; this board is about responding, not sweeping.
 //
 // SPLIT OUT OF `audit`, and the coherence gate is what forced it: one board demanding eleven verbs
 // is a checklist, and a seat working through a checklist is not choosing. The split is the honest
@@ -492,7 +486,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			},
 		},
 		Inquiries: []Inquiry{
-			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
+			{Question: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Motions: []Motion{{
 			Subject: "grade", Filer: "blue-respond", GapID: "G1",

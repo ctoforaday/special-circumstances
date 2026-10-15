@@ -84,7 +84,7 @@ func fileGradeMotion(t *testing.T, runDir string) string {
 
 func proposeQ1(t *testing.T, runDir string) {
 	t.Helper()
-	must(t, runDir, "inquiry", "propose", "--seat-id", "blue-respond", "--question", "a seeded line")
+	must(t, runDir, "inquiry", "propose", "--seat-id", "blue-respond", "--question", "a seeded question")
 }
 
 func actRows() map[string]actRow {

@@ -332,16 +332,13 @@ func validateContractCases() []validateContract {
 		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "requires --reason"},
 		{"retire complete", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 
-		// An unknown status is UNREPRESENTABLE: AvenueStatus is an enum, so `shelved` cannot be built.
+		// An unknown status is UNREPRESENTABLE: InquiryStatus is an enum, so `shelved` cannot be built.
 		// What remains is the ABSENT case below, which the type cannot refuse.
 		{"an inquiry with no status at all", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("l")}, "requires --as"},
 		{"an inquiry with no id", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, "requires an id"},
 		{"a deferred inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED), Question: proto.String("l")}, "requires --reason"},
-		// THE REFUSAL NAMES --reason, NOT --line. The payload key is `line`; the flag that fills it
-		// is --reason, because prose reaches every verb through one channel. This expected "--line"
-		// for its whole life — a flag on no surface — and a seat believed it, invented the flag,
-		// was refused again as unknown, and filed friction about an undocumented --line (measured
-		// 2026-08-21). The refusal derives the flag name now.
+		// THE REFUSAL NAMES --question. The payload key is `question` and the flag that fills it is
+		// --question; the refusal derives the flag name, so it can only name a flag a surface has.
 		{"an inquiry proposed without a question", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY)}, "requires --question"},
 		{"a declined inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l")}, "requires --reason"},
 		{"an abandoned inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Question: proto.String("l")}, "requires --reason"},
@@ -363,7 +360,7 @@ func validateContractCases() []validateContract {
 func TestValidateVerbContracts(t *testing.T) {
 	for _, tc := range validateContractCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			// An avenue is blue's to propose: the chair rules on them and files none.
+			// An inquiry is blue's to propose: the chair rules on them and files none.
 			seat := "red-chair"
 			if tc.typ == recordpb.EventType_EVENT_TYPE_INQUIRY {
 				seat = "blue-respond"
@@ -1189,16 +1186,15 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 //
 // BoardState sorted a LOCAL COPY by (TS, SeatID, Seq) and published m.Events, which is
 // (Round, SeatID, Seq). So the reduction saw the corrected chronology and every consumer that
-// walks Board.Events — record.Avenues behind `show avenues`, report assembly, the
+// walks Board.Events — record.Inquiries behind `show inquiries`, report assembly, the
 // scorecards, the graph renderer — read events ordered by how SEAT NAMES SORT.
 //
-// FOUND 2026-08-22 BY A BLUE SEAT mid-run, with this reproduction: `zulu` acts first in time,
-// `alpha` acts second, and alphabetical order silently reverses them. The seat then caught the
-// defect biting its own sitting — its avenue moves replayed before the frontier
-// proposals they answered, so the projection reported every line unmoved.
+// The reproduction: `zulu` acts first in time, `alpha` acts second, and alphabetical order
+// silently reverses them. An inquiry's recorded fate would then replay before the proposal it
+// answers, and the projection would report the inquiry with no fate recorded.
 func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
-	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
+	// zulu proposes FIRST in wall-clock; alpha records its fate SECOND. Alphabetically alpha < zulu.
 	writeShard(t, runDir, []*Event{
 		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:inquiry:#1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"),
@@ -1237,7 +1233,7 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	}
 	if got := inq[0].Status; got != "abandoned" {
 		t.Errorf("Q1 status = %q, want abandoned — the later event must win. %q means the projection "+
-			"replayed alpha's move BEFORE zulu's proposal because alpha sorts first, which is the "+
-			"defect: a line reported as never moved when it was moved an hour later", got, got)
+			"replayed alpha's recorded fate BEFORE zulu's proposal because alpha sorts first, which is the "+
+			"defect: an inquiry reported with no fate recorded when its fate was recorded an hour later", got, got)
 	}
 }

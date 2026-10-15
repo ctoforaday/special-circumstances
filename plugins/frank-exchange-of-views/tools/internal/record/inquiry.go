@@ -8,27 +8,15 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// AVENUES HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
+// AN INQUIRY HAS A LIFECYCLE, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
 //
-// MEASURED, over 86 avenue events across six runs: ZERO lines were ever recorded twice and
-// ZERO statuses ever changed. There was no id, no key, no update path — `avenue` was a
-// one-shot append. 83 of the 86 landed in round 0.
-//
-// That makes the corpus's headline number mean something other than it appeared to. 68
-// "pursued" is not 68 directions pursued to completion; it is 68 INTENTIONS DECLARED BEFORE
-// ANY RESEARCH HAPPENED. If a direction died in round 2 there was no mechanism to say so,
-// and the 21% rejection rate measured only what blue could rule out before starting — not
-// how hard it looked.
-//
-// The goal is that blue finds several plausible directions, picks the best, and is SEEN TO
+// The goal is that blue finds several plausible inquiries, picks the best, and is SEEN TO
 // HAVE DONE SO IN EVIDENCE. A one-shot append records the plan; it cannot record the
-// choosing. So an avenue gets what a gap has — an id, a status that moves with a stated
+// choosing. So an inquiry gets what a gap has — an id, a status that moves with a stated
 // reason, and an adjudicator.
 
-// AvenueStatuses are the states an avenue may hold. `proposed` is the new one: a direction
-// blue has put forward and not yet resolved, which is the state the old shape could not
-// express at all (everything had to be declared already-pursued or already-dead).
-// `deferred` is the fate that had no name: a direction worth taking, and not by THIS run.
+// InquiryStatuses are the fates an inquiry may hold. `proposed` is an inquiry blue has put
+// forward and not yet resolved. `deferred` is an inquiry worth taking, and not by THIS run.
 // It is not `declined` (weighed, never run) and not `abandoned` (started, no answer) — it is kept,
 // and it is the carrier for bootstrapping a later run. Deliberately a PROPOSAL for a human
 // to select rather than a seed: a run that queues its own successor is a loop with no human
@@ -38,10 +26,10 @@ import (
 // the record's vocabulary table described the same five words differently.
 var InquiryStatuses = evsOf(recordpb.InquiryStatus(0).Descriptor())
 
-// AvenueStatusNames is the bare vocabulary, for readers that only need the words.
+// InquiryStatusNames is the bare vocabulary, for readers that only need the words.
 func InquiryStatusNames() []string { return Names(InquiryStatuses) }
 
-// Avenue is one direction's state after replay: its latest status, with the history that
+// Inquiry is one inquiry's state after replay: its latest status, with the history that
 // produced it. The history is kept because "chose to abandon this at round 2, having
 // pursued it at round 0" is the evidence of choosing, and only the sequence carries it.
 type Inquiry struct {
@@ -52,37 +40,35 @@ type Inquiry struct {
 	Status     string
 	Reason     string   // the reason attached to the CURRENT status
 	Epoch      int      // the epoch the current status was set in
-	History    []string // "r0 pursued", "r2 abandoned" …
+	History    []string // "e0 underway", "e2 abandoned" …
 	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "started, and no
-	// answer came" by the enum's own meaning, and `concluded` and `refuted` are approaches that ran
-	// and answered; a seat reaches any of them straight from `proposed`, so the absence of a `pursued`
-	// step says how many moves the seat recorded and nothing about whether the line was taken. History
+	// answer came" by the enum's own meaning, and `confirmed` and `refuted` are approaches that ran
+	// and answered; a seat reaches any of them straight from `proposed`, so the absence of an `underway`
+	// step says how many fates the seat recorded and nothing about whether the inquiry was taken. History
 	// holds the path.
-	SeatID string // who last moved it — attribution the one-line row has always carried
-	// Ruling, RulingWhy and RuledEpoch are the line's FIRST ruling that stands, all three from
+	SeatID string // who last recorded its fate — attribution the one-line row carries
+	// Ruling, RulingWhy and RuledEpoch are the inquiry's FIRST ruling that stands, all three from
 	// that one act: the rule the write enforces and motion_answers states.
 	Ruling     string // red's fate, if ruled
 	RulingWhy  string
 	RuledEpoch int
-	// THERE IS NO PER-LINE SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
-	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-epoch answer to
-	// "does the report still CARRY this line". That made presence the question. Presence is not a
-	// question: the lines reach the report on the WORKLIST, generated from this projection, so
-	// blue cannot cut them. What remains — did blue's body deliver the research — is an ordinary
-	// GAP, minted and closed like any other, and the per-epoch statement that the read HAPPENED is
-	// AvenueReviewDue's business, not this struct's.
+	// THERE IS NO PER-INQUIRY SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
+	// Presence in the report is not a question: the inquiries reach the report on the WORKLIST,
+	// generated from this projection, so blue cannot cut them. What remains — did blue's body
+	// deliver the research — is an ordinary GAP, minted and closed like any other, and the
+	// per-epoch statement that the read HAPPENED is InquiryReviewDueOf's business, not this
+	// struct's.
 }
 
-// AvenuesOf is Avenues over the events themselves, for the run-shaped readers.
 // StruckText is a struck act's text, with who struck it and why.
 type StruckText struct {
 	Text string
 	Struck
 }
 
-// StruckAvenueTexts is, per avenue, the wording of each proposal or move its seat corrected
-// in the sitting — what the avenues LISTING shows struck beside the line that stands.
-// AvenuesOf folds the acts that stand; this is the part of the listing that fold drops.
+// StruckInquiryTexts is, per inquiry, the wording of each proposal or recorded fate its seat
+// corrected in the sitting — what the inquiries LISTING shows struck beside the question that stands.
+// InquiriesOf folds the acts that stand; this is the part of the listing that fold drops.
 func StruckInquiryTexts(evs []*Event) map[string][]StruckText {
 	out := map[string][]StruckText{}
 	for _, l := range Listing(evs) {
@@ -99,8 +85,10 @@ func StruckInquiryTexts(evs []*Event) map[string][]StruckText {
 	return out
 }
 
+// InquiriesOf folds the events into one Inquiry per id, in proposal order, for the run-shaped
+// readers.
 func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
-	// The acts that stand: a proposal or move corrected in its sitting is read as its replacement.
+	// The acts that stand: a proposal or recorded fate corrected in its sitting is read as its replacement.
 	evs = Live(evs)
 	byID := map[string]*Inquiry{}
 	var order []string
@@ -110,14 +98,11 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no
-			// avenue, which is the same outcome the old `Str("avenue_id") == ""` reached —
-			// but reached here by asking the question rather than by a lookup that misses.
+			// inquiry, and is skipped by asking the question rather than by a lookup that misses.
 			continue
 		}
 		switch t := body.(type) {
 		case *recordpb.Inquiry:
-			// The id is `avenue_id`: the schema kept the pre-rename spelling, and the old
-			// `avenue_id` key is the same fact under the newer word.
 			id := t.GetInquiryId()
 			if id == "" {
 				continue
@@ -128,11 +113,11 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 				byID[id] = a
 				order = append(order, id)
 			}
-			// A creation carries the substance; a MOVE carries only the new status and why,
-			// so the substance must not be blanked by it. These stay VALUE tests rather than
+			// A creation carries the substance; a recorded fate carries only the new status and
+			// why, so the substance must not be blanked by it. These stay VALUE tests rather than
 			// presence tests on purpose: the question they ask is "did this event bring
-			// substance", and a move that carried `line` as an empty string must not blank a
-			// proposal's line either. `av.Line != nil` would let it.
+			// substance", and a fate record that carried `question` as an empty string must not
+			// blank a proposal's question either. `t.Question != nil` would let it.
 			if v := t.GetQuestion(); v != "" {
 				a.Question = v
 			}
@@ -143,34 +128,31 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 				a.Method = v
 			}
 			// STATUS IS OVERWRITTEN BY EVERY EVENT, including one that carried none — that is
-			// what "latest status" means, and the old `Str("status")` did exactly this.
+			// what "latest status" means.
 			//
 			// `Word` is what makes the absent case survive: an unset status is the enum zero, and
 			// Word maps the zero to "" rather than to the literal `unspecified`. Rendering the
-			// zero's name would put a line in the avenues projection under a fate no
+			// zero's name would put an inquiry in the inquiries projection under a fate no
 			// seat ever chose, and into History as "r2 unspecified". The value form is used
 			// deliberately — `Word(t.Status)` would pass a typed nil pointer into an interface
 			// that is not nil, and panic on the absent case this line exists to handle.
 			//
-			// AvenueStatus needs no hyphen join: none of proposed/pursued/concluded/refuted/
-			// deferred/declined/abandoned carries an underscore. AvenueRuling's words do (`out_of_scope`,
+			// InquiryStatus needs no hyphen join: none of proposed/underway/confirmed/refuted/
+			// deferred/declined/abandoned carries an underscore. InquiryRuling's words do (`out_of_scope`,
 			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())
 			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()
 			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 		case *recordpb.MotionRule:
-			// THE CURRENT SPELLING, and reading it here is not optional.
+			// A ruling on an inquiry joins on the inquiry's own id, so `motion inquiry rule`
+			// writes a motion-rule whose motion_id IS a Q-number. This arm is how red's ruling
+			// reaches `show inquiries`, the projection blue reads to decide whether to pursue,
+			// comply or drop. Without it an inquiry stays "Awaiting a decision", which is what an
+			// unruled inquiry looks like, and red's ruling would be indistinguishable from red not
+			// having sat.
 			//
-			// A direction motion joins on the avenue's own id, so `motion avenue rule`
-			// writes a motion-rule whose motion_id IS a Q-number. Until this arm existed, a ruling
-			// made through the new verb never reached `--view avenues` — the projection
-			// blue reads to decide whether to pursue, comply or drop. The line simply stayed
-			// "Awaiting a decision", which is what an unruled line looks like, so red's ruling
-			// was indistinguishable from red not having sat.
-			//
-			// The subject the CLI spells `avenue` is MOTION_SUBJECT_AVENUE in the schema —
-			// the same subject under the schema's word, and the only one whose ruling set is
-			// AvenueRuling (endorsed / out_of_scope / too_thin).
+			// The subject `inquiry` is MOTION_SUBJECT_INQUIRY in the schema, and the only one whose
+			// ruling set is InquiryRuling (endorsed / out_of_scope / too_thin).
 			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 				continue
 			}
@@ -182,7 +164,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			if !ok {
 				continue
 			}
-			// THE LINE'S RULING IS ITS FIRST THAT STANDS, AND THE WHOLE OF IT. A later ruling is
+			// AN INQUIRY'S RULING IS ITS FIRST THAT STANDS, AND THE WHOLE OF IT. A later ruling is
 			// not read at all, so the word, the argument and the epoch are one act's and never the
 			// first word under a later argument. The write refuses a second ruling
 			// (requireUnanswered), and motion_answers states the same rule in SQL.
@@ -190,16 +172,16 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 				continue
 			}
 			ruled[a] = true
-			// rulingWord reads whichever arm of the `ruling` oneof is set. A ruling on an avenue
+			// rulingWord reads whichever arm of the `ruling` oneof is set. A ruling on an inquiry
 			// subject that carries another subject's arm, or none, is refused at the write, so on
-			// a record the write admitted this is the avenue arm's word — the schema's spelling
+			// a record the write admitted this is the inquiry arm's word — the schema's spelling
 			// (`out_of_scope`), which every surface recognizes.
 			a.Ruling = rulingWord(t)
 			// The ruler's argument is `opinion`, the only prose channel MotionRule has.
 			a.RulingWhy, a.RuledEpoch = t.GetOpinion(), w.Epoch
-			// THERE IS NO AvenueReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
-			// review is ONE event per epoch about the report as a whole; it names no line, so there
-			// is nothing here for it to join to. Its reader is AvenueReviewDue.
+			// THERE IS NO InquiryReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
+			// review is ONE event per epoch about the report as a whole; it names no inquiry, so there
+			// is nothing here for it to join to. Its reader is InquiryReviewDueOf.
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
@@ -209,7 +191,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	return out
 }
 
-// requireAvenue refuses a reference to an avenue no proposal created — the same discipline
+// RequireInquiryRef refuses a reference to an inquiry no proposal created — the same discipline
 // every other cross-reference gets (refs.go), for the same reason: a dangling reference is
 // accepted at write time and dropped at replay.
 func RequireInquiryRef(run Run, id string) error {
@@ -220,15 +202,14 @@ func RequireInquiryRef(run Run, id string) error {
 	return requireInquiryRef(db, id)
 }
 
-// requireAvenueRef is RequireAvenueRef asked of q — the write path's transaction, or the run's
+// requireInquiryRef is RequireInquiryRef asked of q — the write path's transaction, or the run's
 // handle.
 func requireInquiryRef(q recordsql.Querier, id string) error {
 	if id == "" {
 		return nil
 	}
-	// EVERY Avenue event answers this, proposal or move, exactly as the fold's type test did —
-	// the check is that the id was ever WRITTEN by the avenue verb, not that the
-	// event was the proposal.
+	// EVERY Inquiry event answers this, proposal or recorded fate — the check is that the id was
+	// ever WRITTEN by the inquiry verb, not that the event was the proposal.
 	found, err := recordHasAt(q, `SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
@@ -239,7 +220,8 @@ func requireInquiryRef(q recordsql.Querier, id string) error {
 	return fmt.Errorf("--id names inquiry %s, which no inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
-// StaleAvenuesOf is StaleAvenues over the events themselves.
+// StaleInquiriesOf returns the inquiries that still owe a fate: every `proposed` one, and every
+// `underway` one last recorded before the current epoch.
 func StaleInquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	now := win.CurrentEpoch(evs)
 	var out []*Inquiry
@@ -256,21 +238,21 @@ func StaleInquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	return out
 }
 
-// AvenueRuling returns red's ruling on an avenue, or "" if it never ruled. It reads avenue_state,
-// whose column is the avenue's newest ruling that stands — on a record the write admitted, its
+// InquiryRuling returns red's ruling on an inquiry, or "" if it never ruled. It reads inquiry_state,
+// whose column is the inquiry's newest ruling that stands — on a record the write admitted, its
 // only one.
 //
-// The ruling and the avenue's fate were both on the record and joined NOWHERE, so blue
-// pursuing a line red called out-of-scope looked exactly like blue pursuing one red endorsed.
+// The ruling and the inquiry's fate are joined here, so blue pursuing an inquiry red called
+// out-of-scope is told apart from blue pursuing one red endorsed.
 // Red's ruling is an argument rather than a command — blue may pursue anyway — but the
 // disagreement should be a fact, not something a reader reconstructs from two lists.
 //
-// "" MEANS ONE THING: the avenue is on the record and red has not ruled it. A read that fails is
-// the error, and so is an id avenue_state holds no row for — both would otherwise read as "never
+// "" MEANS ONE THING: the inquiry is on the record and red has not ruled it. A read that fails is
+// the error, and so is an id inquiry_state holds no row for — both would otherwise read as "never
 // ruled", which is the answer a caller skips its check on.
 func InquiryRuling(run Run, inquiryID string) (string, error) {
-	// The avenue view carries the whole line, this column included. The word is the schema's
-	// (`out_of_scope`), the one AvenuesOf puts on Avenue.Ruling and every surface accepts.
+	// The inquiry view carries the whole inquiry, this column included. The word is the schema's
+	// (`out_of_scope`), the one InquiriesOf puts on Inquiry.Ruling and every surface accepts.
 	var word sql.NullString
 	found, err := queryRow(run, []any{&word},
 		`SELECT "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = ?`, inquiryID)
@@ -283,7 +265,8 @@ func InquiryRuling(run Run, inquiryID string) (string, error) {
 	return word.String, nil
 }
 
-// AvenueReviewDueOf is AvenueReviewDue over the events themselves.
+// InquiryReviewDueOf reports whether the chair's inquiry review is owed: inquiries exist and none
+// of the review events falls in the current epoch.
 func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
 	evs = Live(evs)
 	if len(InquiriesOf(evs, win)) == 0 {
@@ -303,12 +286,12 @@ func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
 	return true
 }
 
-// AvenueJSON is one avenue as a machine reads it — the same fields the rendered
+// InquiryJSON is one inquiry as a machine reads it — the same fields the rendered
 // projection groups by fate, with their types intact.
 //
-// WHY THE SHAPE IS REPEATED HERE rather than tagging Avenue itself: Avenue is the internal fold,
+// WHY THE SHAPE IS REPEATED HERE rather than tagging Inquiry itself: Inquiry is the internal fold,
 // and tagging it would publish every future field to the wire by default. The wire form is a
-// decision each time a field is added, which is what keeps `show avenues --json` a
+// decision each time a field is added, which is what keeps `show inquiries --json` a
 // contract rather than a dump of whatever the fold happens to carry.
 type InquiryJSON struct {
 	ID         string `json:"id"`
@@ -316,8 +299,8 @@ type InquiryJSON struct {
 	Hypothesis string `json:"hypothesis,omitempty"`
 	Method     string `json:"method,omitempty"`
 	Status     string `json:"status"`
-	// Reason belongs to the CURRENT status, not to the line: a reader pairing it with an earlier
-	// status in History would be reading the wrong justification for the wrong move.
+	// Reason belongs to the CURRENT status, not to the inquiry: a reader pairing it with an
+	// earlier status in History would be reading the wrong justification for the wrong fate.
 	Reason  string   `json:"reason,omitempty"`
 	Epoch   int      `json:"epoch"`
 	History []string `json:"history,omitempty"`
@@ -325,13 +308,13 @@ type InquiryJSON struct {
 	Ruling  string   `json:"ruling,omitempty"`
 }
 
-// AvenuesJSON is the wire form of the exploration space.
+// InquiriesJSON is the wire form of the exploration space.
 type InquiriesJSON struct {
 	Inquiries []InquiryJSON `json:"inquiries"`
 }
 
-// AvenuesJSONOf folds the events into the wire form, in the same order the rendered projection
-// walks them, so the two accounts of the same directions cannot disagree about order.
+// InquiriesJSONOf folds the events into the wire form, in the same order the rendered projection
+// walks them, so the two accounts of the same inquiries cannot disagree about order.
 func InquiriesJSONOf(evs []*Event, win WindowIndex) InquiriesJSON {
 	out := InquiriesJSON{Inquiries: []InquiryJSON{}}
 	for _, a := range InquiriesOf(evs, win) {

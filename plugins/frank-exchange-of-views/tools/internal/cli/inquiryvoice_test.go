@@ -7,16 +7,14 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE LINE-OF-AVENUE VERBS WRITE REPORT PROSE, SO THEY MEET THE VOICE ADVISORY.
+// THE INQUIRY VERBS WRITE REPORT PROSE, SO THEY MEET THE VOICE ADVISORY.
 //
-// #873 covered ingest and edit on the strength of a census that said they were the only writers of
-// report text. That was true of the RECORD's report and false of report.md: `avenues()` composes
-// every avenue into Research areas, Future research directions and Alternatives considered,
-// and arm A of the #861 smoke carried a process-voice tell in Alternatives considered that came from
-// a blue lane's line. These drive the real verbs, because the defect #873 was — a guard that existed
-// and was never called — survives any test that exercises the helper instead of the call.
+// `inquiries()` composes every inquiry into Research areas, Future research directions and
+// Alternatives considered, so the propose and record verbs write report prose. These drive the
+// real verbs, because a guard that exists and is never called survives any test that exercises the
+// helper instead of the call.
 
-func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
+func TestProposeAdvisesOnAVoicedQuestion(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
 	line := "This run grepped the repo for primality helpers [minority: lane-2]"
@@ -34,7 +32,7 @@ func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_INQUIRY)
 	a, _ := recordpb.BodyAs[*recordpb.Inquiry](ev)
 	if a.GetQuestion() != line {
-		t.Errorf("the advisory altered the recorded line: got %q, want %q", a.GetQuestion(), line)
+		t.Errorf("the advisory altered the recorded question: got %q, want %q", a.GetQuestion(), line)
 	}
 }
 
@@ -53,8 +51,8 @@ func TestProposeAdvisesOnTheMethod(t *testing.T) {
 	}
 }
 
-// THE HYPOTHESIS IS REPORT TEXT TOO: the avenue's row prints it under its own label, so a tell
-// there reaches the reader as one in the line does, and the advisory covers every part of the row
+// THE HYPOTHESIS IS REPORT TEXT TOO: the inquiry's row prints it under its own label, so a tell
+// there reaches the reader as one in the question does, and the advisory covers every part of the row
 // this act writes.
 func TestProposeAdvisesOnAVoicedHypothesis(t *testing.T) {
 	runDir := newRun(t)
@@ -79,7 +77,7 @@ func TestRecordAdvisesOnAVoicedReason(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
-		"--id", "Q1", "--as", "abandoned", "--reason", "the debate settled it, so the line was dropped")
+		"--id", "Q1", "--as", "abandoned", "--reason", "the debate settled it, so the inquiry was dropped")
 	if err != nil {
 		t.Fatalf("the advisory refused a record — it must refuse nothing: %v\n%s", err, out)
 	}
@@ -106,11 +104,11 @@ func TestACleanInquiryCarriesNoNote(t *testing.T) {
 		t.Errorf("a clean proposal carries an advisory:\n%s", out)
 	}
 	out, err = runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
-		"--id", "Q1", "--as", "underway", "--reason", "7 divides 91, so the line paid off")
+		"--id", "Q1", "--as", "underway", "--reason", "7 divides 91, so the inquiry paid off")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(out, "NOTE") {
-		t.Errorf("a clean move carries an advisory:\n%s", out)
+		t.Errorf("a clean record carries an advisory:\n%s", out)
 	}
 }

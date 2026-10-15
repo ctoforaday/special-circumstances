@@ -151,11 +151,11 @@ func TestPlanFactsAnswerForTheRecordAsItStoodAtThePoint(t *testing.T) {
 	}
 }
 
-// EVERY STREAM ARM OF THE GATE'S LIST ANSWERS FOR THE STREAM IT IS HANDED. The avenue review is the
+// EVERY STREAM ARM OF THE GATE'S LIST ANSWERS FOR THE STREAM IT IS HANDED. The inquiry review is the
 // arm that reads an epoch: cut before the epoch that records the review, the prefix still owes one.
 func TestTheStreamArmsOfTheGateAnswerForAPrefix(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("A1"), Question: proto.String("a line of research"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
+		register("red-chair").add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("A1"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
 		register(evLens).mint(evLens, "G1", "high")
 	cut := len(b.evs)
 	b.register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")})

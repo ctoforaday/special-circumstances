@@ -300,20 +300,10 @@ bench rules and never originates.`,
 // whereItLives finds the full paths a bare verb name is reachable at, so a refusal can say WHERE
 // rather than only NO.
 //
-// MEASURED 2026-08-17, and it is the sharpest evidence this file has for the slip it already
-// documents. A red-chair seat, holding a work list duty that named `inquiry-support`, typed
-//
-//	feov-record inquiry-support --help
-//
-// and was told `no command named "inquiry-support" exists`. It believed that — reasonably, the
-// message is unambiguous — went hunting, and settled on `motion inquiry rule`, which is a DIFFERENT
-// ACT: whether the direction is worth the run's time, not whether the report still carries it. The
-// seat did not lose a turn; it landed on the wrong verb with confidence.
-//
-// The refusal was false in the way that matters. `inquiry-support` exists, on the chair, one
-// word away. The role-level refusal already says this well — "it exists, on the blue seat, but not
-// for you. That is a wrong-seat error rather than a missing capability" — and the ROOT level, which
-// is where a seat dropping the prefix actually lands, said the opposite.
+// A refusal for a bare seat verb names the seat that holds it — "it exists, on the blue seat, but
+// not for you. That is a wrong-seat error rather than a missing capability" — and never says the
+// verb does not exist: a seat told so believes it, goes hunting, and settles confidently on a
+// different act.
 //
 // It searches one level under each role group, which is where seat verbs live. `motion <subject>
 // <verb>` is deliberately not searched: `rule` and `file` are generic enough that pointing at all
@@ -338,9 +328,9 @@ func whereItLives(_ *cobra.Command, name string) []string {
 // A GROUP WITH NO RunE ANSWERED AN UNKNOWN SUBCOMMAND WITH ITS OWN HELP AND EXIT 0. Cobra parses the
 // word as a positional argument to a command that cannot run, prints that command's help, and
 // reports success — so a seat typing an act it does not hold was told, in effect, that it had done
-// it. It became reachable in earnest when the avenue concept collapsed to one verb: `avenue` is a
-// group on blue's surface (propose, move) AND the chair's (review), so each seat can now type the
-// other's act under a group it does hold. `motion <no-such-subject>` did the same before that.
+// it. `inquiry` is a group on blue's surface (propose, record) AND the chair's (review), so each
+// seat can type the other's act under a group it does hold; `motion <no-such-subject>` is the same
+// case.
 //
 // THE HOLDER IS DERIVED, NEVER LISTED — whereSubcommandLives asks every role's real tree, the way
 // whereItLives does one level up, so a subcommand moved between surfaces is named correctly with no
@@ -365,7 +355,7 @@ func teachUnknownSubcommand(root *cobra.Command) {
 			}
 			sub := args[0]
 			if at := whereSubcommandLives(group.Name(), sub); len(at) > 0 {
-				// THE ACT IS NAMED AS ITS HOLDER'S. Quoted bare, `avenue review` reads to blue as a
+				// THE ACT IS NAMED AS ITS HOLDER'S. Quoted bare, `inquiry review` reads to blue as a
 				// command it can type; it is the chair's, and the sentence says so where the path is.
 				holders := make([]string, len(at))
 				for i, a := range at {
@@ -697,7 +687,7 @@ func translateUnknownFlag(cmd *cobra.Command, typed, msg string) (said string, t
 	if !ok || name == typed {
 		return msg, false
 	}
-	// THE MAP IS GLOBAL AND PAYLOAD KEYS ARE NOT, which its own comment says plainly. `line` maps
+	// THE MAP IS GLOBAL AND PAYLOAD KEYS ARE NOT, which its own comment says plainly. `prose` maps
 	// to --reason, and a verb with no --reason would be told to type one. The suggestion is
 	// therefore made only when the FAILING VERB actually has that flag — which turns a global
 	// table into a per-verb answer without a second table to keep.

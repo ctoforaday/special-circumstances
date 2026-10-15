@@ -103,14 +103,10 @@ func newMint() *cobra.Command {
 		// A location a reader cannot find is not a location. It is refused now, by the same
 		// rule the lens has always been held to.
 		//
-		// AN OMISSION STILL HAS A PLACE, AND IT IS NO LONGER A BORROWED SENTENCE. This used to
-		// read "for a gap about something MISSING, quote the sentence where it SHOULD be;
-		// that is how a lens finding anchors an omission" — and it was true when it was
-		// written. `lens finding` stopped anchoring that way (#742): an absence names the
-		// section it is missing from, the avenue whose reason it argues against, or the gap
-		// it is about, and the record CHECKS the reference. Leaving the instruction here
-		// would have made a seat spell one act two ways across the two verbs of one act, and
-		// the gap minted from such a finding would re-acquire the handle the finding shed.
+		// AN OMISSION HAS A PLACE, AND IT IS NOT A BORROWED SENTENCE: an absence names the
+		// section it is missing from, the inquiry whose question it argues against, or the gap
+		// it is about, and the record CHECKS the reference. The two verbs of one act spell it
+		// one way, so the gap minted from such a finding carries the same handle the finding does.
 		about, aboutRefP, aerr := record.ResolveAbout(run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
 		if aerr != nil {
 			return nil, aerr

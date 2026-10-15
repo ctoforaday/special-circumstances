@@ -647,7 +647,7 @@ CREATE TABLE %q (
 // A SCALAR ONEOF ARM IS STILL A FIELD, AND OWES THE SCHEMA WHAT EVERY OTHER FIELD OWES.
 //
 // This was the third copy of "what a field contributes", and the one my own reading of the golden
-// missed: `motion_rule`'s grade, petition and direction arms ARE the bench's ruling on a motion,
+// missed: `motion_rule`'s grade, petition and inquiry arms ARE the bench's ruling on a motion,
 // and all three sat unconstrained beside `binds`, which was constrained, in the same table. The
 // structural test found them after the golden showed me the message-arm hole — which is the honest
 // order of events and the reason both exist.
@@ -680,7 +680,7 @@ func oneofColumns(md protoreflect.MessageDescriptor, od protoreflect.OneofDescri
 	// the oneof: at most one column non-null said exactly "at most one arm set". `MotionRule.ruling`
 	// gained a message arm (`docket`, #681 Scope 2) and the sentence stopped being true without
 	// changing a character — a row with `grade='accepted'` AND a `motion_rule_docket` child
-	// satisfies `(grade IS NOT NULL) + (petition IS NOT NULL) + (direction IS NOT NULL) <= 1`. The
+	// satisfies `(grade IS NOT NULL) + (petition IS NOT NULL) + (inquiry IS NOT NULL) <= 1`. The
 	// constraint went on READING like a complete statement of exclusivity while covering three of
 	// four arms, which is the failure mode this schema exists to remove: not a check that broke,
 	// a check that quietly narrowed.

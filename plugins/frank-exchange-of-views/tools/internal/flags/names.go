@@ -126,7 +126,7 @@ const (
 	//
 	// As is the one word for "which value from a closed set describes what became of this" —
 	// a closure's class, a bench disposition, a verification's outcome, a ruling, a run's
-	// verdict, an avenue's fate. Every set is closed, and each verb documents its own
+	// verdict, an inquiry's fate. Every set is closed, and each verb documents its own
 	// through enumhelp.
 	As   = "as"
 	None = "none"
@@ -206,7 +206,7 @@ const (
 	At = "at"
 
 	// About names WHAT a finding is anchored to when the thing it names is not on the page — a
-	// section that is missing something, an avenue whose stated reason you are arguing
+	// section that is missing something, an inquiry whose stated reason you are arguing
 	// against, a gap already on the docket. AboutKind says which.
 	About     = "about"
 	AboutKind = "about-kind"

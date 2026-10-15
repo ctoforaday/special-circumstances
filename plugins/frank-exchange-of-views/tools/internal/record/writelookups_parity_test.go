@@ -13,7 +13,7 @@ import (
 // THE WRITE-PATH LOOKUPS, HELD AGAINST THE FOLDS THEY REPLACED — step 4's second group. These
 // are the questions every mint, close and filing asks of the record before writing (the next
 // free id, "did I already do this", "does the thing I name exist"), so the fixture exercises the
-// edges those folds owned: a re-registered agent whose LAST binding wins, a moved avenue
+// edges those folds owned: a re-registered agent whose LAST binding wins, a recorded fate on an inquiry
 // that must not count as a proposal, a key lookup that must return the FIRST match, and
 // a marker id the torn-splice heal asks about.
 func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
@@ -80,9 +80,9 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("priorClosureEpochs on a never-closed gap = (%v, %v)", rounds, err)
 	}
 
-	// An avenue is referable once proposed, and a move of it leaves it so.
+	// An inquiry is referable once proposed, and recording its fate leaves it so.
 	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")}); err != nil {
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),

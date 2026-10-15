@@ -248,21 +248,17 @@ a real miss — the seat had the verb, had the situation, and did not go there:
 
 | role | unreached on every board of that role |
 |---|---|
-| blue | `cite`, `closing`, `avenue propose`, `avenue move`, `motion grade file`, `motion grade appeal`, `motion avenue appeal`, `motion petition file` |
-| merge | `carry`, `class new`, `close`, `closing`, `motion avenue rule`, `regrade`, `spot-check` |
+| blue | `cite`, `closing`, `inquiry propose`, `inquiry record`, `motion grade file`, `motion grade appeal`, `motion petition file` |
+| merge | `carry`, `class new`, `close`, `closing`, `motion inquiry rule`, `regrade`, `spot-check` |
 | lens | `corroborate`, `motion petition file` |
 | bench | `declare`, `halt` |
 
-Three clusters, and they are not random:
+Two clusters, and they are not random:
 
-1. **The citation and avenue axes.** Blue touched `cite` on no board and `avenue` on no
-   board, across four sittings whose prompts spend hundreds of words on both. The prompt's own
-   measured complaint — *"83 of 86 avenues were declared in round 0 and NOT ONE was ever
-   revisited"* — reproduces here as never proposing one at all.
-2. **The contest channel.** Blue filed no grade motion and pressed no appeal on any board, including
+1. **The contest channel.** Blue filed no grade motion and pressed no appeal on any board, including
    `docket`, which stages a refused grade motion specifically to bait the appeal. The seat repairs;
    it does not argue.
-3. **The terminal acts.** The bench never `declare`d and never `halt`ed. `boundary` is the sharpest
+2. **The terminal acts.** The bench never `declare`d and never `halt`ed. `boundary` is the sharpest
    case in the suite: the board's whole question is whether a bench that should stop a run stops it,
    and after the closings fix the seat reached `certify` and `outcome` — and still disposed of the
    consent gap rather than halting on it.
@@ -763,7 +759,7 @@ duty and is read 0.33–2.00 times. The one channel that delivers situation-plus
 applies is the one the tool steers seats away from — and `SittingOf` can name only 4 of blue's 17
 verbs, 5 of merge's 17, 3 of bench's 14, 2 of lens's 10, because a duty is derived only where
 omission already carries a mechanical consequence (a refusal, or a capture score). Every verb whose
-omission is merely a quality loss — `avenue`, `manifest-row`, `spot-check`, `verify`, `reproduce`,
+omission is merely a quality loss — `inquiry`, `manifest-row`, `spot-check`, `verify`, `reproduce`,
 `closing`, `regrade` — gets no line, and those are the verbs the probe boards were built to bait.
 
 ## What it says

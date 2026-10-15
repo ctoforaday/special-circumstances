@@ -134,9 +134,8 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 }
 
 // THE ROW'S TAG IS THE FATE THE SEAT RECORDED, WHATEVER PATH LED TO IT. `abandoned` means tried and
-// died, and a seat that abandons straight from `proposed` chose that word for a line it ran — on
-// universe-m21 a hypothesis a computed result refuted, printed as "[abandoned before pursuit]"
-// beside the proof that computes it. `concluded` straight from `proposed` gets the plain tag too.
+// died, and a seat that abandons straight from `proposed` chose that word for an inquiry it ran.
+// `confirmed` straight from `proposed` gets the plain tag too.
 func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("sieve to the square root")}),
@@ -147,10 +146,10 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	alt := inquirySection(t, board, "Alternatives considered")
 	const fate = "\n  - **Fate:** abandoned. **Why:** "
 	if !strings.Contains(alt, "- **Question:** sieve to the square root"+fate+"the bound is 9, so the sieve adds nothing") {
-		t.Errorf("a line underway and then abandoned keeps the plain fate:\n%s", alt)
+		t.Errorf("an inquiry underway and then abandoned keeps the plain fate:\n%s", alt)
 	}
 	if !strings.Contains(alt, "- **Question:** check a computer-algebra system"+fate+"no such system is available here") {
-		t.Errorf("a line abandoned straight from proposed carries the fate its seat recorded:\n%s", alt)
+		t.Errorf("an inquiry abandoned straight from proposed carries the fate its seat recorded:\n%s", alt)
 	}
 	if strings.Contains(alt, "before pursuit") {
 		t.Errorf("the row says something about the path that no seat recorded:\n%s", alt)
@@ -159,20 +158,18 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 
 // THE ROW SAYS WHAT WAS ASKED, WHAT WAS EXPECTED, WHAT BECAME OF IT AND WHAT WAS FOUND, each under
 // its own label, so a reader cannot take the question or the hypothesis for a claim of the
-// report's. On universe-m22 the line "…showing that a single passing test is not evidence of
-// primality" stood in bold beside the finding that a passing test IS evidence; the hypothesis was
-// on the record and printed nowhere.
+// report's.
 func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 	av := func(id string, st recordpb.InquiryStatus, line, hyp, reason string) *record.Event {
 		return recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String(id), Status: st.Enum(),
 			Question: proto.String(line), Hypothesis: proto.String(hyp), Reason: proto.String(reason)})
 	}
 	board := famOf(t, []*record.Event{
-		av("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether one Fermat test settles it", "a passing test is no evidence of primality", "whether one Fermat test settles it"),
+		av("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether one Fermat test settles it", "a passing test is no evidence of primality", ""),
 		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Method: proto.String("computation"),
 			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Reason: proto.String("a passing test is evidence, not proof")}),
 		av("Q2", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "whether trial division settles it", "", "7 divides 91"),
-		av("Q3", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether a sieve is faster", "it is", "whether a sieve is faster"),
+		av("Q3", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether a sieve is faster", "it is", ""),
 		av("Q4", recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED, "whether a lookup table exists", "one does", "the bound is 9"),
 	})
 	research := inquirySection(t, board, "Research areas")
@@ -182,7 +179,7 @@ func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 			"  - **Fate:** refuted. **Found:** a passing test is evidence, not proof",
 		"an inquiry with no hypothesis prints no hypothesis line": "- **Question:** whether trial division settles it\n" +
 			"  - **Fate:** confirmed. **Found:** 7 divides 91",
-		"an inquiry never moved has found nothing, and its question is not printed twice": "- **Question:** whether a sieve is faster\n" +
+		"an inquiry still proposed has found nothing and holds no reason": "- **Question:** whether a sieve is faster\n" +
 			"  - **Hypothesis:** it is\n" +
 			"  - **Fate:** proposed.",
 	} {
@@ -226,7 +223,7 @@ func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 }
 
 // EVERY FATE PRINTS AS THE WORD ITS SEAT FILED, WITH NO GLOSS. A gloss says more than the record
-// holds — an archived `abandoned` whose reason is a refutation, an archived `pursued` that is where
+// holds — an `abandoned` whose reason is a refutation, an `underway` that is where
 // an approach came to rest — so the word stands alone. Only an approach that ran reports what it
 // FOUND. A fate the enum gains fails here until its label is decided.
 func TestEveryInquiryFateIsSaidOnItsRow(t *testing.T) {
@@ -269,9 +266,9 @@ func TestInquiriesSplitByFate(t *testing.T) {
 		t.Errorf("a declined inquiry is also an alternative considered:\n%s", alt)
 	}
 	if strings.Contains(alt, "profile the hot path") {
-		t.Errorf("a underway inquiry must not appear under alternatives:\n%s", alt)
+		t.Errorf("an underway inquiry must not appear under alternatives:\n%s", alt)
 	}
-	// No avenues of a fate → flagged, not blank.
+	// No inquiries of a fate → flagged, not blank.
 	if none := inquirySection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
@@ -279,39 +276,32 @@ func TestInquiriesSplitByFate(t *testing.T) {
 
 // EVERY STATUS LANDS WHERE ITS FATE SAYS — three sections, and one deliberate exclusion.
 //
-// # This test never looked at a status
+// # It ranges over every status
 //
-// It ranged over `record.AvenueStatuses`, which is `[]EnumValue`, and passed the STRUCT to
-// `Set("status", status)`. `Payload.Str` returns "" for a non-string, so `a.Status` was the empty
-// string on all five iterations. With setAside defined as the complement of taken, "" fell
-// into alternatives every time and `in != inAlt` held — so it passed, five times, having exercised
-// no status at all. A test whose entire subject is "every status reaches a section" had never seen
-// one. Found 2026-08-16 while adding the third section. It ranges over AvenueStatusNames() now.
+// It ranges over InquiryStatusNames(), so each status is exercised.
 //
 // # The model this asserts: the lifecycle of a research topic through the report
 //
-//	pursued              "Research areas" — a topic followed, and what it yielded
+//	underway             "Research areas" — a topic followed, and what it yielded
 //	deferred             "Future research directions" — KEPT for a later run or a deeper context,
 //	                     which is a decision. Filing it under "Alternatives considered" said the
 //	                     opposite of its fate, and only the `[deferred]` tag on the row
 //	                     contradicted the heading above it.
-//	concluded, refuted  "Research areas" — an approach that ran and answered, whichever way
+//	confirmed, refuted  "Research areas" — an approach that ran and answered, whichever way
 //	declined, abandoned  Alternatives considered — weighed and never run, or started with no answer
-//	proposed             "Research areas", beside `pursued`, with `[proposed]` on its own row. A
-//	                     first cut excluded it from every section (TestFuzzDebate refused: a seat's
-//	                     recorded reasoning must reach the reader) and a second gave it a fourth
-//	                     section. Three areas is the decision: a line blue put forward IS an area
-//	                     this run is researching, and red's per-round support verdict is what stops
-//	                     it sitting undecided — not a heading describing the omission.
+//	proposed             "Research areas", beside `underway`, with `[proposed]` on its own row.
+//	                     Three areas is the decision: an inquiry blue put forward IS an area this
+//	                     run is researching, and red's per-round inquiry review is what stops it
+//	                     sitting undecided — not a heading describing the omission.
 //
 // EVERY status lands in EXACTLY ONE section, so a sixth that matches no predicate fails here
 // rather than vanishing the way `proposed` and `deferred` once did.
 func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
 		"underway":  "research",
-		"confirmed": "research", // a line followed to its end is one the research took
+		"confirmed": "research", // an inquiry followed to its end is one the research took
 		"refuted":   "research", // a refutation is an answer: it stands beside the confirmations
-		"proposed":  "research", // an undecided line IS an area this run is researching
+		"proposed":  "research", // an undecided inquiry IS an area this run is researching
 		"deferred":  "future",
 		"declined":  "alternatives",
 		"abandoned": "alternatives",
@@ -331,13 +321,13 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		}
 		board := famOf(t, []*record.Event{
 			recordtest.Event(t, "blue-r1", &recordpb.Inquiry{
-				InquiryId: proto.String("Q1"), Status: st.Enum(), Question: proto.String("the only line"),
+				InquiryId: proto.String("Q1"), Status: st.Enum(), Question: proto.String("the only inquiry"),
 			}),
 		})
 		in := map[string]bool{
-			"research":     strings.Contains(inquirySection(t, board, "Research areas"), "the only line"),
-			"future":       strings.Contains(inquirySection(t, board, "Future research directions"), "the only line"),
-			"alternatives": strings.Contains(inquirySection(t, board, "Alternatives considered"), "the only line"),
+			"research":     strings.Contains(inquirySection(t, board, "Research areas"), "the only inquiry"),
+			"future":       strings.Contains(inquirySection(t, board, "Future research directions"), "the only inquiry"),
+			"alternatives": strings.Contains(inquirySection(t, board, "Alternatives considered"), "the only inquiry"),
 		}
 		var got []string
 		for name, present := range in {
@@ -349,13 +339,12 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		switch {
 		case len(got) != 1:
 			t.Errorf("status %q rendered under %v, want exactly [%s] — an inquiry in two sections is an alternative to "+
-				"itself, and one in NONE loses the seat's recorded prose entirely (TestFuzzDebate's A1-A3 class "+
-				"caught exactly that when `proposed` was excluded)", status, got, want)
+				"itself, and one in NONE loses the seat's recorded prose entirely", status, got, want)
 		case got[0] != want:
 			t.Errorf("status %q rendered under %q, want %q", status, got[0], want)
 		}
-		// AND THE SENTENCE A SEAT READS SAYS THE SAME. AvenueSections is printed on the pages of
-		// the acts that write an avenue, on the page that prints the report and in blue's prompts;
+		// AND THE SENTENCE A SEAT READS SAYS THE SAME. InquirySections is printed on the pages of
+		// the acts that write an inquiry, on the page that prints the report and in blue's prompts;
 		// it names each heading and then the fates it holds, so a status belongs to the clause that
 		// opens at its heading.
 		heading := map[string]string{"research": "Research areas", "future": "Future research directions", "alternatives": "Alternatives considered"}
@@ -381,7 +370,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	}
 }
 
-// avenueSection renders the avenue section under heading, through its row.
+// inquirySection renders the inquiry section under heading, through its row.
 func inquirySection(t *testing.T, fam record.Family, heading string) string {
 	t.Helper()
 	return sectionBlock(t, heading, &assembly{fam: fam})
@@ -436,7 +425,7 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 			}
 		}
 	}
-	// The avenue rule reaches the seat that records an approach's fate in the table's own sentence.
+	// The inquiry rule reaches the seat that records an approach's fate in the table's own sentence.
 	if seat := "blue-lane-1"; !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), InquirySections) {
 		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (InquirySections): %s", seat, InquirySections)
 	}
@@ -579,12 +568,13 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 	}
 }
 
-// A MOVED AVENUE IS ONE LINE. Reading raw events rendered a line pursued in epoch 0 and
-// abandoned in epoch 2 under BOTH headings — as an expansion and as an alternative to itself.
+// A RECORDED INQUIRY IS RENDERED ONCE. Reading raw events would render an inquiry underway in
+// epoch 0 and abandoned in epoch 2 under BOTH headings — as an expansion and as an alternative to
+// itself.
 func TestARecordedInquiryIsRenderedOnce(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("rewrite the parser")}),
-		// Two chair sittings put the move in epoch 2 — the epoch is the number of the chair's
+		// Two chair sittings put the fate in epoch 2 — the epoch is the number of the chair's
 		// stored sittings at or before the row, not read off the seat id.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
@@ -598,40 +588,39 @@ func TestARecordedInquiryIsRenderedOnce(t *testing.T) {
 	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
 		t.Errorf("the abandoned inquiry must carry its current reason:\n%s", alt)
 	}
-	// The substance came from the CREATION event and the reason from the MOVE. The PATH between
-	// them is the debate, not the subject: it renders in avenues.md, never in the report.
+	// The substance came from the CREATION event and the reason from the event recording its
+	// fate. The PATH between them is the debate, not the subject: it renders in inquiries.md, never
+	// in the report.
 	if strings.Contains(alt, "e0 underway") || strings.Contains(alt, "history:") {
 		t.Errorf("the status history is reconstructable from the ledger and is not report text:\n%s", alt)
 	}
 }
 
-// RED'S RULING IS THE DEBATE, NOT THE SUBJECT. The report used to print it under the line, with
-// the proposing seat's id after it; the report is research prose and tool markers, and both are on
-// the ledger. The ruling's opinion renders in judgments.md, and the ruling beside the line's path
-// in avenues.md (view.TestAnAvenueRulingRendersBesideTheMoveMadeAgainstIt).
+// RED'S RULING IS THE DEBATE, NOT THE SUBJECT. The report is research prose and tool
+// markers, and both the ruling and the proposing seat's id are on the ledger. The ruling's opinion
+// renders in judgments.md, and the ruling beside the inquiry's path in inquiries.md
+// (view.TestAnInquiryRulingRendersBesideTheFateRecordedAgainstIt).
 func TestInquiryRulingAndSeatStayOutOfTheReport(t *testing.T) {
 	board := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("survey the adjacent literature")}),
-		// The LIVE vocabulary: red rules a direction through `motion avenue rule`, whose motion_id
-		// IS the line's own id — the proposal is the filing, so there is no second identity. The
-		// fixture used to write the retired `avenue-rule` type, which nothing has written since
-		// the motion collapse and which no longer has a read arm.
+		// The LIVE vocabulary: red rules an inquiry through `motion inquiry rule`, whose motion_id
+		// IS the inquiry's own id — the proposal is the filing, so there is no second identity.
 		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 			Opinion:  proto.String("a real question, not THIS run's"),
 			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 		}),
-		// Blue pursues it ANYWAY: the ruling binds no move, and the move is what blue does about it.
+		// Blue pursues it ANYWAY: the ruling binds no fate, and the fate is what blue records about it.
 		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("survey the adjacent literature")}),
 	})
 	exp := inquirySection(t, board, "Research areas")
 	if !strings.Contains(exp, "- **Question:** survey the adjacent literature\n") {
-		t.Fatalf("the line itself must still reach the report:\n%s", exp)
+		t.Fatalf("the inquiry itself must still reach the report:\n%s", exp)
 	}
 	for _, leak := range []string{"out_of_scope", "a real question, not THIS run's", "against red's", "ruled", "(blue-r"} {
 		if strings.Contains(exp, leak) {
-			t.Errorf("the debate over a direction leaked into the report as %q:\n%s", leak, exp)
+			t.Errorf("the debate over an inquiry leaked into the report as %q:\n%s", leak, exp)
 		}
 	}
 }

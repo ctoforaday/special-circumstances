@@ -1064,7 +1064,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 	}
 }
 
-// blue's verbs refuse the removals and empty avenues the engine cares about.
+// blue's verbs refuse the removals and empty inquiries the engine cares about.
 func TestBlueVerbContracts(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "blue-lane-1"
@@ -1082,7 +1082,7 @@ func TestBlueVerbContracts(t *testing.T) {
 		}
 	})
 
-	t.Run("an inquiry is proposed, then moved with what changed", func(t *testing.T) {
+	t.Run("an inquiry is proposed, then has its fate recorded with what changed", func(t *testing.T) {
 		out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seatID,
 			"--question", "the road taken", "--hypothesis", "it leads somewhere")
 		if err != nil {
@@ -1091,7 +1091,7 @@ func TestBlueVerbContracts(t *testing.T) {
 		id := inquiryIDOf(out)
 		if _, err := run(t, "inquiry", "record", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "declined"); err == nil {
-			t.Error("a move with no reason was accepted — a status that slides silently is decoration")
+			t.Error("a fate recorded with no reason was accepted — a status that slides silently is decoration")
 		}
 		if _, err := run(t, "inquiry", "record", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "invented", "--reason", "r"); err == nil {
@@ -1817,7 +1817,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	}
 }
 
-// avenueIDOf pulls the tool-assigned avenue id out of a propose result.
+// inquiryIDOf pulls the tool-assigned inquiry id out of a propose result.
 func inquiryIDOf(out string) string {
 	m := regexp.MustCompile(`\b(Q-[0-9a-f]{8})\b`).FindStringSubmatch(out)
 	if m == nil {

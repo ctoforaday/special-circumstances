@@ -42,7 +42,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		// act runs on a record holding grade motion M1 (gap G1), docket motion M2 (gap G2),
-		// avenue Q1 and petition M3, all unruled; its LAST write is the one under test.
+		// inquiry Q1 and petition M3, all unruled; its LAST write is the one under test.
 		act func(t *testing.T, run Run) error
 		// wants is what the refusal must say; nil means the last write is admitted.
 		wants []string
@@ -174,7 +174,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 }
 
 // motionGuardRun is a record with four unruled motions: grade M1 on G1 (filed by the lens),
-// docket M2 on G2 (filed by blue), avenue Q1 (proposed by blue) and petition M3 (filed by the lens).
+// docket M2 on G2 (filed by blue), inquiry Q1 (proposed by blue) and petition M3 (filed by the lens).
 func motionGuardRun(t *testing.T) Run {
 	t.Helper()
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -187,7 +187,7 @@ func motionGuardRun(t *testing.T) Run {
 	blue := sit(t, run, "blue-respond")
 	mustAppend(t, blue, docketMotion("M2", "G2"))
 	mustAppend(t, blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"),
 		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})
@@ -247,8 +247,8 @@ func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 // motionAnswer is one motion's answer as a reader states it.
 type motionAnswer struct{ ruling, by string }
 
-// avenueReadersAgree holds AvenuesOf to motion_answers on every avenue: the ruling, and the
-// argument and epoch of the ruling event the view names. It returns each avenue as AvenuesOf
+// inquiryReadersAgree holds InquiriesOf to motion_answers on every inquiry: the ruling, and the
+// argument and epoch of the ruling event the view names. It returns each inquiry as InquiriesOf
 // reads it.
 func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 	t.Helper()
@@ -283,7 +283,7 @@ func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 }
 
 // EVERY READER OF A MOTION'S ANSWER STATES THE RULING THAT STANDS, after the legal acts — a ruling
-// corrected in its sitting, an avenue ruling, a docket remand — went through Append. A correction
+// corrected in its sitting, an inquiry ruling, a docket remand — went through Append. A correction
 // is not a second answer: the replacement stands in the original's place. A motion holds one
 // ruling: the write refuses a second, migrate's replay included, so no record holds two.
 //
@@ -306,13 +306,13 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 		return &recordpb.MotionAppeal{MotionId: proto.String(id), Subject: subject, Reason: proto.String(reason)}
 	}
 
-	// A second grade motion and a second avenue, both left unruled by the write.
+	// A second grade motion and a second inquiry, both left unruled by the write.
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M4"),
 		Subject: grade, Basis: proto.String("likelihood is overstated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
 	mustAppend(t, sit(t, run, "blue-respond"), &recordpb.Inquiry{InquiryId: proto.String("Q2"),
-		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("another direction")})
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("another question")})
 
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")

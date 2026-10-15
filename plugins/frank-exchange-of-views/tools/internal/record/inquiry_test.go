@@ -21,12 +21,8 @@ import (
 // that the tool returned success and nothing persisted. The events had persisted perfectly:
 // CurrentRound was 2, and the only round-2 event on that board was `judge` calling `register`.
 //
-// RETARGETED, NOT INHERITED. This arrived aimed at `UnvotedAvenuesAt`, the per-line support vote
-// — a mechanism retired here in favour of ONE `avenue-review` per round (see
-// TestTheAvenueReviewOffersNoRetiredFlags). The carrier changed and the defect did not: the
-// replacement asks the same "was this done in the board's HIGHEST round" question through the same
-// CurrentRound, so the rewrite inherited the bug main had already measured and fixed. Retargeting
-// is the point — deleting it with its old carrier would have dropped a guard over a live defect.
+// The inquiry review asks "was this done in the board's HIGHEST round" through CurrentRound, so a
+// later seat's register must not stale it.
 func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	dir := newRun(t)
 	// The chair sits first so the acts below land in epoch 1 — the round this fixture's path names.
@@ -37,13 +33,13 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if _, err := Append(blue, &recordpb.Inquiry{
 		InquiryId: proto.String("Q1"),
 		Status:    recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
-		Question:  proto.String("a direction"),
+		Question:  proto.String("a question"),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	merge := Identity{Run: mustRun(t, dir), SeatID: "red-chair"}
 	if _, err := Append(merge, &recordpb.InquiryReview{
-		Reason: proto.String("read the lines against the report as it now stands"),
+		Reason: proto.String("read the inquiries against the report as it now stands"),
 	}); err != nil {
 		t.Fatal(err)
 	}

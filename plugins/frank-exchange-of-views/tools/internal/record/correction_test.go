@@ -366,8 +366,8 @@ func TestLivePutsTheReplacementInTheStruckActsPlace(t *testing.T) {
 	}
 }
 
-// THE SQL WINNERS READ THE SAME ORDER: a proposal corrected after the line was moved keeps its place,
-// so avenue reads the corrected wording AND the move's status — not the replacement's
+// THE SQL WINNERS READ THE SAME ORDER: a proposal corrected after its fate was recorded keeps its place,
+// so inquiry reads the corrected wording AND the recorded fate — not the replacement's
 // `proposed`, which MAX(event_id) would have picked.
 func TestInquiryReadsACorrectedProposalInItsPlace(t *testing.T) {
 	run := corrRun(t)
@@ -392,7 +392,7 @@ func TestInquiryReadsACorrectedProposalInItsPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Errorf("inquiry has %d rows, want 1 — a replacement proposal is not a second line", n)
+		t.Errorf("inquiry has %d rows, want 1 — a replacement proposal is not a second inquiry", n)
 	}
 }
 

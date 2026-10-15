@@ -97,7 +97,7 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 // THE REPORT TEMPLATE'S MAP IS THE TABLE. references/report_template.md lists every section of the
 // set for a seat to read, file by file; it is hand-authored prose with a paragraph on each
 // section, which is why it is held to the table here rather than generated from it. Three of its
-// entries are no row, and each for a stated reason: avenues.md is `show avenues` printed whole
+// entries are no row, and each for a stated reason: inquiries.md is `show inquiries` printed whole
 // under headings that carry counts, run.md's Cost is folded in by capture after assembly, and
 // README.md is the index.
 func TestTheReportTemplateListsTheLayoutsSections(t *testing.T) {

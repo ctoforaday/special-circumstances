@@ -10,12 +10,7 @@ import (
 
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
 //
-// It replaces three renderers that had to be written, and fixed, separately. #315 found the
-// petition FILING unrendered while the avenue RULING was found unrendered in the same sweep,
-// because nothing said they were one mechanism. And #320 had to render filings and rulings SIDE
-// BY SIDE rather than joined, because `petition-rule` carried no id and pairing two filings by
-// one seat in one epoch would have been a guess. A motion has an id, so an ask and its answer are
-// one row.
+// A motion has an id, so an ask and its answer are one row.
 //
 // It reads through record.Motions, the one read of the one motion vocabulary.
 func motions(fam record.Family) string {

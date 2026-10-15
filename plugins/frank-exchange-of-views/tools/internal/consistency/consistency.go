@@ -69,7 +69,7 @@ type groundTruth struct {
 	proofIDs      map[string]bool
 	citeEvents    int
 	verifyEvents  int
-	inquiries     map[string]string // avenue id -> last status word
+	inquiries     map[string]string // inquiry id -> last status word
 	observations  int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
@@ -237,9 +237,8 @@ func walk(events []*record.Event) *groundTruth {
 				gt.findingLabels[id] = true
 				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
 				// it emits no anchor event and must not be required to have one. `--about-kind
-				// section|avenue|gap` (#742, shipped #787) is the anchor an ABSENCE gets — there
-				// is no sentence to mark — and before this the rule below reported every one of
-				// them as the crash window it was written to detect.
+				// section|inquiry|gap` is the anchor an ABSENCE gets — there is no sentence to
+				// mark — so the crash-window rule below does not apply to it.
 				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
 					gt.placedIDs[id] = true
 				}

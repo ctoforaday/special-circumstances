@@ -68,7 +68,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add("blue-respond", gradeMotion)
 		}, true},
 		{"no inquiry review", BlockerInquiryReview, true, true, func(b *stage) {
-			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a line"),
+			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a question"),
 				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
 		}, true},
 		{"nothing holds", "", true, true, func(b *stage) {
@@ -263,7 +263,7 @@ func contradictingVerify(claim string) *recordpb.Verify {
 // PASS_PERMITTED NEVER STANDS OVER A BLOCKER ANOTHER SEAT MUST CLEAR (#1202). The plan said
 // `"pass_permitted":true,"parties":[]` over an unruled petition, an unanswered contradiction and a
 // docket motion on a gap that had since closed, and the gate refused the PASS the chair then tried.
-// The avenue review is the chair's own act, always due at the start of its sitting, so a plan that
+// The inquiry review is the chair's own act, always due at the start of its sitting, so a plan that
 // permits PASS over it is the plan saying "once you have done your own items".
 func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	for _, c := range []struct {
@@ -275,7 +275,7 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }, false},
 		{"inquiry with no review this epoch", func(b *stage) {
 			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
+				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 		}, true},
 		{"unanswered contradiction", func(b *stage) { b.add(evLens, contradictingVerify("the claim")) }, false},
 		{"docket motion on a closed gap", func(b *stage) {
@@ -371,7 +371,7 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 	t.Run("converged, the chair's own item", func(t *testing.T) {
 		b := convergedBoard(t)
 		b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
+			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 		run := b.seed()
 		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
 		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "inquiry review") {

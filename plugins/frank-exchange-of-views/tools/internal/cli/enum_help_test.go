@@ -34,18 +34,12 @@ import (
 // one line on the exempt list with a reason, and a false negative costs another silent
 // enum.
 //
-// AND IT WAS NOT LOOSE ENOUGH, exactly as that last sentence warned. The pattern required a
-// WORD immediately before the pipe, so the glossed form was invisible to it:
+// The optional group admits a parenthesised gloss between the value and the pipe, so a glossed set
+// is set-shaped too:
 //
-//	proposed (put forward, undecided — the default) | pursued (being followed) | …
+//	proposed (put forward, undecided — the default) | underway (being followed) | …
 //
-// Every separator there is preceded by `)`. `blue avenue --status` carried that string, spelling
-// four of its five statuses, and neither gate below ever saw it as set-shaped — so the flag that
-// most needed this check was the one flag it could not see. Measured 2026-08-16, by mutating the
-// string back and watching a gate written to catch it pass anyway.
-//
-// The optional group admits a parenthesised gloss between the value and the pipe. `closed |
-// defect_accepted` still matches, so nothing this caught before stops being caught.
+// Every separator there is preceded by `)`. `closed | defect_accepted` matches as well.
 var setInHelp = regexp.MustCompile(`[\w-]+(?: *\([^)]*\))? *\| *[\w-]+`)
 
 // exempt names the set-shaped flags that are NOT declared in record.EnumFields, each with
@@ -140,7 +134,7 @@ var enforcedElsewhere = map[string]string{
 	// Its usage was `board | findings | work list | …` — a pipe list of nouns with no meanings,
 	// which is exactly what this gate's regex looks for. It is now a MENU: one line per view
 	// with its description and the verb that fills it, because a seat navigates by what the tool
-	// prints and a bare name list taught one to invent `blue avenue`.
+	// prints and a bare name list taught one to invent a verb.
 	//
 	// So the pipe-list detector correctly stops seeing it, and the exemption correctly goes. The
 	// set is still policed — an unknown view is refused at runtime against ViewNames(), and
@@ -322,16 +316,9 @@ func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
 // the command's enumerated-values section instead and ITS USAGE LINE GOES SHORT." That was intent
 // with nothing holding it, and exactly one flag of twelve broke it.
 //
-// MEASURED 2026-08-16. `blue avenue --status` read:
-//
-//	proposed (put forward, undecided — the default) | pursued (being followed) |
-//	declined (considered, not taken) | abandoned (pursued, then died)
-//
-// FOUR of five. `deferred` — "worth taking, and not by THIS run", the fate that had no name until
-// someone gave it one — was added to AvenueStatuses and never to this string. The four it did
-// carry were glossed differently from the record ("put forward, undecided" against "put forward
-// and not yet resolved — the default, and the state that owes a move"). Two statements of one
-// enum in a single `--help`, disagreeing, and the one a seat reads first was the incomplete one.
+// Two statements of one enum in a single `--help` can disagree, and the one a seat reads first
+// goes stale: a usage line spelling the set glosses its values differently from the record, and
+// is silent on any value added to the record afterwards.
 //
 // THE TEST IS setInHelp, the same regex setFlags uses to recognise a usage line that advertises a
 // set, and reusing it is the point: "spells its set" gets ONE definition. It keys on the `a | b`
@@ -351,7 +338,7 @@ func TestNoEnumhelpFlagAlsoSpellsItsSetInItsUsage(t *testing.T) {
 			if setInHelp.MatchString(f.Usage) {
 				t.Errorf("%s --%s is enumhelp-registered AND spells a set in its usage line — that is a "+
 					"hand-kept copy of the %d values the Enumerated block already renders from the record, and it "+
-					"drifts the way `inquiry --status` did (4 of 5, never learned `deferred`). Say what the FIELD is "+
+					"drifts. Say what the FIELD is "+
 					"for and let the record list the values.\nusage: %s", c.Name(), f.Name, len(registered[f.Name]), f.Usage)
 			}
 		})

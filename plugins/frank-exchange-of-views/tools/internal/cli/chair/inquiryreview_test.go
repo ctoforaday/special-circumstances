@@ -8,19 +8,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
-// THE AVENUE REVIEW TAKES NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
+// THE INQUIRY REVIEW TAKES NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
 //
 // # What this is guarding against
 //
-// `avenue review` carried a four-value `--as` answering "does the report still carry this line".
-// The schema retired the set — record/enums.go declines to declare one and says so in place:
-// "`avenue-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET". Presence stopped being a question
-// when the lines became GENERATED onto the page from the record, and the surviving question —
-// whether the body delivered the research — is an ordinary gap with the grade vocabulary it has.
-//
-// The verb did not catch up, and nothing said so until a probe PANICKED at runtime with "no
-// declared enum for avenue review.as". `record.MustEnum` resolves during flag registration, so no
-// compiler and no reader could see it; the flag was registered against a set that had been deleted.
+// `inquiry review` takes no --id and no --as: presence is not a question, because the inquiries
+// are GENERATED onto the page from the record, and the question that remains — whether the body
+// delivered the research — is an ordinary gap with the grade vocabulary it has.
 //
 // A flag a seat can pass and the record ignores is worse than one that does not exist, and the way
 // this regrows is somebody restoring "the id it votes on" without noticing the event has nowhere to

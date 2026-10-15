@@ -22,7 +22,7 @@ import (
 // never a silent join to a different entity.
 //
 // WHY IT MATTERS MORE AFTER #344. `motion <subject> rule --id` takes a motion id for a grade or a
-// petition and an avenue id for a direction, chosen by SUBGROUP. If those two namespaces could
+// petition and an inquiry id for an inquiry motion, chosen by SUBGROUP. If those two namespaces could
 // ever produce the same string, the subgroup would decide which entity a caller meant — and the
 // probe that produced this file found the tool already deciding one fact (the motion's subject)
 // from the subgroup rather than the record, so this is not a hypothetical shape.
@@ -212,8 +212,8 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	case "inquiry":
-		// An avenue is blue's to propose: the chair rules on them and files none.
-		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Inquiry{InquiryId: proto.String(id), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("a line"), Reason: proto.String("r")})
+		// An inquiry is blue's to propose: the chair rules on them and files none.
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Inquiry{InquiryId: proto.String(id), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("a question"), Reason: proto.String("r")})
 		return err
 	case "motion":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Motion{

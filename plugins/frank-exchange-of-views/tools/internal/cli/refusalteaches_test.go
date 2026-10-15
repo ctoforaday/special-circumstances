@@ -197,21 +197,10 @@ func TestTheToolNamesItselfByArgv0(t *testing.T) {
 
 // A SEAT VERB TYPED WITHOUT ITS ROLE IS A WRONG ADDRESS, NOT A MISSING CAPABILITY.
 //
-// MEASURED 2026-08-17 on an elicitation probe. A red-chair seat holding a work list duty that named
-// `inquiry-support` typed `feov-record inquiry-support --help` and was told
-//
-//	no command named "inquiry-support" exists
-//
-// It believed that — the message is unambiguous — went hunting, and settled on `motion inquiry
-// rule`, which is a DIFFERENT ACT: whether the direction is worth the run's time, not whether the
-// report still carries it. The seat did not lose a turn; it landed on the wrong verb confidently.
-//
-// root.go already documents the slip ("`show` is per-role while the concept carries no role, so
-// dropping the prefix is the natural slip rather than a careless one", 6 of 9 seats on their FIRST
-// call) and already routes it to the right refusal. The refusal itself still denied the verb
-// existed. The role-level message had the right shape all along — "it exists, on the blue seat, but
-// not for you. That is a wrong-seat error rather than a missing capability" — and the ROOT level,
-// which is where a seat dropping the prefix actually lands, said the opposite.
+// The root refusal for a bare seat verb says where the verb lives — "it exists, on the blue seat,
+// but not for you. That is a wrong-seat error rather than a missing capability" — because a seat
+// told that a verb does not exist believes it, goes hunting, and settles confidently on a
+// different act. Only a genuinely absent verb says it does not exist.
 //
 // The genuinely-absent case must keep saying so, or this trades one false answer for another.
 func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
@@ -250,11 +239,10 @@ func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
 // not a silent success.
 //
 // A verb group with no RunE answered an unknown subcommand with its own help and EXIT 0: cobra read
-// the word as an argument to a command that cannot run, printed the help, and reported success. It
-// became reachable in earnest when the avenue concept collapsed to one verb — `avenue` is a group on
-// blue's surface (propose, move) and on the chair's (review), so each seat can type the other's act
-// under a group it does hold, and was told nothing. The measured case above is the same failure one
-// level down: a seat that meets a wrong-seat act as "nothing happened" works around it or stops.
+// the word as an argument to a command that cannot run, printed the help, and reported success.
+// `inquiry` is a group on blue's surface (propose, record) and on the chair's (review), so each seat
+// can type the other's act under a group it does hold, and would be told nothing. The case above is
+// the same failure one level down: a seat that meets a wrong-seat act as "nothing happened" works around it or stops.
 func TestAGroupedActIsToldWhereItLives(t *testing.T) {
 	for _, tc := range []struct {
 		seat     string

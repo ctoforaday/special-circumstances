@@ -74,7 +74,7 @@ func adversarialCases() []adversarialCase {
 		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "continuing would require asserting a consent gate that does not exist"}
 	propose := seatStep{"inquiry", "propose", "--seat-id", "blue-respond",
-		"--question", "a line worth taking", "--hypothesis", "it would settle the open question"}
+		"--question", "a question worth taking up", "--hypothesis", "it would settle the open question"}
 
 	return []adversarialCase{
 		{
@@ -108,8 +108,8 @@ func adversarialCases() []adversarialCase {
 			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied", "--reason", "reversing myself silently"},
 			refused: "is already ruled",
 			guards: "Two rulings replay as whichever the shard ordering favours and the report " +
-				"shows ONE, with nothing saying the other exists. Measured on both petition and " +
-				"direction. The ruler's own answer to a wrong ruling is a new act, which keeps both.",
+				"shows ONE, with nothing saying the other exists. " +
+				"The ruler's own answer to a wrong ruling is a new act, which keeps both.",
 		},
 		{
 			name:  "a seat that disagrees with a grade ruling puts the gap before the bench",
@@ -144,19 +144,19 @@ func adversarialCases() []adversarialCase {
 				"satisfy is removed by the first person it blocks.",
 		},
 		{
-			name:    "a direction ruling names an inquiry that exists",
-			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q9", "--as", "endorsed", "--reason", "ruling a line nobody proposed"},
+			name:    "an inquiry ruling names an inquiry that exists",
+			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q9", "--as", "endorsed", "--reason", "ruling an inquiry nobody proposed"},
 			refused: "which no inquiry event proposed",
-			guards: "A direction joins on the LINE's own id, so the dangling-reference discipline " +
+			guards: "An inquiry motion joins on the INQUIRY's own id, so the dangling-reference discipline " +
 				"has to reach a different id space than the other two subjects.",
 		},
 		{
 			name:  "blue pursues an inquiry against its ruling",
 			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
-			act:   seatStep{"inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "underway", "--reason", "the open question turns on exactly this line"},
+			act:   seatStep{"inquiry", "record", "--seat-id", "blue-respond", "--id", "Q1", "--as", "underway", "--reason", "the open question turns on exactly this inquiry"},
 			guards: "A RULING ON AN INQUIRY IS AN ARGUMENT, NOT A COMMAND, and this pins it: it binds " +
-				"no move, so what blue does about one it disagrees with is the move itself. A " +
-				"guard that refused the move would leave blue no act at all against the ruling.",
+				"no fate, so what blue does about one it disagrees with is to record its own. A " +
+				"guard that refused that would leave blue no act at all against the ruling.",
 		},
 		{
 			name:    "an inquiry motion is the chair's, and another seat is told so",

@@ -29,7 +29,7 @@ func TestShowDebateShowsACorrectedPositionStruck(t *testing.T) {
 	}
 }
 
-// THE LINES-OF-AVENUE LISTING SHOWS A CORRECTED PROPOSAL'S WORDING STRUCK under the line.
+// THE INQUIRY LISTING SHOWS A CORRECTED PROPOSAL'S WORDING STRUCK under the inquiry.
 func TestInquiriesShowTheStruckWording(t *testing.T) {
 	prop := func(line string) *recordpb.Inquiry {
 		return &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String(line), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
@@ -44,7 +44,7 @@ func TestInquiriesShowTheStruckWording(t *testing.T) {
 	in := inputT(t, evs...)
 	out := InquiryBody(in.Events, in.At)
 	if !strings.Contains(out, "Q1 try the recorded method") || !strings.Contains(out, "~~try the  method~~ (struck by blue-respond: a word was lost)") {
-		t.Errorf("the listing must carry the line that stands and the struck wording under it:\n%s", out)
+		t.Errorf("the listing must carry the question that stands and the struck wording under it:\n%s", out)
 	}
 }
 
