@@ -1,13 +1,13 @@
 // Package scorecard is the Go port of scorecards.mjs's COMPUTE + RENDER: it turns a run's
 // record (board/findings/debate views, read IN-PROCESS through package record — not by spawning
 // the tool), its journal envelopes, and its board telemetry into the per-card scorecard
-// rows, and renders the markdown section a seat's in-run self-read prints.
+// rows, and renders the markdown section the operator's `scorecard` prints.
 //
 // THE JS MODULE IS GONE, and this paragraph outlived it. It read "the JS module stays for now —
 // capture imports computeScorecards/renderChair/chairHeader and the dashboard imports
 // parseRenderedRows/latestSection — so this and scorecards.mjs must agree", which was true while
 // scorecards.mjs existed. It does not: no .mjs in the tree defines any of those five functions,
-// and debate.js's in-run self-read prompt calls `feov-record scorecard`. So there is no second
+// and no seat reads a scorecard — `scorecard` is the operator's (#1089). So there is no second
 // implementation to agree with, and the byte-identity notes below are a debt to a port that finished, not a live
 // constraint — they are kept because the shapes they pin (jsToFixed2Num, insertion-order object
 // rows) are still what the renderer emits.

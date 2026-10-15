@@ -421,7 +421,7 @@ func kindRank(k BlockerKind) int {
 // the last one the prefix holds work in.
 func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	var out []Blocker
-	// ids IS evs's events.id, aligned with it — the place dispatchLedger and benchRegisters read
+	// ids IS evs's events.id, aligned with it — the place dispatchLedger and benchOccasionSittings read
 	// sittings by, and the one a stored sitting is named by — so a blocker's `since` and the
 	// sitting it is compared with are places in one sequence.
 	for _, c := range unansweredContradictionsBy(evs) {

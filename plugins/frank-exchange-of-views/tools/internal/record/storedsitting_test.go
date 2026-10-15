@@ -531,7 +531,7 @@ func findingsJSONT(t *testing.T, evs []*Event) FindingsJSON {
 
 // THE BENCH'S SITTING IS PLACED AT ITS STORED OPENING, NOT AT THE REGISTER THAT STATES ITS OCCASION.
 // A bracketed bench states the occasion at a register that JOINED the bracket's sitting, so the
-// occasion is read off the register and the place off the sitting it is stored in (benchRegisters).
+// occasion is read off the register and the place off the sitting it is stored in (benchOccasionSittings).
 // Placed at the register, one sitting would have two starts, and the later one would answer a
 // dispatch row written after the sitting had already opened.
 //

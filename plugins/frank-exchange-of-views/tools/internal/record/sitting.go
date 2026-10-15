@@ -199,14 +199,15 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// the minting lens — so the seat is readied again, epoch after epoch, until its sitting opens.
 	// That covers every seat a dispatch names: the lenses, blue-respond and the bench.
 	if d, owed := owedSitting(evs, win, seatID); owed {
-		add(fmt.Sprintf("you were dispatched against report head %d and have not registered since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
+		add(fmt.Sprintf("you were dispatched against report head %d and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting", d.pin))
 	}
 	// THE CHAIR OWES THE SAME REGISTER, AND NO DISPATCH NAMES IT, so the item above never reaches
 	// it. A warm chair resuming its session registered once per run on every archived B run, and
 	// read register's "first act at the seat" as a binding for its tenure; nothing on this list
 	// said otherwise. Its sitting is known to have begun when a party has sat for its last
-	// dispatch, and `dispatch next` — the chair's first act — refuses until the register lands,
-	// which is the enforcement the rule at the top of this file asks of every item here.
+	// dispatch; where the hook's bracket opened it nothing is owed, and where none did `dispatch
+	// next` — the chair's first act — refuses until the register lands, which is the enforcement
+	// the rule at the top of this file asks of every item here.
 	if seatID == chairSeat {
 		if g, owed := unopenedChairSitting(evs, win); owed {
 			add(chairRegisterOwed(g) + " — register for this sitting")

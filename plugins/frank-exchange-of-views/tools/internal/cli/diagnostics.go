@@ -180,7 +180,10 @@ func toolName() string {
 
 func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	out := RunDiagnostic{RunDir: run.Dir(), Trajectory: traj}
-	registered, err := record.RegisteredSeats(run)
+	// THE SEATS THAT SAT ARE THE STORED SITTINGS' OWNERS: a register opens one, and so does the
+	// hook's bracket where the configuration seats one seat, so a seat seated by its bracket alone
+	// is one this report reads.
+	sat, err := record.SeatsThatSat(run)
 	if err != nil {
 		return out, err
 	}
@@ -188,23 +191,23 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	//
 	// THIS REPORTED FOUR SEATS ON ITS FIRST RUN AND THREE OF THEM NEVER SAT. A board's BUILD
 	// registers every seat so the fixture has parties to hang events on; only one is then
-	// dispatched. Reporting "the seats that registered" therefore credited three seats with
+	// dispatched. Reporting every seat on the record therefore credited three seats with
 	// SEEN 0 — which reads as three seats that were shown nothing, when they were never asked
 	// anything. That is the plausible zero, produced by the projection built to remove it, and it
 	// is why this refuses rather than guesses: nothing in a trajectory attributes an invocation
-	// to one of several registered seats, so there is no honest way to split it.
+	// to one of several seats, so there is no honest way to split it.
 	ids := []string{seatID}
 	if seatID == "" {
-		sort.Strings(registered)
+		sort.Strings(sat)
 		return out, feov.Errorf(feov.MissingField,
 			"--sitting names whose sitting this trajectory is. A run's record carries every seat "+
-				"the BUILD registered (%s), and only one of them sat; reporting them all would credit the rest with "+
+				"that opened a sitting (%s), and a trajectory is one of them; reporting them all would credit the rest with "+
 				"an exposure of zero they were never given the chance to earn",
-			strings.Join(dedupeSeats(registered), ", "))
+			strings.Join(dedupeSeats(sat), ", "))
 	}
-	if !slices.Contains(registered, seatID) {
+	if !slices.Contains(sat, seatID) {
 		return out, feov.Errorf(feov.NotFound,
-			"%q has no register in this run, and this report reads registered seats only", seatID)
+			"%q has opened no sitting in this run — no register and no bracket naming it — so there is no sitting of it to report", seatID)
 	}
 
 	for _, id := range ids {

@@ -123,9 +123,9 @@ func PositionSittings(evs []*Event, win WindowIndex, when ReadWhen) []PositionSi
 		for i := range seq {
 			seq[i] = int64(i)
 		}
-		_, registers := dispatchLedger(live, seq, win)
-		closer := sittingCloserOf(live, seq, win, registers, when)
-		for k, start := range registers[chairSeat] {
+		_, openings := dispatchLedger(live, seq, win)
+		closer := sittingCloserOf(live, seq, win, openings, when)
+		for k, start := range openings[chairSeat] {
 			spans, end, closed := closer.bounds(chairSeat, start)
 			filed := false
 			for i := start; i < end && !filed; i++ {

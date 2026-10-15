@@ -16,7 +16,7 @@ import (
 // seat registering in between moves nothing: the window is partitioned by seat. This is the
 // property that lets a seat id drop `-r<N>` — the record answers "which sitting" from its stored
 // sittings, and nothing the seat types can put it on the wrong one.
-func TestTheSittingOrdinalIsRegisterInclusiveAndPerSeat(t *testing.T) {
+func TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat(t *testing.T) {
 	dir := t.TempDir()
 	reg := &recordpb.Register{}
 	obs := &recordpb.Observe{Text: recordtest.P("x")}
@@ -75,7 +75,7 @@ func TestTheSittingOrdinalIsRegisterInclusiveAndPerSeat(t *testing.T) {
 // chair's second register is epoch 2. That is the whole reason it is a second window and not the
 // sitting ordinal: the bucket readers ask "which dispatch cycle", and the answer must be the same
 // for every seat's row in that cycle.
-func TestTheEpochCountsChairRegistersForEveryRow(t *testing.T) {
+func TestTheEpochCountsChairSittingsForEveryRow(t *testing.T) {
 	dir := t.TempDir()
 	reg := &recordpb.Register{}
 	obs := &recordpb.Observe{Text: recordtest.P("x")}

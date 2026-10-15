@@ -245,8 +245,8 @@ func foldPlan(params Params, r planReads) Plan {
 	// until it retires (retirement.go) — the same fold the PASS gate refuses from. A lens engaged
 	// that has opened no sitting since has not sat, so its pin has not moved and it stays ready.
 	ids := win.IDs(evs)
-	dispatches, registers := dispatchLedger(evs, ids, win)
-	benchOn := benchRegisters(evs, ids, win)
+	dispatches, openings := dispatchLedger(evs, ids, win)
+	benchOn := benchOccasionSittings(evs, ids, win)
 	folds := lensStates(evs, ids, win, plan.Head, fresh)
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
@@ -326,7 +326,7 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			engage(benchSeat, occasionDocket, g.id)
 			plan.Why = append(plan.Why, fmt.Sprintf("%s: docketed and unruled — the bench is ready", g.id))
-			if docketedThisSitting(evs, ids, registers[chairSeat], g.unruledFiled) {
+			if docketedThisSitting(evs, ids, openings[chairSeat], g.unruledFiled) {
 				plan.Docket = append(plan.Docket, g.id)
 			}
 		case routeNobody:
@@ -377,7 +377,7 @@ func foldPlan(params Params, r planReads) Plan {
 			statedMotion[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
-			if _, sat := firstAfter(registers[b.Owner], b.since); sat {
+			if _, sat := firstAfter(openings[b.Owner], b.since); sat {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q, and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Subject))
 				continue
 			}
@@ -391,7 +391,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// does in that sitting is not read: one that opens and checks nothing has still sat, the
 	// blocker stands, and the run ends naming the anchor rather than readying the lens for ever.
 	if reopenedSince > 0 {
-		if _, sat := firstAfter(registers[evidenceSeat], reopenedSince); sat {
+		if _, sat := firstAfter(openings[evidenceSeat], reopenedSince); sat {
 			plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since edit %d and a citation or proof it reopened is still unchecked — readied once per reopening, so not again", evidenceSeat, reopenedSince))
 		} else {
 			engage(evidenceSeat, "")
@@ -520,7 +520,7 @@ func (r PlanFactsReader) At(end int) PlanFacts {
 		return f
 	}
 	at := ids[end-1]
-	_, registers := dispatchLedger(evs, ids, r.win)
+	_, openings := dispatchLedger(evs, ids, r.win)
 	for _, m := range motionsAt(evs, ids, r.win) {
 		if m == nil || m.Ruled() || m.GapID == "" || m.Subject != "docket" {
 			continue
@@ -528,7 +528,7 @@ func (r PlanFactsReader) At(end int) PlanFacts {
 		if closed, ok := r.closedAt[m.GapID]; ok && closed <= at {
 			continue
 		}
-		if docketedThisSitting(evs, ids, registers[chairSeat], m.filed) && !slices.Contains(f.Docketed, m.GapID) {
+		if docketedThisSitting(evs, ids, openings[chairSeat], m.filed) && !slices.Contains(f.Docketed, m.GapID) {
 			f.Docketed = append(f.Docketed, m.GapID)
 		}
 	}
@@ -558,14 +558,14 @@ func epochLimitHeldTheBench(params Params, r planReads) bool {
 		return false
 	}
 	ids := win.IDs(evs)
-	dispatches, registers := dispatchLedger(evs, ids, win)
-	benchOn := benchRegisters(evs, ids, win)
+	dispatches, openings := dispatchLedger(evs, ids, win)
+	benchOn := benchOccasionSittings(evs, ids, win)
 	for _, m := range motionsAt(evs, ids, win) {
 		if m == nil {
 			continue
 		}
 		// Ruled since the chair's last sitting opened: an unruled motion's place is 0, before any.
-		if _, chairSatSince := firstAfter(registers[chairSeat], m.ruled); chairSatSince {
+		if _, chairSatSince := firstAfter(openings[chairSeat], m.ruled); chairSatSince {
 			continue
 		}
 		subj, _ := MotionSubjectEnum(m.Subject) // benchSittingFor holds the bench-ruled subjects only
@@ -594,11 +594,11 @@ type dispatchRow struct {
 }
 
 // dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
-// dispatch row, and each seat's registers, in stream order. seq gives each event's place — the
+// dispatch row, and each seat's openings, in stream order. seq gives each event's place — the
 // events."id" where the reader has them, the position where it holds only the stream. The
 // predicate compares order and nothing else, so either answers it the same.
 //
-// THE "REGISTERS" ARE THE EVENTS THAT OPENED A SITTING, as the write path stored them (win): a hook's
+// THE OPENINGS ARE THE EVENTS THAT OPENED A SITTING, as the write path stored them (win): a hook's
 // sitting_open, or a register no bracket of its agent preceded. A register under an agent the hook
 // already bracketed JOINED that sitting, so a bracket and its paired register are one opening here,
 // not two: read as two, the register would close the bracket's sitting, and every act after it
@@ -607,7 +607,7 @@ type dispatchRow struct {
 // sitting it repairs.
 func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, map[string][]int64) {
 	var ds []dispatchRow
-	registers := map[string][]int64{}
+	openings := map[string][]int64{}
 	for i, e := range evs {
 		// A SITTING OPENS EITHER WAY, and the seat is whichever one this event opens a sitting for
 		// — the registering seat, or the seat a hook's sitting_open resolves to through its
@@ -615,13 +615,13 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 		// this seat sat" comes through this map, so a hook-opened sitting satisfies the dispatch,
 		// the pin, the lens fold and the work list without the seat running a command.
 		if seat, opens := win.Opens(e); opens {
-			registers[seat] = append(registers[seat], seq[i])
+			openings[seat] = append(openings[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
 			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions()})
 		}
 	}
-	return ds, registers
+	return ds, openings
 }
 
 // firstAfter is the first of an ascending sequence that follows at.
@@ -645,17 +645,17 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // petition and a docket on ONE row and sits twice, petition first; the first sitting it opens after
 // the row is the petition sitting, and read here it would count as the docket's too — a docket the
 // bench never sat for would read as heard and never be readied again.
-func sittingFor(registers []int64, d dispatchRow) (int64, bool) {
-	return firstAfter(registers, d.at)
+func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
+	return firstAfter(openings, d.at)
 }
 
-// benchRegisters is the bench's sittings, by the occasion each one's register states, in stream
+// benchOccasionSittings is the bench's sittings, by the occasion each one's register states, in stream
 // order — the one ledger every reader of "has the bench sat for X" keys on. seq is the same place
 // sequence dispatchLedger reads (events.id, or the stream position), so a filing's place and a
 // sitting's compare under one rule. The place is the sitting's OPENING, the place dispatchLedger
 // holds for it: a bracketed bench states its occasion at the register that joined the bracket's
 // sitting, so the register's own place would be a second start for one sitting.
-func benchRegisters(evs []*Event, seq []int64, win WindowIndex) map[recordpb.Occasion][]int64 {
+func benchOccasionSittings(evs []*Event, seq []int64, win WindowIndex) map[recordpb.Occasion][]int64 {
 	place := placesOf(evs, seq, win)
 	on := map[recordpb.Occasion][]int64{}
 	for _, e := range evs {
@@ -687,9 +687,9 @@ func placesOf(evs []*Event, seq []int64, win WindowIndex) map[int64]int64 {
 // OCCASION the row convened it for (the occasion its register states), after the row. It has sat
 // for the row once it has sat for every one of them, and the place returned is the latest. A row
 // with no occasion is not a bench row, and reads sittingFor's way.
-func benchRowSitting(registers []int64, on map[recordpb.Occasion][]int64, d dispatchRow) (int64, bool) {
+func benchRowSitting(openings []int64, on map[recordpb.Occasion][]int64, d dispatchRow) (int64, bool) {
 	if len(d.occasions) == 0 {
-		return sittingFor(registers, d)
+		return sittingFor(openings, d)
 	}
 	var last int64
 	for _, o := range d.occasions {
@@ -745,7 +745,7 @@ func benchRowSitting(registers []int64, on map[recordpb.Occasion][]int64, d disp
 //     last act on the record is the last act of every sitting still open — that is the premise of
 //     the read, not an act of another seat.
 type sittingCloser struct {
-	registers map[string][]int64 // seat -> the places of the events that opened its sittings, ascending
+	openings  map[string][]int64 // seat -> the places of the events that opened its sittings, ascending
 	agentOf   map[int64]string   // a bracket's or register's place -> the agent_id it carries
 	stops     map[string][]int64 // agent_id -> the places of its sitting_close events, ascending
 	repairs   map[int64][]int64  // a sitting's opening place -> the places of the registers repairing its sitting, ascending
@@ -768,10 +768,10 @@ const (
 	AfterTheRun
 )
 
-// sittingCloserOf reads the stream once for every fact that can close a sitting. seq and registers
+// sittingCloserOf reads the stream once for every fact that can close a sitting. seq and openings
 // are dispatchLedger's: the same places the sitting's start was read at.
-func sittingCloserOf(evs []*Event, seq []int64, win WindowIndex, registers map[string][]int64, when ReadWhen) sittingCloser {
-	c := sittingCloser{registers: registers, agentOf: map[int64]string{}, stops: map[string][]int64{}, repairs: map[int64][]int64{}, when: when}
+func sittingCloserOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64, when ReadWhen) sittingCloser {
+	c := sittingCloser{openings: openings, agentOf: map[int64]string{}, stops: map[string][]int64{}, repairs: map[int64][]int64{}, when: when}
 	if n := len(seq); n > 0 {
 		c.recordEnd = seq[n-1] + 1
 	}
@@ -831,7 +831,7 @@ func (c sittingCloser) bounds(seat string, start int64) (spans []span, end int64
 // this seat past it, end is the end of the record, and closed is false while the run is read as
 // running and true after it.
 func (c sittingCloser) end(seat string, from int64) (int64, bool) {
-	end, closed := firstAfter(c.registers[seat], from)
+	end, closed := firstAfter(c.openings[seat], from)
 	if agent := c.agentOf[from]; agent != "" {
 		if stop, stopped := firstAfter(c.stops[agent], from); stopped && (!closed || stop < end) {
 			end, closed = stop, true
@@ -887,16 +887,16 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 	for i := range seq {
 		seq[i] = int64(i)
 	}
-	ds, registers := dispatchLedger(evs, seq, win)
-	on := benchRegisters(evs, seq, win)
+	ds, openings := dispatchLedger(evs, seq, win)
+	on := benchOccasionSittings(evs, seq, win)
 	var anyone []int64
-	for _, rs := range registers {
+	for _, rs := range openings {
 		anyone = append(anyone, rs...)
 	}
 	sort.Slice(anyone, func(a, b int) bool { return anyone[a] < anyone[b] })
 	var groups []DispatchGroup
 	for i, d := range ds {
-		if i == 0 || registeredBetween(anyone, ds[i-1].at, d.at) {
+		if i == 0 || openedBetween(anyone, ds[i-1].at, d.at) {
 			groups = append(groups, DispatchGroup{First: int(d.at), Sat: map[string]int{}, PartyRows: map[string]PartyRow{}})
 		}
 		g := &groups[len(groups)-1]
@@ -914,7 +914,7 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 		}
 		for p, d := range last {
 			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions)}
-			if r, ok := benchRowSitting(registers[p], on, d); ok {
+			if r, ok := benchRowSitting(openings[p], on, d); ok {
 				g.Sat[p] = int(r)
 			}
 		}
@@ -922,9 +922,9 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 	return groups
 }
 
-// registeredBetween reports whether any of the ascending openings falls strictly between a and b.
-func registeredBetween(registers []int64, a, b int64) bool {
-	r, ok := firstAfter(registers, a)
+// openedBetween reports whether any of the ascending openings falls strictly between a and b.
+func openedBetween(openings []int64, a, b int64) bool {
+	r, ok := firstAfter(openings, a)
 	return ok && r < b
 }
 
@@ -954,11 +954,15 @@ func PartySeats() (bench string, lensOrBlue []string) {
 }
 
 // unopenedChairSitting is the chair's latest dispatch when a party has SAT for it (sittingFor) and
-// the chair has not registered since recording it. The workflow comes back to the chair only after
-// the parties sit, so that is a new chair sitting no register opened: unless the hook bracketed it,
-// the record holds its acts in the previous epoch, and the dispatch groups would have only the
-// parties' sittings to split on. A resumed sitting carries no bracket and opens by its register;
-// this is the chair's owed one.
+// no sitting of the chair's has opened since recording it. The workflow comes back to the chair
+// only after the parties sit, so that is a new chair sitting, and the record holds it only once
+// something opens it: the hook's bracket, or the chair's register where no bracket did. Unopened,
+// its acts land in the previous epoch, and the dispatch groups would have only the parties'
+// sittings to split on. A resumed sitting carries no bracket and opens by its register alone; that
+// register is the chair's owed one.
+//
+// AN OPENING IS THE STORED ONE (win.Opens), the same answer the epoch reads: a chair sitting the
+// bracket opened is the next epoch on the record, so the gate accepts it as opened.
 //
 // THE EXCHANGE COUNT DOES NOT DEPEND ON IT. exchangesOf closes a party's sitting at that seat's OWN
 // next opening or its own agent's stop, whichever is first (#1002). This item stands on its own
@@ -973,17 +977,18 @@ func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 		return DispatchGroup{}, false // nobody has sat for it: still the sitting that recorded it
 	}
 	for i := len(evs) - 1; i > g.Last; i-- {
-		if evs[i].GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && evs[i].GetSeatId() == chairSeat {
+		if seat, opens := win.Opens(evs[i]); opens && seat == chairSeat {
 			return DispatchGroup{}, false
 		}
 	}
 	return g, true
 }
 
-// requireChairSittingOpened refuses `dispatch next` in a chair sitting no register opened (see
+// requireChairSittingOpened refuses `dispatch next` in a chair sitting nothing opened (see
 // unopenedChairSitting), over the stream DispatchNext read in its transaction. It is the write-time
 // half of the chair's "register for this sitting" work item: the verb is the chair's first act every
-// sitting, so refusing it there puts the register ahead of every act the sitting records.
+// sitting, so refusing it there puts the register ahead of every act a sitting no bracket opened
+// records.
 func requireChairSittingOpened(evs []*Event, win WindowIndex) error {
 	g, owed := unopenedChairSitting(evs, win)
 	if !owed {
@@ -1000,12 +1005,13 @@ func chairRegisterOwed(g DispatchGroup) string {
 		sat = append(sat, p)
 	}
 	sort.Strings(sat)
-	return fmt.Sprintf("%s sat for the dispatch you recorded against report head %d, and you have not registered since. The workflow came back to you, so this is a new sitting, and your register is owed in it — a resumed session's sitting is opened by that register alone. Register for this sitting, then ask again",
+	return fmt.Sprintf("%s sat for the dispatch you recorded against report head %d, and no sitting of yours has opened since. The workflow came back to you, so this is a new sitting, and no bracket opened it — a resumed session's sitting is opened by your register alone. Register for this sitting, then ask again",
 		strings.Join(sat, ", "), g.rows[0].pin)
 }
 
-// dispatchStands reports whether plan is already the record's standing dispatch: nobody has
-// registered since the latest dispatch rows, and those rows name exactly plan's parties, on the
+// dispatchStands reports whether plan is already the record's standing dispatch: no sitting has
+// opened since the latest dispatch rows — no bracket, no register opening one, by any seat — and
+// those rows name exactly plan's parties, on the
 // same gaps, at plan's head. `dispatch next` then records nothing new — asking twice in one
 // sitting, for the prose and then for --json, is one decision, and the B5 and B6 chairs each wrote
 // it twice. A plan that differs is a new decision and is recorded. It reads the stream DispatchNext
@@ -1020,7 +1026,7 @@ func dispatchStands(evs []*Event, win WindowIndex, plan Plan) bool {
 	}
 	g := groups[len(groups)-1]
 	for _, e := range evs[g.Last+1:] {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+		if _, opens := win.Opens(e); opens {
 			return false
 		}
 	}
@@ -1059,13 +1065,13 @@ func owedSitting(evs []*Event, win WindowIndex, seatID string) (dispatchRow, boo
 	for i := range seq {
 		seq[i] = int64(i)
 	}
-	ds, registers := dispatchLedger(evs, seq, win)
-	on := benchRegisters(evs, seq, win)
+	ds, openings := dispatchLedger(evs, seq, win)
+	on := benchOccasionSittings(evs, seq, win)
 	for i := len(ds) - 1; i >= 0; i-- {
 		if ds[i].seat != seatID {
 			continue
 		}
-		_, sat := benchRowSitting(registers[seatID], on, ds[i])
+		_, sat := benchRowSitting(openings[seatID], on, ds[i])
 		return ds[i], !sat
 	}
 	return dispatchRow{}, false

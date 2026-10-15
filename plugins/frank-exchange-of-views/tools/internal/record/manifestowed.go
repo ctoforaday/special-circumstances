@@ -72,7 +72,7 @@ func (o ManifestOwing) NotMeasured() string {
 	if o.Unresolved == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d blue sitting(s) NOT MEASURED — the record cannot close them (blue has not registered since and its agent's stop is not on the record), so what they owed is counted only as far as the record reaches", o.Unresolved)
+	return fmt.Sprintf("%d blue sitting(s) NOT MEASURED — the record cannot close them (no sitting of blue's has opened since and its agent's stop is not on the record), so what they owed is counted only as far as the record reaches", o.Unresolved)
 }
 
 // BlueSitting is one sitting blue-respond took for a dispatch: from its register to where
@@ -113,14 +113,14 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 	for i := range seq {
 		seq[i] = int64(i)
 	}
-	ds, registers := dispatchLedger(evs, seq, win)
-	closer := sittingCloserOf(evs, seq, win, registers, when)
+	ds, openings := dispatchLedger(evs, seq, win)
+	closer := sittingCloserOf(evs, seq, win, openings, when)
 	var out []BlueSitting
 	for k, d := range ds {
 		if d.seat != blueRespondSeat {
 			continue
 		}
-		start, sat := sittingFor(registers[blueRespondSeat], d)
+		start, sat := sittingFor(openings[blueRespondSeat], d)
 		if !sat || laterBlueDispatchBefore(ds[k+1:], start) {
 			continue // not sat, or not this sitting's dispatch: a later row before the register is
 		}

@@ -683,8 +683,8 @@ for t in TestAGapsExchangesAndStallsAreCountedFromTheRecord \
          TestTheDispatchVerbRefusesASeatOutsideTheCast \
          TestAnEmptyDispatchIsTermination \
          TestGapIdsAreRunGlobalAndNeverRoundShaped \
-         TestTheSittingOrdinalIsRegisterInclusiveAndPerSeat \
-         TestTheEpochCountsChairRegistersForEveryRow \
+         TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat \
+         TestTheEpochCountsChairSittingsForEveryRow \
          TestOnlyTheMintingLensMayRegradeOrCloseItsGap \
          TestPassIsRefusedUntilEveryCastLensSatAgainstTheHead \
          TestASilentSittingIsANullTurnThatStillCountsAnExchange \
