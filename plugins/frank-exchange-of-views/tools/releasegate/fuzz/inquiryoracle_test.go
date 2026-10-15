@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// avenueOracleRun seeds one avenue proposed under line, ruled as ruling, and then pursued by blue
+// inquiryOracleRun seeds one inquiry proposed with the question line, ruled as ruling, and then recorded underway by blue
 // against the ruling, and returns the run and its board.
 func inquiryOracleRun(t *testing.T, line string, ruling recordpb.InquiryRuling) (record.Run, record.Family) {
 	t.Helper()
@@ -45,13 +45,13 @@ func inquiryOracleRun(t *testing.T, line string, ruling recordpb.InquiryRuling) 
 	return run, board
 }
 
-// THE AVENUE ORACLE FAILS ON A RULING IT CANNOT READ. The read is record.AvenueRuling, whose ""
-// means "red has not ruled" and sends the oracle past the avenue; a failed read answering "" is
-// therefore an unaudited avenue reported clean.
+// THE INQUIRY ORACLE FAILS ON A RULING IT CANNOT READ. The read is record.InquiryRuling, whose ""
+// means "red has not ruled" and sends the oracle past the inquiry; a failed read answering "" is
+// therefore an unaudited inquiry reported clean.
 //
 // Two fixtures, because the failure has to be told apart from BOTH healthy answers: a record with
-// a breach on it (ruled out of scope and pursued, on a line the drive declines) and a record with none (endorsed,
-// pursued). The view is dropped through the run's cached handle, so the oracle's read fails as a
+// a breach on it (ruled out of scope and taken up `underway`, on an inquiry the drive declines) and a record with
+// none (endorsed, `underway`). The view is dropped through the run's cached handle, so the oracle's read fails as a
 // busy or malformed database would.
 func TestTheInquiryOracleFailsOnARulingItCannotRead(t *testing.T) {
 	for _, tc := range []struct {
