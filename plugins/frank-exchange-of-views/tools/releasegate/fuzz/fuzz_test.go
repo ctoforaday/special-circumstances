@@ -868,8 +868,18 @@ func (r *runner) filePetition(seatID string) {
 	if id == "" {
 		return
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.petitioned = append(r.petitioned, map[string]any{"who": seatID, "class": class, "motion": id})
 	r.petitionsFiled = append(r.petitionsFiled, filedPetition{id: id, filer: seatID, chairSitting: r.chairRegisters})
+}
+
+// petitionsFiledN is how many petitions the run has filed, read under the lock the concurrent
+// lenses append under.
+func (r *runner) petitionsFiledN() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.petitionsFiled)
 }
 
 // rulePetitions is the petition sitting: it rules on every pending petition and returns the
@@ -899,7 +909,13 @@ func (r *runner) rulePending(seatID, occasion string) []any {
 	if r.petitionRuledAt == nil {
 		r.petitionRuledAt = map[string]string{}
 	}
-	for _, p := range r.petitioned {
+	// Taken under the lock the filing lenses append under; one filed while these are ruled waits
+	// for the next sitting.
+	r.mu.Lock()
+	pending := r.petitioned
+	r.petitioned = nil
+	r.mu.Unlock()
+	for _, p := range pending {
 		who, _ := p["who"].(string)
 		class, _ := p["class"].(string)
 		opinion := "fuzz ruling opinion for " + who
@@ -924,7 +940,6 @@ func (r *runner) rulePending(seatID, occasion string) []any {
 		}
 		rulings = append(rulings, map[string]any{"petitioner": who, "class": class, "ruling": ruling, "opinion": opinion, "relief": opinion, "binds": binds})
 	}
-	r.petitioned = nil
 	return rulings
 }
 
@@ -2753,7 +2768,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// A LENS PETITIONS ON THE RECORD — its return is prose, so the record is its only channel.
 		// The forced-UNVERIFIED run guarantees one, which its petition sitting then leaves unruled
 		// so the terminal sitting is the one that rules it.
-		if r.forceUnverified && len(r.petitionsFiled) == 0 {
+		if r.forceUnverified && r.petitionsFiledN() == 0 {
 			r.filePetition(seatID)
 		} else {
 			r.maybePetition(seatID)
