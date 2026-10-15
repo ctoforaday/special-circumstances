@@ -68,7 +68,7 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("%s is marked (prose) in record.proto and is not in the seat-argument list", name)
 		}
 		switch strings.SplitN(name, ".", 2)[0] {
-		case "GradeMotion", "DocketMotion", "AvenueMotion", "DocketRuling":
+		case "GradeMotion", "DocketMotion", "InquiryMotion", "DocketRuling":
 			motionArms++
 		}
 	})

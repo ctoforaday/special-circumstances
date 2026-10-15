@@ -133,7 +133,7 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 		}
 	}
 	// THE ID TABLE IS FILLED BEFORE ANYTHING IS WRITTEN. A seat's prose names ids minted after it —
-	// a lane's avenue argues against one a sibling lane proposed later in the stream — so the
+	// a lane's inquiry argues against one a sibling lane proposed later in the stream — so the
 	// stream is translated once to learn every id it mints, and again, below, to write it. An id is
 	// a function of the source alone, so both passes spell it the same.
 	for _, old := range evs {

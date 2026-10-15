@@ -216,18 +216,19 @@ func (s *SQLiteSource) tables() ([]string, error) {
 
 // classify routes one table's rows to the events they belong to. The longest word that
 // prefixes the name wins, so `motion_rule_docket` is an arm of the WORD `motion_rule`, not
-// of `motion` — the same both-directions care the legacy shard regex documents.
+// of `motion` — the same care, read from either end, the legacy shard regex documents.
 // renamedBodyTables maps a body table an ARCHIVED record may carry to the word it recorded, for
 // the messages renamed since. `round_verdict` was message RoundVerdict; the epoch left the record
 // (plans/roundless.md §III.A.2) and the message is Gate, so a live record's table is `gate` and
 // tableForWord already says so — this is only the old spelling, read at migration and nowhere else.
 //
-// `inquiry_review` is read under the word it RECORDED, and a registry entry carries that word to
-// `avenue_review`. The concept has one name now — avenue — and the review of the set is one of its
-// acts; the table is the old spelling of that act, read here and nowhere else.
+// An archived inquiry and its review are read under the words they RECORDED, and a registry entry
+// carries each word to the current one; the tables are the old spellings, read here and nowhere
+// else.
 var renamedBodyTables = map[string]string{
-	"round_verdict":  "verdict",
-	"inquiry_review": "inquiry_review",
+	"round_verdict": "verdict",
+	"avenue":        "avenue",
+	"avenue_review": "avenue_review",
 }
 
 func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[int64]*OldEvent) error {

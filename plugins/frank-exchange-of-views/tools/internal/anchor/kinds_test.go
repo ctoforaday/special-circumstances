@@ -83,7 +83,7 @@ var idKinds = []struct {
 	anchored     bool
 }{
 	{"finding", "F-", true}, {"citation", "C-", true}, {"proof", "P-", true}, {"gap", "G-", true},
-	{"avenue", "Q-", false}, {"motion", "M-", false},
+	{"inquiry", "Q-", false}, {"motion", "M-", false},
 }
 
 // ID AND IDPattern AGREE, for all six kinds: what ID spells for a kind is matched whole by that
@@ -155,5 +155,31 @@ func TestReplaceAndStripAssembled(t *testing.T) {
 	// An opener with no close on its line takes nothing after it.
 	if in := "A <!--fx: unclosed\n\na paragraph.\n\n<!-- a comment -->\n"; StripAssembled(in) != in {
 		t.Errorf("StripAssembled took text across a line end: %q", StripAssembled(in))
+	}
+}
+
+// IDPattern REFUSES A KIND IT DOES NOT KNOW, as ID does. A pattern built from a name no table holds
+// matches no id of that kind, so a reader keyed on it — migrate telling a current id from one it
+// must re-derive — would go wrong with no error. Every name it is handed is a kind or a panic.
+func TestIDPatternRefusesAKindItDoesNotKnow(t *testing.T) {
+	for _, names := range [][]string{{"no-such-kind"}, {"finding", "no-such-kind"}} {
+		func() {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Errorf("IDPattern(%q) returned a pattern; a kind no table holds must panic", names)
+					return
+				}
+				if msg, _ := r.(string); !strings.Contains(msg, "no-such-kind") {
+					t.Errorf("IDPattern(%q) panicked with %v, which does not name the kind it refused", names, r)
+				}
+			}()
+			_ = IDPattern(names...)
+		}()
+	}
+	for _, k := range idKinds {
+		if p := IDPattern(k.name); !regexp.MustCompile(`^` + p + `$`).MatchString(k.prefix + "0000abcd") {
+			t.Errorf("IDPattern(%q) = %s does not match its own kind's id", k.name, p)
+		}
 	}
 }
