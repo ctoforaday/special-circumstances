@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -329,8 +330,8 @@ func answerDrives() []answerDrive {
 				label := placed[0].GetVerify().GetLabel()
 				// A REPEAT IS NOT REFUSED: it answers idempotently and writes nothing, so this row
 				// reaches a seat through the help page alone.
-				if out := d.admitted("the same corroboration again", lensSeat, append(append([]string{}, corroborate...), "--json")...); !strings.Contains(out, `"idempotent":true`) {
-					d.t.Fatalf("a repeated backing corroboration is not answered as idempotent:\n%s", out)
+				if out := d.admitted("the same corroboration again", lensSeat, append(append([]string{}, corroborate...), "--json")...); !strings.Contains(out, `"idempotent":true`) || !strings.Contains(out, `"claim":`+strconv.Quote(quoteTwo)) {
+					d.t.Fatalf("a repeated backing corroboration is not answered as idempotent, with the claim it holds:\n%s", out)
 				}
 				if n := len(eventsOfWord(d.t, d.run, "verify")); n != 1 {
 					d.t.Fatalf("a repeated backing corroboration wrote %d verify events, want the one", n)

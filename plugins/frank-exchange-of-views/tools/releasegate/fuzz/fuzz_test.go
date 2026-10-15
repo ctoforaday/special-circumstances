@@ -1277,21 +1277,6 @@ func (r *runner) someCitation() string {
 	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
-// verifiedClaim is the claim the latest verification of citation anchor recorded — the sentence the
-// anchor marked when it was read — or "" when the record holds none.
-func (r *runner) verifiedClaim(anchor string) string {
-	b, ok := r.board()
-	if !ok {
-		return ""
-	}
-	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
-		if s.Anchor == anchor && len(s.Verified) > 0 {
-			return s.Verified[len(s.Verified)-1].Claim
-		}
-	}
-	return ""
-}
-
 // reopened returns every citation and proof the record holds as reopened and unchecked — each
 // anchor, and for a proof the sha256 its re-run takes.
 func (r *runner) reopened() []record.ProofRef {
@@ -2690,8 +2675,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
 					// --page names a page image, and no citation this sweep writes has pages, so
 					// a verify carrying one is refused: the flag and its refusal, driven.
-					if _, err := axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").run(); err == nil {
-						read = r.verifiedClaim(anchor)
+					// The claim is the one verify prints back, as a lens reads it.
+					if out, err := axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").bare("--json").run(); err == nil {
+						read = claimOf(out)
 					}
 				} else {
 					axes(r.do("corroborate", seatID)).set("--quote", claim).
@@ -4488,6 +4474,19 @@ func motionIDOf(out string) string {
 		return ""
 	}
 	return env.Result.MotionID
+}
+
+// claimOf is the claim a --json verify result names, or "".
+func claimOf(out string) string {
+	var env struct {
+		Result struct {
+			Claim string `json:"claim"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		return ""
+	}
+	return env.Result.Claim
 }
 
 func binDir(bin string) string { return filepath.ToSlash(filepath.Dir(bin)) }

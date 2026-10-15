@@ -392,7 +392,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			if err := seat.PlaceOwed(s, run, prior, ""); err != nil {
 				return nil, err
 			}
-			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
+			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
 		}
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced.
@@ -431,6 +431,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		Label:      body.GetLabel(),
 		Source:     body.GetTitle(),
 		Outcome:    recordpb.Word(body.GetOutcome()),
+		Claim:      body.GetClaim(),
 		VoiceTells: tells,
 	}, nil
 }
@@ -441,6 +442,9 @@ type verifyResult struct {
 	Idempotent bool   `json:"idempotent,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Outcome    string `json:"outcome"`
+	// Claim is the sentence the verdict sits on: for a verification, the one the tool read off the
+	// anchor, which a finding raising a contradiction quotes whole.
+	Claim string `json:"claim"`
 	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the source's note and Bibliography entry.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
@@ -454,15 +458,16 @@ func (r verifyResult) human() string {
 	if r.Anchor == "" {
 		subject = "corroborating source " + r.Source
 	}
+	claim := `"` + r.Claim + `"` // unescaped: a finding copies it as printed
 	switch r.Outcome {
 	case "refutes":
-		return subject + " REFUTES the claim — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
+		return subject + " REFUTES the claim " + claim + " — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
 	case "absent":
-		return subject + " does NOT contain the claim — recorded as absent (the source says nothing about it; it does not say otherwise)"
+		return subject + " does NOT contain the claim " + claim + " — recorded as absent (the source says nothing about it; it does not say otherwise)"
 	case "unreachable":
 		return subject + " could not be read — recorded as unreachable, with what you tried"
 	default:
-		return subject + " verified: " + r.Outcome
+		return subject + " verified: " + r.Outcome + ", on the claim " + claim
 	}
 }
 

@@ -425,12 +425,20 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 // `blue cite` records the anchor id as `label` (c-<hex>, the token it splices into the report);
 // `lens verify` records the citation it checked as `anchor`. An INDEPENDENT verify carries no
 // anchor and deliberately discharges nothing: it is a check against a source blue never cited.
+//
+// A citation whose anchor left the report with a retired claim is owed nothing: `verify` refuses
+// it, having no sentence to read the source against, so offering it would offer a refused act.
 func citedClaimsWithoutVerify(evs []*Event) []string {
 	verified := map[string]bool{}
 	for i := range evs {
 		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
+		}
+		if r, isRetire := body.(*recordpb.Retire); isRetire {
+			for _, a := range r.GetAnchors() {
+				verified[a] = true
+			}
 		}
 		if v, isVerify := body.(*recordpb.Verify); isVerify {
 			// An INDEPENDENT verify carries no anchor and discharges nothing, and that stays a

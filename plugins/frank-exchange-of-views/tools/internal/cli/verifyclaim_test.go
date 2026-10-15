@@ -2,6 +2,7 @@ package cli
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -42,6 +43,13 @@ func citedClause(t *testing.T) (string, string) {
 	return runDir, m[1]
 }
 
+// printsClaim reports whether verify's own result line — not the duty list printed after it, which
+// quotes every unanswered claim — names claim.
+func printsClaim(out, claim string) bool {
+	line, _, _ := strings.Cut(out, "\n")
+	return strings.Contains(line, `"`+claim+`"`)
+}
+
 func verifyAs(t *testing.T, runDir, anchor, as string) (string, error) {
 	t.Helper()
 	return run(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--anchor", anchor,
@@ -51,12 +59,17 @@ func verifyAs(t *testing.T, runDir, anchor, as string) (string, error) {
 func TestVerifyRecordsTheSentenceItsAnchorMarks(t *testing.T) {
 	runDir, anchor := citedClause(t)
 	before := readReport(t, runDir)
-	if out, err := verifyAs(t, runDir, anchor, "supports"); err != nil {
+	out, err := verifyAs(t, runDir, anchor, "supports")
+	if err != nil {
 		t.Fatalf("verify: %v\n%s", err, out)
 	}
 	// The whole sentence holding the marker, its anchors out — not the clause the cite quoted.
 	if got := firstVerify(t, runDir).GetClaim(); got != verifiedSentence {
 		t.Errorf("the verification's claim = %q, want the sentence its anchor marks, %q", got, verifiedSentence)
+	}
+	// The lens typed no claim, so the tool prints the one it read: it is what a finding quotes.
+	if !printsClaim(out, verifiedSentence) {
+		t.Errorf("verify did not print the claim it recorded:\n%s", out)
 	}
 	if after := readReport(t, runDir); after != before {
 		t.Errorf("a verification changed the report:\n%s", after)
@@ -84,8 +97,8 @@ func TestARefutingVerificationIsClearedByAFindingAtItsSentence(t *testing.T) {
 		}
 		return record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
 	}
-	if out, err := verifyAs(t, runDir, anchor, "refutes"); err != nil {
-		t.Fatalf("verify: %v\n%s", err, out)
+	if out, err := verifyAs(t, runDir, anchor, "refutes"); err != nil || !printsClaim(out, verifiedSentence) {
+		t.Fatalf("verify did not record and print the claim it read: %v\n%s", err, out)
 	}
 	if got := contradictions(); len(got) != 1 || got[0] != verifiedSentence {
 		t.Fatalf("unanswered contradictions = %q, want the sentence the anchor marks", got)
@@ -158,6 +171,11 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 			t.Fatalf("retire: %v", err)
 		}
 		refused(t, runDir, anchor, anchor, "is not in the report", "retired", "never placed", "nothing to verify")
+		// Nor does the lens's work list offer the verification the tool refuses.
+		out, err := run(t, "show", "--run", runDir, "--seat-id", lensSeat)
+		if err != nil || strings.Contains(out, "citation "+anchor+" is on the record and nobody has verified it") {
+			t.Errorf("the lens is still offered a verification of the retired citation %s: %v\n%s", anchor, err, out)
+		}
 	})
 	t.Run("unrendered", func(t *testing.T) {
 		runDir, anchor := citedClause(t)
@@ -168,4 +186,44 @@ func TestVerifyOfACitationWithNoSentenceIsRefused(t *testing.T) {
 		}
 		refused(t, runDir, anchor, "does not render", anchor, "anomalies", "`log`")
 	})
+}
+
+// THE CLAIM KEEPS THE SENTENCE'S MARKUP, so the finding that answers it quotes it as verify printed
+// it, unescaped: the same words without their emphasis place in the report and answer nothing.
+func TestARefutedClaimIsAnsweredAsPrinted(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# Findings\n\n**Iron is \"magnetic\".** Copper is not.\n")
+	registerBlue(t, runDir)
+	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://iron/v": []byte("<html>a source on iron</html>")}})
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat, "--quote", `Iron is "magnetic"`, "--url", "https://iron/v", "--title", "Iron"); err != nil {
+		t.Fatalf("cite: %v", err)
+	}
+	anchor := regexp.MustCompile(`<!--cite:(C-[0-9a-f]{8})-->`).FindStringSubmatch(readReport(t, runDir))[1]
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
+		t.Fatal(err)
+	}
+	const printed = `**Iron is "magnetic".**`
+	if out, err := verifyAs(t, runDir, anchor, "absent"); err != nil || !printsClaim(out, printed) {
+		t.Fatalf("verify did not print the claim %q: %v\n%s", printed, err, out)
+	}
+	held := func() int {
+		t.Helper()
+		b, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions)
+	}
+	for _, f := range []struct {
+		quote string
+		held  int
+	}{{`Iron is "magnetic".`, 1}, {printed, 0}} {
+		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "k"+strconv.Itoa(f.held), "--quote", f.quote,
+			"--reason", "the source says iron is not magnetic", "--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+			t.Fatalf("finding at %q: %v", f.quote, err)
+		}
+		if got := held(); got != f.held {
+			t.Errorf("after a finding at %q, %d contradiction(s) held, want %d", f.quote, got, f.held)
+		}
+	}
 }
