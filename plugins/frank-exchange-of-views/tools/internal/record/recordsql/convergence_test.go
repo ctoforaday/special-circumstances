@@ -1,6 +1,7 @@
 package recordsql_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -10,13 +11,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// THE DETECTOR IS A QUESTION ABOUT THE RECORD, and this asks it the way a reader would.
-//
-// It exists because the metric it replaces reported 0 for seven runs while measuring nothing: the
-// scorecard read a telemetry key no producer ever wrote. A test that only checked "the view
-// parses" would reproduce that defect one level up, so this drives a record that SHOULD trip the
-// detector and one that should not, and fails if the answer is the same either way.
-func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
+// THE FAIL REFUSAL IS A QUESTION ABOUT THE RECORD, and this asks it the way the chair does: by
+// writing the FAIL. A test that only checked "the view parses" would pass over a view answering
+// zeros, so this drives a record whose FAIL SHOULD be refused and two whose FAIL should not, and
+// fails if the answer is the same either way.
+func TestTheFailRefusalReadsTheBoardOnTheRecord(t *testing.T) {
 	gradeP := func(t *testing.T, w string) *recordpb.Grade {
 		g, ok := record.GradeOf(w)
 		if !ok {
@@ -39,27 +38,25 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 	cases := []struct {
 		name    string
 		sev     string
-		want    bool
+		refused bool
 		explain string
 	}{
-		{"converged board still failing trips it", "low", true,
-			"mass below a quarter of the peak, nothing material on current grades, no fresh material mint this epoch, verdict FAIL"},
-		{"a MEDIUM gap is material and does not", "medium", false,
+		{"a FAIL over a converged board is refused", "low", true,
+			"mass below a quarter of the peak, nothing material on current grades, no fresh material mint this epoch"},
+		{"a MEDIUM gap is material and admits it", "medium", false,
 			"material is the strict floor — GRADE_MEDIUM open means red still has something real"},
-		{"a serious gap open does not", "high", false,
-			"max severity above medium is exactly what the detector says has NOT converged"},
+		{"a serious gap open admits it", "high", false,
+			"max severity above medium is a board that has NOT converged"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			// THE SCENARIO THE DETECTOR NAMES: discovery happened EARLIER, this round only
-			// repaired known work (a lineage mint), the board is small and nothing is above
-			// medium — and red still says FAIL. A fresh mint in the same round is not that
-			// scenario, which is what the first draft of this fixture got wrong: the view
-			// declined it correctly and the test was the thing at fault.
+			// THE SCENARIO THE RULE NAMES: discovery happened EARLIER, this epoch only repaired
+			// known work (a lineage mint), the board is small and nothing is above medium. A fresh
+			// mint in the same epoch is not that scenario.
 			// Epoch 1: a serious gap (mass 9) and a FAIL — the run's peak. Epoch 2: G1 closes and the
-			// only open gap is G2 at the case's severity, mass 1 — a ninth of the peak. The detector
-			// judges the epoch-2 gate: a trifle is divergent, a MEDIUM gap is material and is not.
+			// only open gap is G2 at the case's severity, mass 1 — a ninth of the peak. The chair's
+			// epoch-2 FAIL over a trifle is refused; over a MEDIUM gap, which is material, it is not.
 			high := recordpb.Grade_GRADE_HIGH
 			recordtest.Seed(t, dir,
 				recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}),
@@ -73,24 +70,19 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 						AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}),
 				recordtest.At(t, "red-chair", "red-chair:mint:G2",
 					mint("G2", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW, "G1")),
-				recordtest.At(t, "red-chair", "red-chair:verdict:#2",
-					&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 			)
-			eps, err := record.ConvergenceVsVerdict(runtest.Open(t, dir))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(eps) != 2 || eps[1].Epoch != 2 {
-				t.Fatalf("verdict rows = %+v — a detector that returns no row for the epoch-2 gate is the zero it exists to stop", eps)
-			}
-			c := eps[1]
-			if c.Divergent != tc.want {
-				t.Errorf("divergent = %v, want %v (%s)\n%+v", c.Divergent, tc.want, tc.explain, c)
+			_, err := record.Append(record.Identity{Run: runtest.Open(t, dir), SeatID: "red-chair"},
+				&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)})
+			if !tc.refused {
+				if err != nil {
+					t.Errorf("the FAIL was refused, want it admitted (%s): %v", tc.explain, err)
+				}
+				return
 			}
 			// The inputs must be REAL, not defaulted: a view that returns zeros for everything
-			// would satisfy a boolean assertion while measuring nothing.
-			if c.Mass <= 0 || c.Peak <= 0 {
-				t.Errorf("mass = %v, peak = %v — the board has graded gaps open, so a zero here means the join found nothing", c.Mass, c.Peak)
+			// would hold no peak to measure the mass against, so the refusal names both.
+			if err == nil || !strings.Contains(err.Error(), "open mass 1.0") || !strings.Contains(err.Error(), "peak 9.0") {
+				t.Errorf("the FAIL = %v, want it refused over open mass 1.0 against a peak of 9.0 (%s)", err, tc.explain)
 			}
 		})
 	}

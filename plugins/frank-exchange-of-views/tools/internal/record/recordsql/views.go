@@ -660,11 +660,8 @@ LEFT JOIN (
 -- other. An act stood at a verdict V if it was written at or before V and no correction written at
 -- or before V struck it (act_standing) — one axis, events.id, for the regrades that grade a gap and
 -- the acts that close it alike. A correction written after V does not change V's board, however
--- early its replacement sorts by "pos". The FAIL refusal at the write path asks the same question at
--- the newest event — the point a verdict being written is judged at, where "as it stood" is "now" —
--- and the scorecard's detector asks it at each verdict afterwards. Both read this one definition, so
--- the scorecard cannot flag a FAIL the gate admitted, and nothing written after a verdict reaches
--- back to it.
+-- early its replacement sorts by "pos". The FAIL refusal at the write path reads the row at the
+-- newest event — the point a verdict being written is judged at, where "as it stood" is "now".
 --
 -- The columns, each at the point:
 --   mass                  gap_grade's mass summed over the gaps open at the point, on the grades that

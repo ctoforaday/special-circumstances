@@ -82,13 +82,11 @@ func paramsIn(dir string) (Params, error) {
 	return p, err
 }
 
-// runConvergenceFraction is the one term the convergence rule reads, and ONLY that term: a reader of
-// the fraction is not refused for another term it never uses (an epoch limit of 0 says nothing about
-// what fraction of the peak a converged board sits below). No file, or no fraction in it, is setup's
-// default; a fraction outside (0, 1], or a file that does not parse, is an error.
-func runConvergenceFraction(run Run) (float64, error) { return convergenceFractionIn(run.Dir()) }
-
-// convergenceFractionIn is runConvergenceFraction for the run directory dir.
+// convergenceFractionIn is the one term the convergence rule reads in the run directory dir, and
+// ONLY that term: a reader of the fraction is not refused for another term it never uses (an epoch
+// limit of 0 says nothing about what fraction of the peak a converged board sits below). No file, or
+// no fraction in it, is setup's default; a fraction outside (0, 1], or a file that does not parse, is
+// an error.
 func convergenceFractionIn(dir string) (float64, error) {
 	rc, err := readRunConfig(dir)
 	if err != nil {

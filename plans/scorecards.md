@@ -47,7 +47,7 @@ finding). Joint-read rules stated per benchmark (repair ratio reads WITH red rig
 |---|---|---|---|
 | Certification: earned PASS/FAIL | precision (findings surviving adjudication/rebuttal) (BENCHMARK) | rulings + rebuttal_sustained rates | scriptable now |
 | Recall / satisficing record | overlooked-rate: in-slice misses caught later (DIAGNOSTIC) | provenance audit (E0.5 method) per run | protocolized |
-| Never-hard-fail | convergence-vs-verdict divergence flag: rounds with mass < threshold, max sev <= medium, fallout-only mints, and still FAIL (DETECTOR — visibility only; the verdict stays red's) | telemetry script | W2b |
+| Never-hard-fail | no card metric: the write path refuses a FAIL over a converged board (nothing material open, mass below the run's fraction of its peak, no fresh material mint this epoch); the FAILs a record still holds over one are the two the rule admits — another seat's blocker holding the PASS, and a migration's replay | the FAIL refusal (`requireFailIsNotConvergent`) | SHIPPED (write path) |
 | Grade honesty | chain grade stability (DIAGNOSTIC, never a target) | supersedes chains | SHIPPED (dashboard) |
 | Attestation-format invariant | % closures with seat+tool+target anchors (BENCHMARK, target 100; baseline 89) | format grep at capture; behavioral spot-audit via tool-call index | NEW — scriptable |
 | Spot-check floor | engine throw + capture recount | W1.8 | SHIPPED |

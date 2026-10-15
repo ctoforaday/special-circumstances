@@ -509,43 +509,12 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark", Note: n})
 	}
 
-	// convergence_vs_verdict_flags — DERIVED FROM THE RECORD, not read off a key.
-	//
-	// This counted telemetry rows whose `convergence_vs_verdict_flag` was truthy. NOTHING EVER
-	// WROTE THAT KEY: debate.js computes the detector each epoch and writes it to a LOG LINE, so
-	// the lookup missed on every row and the metric reported 0 for seven captured runs — "no soft
-	// fails" in the words it would use for "never measured".
-	//
-	// It is now a QUESTION ASKED OF THE RECORD (`record.ConvergenceVsVerdict`, the convergence_at
-	// view), which is what the architecture says a metric is: a projection, never a self-report. It
-	// judges each FAIL on the board as it stood at that FAIL, by the rule and the run's fraction the
-	// write path's FAIL refusal applies, so a flag here is a FAIL the refusal did not stand against.
-	//
-	// AND A FAILURE TO ASK IS NOT A ZERO. If the record cannot answer, the row says so rather than
-	// printing a count, because that substitution is the entire defect being repaired here.
-	if conv, err := record.ConvergenceVsVerdict(run); err != nil {
-		rows = append(rows, Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector",
-			Note: "could not be computed from the record: " + err.Error()})
-	} else {
-		flags := 0
-		for _, c := range conv {
-			if c.Divergent {
-				flags++
-			}
-		}
-		// NO EPOCHS MEANS NO VALUE, NOT A VALUE OF ZERO — and this is the one line where the
-		// repair could most easily undo itself. A Row carrying both a Value and a Note renders
-		// the VALUE, so emitting `0` alongside "nothing was verdicted" would print a bare 0 and
-		// reproduce the defect being fixed, in a metric that now looks computed. A run with
-		// nothing adjudicated gets prose; only a run with epochs to judge gets a number.
-		r := Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector"}
-		if len(conv) == 0 {
-			r.Note = "no epoch has been verdicted on the record yet — the detector has nothing to judge"
-		} else {
-			r.Value = flags
-		}
-		rows = append(rows, r)
-	}
+	// NEVER-HARD-FAIL HAS NO ROW: the write path enforces it. A FAIL over a converged board is
+	// refused inside the write transaction (requireFailIsNotConvergent), so the only FAILs a
+	// record holds over one are the two the rule admits — one issued while another seat's blocker
+	// holds the PASS (#1202), and one a migration replays without re-judging. A card count of
+	// them reports the rule working as a loss-condition tripwire, and states nothing the record's
+	// verdicts and blockers do not.
 
 	// citation_yield_by_epoch (object value)
 	if yield, ok := citationYieldByRole(fam); ok {
