@@ -120,9 +120,6 @@ REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half:
 REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as
 
 §7 (on 2 pages):
-REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. It is the REPORT's sentence under every --as value, never the source's
-
-§8 (on 2 pages):
 Enumerated values:
   --as
     supports              you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows
@@ -137,38 +134,38 @@ Enumerated values:
     medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
     low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
 
-§9 (on 2 pages):
+§8 (on 2 pages):
 the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record
 
-§10 (on 2 pages):
+§9 (on 2 pages):
 how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
-§11 (on 2 pages):
+§10 (on 2 pages):
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
     avenue   an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
-§12 (on 3 pages):
+§11 (on 3 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
 
-§13 (on 3 pages):
+§12 (on 3 pages):
 Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
-§14 (on 4 pages):
+§13 (on 4 pages):
 an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§15 (on 4 pages):
+§14 (on 4 pages):
 the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-§16 (on 4 pages):
+§15 (on 4 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
-§17 (on 2 pages):
+§16 (on 2 pages):
 select only the gaps matching this regex (RE2, case-insensitive) — an alternation is one call where a phrase at a time is several. Every match is returned and the total is stated; nothing is ranked or cut
 
-§18 (on 2 pages):
+§17 (on 2 pages):
 select only the gaps containing this text LITERALLY (case-insensitive) — the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 ========
@@ -306,12 +303,12 @@ Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
       --as as-value                  → SHARED §5
       --confidence high|medium|low   → SHARED §6
-      --quote string                 → SHARED §7
+      --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. It is the REPORT's sentence under every --as value, never the source's
       --reason string                → SHARED §4
       --title string                 REQUIRED — the source's name, as it appears in the composed bibliography
       --url string                   REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes
 
-(Enumerated values:) → SHARED §8
+(Enumerated values:) → SHARED §7
 ========
 $ feov-record fetch --help
 fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
@@ -344,16 +341,16 @@ A FINDING IS GRADED ON THREE AXES — severity, likelihood, impact — and not o
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --about string                    → SHARED §9
+      --about string                    → SHARED §8
       --about-kind section|avenue|gap   anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an avenue reaches no seat's work list; a gap anchors to an avenue the same way, and a material one is on blue's
       --impact grade                    how bad the consequence is if it lands
       --key string                      your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the finding's id. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade                how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --quote string                    REQUIRED unless --about-kind/--about name the subject — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. The finding anchor is placed there
       --reason string                   REQUIRED — the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --severity grade                  → SHARED §10
+      --severity grade                  → SHARED §9
 
-(Enumerated values:) → SHARED §11
+(Enumerated values:) → SHARED §10
 ========
 $ feov-record log --help
 an entry for the operator who can retool you — what it asserts, said in the positive
@@ -408,7 +405,7 @@ THE FIX AND ITS ACCEPTANCE CHECK NAME ONLY TEXT OR RECORD THE ANSWERING SEAT CAN
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --about string                             → SHARED §9
+      --about string                             → SHARED §8
       --about-kind section|avenue|gap            anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
@@ -427,7 +424,7 @@ Flags:
       --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
       --supersedes list                          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
-(Enumerated values:) → SHARED §11
+(Enumerated values:) → SHARED §10
 
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
@@ -437,11 +434,11 @@ Flags:
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §12
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §11
 
 It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.
 
-(Every seat but the one that rule…) → SHARED §13
+(Every seat but the one that rule…) → SHARED §12
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -452,11 +449,11 @@ Flags:
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §12
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §11
 
 It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that.
 
-(Every seat but the one that rule…) → SHARED §13
+(Every seat but the one that rule…) → SHARED §12
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -476,11 +473,11 @@ Enumerated values:
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §12
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §11
 
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
-(Every seat but the one that rule…) → SHARED §13
+(Every seat but the one that rule…) → SHARED §12
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -547,7 +544,7 @@ Flags:
       --impact grade       how bad the consequence is if it lands
       --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --reason string      → SHARED §4
-      --severity grade     → SHARED §10
+      --severity grade     → SHARED §9
 ========
 $ feov-record render-page --help
 draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
@@ -624,13 +621,13 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --match regex   select only the avenues matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the avenues containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the avenues matching this regex (RE2, case-insensitive) — → SHARED §13
+      --quote text    select only the avenues containing this text LITERALLY (case-insensitive) — → SHARED §14
 ========
 $ feov-record show board --help
 THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §16
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
 OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],closed:[{id,epoch,open,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],problem,mint_reason,required_fix,acceptance_check,check_kind,awaiting_proof,fix_basis,fix_old,fix_new,found_by:[string],supersedes:[string],closed_epoch,closed_by_bench,closure:{<key>:…},regrades:[{<key>:…}]}],observations:[{id,area,seat_id,key,kind,text,credited}],counts:{open,closed,closed_by_bench,uncredited_findings,anomalies,total_observations,citations,citations_authored},anomalies:[string]}
 
@@ -638,8 +635,8 @@ OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,
 
 Flags:
       --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
-      --match regex     → SHARED §17
-      --quote text      → SHARED §18
+      --match regex     → SHARED §16
+      --quote text      → SHARED §17
 ========
 $ feov-record show changes --help
 every recorded edit to the report (the blue_edit events), in record order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by blue's `edit`
@@ -650,8 +647,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {edits:[{seat
 
 Flags:
       --id gap-id     scope this projection to one gap — red's required_fix beside the edits answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
-      --match regex   select only the edits matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the edits containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the edits matching this regex (RE2, case-insensitive) — → SHARED §13
+      --quote text    select only the edits containing this text LITERALLY (case-insensitive) — → SHARED §14
 ========
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor WITH the sha256 the lens's `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their confidence.
@@ -664,7 +661,7 @@ TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` 
 
 THIS IS HOW YOU RESOLVE AN EVIDENCE ANCHOR you are reading in the report; a `<!--fx:F-…-->` is a finding's, which `show findings` resolves, and a `<!--gap:G-…-->` is a gap's, which `show board` resolves. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §16
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
 OUTPUT (JSON): {sources:[{anchor,url,title,sha256,access_date,location,text,seat_id,epoch,source_text_origin,work_status,source_completeness,ocr_quote,pages:[number],ocr_engine,ocr_text_sha,corroborated_by,verified:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}]}],proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,seat_id,epoch,struck:{…}},struck_reruns:[{reproduced,sound,note,seat_id,epoch,struck:{…}}]}],independent:[{claim,anchor,label,outcome,confidence,text,url,title,access_date,seat_id,epoch,page,page_render_sha,reading_render_sha,work_status,source_completeness}],reopened:[{anchor,edit,last_check}],unanswered_contradictions:[string],counts:{sources,proofs,proofs_unverified,sources_unverified,sources_refuted,verifications}}
 
@@ -674,21 +671,21 @@ OUTPUT WITH --anchor (JSON — `source` or `proof`, whichever the anchor names):
 
 Flags:
       --anchor id     read the ONE entry at this anchor id rather than the table — a proof's (P-…) with its script and recorded output, or a source's (C-…)
-      --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the citations and proofs matching this regex (RE2, case-insensitive) — → SHARED §13
+      --quote text    select only the citations and proofs containing this text LITERALLY (case-insensitive) — → SHARED §14
 ========
 $ feov-record show findings --help
 Every lens finding on the record (id, area, seat, epoch, grades, location, text) — the minting lens coalesces these into gaps
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §16
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
 OUTPUT (JSON): {findings:[{id,area,seat_id,epoch,severity,likelihood,impact,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],text,minted_as:[string]}],counts:{total}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --match regex   select only the findings matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the findings matching this regex (RE2, case-insensitive) — → SHARED §13
+      --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §14
 ========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
@@ -731,24 +728,26 @@ WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old`
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
 
-(THIS PROJECTION IS ALREADY THE J…) → SHARED §16
+(THIS PROJECTION IS ALREADY THE J…) → SHARED §15
 
 OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_reopens_on,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]}}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --match regex   → SHARED §17
-      --quote text    → SHARED §18
+      --match regex   → SHARED §16
+      --quote text    → SHARED §17
 ========
 $ feov-record verify --help
 judge a citation blue authored, when the anchor exists and you have read what it points at
 
 THIS VERB JUDGES A CITATION THAT EXISTS: a claim with NO citation is never verified as `absent`.
 
-THE QUOTE IS THE CITED SENTENCE IN THE REPORT'S OWN WORDS, under every outcome — the sentence the citation's source backs, contradicts or does not contain — and never the source's words, which go in your reason. A quote the report does not hold is refused and nothing is recorded: quote the sentence as `show report` prints it.
+YOU NAME THE CITATION, AND THE TOOL READS ITS CLAIM. The anchor is the id inside the citation's token in the report. The claim recorded is the sentence of the report holding that token, as the report stands when you verify, under every outcome — the sentence the citation's source backs, contradicts or does not contain. What the SOURCE says goes in your reason.
 
 A `refutes` OR `absent` VERDICT HOLDS A PASS until a finding quotes that sentence — the whole sentence, alone or with more of its paragraph, raised by you or any lens. Raise that finding in the same sitting, before blue edits the sentence: once the report no longer holds it, no finding can quote it and the PASS stays held.
+
+A CITATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED, and nothing is recorded, because there is no claim to read its source against: one whose anchor is not in the report (blue retired its claim, or the anchor never placed), one whose anchor stands bare (the sentence it backed was cut, and the anchor leaves with blue's retire), and every citation while the report does not render (the board's anomalies say why; record that you could not verify with `log`). Verify the citations whose anchors the report carries.
 
 A CITATION WITH PAGES QUOTES OCR TEXT, and the reading may be what is wrong. Draw one of its pages with `render-page`, read the image, and name that page: the tool refuses a verification of such a citation that names no checked page, and records the image's hash. An unreachable outcome needs no page when no image could be drawn.
 
@@ -763,13 +762,12 @@ sitting holds one per --anchor, and this sitting's stands).
 
 Flags:
       --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded
       --as as-value                  → SHARED §5
       --confidence high|medium|low   → SHARED §6
       --page int                     for a citation with pages: the page whose image you checked, drawn first with render-page
-      --quote string                 → SHARED §7
       --reason string                → SHARED §4
 
-(Enumerated values:) → SHARED §8
+(Enumerated values:) → SHARED §7
 
 <!-- END GENERATED SURFACE -->

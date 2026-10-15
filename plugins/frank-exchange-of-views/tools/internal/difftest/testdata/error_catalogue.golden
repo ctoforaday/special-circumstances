@@ -199,7 +199,7 @@ Run `feov-record motion grade file --help` for what it takes, flag by flag.
 ── verification outcome outside the set
 exit 2
 feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --quote, --reason.
+This verb's flags: --access-date, --anchor, --as, --confidence, --page, --reason.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -207,25 +207,24 @@ Run `feov-record verify --help` for what it takes, flag by flag.
 exit 2
 feov-record: verify: requires --anchor
 
-      --anchor <!--cite:C-…-->   REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->   REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
 ── verification with no stated confidence
 exit 2
 feov-record: verify: unknown flag: --independent — not one of this verb's flags, and no verb on this surface takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --quote, --reason.
+This verb's flags: --access-date, --anchor, --as, --confidence, --page, --reason.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
 ── verification of nothing
 exit 2
-feov-record: verify: requires --anchor, --as, --confidence, --quote, --reason
+feov-record: verify: requires --anchor, --as, --confidence, --reason
 
-      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as
-      --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. It is the REPORT's sentence under every --as value, never the source's
       --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Run `feov-record verify --help` for what it takes, flag by flag.

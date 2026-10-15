@@ -277,8 +277,8 @@ type runner struct {
 	// proof and for nothing else (readiedForReopened). The sweep gates it at zero. reopenedPlans
 	// counts the plans holding a reopened blocker, whoever they readied.
 	reopenedReadied, reopenedPlans int
-	// quotesRefused counts the verifications and corroborations the tool REFUSED for a quote the
-	// report does not hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
+	// quotesRefused counts the corroborations the tool REFUSED for a quote the report does not
+	// hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
 	// the first such act the tool recorded, or refused without saying whose sentence the quote
 	// is; it fails the run.
 	quotesRefused    int
@@ -530,13 +530,14 @@ func (r *runner) orderRefused(seatID string) {
 	}
 }
 
-// sourceQuoteRefused drives a lens quoting the SOURCE's sentence as the claim, under any outcome,
-// and holds the tool to refusing it: the quote is the report's sentence whatever the source did
-// for it. Under `refutes` or `absent` a quote the report does not hold is the subject of a PASS
-// blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask.
+// sourceQuoteRefused drives a lens corroborating with the SOURCE's sentence as the claim, under any
+// outcome, and holds the tool to refusing it: the quote is the report's sentence whatever the source
+// did for it. Under `refutes` or `absent` a quote the report does not hold is the subject of a PASS
+// blocker no finding can quote, so an admitted one ends the run UNVERIFIED with nobody to ask. A
+// verification takes no quote — its claim is the sentence its anchor marks — so it has no such case.
 //
-// IT DRAWS NOTHING FROM THE RUN'S RNG. Every seventh lens drive fires, and the outcome and the verb
-// turn with that count: a draw here would move every later draw of the run, and the forced
+// IT DRAWS NOTHING FROM THE RUN'S RNG. Every seventh lens drive fires, and the outcome turns with
+// that count: a draw here would move every later draw of the run, and the forced
 // UNVERIFIED seed ends elsewhere when one does.
 func (r *runner) sourceQuoteRefused(seatID string) {
 	r.mu.Lock()
@@ -548,24 +549,19 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 	n /= 7
 	outcome := verifyOutcomes[n%len(verifyOutcomes)]
-	args := []string{"corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/" + seatID, "--title", "fuzz source quoted for " + seatID}
-	if b, ok := r.board(); ok && (n/len(verifyOutcomes))%2 == 1 {
-		if sources := record.EvidenceJSONOf(b.Events, b.At).Sources; len(sources) > 0 {
-			args = []string{"verify", "--seat-id", seatID, "--anchor", sources[n%len(sources)].Anchor}
-		}
-	}
-	out, err := r.exec(append(args, "--quote", "The fuzz source states this in its own words, and the report does not.",
-		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim")...)
+	out, err := r.exec("corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/"+seatID, "--title", "fuzz source quoted for "+seatID,
+		"--quote", "The fuzz source states this in its own words, and the report does not.",
+		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim")
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
 	case err == nil:
 		if r.quoteAdmittedErr == "" {
-			r.quoteAdmittedErr = seatID + " quoted the source's sentence under --as " + outcome + " and `" + args[0] + "` recorded it: " + firstLine(out)
+			r.quoteAdmittedErr = seatID + " quoted the source's sentence under --as " + outcome + " and `corroborate` recorded it: " + firstLine(out)
 		}
 	case !strings.Contains(out, "REPORT's sentence"):
 		if r.quoteAdmittedErr == "" {
-			r.quoteAdmittedErr = seatID + "'s `" + args[0] + " --as " + outcome + "` was refused without saying the quote is the report's sentence: " + firstLine(out)
+			r.quoteAdmittedErr = seatID + "'s `corroborate --as " + outcome + "` was refused without saying the quote is the report's sentence: " + firstLine(out)
 		}
 	default:
 		r.quotesRefused++
@@ -1279,6 +1275,21 @@ func (r *runner) someCitation() string {
 		return ""
 	}
 	return sources[r.rng.Intn(len(sources))].Anchor
+}
+
+// verifiedClaim is the claim the latest verification of citation anchor recorded — the sentence the
+// anchor marked when it was read — or "" when the record holds none.
+func (r *runner) verifiedClaim(anchor string) string {
+	b, ok := r.board()
+	if !ok {
+		return ""
+	}
+	for _, s := range record.EvidenceJSONOf(b.Events, b.At).Sources {
+		if s.Anchor == anchor && len(s.Verified) > 0 {
+			return s.Verified[len(s.Verified)-1].Claim
+		}
+	}
+	return ""
 }
 
 // reopened returns every citation and proof the record holds as reopened and unchecked — each
@@ -2628,7 +2639,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 							r.do("reproduce", seatID).set("--id", it.Sha).set("--as", pick(r.rng, []string{"sound", "unsound"})).
 								set("--reason", "fuzz: read the script as the sentence now stands and re-ran it").run()
 						} else {
-							r.do("verify", seatID).set("--anchor", it.Anchor).set("--quote", "A § fuzz sentence to anchor findings.").
+							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").run()
 						}
@@ -2670,31 +2681,34 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				axes := func(c *cmd) *cmd {
-					return c.set("--quote", claim).
-						set("--as", outcome).
+					return c.set("--as", outcome).
 						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
 						set("--reason", "fuzz: what the source actually says").
 						on(60, "--access-date", "2026-07-24")
 				}
+				read := claim // the sentence the reading recorded, which the finding below quotes
 				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
 					// --page names a page image, and no citation this sweep writes has pages, so
 					// a verify carrying one is refused: the flag and its refusal, driven.
-					axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").run()
+					if _, err := axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").run(); err == nil {
+						read = r.verifiedClaim(anchor)
+					}
 				} else {
-					axes(r.do("corroborate", seatID)).
+					axes(r.do("corroborate", seatID)).set("--quote", claim).
 						set("--url", "https://fuzz.invalid/"+seatID).
 						set("--title", "fuzz source for "+seatID).run()
 				}
 				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
 				// saying the report asserts what its source does not, and a PASS is refused until
-				// a finding quotes that claim — the tool will not write the finding itself,
-				// because that would mean inventing its three grades. Driving the remedy here is
+				// a finding quotes that claim — for a verification, the sentence its anchor marks,
+				// which for a quarter of the citations is the edited one. The tool will not write
+				// the finding itself, because that would mean inventing its three grades. Driving the remedy here is
 				// what makes both the gate and the act that clears it real in the sweep; without
 				// it every run with a negative reading would wedge at the verdict.
 				if outcome == "refutes" || outcome == "absent" {
 					_, _ = r.exec("finding", "--seat-id", seatID,
 						"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
-						"--quote", claim, "--reason", "fuzz: the source says otherwise")
+						"--quote", read, "--reason", "fuzz: the source says otherwise")
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				//
@@ -2841,8 +2855,8 @@ type outcome struct {
 	positionsRefused int
 	// ordersRefused is the edits the tool refused for a section out of order (runner.ordersRefused).
 	ordersRefused int
-	// quotesRefused is the verifications and corroborations the tool refused for a quote the
-	// report does not hold (runner.quotesRefused).
+	// quotesRefused is the corroborations the tool refused for a quote the report does not hold
+	// (runner.quotesRefused).
 	quotesRefused int
 	// reopenedReadied is the plans that readied the evidence lens for a reopened citation or proof
 	// alone (runner.reopenedReadied), and reopenedPlans the plans that held a reopened blocker at
@@ -4604,7 +4618,7 @@ func TestFuzzDebate(t *testing.T) {
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
 	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
-	quotesRefused := 0                     // verifications and corroborations refused for a quote the report does not hold
+	quotesRefused := 0                     // corroborations refused for a quote the report does not hold
 	ordersRefused := 0                     // edits refused for a section out of the order the report ships in
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0 // plans that readied the evidence lens for a reopened citation or proof alone, of those holding one
@@ -4818,7 +4832,7 @@ func TestFuzzDebate(t *testing.T) {
 		// outcome, so the refusal of a quote the report does not hold is reached only by the drive
 		// that quotes the source's sentence.
 		if quotesRefused == 0 {
-			t.Errorf("fuzz drove ZERO verifications or corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
+			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
 		}
 		// THE REPEATED-ACT GATE. No verb takes a correction: a seat that got an act wrong meets the
 		// refusal of its second, and that refusal names the act that answers the first. A drive

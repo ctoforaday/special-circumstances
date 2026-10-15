@@ -296,7 +296,7 @@ func answerDrives() []answerDrive {
 			d.admitted("cite", "blue-respond", "cite", "--quote", quoteTwo, "--url", "https://src/v", "--title", "T")
 			anchor := firstCiteEvent(d.t, d.run).GetLabel()
 			verify := func(as string) []string {
-				return []string{"verify", "--anchor", anchor, "--quote", quoteTwo, "--as", as, "--confidence", "high", "--reason", "read it"}
+				return []string{"verify", "--anchor", anchor, "--as", as, "--confidence", "high", "--reason", "read it"}
 			}
 			d.admitted("the first", lensSeat, verify("supports")...)
 			d.endsWithRow(d.refused("a second on the citation in the sitting", lensSeat, verify("weak")...), rowVerify)
@@ -335,7 +335,7 @@ func answerDrives() []answerDrive {
 				if n := len(eventsOfWord(d.t, d.run, "verify")); n != 1 {
 					d.t.Fatalf("a repeated backing corroboration wrote %d verify events, want the one", n)
 				}
-				verify := []string{"verify", "--anchor", label, "--quote", quoteTwo, "--as", "weak", "--confidence", "low", "--reason", "on rereading it only gestures at it"}
+				verify := []string{"verify", "--anchor", label, "--as", "weak", "--confidence", "low", "--reason", "on rereading it only gestures at it"}
 				// "at your next sitting": this sitting's verification of that citation shares the key.
 				d.endsWithRow(d.refused("a verification of the placed citation in the same sitting", lensSeat, verify...), rowVerify)
 				d.nextSitting(lensSeat)
