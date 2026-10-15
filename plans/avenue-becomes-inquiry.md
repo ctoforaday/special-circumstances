@@ -1,6 +1,6 @@
 # An avenue becomes an inquiry: the noun, its question, its fates and the act that records them
 
-> STATUS: **PROPOSED 2026-10-13; every fork ruled (§III.1, gblock, 2026-10-13/15).** Awaits the plan-auditor gate.
+> STATUS: **PROPOSED 2026-10-13; every fork ruled (§III.1); audited five times; the two local gaps of the fifth audit and its forks are resolved in this revision (N25–N28); awaiting the owner's approval.**
 
 `F` is `plugins/frank-exchange-of-views`, `T` is `F/tools`, `X` is `~/.claude/scratch/inquiry-rename` and `K` is
 `X/kit`, where the Appendix is extracted by the command at its head (N22); `L/F` is lines / files. Each census runs
@@ -34,7 +34,7 @@ After one pull request the live tree accepts and prints only these words, at epo
 | S1 | No old word or earlier name in the live tree: in any case, inside any name, in a path name | `s1` (Appendix) | noun 2,219 lines / 229 files; fates and earlier names 969 / 315; path names 11; 14 files `git grep` cannot read | noun, path names: no output; command 2: the English list; command 4: the same 14 names |
 | S2 | Inside `migrate`, an old word is a literal and every such literal a key | under this table | 45 tokens; 41 literals | no output; the literal census prints keys and English only |
 | S3 | Every archive migrates | §V.3 step 1 | `PASS: 2`; 20 subtests; 0 refusals at 25 | the same at `E`, one subtest per tarball |
-| S4 | Assembled archive documents differ only in the renamed words | §V.3 step 3 | — | `docs` prints only seats' own text holding an old word, each read |
+| S4 | Assembled archive documents differ only in the renamed words | §V.3 step 3 | — | `docs` prints nothing (N27) |
 | S5 | A record at `E0` is refused, then migrates | §V.4 | — | the refusal names `E0`, `E` and `migrate`; 0 refusals after |
 | S6 | No translation is unexercised | §V.2 step 3 | — | every deleted registry row fails a named test |
 | S7 | Gates | `go -C scripts run ./check`; the release fuzz (§V.5) | — | fail count 0; `fuzzed 40 debate runs · 0 failed` |
@@ -119,7 +119,7 @@ Go 1.27 (`GOTOOLCHAIN=local`), one module at `T`; Node for the engine script and
 
 ## III. Proposed Changes
 
-### III.1 Rulings (gblock; N1–N16 2026-10-13; N9, N15, N16 widened, N17–N20 2026-10-14; N15, N20 rewritten, N21–N24 2026-10-15)
+### III.1 Rulings (gblock; N1–N16 2026-10-13; N9, N15, N16 widened, N17–N20 2026-10-14; N15, N20 rewritten, N21–N28 2026-10-15)
 
 | # | RULED |
 |---|---|
@@ -147,6 +147,10 @@ Go 1.27 (`GOTOOLCHAIN=local`), one module at `T`; Node for the engine script and
 | N22 | THE KIT IS IN THE PLAN. Its scripts are the Appendix, extracted to scratch at the start of the work and never committed: a committed old-word pattern is an old-word list in the live tree. The plan file alone carries every command, after a container restart |
 | N23 | THE KIT IS TRIMMED. `pairs.awk` runs once, at step 0, as N7's worklist; the gzipped fetch-cache bodies join the third-party bytes outside the live tree; the two-questions census goes (N19's reader asks it); §III.4's names come from `git grep -o`, and the tokenizer serves S2 alone |
 | N24 | FIX, NOT ACCEPT. `anchor.IDPattern` refuses a kind name it does not know, for every kind, with its test (§III.5); `law/precedents.md`'s three lines holding the noun are renamed, because the judge reads law in every run, and the rest of `law/` stays as ruled (§III.2) |
+| N25 | THE SMOKE IS BOUND TO ITS BUILD, by the smallest binding that holds. A §V.6 step writing the note would add no line to the PR but fails open — a later build from another commit leaves it naming `S` — so the build writes its own, removing it as it starts: four lines in a script that ships nowhere. `scripts/universe.sh build` refuses a dirty tree and writes `<WORKDIR>/built-from`: the commit it built and the UTC time it finished. `ran smoke S DB` takes the universe as DB's path before `/src/research/` and refuses unless that file names `S`, the record's `schema_epoch` is `S`'s `eventSchema`, the run's first event follows the build, and the outcome is verified or ceiling (§V.6). The other `ran`s bind by discipline (§III.9) |
+| N26 | THE WORD MAP COVERS EVERY RULED RENAME: the noun in every case and compound, the two fates, `line` → `question` (`GetLine`, `.Line`), `move` → `record`, `Moved` → `Recorded`, `direction` as the concept, `--reason` → `--question` on propose, and the table, column, view and file names — so the rename of a line main added re-arms nothing. A `-`/`+` pair cancels only when its two sides, path included, are EQUAL once both pass the whole map and their inner blanks are collapsed: a hand change that differs in any other token counts, and gofmt's realignment beside a renamed name does not. Residue: a pair differing only in mapped words, in either direction, cancels whatever the context; a line moved or reordered within a file cancels as a pair; a renamed line reverted to the old word leaves no diff. `stands` sees none of the three; S1, the compiler and the archive tests hold them. No hunk-local cancellation is built |
+| N27 | THE ARCHIVE DIFF IS TWO-SIDED: `docs` cancels each pair by `hand`'s map and prints only what is not the rename; expected, nothing (§V.3) |
+| N28 | CONFIRMED, the fifth audit's reading of N21: an epoch re-bump is a hand change and re-arms §V.4 and §V.5 — and every check whose surface holds `requirements.json`, which is all five, since schemagen compiles the epoch into the binary each one runs and main's bump brings its own `migrate` translation; test files and test data count only for S6 and the fuzz; a conflict resolution re-arms unless it is main's hunk renamed |
 
 **The naming census the rulings rest on.** `git grep -nIi inquir -- $T $F/skills $F/agents scripts/agentgen/src` → 35
 lines in 11 files: `migrate` keys, one narrated incident (N7), two registry bans (N8).
@@ -193,15 +197,14 @@ Per row: `git grep -niI avenue -- <path>`, lines and `-l` files. **Complete when
 
 **Passages deleted under N7.** A narration's old word and its marker are often on adjacent lines, and an old phrase
 can break across lines or literals, so step 0's worklist (§III.8, block 0: `pairs.awk`, run once) reads each line
-JOINED to the one before it —
-comment leaders, a string-literal join and a line-end hyphen stripped — and prints a **split** pair (an old word only
-the joined text holds) and a **narration** (an old word or `inquir` beside a dated or measured marker: `MEASURED`,
-a date, `universe-mN`, `#NNN`, "N of M", `verbatim`, `retired`, `CUT`, `used to`, `became`; generated files skipped).
-Over the whole live tree: 256 narration pairs in 96 files — `.github/workflows/hooks.yml`, `F/docs`, `scripts/agentgen/src`,
-two other plugins' Go and `record.proto:960` among them — and 2 split pairs (`record.proto:960`, "line / of
-inquiry", and its `record.pb.go` copy). Each is a sentence in the present
-voice, renamed, or a narration, deleted whole and never renamed in place; an instruction a deleted passage carried is
-restated in the present tense where it stood (R7).
+JOINED to the one before it — comment leaders, a string-literal join and a line-end hyphen stripped — and prints a
+**split** pair (an old word only the joined text holds) and a **narration** (an old word or `inquir` beside a dated or
+measured marker: `MEASURED`, a date, `universe-mN`, `#NNN`, "N of M", `verbatim`, `retired`, `CUT`, `used to`,
+`became`; generated files skipped). Over the whole live tree: 256 narration pairs in 96 files —
+`.github/workflows/hooks.yml`, `F/docs`, `scripts/agentgen/src`, two other plugins' Go and `record.proto:960` among
+them — and 2 split pairs (`record.proto:960`, "line / of inquiry", and its `record.pb.go` copy). Each is a sentence in
+the present voice, renamed, or a narration, deleted whole and never renamed in place; an instruction a deleted passage
+carried is restated in the present tense where it stood (R7).
 
 ### III.3 The words grep cannot settle: the earlier names, `line` and `move`
 
@@ -287,7 +290,7 @@ itself fails loudly, since `propose` no longer registers `--reason` and cobra re
 
 | Site | Changes |
 |---|---|
-| `cli/blue/avenue.go:119–120` (the writer) | yes: `propose` writes `question` and leaves `reason` unset |
+| `cli/blue/avenue.go:119–120` (the writer) | yes: `propose` writes `question` and leaves `reason` unset; [NEW] `TestAProposalHoldsAQuestionAndNoReason` (`cli/inquiry_test.go`) |
 | `report/assemble.go:684` (`a.Reason != "" && a.Reason != a.Line`) | yes: the second operand is [DELETE]d |
 | `scorecard/scorecard.go:434` (`st != "pursued" && len(reason) < 20`) | yes: the detector skips `proposed` and `underway` |
 | `report/assemble.go:689`; `view/view.go:775–776`; `record/avenue.go:94,158,329` | no: they print or carry a reason when one exists (`StruckAvenueTexts`, `:94`, takes a proposal's question and a recorded fate's reason) |
@@ -300,6 +303,7 @@ T/internal/{cli/blue,cli/chair,record}/inquiry.go [git mv]; and 10 `inquiry*_tes
 T/internal/record/recordpb/, recordsql/views.go, migrate/*.go, T/internal/terms/terms.json   [MODIFY]
 T/internal/anchor/anchor.go, kinds_test.go (N24)                                              [MODIFY]
 scripts/agentgen/src/** (7), feov-memory/protocol-class-registry.md, law/precedents.md (3 lines) [MODIFY]
+scripts/universe.sh   [MODIFY] build: refuse a dirty tree; remove, then write, <WORKDIR>/built-from (N25, §V.6)
 ```
 
 ### III.5 Migration: one translation per changed word
@@ -399,9 +403,6 @@ flag's usage, or the enum's `(means)` — unless the page already says it, and l
 (record each approach with the fate it had, owe no fate an entry, keep the question free of a predicted result). The
 PR lists each moved sentence. No renamed text says what anything was called or narrates an incident.
 
-**Two questions.** The run has a question and so does each inquiry: N19's reader is asked whose question
-`--question` holds, and review reads the rest (N23).
-
 ### III.7 The byte budget for prompts
 
 At `54e0ff06` (`go -C T test -count=1 -run TestNoSeatPromptGrowsPastItsCeiling -v ./internal/seatprobe/`): red-chair
@@ -412,8 +413,8 @@ changes add a few bytes each and N18's moved mechanics remove more; no ceiling i
 
 By kind, never a repository-wide text replace (R1); each step begins once the one before passes its check; one commit
 per step. The PR merges by merge commit, so step 1 may close on a tree that does not compile, and says so. A check
-closes on a COUNT read from its output (the kit's `tally`), never on `ok` or an exit code; commands holding a pipe
-are in the block after the table, by step number.
+closes on a COUNT read from its output (the kit's `tally`) with no `FAIL`, never on `ok` or an exit code; commands
+holding a pipe are in the block after the table, by step number.
 
 | # | Step | The check that closes it |
 |---|---|---|
@@ -424,10 +425,10 @@ are in the block after the table, by step number.
 | 4 | CLI: verbs, flags, JSON keys, refusals, N10, literals in the 17 CLI files and the record folds; the five help pages written so each teaches its verb on its own (N18): what `--question`, `--hypothesis`, `--method`, `--id`, `--as` (every fate, with its meaning) and `--reason` hold, what is refused, and what to do next | `cli` and `record` whole (block, 4), migrate among them; each page rendered from the built binary and read twice: against step 0's page — or the latest base's (§III.9) — for a lost instruction; and by N19's fresh reader, to closure, its final questions and answers saved for the PR |
 | 5 | Terms and the fate wording: §III.6's registry entry and items 1–3; then `agentgen`, `vocabdoc` | the two named tests (block, 5), `TestVocabularyProse` with no stale mask; `TestBluesPromptsNameTheSectionsTheToolComposes` holds the sections copy; `agentgen -check` clean |
 | 6 | Seat-facing prose: help pages, `(means)`, the prompt constants, constitutions, skill sources, references — sentence by sentence (§III.3), each in a prompt, constitution or skill classified duty or mechanics and mechanics moved (§III.6, N18); then `enginegen`, `agentgen`, `vocabdoc` | the six named tests (block, 6); `agentgen -check` and gate `enginegen` clean; each moved sentence found on its destination page by rendering it |
-| 7 | Goldens: for each, write the PREDICTED file in scratch — the old golden through the kit's word map, `awk -v map=1 -f $K/wordmap.awk` — regenerate (both commands of §II's table), and `diff` predicted against regenerated; then §III.3 pass 4 | every line the two disagree on is read and explained in the PR; lines that agree are the rename and nothing else |
+| 7 | Goldens: for each, write the PREDICTED file in scratch — the old golden through the kit's word map, `awk -v map=1 -f $K/wordmap.awk` — regenerate (both commands of §II's table), and `diff` predicted against regenerated; then §III.3 pass 4 | every line the two disagree on is read and explained in the PR — of the 226 golden lines the map renames, 51 also hold `line`, `move`, `--reason` or `direction`, which `map=1` leaves for this reading, with N18's rewrites; lines that agree are the rename and nothing else |
 | 8 | The release fuzz, by hand: the three files, the drive (`fuzz_test.go:1938–1988`, `:5121–5163`), the coverage key per recording verb, the oracle's messages | §V.5; and by mutation: take `refuted`, then `underway`, out of `nextInquiryStatus`'s rotation — the coverage gate turns red each time |
 | 9 | Simulator, docs, comments, tests: `debate.test.mjs`, the relay fixtures (N16), the prompt goldens, `F/README.md`, `F/docs/*.md`, the class registry line, `law/precedents.md`'s three lines, §III.2's deletions | the simulator suite (`fail 0`); gates `decisions`, `mjsparity`, `archaeology`; **S1 holds** |
-| 10 | §V.1 to §V.5 in full, then the smoke (§V.6) | S2–S8; each once-only check recorded by `ran` after its reading (§III.9) |
+| 10 | §V.1 to §V.5 in full; `scripts/universe.sh`'s build record (N25), its own commit; then the smoke (§V.6) | S2–S8; each once-only check recorded by `ran` after its reading (§III.9) |
 
 ```
 git grep -lI '' | live | xargs awk -v old="$OLD" -f $K/pairs.awk | sort > $X/worklist   # 0: N7's worklist, run once
@@ -438,8 +439,6 @@ pages $X/help/after inquiry inquiries record                                   #
 go -C $T test -count=1 -v -run '^(TestVocabularyProse|TestEveryEnumValueNamedInAPromptIsAccepted)$' ./integration/surface/ 2>&1 | tally  # 5: PASS 2
 go -C $T test -count=1 -v -run '^(TestEveryEnumValueNamedInAPromptIsAccepted|TestNoSeatPromptGrowsPastItsCeiling|TestTheSeatPromptsNameNoVerb|TestNoPromptGrowsItsCommandCatalogue|TestDetailsDoNotRestateTheFlagsCobraPrints|TestBluesPromptsNameTheSectionsTheToolComposes)$' ./integration/surface/ ./internal/seatprobe/ ./internal/cli/ ./internal/report/ 2>&1 | tally   # 6: PASS 6
 ```
-
-Every count is read with no `FAIL`.
 
 ### III.9 Landing without a freeze (N13), with the smoke inside it (N15)
 
@@ -457,7 +456,7 @@ workstream with the merge commit and epoch, naming each open PR whose `gh pr dif
    then make the same edit, git merges it cleanly, and two shape changes would share one epoch. The kit's `epoch`
    (on the working tree) exits non-zero on a mismatch, naming both; then `eventSchema` is set to `E0 + 1`,
    `schemagen` re-run and `feov-record-E0` rebuilt in a base image of the new base. The re-bump is a hand change on
-   `requirements.json`, so §V.4 and §V.5 re-arm (N21). §III.5's rows still map each old word straight to the current one.
+   `requirements.json`, so every once-only check re-arms (N28). §III.5's rows still map each old word straight to the current one.
 4. Regenerate, in this order: `protogen`; `schemagen`; `go -C T build ./...` (the compiler names every identifier
    main added under an old name); `enginegen`; `agentgen`; `vocabdoc`; both golden commands of §II's table.
 5. Read what main ADDED: `added <the noted merge base> > $X/added` (each added line as `path:line:` in
@@ -478,26 +477,36 @@ workstream with the merge commit and epoch, naming each open PR whose `gh pr dif
    by its last line, and S1 and the epoch check then run on `origin/main` and a defect is fixed forward.
 
 **Once-only checks (N21).** Every attempt runs steps 3, 5, 6, CI and step 7. S6 (§V.2 step 3), the dumps (§V.3 steps
-2–3), §V.4, the fuzz's two legs (§V.5) and the smoke (§V.6) each run once and, when passed and read, are recorded:
-`ran s6|dumps|e0|fuzz <commit>`, and `ran smoke <commit> <its run's record.db>`, which reads the run's `outcome` row
-and records nothing unless it is `verified` or `ceiling`. A record holds the branch's HAND CHANGES at that commit —
-the kit's `hand`: its diff from the main it merged, generated output and enginegen's two regions of `debate.js`
-dropped, and each `-`/`+` pair the word map explains cancelled. `stands <check>` passes only while the hand changes
-on that check's surface (`surf`) are the same at HEAD. Any edit that is not the word-map rename changes them, a
-conflict resolution included unless it is exactly main's hunk renamed (step 2); main's commits, the word-map rename
-of a line main added and regeneration do not; a pair the map does not explain (an article it leaves wrong) counts as
-a hand change, so an error re-runs a check rather than skips one. Residue:
-main's own changes reach these checks only through CI and the nightly release fuzz, as for every other PR. Later
-attempts take §V.2 step 1 from CI's `feov-record (ubuntu-latest)`; N19's readings repeat when a page rendered from
-HEAD differs from the page last read.
+2–3), §V.4, the fuzz's two legs (§V.5) and the smoke (§V.6) each run once and, when passed and read, are recorded by
+`ran <check> <commit>` from a clean tree; the smoke's record binds to its build (N25). `ran s6|dumps|e0 HEAD` and
+`ran fuzz <commit>` bind by discipline: no test log names its commit, so each is recorded at once, on the one it ran
+on. A record holds the branch's HAND CHANGES at that commit — the kit's `hand`: its diff from the main it merged, on a
+diff no configuration reshapes, generated output and enginegen's two regions of `debate.js` dropped, each `-`/`+` pair
+cancelled whose sides are equal under the word map (N26). It refuses when a diff fails or a changed text file yields
+no line: a reshaped diff is never read as no change. `stands <check>` passes only while the hand changes on that
+check's surface (`surf`) are the same at HEAD. A pair the map does not cancel — a conflict resolution beyond main's
+hunk renamed, an article it leaves wrong, any edit beside a renamed word — re-arms each check whose surface holds its
+file; main's commits, the map's rename of a line main added and regeneration re-arm none (residue: N26). Main's own
+changes reach these checks only through CI and the nightly release fuzz, as for every other PR. Later attempts take
+§V.2 step 1 from CI's `feov-record (ubuntu-latest)`; N19's readings repeat when a page rendered from HEAD differs from
+the page last read.
+
+**A surface is every file its check reads or mutates**, so a hand change to any of them re-arms it. Three reads derive
+it, re-run at step 10: what the check runs (`go -C T list -deps -test` of its packages stays inside `T/internal`;
+`command grep -rn 'repotree\.' T/releasegate/fuzz` adds `debate.js` and `hooks/hooks.json`; `universe.sh` stages
+`plugins/` whole through `universe-manifest.py` and `marketplace.json`, and setup reads
+`feov-memory/class-registry.json`); what it mutates (S6's registry rows, `anchor.IDPattern`, propose's `body.Reason`,
+and their killing tests in `migrate/`, `anchor/` and `cli/inquiry_test.go`); and the source and generator of each
+generated file it reads, which `hand` drops (`requirements.json`, `class-registry.json`,
+`scripts/{protogen,schemagen,classgen,agentgen,vocabdoc}`, `T/devcmd/enginegen`). `run-archive/` is on S6's, the
+dumps' and §V.4's, a tarball by its blob. No surface holds `law/`: setup mirrors `<cwd>/law`, and a universe's `src`
+has none.
 
 **A base image** — `before` (§V.3), the before-pages (step 4), `feov-record-E0`, §V.2's `ok` count — is made at the
 commit compared against, in a worktree of its own under the main checkout, removed after: `b=$(git rev-parse --short
 origin/main); D=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/worktrees/base-$b; git
 worktree add --detach "$D" origin/main`, step 0's file written in from `git show <step 0's commit>:$T/devcmd/archdump/main.go`
 (it fails to compile, loudly, if main changed what it calls), and `git worktree remove --force "$D"` after.
-
-**The smoke, once (N15)**, runs on the first complete tree beside that attempt's CI; the merge waits for its `ran`.
 
 ## IV. Risk & Mitigation
 
@@ -535,10 +544,11 @@ First, the Appendix's two extraction commands. Before any FEOV command: `unset $
    in the base image (§III.9); the branch adds no package.
 2. `go -C scripts test -count=1 ./... 2>&1 | tally` → no `FAIL`. `node --test plugins/frank-exchange-of-views/tests/simulator/*.test.mjs` → `fail 0`.
 3. **S6, by hand.** Delete, one at a time, each of M1–M15's registry rows, the `question` rename, the two
-   `InquiryStatus` rows and the `inquiryArm` field rename; run `go -C T test -count=1 ./internal/record/migrate/ 2>&1 |
-   tally`. Each prints a `FAIL` naming a test (the PR lists the pairs); one that prints none is a missing assertion,
-   fixed before merge. Likewise restore `body.Reason` in `propose` (N10), and `IDPattern`'s silent drop (N24):
-   `TestIDPatternRefusesAKindItDoesNotKnow` fails. Then `ran s6 HEAD`.
+   `InquiryStatus` rows and the `inquiryArm` field rename; likewise restore `body.Reason` in `propose` (N10) and
+   `IDPattern`'s silent drop (N24). After each, `go -C T test -count=1 ./internal/record/migrate/ ./internal/anchor/
+   ./internal/cli/ 2>&1 | tally` prints a `FAIL` naming a test — `TestAProposalHoldsAQuestionAndNoReason` and
+   `TestIDPatternRefusesAKindItDoesNotKnow` for the last two (the PR lists the pairs); one that prints none is a
+   missing assertion, fixed before merge. Then `ran s6 HEAD`.
 4. `go -C scripts run ./check > …/check.log 2>&1` → the summary line's failed count is 0. `qlty` and `actionlint`
    run only in CI: read the PR's checks by fail count.
 
@@ -550,11 +560,11 @@ First, the Appendix's two extraction commands. Before any FEOV command: `unset $
 2. `go -C T run ./devcmd/archdump -archives run-archive -out $X/before` in the base image (§III.9); then on the
    branch with `-out $X/after` → one directory per tarball, `cat $X/after/*/REFUSALS | wc -l` → 0, no
    `$X/after/*/ASSEMBLE_ERROR`.
-3. **S4.** The kit's `docs` (`before` with `avenues.md` named `inquiries.md`, `diff -r` against `after`, each `-`/`+`
-   pair the word map explains cancelled): every line it prints is a seat's own text holding an old word, which
-   migrate re-reads no prose to change, each read and listed in the PR; any other line is a defect. No archive rests
-   at `proposed` (`command grep -c '^## proposed' $X/before/*/avenues.md` → 0 each), so N10 changes no document.
-   Then `ran dumps HEAD`.
+3. **S4.** The kit's `docs` (`before` with `avenues.md` named `inquiries.md`, `diff -r` against `after`, each pair
+   cancelled by `hand`'s map, N27) → **no output**: migrate re-reads no prose, so a seat's own text is byte-equal, and
+   each word the tool renders is the rename; a printed line is a defect, fixed before merge. No archive rests at
+   `proposed` (`command grep -c '^## proposed' $X/before/*/avenues.md` → 0 each), so N10 changes no document. Then
+   `ran dumps HEAD`.
 4. Read by hand, in `after`: `2026-10-11_is-91-prime-m20/report.md`'s three inquiry sections and `inquiries.md`
    whole; `2026-09-11_is-91-prime-b9/inquiries.md` (`## underway (7)`).
 
@@ -581,7 +591,8 @@ First, the Appendix's two extraction commands. Before any FEOV command: `unset $
 
 ### V.6 The engine runs · BEFORE merge, on the first complete tree (N15) · re-armed under N21
 
-1. `scripts/universe.sh build` from the finished branch; prove it carries the change, with `command grep -r` (the
+1. `scripts/universe.sh build` from the finished branch at a clean commit `S`, which it writes, with the time it
+   finished, to `<WORKDIR>/built-from` (N25). Prove the universe carries the change, with `command grep -r` (the
    installed copy is no git repository, where `git grep` errors and prints nothing): `-rlIi 'inquiry record'` over
    `<the installed plugin copy>/agents` prints the chair's and blue's definitions; `-ac 'inquiry record'` over its
    `bin/feov-record` is non-zero; `-rlIiE "$OLD"` over the copy prints only `tools/internal/record/migrate/`,
@@ -590,13 +601,14 @@ First, the Appendix's two extraction commands. Before any FEOV command: `unset $
    config that lost the subscription bills API credits), and every `feov-record` call from outside the run names
    the run's own binary by absolute path (a bare one reaches the host cache at the earlier epoch and is refused).
 3. `SMOKE=1 scripts/universe.sh run "<topic>"`, detached, its stream to a log: one lane, `haiku` on both tiers,
-   `--mint-budget 3 --k-max 2`; `scripts/universe.sh watch` reads the board. Note the commit `S` it was built from.
+   `--mint-budget 3 --k-max 2`; `scripts/universe.sh watch` reads the board.
 4. It ENDS verified or ceiling before the PR merges. Read: the frontier seat's first `inquiry propose` carries
-   `--question` and is accepted first time; at least one `inquiry record --as confirmed|refuted`; every refusal on
-   the `inquiry` group (`feov-record dashboard`, `ops log`) with the help page or prompt sentence that taught what
-   the seat typed; the chair's `inquiry review`; `inquiries.md` in the report set; outcome and wall clock against
-   the last smoke. A refusal that traces to the rename is fixed; the fix, a hand change, re-arms the smoke. After
-   the reading, `ran smoke S <the run's record.db>`; `premerge.sh` refuses until it has recorded.
+   `--question` and is accepted first time; at least one `inquiry record --as confirmed|refuted`; every refusal on the
+   `inquiry` group (`feov-record dashboard`, `ops log`) with the help page or prompt sentence that taught what the
+   seat typed; the chair's `inquiry review`; `inquiries.md` in the report set; outcome and wall clock against the last
+   smoke. A refusal that traces to the rename is fixed; the fix, a hand change, re-arms the smoke. After the reading,
+   `ran smoke S <WORKDIR>/src/research/<run>/records/record.db`, which refuses any other record (the archived wave-b
+   `record.db`: no `built-from` above it); `premerge.sh` refuses until it has recorded.
 
 ### V.7 The auditor gate
 
@@ -657,9 +669,12 @@ red-chair $n review
 red-chair motion $n rule
 red-chair show $pl"; }
 
+# gd: a diff no configuration reshapes — prefixes, colour, an external or textconv driver, rename pairing, a relative root
+gd() { git -c diff.noprefix=false -c color.diff=never -c diff.external= diff --no-ext-diff --no-color --no-textconv \
+  --no-renames --no-relative --src-prefix=a/ --dst-prefix=b/ "$@"; }
 # added BASE: each line origin/main added since BASE, as path:line: in origin/main's copy (the header state keeps an
 # added line that itself begins with +)
-added() { git diff --unified=0 "$1"..origin/main | awk '/^diff --git /{h=1; next}
+added() { gd --unified=0 "$1"..origin/main | awk '/^diff --git /{h=1; next}
   h && /^\+\+\+ /{f=substr($0,7); next} /^@@ /{h=0; split($3,a,/[+,]/); n=a[2]; next}
   !h && /^\+/{print f":"n": "substr($0,2); n++}'; }
 # epoch [REV]: fails unless the branch's epoch (at REV; default the working tree) is origin/main's plus one
@@ -668,53 +683,95 @@ epoch() { local e0 e; e0=$(git show origin/main:$F/requirements.json | jq -e .ev
   [ "$e" -eq $((e0 + 1)) ] || { echo "EPOCH MISMATCH: branch $e, origin/main $e0" >&2; return 1; }; }
 
 # hand REV: the branch's own hand changes at REV — its diff from the main it merged, generated files and enginegen's two
-# regions of debate.js dropped, and every -/+ pair the word map explains cancelled — as sorted path:-text and path:+text
-hand() { local b; b=$(git merge-base "$1" origin/main) || return
-  { git diff -U0 "$b" "$1" -- . ":!$DJ" | awk '/^diff --git /{h=1} h && /^(--- a|\+\+\+ b)\//{f=substr($0,7)}
-      /^@@ /{h=0; next} !h && /^[-+]/{print f ":" $0}'
-    git diff -U99999 "$b" "$1" -- "$DJ" | awk -v f="$DJ" 'BEGIN{h=1} /^@@ /{h=0; next} h{next}
-      /^.\/\/ BEGIN GENERATED/{g=1} !g && /^[-+]/{print f ":" $0} /^.\/\/ END GENERATED/{g=0}'; } \
-  | authored | awk -f "$K/wordmap.awk" | sort; }
-# surf CHECK: the hand changes on a once-only check's surface; tests and test data count only for s6 and fuzz
-surf() { local r; case $1 in s6) r="^$T/internal/record/migrate/";; dumps) r="^$T/(cmd|internal|devcmd/archdump)/";;
-  e0) r="^$T/(cmd|internal)/|^$F/requirements[.]json\$";; fuzz) r="^$T/(cmd|internal|releasegate)/|^$F/hooks/|^$F/requirements[.]json\$";;
-  smoke) r="^$T/(cmd|internal)/|^$F/(skills|hooks)/|^scripts/agentgen/";; *) echo "surf: no check $1" >&2; return 1;; esac
-  awk -F: -v r="$r" -v c="$1" '$1 ~ r && (c == "s6" || c == "fuzz" && $1 ~ /releasegate/ || $1 !~ /_test[.]go$|\/testdata\//)'; }
-# ran CHECK REV [RECORD]: CHECK passed on REV, recorded AFTER its reading. The smoke takes its run's record.db and is
-# recorded only when the run ENDED verified or ceiling, read from the record's outcome row.
-ran() { local v; surf "$1" < /dev/null || return; if [ "$1" = smoke ]; then
-    v=$(python3 -I -c 'import sqlite3,sys; print(*sqlite3.connect("file:"+sys.argv[1]+"?mode=ro",uri=True).execute("select verdict from outcome"))' "${3:?the run record.db}") || return
-    case $v in "('verified',)"|"('ceiling',)") ;; *) echo "the smoke ended ${v:-with no outcome}: not recorded" >&2; return 1;; esac; fi
-  mkdir -p $X/ran && hand "$2" > $X/ran/$1.hand && git rev-parse "$2" > $X/ran/$1.at; }
+# regions of debate.js dropped, each -/+ pair the word map explains cancelled — as sorted path:-text and path:+text, and
+# path:=mode blob for a binary, empty or mode-only change. Each diff's status is read, and a changed text file that
+# yields no line (a reshaped diff) is refused rather than read as no change.
+hand() { local b d=$X/ran/hand.$$; mkdir -p $X/ran; b=$(git merge-base "$1" origin/main) || return
+  gd --numstat "$b" "$1" > $d.n && gd -U0 "$b" "$1" -- . ":!$DJ" > $d.t && gd -U99999 "$b" "$1" -- "$DJ" > $d.j || return
+  { awk '/^diff --git /{h=1} h && /^(--- a|\+\+\+ b)\//{f=substr($0,7)} /^@@ /{h=0; next} !h && /^[-+]/{print f ":" $0}' $d.t
+    awk -v f="$DJ" 'BEGIN{h=1} /^@@ /{h=0; next} h{next}
+      /^.\/\/ BEGIN GENERATED/{g=1} !g && /^[-+]/{print f ":" $0} /^.\/\/ END GENERATED/{g=0}' $d.j
+    awk -F'\t' '$1 == "-" || $1 + $2 == 0 {print $3}' $d.n | while read -r p; do
+      git ls-tree "$1" -- "$p" | awk -v p="$p" '{print p ":=" $1 " " $3; n++} END {if (!n) print p ":=deleted"}'; done
+  } | authored > $d.l || return
+  awk -F'\t' -v j="$DJ" '$1 != "-" && $1 + $2 > 0 && $3 != j {print $3}' $d.n | authored | sort -u > $d.c
+  cut -d: -f1 $d.l | sort -u | comm -23 $d.c - > $d.m
+  command grep -q "	$DJ\$" $d.n && [ ! -s $d.j ] && echo "$DJ" >> $d.m
+  [ ! -s $d.m ] || { echo "hand: $(wc -l < $d.m) changed file(s) yield no diff line: $(head -1 $d.m)" >&2; rm -f $d.*; return 1; }
+  awk -f "$K/wordmap.awk" $d.l | sort; rm -f $d.*; }
+# surf CHECK: the hand changes on a once-only check's surface — the files it reads or mutates (§III.9), code by r and
+# tests by t; G is the sources and generators of the generated files a built binary holds, which hand drops
+surf() { local r t='^$' G="^$F/requirements[.]json\$|^feov-memory/class-registry[.]json\$|^scripts/(protogen|schemagen|classgen)/"
+  case $1 in
+  s6) r="^$T/internal/|^$T/go[.](mod|sum)\$|^run-archive/|$G"; t="^$T/internal/(record/migrate|anchor)/|^$T/internal/cli/inquiry_test[.]go\$";;
+  dumps) r="^$T/(internal|devcmd/archdump)/|^$T/go[.](mod|sum)\$|^run-archive/|$G";;
+  e0) r="^$T/(cmd|internal)/|^$T/go[.](mod|sum)\$|^run-archive/2026-10-12_is-91-prime-wave-b[.]tar[.]gz\$|$G";;
+  fuzz) r="^$T/(cmd|internal|devcmd/enginegen)/|^$T/go[.](mod|sum)\$|^$F/hooks/|^$DJ\$|$G"; t="^$T/releasegate/";;
+  smoke) r="^plugins/|^scripts/(universe[.]sh|universe-manifest[.]py)\$|^scripts/(agentgen|vocabdoc)/|^[.]claude-plugin/marketplace[.]json\$|$G";;
+  *) echo "surf: no check $1" >&2; return 1;; esac
+  awk -F: -v r="$r" -v t="$t" '$1 ~ r && $1 !~ /_test[.]go$|\/testdata\// || $1 ~ t'; }
+# ran CHECK REV [RECORD]: CHECK passed on REV, recorded AFTER its reading, from a clean tree. The smoke takes its run's
+# record.db and is recorded only when the run is a universe's (its path before /src/research/), that universe's build
+# names REV, the record states REV's epoch, the run began after the build, and it ENDED verified or ceiling.
+ran() { local u c t; surf "$1" < /dev/null || return
+  [ -z "$(git status --porcelain)" ] || { echo "ran: the tree is dirty" >&2; return 1; }
+  if [ "$1" = smoke ]; then u=${3:?the run record.db}; u=${u%%/src/research/*}
+    { [ "$u" != "$3" ] && read -r c t < "$u/built-from"; } 2>/dev/null || { echo "ran: no universe build record for $3" >&2; return 1; }
+    [ "$c" = "$(git rev-parse "$2^{commit}")" ] || { echo "ran: the universe was built from $c, not $2" >&2; return 1; }
+    python3 -I - "$3" "$(git show "$2:$F/requirements.json" | jq -e .eventSchema)" "$t" <<'PY' || return
+import sqlite3, sys
+db, want, built = sys.argv[1:]; c = sqlite3.connect('file:' + db + '?mode=ro', uri=True)
+e, = c.execute('select epoch from schema_epoch').fetchone(); s, = c.execute('select min(ts) from events').fetchone()
+o = c.execute('select verdict from outcome').fetchone()
+if str(e) != want: sys.exit(f'ran: the record states epoch {e}, the branch {want}')
+if (s or '')[:19] <= built[:19]: sys.exit(f'ran: the run began {s}, not after the build at {built}')
+if not o or o[0] not in ('verified', 'ceiling'): sys.exit(f'ran: the smoke ended {o[0] if o else "with no outcome"}: not recorded')
+PY
+  fi; hand "$2" > $X/ran/$1.new && mv $X/ran/$1.new $X/ran/$1.hand && git rev-parse "$2" > $X/ran/$1.at; }
 # stands CHECK: CHECK passed, and the branch's own hand changes on its surface are those it passed on
 stands() { [ -s $X/ran/$1.at ] || { echo "$1: never passed" >&2; return 1; }; hand HEAD > $X/ran/now.hand || return
   surf $1 < $X/ran/$1.hand > $X/ran/a && surf $1 < $X/ran/now.hand > $X/ran/b || return
   cmp -s $X/ran/a $X/ran/b || { echo "$1: re-armed by a hand change since $(cat $X/ran/$1.at)" >&2; return 1; }; }
 
-# docs: S4 — every assembled document, before against after, file name mapped, each -/+ pair the word map explains cancelled
+# docs: S4 — every assembled document, before against after, file name mapped, each -/+ pair cancelled by hand's map
 docs() { [ -d $X/before ] && [ -d $X/after ] || return; rm -rf $X/named && cp -r $X/before $X/named || return
   for f in $X/named/*/avenues.md; do mv "$f" "${f%/*}/inquiries.md"; done
-  diff -r $X/named $X/after | awk '/^diff -r /{f=$3; sub(/.*\/named\//, "", f); next} /^[<>] /{print f ":" ($1 == "<" ? "-" : "+") substr($0, 3); next}
+  { diff -r $X/named $X/after; [ $? -le 1 ]; } | awk '/^diff -r /{f=$3; sub(/.*\/named\//, "", f); next} /^[<>] /{print f ":" ($1 == "<" ? "-" : "+") substr($0, 3); next}
     /^[^-0-9]/{print}' | awk -f "$K/wordmap.awk"; }
 ```
 
 #### `wordmap.awk`
 
 ```awk
-# The word map, case kept. With -v map=1 it maps each line. Otherwise it reads path:-text and path:+text lines, cancels
-# each -text whose mapped form is a +text of the same path, and prints the rest; any other line passes through.
+# The word map, case kept: every rename the plan rules. wm holds the words that are renamed in every context (the noun
+# and its compounds, the two fates); wx adds those whose sense the context decides (line, move, direction, --reason).
+# With -v map=1 it prints each line through wm. Otherwise it reads path:-text, path:+text and path:=... lines and cancels
+# each -/+ pair whose two sides, path included, are equal once BOTH are put through wx and their inner runs of blanks
+# collapsed (gofmt realignment); it prints the rest, and any other line, as it came. Mapping both sides is what makes a
+# context-dependent rule safe to hold: a pair cancels only when it differs in nothing but mapped words.
 function wm(s) {
+  gsub(/AAvenue/, "AnInquiry", s); gsub(/BOTH AVENUES/, "BOTH ROUTES", s)
   gsub(/avenue move/, "inquiry record", s); gsub(/Avenue move/, "Inquiry record", s); gsub(/AVENUE MOVE/, "INQUIRY RECORD", s)
   gsub(/avenues/, "inquiries", s); gsub(/Avenues/, "Inquiries", s); gsub(/AVENUES/, "INQUIRIES", s)
   gsub(/avenue/, "inquiry", s); gsub(/Avenue/, "Inquiry", s); gsub(/AVENUE/, "INQUIRY", s)
   gsub(/pursued/, "underway", s); gsub(/Pursued/, "Underway", s); gsub(/PURSUED/, "UNDERWAY", s)
   gsub(/concluded/, "confirmed", s); gsub(/Concluded/, "Confirmed", s); gsub(/CONCLUDED/, "CONFIRMED", s)
   return s }
+function wx(s) { s = wm(s); gsub(/--reason/, "--question", s)
+  gsub(/directions/, "inquiries", s); gsub(/Directions/, "Inquiries", s); gsub(/DIRECTIONS/, "INQUIRIES", s)
+  gsub(/direction/, "inquiry", s); gsub(/Direction/, "Inquiry", s); gsub(/DIRECTION/, "INQUIRY", s)
+  gsub(/moved/, "recorded", s); gsub(/Moved/, "Recorded", s); gsub(/MOVED/, "RECORDED", s)
+  gsub(/moving/, "recording", s); gsub(/Moving/, "Recording", s); gsub(/MOVING/, "RECORDING", s)
+  gsub(/move/, "record", s); gsub(/Move/, "Record", s); gsub(/MOVE/, "RECORD", s)
+  gsub(/line/, "question", s); gsub(/Line/, "Question", s); gsub(/LINE/, "QUESTION", s)
+  return s }
+function key(p, s,   l, t) { s = wx(s); match(s, /^[ \t]*/); l = substr(s, 1, RLENGTH); t = substr(s, RLENGTH + 1)
+  gsub(/[ \t]+/, " ", t); sub(/ $/, "", t); return wx(p) l t }
 map { print wm($0); next }
 !/^[^:]*:[-+]/ { print; next }
-{ i = index($0, ":"); n++; P[n] = substr($0, 1, i); S[n] = substr($0, i + 1, 1); L[n] = substr($0, i + 2); if (S[n] == "+") plus[P[n] L[n]]++ }
-END { if (map) exit; for (k = 1; k <= n; k++) if (S[k] == "-" && plus[P[k] wm(L[k])] > 0) { plus[P[k] wm(L[k])]--; used[P[k] wm(L[k])]++; gone[k] = 1 }
-  for (k = 1; k <= n; k++) if (S[k] == "-") { if (!gone[k]) print P[k] "-" L[k] } else if (used[P[k] L[k]] > 0) used[P[k] L[k]]--; else print P[k] "+" L[k] }
+{ i = index($0, ":"); n++; P[n] = substr($0, 1, i); S[n] = substr($0, i + 1, 1); L[n] = substr($0, i + 2); K[n] = key(P[n], L[n]); if (S[n] == "+") plus[K[n]]++ }
+END { if (map) exit; for (k = 1; k <= n; k++) if (S[k] == "-" && plus[K[k]] > 0) { plus[K[k]]--; used[K[k]]++; gone[k] = 1 }
+  for (k = 1; k <= n; k++) if (S[k] == "-") { if (!gone[k]) print P[k] "-" L[k] } else if (used[K[k]] > 0) used[K[k]]--; else print P[k] "+" L[k] }
 ```
 
 #### `pairs.awk`
