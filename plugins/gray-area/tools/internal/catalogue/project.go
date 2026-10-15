@@ -49,23 +49,6 @@ func (o *origin) kind() string {
 	return o.Kind
 }
 
-// promptText is an attachment's prompt as text. Measured as a string on every record seen; a block
-// list is read for its text blocks rather than dropped, so a shape change narrows the snippet
-// instead of losing the channel.
-func (a *attachment) promptText() string {
-	var s string
-	if json.Unmarshal(a.Prompt, &s) == nil {
-		return s
-	}
-	var parts []string
-	for _, b := range decodeBlocks(a.Prompt) {
-		if b.Type == "text" {
-			parts = append(parts, b.Text)
-		}
-	}
-	return strings.Join(parts, "\n")
-}
-
 type message struct {
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
