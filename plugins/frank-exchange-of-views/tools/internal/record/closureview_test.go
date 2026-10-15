@@ -2,7 +2,6 @@ package record
 
 import (
 	"database/sql"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -77,30 +76,6 @@ func (s *closureStage) ruled(word recordpb.Disposition) *Event {
 	return mustAppend(s.t, s.bench, docketRuling(id, word))
 }
 
-// strike replaces the act keyed key with body, as a correction the write path does not admit: the
-// replacement and its Correction are inserted as rows, past every guard. The two rows that need it
-// are acts the write refuses even from migrate's replay —
-//
-//	(f) "a motion_rule correction changes only the seat's own wording (…); this one changes --as,
-//	    --final" (validateCorrection's tier check), and
-//	(g) "another seat has acted since this close (…); a correction strikes an act only before any
-//	    other seat acts" (validateCorrection's interleaving check)
-//
-// — so no admissible record holds either, and the rows pin what the readers make of one all the same.
-func (s *closureStage) strike(seat, key string, body proto.Message) {
-	s.t.Helper()
-	db := seatWriter(s.t, filepath.Join(s.run.Records(), "record.db"))
-	for _, ev := range []*Event{
-		recordtest.At(s.t, seat, key+"~1", body),
-		recordtest.At(s.t, seat, correctionKey(seat, key), &recordpb.Correction{
-			Corrects: proto.String(key), Replacement: proto.String(key + "~1"), Why: proto.String("w")}),
-	} {
-		if _, err := recordsql.Insert(db, ev); err != nil {
-			s.t.Fatal(err)
-		}
-	}
-}
-
 // closureWant is what every reader must say of G1.
 type closureWant struct {
 	open          bool
@@ -118,8 +93,7 @@ type closureWant struct {
 
 // A GAP'S CLOSURE IS ITS LAST STANDING CLOSING ACT, on each arm, and whichever arm acted last is the
 // one that closed it. The board, the family and the work list each say so of the same record: a
-// carried or re-ruled gap reads its carry or its second ruling, a struck act closes nothing, and a
-// corrected act keeps the place of the act it replaced.
+// carried or re-ruled gap reads its carry or its second ruling.
 func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 	const (
 		repaired   = recordpb.Disposition_DISPOSITION_REPAIRED
@@ -156,17 +130,6 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			s.epoch().carry("1", repaired)
 		}, closureWant{epoch: 3, fate: "repaired", bodyClass: "DISPOSITION_REPAIRED", bodyCarried: "1", benchDispo: "not_a_defect",
 			closureProse: "carried"}},
-		{"f: red closes, the bench's closing ruling is corrected to a remand", func(s *closureStage) {
-			s.close(repaired, "red's close")
-			k := s.epoch().ruled(notADefect).GetKey()
-			s.strike("judge", k, docketRuling("M1", remanded))
-		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "DISPOSITION_REPAIRED", closureProse: "red's close"}},
-		{"g: red closes, the bench rules, red corrects its close", func(s *closureStage) {
-			k := s.close(repaired, "red's close").GetKey()
-			s.ruled(notADefect)
-			s.strike(evLens, k, closureOf(repaired, "red's close, reworded"))
-		}, closureWant{byBench: true, epoch: 1, fate: "not_a_defect", bodyClass: "DISPOSITION_REPAIRED", benchDispo: "not_a_defect",
-			closureProse: "red's close, reworded", estopped: true}},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {

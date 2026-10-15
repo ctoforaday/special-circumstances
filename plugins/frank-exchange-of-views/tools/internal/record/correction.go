@@ -323,18 +323,19 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 // the case where "the gap is already closed" is the correction's own premise, not a refusal. A read
 // that fails answers false, so the ordinary guard runs and says what it says.
 //
-// THE EARLIEST STANDING RED CLOSE, read from closure_act itself, where the gap view states the
-// LAST: the question is whether the target is the act that closed the gap, and a later standing
-// close on a closed gap is a carry that restates it.
+// The act that closed the gap is the gap view's `close_event`, its last standing red close. While a
+// red close stands the gap is closed, so a second fresh close is refused and every later one is a
+// carry; a correction strikes an act only before any other seat acts, so no other seat's carry
+// follows the target. The first standing red close and the last part only where the target's own
+// seat carried it in the same sitting, and no record holds that: only migrate writes a correction,
+// and no archived run holds a gap with two standing red closes.
 func closedByTarget(run Run, gapID string, target *correctionTarget) bool {
 	if target == nil || gapID == "" {
 		return false
 	}
-	var seq int64
-	found, err := queryRow(run, []any{&seq}, `SELECT c."event_id" FROM "closure_act" c
-	  JOIN "live_event" l ON l."event_id" = c."event_id"
-	  WHERE c."gap_id" = ? AND c."arm" = 'close' ORDER BY l."pos" LIMIT 1`, gapID)
-	return err == nil && found && seq == target.ID
+	var seq sql.NullInt64
+	found, err := queryRow(run, []any{&seq}, `SELECT "close_event" FROM "gap" WHERE "gap_id" = ?`, gapID)
+	return err == nil && found && seq.Valid && seq.Int64 == target.ID
 }
 
 // correctionRetry answers a correction this seat already made of this key: the SAME replacement is

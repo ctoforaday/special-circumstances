@@ -313,28 +313,6 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 			rule("the grade moves, and here is why"))
 		admitted(t, run, id, firstKey)
 	})
-
-	// THE REGRADE IS WEIGHED AGAINST THE RULING THE MOTION CARRIES: its first that stands. The
-	// write refuses a second ruling, so these seed one past it. A second ruling after the regrade
-	// that answered the first re-opens no debt, and one that contradicts a rejection affords none.
-	t.Run("a second ruling after the regrade that answered the first", func(t *testing.T) {
-		dir, run, id := start(t, regradeLens)
-		recordtest.Seed(t, dir, accepted(t, "M1")...)
-		admitted(t, run, id, firstKey)
-		recordtest.Seed(t, dir, gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED), registers(t, regradeLens))
-		if listed(t, run) {
-			t.Errorf("a second ruling on an answered motion re-opened the regrade its first ruling asked for")
-		}
-	})
-	t.Run("a second ruling contradicting a rejection", func(t *testing.T) {
-		dir, run, _ := start(t, regradeLens)
-		recordtest.Seed(t, dir, gradeMotionFiled(t, "M1", "G1"),
-			gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_REJECTED),
-			gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED))
-		if listed(t, run) {
-			t.Errorf("a motion whose first ruling REJECTED it afforded a regrade")
-		}
-	})
 }
 
 // THE OWED REGRADE NAMES THE AXIS AND THE GRADE THE RULING ACCEPTED, as fields on the gap's work
