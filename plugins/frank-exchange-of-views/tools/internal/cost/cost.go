@@ -596,10 +596,9 @@ func reportTelemetry(run record.Run, p func(string)) {
 
 // THE '?' IS FOR AN ABSENT FIELD, and typing the row is what makes that honest.
 //
-// These read `map[string]any` and returned '?' when a key was missing or nil — which also hid a
-// key that was never written by anything (see scorecard's convergence_vs_verdict_flags). A proto
-// getter cannot miss a field that exists; these helpers now distinguish only the one thing that is
-// genuinely optional in the schema, which is PRESENCE.
+// A `map[string]any` lookup returns '?' for a missing key and a nil one alike, which hides a key
+// nothing ever writes. A proto getter cannot miss a field that exists; these helpers distinguish
+// only the one thing that is genuinely optional in the schema, which is PRESENCE.
 func telInt(v *int32) string {
 	if v == nil {
 		return "?"
