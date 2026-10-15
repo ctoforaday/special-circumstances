@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,18 +13,67 @@ import (
 )
 
 // Migrate is the whole act: copy the run's channels, replay its record through the current
-// write path, land the manifest. The source directory is never modified; the destination
-// must not already hold anything.
+// write path, land the manifest, and publish the result at toDir. The source directory is never
+// modified.
+//
+// toDir must be absent, or an empty plain directory — not a file, a symlink, a junction or a mount
+// point — and the record root must not be declared; each is refused before anything is created
+// (destination). The run is built in a `.<base>.migrating-<random>` directory beside toDir, in a
+// parent that must therefore be writable, and is moved onto toDir only once every file of it is
+// synced (publish), so an interrupted migration leaves toDir as it was. An existing empty toDir is
+// replaced by the built directory, not filled.
 //
 // The channel copy comes FIRST, and the archive taught why: validation consults the run's
 // own staged inputs — the gap-class registry lives beside the record (records/
 // class-registry.json), and a mint replayed into a run without it refuses, taking every
 // later reference to its gap down in a cascade. Everything except the database file set
 // copies verbatim; the record is the one thing replay rebuilds.
+//
+// A refusal publishes the run and its manifest and returns the manifest with an error. A failure
+// before the rename removes the build; a failed rename keeps it, complete and synced, and names it.
 func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error) {
-	if entries, err := os.ReadDir(toDir); err == nil && len(entries) > 0 {
-		return nil, fmt.Errorf("%s is not empty — a migration writes a FRESH sibling, never into an existing run", toDir)
+	to, err := destination(toDir)
+	if err != nil {
+		return nil, err
 	}
+	b, err := newBuild(to)
+	if err != nil {
+		return nil, err
+	}
+	m, err := b.fill(fromDir, reg, opt)
+	if err != nil {
+		return nil, b.discard(err)
+	}
+	warnings, kept, err := b.publish()
+	if err != nil && !kept {
+		return nil, b.discard(err)
+	}
+	if kept {
+		// The build stays where it is, so every text that reaches the operator keeps naming it.
+		m.Warnings = warnings
+		if len(m.Refusals) > 0 {
+			return m, errors.Join(err, refusedError(len(m.Refusals), filepath.Join(b.dir, "inputs", ManifestName)))
+		}
+		return m, err
+	}
+	for _, w := range warnings {
+		m.Warnings = append(m.Warnings, b.atTo(w))
+	}
+	if len(m.Refusals) > 0 {
+		return m, refusedError(len(m.Refusals), filepath.Join(to, "inputs", ManifestName))
+	}
+	return m, nil
+}
+
+func refusedError(n int, manifest string) error {
+	return fmt.Errorf("%d event(s) refused — the manifest at %s carries each one; "+
+		"a refusal is the tool's OUTPUT, decided in review, and there is no flag that skips validation",
+		n, manifest)
+}
+
+// fill builds the migrated run in the build directory and writes its manifest there.
+func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, error) {
+	toDir := b.dir
 	if err := copyChannels(fromDir, toDir); err != nil {
 		return nil, err
 	}
@@ -38,17 +88,26 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	var src Source
 	var unclassified []string
 	var discarded []DiscardedSitting
-	scratch := filepath.Join(toDir, ".migrate-src")
+	// The source's scratch copy lives outside the build, so the published run holds exactly the
+	// file set the migration writes. On a tmpfs temporary directory that copy is held in memory;
+	// an archived record is megabytes.
+	release := func() {}
+	defer func() { release() }()
 	if _, serr := os.Stat(filepath.Join(fromDir, "records", dbSiblings[0])); serr == nil {
+		scratch, err := os.MkdirTemp("", "feov-migrate-src-")
+		if err != nil {
+			return nil, err
+		}
+		release = func() { os.RemoveAll(scratch) }
 		sq, err := OpenSQLite(filepath.Join(fromDir, "records"), scratch)
 		if err != nil {
 			return nil, err
 		}
 		src = sq
-		defer func() {
+		release = func() {
 			sq.Close()
 			os.RemoveAll(scratch)
-		}()
+		}
 	} else {
 		js, err := OpenJSONL(filepath.Join(fromDir, "records"))
 		if err != nil {
@@ -88,18 +147,23 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 			carried += n
 		}
 	}
+	// The source is released before the publish, not at return: nothing of it may be open or on
+	// disk when the run is synced and moved.
+	release()
+	release = func() {}
 	m := NewManifest(fromDir, src.Files(), unclassified, res)
 	m.Discarded = discarded
 	m.SeatTurns = carried
 	m.SourceEpoch = sourceEpoch
 	m.StatedFills = append(registryFills, m.StatedFills...)
+	// The refusals describe the run that is, or would have been, published at --to, so their text
+	// names --to wherever it named the build — in the struct, so the manifest written here and the one
+	// Migrate returns say the same. A kept build's own manifest therefore names --to too.
+	for i := range m.Refusals {
+		m.Refusals[i].Err = b.atTo(m.Refusals[i].Err)
+	}
 	if err := m.Write(toDir); err != nil {
 		return nil, err
-	}
-	if len(res.Refusals) > 0 {
-		return m, fmt.Errorf("%d event(s) refused — the manifest at %s carries each one; "+
-			"a refusal is the tool's OUTPUT, decided in review, and there is no flag that skips validation",
-			len(res.Refusals), filepath.Join(toDir, "inputs", ManifestName))
 	}
 	return m, nil
 }
