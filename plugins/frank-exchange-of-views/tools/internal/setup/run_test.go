@@ -347,59 +347,74 @@ func TestAbsentRegistryIsAnnounced(t *testing.T) {
 	}
 }
 
-// A SECOND RUN OPENS, AND THE FIRST ONE IS NAMED. Driven end to end (#529).
+// A SECOND LIVE RUN IS REFUSED, NAMING THE FIRST AND HOW TO CLOSE IT (#1255). Driven end to end.
 //
-// This gate used to REFUSE, for a reason it stated itself: the stale marker was what
-// runlive.InferRunDir handed to every verb invoked without --run, so a run left open misdirected
-// the next one's seats. #526 removed that — setup bakes the run into <runDir>/.bin/feov-record,
-// so a seat carries its run in its own environment and never has to ask, and ReadRunLiveMarker
-// now declines to answer at all when more than one run is open.
-//
-// With the misdirection gone, refusing only forced the operator to defeat the guard by hand;
-// measured twice on consecutive days, and both times the remedy was `rm` on the one file that
-// says a run is open. What survives is the half that was always worth keeping: telling a human,
-// at the one moment one is present, that a previous run was never captured.
-func TestSetupOpensASecondRunAndNamesTheUnclosedOne(t *testing.T) {
+// The wrapper carries a seat's run into its own calls, but the hooks find a seat's run through this
+// project's marker, and with two live runs they bracket no sitting and count no call for either.
+// Setup used to open the second run with a notice; every seat of both runs then sat unrecorded.
+func TestSetupRefusesASecondLiveRun(t *testing.T) {
 	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
-	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
+	other := filepath.Join(cfg.Cwd, "research", "2026-08-01_running")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_running", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
+
+	var out, errb bytes.Buffer
+	if code := Run(cfg, &out, &errb); code != 2 {
+		t.Fatalf("exit %d, want 2 — a second live run must be refused:\n%s%s", code, out.String(), errb.String())
+	}
+	for _, want := range []string{
+		"ANOTHER RUN IS LIVE",
+		"research/2026-08-01_running",                     // names the live run
+		"2026-08-01T09:00:00.000Z",                        // and when it started
+		"feov-record capture research/2026-08-01_running", // how to close it
+		"separate checkout",                               // or how to run beside it
+	} {
+		if !strings.Contains(errb.String(), want) {
+			t.Errorf("the refusal must carry %q:\n%s", want, errb.String())
+		}
+	}
+	// NOTHING IS BUILT, AND THE LIVE RUN'S ROW STANDS.
+	if _, err := os.Stat(runDir); !os.IsNotExist(err) {
+		t.Errorf("the refused run was built: %v", err)
+	}
+	if rows := runlive.ReadRunLive(cfg.Cwd); len(rows) != 1 || rows[0].RunDir != "research/2026-08-01_running" {
+		t.Errorf("the marker changed under a refusal: %+v", rows)
+	}
+}
+
+// ROWS THAT ARE NO LONGER LIVE ARE PRUNED, AND NAMED, AND DO NOT STOP THE RUN. A run whose outcome
+// is recorded and a run whose directory is gone are residue of runs nothing captured.
+func TestSetupPrunesRowsThatAreNotLive(t *testing.T) {
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
+	ended := filepath.Join(cfg.Cwd, "research", "2026-08-01_ended")
+	if err := os.MkdirAll(ended, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ended, runlive.OutcomeMark), []byte(`{"agentId":"a-bench"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
+	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_ended", nil, at, "", "")
+	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-07-01_deleted", nil, at, "", "")
 
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
-		t.Fatalf("exit %d, want 0 — a run left open no longer stops the next one:\n%s", code, errb.String())
+		t.Fatalf("exit %d, want 0 — rows that are not live must not stop a run:\n%s", code, errb.String())
 	}
-	msg := out.String()
 	for _, want := range []string{
-		"ALSO OPEN",
-		"research/2026-08-01_abandoned", // names the other run
-		"2026-08-01T09:00:00.000Z",      // and when it started
-		"feov-record capture",           // with the remedy that KEEPS its record
-		"resolves",                      // and what an unflagged verb now does instead of guessing
+		"pruned the live-run marker's row for research/2026-08-01_ended",
+		"its outcome is recorded",
+		"pruned the live-run marker's row for research/2026-07-01_deleted",
+		"its run directory is gone",
 	} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("the notice must carry %q so the operator can act on it:\n%s", want, msg)
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("setup must say what it pruned — missing %q:\n%s", want, out.String())
 		}
 	}
-	// THE RUN IS ACTUALLY BUILT. A notice that quietly still refused would be the worst of both.
-	if _, err := os.Stat(filepath.Join(runDir, "records")); err != nil {
-		t.Errorf("the second run was not built: %v", err)
-	}
-	// BOTH ARE LIVE, and the abandoned one is still capturable — its row must not be displaced.
-	live := runlive.ReadRunLive(cfg.Cwd)
-	if len(live) != 2 {
-		t.Fatalf("the marker holds %d run(s), want both: %+v", len(live), live)
-	}
-	var names []string
-	for _, m := range live {
-		names = append(names, m.RunDir)
-	}
-	if !strings.Contains(strings.Join(names, " "), "research/2026-08-01_abandoned") {
-		t.Errorf("opening a second run displaced the first one's row: %v", names)
-	}
-
-	// AND NEITHER IS INFERRED. Two open runs means there is no single answer, so the thing that
-	// hands a run to an unflagged verb must decline rather than pick one.
-	if m, ok := runlive.ReadRunLiveMarker(cfg.Cwd); ok {
-		t.Errorf("with two runs open, inference still resolved one (%s) — that is the guess this replaces", m.RunDir)
+	if rows := runlive.ReadRunLive(cfg.Cwd); len(rows) != 1 || !runlive.SameRun(cfg.Cwd, rows[0].RunDir, runDir) {
+		t.Errorf("the marker must hold the new run alone: %+v", rows)
 	}
 }
 

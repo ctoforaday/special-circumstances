@@ -196,21 +196,18 @@ func TestPreflightRecordBinary(t *testing.T) {
 	}
 }
 
-// #270: A RUN THAT WAS NEVER CLOSED MUST NOT BE OVERWRITTEN IN SILENCE.
-//
-// The marker's only remover is `capture`, and capture is optional. Setup used to overwrite it
-// unconditionally — self-healing and silent, so nobody learned the previous run was never closed.
-// Between the abandoned run and this setup, that stale marker is what runlive.InferRunDir hands to
-// every verb invoked without --run.
-func TestSetupRefusesWhenAnotherRunIsStillOpen(t *testing.T) {
+// #270: A RUN THAT WAS NEVER CLOSED MUST NOT BE OVERWRITTEN IN SILENCE. The marker's row reads back
+// as written, and a different run is not the same run — the two facts setup's refusal of a second
+// live run stands on (TestSetupRefusesASecondLiveRun drives it).
+func TestTheMarkerRowReadsBackAndADifferentRunIsNotTheSame(t *testing.T) {
 	cwd := t.TempDir()
 	runlive.WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
 
-	m, ok := runlive.ReadRunLiveMarker(cwd)
-	if !ok || m.RunDir != "research/2026-08-01_abandoned" {
-		t.Fatalf("fixture: the marker must read back, got %+v ok=%v", m, ok)
+	rows := runlive.ReadRunLive(cwd)
+	if len(rows) != 1 || rows[0].RunDir != "research/2026-08-01_abandoned" {
+		t.Fatalf("fixture: the marker must read back, got %+v", rows)
 	}
-	if runlive.SameRun(cwd, m.RunDir, "research/2026-08-16_new") {
+	if runlive.SameRun(cwd, rows[0].RunDir, "research/2026-08-16_new") {
 		t.Fatal("two different runs must not compare equal")
 	}
 }
@@ -238,11 +235,11 @@ func TestAnUnreadableMarkerIsNotAnOpenRun(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(cwd, ".claude", "run-live.json"), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, ok := runlive.ReadRunLiveMarker(cwd); ok {
-			t.Errorf("%q must not read as an open run", body)
+		if rows := runlive.ReadRunLive(cwd); len(rows) != 0 {
+			t.Errorf("%q must not read as an open run: %+v", body, rows)
 		}
 	}
-	if _, ok := runlive.ReadRunLiveMarker(t.TempDir()); ok {
+	if rows := runlive.ReadRunLive(t.TempDir()); len(rows) != 0 {
 		t.Error("an absent marker is not an open run")
 	}
 }

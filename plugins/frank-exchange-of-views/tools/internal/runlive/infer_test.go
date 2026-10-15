@@ -26,7 +26,7 @@ func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":"research/2026-07-18_topic"}]}`)
 
-	if got := InferRunDir(proj).Dir; got != run {
+	if got := InferRunDir(proj, "").Dir; got != run {
 		t.Fatalf("InferRunDir(%q) = %q, want %q", proj, got, run)
 	}
 }
@@ -41,7 +41,7 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 
 	deep := filepath.Join(proj, "plugins", "x", "y")
 	mustMkdir(t, deep)
-	if got := InferRunDir(deep).Dir; got != run {
+	if got := InferRunDir(deep, "").Dir; got != run {
 		t.Fatalf("from %q got %q, want %q", deep, got, run)
 	}
 }
@@ -58,7 +58,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 			proj := t.TempDir()
 			mustMkdir(t, filepath.Join(proj, ".claude"))
 			writeMarker(t, proj, tc.body)
-			if got := InferRunDir(proj).Dir; got != "" {
+			if got := InferRunDir(proj, "").Dir; got != "" {
 				t.Fatalf("got %q, want empty", got)
 			}
 		})
@@ -66,7 +66,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 }
 
 func TestInferRunDirIsEmptyWithNoMarkerAnywhere(t *testing.T) {
-	if got := InferRunDir(t.TempDir()).Dir; got != "" {
+	if got := InferRunDir(t.TempDir(), "").Dir; got != "" {
 		t.Fatalf("got %q, want empty when no run is live", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestInferRunDirHonoursAnAbsoluteRunDir(t *testing.T) {
 	elsewhere := t.TempDir()
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`}]}`)
-	if got := InferRunDir(proj).Dir; got != elsewhere {
+	if got := InferRunDir(proj, "").Dir; got != elsewhere {
 		t.Fatalf("got %q, want %q", got, elsewhere)
 	}
 }
@@ -101,9 +101,10 @@ func quote(s string) string {
 	return string(b)
 }
 
-// EVERY REASON IS DISTINCT, AND ONLY TWO ARE FAULTS. A bare "" used to answer all six; a caller that
-// must tell a human about a broken marker cannot do it from a zero value the healthy cases share —
-// and must not raise an alarm for two runs legitimately open at once.
+// EVERY REASON IS DISTINCT, AND THE FAULTS ARE THE ONES A HUMAN MUST HEAR. A bare "" used to answer
+// all of them; a caller that must tell a human about a broken marker cannot do it from a zero value
+// the healthy cases share. Two live runs is a fault: the hooks can serve neither (#1255). A row whose
+// directory is gone is not a live run at all, so it resolves nothing and alarms nobody.
 func TestInferRunDirSaysWhy(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -116,9 +117,9 @@ func TestInferRunDirSaysWhy(t *testing.T) {
 		{name: "no marker", why: NoMarker},
 		{name: "resolved", marker: ptr(`{"runs":[{"runDir":"run"}]}`), dirs: []string{"run"}, why: Resolved, hasDir: true},
 		{name: "no run open", marker: ptr(`{"runs":[]}`), why: NoRunOpen},
-		{name: "two runs open", marker: ptr(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`), dirs: []string{"a", "b"}, why: Ambiguous},
+		{name: "two runs live", marker: ptr(`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`), dirs: []string{"a", "b"}, why: Ambiguous, fault: true},
 		{name: "unreadable", marker: ptr("{ not json"), why: Unreadable, fault: true},
-		{name: "stale", marker: ptr(`{"runs":[{"runDir":"gone"}]}`), why: Stale, fault: true},
+		{name: "directory gone", marker: ptr(`{"runs":[{"runDir":"gone"}]}`), why: NoRunOpen},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			proj := t.TempDir()
@@ -129,7 +130,7 @@ func TestInferRunDirSaysWhy(t *testing.T) {
 				mustMkdir(t, filepath.Join(proj, ".claude"))
 				writeMarker(t, proj, *tc.marker)
 			}
-			got := InferRunDir(proj)
+			got := InferRunDir(proj, "")
 			if got.Why != tc.why {
 				t.Fatalf("Why = %v, want %v", got.Why, tc.why)
 			}
@@ -164,7 +165,7 @@ func TestNowhereToStartIsAFault(t *testing.T) {
 	if _, err := os.Getwd(); err == nil {
 		t.Skip("Getwd still succeeds with its directory removed on this platform — the premise never took")
 	}
-	got := InferRunDir("")
+	got := InferRunDir("", "")
 	if got.Why != Unlocatable || !got.Why.Fault() {
 		t.Fatalf("Why = %v, fault %v; want Unlocatable, a fault", got.Why, got.Why.Fault())
 	}

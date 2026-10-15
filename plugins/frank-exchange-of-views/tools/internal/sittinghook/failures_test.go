@@ -136,17 +136,20 @@ func TestTheRealSpawnKeepsTheWritersOutput(t *testing.T) {
 	}
 }
 
-// AN UNUSABLE MARKER IS A FAULT, SCOPED TO ITS PROJECT; the ordinary shapes are not. Two runs open at
-// once is legitimate — recording it would raise a false alarm on every sitting of both runs.
+// AN UNUSABLE MARKER IS A FAULT, SCOPED TO ITS PROJECT; the ordinary shapes are not. TWO LIVE RUNS
+// IS A FAULT (#1255): the payload names no run, so this hook brackets no sitting for either, and that
+// was silent — every seat of both runs sat unrecorded with nothing said. A row whose directory is
+// gone is no live run, and is not.
 func TestOnlyAFaultyMarkerIsRecorded(t *testing.T) {
 	for name, tc := range map[string]struct {
 		marker string
 		fault  bool
 	}{
-		"unreadable":    {"{ not json", true},
-		"stale":         {`{"runs":[{"runDir":"research/gone"}]}`, true},
-		"no run open":   {`{"runs":[]}`, false},
-		"two runs open": {`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`, false},
+		"unreadable":                   {"{ not json", true},
+		"directory gone":               {`{"runs":[{"runDir":"research/gone"}]}`, false},
+		"no run open":                  {`{"runs":[]}`, false},
+		"two runs live":                {`{"runs":[{"runDir":"a"},{"runDir":"b"}]}`, true},
+		"one live, one directory gone": {`{"runs":[{"runDir":"a"},{"runDir":"research/gone"}]}`, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("XDG_STATE_HOME", t.TempDir())

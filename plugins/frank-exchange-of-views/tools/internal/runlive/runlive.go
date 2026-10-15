@@ -18,6 +18,8 @@ package runlive
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,18 +44,158 @@ type RunLiveMarker struct {
 	ScriptPath string `json:"scriptPath,omitempty"`
 }
 
-// RunLive is the marker FILE: the set of runs currently open.
+// RunLive is the marker FILE: the runs `setup` opened in this project and nothing has closed.
 //
-// IT IS A LIST BECAUSE CONCURRENT RUNS ARE SAFE NOW. `setup` bakes the run directory into
-// <runDir>/.bin/feov-record (#526), so a seat carries its run in its own environment and a
-// second run claiming this file can no longer retarget the first run's seats. A singleton was
-// the right shape while the file was the only thing that knew which run a seat belonged to; it
-// stopped being the right shape the moment that stopped being true (#529).
+// A LIST, AND AT MOST ONE OF ITS ROWS IS LIVE. The rows are what was written; which of them still
+// counts is RowState's to say, because only `setup` writes a row and only `capture` removes one, and
+// capture is optional — a run killed or never captured leaves its row behind. `setup` refuses a run
+// while another is live (#1255): the hooks find a seat's run through this file, and with two live
+// runs they cannot tell which a seat belongs to. The payload a hook receives names no run, so the
+// answer has to be the one live row or none.
 type RunLive struct {
 	Runs []RunLiveMarker `json:"runs"`
 }
 
-// ReadRunLive reports every run the marker says is open, in the order it holds them.
+// OutcomeMark is the file `bench outcome` writes into the run directory once the run's outcome is
+// on the record. A row whose run holds it no longer counts as live.
+//
+// A FILE, BECAUSE THE READERS THAT NEED IT CANNOT OPEN THE RECORD. The hooks resolve a run on every
+// tool call a seat makes and link no SQLite driver (integration/surface/hookgraph_test.go); a stat
+// is what they can afford. The record stays the authority on WHAT the outcome is — this file says
+// only that one was recorded, and is written by the verb that records it, after the write succeeds.
+//
+// WHAT A MISS RETURNS: an outcome recorded with no mark beside it (the write failed after the
+// append, which the verb reports) reads as a LIVE run. That is the loud direction — beside another
+// run it is the two-live-runs fault, and `setup` refuses naming it — never the silent one.
+const OutcomeMark = ".outcome-recorded"
+
+// outcomeMark is the mark's content: the agent whose sitting recorded the outcome.
+//
+// THE RECORDING SEAT KEEPS ITS RUN UNTIL ITS SITTING ENDS. The assembly seat records the outcome
+// first and then assembles in the same sitting; if the mark ended the run for it too, its next tool
+// calls would carry no agent identity and its sitting would never close on the record. Agent ids
+// are unique per dispatch, so the exception expires with that one sitting.
+type outcomeMark struct {
+	AgentID string `json:"agentId"`
+}
+
+// WriteOutcomeMark records, beside the run, that its outcome is on the record — named for the agent
+// that recorded it ("" when no agent identity reached the verb).
+func WriteOutcomeMark(runDir, agentID string) error {
+	b, err := marshalJSON(outcomeMark{AgentID: agentID})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(runDir, OutcomeMark), b, 0o644)
+}
+
+// RowState is whether a marker row is a live run, and if not, why.
+type RowState int
+
+const (
+	RowLive  RowState = iota // its directory exists and its outcome is not recorded
+	RowGone                  // its run directory is not there
+	RowEnded                 // its run's outcome is recorded (OutcomeMark)
+)
+
+// Why names a row's state in the words a pruning report needs.
+func (s RowState) Why() string {
+	switch s {
+	case RowGone:
+		return "its run directory is gone"
+	case RowEnded:
+		return "its outcome is recorded"
+	}
+	return "it is live"
+}
+
+// StateOf is THE liveness predicate: every reader that asks which runs are live asks it here.
+//
+// agentID is the agent asking, "" for a reader that is no seat. It matters in one case only: the
+// agent that recorded the run's outcome still holds the run, so its own sitting can finish.
+//
+// A ROW WHOSE RECORD CANNOT BE OPENED STILL COUNTS AS LIVE, deliberately. Its directory is there
+// and something may be writing into it; alone, it resolves and the writers that open it fail
+// loudly, and beside another live run it is named in the two-live-runs fault. Calling it not live
+// would make the hooks skip a run on a read error, which is the silence this predicate replaces.
+func StateOf(projectDir string, m RunLiveMarker, agentID string) RowState {
+	dir := Resolve(projectDir, m.RunDir)
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		return RowGone
+	}
+	b, err := os.ReadFile(filepath.Join(dir, OutcomeMark))
+	if errors.Is(err, fs.ErrNotExist) {
+		return RowLive
+	}
+	// A mark that is there and cannot be read or parsed still says the outcome is recorded — its
+	// existence is the fact, and its content only grants the recording agent's exception.
+	var mark outcomeMark
+	if err == nil && json.Unmarshal(b, &mark) == nil && agentID != "" && mark.AgentID == agentID {
+		return RowLive
+	}
+	return RowEnded
+}
+
+// Resolve is a row's run directory as a path: a relative runDir is relative to the project the
+// marker is in.
+func Resolve(projectDir, runDir string) string {
+	if filepath.IsAbs(runDir) {
+		return runDir
+	}
+	return filepath.Join(projectDir, runDir)
+}
+
+// RowOf is this run's row in the project's marker, if it has one.
+func RowOf(projectDir, runDir string) (RunLiveMarker, bool) {
+	for _, m := range ReadRunLive(projectDir) {
+		if SameRun(projectDir, m.RunDir, runDir) {
+			return m, true
+		}
+	}
+	return RunLiveMarker{}, false
+}
+
+// Pruned is a row PruneRunLive removed, and why it was no longer live.
+type Pruned struct {
+	Row   RunLiveMarker
+	State RowState
+}
+
+// PruneRunLive removes every row that is live for no one — its directory gone, or its outcome
+// recorded — and returns what it removed, so the caller can say so. The file goes when no row is
+// left. A marker it cannot read is left alone: nothing in it can be judged.
+func PruneRunLive(projectDir string) []Pruned {
+	runs, readable := readRunLive(projectDir)
+	if !readable {
+		return nil
+	}
+	var pruned []Pruned
+	kept := make([]RunLiveMarker, 0, len(runs))
+	for _, m := range runs {
+		if s := StateOf(projectDir, m, ""); s != RowLive {
+			pruned = append(pruned, Pruned{Row: m, State: s})
+			continue
+		}
+		kept = append(kept, m)
+	}
+	if len(pruned) > 0 {
+		writeRunLive(projectDir, kept)
+	}
+	return pruned
+}
+
+// writeRunLive replaces the marker with these rows, and removes the file when there are none.
+func writeRunLive(projectDir string, runs []RunLiveMarker) {
+	p := filepath.Join(projectDir, ".claude", "run-live.json")
+	if len(runs) == 0 {
+		os.Remove(p)
+		return
+	}
+	b, _ := marshalJSON(RunLive{Runs: runs})
+	os.WriteFile(p, b, 0o644)
+}
+
+// ReadRunLive reports every row the marker holds, in order — live or not; StateOf says which are.
 //
 // A file it cannot read is not evidence of an open run — it is evidence of a broken file, and
 // treating that as "a run is live" would trade a silent hazard for a stuck operator. So an
@@ -86,22 +228,7 @@ func readRunLive(projectDir string) (runs []RunLiveMarker, readable bool) {
 	return out, true
 }
 
-// ReadRunLiveMarker reports THE open run, if the marker names exactly one usably.
-//
-// ok=false covers absent, unreadable, unparseable, empty-runDir — and now MORE THAN ONE. That
-// last case is the whole point: this is what InferRunDir asks when a verb arrives with no
-// run directory, and with two runs open there is no answer, only a guess. Its own rule for an
-// unusable marker already says what to do with that — "say nothing rather than guess" — and
-// saying nothing is safe now because a wrapped seat never has to ask (#526, #529).
-func ReadRunLiveMarker(projectDir string) (RunLiveMarker, bool) {
-	runs := ReadRunLive(projectDir)
-	if len(runs) != 1 {
-		return RunLiveMarker{}, false
-	}
-	return runs[0], true
-}
-
-// sameRun compares two run directories as PATHS, not as strings. The marker stores whatever it
+// SameRun compares two run directories as PATHS, not as strings. The marker stores whatever it
 // was given — `research/x` from one invocation, an absolute path from another — so a string
 // compare would refuse a re-setup of the very run in progress, which is ordinary and must stay
 // idempotent.
@@ -173,13 +300,7 @@ func RemoveRunLiveEntry(projectDir, runDir string) (found bool, remaining int) {
 		}
 		kept = append(kept, m)
 	}
-	p := filepath.Join(projectDir, ".claude", "run-live.json")
-	if len(kept) == 0 {
-		os.Remove(p)
-		return found, 0
-	}
-	b, _ := marshalJSON(RunLive{Runs: kept})
-	os.WriteFile(p, b, 0o644)
+	writeRunLive(projectDir, kept)
 	return found, len(kept)
 }
 
