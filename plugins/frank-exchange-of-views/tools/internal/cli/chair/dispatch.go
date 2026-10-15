@@ -6,12 +6,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // dispatch next — the chair reads the board and the record says who sits (plans/roundless.md
@@ -27,74 +25,17 @@ import (
 // and the bench. An empty party list is the termination signal, not an error.
 func newDispatch() *cobra.Command {
 	c := seat.New("dispatch", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-		run, err := s.Run()
+		if _, err := s.Run(); err != nil {
+			return nil, err
+		}
+		// THE CHAIR'S SITTING, THE PLAN, THE STANDING DECISION, THE IMPASSE MOTIONS AND THE ROWS are
+		// one act on one state of the record (record.DispatchNext): a seat writing in parallel lands
+		// before the plan is folded or after its rows are in.
+		plan, standing, err := record.DispatchNext(s.Identity())
 		if err != nil {
 			return nil, err
 		}
-		// THE CHAIR REGISTERS FOR EVERY SITTING, a resumed one included: a resumed dispatch carries
-		// no bracket, so its register is what opens the sitting. Refused before anything is
-		// computed or written, so the register lands ahead of every act of the sitting.
-		if err := record.RequireChairSittingOpened(run); err != nil {
-			return nil, err
-		}
-		plan, err := record.PlanDispatch(run)
-		if err != nil {
-			return nil, err
-		}
-		// ASKED AGAIN, NOTHING NEW IS RECORDED. The same plan, with nobody sat since it was
-		// written, is the decision already on the record; writing it again doubles the rows every
-		// reader of "who was dispatched" counts.
-		standing, err := record.DispatchStands(run, plan)
-		if err != nil {
-			return nil, err
-		}
-		if standing {
-			return dispatchResult{Plan: plan, standing: true}, nil
-		}
-		for _, g := range plan.ToFile {
-			id := record.NewID("motion")
-			basis := fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", g)
-			if _, err := record.Append(s.Identity(), &recordpb.Motion{
-				MotionId: proto.String(id),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
-				Basis:    proto.String(basis),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
-			}); err != nil {
-				return nil, fmt.Errorf("docketing %s at impasse: %w", g, err)
-			}
-		}
-		// THE BLOCKERS PRINTED ARE THE GATE'S LIST AS THE RECORD STANDS ONCE THE DOCKET IS FILED. The
-		// plan above was folded before the filing, so its list lacks the motions just written, each
-		// an unruled motion whose gavel is the bench's. The workflow convenes the terminal bench off
-		// the relayed blockers and capture holds them to the record at the end of this sitting: a
-		// chair relaying this answer without asking again would relay a list the record had
-		// already moved past, by the verb's own act.
-		if len(plan.ToFile) > 0 {
-			filed, err := record.PlanDispatch(run)
-			if err != nil {
-				return nil, err
-			}
-			plan.Blockers = filed.Blockers
-		}
-		for _, p := range plan.Parties {
-			// THE OCCASIONS ARE RECORDED, NOT ONLY PRINTED: the workflow routes the bench on the
-			// plan's copy, and a copy with nothing on the record to hold it to could be dropped or
-			// altered in the relay unseen. Capture compares the two.
-			var occasions []recordpb.Occasion
-			for _, w := range p.Occasions {
-				o, ok := record.OccasionOf(w)
-				if !ok {
-					return nil, feov.Errorf(feov.Internal, "the plan convenes %s for %q, which is not an occasion", p.SeatID, w)
-				}
-				occasions = append(occasions, o)
-			}
-			if _, err := record.Append(s.Identity(), &recordpb.Dispatch{
-				Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occasions,
-			}); err != nil {
-				return nil, err
-			}
-		}
-		return dispatchResult{Plan: plan}, nil
+		return dispatchResult{Plan: plan, standing: standing}, nil
 	})
 	c.Use = "dispatch next"
 	c.Args = func(cmd *cobra.Command, args []string) error {

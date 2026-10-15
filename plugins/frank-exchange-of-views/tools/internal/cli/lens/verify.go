@@ -211,7 +211,9 @@ func newCorroborate() *cobra.Command {
 // is of that, and when it was read. Registered from one place so the two verbs cannot drift into
 // describing the same four fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
-	flags.Text(c, flags.Quote, flags.DescQuote+" (the claim you are checking)")
+	// The flag names whose sentence the quote is because, beside `refutes`, the sentence that does
+	// the refuting is the source's, and writeVerify refuses it.
+	flags.Text(c, flags.Quote, flags.DescQuote+". It is the REPORT's sentence under every --as value, never the source's")
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
@@ -353,15 +355,19 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			}
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
 		}
-		label := record.NewID("citation")
 		// The Anchor event appended after this one is the marker (it carries the claim and this
-		// label); reportproj.Render re-places it on read. No file is spliced. VALIDATE the placement
-		// against the current render — a mis-quote or in-fence claim is refused now and no event is
-		// recorded.
-		if err := seat.Places(run, label, body.GetClaim(), corroborateRefusal); err != nil {
-			return nil, err
-		}
-		body.Label = proto.String(label)
+		// label); reportproj.Render re-places it on read. No file is spliced.
+		body.Label = proto.String(record.NewID("citation"))
+	}
+	// THE QUOTE IS THE REPORT'S SENTENCE, WHATEVER THE SOURCE DID FOR IT. One placement check, for
+	// both verbs and every outcome, against the current render; a refusal records nothing. Where
+	// the source backs the claim, the quote is where the citation's marker stands. Where the source
+	// contradicts the claim or is silent on it, the quote is the subject of a PASS blocker that a
+	// finding quoting that sentence clears (record.unansweredContradictionsBy), and a finding's
+	// quote is held to the report by this same placement — so a quote the report does not hold
+	// would be a blocker no seat can clear.
+	if err := seat.Places(run, body.GetLabel(), body.GetClaim(), claimRefusal); err != nil {
+		return nil, err
 	}
 
 	// WHICH PART OF THE WORK RED'S COPY IS, on every verdict that names a source — a `supports`
@@ -418,15 +424,17 @@ func (r verifyResult) human() string {
 	}
 }
 
-// corroborateRefusal is the refusal `corroborate` gives for a claim Attach will not place, on a
-// first call and on the retry that places the anchor a first call left owed.
-func corroborateRefusal(err error) error {
+// claimRefusal is the refusal `verify` and `corroborate` give for a --quote Attach will not place.
+// One wording for every outcome, so it says what the quote is under each.
+func claimRefusal(err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
 		return feov.Errorf(feov.Validation,
-			"the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
+			"--quote was not found in report.md. It is the REPORT's sentence — the claim you read the source against, in the report's exact words — whatever the source did for it: the sentence it backs, the sentence it contradicts, or the sentence it says nothing about. "+
+				"What the SOURCE says is never the quote: its words go in --reason. "+
+				"The whole string is matched, so a heading prepended to it matches nothing; a sentence blue has edited is quoted in its edited words, as `show report` prints it")
 	case errors.Is(err, anchortext.ErrInFence):
-		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — corroborate a prose sentence, not code")
+		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — the claim a source is read against is a prose sentence, not code")
 	}
 	return anchortext.Refusal(err)
 }

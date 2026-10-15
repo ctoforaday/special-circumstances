@@ -2,11 +2,14 @@ package record
 
 import (
 	"database/sql"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // CITATION IDENTITY MIRRORS FINDING IDENTITY — see NewID for the full argument.
@@ -162,11 +165,20 @@ func CiteByLabel(run Run, label string) (*recordpb.Cite, error) {
 // the unbacked_citations detector. Only blue cites carry a `label`; red's `lens cite` does
 // not, so this is exactly the set of tool-inserted citation anchors that must be present.
 func CitationLabels(run Run) ([]string, error) {
-	m, err := MergedEvents(run)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
 	}
-	return citationLabelsOf(m.Events), nil
+	return citationLabelsAt(db)
+}
+
+// citationLabelsAt is CitationLabels asked of q — the write path's transaction, or the run's handle.
+func citationLabelsAt(q recordsql.Querier) ([]string, error) {
+	evs, _, err := eventsAt(q)
+	if err != nil {
+		return nil, err
+	}
+	return citationLabelsOf(evs), nil
 }
 
 // CitationLabelsOf is CitationLabels over events already read — for a caller holding a board,
@@ -446,6 +458,13 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // The match is deliberately loose — any finding by any lens quoting the same claim answers it.
 // A stricter join (same seat, same epoch) would refuse a contradiction one lens found and
 // another raised, which is the collaboration the lens roles exist for.
+//
+// QUOTING THE CLAIM IS THE MATCHER'S QUESTION, NOT STRING EQUALITY. Both quotes are placed in the
+// report by anchortext, which reads whitespace runs as one separator and drops trailing
+// punctuation, so two spellings of one sentence place at one span — and a finding that quotes the
+// contradicted clause with the rest of its sentence is about that clause. A finding answers a
+// claim when the claim is located in the finding's quote, by that matcher. A finding on PART of
+// the claim, or on another sentence, answers nothing: it does not quote what the source read.
 func unansweredContradictions(evs []*Event) []string {
 	var out []string
 	for _, c := range unansweredContradictionsBy(evs) {
@@ -465,13 +484,19 @@ type contradiction struct {
 // unansweredContradictionsBy is unansweredContradictions with each claim's reader: the seat of the
 // LATEST contradicting verify of the claim, so a re-read by another lens makes that lens the owner.
 func unansweredContradictionsBy(evs []*Event) []contradiction {
-	answered := map[string]bool{}
+	var quoted []string // every finding's quote
 	for _, e := range evs {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
 			if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
-				answered[loc] = true
+				quoted = append(quoted, loc)
 			}
 		}
+	}
+	answered := func(claim string) bool {
+		return slices.ContainsFunc(quoted, func(loc string) bool {
+			start, _ := anchortext.LocateSpan(loc, claim)
+			return start >= 0
+		})
 	}
 	at := map[string]int{} // claim -> its place in out
 	var out []contradiction
@@ -481,7 +506,7 @@ func unansweredContradictionsBy(evs []*Event) []contradiction {
 			continue
 		}
 		claim := strings.TrimSpace(v.GetClaim())
-		if claim == "" || answered[claim] {
+		if claim == "" || answered(claim) {
 			continue
 		}
 		if k, seen := at[claim]; seen {

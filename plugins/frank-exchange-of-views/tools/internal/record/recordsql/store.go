@@ -381,10 +381,11 @@ func openUncached(path string) (*sql.DB, error) {
 	// contention the 8-process test exists for.
 	//
 	// SAFE HERE because nothing queries the pool while a transaction from it is open: `Append`
-	// validates (which reads the board) BEFORE insertNumbered begins its transaction, and
-	// deriveKey counts through the tx rather than around it. With one connection, a db.Query
-	// inside an open tx would deadlock on itself rather than merely contend — so that ordering is
-	// now load-bearing, not incidental.
+	// validates (which reads the board) THROUGH its writing transaction — validation is handed the
+	// transaction and no Run (record.writeView), so it has no handle to ask — and deriveKey counts
+	// through the tx rather than around it. With one connection, a db.Query inside an open tx would
+	// deadlock on itself rather than merely contend — so asking only the transaction is
+	// load-bearing, not incidental.
 	db.SetMaxOpenConns(1)
 
 	// THE CONNECTION IS MADE HERE, ON PURPOSE, rather than by the first read below. Every read

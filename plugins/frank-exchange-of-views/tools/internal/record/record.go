@@ -266,7 +266,7 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
-	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
+	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
 		return 0, "", err
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
@@ -368,7 +368,7 @@ var defines = map[recordpb.EventType]bool{
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}
 
 // requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
-func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
+func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMotion) error {
 	proposed := g.GetProposed()
 	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
 		return nil // an absent proposal is the required-field sweep's refusal, not this one's
@@ -380,7 +380,7 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 	}
 	// The CURRENT grade is the latest regrade that touched the axis, else the mint's — the same
 	// overlay the board fold applies, asked of the record (queries.go).
-	current, found, err := gradeAt(run, g.GetGapId(), col)
+	current, found, err := gradeAt(q, g.GetGapId(), col)
 	if err != nil {
 		return nil // a record that cannot be read does not block the filing; requireGap already ran
 	}
@@ -569,16 +569,23 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 		c.written = true
 		return appendCorrected(id, db, ev, typ, body)
 	}
-	if err := validate(run, seatID, typ, body); err != nil {
-		return nil, err
-	}
-	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
-	// and appended — two steps with a gap, held together only by one seat owning one file.
-	if err := insertNumbered(db, ev, seatID, typ, body); err != nil {
+	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
+	// counted the lines and appended — two steps with a gap, held together only by one seat owning
+	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
+	// event lands on.
+	files := filesOf(run)
+	if err := insertNumbered(db, ev, seatID, typ, body, func(tx *sql.Tx) error {
+		return validate(writeView{q: tx, files: files}, seatID, typ, body)
+	}); err != nil {
 		return ev, err
 	}
 	return ev, nil
 }
+
+// writeBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
+// a test sets it to commit another seat's act at that instant, on that seat's own connection — the
+// moment a check made before the transaction is overtaken, and one made inside it is not.
+var writeBegins = func() {}
 
 // insertNumbered stamps the envelope and writes the event in ONE transaction.
 //
@@ -592,12 +599,31 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 // A read followed by a write in one transaction is exactly the deferred-BEGIN upgrade SQLite
 // refuses to apply busy_timeout to, which is why the DSN takes the write lock at BEGIN. Measured
 // before that: 8 concurrent seat processes lost about half their acts to SQLITE_BUSY.
-func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message) error {
+//
+// check, when set, is the write's validation, run first inside the transaction: a refusal it
+// returns rolls the transaction back with nothing written.
+func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
+	writeBegins()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	if err := writeIn(tx, ev, seatID, typ, body, check); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
+// the once-per-sitting and answered-once duties, and the insert. `dispatch next` writes several acts
+// through it in one transaction (DispatchNext).
+func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
+	if check != nil {
+		if err := check(tx); err != nil {
+			return err
+		}
+	}
 	key, err := deriveKey(tx, seatID, typ, body)
 	if err != nil {
 		return err
@@ -646,7 +672,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 		}
 		return err
 	}
-	return tx.Commit()
+	return nil
 }
 
 // validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
@@ -669,11 +695,16 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 // refuses because "this has already happened" must pass when what already happened IS the act
 // being replaced — a closure's correction names a closed gap by definition. validate is the
 // ordinary write's form; validateAgainst is migrate's replay of a correction.
-func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
-	return validateAgainst(run, seatID, typ, body, nil)
+//
+// W IS THE WRITING TRANSACTION AND THE RUN'S FILES (writeView), and every question below is asked of
+// it: a check another seat's commit could falsify is a check of the record the event lands on only
+// when it is asked under the write lock the insert holds.
+func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Message) error {
+	return validateAgainst(w, seatID, typ, body, nil)
 }
 
-func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.Message, target *correctionTarget) error {
+func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body proto.Message, target *correctionTarget) error {
+	q := w.q
 	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
 	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
 	// on another field's value, references that must resolve against the record, and the closed
@@ -700,7 +731,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// not supply; stamped here, every caller of validation gets the same stamp and the same refusals
 	// (an unknown class, an unstaged registry, a seat-supplied value).
 	if m, ok := body.(*recordpb.Mint); ok {
-		if err := stampClassMaterial(run, m); err != nil {
+		if err := stampClassMaterial(w, m); err != nil {
 			return err
 		}
 	}
@@ -713,7 +744,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
 		if b.GetMotionId() != "" {
-			if err := RequireSubjectMatches(run, b.GetSubject(), b.GetMotionId()); err != nil {
+			if err := requireSubjectMatches(q, b.GetSubject(), b.GetMotionId()); err != nil {
 				return err
 			}
 		}
@@ -721,7 +752,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// MIGRATE'S REPLAY ONLY (Append). An archived appeal is held to what makes it a record: it
 		// names a motion some filing created.
 		if b.GetMotionId() != "" {
-			if _, err := RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId()); err != nil {
+			if _, err := requireMotionSubjectRef(q, b.GetSubject(), b.GetMotionId()); err != nil {
 				return err
 			}
 		}
@@ -747,16 +778,16 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
 		}
 	case *recordpb.ClassNew:
-		return validateClassNew(run, b)
+		return validateClassNew(w, b)
 	case *recordpb.Mint:
 		// Every check here that replay exempts carries its own Migrating gate beside the part it
 		// exempts, with its reason, so this arm reads the same live and on replay: the budget's
 		// arithmetic, the screen's match and the report-voice refusal are off, the roster and the
 		// --distinct-from reference stay on.
-		if err := requireMintWithinBudget(run, seatID); err != nil {
+		if err := requireMintWithinBudget(w, seatID); err != nil {
 			return err
 		}
-		if err := requireNotAnOpenGap(run, b); err != nil {
+		if err := requireNotAnOpenGap(q, b); err != nil {
 			return err
 		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
@@ -803,14 +834,14 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if err := refuseMintReportVoice(b); err != nil {
 			return err
 		}
-		if err := validateClass(run, b); err != nil {
+		if err := validateClass(w, b); err != nil {
 			return err
 		}
-		ids, err := allGapIDs(run)
+		ids, err := allGapIDs(q)
 		if err != nil {
 			return err
 		}
-		if err := requireFindings(run, b.GetFoundBy(), "--found-by"); err != nil {
+		if err := requireFindings(q, b.GetFoundBy(), "--found-by"); err != nil {
 			return err
 		}
 		for _, anc := range b.GetSupersedes() {
@@ -823,10 +854,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see `lens close`).
-		if err := requireGap(run, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(run, b.GetCites(), "--cites", ProveCitesAdvice); err != nil {
+		if err := requireCitation(q, b.GetCites(), "--cites", ProveCitesAdvice); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -835,7 +866,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(run, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -851,7 +882,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetAnswers() == "" {
 			// --reason lands in BlueEdit.text: the flag a seat types and the field the schema
 			// carries are two vocabularies, and this is the one place the edit's argument lives.
-			named, err := gapNamedIn(run, b.GetText())
+			named, err := gapNamedIn(q, b.GetText())
 			if err != nil {
 				return err
 			}
@@ -861,11 +892,11 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
-			if err := requireOriginator(run, b.GetGapId(), seatID, "close"); err != nil {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
 				return err
 			}
 		}
-		ids, err := allGapIDs(run)
+		ids, err := allGapIDs(q)
 		if err != nil {
 			return err
 		}
@@ -897,7 +928,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
 		if !anchored && b.CarriedFrom != nil {
-			prior, err := priorClosureEpochs(run, b.GetGapId())
+			prior, err := priorClosureEpochs(q, b.GetGapId())
 			if err != nil {
 				return err
 			}
@@ -905,12 +936,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return fmt.Errorf("--carried-from says gap %s was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
-		if err := requireGap(run, b.GetSuccessor(), "--superseded-by"); err != nil {
+		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
 			return err
 		}
 		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
 		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(run, b.GetSuccessor(), "--superseded-by",
+		if err := requireOpenGap(q, b.GetSuccessor(), "--superseded-by",
 			"the unresolved remainder cannot move into a gap that is already finished"); err != nil {
 			return err
 		}
@@ -918,8 +949,8 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
-		if b.CarriedFrom == nil && !closedByTarget(run, b.GetGapId(), target) {
-			if err := requireOpenGap(run, b.GetGapId(), "--id",
+		if b.CarriedFrom == nil && !closedByTarget(q, b.GetGapId(), target) {
+			if err := requireOpenGap(q, b.GetGapId(), "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
 			}
@@ -958,14 +989,14 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetGapId() == "" {
 			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
 		}
-		if err := requireGap(run, b.GetGapId(), "--id"); err != nil {
+		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
 			return fmt.Errorf("requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)")
 		}
-		if err := requireGap(run, b.GetGapId(), "--id"); err != nil {
+		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
 		// A MANIFEST ROW IS THE RECEIPT. An empty one says a repair was audited and shows
@@ -1028,13 +1059,13 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
 		// insertNumbered's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
 		// the two together through Append, and a precondition added here needs a row there.
-		if err := requireOriginator(run, b.GetGapId(), seatID, "regrade"); err != nil {
+		if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
 			return err
 		}
-		if err := requireGap(run, b.GetGapId(), "--id"); err != nil {
+		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
-		if err := requireOpenGap(run, b.GetGapId(), "--id",
+		if err := requireOpenGap(q, b.GetGapId(), "--id",
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
@@ -1068,10 +1099,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// at replay; one against a gap already disposed of asks for a different disposition than
 		// the one that has been made.
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-			if err := requireGap(run, b.GetGrade().GetGapId(), "--id"); err != nil {
+			if err := requireGap(q, b.GetGrade().GetGapId(), "--id"); err != nil {
 				return err
 			}
-			if err := requireOpenGap(run, b.GetGrade().GetGapId(), "--id",
+			if err := requireOpenGap(q, b.GetGrade().GetGapId(), "--id",
 				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
 				return err
 			}
@@ -1084,7 +1115,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			// Read from the BOARD, not from the filer's claim about it, and a dimension this
 			// binary cannot resolve is an ERROR rather than a skipped check: GradeAt's zero would
 			// differ from every real proposal and quietly accept everything on a new axis.
-			if err := requireGradeMotionAsksForAChange(run, b.GetGrade()); err != nil {
+			if err := requireGradeMotionAsksForAChange(q, b.GetGrade()); err != nil {
 				return err
 			}
 		}
@@ -1105,7 +1136,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// has already closed is a real act (the consistency oracle has a fixture for exactly that
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
-			if err := requireGap(run, b.GetDocket().GetGapId(), "--id"); err != nil {
+			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
 		}
@@ -1145,8 +1176,8 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 		}
 		// The motion's reference, its subject and the subject's being one at all were settled above,
-		// before the required fields. A MOTION IS ANSWERED ONCE (#1205), and that is asked inside the
-		// writing transaction by requireUnanswered: read here, two rulings racing both pass.
+		// before the required fields. A MOTION IS ANSWERED ONCE (#1205), and that is asked by
+		// requireUnanswered, after the key is derived, in the same writing transaction as this.
 		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
 		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
@@ -1196,7 +1227,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				}
 			}
 		}
-		if existing, err := CastOf(run); err != nil {
+		if existing, err := castAt(q); err != nil {
 			return err
 		} else if existing != nil {
 			return fmt.Errorf("the cast is written ONCE, before any seat registers, and this record already holds one (%d seats) — a second cast would make membership a question of which one a reader picked", len(existing))
@@ -1205,7 +1236,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if b.GetPin() <= 0 {
 			return fmt.Errorf("a dispatch requires a pin — the events.id of the report head the party audits; the verb computes it, and a dispatch against nothing is a dispatch against a moving target")
 		}
-		member, hasCast, err := InCast(run, b.GetSeatId())
+		member, hasCast, err := inCastAt(q, b.GetSeatId())
 		if err != nil {
 			return err
 		}
@@ -1215,7 +1246,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		if !member {
 			return fmt.Errorf("%q is not in this run's cast. The cast is the run's admissible seats, written by setup; a party outside it would be a seat the workflow invents", b.GetSeatId())
 		}
-		if err := requireGaps(run, b.GetGapIds(), "--seat"); err != nil {
+		if err := requireGaps(q, b.GetGapIds(), "--seat"); err != nil {
 			return err
 		}
 		if err := requireDispatchOccasions(b); err != nil {
@@ -1225,7 +1256,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// THE ADMISSION FIRST: a live verdict claiming a migration's admission is refused before
 		// any gate reads the board, and a migrated PASS is stamped with the open material gaps its
 		// exemption below lets it stand over (gblock, fork (a), 2026-09-15).
-		if err := stampMigrationAdmission(run, b); err != nil {
+		if err := stampMigrationAdmission(q, b); err != nil {
 			return err
 		}
 		// A PASS is a claim that nothing left on the board holds the gate. Enforce it here, at the
@@ -1233,21 +1264,21 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps). What holds it is PassBlockers — the one
 		// list the chair's work list, the plan's pass_permitted and the FAIL convergence refusal
 		// also read (passblockers.go).
-		blockers, err := PassBlockers(run)
+		blockers, err := passBlockersAt(q)
 		if err != nil {
 			return err
 		}
-		if err := requireNoBlockers(run, b.GetVerdict(), blockers); err != nil {
+		if err := requireNoBlockers(w, b.GetVerdict(), blockers); err != nil {
 			return err
 		}
 	case *recordpb.SpotCheck:
-		if err := requireGaps(run, b.GetIds(), "--ids"); err != nil {
+		if err := requireGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err
 		}
 		// AN AREA IS A CAST LENS SEAT: the plan's stale_areas name seats, and a spot-check that
 		// named anything else could never discharge the stale-area gate.
 		if areas := b.GetAreas(); len(areas) > 0 {
-			cast, err := CastOf(run)
+			cast, err := castAt(q)
 			if err != nil {
 				return err
 			}
@@ -1261,7 +1292,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				}
 			}
 		}
-		if err := requireClosedGaps(run, b.GetIds(), "--ids"); err != nil {
+		if err := requireClosedGaps(q, b.GetIds(), "--ids"); err != nil {
 			return err
 		}
 	case *recordpb.Avenue:
@@ -1275,7 +1306,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// `avenue_id`, and the seat-facing verb is `avenue` — and the schema's name is
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
-			if err := requireAvenue(run, b.GetAvenueId(), "--id"); err != nil {
+			if err := requireAvenue(q, b.GetAvenueId(), "--id"); err != nil {
 				return err
 			}
 		}
@@ -1357,7 +1388,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// A correction re-states an outcome already recorded, and a migration replays one, so
 		// neither is held to the bench's motions.
 		if target == nil && !Migrating {
-			if err := requireBenchMotionsRuled(run); err != nil {
+			if err := requireBenchMotionsRuled(q); err != nil {
 				return err
 			}
 		}
@@ -1500,12 +1531,12 @@ func isDuplicateKey(err error) bool {
 //
 // Migration is not exempt and needs no exemption: an archived run's closes were the merge's on
 // the merge's own mints, and both translate to the chair.
-func requireOriginator(run Run, gapID, seatID, act string) error {
+func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 	if gapID == "" {
 		return nil // the missing-id refusal is the verb's own
 	}
 	var mintedBy string
-	found, err := queryRow(run, []any{&mintedBy}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&mintedBy}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found || mintedBy == "" || mintedBy == seatID {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}

@@ -152,7 +152,7 @@ func TestGapIdsAreRunGlobalAndNeverRoundShaped(t *testing.T) {
 	if err := mint(got); err != nil {
 		t.Fatalf("a fresh id after the chair re-sat was refused: %v", err)
 	}
-	have, err := allGapIDs(mustRun(t, runDir))
+	have, err := allGapIDs(recordOf(t, mustRun(t, runDir)))
 	if err != nil || len(have) != 4 {
 		t.Fatalf("allGapIDs = (%v, %v), want the four minted", have, err)
 	}
@@ -295,7 +295,7 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 // UNSPECIFIED zero), so it is still asserted — and the canonical set is checked against the schema
 // in enums_test rather than by writing every value through validate.
 func TestAnAbsentGradeIsAccepted(t *testing.T) {
-	if err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
+	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }
@@ -368,7 +368,7 @@ func TestValidateVerbContracts(t *testing.T) {
 			if tc.typ == recordpb.EventType_EVENT_TYPE_AVENUE {
 				seat = "blue-respond"
 			}
-			err := validate(mustRun(t, newRun(t)), seat, tc.typ, tc.p)
+			err := validateRun(mustRun(t, newRun(t)), seat, tc.typ, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -464,7 +464,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		t.Run("missing "+c.field, func(t *testing.T) {
 			o := complete()
 			c.clear(o)
-			err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
+			err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
 			if err == nil {
 				t.Fatalf("a docket ruling was accepted without %s", c.field)
 			}
@@ -476,7 +476,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 
 	// THE FILING OWNS THE GAP, so its own omission is asserted on the filing.
 	t.Run("a docket filing missing the gap", func(t *testing.T) {
-		err := validate(mustRun(t, docketRunDir(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		err := validateRun(mustRun(t, docketRunDir(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String("M2"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:    proto.String("put it to the bench"),
@@ -490,7 +490,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		}
 	})
 
-	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
@@ -499,7 +499,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// holds the fields an empty value does not satisfy.
 	empty := complete()
 	empty.GetDocket().Settled = proto.String("")
-	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
 		t.Errorf("a docket ruling with settled present-but-empty was refused: %v", err)
 	}
 }
@@ -523,10 +523,10 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		}
 	}
 
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1")); err != nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1")); err != nil {
 		t.Errorf("a real ancestor was refused: %v", err)
 	}
-	err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1", "G3"))
+	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1", "G3"))
 	if err == nil {
 		t.Fatal("a dangling ancestor was accepted")
 	}
@@ -534,7 +534,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		t.Errorf("error must name the dangling id: %v", err)
 	}
 	// An empty lineage is not a dangling one.
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
 		t.Errorf("an empty lineage was refused: %v", err)
 	}
 }
@@ -591,7 +591,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
+			err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -640,7 +640,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	// taxonomy complaint: across both record-era runs the seats coined 10 and 14 classes with ZERO
 	// overlap between them, so no board could be read against any other.
 	t.Run("no registry staged is refused, not waved through", func(t *testing.T) {
-		err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
+		err := validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a run with no staged registry accepted an arbitrary class — every --class passes, and the board ships a vocabulary nothing recognises")
 		}
@@ -661,7 +661,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, "{not json")
-		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
+		err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a corrupt registry accepted an arbitrary class — every --class passes while it stays that way, and the run reads as validated")
 		}
@@ -673,7 +673,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a known slug passes", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
-		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("scope-creep")})); err != nil {
+		if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("scope-creep")})); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
 		}
 	})
@@ -681,7 +681,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
-		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
+		err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("an unknown class was accepted")
 		}
@@ -712,7 +712,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			missing := c.field
 			n := complete()
 			c.clear(n)
-			err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
+			err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
 			if err == nil {
 				t.Errorf("a coining was accepted without --%s", missing)
 				continue
@@ -730,7 +730,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			Slug: proto.String("brand-new"), Definition: proto.String("d"),
 			Neighbor: proto.String("not-a-class"), Distinguisher: proto.String("q"),
 		}
-		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
+		err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
 		if err == nil {
 			t.Fatal("an invented neighbor was accepted")
 		}
@@ -746,7 +746,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeShard(t, runDir, []*Event{
 			recordtest.At(t, seatID, seatID+":class-new:x", &recordpb.ClassNew{MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Slug: proto.String("run-local-class")}),
 		})
-		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
+		if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
@@ -754,7 +754,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			Slug: proto.String("another"), Definition: proto.String("d"),
 			Neighbor: proto.String("run-local-class"), Distinguisher: proto.String("q"),
 		}
-		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n); err != nil {
+		if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n); err != nil {
 			t.Errorf("a run-local class was not a valid neighbor: %v", err)
 		}
 	})
@@ -762,7 +762,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one","material_default":"by_grade"}]}`)
-		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
+		err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("expected a refusal")
 		}
@@ -774,7 +774,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, `{"classes":[]}`)
-		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")})); err == nil {
+		if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")})); err == nil {
 			t.Error("an empty registry accepted an invented class")
 		}
 	})
@@ -972,7 +972,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if inspect(word+" (empty body)", validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", typ, emptyBodyFor(t, body.Message()))) {
+		if inspect(word+" (empty body)", validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", typ, emptyBodyFor(t, body.Message()))) {
 			seen++
 		}
 	}
@@ -982,7 +982,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 		if tc.wantErr == "" {
 			continue
 		}
-		if inspect(tc.name, validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", tc.typ, tc.p)) {
+		if inspect(tc.name, validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", tc.typ, tc.p)) {
 			seen++
 		}
 	}
@@ -1037,7 +1037,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err != nil &&
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err != nil &&
 		strings.Contains(err.Error(), "requires --reason") {
 		t.Errorf("a carry was refused for the argument it explicitly does not owe: %v", err)
 	}
@@ -1048,7 +1048,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 	}
-	err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
+	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
 	if err == nil || !strings.Contains(err.Error(), "requires --reason") {
 		t.Errorf("a closure with no argument was accepted; the exemption widened into a hole: %v", err)
 	}
@@ -1133,7 +1133,7 @@ func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
 	}
 
 	file := func(dim recordpb.GradeDimension, proposed recordpb.Grade) error {
-		return validate(mustRun(t, runDir), "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		return validateRun(mustRun(t, runDir), "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 			Basis:    proto.String("the grade overstates it"),

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // AVENUES HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
@@ -212,13 +213,23 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 // every other cross-reference gets (refs.go), for the same reason: a dangling reference is
 // accepted at write time and dropped at replay.
 func RequireAvenueRef(run Run, id string) error {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return err
+	}
+	return requireAvenueRef(db, id)
+}
+
+// requireAvenueRef is RequireAvenueRef asked of q — the write path's transaction, or the run's
+// handle.
+func requireAvenueRef(q recordsql.Querier, id string) error {
 	if id == "" {
 		return nil
 	}
 	// EVERY Avenue event answers this, proposal or move, exactly as the fold's type test did —
 	// the check is that the id was ever WRITTEN by the avenue verb, not that the
 	// event was the proposal.
-	found, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
+	found, err := recordHasAt(q, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // duplicateScore is where the mint's own screen stops a mint and asks. CALIBRATED ON THE ONE
@@ -25,7 +26,12 @@ const duplicateScore = 0.40
 //
 // A match is answered, not overridden: --supersedes if the new gap replaces it, --distinct-from if
 // the seat read it and it is a different defect — recorded on the mint, so the claim is auditable.
-func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
+//
+// THE SCREEN READS THE MINT'S OWN TRANSACTION (writeView). The m13 lens screened four seconds before
+// the other lens's gap existed; a screen read before the write's transaction opens has the same hole
+// narrowed to the instant between its read and its insert, and two lenses minting one defect at once
+// both land through it.
+func requireNotAnOpenGap(q recordsql.Querier, m *recordpb.Mint) error {
 	// THE SCREEN JUDGES WHAT A SEAT MAY DO NEXT; an archived mint is what a seat DID. A mint recorded
 	// before the screen existed carries neither answer and can be given none by a replay, so under
 	// Migrating the match below is not asked — only the distinction check, which is structure (a
@@ -40,7 +46,7 @@ func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
 	// as no gaps. An error here is a record that could not be read, and a mint admitted over it is
 	// a mint screened against no board at all — the read failure and the honest empty board must
 	// not share an answer.
-	f, err := FamilyOf(run)
+	f, err := familyAt(q)
 	if err != nil {
 		// CODED AND SAID AS THE SCREEN'S REFUSAL: the read's own sentence, bare, is about whatever
 		// row it tripped on and carries no code, and a seat reading it cannot tell that its mint is
@@ -77,7 +83,7 @@ func requireNotAnOpenGap(run Run, m *recordpb.Mint) error {
 			}
 		}
 		var minter string
-		if _, err := queryRow(run, []any{&minter}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, nm.ID); err != nil {
+		if _, err := queryRowAt(q, []any{&minter}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, nm.ID); err != nil {
 			return err
 		}
 		hits = append(hits, fmt.Sprintf("%s (open, minted by %s, overlap %.2f): %s", nm.ID, minter, nm.Score, problem))

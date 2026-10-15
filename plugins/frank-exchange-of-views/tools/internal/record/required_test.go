@@ -37,7 +37,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 			ReopensOn:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
-	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
+	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }
@@ -64,7 +64,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 
 	// No prior closure exists, so a carry is a false claim about the record.
 	carry := &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1"), Prose: proto.String("verified at the leaf")}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err == nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err == nil {
 		t.Error("an unanchored FIRST closure was accepted as a carry — that is the laundering path: no verification, no lineage, and it scores as closed")
 	}
 
@@ -74,7 +74,7 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 		AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified and holds"),
 	}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, anchored); err != nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, anchored); err != nil {
 		t.Errorf("an anchored closure must still be accepted: %v", err)
 	}
 }
@@ -92,7 +92,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{GapId: proto.String(id), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"), Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1"), Prose: proto.String("verified at the leaf")}); err != nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1"), Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Errorf("a carry restating a real earlier closure must be accepted: %v", err)
 	}
 }
@@ -122,12 +122,12 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 	} {
 		m := base()
 		c.clear(m)
-		if err := validate(mustRun(t, newRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, m); err == nil {
+		if err := validateRun(mustRun(t, newRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, m); err == nil {
 			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", c.name)
 		}
 	}
 	// Severity and cx remain optional: absent, they are SHOWN absent.
-	if err := validate(mustRun(t, newRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
+	if err := validateRun(mustRun(t, newRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
 		t.Errorf("severity and cx must stay optional — their absence is visible, not silently zero: %v", err)
 	}
 	if GapMass("", "medium") != 0 {
@@ -163,7 +163,7 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 			Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
 		}
 	}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
 		t.Error("a direction ruling named Q1, which no avenue created, and was accepted")
 	}
 	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
@@ -177,7 +177,7 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err != nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err != nil {
 		t.Errorf("a direction ruling on a REAL line was refused: %v\n\nThis is the case a foreign key "+
 			"onto `motion.motion_id` got wrong: a direction motion has no motion row", err)
 	}
@@ -189,7 +189,7 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 		Opinion:  proto.String("the grade stands"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 	}
-	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
+	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
 		t.Error("a grade ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
 	}
 }

@@ -96,7 +96,7 @@ func TestAReopenedCitationHoldsThePassUntilALaterSittingVerifies(t *testing.T) {
 	if len(got) != 1 || got[0].Subject != "C-1" || got[0].Owner != evLens || got[0].since != edit || got[0].lastCheck != check {
 		t.Fatalf("blockers = %+v, want C-1 reopened at edit %d, last checked at %d, owed by %s", got, edit, check, evLens)
 	}
-	err := requireNoBlockers(held, recordpb.Verdict_VERDICT_PASS, got)
+	err := requireNoBlockers(viewOf(t, held), recordpb.Verdict_VERDICT_PASS, got)
 	if err == nil || !strings.Contains(err.Error(), "C-1's sentence changed at edit") || !strings.Contains(err.Error(), "show evidence --anchor") {
 		t.Fatalf("PASS over a reopened citation = %v, want a refusal naming it and where it is read", err)
 	}
