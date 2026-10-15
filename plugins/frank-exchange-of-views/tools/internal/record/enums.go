@@ -327,7 +327,7 @@ var EnumFields = map[string][]EnumField{
 		Why: "THE NEGATIVE HALF IS THE POINT. A citation that does NOT hold is recorded here — `refutes`, `absent`, `unreachable` — and not left as prose, because the audit that catches a report shipping a refuted citation reads this field and nothing else. This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
 	}, {
 		Key: "confidence", Flag: flags.Confidence, Values: evsOf(recordpb.Confidence(0).Descriptor()),
-		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nIt is NOT a property of the source and NOT a support scale — how well the source backs the claim is --outcome, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail",
+		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --as: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nIt is NOT a property of the source and NOT a support scale — how well the source backs the claim is --as, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail",
 	}},
 }
 

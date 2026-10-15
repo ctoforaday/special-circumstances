@@ -177,13 +177,13 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
 		{"grade motion dimension outside the set", []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "GAP001", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
-		{"verification outcome outside the set", []string{"verify", "--title", "r", "--independent", "--as", "banana", "--confidence", "high"}},
+		{"verification outcome outside the set", []string{"verify", "--as", "banana", "--confidence", "high"}},
 		// The two cases that used to be unstatable: a verification that does not say WHICH
 		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb
 		// recorded an event and printed "source verified:".
 		{"verification names no citation", []string{"verify", "--as", "supports", "--confidence", "high", "--reason", "read it"}},
 		// The axis I collapsed and had to restore: a determination with no stated confidence.
-		{"verification with no stated confidence", []string{"verify", "--independent", "--as", "refutes", "--reason", "the paper says the opposite"}},
+		{"verification with no stated confidence", []string{"verify", "--anchor", "C-0000beef", "--as", "refutes", "--reason", "the paper says the opposite"}},
 		{"verification of nothing", []string{"verify"}},
 		// These two were `blue confidence …` and `blue petition …` and pinned `no command named
 		// "blue"` — the role group, not the closed set either row names. Blue's confidence verb is
