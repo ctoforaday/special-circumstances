@@ -672,9 +672,3 @@ func Unit() hookunit.Unit {
 		},
 	}
 }
-
-// Main is the process boundary: it wires the real environment in and returns the
-// exit code, so cmd/ stays a three-line shim and this stays testable.
-func Main() int {
-	return run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.Getenv("CLAUDE_PROJECT_DIR"))
-}

@@ -10,10 +10,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// A past verdict is judged on the grades AS THEY STOOD AT IT: every gap open at the verdict, each
-// graded by its latest regrade at or before it (else its mint), against the run's own fraction. The
-// refusal at the write path asks the same question at the record's newest event, so the scorecard
-// and the gate give every FAIL the same answer.
+// A FAIL is judged on the grades AS THEY STAND WHEN IT IS WRITTEN: every gap open at the record's
+// newest event, each graded by its latest standing regrade (else its mint), against the run's own
+// fraction.
 
 func gradedMint(gap string, sev, lik, imp recordpb.Grade) *recordpb.Mint {
 	return &recordpb.Mint{GapId: proto.String(gap), Class: proto.String("x"), Problem: proto.String("p"),
@@ -47,8 +46,8 @@ func setFraction(t *testing.T, run Run, f float64) {
 
 // B4: G1 (high/high) minted, FAILed over and closed; G2 minted low/low and regraded to high/high
 // before the second FAIL. The open mass at FAIL #2 is 9 against a peak of 9 — not converged — so
-// the write path admits it, and the scorecard must not call it divergent.
-func TestAFailTheGateAdmitsIsNotDivergentAfterTheFact(t *testing.T) {
+// the write path admits it.
+func TestARegradeBeforeAFailIsTheGradeTheGateReads(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).
 		add(evLens, gradedMint("G1", gHigh, gHigh, gHigh)).
@@ -69,73 +68,10 @@ func TestAFailTheGateAdmitsIsNotDivergentAfterTheFact(t *testing.T) {
 	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, failVerdict()); err != nil {
 		t.Fatalf("FAIL #2 over a board of mass 9 against a peak of 9 was refused: %v", err)
 	}
-	eps, err := ConvergenceVsVerdict(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(eps) != 2 {
-		t.Fatalf("verdict rows = %+v, want 2", eps)
-	}
-	if got := eps[1]; got.Divergent || got.Mass != 9 || got.Peak != 9 {
-		t.Errorf("FAIL #2 after the fact = %+v, want mass 9 (G2 as regraded before it), peak 9, not divergent — the gate admitted it", got)
-	}
-}
-
-// A regrade AFTER a verdict does not move that verdict: the scorecard judges a past act on the facts
-// it was issued over, not on later ones.
-func TestARegradeAfterAVerdictDoesNotMoveIt(t *testing.T) {
-	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").register(evLens).
-		add(evLens, gradedMint("G1", gHigh, gHigh, gHigh)).
-		add("red-chair", failVerdict()).
-		add(evLens, repairClose("G1")).
-		add(evLens, gradedMint("G2", gLow, gLow, gLow)).
-		add(evLens, gradedRegrade("G2", gLow, gHigh, gHigh)).
-		register("red-chair").
-		add("red-chair", failVerdict()).
-		// After FAIL #2: G2 falls back to low/low. FAIL #2 stood over mass 9 — neither its mint
-		// grades (1) nor its current ones (1) — and stays there.
-		add(evLens, gradedRegrade("G2", gLow, gLow, gLow))
-	eps, err := ConvergenceVsVerdict(b.seed())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(eps) != 2 {
-		t.Fatalf("verdict rows = %+v, want 2", eps)
-	}
-	if got := eps[1]; got.Mass != 9 || got.Divergent {
-		t.Errorf("FAIL #2 = %+v, want mass 9 — a regrade written after it does not reach back", got)
-	}
-}
-
-// A verdict's PEAK is the run's peak as it stood at that verdict, not one a later board set. FAIL #1
-// stands over a trifle of mass 1 — its own peak, nothing converged — and a mass-10 board at FAIL #2
-// must not reach back and make FAIL #1 a FAIL over a tenth of the peak.
-func TestAVerdictsPeakIsThePeakAsItStoodThen(t *testing.T) {
-	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").register(evLens).
-		add(evLens, gradedMint("G1", gLow, gLow, gLow)).
-		add("red-chair", failVerdict()).
-		register("red-chair").
-		add(evLens, gradedMint("G2", gHigh, gHigh, gHigh)).
-		add("red-chair", failVerdict())
-	eps, err := ConvergenceVsVerdict(b.seed())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(eps) != 2 {
-		t.Fatalf("verdict rows = %+v, want 2", eps)
-	}
-	if got := eps[0]; got.Peak != 1 || got.Divergent {
-		t.Errorf("FAIL #1 = %+v, want peak 1 — the larger board came after it — and not divergent", got)
-	}
-	if got := eps[1]; got.Peak != 10 || got.Mass != 10 {
-		t.Errorf("FAIL #2 = %+v, want mass and peak 10", got)
-	}
 }
 
 // The fraction is the run's own: a run set up at 0.05 does not hold a mass-1 board against a peak of
-// 9 converged (1 > 0.45), and neither the gate nor the scorecard may judge it at setup's default.
+// 9 converged (1 > 0.45), and the gate may not judge it at setup's default.
 func TestTheConvergenceFractionIsTheRuns(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).
@@ -147,32 +83,27 @@ func TestTheConvergenceFractionIsTheRuns(t *testing.T) {
 		register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
 	run := b.seed()
 	setFraction(t, run, 0.05)
-	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, failVerdict()); err != nil {
-		t.Fatalf("FAIL over mass 1 against peak 9 at fraction 0.05 was refused: %v", err)
-	}
-	eps, err := ConvergenceVsVerdict(run)
+	c, err := convergenceOf(viewOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
-	last := eps[len(eps)-1]
-	if last.Fraction != 0.05 || last.Divergent || last.Mass != 1 || last.Peak != 9 {
-		t.Errorf("the admitted FAIL = %+v, want fraction 0.05, mass 1, peak 9, not divergent", last)
+	if c.Fraction != 0.05 || c.Holds || c.Mass != 1 || c.Peak != 9 {
+		t.Errorf("the gate's convergence = %+v, want fraction 0.05, mass 1, peak 9, not holding", c)
+	}
+	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, failVerdict()); err != nil {
+		t.Fatalf("FAIL over mass 1 against peak 9 at fraction 0.05 was refused: %v", err)
 	}
 }
 
-// THE GATE AND THE SCORECARD COMPUTE ONE QUANTITY. Every edge a gap can stand in relative to a
-// verdict — never regraded, regraded before it, regraded after it, closed before it, closed after it,
-// minted after it in its own epoch, and an act the verdict read corrected after it or before it — is
-// seeded, and at each FAIL the write path's convergence over the record as it stood just before that
-// FAIL is compared field by field with the scorecard's row for that FAIL, read off the whole record
-// afterwards. The run's fraction is 0.5, which is what makes FAIL #4 converged (mass 21 against a
-// peak of 46); at setup's default it would not be.
+// THE GATE READS THE BOARD AS IT STANDS. A gap is seeded in every state it can hold when a FAIL is
+// written — never regraded, regraded, closed, minted fresh in the FAIL's epoch, and regraded with the
+// regrade corrected — and at each FAIL the write path's convergence over the record just before it
+// is compared field by field with the board worked out by hand. The run's fraction is 0.5, which is
+// what makes FAIL #4 converged (mass 21 against a peak of 46); at setup's default it would not be.
 //
-// A CORRECTION WRITTEN AFTER A VERDICT DOES NOT CHANGE THAT VERDICT'S BOARD. A corrected act keeps
-// its place in every ordering ("pos"), but whether it STOOD at the verdict is a question of when it
-// and its correction were written: R's regrade and S's close are corrected after FAIL #2, which read
-// the originals, and K's regrade is corrected before it, so FAIL #2 read the replacement.
-func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
+// A CORRECTED ACT IS READ AS ITS REPLACEMENT: K's regrade is corrected before FAIL #2, so FAIL #2
+// reads the replacement.
+func TestTheGateJudgesTheBoardAsItStandsAtEachFail(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		// Epoch 1: eight gaps, then FAIL #1 over all of them.
 		register("red-chair").register(evLens).
@@ -248,30 +179,19 @@ func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 		gates = append(gates, c)
 	}
 
-	run := b.seed()
-	setFraction(t, run, 0.5)
-	eps, err := ConvergenceVsVerdict(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(eps) != len(want) || len(gates) != len(want) {
-		t.Fatalf("verdict rows %d, gate readings %d, want %d", len(eps), len(gates), len(want))
+	if len(gates) != len(want) {
+		t.Fatalf("gate readings %d, want %d", len(gates), len(want))
 	}
 	for i := range want {
 		if gates[i] != want[i] {
 			t.Errorf("FAIL #%d at the gate = %+v, want %+v", i+1, gates[i], want[i])
 		}
-		if eps[i].Convergence != gates[i] {
-			t.Errorf("FAIL #%d: the scorecard read %+v, the gate %+v", i+1, eps[i].Convergence, gates[i])
-		}
-		if eps[i].Divergent != gates[i].Holds {
-			t.Errorf("FAIL #%d: divergent %v but the gate's convergence held = %v", i+1, eps[i].Divergent, gates[i].Holds)
-		}
 	}
 
 	// At the newest event "as it stood" is "now": the board at that point is the gap view's open
-	// board on its CURRENT grades and its own "material" column — the rule convergence_at restates
-	// at every other point.
+	// board on its CURRENT grades and its own "material" column — the rule convergence_at restates.
+	run := b.seed()
+	setFraction(t, run, 0.5)
 	now, err := convergenceOf(viewOf(t, run))
 	if err != nil {
 		t.Fatal(err)
@@ -295,9 +215,9 @@ func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 
 // The rule reads ONE term of the run, and only that term can refuse it. An epoch limit of 0 is a bad
 // term for the dispatch, and says nothing about the fraction; a run with no record has nothing to
-// judge, whatever its config holds. A fraction outside (0, 1] is the one config error the detector
-// must report.
-func TestTheDetectorIsRefusedOnlyByABadFraction(t *testing.T) {
+// judge, whatever its config holds. A fraction outside (0, 1] is the one config error the gate must
+// report.
+func TestTheGateIsRefusedOnlyByABadFraction(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).
 		add(evLens, gradedMint("G1", gHigh, gHigh, gHigh)).
@@ -305,25 +225,21 @@ func TestTheDetectorIsRefusedOnlyByABadFraction(t *testing.T) {
 
 	writeRunConfig(t, run.Dir(), `{"maxEpochs":0,"convergenceFraction":0.5}`)
 	if _, err := RunParams(run); err == nil {
-		t.Fatal("RunParams accepted maxEpochs 0 — the fixture no longer holds a term the detector must ignore")
-	}
-	eps, err := ConvergenceVsVerdict(run)
-	if err != nil || len(eps) != 1 || eps[0].Fraction != 0.5 {
-		t.Errorf("ConvergenceVsVerdict beside maxEpochs 0 = (%+v, %v), want one row at fraction 0.5", eps, err)
+		t.Fatal("RunParams accepted maxEpochs 0 — the fixture no longer holds a term the gate must ignore")
 	}
 	if c, err := convergenceOf(viewOf(t, run)); err != nil || c.Fraction != 0.5 {
 		t.Errorf("the gate beside maxEpochs 0 = (%+v, %v), want fraction 0.5", c, err)
 	}
 
 	writeRunConfig(t, run.Dir(), `{"convergenceFraction":0}`)
-	if eps, err := ConvergenceVsVerdict(run); err == nil {
-		t.Errorf("ConvergenceVsVerdict at fraction 0 = %+v, want the error", eps)
+	if c, err := convergenceOf(viewOf(t, run)); err == nil {
+		t.Errorf("the gate at fraction 0 = %+v, want the error", c)
 	}
 
 	empty := mustRun(t, newRun(t))
 	writeRunConfig(t, empty.Dir(), `{`)
-	if eps, err := ConvergenceVsVerdict(empty); err != nil || eps != nil {
-		t.Errorf("ConvergenceVsVerdict over no record with a config that does not parse = (%+v, %v), want (nil, nil)", eps, err)
+	if c, err := convergenceOf(viewOf(t, empty)); err != nil || c.Holds {
+		t.Errorf("the gate over no record with a config that does not parse = (%+v, %v), want no convergence and no error", c, err)
 	}
 }
 
