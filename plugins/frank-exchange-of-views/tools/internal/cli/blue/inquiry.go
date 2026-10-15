@@ -113,7 +113,7 @@ func newInquiryPropose() *cobra.Command {
 	flags.Text(c, flags.Question, "the QUESTION this inquiry asks, holding no predicted result — research prose for a reader of the SUBJECT, printed in the report word for word as the inquiry's question; a result you expect goes in --hypothesis")
 	seat.Require(c, flags.Question)
 	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this inquiry pays off. The report prints it as the inquiry's hypothesis, and the fate is judged against it — confirmed where it held, refuted where it did not")
-	flags.Text(c, flags.Method, "the source class or technique it belongs to, when that is what distinguishes it")
+	flags.Text(c, flags.Method, "optional free text: the source class or technique the approach belongs to, when that is what distinguishes it")
 	return c
 }
 

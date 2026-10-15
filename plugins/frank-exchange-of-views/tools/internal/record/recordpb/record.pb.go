@@ -104,14 +104,6 @@ func (CorrectionTier) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{0}
 }
 
-// EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
-// checked against it at the single write path — two carriers of one fact with a gate between
-// them, which is legal precisely because the gate exists. It stays because it is in every
-// golden and every `switch e.Type`, and dropping it would rewrite ~29 switches into type
-// assertions for no gain.
-//
-// The five retired types — dispute, dispute_respond, petition, petition_rule, avenue_rule —
-// have NO value here. That absence is the deletion of the legacy vocabulary.
 type EventType int32
 
 const (
@@ -1126,20 +1118,15 @@ func (InquiryRuling) EnumDescriptor() ([]byte, []int) {
 // finding can never be credited in a gap's found_by and its work is lost.
 // FindingAbout is WHAT A FINDING IS ANCHORED TO when the thing it names is not on the page.
 //
-// A finding used to require a live report quote, so a defect about an ABSENCE had to borrow an
-// innocent sentence as a handle. Measured in research/2026-09-02_quadratic-formula: a missing line
-// of inquiry was pinned to the Diophantus sentence the finding explicitly called fine, and a
-// missing risk matrix — the word "risk" occurs zero times in that report — was pinned to the
-// opening of section F. "A reader of the gap list will land on good prose and have to read three
-// paragraphs to learn that the sentence is only a handle."
+// A defect about an ABSENCE has no sentence to quote, and a quote borrowed as a handle points a
+// reader of the gap list at prose the finding itself calls fine.
 //
-// IT THROTTLED THE STEELMAN DUTY IN PARTICULAR. Red's duty is to audit the REASONS declined and
-// abandoned lines were set aside, and the strongest such findings are arguments against a reason —
-// which is not report prose at all. The audit worked anyway, and every one of its findings
-// mis-anchored.
+// IT MATTERS TO THE STEELMAN DUTY IN PARTICULAR. Red's duty is to audit the REASONS declined and
+// abandoned inquiries were set aside, and the strongest such findings are arguments against a
+// reason — which is not report prose at all.
 //
-// The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote never was: an
-// avenue id either names a line this run proposed or it does not.
+// The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote is not: an
+// inquiry id either names an inquiry this run proposed or it does not.
 //
 // IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `lens mint` took
 // `--quote` and told the seat, in its own help, to "quote the sentence where it SHOULD be — that
@@ -3490,7 +3477,7 @@ type Close struct {
 	// prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
 	// and the re-audit reads it.
 	//
-	// NOT `required` — CONDITIONALLY required, like Avenue.line, and for the same kind of reason.
+	// NOT `required` — CONDITIONALLY required, like Inquiry.question, and for the same kind of reason.
 	// `chair carry` restates a closure an earlier round already argued, so demanding a fresh
 	// argument asks the same thing twice; validate exempts a carry and requires it everywhere else.
 	// Marked unconditional here, the annotation refused a carry BEFORE that exemption could run,
@@ -4646,22 +4633,20 @@ func (x *Reproduce) GetNote() string {
 	return ""
 }
 
-// AvenueReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
-// the record's avenues.
+// InquiryReview is the chair's statement, ONCE PER EPOCH, that it read the current report against
+// the record's inquiries.
 //
 // The report's account of its own research — "we pursued X", "we deferred Y" — reaches the page as
 // a row `assemble` GENERATES from the record. It carries no citation anchor, so `lens verify`
 // cannot reach it: without this event nothing on the record says those claims were ever read, and
 // an unread section and a sound one are the same bytes.
 //
-// ONE EVENT PER EPOCH, NOT ONE PER AVENUE, AND THE CORRECTION IS THE POINT. A retired shape gave
-// every avenue its own verdict on whether the report still CARRIED it. That made presence the
-// question, and presence is not a question: avenues reach the report generated from the record, so
-// blue cannot cut them. An avenue is on the page because the record says it is, and a per-avenue
-// `cut`/`absent` state named something no writer could produce.
+// ONE EVENT PER EPOCH, NOT ONE PER INQUIRY. Presence is not a question: inquiries reach the report
+// generated from the record, so blue cannot cut them. An inquiry is on the page because the record
+// says it is, and a per-inquiry `cut`/`absent` state would name something no writer could produce.
 //
 // WHAT IS LEFT IS AN ORDINARY GAP. The live question is whether blue's BODY delivered the research
-// an avenue claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
+// an inquiry claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
 // in the report, so it is minted as a gap and gets the lifecycle, the blue duty, the grade and the
 // PASS gate every other gap already has. A second vocabulary for the same fact is exactly the
 // aliasing this schema exists to remove.
@@ -4716,28 +4701,24 @@ func (x *InquiryReview) GetReason() string {
 	return ""
 }
 
-// Avenue is an avenue with a lifecycle. A PROPOSAL assigns the id and carries the
-// substance; a MOVE names the avenue and carries only the new status and its reason, which is
-// why `line` cannot be required unconditionally.
+// Inquiry is an inquiry with a lifecycle. A PROPOSAL assigns the id and carries the substance;
+// a RECORD of a fate names the inquiry and carries only the new status and its reason, which is
+// why `question` cannot be required unconditionally.
 type Inquiry struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	InquiryId *string                `protobuf:"bytes,1,opt,name=inquiry_id,json=inquiryId,proto3,oneof" json:"inquiry_id,omitempty"`
-	// NOT `required`, which is what the message comment directly above has said all along — the
-	// annotation contradicted it. Only UNCONDITIONAL requirements belong on a field: `line` is
-	// required on a PROPOSAL and must not be on a MOVE, and record.go's Avenue arm spells that out
-	// ("requiring --line here would make a move impossible").
-	//
-	// Marked unconditional it did two things at once: CheckRequired refused every move before the
-	// conditional check could run, and the derived DDL put NOT NULL on the column so the row could
-	// not be stored either. A conditional requirement expressed as an unconditional one does not
-	// become stricter — it becomes wrong.
+	// NOT `required`: only UNCONDITIONAL requirements belong on a field. `question` is required on a
+	// PROPOSAL and must not be on a record of a fate, and record.go's Inquiry arm spells that out.
+	// Marked unconditional, CheckRequired would refuse every record of a fate before the
+	// conditional check could run, and the derived DDL would put NOT NULL on the column so the row
+	// could not be stored either.
 	Question   *string        `protobuf:"bytes,2,opt,name=question,proto3,oneof" json:"question,omitempty"`
 	Hypothesis *string        `protobuf:"bytes,3,opt,name=hypothesis,proto3,oneof" json:"hypothesis,omitempty"`
 	Method     *string        `protobuf:"bytes,4,opt,name=method,proto3,oneof" json:"method,omitempty"`
 	Status     *InquiryStatus `protobuf:"varint,5,opt,name=status,proto3,enum=feov.record.v1.InquiryStatus,oneof" json:"status,omitempty"`
-	// supersedes_status marks this event as a MOVE rather than a proposal.
+	// supersedes_status marks this event as a record of a fate rather than a proposal.
 	SupersedesStatus *string `protobuf:"bytes,6,opt,name=supersedes_status,json=supersedesStatus,proto3,oneof" json:"supersedes_status,omitempty"`
-	// A declined, deferred or abandoned avenue requires a reason: the road not taken is worthless
+	// A declined, deferred or abandoned inquiry requires a reason: the road not taken is worthless
 	// without why, and a deferral with none is indistinguishable from forgetting.
 	Reason        *string `protobuf:"bytes,7,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -5732,8 +5713,8 @@ func (x *DocketRuling) GetFinal() bool {
 	return false
 }
 
-// AvenueMotion rules on an avenue blue proposed. The id is the AVENUE's own — a
-// direction has no separate filing, because blue's proposal IS the filing.
+// InquiryMotion rules on an inquiry blue proposed. The id is the INQUIRY's own — an inquiry has
+// no separate filing, because blue's proposal IS the filing.
 type InquiryMotion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	InquiryId     *string                `protobuf:"bytes,1,opt,name=inquiry_id,json=inquiryId,proto3,oneof" json:"inquiry_id,omitempty"`
@@ -5950,9 +5931,8 @@ func (*MotionRule_Docket) isMotionRule_Ruling() {}
 type MotionAppeal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// An appeal names the motion it appeals — and NOT as a foreign key, for the reason MotionRule
-	// records at length: a direction appeal names the avenue's own id, because the proposal
-	// is the filing and there is no motion row. I added the reference here for symmetry with the
-	// ruling's, and it was wrong in both places for the same third of cases.
+	// records at length: an inquiry appeal names the inquiry's own id, because the proposal is the
+	// filing and there is no motion row.
 	//
 	// RequireMotionSubjectRef is the check, and it knows the subject.
 	MotionId      *string        `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
@@ -8039,15 +8019,15 @@ const file_record_proto_rawDesc = "" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
 	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12z\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\x86\r\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\xe9\r\n" +
 	"\rInquiryStatus\x12\x1e\n" +
-	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\xa1\x01\n" +
-	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1a\x83\x01\x8a\xb5\x18\x7fyou intend to take up this question and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a fate\x12\xc7\x01\n" +
+	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\x93\x01\n" +
+	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1av\x8a\xb5\x18rput forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate\x12\xc7\x01\n" +
 	"\x17INQUIRY_STATUS_UNDERWAY\x10\x02\x1a\xa9\x01\x8a\xb5\x18\xa4\x01you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached\x12\x96\x02\n" +
 	"\x18INQUIRY_STATUS_CONFIRMED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc3\x02\n" +
-	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12n\n" +
-	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1aQ\x8a\xb5\x18Mnot this run. REQUIRES a reason saying what a later run should pick it up FOR\x12\x90\x02\n" +
-	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xf2\x01\x8a\xb5\x18\xed\x01you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
+	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12\xa7\x01\n" +
+	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1a\x89\x01\x8a\xb5\x18\x84\x01left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR\x12\xc7\x02\n" +
+	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xa9\x02\x8a\xb5\x18\xa4\x02you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
 	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xc5\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
@@ -8062,12 +8042,12 @@ const file_record_proto_rawDesc = "" +
 	"\x0ePetitionRuling\x12\x1f\n" +
 	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12\x8f\x01\n" +
 	"\x17PETITION_RULING_GRANTED\x10\x01\x1ar\x8a\xb5\x18nthe objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow\x12\xaf\x01\n" +
-	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\xb2\x02\n" +
+	"\x16PETITION_RULING_DENIED\x10\x02\x1a\x92\x01\x8a\xb5\x18\x8d\x01the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest*\xcd\x02\n" +
 	"\rInquiryRuling\x12\x1e\n" +
 	"\x1aINQUIRY_RULING_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x17INQUIRY_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12K\n" +
-	"\x1bINQUIRY_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12a\n" +
-	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xe0\x04\n" +
+	"\x1bINQUIRY_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12|\n" +
+	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xe0\x04\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x8e\x02\n" +
