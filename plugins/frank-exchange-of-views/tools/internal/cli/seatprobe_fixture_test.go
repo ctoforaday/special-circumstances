@@ -77,7 +77,7 @@ func TestWriteSeatProbeFixture(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	buildBoard(t, dest, board)
 	t.Logf("board %q written to %s for seat %s: %d gap(s), %d avenue(s), %d expectation(s)",
-		board.Name, dest, board.Seat, len(board.Gaps), len(board.Avenues), len(board.Expect))
+		board.Name, dest, board.Seat, len(board.Gaps), len(board.Inquiries), len(board.Expect))
 }
 
 // buildBoard materialises a board THROUGH THE REAL WRITE PATHS.
@@ -131,7 +131,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		}
 	}
 
-	for i, a := range b.Avenues {
+	for i, a := range b.Inquiries {
 		if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis); err != nil {
 			t.Fatalf("avenue %d: %v", i, err)

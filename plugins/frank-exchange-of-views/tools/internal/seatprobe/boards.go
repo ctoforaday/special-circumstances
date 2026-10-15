@@ -51,7 +51,7 @@ type Gap struct {
 }
 
 // Avenue is a proposed avenue, and red's ruling on it if there is one.
-type Avenue struct {
+type Inquiry struct {
 	Line, Hypothesis string
 	// Ruled, when set, is the fate red has already given it — which is what makes a
 	// move the seat's next act rather than a fresh proposal.
@@ -108,10 +108,10 @@ type Board struct {
 	Name string
 	// Seat is who the board is FOR. A board is built for one seat's sitting; the others are
 	// present only as the authors of the state it inherits.
-	Seat    string
-	Report  string
-	Gaps    []Gap
-	Avenues []Avenue
+	Seat      string
+	Report    string
+	Gaps      []Gap
+	Inquiries []Inquiry
 	// Claims are cited claims already on the record, so a seat has something to re-cite, retire,
 	// or index rather than having to author one first.
 	Claims []string
@@ -351,7 +351,7 @@ Reversibility under load was not tested.
 				"The likelihood axis grades the consequence landing, and nothing here has been run — so the " +
 				"grade stands until there is a measurement, not until there is a sentence in Limits.",
 		}},
-		Avenues: []Avenue{
+		Inquiries: []Inquiry{
 			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
 				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
 					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
@@ -426,7 +426,7 @@ Figures were read from the deployed configuration.
 					"a non-empty archive is a claim the board's own count contradicts.",
 			},
 		},
-		Avenues: []Avenue{
+		Inquiries: []Inquiry{
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Expect: []Expectation{
@@ -491,7 +491,7 @@ Figures were read from the deployed configuration at the pinned revision.
 					"re-raise with no closing leaves the bench ruling on blue's account alone.",
 			},
 		},
-		Avenues: []Avenue{
+		Inquiries: []Inquiry{
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Motions: []Motion{{

@@ -181,7 +181,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
-		"motion avenue rule":   {"a proposed avenue", func(b Board) bool { return len(b.Avenues) > 0 }},
+		"motion avenue rule":   {"a proposed avenue", func(b Board) bool { return len(b.Inquiries) > 0 }},
 		"reproduce":            {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
 		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"close":                {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
@@ -247,7 +247,7 @@ func hasMotion(b Board, subject string, ruled bool) bool {
 // and a considered one produce identical events.
 func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
 	for name, b := range Boards() {
-		for i, a := range b.Avenues {
+		for i, a := range b.Inquiries {
 			if a.Ruled == "" {
 				continue
 			}

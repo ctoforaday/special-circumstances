@@ -91,13 +91,13 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 				t.Errorf("the refusal of a grade appeal does not say what a grade motion holds for %s:\n%s", seatID, grade)
 			}
 			// The avenue subject is on the ruler's surface alone.
-			avenue := d.refused("an appeal of the avenue ruling", seatID, "motion", "avenue", "appeal", "--id", "Q1", "--reason", "it is this question")
+			inquiry := d.refused("an appeal of the avenue ruling", seatID, "motion", "avenue", "appeal", "--id", "Q1", "--reason", "it is this question")
 			want := "the chair's `motion avenue`"
 			if seatID == "red-chair" {
 				want = "an avenue motion has no `appeal` verb — it has rule"
 			}
-			if !strings.Contains(avenue, want) {
-				t.Errorf("the refusal of an avenue appeal by %s does not say %q:\n%s", seatID, want, avenue)
+			if !strings.Contains(inquiry, want) {
+				t.Errorf("the refusal of an avenue appeal by %s does not say %q:\n%s", seatID, want, inquiry)
 			}
 			if n := len(eventsOfWord(t, runDir, "motion_appeal")); n != 0 {
 				t.Fatalf("the record holds %d appeal(s) after refused invocations", n)

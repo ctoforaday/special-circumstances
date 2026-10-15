@@ -93,17 +93,17 @@ func TestAssembleEndToEnd(t *testing.T) {
 	})
 	add("red-chair", &recordpb.Position{Text: proto.String("gap G1 stands until the race is shown impossible")})
 	add("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
-	add("blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
-		Line: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY),
+		Question: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
 	})
-	add("blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
-		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
+		Question: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
 	})
-	add("blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED),
-		Line: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q3"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED),
+		Question: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
 	})
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
@@ -223,10 +223,10 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// so they must land in a document a reader of the archived set can open — or they are data dead
 	// in the record. Q2 was recorded straight as `abandoned`, with no `pursued` step, and the
 	// report's tag is the fate its seat recorded.
-	avenueDoc := read(FileAvenues)
+	inquiryDoc := read(FileInquiries)
 	for _, want := range []string{"## pursued (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
-		if !strings.Contains(avenueDoc, want) {
-			t.Errorf("avenues.md missing %q\n---\n%s", want, avenueDoc)
+		if !strings.Contains(inquiryDoc, want) {
+			t.Errorf("avenues.md missing %q\n---\n%s", want, inquiryDoc)
 		}
 	}
 	if !strings.Contains(got, "- **Question:** rewrite the cache lock-free\n  - **Fate:** abandoned. **Why:** cost exceeds the benefit at this scale") {
@@ -280,7 +280,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	shipped := map[string]bool{}
 	for _, f := range Files() {
 		b, err := os.ReadFile(filepath.Join(runDir, f))
-		if err != nil || f == FileAvenues {
+		if err != nil || f == FileInquiries {
 			continue
 		}
 		eachLine(string(b), func(ln, tr string, fenced bool) {

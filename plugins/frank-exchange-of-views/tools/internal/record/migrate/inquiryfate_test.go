@@ -17,7 +17,7 @@ import (
 // was filed with and re-reads none of them. Two archives, because one holds no act of every fate:
 // m20 has abandoned beside concluded and declined, and b9 — a record older than the stated epoch
 // — has pursued.
-func TestAnArchivedAvenueFateMigratesAsRecorded(t *testing.T) {
+func TestAnArchivedInquiryFateMigratesAsRecorded(t *testing.T) {
 	for archive, holds := range map[string]string{
 		"2026-10-11_is-91-prime-m20.tar.gz": "abandoned",
 		"2026-09-11_is-91-prime-b9.tar.gz":  "pursued",
@@ -75,7 +75,7 @@ func archivedFatesMigrateAsRecorded(t *testing.T, archive, holds string) {
 		t.Fatal(err)
 	}
 	held := 0
-	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
+	for _, a := range record.InquiriesOf(fam.Events, fam.At) {
 		if a.Status == "refuted" {
 			t.Errorf("avenue %s reads refuted after migration", a.ID)
 		}

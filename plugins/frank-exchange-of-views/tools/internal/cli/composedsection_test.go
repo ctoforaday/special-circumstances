@@ -45,7 +45,7 @@ func refusesTheSection(t *testing.T, out string, err error, want ...string) {
 	}
 }
 
-var avenueWay = []string{`"## Alternatives considered"`, "report.md", "the avenues on the record that are declined or abandoned",
+var inquiryWay = []string{`"## Alternatives considered"`, "report.md", "the avenues on the record that are declined or abandoned",
 	"`avenue propose`", "`avenue move`", "`declined` or `abandoned`"}
 
 func TestIngestRefusesASectionTheToolComposes(t *testing.T) {
@@ -61,7 +61,7 @@ func TestIngestRefusesASectionTheToolComposes(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BASE_INGEST); n != 0 {
 		t.Errorf("the refused ingest recorded %d base(s)", n)
 	}
@@ -93,11 +93,11 @@ func TestEditRefusesASectionTheToolComposes(t *testing.T) {
 	// The heading whole, in --new.
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1",
 		"--quote", "91 is 7 x 13.", "--new", "91 is 7 x 13.\n\n"+strings.TrimSpace(composedSection), "--reason", "list what was weighed")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 	// And a heading the edit COMPLETES: no part of it is in --new, so only the planned document shows it.
 	out, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E2",
 		"--quote", "Other approaches", "--new", "Alternatives considered", "--reason", "name the section for what it lists")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("the refused edits recorded %d edit(s)", n)
 	}
@@ -120,7 +120,7 @@ func TestEveryActTheLayoutNamesIsACommand(t *testing.T) {
 	}
 	ticked := regexp.MustCompile("`([a-z][a-z -]*)`")
 	fates := map[string]bool{}
-	for _, f := range record.AvenueStatusNames() {
+	for _, f := range record.InquiryStatusNames() {
 		fates[f] = true
 	}
 	acts := 0
@@ -279,7 +279,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 
 	// MIGRATED: the record holds the heading, and everything under it ships.
 	blue, err := reportproj.RenderFromRecord(dst)

@@ -422,8 +422,8 @@ func TestAWindowIndexTheLoaderDidNotBuildPanics(t *testing.T) {
 func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 	m := loadedT(t,
 		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C1")}),
-		recordtest.Event(t, "blue-respond", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-			Status: recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(), Line: proto.String("a direction"), Method: proto.String("read it")}),
+		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+			Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(), Question: proto.String("a direction"), Method: proto.String("read it")}),
 		// The chair sits again, registers and stops: epoch 2 holds only bookkeeping.
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("C2"),
 			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")}),
@@ -439,7 +439,7 @@ func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 	if got := m.At.CurrentEpoch(m.Events); got != 1 {
 		t.Errorf("CurrentEpoch = %d, want 1: epoch 2 holds a register and the harness's own rows, and no work", got)
 	}
-	if stale := StaleAvenuesOf(m.Events, m.At); len(stale) != 0 {
+	if stale := StaleInquiriesOf(m.Events, m.At); len(stale) != 0 {
 		t.Errorf("an avenue pursued in epoch 1 reads stale in an epoch with no work in it: %+v", stale)
 	}
 }

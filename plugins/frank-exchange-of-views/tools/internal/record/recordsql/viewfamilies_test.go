@@ -134,28 +134,28 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	}
 }
 
-func TestAvenueCarriesTheWholeLine(t *testing.T) {
+func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 	db := store(t)
-	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{
-		AvenueId: proto.String("Q1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
-		Line: proto.String("a direction")})); err != nil {
+	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
+		Question: proto.String("a direction")})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{
-		AvenueId: proto.String("Q1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(),
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(),
 		SupersedesStatus: proto.String("proposed")})); err != nil {
 		t.Fatal(err)
 	}
 	// Two direction rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
 	// not an invitation to read the older word.
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum(),
+		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
 		Opinion: proto.String("o"),
-		Ruling:  &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_ENDORSED}})); err != nil {
+		Ruling:  &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED}})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum(),
+		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
 		Opinion: proto.String("reconsidered, no word")})); err != nil {
 		t.Fatal(err)
 	}

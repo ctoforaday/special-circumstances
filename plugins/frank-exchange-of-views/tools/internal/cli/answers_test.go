@@ -187,7 +187,7 @@ const (
 	rowGradeRule   = "a docket motion on the gap"
 	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition    = "a declaration"
-	rowAvenue      = "a move of the avenue"
+	rowInquiry     = "a move of the avenue"
 	rowReproduce   = "a new re-run of the proof, whose reason says which earlier re-run it replaces"
 )
 
@@ -440,7 +440,7 @@ func answerDrives() []answerDrive {
 				d.admitted("a move to "+status+" against the ruling", "blue-respond", "avenue", "move", "--id", "Q1", "--as", status, "--reason", "what the question turns on")
 			}
 		}},
-		{name: "avenue", row: rowAvenue, helps: []string{"blue avenue propose", "blue avenue move"}, drive: func(d drive) {
+		{name: "avenue", row: rowInquiry, helps: []string{"blue avenue propose", "blue avenue move"}, drive: func(d drive) {
 			proposeQ1(d.t, d.run)
 			for _, status := range []string{"pursued", "deferred", "declined", "abandoned", "concluded", "refuted", "proposed"} {
 				d.admitted("a move to "+status, "blue-respond", "avenue", "move", "--id", "Q1", "--as", status, "--reason", "moved to "+status)

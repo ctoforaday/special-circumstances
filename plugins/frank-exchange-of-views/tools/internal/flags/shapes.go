@@ -173,7 +173,7 @@ func CitationAnchor() *ShapedValue {
 
 // AvenueID refuses anything that is not an avenue id. Its letter is Q, for the QUESTION the line
 // asks, which is what `--line` holds.
-func AvenueID() *ShapedValue {
+func InquiryID() *ShapedValue {
 	return &ShapedValue{kind: "avenue-id", re: idShape("avenue"),
 		hint: "an avenue id is Q- and eight hex, and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
 }

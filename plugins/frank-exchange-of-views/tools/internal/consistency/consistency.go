@@ -69,7 +69,7 @@ type groundTruth struct {
 	proofIDs      map[string]bool
 	citeEvents    int
 	verifyEvents  int
-	avenues       map[string]string // avenue id -> last status word
+	inquiries     map[string]string // avenue id -> last status word
 	observations  int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
@@ -95,7 +95,7 @@ func walk(events []*record.Event) *groundTruth {
 		placedIDs:     map[string]bool{},
 		anchorEvIDs:   map[string]bool{},
 		proofIDs:      map[string]bool{},
-		avenues:       map[string]string{},
+		inquiries:     map[string]string{},
 	}
 	closes := closesSet()
 	// THE DOCKET RULING'S GAP RIDES ITS FILING, and this walk is single-pass over the events as
@@ -265,9 +265,9 @@ func walk(events []*record.Event) *groundTruth {
 			if id := m.GetLabel(); id != "" && m.GetClaim() != "" {
 				gt.placedIDs[id] = true
 			}
-		case *recordpb.Avenue:
-			if id := m.GetAvenueId(); id != "" {
-				gt.avenues[id] = recordpb.Word(m.GetStatus())
+		case *recordpb.Inquiry:
+			if id := m.GetInquiryId(); id != "" {
+				gt.inquiries[id] = recordpb.Word(m.GetStatus())
 			}
 		}
 	}
@@ -501,11 +501,11 @@ func Check(run record.Run) ([]string, error) {
 			}
 		}
 	}
-	if len(gt.avenues) > 0 {
+	if len(gt.inquiries) > 0 {
 		if inq, err := view.MarkdownFrom(rin, "avenues", ""); err != nil {
 			add("avenue-md", "render failed: %v", err)
 		} else {
-			for id := range gt.avenues {
+			for id := range gt.inquiries {
 				if !strings.Contains(string(inq), id) {
 					add("avenue-md", "avenue %s missing from avenues", id)
 				}

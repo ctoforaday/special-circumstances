@@ -158,9 +158,9 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	direction := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 			Opinion:  proto.String("a real question, but not this one"),
-			Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
+			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 		}
 	}
 	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
@@ -170,10 +170,10 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	if _, _, err := RegisterSeat(blue, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Avenue{
-		AvenueId: proto.String("Q1"),
-		Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED),
-		Line:     proto.String("read the adjacent literature"),
+	if _, err := Append(blue, &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"),
+		Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
+		Question:  proto.String("read the adjacent literature"),
 	}); err != nil {
 		t.Fatal(err)
 	}

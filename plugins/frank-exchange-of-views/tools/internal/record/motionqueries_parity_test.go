@@ -12,7 +12,7 @@ import (
 // avenueRulingFold is the fold AvenueRuling replaced, kept HERE as the parity oracle: the
 // query and the fold read the same record, and this test refuses to let them disagree. A record
 // the fold cannot read fails the test: "" is the fold's answer for an avenue red has not ruled.
-func avenueRulingFold(t *testing.T, run Run, avenueID string) string {
+func inquiryRulingFold(t *testing.T, run Run, inquiryID string) string {
 	t.Helper()
 	b, err := FamilyOf(run)
 	if err != nil {
@@ -21,12 +21,12 @@ func avenueRulingFold(t *testing.T, run Run, avenueID string) string {
 	ruling := ""
 	for _, e := range b.Events {
 		mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE || mr.GetMotionId() != avenueID {
+		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY || mr.GetMotionId() != inquiryID {
 			continue
 		}
 		ruling = ""
-		if d, isAvenue := mr.GetRuling().(*recordpb.MotionRule_Avenue); isAvenue {
-			ruling = recordpb.Word(d.Avenue)
+		if d, isInquiry := mr.GetRuling().(*recordpb.MotionRule_Inquiry); isInquiry {
+			ruling = recordpb.Word(d.Inquiry)
 		}
 	}
 	return ruling
@@ -103,28 +103,28 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	// An avenue: subject resolution falls through to the avenue, and the ruling read
 	// agrees with the fold at every state.
-	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
-		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
+	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_AVENUE, "Q1"); err != nil || got != "avenue" {
+	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, "Q1"); err != nil || got != "avenue" {
 		t.Errorf("RequireMotionSubjectRef(Q1) = (%q, %v) — an avenue IS an avenue motion by construction", got, err)
 	}
-	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_AVENUE, "Z9"); err == nil {
+	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, "Z9"); err == nil {
 		t.Error("RequireMotionSubjectRef accepted an id that names no avenue")
 	}
-	if got, err := AvenueRuling(run, "Q1"); err != nil || got != avenueRulingFold(t, run, "Q1") || got != "" {
-		t.Errorf("AvenueRuling before any ruling = (%q, %v), fold says %q", got, err, avenueRulingFold(t, run, "Q1"))
+	if got, err := InquiryRuling(run, "Q1"); err != nil || got != inquiryRulingFold(t, run, "Q1") || got != "" {
+		t.Errorf("AvenueRuling before any ruling = (%q, %v), fold says %q", got, err, inquiryRulingFold(t, run, "Q1"))
 	}
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 		Opinion:  proto.String("worth the run's time"),
-		Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
+		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := AvenueRuling(run, "Q1"); err != nil || got != avenueRulingFold(t, run, "Q1") || got != "out_of_scope" {
-		t.Errorf("AvenueRuling = (%q, %v), fold says %q, want the schema's word out_of_scope", got, err, avenueRulingFold(t, run, "Q1"))
+	if got, err := InquiryRuling(run, "Q1"); err != nil || got != inquiryRulingFold(t, run, "Q1") || got != "out_of_scope" {
+		t.Errorf("AvenueRuling = (%q, %v), fold says %q, want the schema's word out_of_scope", got, err, inquiryRulingFold(t, run, "Q1"))
 	}
 }

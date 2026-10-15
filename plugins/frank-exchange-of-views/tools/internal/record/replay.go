@@ -420,8 +420,8 @@ func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 // SCOPED TO THE SEAT, like mint's key. Two lanes converging on the same line independently is a
 // different question — a real duplicate in the ledger, but not a retry, and not one a seat can be
 // refused for without telling it what the other lane did.
-func ExistingProposalByText(run Run, seatID, line, hypothesis string) (string, error) {
-	if line == "" {
+func ExistingProposalByText(run Run, seatID, question, hypothesis string) (string, error) {
+	if question == "" {
 		return "", nil
 	}
 	var id string
@@ -429,7 +429,7 @@ func ExistingProposalByText(run Run, seatID, line, hypothesis string) (string, e
 		`SELECT a."avenue_id" FROM "avenue" a JOIN "events" e ON e."id" = a."event_id"
 		  WHERE e."seat_id" = ? AND a."line" = ? AND COALESCE(a."hypothesis", '') = ?
 		    AND a."status" = 'proposed'
-		  ORDER BY a."event_id" LIMIT 1`, seatID, line, hypothesis); err != nil {
+		  ORDER BY a."event_id" LIMIT 1`, seatID, question, hypothesis); err != nil {
 		return "", err
 	}
 	return id, nil

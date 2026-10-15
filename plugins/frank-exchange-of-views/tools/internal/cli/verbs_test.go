@@ -164,7 +164,7 @@ func TestVerbPayloads(t *testing.T) {
 			path: []string{"avenue", "propose"}, seatID: "blue-lane-1",
 			args: []string{"--reason", "search the offline archive", "--method", "full-text search",
 				"--hypothesis", "the 1997 proceedings are scanned"},
-			typ: recordpb.EventType_EVENT_TYPE_AVENUE,
+			typ: recordpb.EventType_EVENT_TYPE_INQUIRY,
 			want: map[string]string{"line": "search the offline archive", "status": "proposed",
 				"reason": "search the offline archive", "method": "full-text search",
 				"hypothesis": "the 1997 proceedings are scanned"},

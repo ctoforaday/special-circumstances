@@ -294,12 +294,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
-			case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
-				v, ok := enumOf[recordpb.AvenueRuling](recordpb.AvenueRuling(0).Descriptor(), word)
+			case recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY:
+				v, ok := enumOf[recordpb.InquiryRuling](recordpb.InquiryRuling(0).Descriptor(), word)
 				if !ok {
 					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a direction", word)
 				}
-				body.Ruling = &recordpb.MotionRule_Avenue{Avenue: v}
+				body.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
@@ -477,7 +477,7 @@ var ruleFlagHelp = map[string]string{
 // second implementation of a check that already refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
 	if subject == "avenue" {
-		return flags.AvenueID()
+		return flags.InquiryID()
 	}
 	if filing {
 		return flags.GapID()

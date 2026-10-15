@@ -32,7 +32,7 @@ func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
 		"gap-id":          GapID,
 		"motion-id":       MotionID,
-		"avenue-id":       AvenueID,
+		"avenue-id":       InquiryID,
 		"anchor":          AnchorID,
 		"citation-anchor": CitationAnchor,
 		"sha256":          SHA,

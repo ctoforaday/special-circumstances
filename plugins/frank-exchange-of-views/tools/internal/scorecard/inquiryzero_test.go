@@ -11,10 +11,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-func avenue(t *testing.T, id, line string, st recordpb.AvenueStatus, reason string) *record.Event {
+func inquiry(t *testing.T, id, line string, st recordpb.InquiryStatus, reason string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, "blue-synthesize", &recordpb.Avenue{
-		AvenueId: proto.String(id), Line: proto.String(line),
+	return recordtest.Event(t, "blue-synthesize", &recordpb.Inquiry{
+		InquiryId: proto.String(id), Question: proto.String(line),
 		Status: &st, Reason: proto.String(reason),
 	})
 }
@@ -31,10 +31,10 @@ func avenue(t *testing.T, id, line string, st recordpb.AvenueStatus, reason stri
 // The scorecard is HARVESTED INTO feov-memory, so the zero did not stay in the run — it became a
 // cross-run memory row asserting no alternatives were explored in a run that explored 35. A wrong
 // number is worse than a missing one precisely here, because the next run inherits it.
-func TestAvenuesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
+func TestInquiriesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 	board := famSeededT(t, []*record.Event{
-		avenue(t, "Q1", "the ring-theoretic generalisation", recordpb.AvenueStatus_AVENUE_STATUS_PURSUED, ""),
-		avenue(t, "Q2", "non-English prior art", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED,
+		inquiry(t, "Q1", "the ring-theoretic generalisation", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, ""),
+		inquiry(t, "Q2", "non-English prior art", recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED,
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
 	})
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
@@ -60,11 +60,11 @@ func TestAvenuesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 // number this row exists to keep honest.
 func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 	board := famSeededT(t, []*record.Event{
-		avenue(t, "Q1", "the Medium essay", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "no access channel exists for it"),
+		inquiry(t, "Q1", "the Medium essay", recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED, "no access channel exists for it"),
 		func() *record.Event {
-			st := recordpb.AvenueStatus_AVENUE_STATUS_PURSUED
-			return recordtest.Event(t, "blue-respond", &recordpb.Avenue{
-				AvenueId: proto.String("Q1"), Status: &st, SupersedesStatus: proto.String("declined"),
+			st := recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY
+			return recordtest.Event(t, "blue-respond", &recordpb.Inquiry{
+				InquiryId: proto.String("Q1"), Status: &st, SupersedesStatus: proto.String("declined"),
 			})
 		}(),
 	})

@@ -122,7 +122,7 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 	// tables — that shape is the CURRENT one and translates by identity; only the flat shard
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
-		return (Registry{}).Translate(avenueArm(old), dst)
+		return (Registry{}).Translate(inquiryArm(old), dst)
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
@@ -166,7 +166,7 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		return (Registry{}).Translate(avenueArm(old), dst)
+		return (Registry{}).Translate(inquiryArm(old), dst)
 	}
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)
@@ -191,12 +191,12 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		}
 		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
 	case "inquiry":
-		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum()
-		num, err := enumNumberOf(recordpb.AvenueRuling(0).Descriptor(), ruling)
+		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum()
+		num, err := enumNumberOf(recordpb.InquiryRuling(0).Descriptor(), ruling)
 		if err != nil {
 			return nil, fmt.Errorf("motion_rule.ruling (inquiry->avenue): %w", err)
 		}
-		r.Ruling = &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling(num)}
+		r.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling(num)}
 	default:
 		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
 	}
@@ -208,7 +208,7 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 // (motion_rule.direction → Fields), so both are renamed; the values inside are unchanged, and the
 // subject's own `direction` value is carried by valueRenames. Identity refuses an arm the current
 // body does not declare, which is why this runs before it rather than being left to it.
-func avenueArm(old OldEvent) OldEvent {
+func inquiryArm(old OldEvent) OldEvent {
 	if a, ok := old.Arms["direction"]; ok {
 		arms := map[string]map[string]any{}
 		for k, v := range old.Arms {

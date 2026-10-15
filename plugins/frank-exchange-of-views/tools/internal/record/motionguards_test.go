@@ -24,9 +24,9 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
 	}
-	avenueRule := func(r recordpb.AvenueRuling) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("Q1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
-			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Avenue{Avenue: r}}
+	inquiryRule := func(r recordpb.InquiryRuling) *recordpb.MotionRule {
+		return &recordpb.MotionRule{MotionId: proto.String("Q1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
+			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
 	}
 	appeal := func(id, reason string) *recordpb.MotionAppeal {
 		return &recordpb.MotionAppeal{MotionId: proto.String(id), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Reason: proto.String(reason)}
@@ -76,8 +76,8 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 			name: "a second avenue ruling is refused",
 			act: func(t *testing.T, run Run) error {
 				chair := sit(t, run, "red-chair")
-				mustAppend(t, chair, avenueRule(recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE))
-				_, err := Append(chair, avenueRule(recordpb.AvenueRuling_AVENUE_RULING_ENDORSED))
+				mustAppend(t, chair, inquiryRule(recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE))
+				_, err := Append(chair, inquiryRule(recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED))
 				return err
 			},
 			wants:  []string{`motion Q1 is already ruled "out_of_scope" by red-chair`},
@@ -186,8 +186,8 @@ func motionGuardRun(t *testing.T) Run {
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
 	blue := sit(t, run, "blue-respond")
 	mustAppend(t, blue, docketMotion("M2", "G2"))
-	mustAppend(t, blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
-		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")})
+	mustAppend(t, blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
 	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"),
 		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})
@@ -250,7 +250,7 @@ type motionAnswer struct{ ruling, by string }
 // avenueReadersAgree holds AvenuesOf to motion_answers on every avenue: the ruling, and the
 // argument and epoch of the ruling event the view names. It returns each avenue as AvenuesOf
 // reads it.
-func avenueReadersAgree(t *testing.T, run Run) map[string]*Avenue {
+func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 	t.Helper()
 	all, err := MergedEvents(run)
 	if err != nil {
@@ -260,8 +260,8 @@ func avenueReadersAgree(t *testing.T, run Run) map[string]*Avenue {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := map[string]*Avenue{}
-	for _, a := range AvenuesOf(all.Events, all.At) {
+	out := map[string]*Inquiry{}
+	for _, a := range InquiriesOf(all.Events, all.At) {
 		out[a.ID] = a
 		var ruling, why sql.NullString
 		var epoch sql.NullInt64
@@ -293,14 +293,14 @@ func avenueReadersAgree(t *testing.T, run Run) map[string]*Avenue {
 func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	run := motionGuardRun(t)
 	grade := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE)
-	avenue := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE)
+	inquiry := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY)
 	gradeRule := func(r recordpb.GradeRuling, opinion string) *recordpb.MotionRule {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: grade,
 			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
 	}
-	avenueRule := func(id string, r recordpb.AvenueRuling, opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String(id), Subject: avenue,
-			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Avenue{Avenue: r}}
+	inquiryRule := func(id string, r recordpb.InquiryRuling, opinion string) *recordpb.MotionRule {
+		return &recordpb.MotionRule{MotionId: proto.String(id), Subject: inquiry,
+			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
 	}
 	appeal := func(id string, subject *recordpb.MotionSubject, reason string) *recordpb.MotionAppeal {
 		return &recordpb.MotionAppeal{MotionId: proto.String(id), Subject: subject, Reason: proto.String(reason)}
@@ -311,8 +311,8 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 		Subject: grade, Basis: proto.String("likelihood is overstated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
-	mustAppend(t, sit(t, run, "blue-respond"), &recordpb.Avenue{AvenueId: proto.String("Q2"),
-		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("another direction")})
+	mustAppend(t, sit(t, run, "blue-respond"), &recordpb.Inquiry{InquiryId: proto.String("Q2"),
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("another direction")})
 
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")
@@ -321,18 +321,18 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 		gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why")); err != nil {
 		t.Fatal(err)
 	}
-	mustAppend(t, chair, avenueRule("Q1", recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE, "the ruling's argument"))
+	mustAppend(t, chair, inquiryRule("Q1", recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE, "the ruling's argument"))
 	mustReplay(t, sit(t, run, "blue-respond"), appeal("M1", grade, "the ruling reads past the argument"))
 	mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench remands"))
 	motionReadersAgree(t, run)
-	avenueReadersAgree(t, run)
+	inquiryReadersAgree(t, run)
 
 	// The archived appeals, and a ruling after one.
 	recordtest.Seed(t, run.dir,
 		recordtest.Event(t, evLens, appeal("M1", grade, "a second appeal")),
 		recordtest.Event(t, "blue-respond", appeal("M4", grade, "an appeal of nothing")),
-		recordtest.Event(t, "blue-respond", appeal("Q2", avenue, "an appeal before any ruling")),
-		recordtest.Event(t, "red-chair", avenueRule("Q2", recordpb.AvenueRuling_AVENUE_RULING_TOO_THIN, "ruled after its appeal")),
+		recordtest.Event(t, "blue-respond", appeal("Q2", inquiry, "an appeal before any ruling")),
+		recordtest.Event(t, "red-chair", inquiryRule("Q2", recordpb.InquiryRuling_INQUIRY_RULING_TOO_THIN, "ruled after its appeal")),
 	)
 
 	// Each edge is on the record: standing rulings and archived appeals per motion, and Q2's
@@ -376,11 +376,11 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	if got := motions["M2"].ruling; got != "remanded" {
 		t.Errorf("docket motion M2 reads ruled %q, want the bench's remand", got)
 	}
-	avenues := avenueReadersAgree(t, run)
-	if a := avenues["Q1"]; a == nil || a.Ruling != "out_of_scope" || a.RulingWhy != "the ruling's argument" {
+	inquiries := inquiryReadersAgree(t, run)
+	if a := inquiries["Q1"]; a == nil || a.Ruling != "out_of_scope" || a.RulingWhy != "the ruling's argument" {
 		t.Errorf("avenue Q1 reads %+v; its ruling is out_of_scope, with that ruling's argument", a)
 	}
-	if a := avenues["Q2"]; a == nil || a.Ruling != "too_thin" {
+	if a := inquiries["Q2"]; a == nil || a.Ruling != "too_thin" {
 		t.Errorf("avenue Q2 reads %+v; its ruling is too_thin, whatever appeal the archive holds beside it", a)
 	}
 }

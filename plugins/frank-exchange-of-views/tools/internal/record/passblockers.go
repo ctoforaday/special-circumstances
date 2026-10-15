@@ -36,7 +36,7 @@ const (
 	BlockerLensReady     BlockerKind = "lens_ready"
 	BlockerStaleArea     BlockerKind = "stale_area"
 	BlockerUnruledMotion BlockerKind = "unruled_motion"
-	BlockerAvenueReview  BlockerKind = "avenue_review"
+	BlockerInquiryReview BlockerKind = "avenue_review"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
@@ -299,7 +299,7 @@ var blockerKinds = []blockerKind{
 	// report is regenerated each epoch, so a review recorded before this epoch's edits answers a
 	// question about a document that no longer exists.
 	{
-		kind:  BlockerAvenueReview,
+		kind:  BlockerInquiryReview,
 		gloss: "no avenue review this epoch",
 		item: func(Blocker) string {
 			return "the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found"
@@ -440,8 +440,8 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
-	if AvenueReviewDueOf(evs, win) {
-		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})
+	if InquiryReviewDueOf(evs, win) {
+		out = append(out, Blocker{Kind: BlockerInquiryReview, Owner: chairSeat})
 	}
 	return out
 }

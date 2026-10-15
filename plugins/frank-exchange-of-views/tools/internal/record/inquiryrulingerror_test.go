@@ -17,29 +17,29 @@ import (
 // be mistaken for are both on the record. The failure is made by dropping the view through the
 // run's cached handle: every later read goes through that handle and fails as a busy or
 // malformed database would.
-func TestAvenueRulingReturnsTheReadItCannotMake(t *testing.T) {
+func TestInquiryRulingReturnsTheReadItCannotMake(t *testing.T) {
 	run := corrRun(t)
 	blue := Identity{Run: run, SeatID: "blue-respond"}
 	red := Identity{Run: run, SeatID: "red-chair"}
 	for _, id := range []string{"Q1", "Q2"} {
-		mustAppend(t, blue, &recordpb.Avenue{AvenueId: proto.String(id), Line: proto.String("a line " + id), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()})
+		mustAppend(t, blue, &recordpb.Inquiry{InquiryId: proto.String(id), Question: proto.String("a line " + id), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
 	}
 	mustAppend(t, red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 		Opinion:  proto.String("a real question, but not this run's"),
-		Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
+		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 	})
 
 	// The healthy answers first: the schema's word verbatim, "" for the line red has not ruled,
 	// and an error for an id that names no avenue.
-	if got, err := AvenueRuling(run, "Q1"); err != nil || got != "out_of_scope" {
+	if got, err := InquiryRuling(run, "Q1"); err != nil || got != "out_of_scope" {
 		t.Fatalf("AvenueRuling on a ruled avenue = (%q, %v), want the schema's word out_of_scope", got, err)
 	}
-	if got, err := AvenueRuling(run, "Q2"); err != nil || got != "" {
+	if got, err := InquiryRuling(run, "Q2"); err != nil || got != "" {
 		t.Fatalf("AvenueRuling on an avenue red has not ruled = (%q, %v), want \"\" and no error", got, err)
 	}
-	if got, err := AvenueRuling(run, "Q9"); err == nil || got != "" || !strings.Contains(err.Error(), "Q9") {
+	if got, err := InquiryRuling(run, "Q9"); err == nil || got != "" || !strings.Contains(err.Error(), "Q9") {
 		t.Errorf("AvenueRuling on an id no proposal created = (%q, %v), want an error naming Q9 — \"\" here reads as an avenue red never ruled", got, err)
 	}
 
@@ -51,7 +51,7 @@ func TestAvenueRulingReturnsTheReadItCannotMake(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, id := range []string{"Q1", "Q2"} {
-		if got, err := AvenueRuling(run, id); err == nil || got != "" || !strings.Contains(err.Error(), "avenue_state") {
+		if got, err := InquiryRuling(run, id); err == nil || got != "" || !strings.Contains(err.Error(), "avenue_state") {
 			t.Errorf("AvenueRuling(%s) over a failing read = (%q, %v), want the read error naming avenue_state — \"\" with no error is the never-ruled answer", id, got, err)
 		}
 	}

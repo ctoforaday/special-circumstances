@@ -512,8 +512,8 @@ func petitionMotionProbe() entityProbe {
 // so `unruled` here means "the proposal exists and nobody has ruled it", not "nothing exists".
 // That asymmetry is why this subject was left unprobed in the first pass, and stating it was not
 // the same as covering it.
-func avenueMotionProbe() entityProbe {
-	return motionProbe("avenue", "Q1", []probeAct{avenuePropose()}, []probeAct{
+func inquiryMotionProbe() entityProbe {
+	return motionProbe("avenue", "Q1", []probeAct{inquiryPropose()}, []probeAct{
 		{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
 			"--reason", "worth this run's time"}},
 	}, []string{"unruled", "ruled"},
@@ -531,12 +531,12 @@ func avenueMotionProbe() entityProbe {
 // is content, which is why a first ruling reads here as an ordinary act that does not move the
 // state rather than as a transition.
 
-func avenuePropose() probeAct {
+func inquiryPropose() probeAct {
 	return probeAct{"propose", []string{"avenue", "propose",
 		"--reason", "a line worth taking", "--hypothesis", "it would settle the open question"}}
 }
 
-func avenueProbe() entityProbe {
+func inquiryProbe() entityProbe {
 	moveTo := func(status string) probeAct {
 		return probeAct{"move:" + status, []string{"avenue", "move", "--id", "Q1",
 			"--as", status, "--reason", "what became of it"}}
@@ -545,8 +545,8 @@ func avenueProbe() entityProbe {
 	// exactly what this gate is for and `deferred` and `abandoned` are the two most likely to be
 	// one. The states and the moves are read off the enum: a hand-kept list left `concluded` out
 	// until the fate after it was added, and nothing compared the two.
-	states, acts := []string{"unproposed"}, []probeAct{avenuePropose()}
-	for _, fate := range record.AvenueStatusNames() {
+	states, acts := []string{"unproposed"}, []probeAct{inquiryPropose()}
+	for _, fate := range record.InquiryStatusNames() {
 		states = append(states, fate)
 		if fate != "proposed" {
 			acts = append(acts, moveTo(fate))
@@ -564,7 +564,7 @@ func avenueProbe() entityProbe {
 			if state == "unproposed" {
 				return runDir
 			}
-			if !build(t, runDir, avenuePropose()) {
+			if !build(t, runDir, inquiryPropose()) {
 				t.Fatalf("no seat could propose an avenue")
 			}
 			if state != "proposed" {
@@ -576,7 +576,7 @@ func avenueProbe() entityProbe {
 		},
 		read: func(t *testing.T, runDir string) string {
 			t.Helper()
-			q := avenueOf(t, runDir, "Q1")
+			q := inquiryOf(t, runDir, "Q1")
 			if q == nil {
 				return "unproposed"
 			}
@@ -584,12 +584,12 @@ func avenueProbe() entityProbe {
 		},
 		fields: func(t *testing.T, runDir string) map[string]string {
 			t.Helper()
-			q := avenueOf(t, runDir, "Q1")
+			q := inquiryOf(t, runDir, "Q1")
 			if q == nil {
 				return map[string]string{}
 			}
 			return map[string]string{
-				"line": q.Line, "hypothesis": q.Hypothesis, "reason": q.Reason,
+				"line": q.Question, "hypothesis": q.Hypothesis, "reason": q.Reason,
 				"ruling": q.Ruling, "ruling_why": q.RulingWhy,
 				// APPEND-ONLY, and listed in `accumulates`: History is a line per move, so a
 				// re-recorded fate keeps every earlier one beside it.
@@ -606,7 +606,7 @@ func avenueProbe() entityProbe {
 	}
 }
 
-func avenueOf(t *testing.T, runDir, id string) *record.Avenue {
+func inquiryOf(t *testing.T, runDir, id string) *record.Inquiry {
 	id = handleText(t, runDir, id) // the probe names its entity by handle
 	t.Helper()
 	rn, err := record.OpenRun(runDir)
@@ -617,7 +617,7 @@ func avenueOf(t *testing.T, runDir, id string) *record.Avenue {
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	for _, q := range record.AvenuesOf(b.Events, b.At) {
+	for _, q := range record.InquiriesOf(b.Events, b.At) {
 		if q.ID == id {
 			return q
 		}
@@ -667,7 +667,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	}
 
 	probed := map[string]bool{}
-	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), avenueMotionProbe(), avenueProbe()} {
+	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryMotionProbe(), inquiryProbe()} {
 		for _, a := range p.acts {
 			var path []string
 			for _, w := range a.args {
@@ -730,7 +730,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 
-	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), avenueMotionProbe(), avenueProbe()}
+	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryMotionProbe(), inquiryProbe()}
 
 	var edges []stateEdge
 	var deadEnds, overwrites []string

@@ -41,8 +41,8 @@ func mintedIDs(t *testing.T, runDir string) map[string][]string {
 		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			add("M", m.GetMotionId())
 		}
-		if a, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok {
-			add("Q", a.GetAvenueId())
+		if a, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
+			add("Q", a.GetInquiryId())
 		}
 	}
 	return ids

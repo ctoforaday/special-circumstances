@@ -51,12 +51,12 @@ func GapExists(runDir, flag, id string) error {
 }
 
 // AvenueExists resolves an avenue.
-func AvenueExists(runDir, flag, id string) error {
+func InquiryExists(runDir, flag, id string) error {
 	db, err := recordOfDir(runDir)
 	if err != nil {
 		return err
 	}
-	return requireAvenue(db, id, flag)
+	return requireInquiry(db, id, flag)
 }
 
 // recordOfDir is the record of the run in runDir, for a flag's check: the handle, or a nil one for a
@@ -181,7 +181,7 @@ func requireCitation(q recordsql.Querier, label, flag, advice string) error {
 // `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
 // a status change for an avenue that was never opened — and the avenues view
 // renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireAvenue(q recordsql.Querier, id, flag string) error {
+func requireInquiry(q recordsql.Querier, id, flag string) error {
 	if id == "" {
 		return nil
 	}

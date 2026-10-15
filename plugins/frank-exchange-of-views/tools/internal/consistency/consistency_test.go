@@ -287,16 +287,16 @@ func TestFindingsAndCitations(t *testing.T) {
 }
 
 // The avenue lifecycle: proposed, then moved, and the projection follows the LAST status.
-func TestAvenueLifecycle(t *testing.T) {
+func TestInquiryLifecycle(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:avenue:Q1", &recordpb.Avenue{
-			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
-			Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Reason: proto.String("opening"),
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:avenue:Q1", &recordpb.Inquiry{
+			InquiryId: proto.String("Q1"), Question: proto.String("survey the standard forms"),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Reason: proto.String("opening"),
 		}),
-		recordtest.At(t, "blue-respond", "blue-respond:avenue:Q1", &recordpb.Avenue{
-			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
-			Status:           recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
+		recordtest.At(t, "blue-respond", "blue-respond:avenue:Q1", &recordpb.Inquiry{
+			InquiryId: proto.String("Q1"), Question: proto.String("survey the standard forms"),
+			Status:           recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
 			SupersedesStatus: proto.String("proposed"), Reason: proto.String("nothing standard exists"),
 		}),
 	)
@@ -374,7 +374,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 	t.Run("an about-anchored finding has no marker to pair with and is not a violation", func(t *testing.T) {
 		for _, k := range []recordpb.AboutKind{
 			recordpb.AboutKind_ABOUT_KIND_SECTION,
-			recordpb.AboutKind_ABOUT_KIND_AVENUE,
+			recordpb.AboutKind_ABOUT_KIND_INQUIRY,
 			recordpb.AboutKind_ABOUT_KIND_GAP,
 		} {
 			dir := recordtest.TmpRun(t)

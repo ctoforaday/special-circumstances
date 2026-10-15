@@ -36,17 +36,17 @@ import (
 // DERIVED FROM THE ENUM'S OWN `means`, like every other vocabulary with a declaration. This was a
 // hand-kept second copy whose glosses had already drifted from the proto's, so a seat's --help and
 // the record's vocabulary table described the same five words differently.
-var AvenueStatuses = evsOf(recordpb.AvenueStatus(0).Descriptor())
+var InquiryStatuses = evsOf(recordpb.InquiryStatus(0).Descriptor())
 
 // AvenueStatusNames is the bare vocabulary, for readers that only need the words.
-func AvenueStatusNames() []string { return Names(AvenueStatuses) }
+func InquiryStatusNames() []string { return Names(InquiryStatuses) }
 
 // Avenue is one direction's state after replay: its latest status, with the history that
 // produced it. The history is kept because "chose to abandon this at round 2, having
 // pursued it at round 0" is the evidence of choosing, and only the sequence carries it.
-type Avenue struct {
+type Inquiry struct {
 	ID         string
-	Line       string
+	Question   string
 	Hypothesis string
 	Method     string
 	Status     string
@@ -83,28 +83,28 @@ type StruckText struct {
 // StruckAvenueTexts is, per avenue, the wording of each proposal or move its seat corrected
 // in the sitting — what the avenues LISTING shows struck beside the line that stands.
 // AvenuesOf folds the acts that stand; this is the part of the listing that fold drops.
-func StruckAvenueTexts(evs []*Event) map[string][]StruckText {
+func StruckInquiryTexts(evs []*Event) map[string][]StruckText {
 	out := map[string][]StruckText{}
 	for _, l := range Listing(evs) {
-		a, ok := recordpb.BodyAs[*recordpb.Avenue](l.Event)
+		a, ok := recordpb.BodyAs[*recordpb.Inquiry](l.Event)
 		if !ok || l.Struck == nil {
 			continue
 		}
-		text := a.GetLine()
+		text := a.GetQuestion()
 		if text == "" {
 			text = a.GetReason()
 		}
-		out[a.GetAvenueId()] = append(out[a.GetAvenueId()], StruckText{Text: text, Struck: *l.Struck})
+		out[a.GetInquiryId()] = append(out[a.GetInquiryId()], StruckText{Text: text, Struck: *l.Struck})
 	}
 	return out
 }
 
-func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
+func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	// The acts that stand: a proposal or move corrected in its sitting is read as its replacement.
 	evs = Live(evs)
-	byID := map[string]*Avenue{}
+	byID := map[string]*Inquiry{}
 	var order []string
-	ruled := map[*Avenue]bool{}
+	ruled := map[*Inquiry]bool{}
 	for _, e := range evs {
 		w := win.Of(e)
 		body, ok := recordpb.Body(e)
@@ -115,16 +115,16 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			continue
 		}
 		switch t := body.(type) {
-		case *recordpb.Avenue:
+		case *recordpb.Inquiry:
 			// The id is `avenue_id`: the schema kept the pre-rename spelling, and the old
 			// `avenue_id` key is the same fact under the newer word.
-			id := t.GetAvenueId()
+			id := t.GetInquiryId()
 			if id == "" {
 				continue
 			}
 			a, ok := byID[id]
 			if !ok {
-				a = &Avenue{ID: id}
+				a = &Inquiry{ID: id}
 				byID[id] = a
 				order = append(order, id)
 			}
@@ -133,8 +133,8 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// presence tests on purpose: the question they ask is "did this event bring
 			// substance", and a move that carried `line` as an empty string must not blank a
 			// proposal's line either. `av.Line != nil` would let it.
-			if v := t.GetLine(); v != "" {
-				a.Line = v
+			if v := t.GetQuestion(); v != "" {
+				a.Question = v
 			}
 			if v := t.GetHypothesis(); v != "" {
 				a.Hypothesis = v
@@ -171,7 +171,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// The subject the CLI spells `avenue` is MOTION_SUBJECT_AVENUE in the schema —
 			// the same subject under the schema's word, and the only one whose ruling set is
 			// AvenueRuling (endorsed / out_of_scope / too_thin).
-			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
+			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 				continue
 			}
 			id := t.GetMotionId()
@@ -202,7 +202,7 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 			// is nothing here for it to join to. Its reader is AvenueReviewDue.
 		}
 	}
-	out := make([]*Avenue, 0, len(order))
+	out := make([]*Inquiry, 0, len(order))
 	for _, id := range order {
 		out = append(out, byID[id])
 	}
@@ -212,17 +212,17 @@ func AvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 // requireAvenue refuses a reference to an avenue no proposal created — the same discipline
 // every other cross-reference gets (refs.go), for the same reason: a dangling reference is
 // accepted at write time and dropped at replay.
-func RequireAvenueRef(run Run, id string) error {
+func RequireInquiryRef(run Run, id string) error {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return err
 	}
-	return requireAvenueRef(db, id)
+	return requireInquiryRef(db, id)
 }
 
 // requireAvenueRef is RequireAvenueRef asked of q — the write path's transaction, or the run's
 // handle.
-func requireAvenueRef(q recordsql.Querier, id string) error {
+func requireInquiryRef(q recordsql.Querier, id string) error {
 	if id == "" {
 		return nil
 	}
@@ -240,10 +240,10 @@ func requireAvenueRef(q recordsql.Querier, id string) error {
 }
 
 // StaleAvenuesOf is StaleAvenues over the events themselves.
-func StaleAvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
+func StaleInquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 	now := win.CurrentEpoch(evs)
-	var out []*Avenue
-	for _, a := range AvenuesOf(evs, win) {
+	var out []*Inquiry
+	for _, a := range InquiriesOf(evs, win) {
 		switch a.Status {
 		case "proposed":
 			out = append(out, a)
@@ -268,25 +268,25 @@ func StaleAvenuesOf(evs []*Event, win WindowIndex) []*Avenue {
 // "" MEANS ONE THING: the avenue is on the record and red has not ruled it. A read that fails is
 // the error, and so is an id avenue_state holds no row for — both would otherwise read as "never
 // ruled", which is the answer a caller skips its check on.
-func AvenueRuling(run Run, avenueID string) (string, error) {
+func InquiryRuling(run Run, inquiryID string) (string, error) {
 	// The avenue view carries the whole line, this column included. The word is the schema's
 	// (`out_of_scope`), the one AvenuesOf puts on Avenue.Ruling and every surface accepts.
 	var word sql.NullString
 	found, err := queryRow(run, []any{&word},
-		`SELECT "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = ?`, avenueID)
+		`SELECT "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = ?`, inquiryID)
 	if err != nil {
-		return "", fmt.Errorf("the ruling on avenue %s: %w", avenueID, err)
+		return "", fmt.Errorf("the ruling on avenue %s: %w", inquiryID, err)
 	}
 	if !found {
-		return "", fmt.Errorf("the ruling on avenue %s: avenue_state holds no row for it — no proposal that stands created that avenue", avenueID)
+		return "", fmt.Errorf("the ruling on avenue %s: avenue_state holds no row for it — no proposal that stands created that avenue", inquiryID)
 	}
 	return word.String, nil
 }
 
 // AvenueReviewDueOf is AvenueReviewDue over the events themselves.
-func AvenueReviewDueOf(evs []*Event, win WindowIndex) bool {
+func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
 	evs = Live(evs)
-	if len(AvenuesOf(evs, win)) == 0 {
+	if len(InquiriesOf(evs, win)) == 0 {
 		return false
 	}
 	now := win.CurrentEpoch(evs)
@@ -296,7 +296,7 @@ func AvenueReviewDueOf(evs []*Event, win WindowIndex) bool {
 		// stale against the enum. No field is read — the event's existence in this epoch IS the
 		// fact — but the type test still goes through the body so a renamed enum value fails to
 		// compile rather than silently matching nothing.
-		if _, ok := recordpb.BodyAs[*recordpb.AvenueReview](e); ok && w.Epoch == now {
+		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && w.Epoch == now {
 			return false
 		}
 	}
@@ -310,9 +310,9 @@ func AvenueReviewDueOf(evs []*Event, win WindowIndex) bool {
 // and tagging it would publish every future field to the wire by default. The wire form is a
 // decision each time a field is added, which is what keeps `show avenues --json` a
 // contract rather than a dump of whatever the fold happens to carry.
-type AvenueJSON struct {
+type InquiryJSON struct {
 	ID         string `json:"id"`
-	Line       string `json:"line"`
+	Question   string `json:"line"`
 	Hypothesis string `json:"hypothesis,omitempty"`
 	Method     string `json:"method,omitempty"`
 	Status     string `json:"status"`
@@ -326,17 +326,17 @@ type AvenueJSON struct {
 }
 
 // AvenuesJSON is the wire form of the exploration space.
-type AvenuesJSON struct {
-	Avenues []AvenueJSON `json:"avenues"`
+type InquiriesJSON struct {
+	Inquiries []InquiryJSON `json:"avenues"`
 }
 
 // AvenuesJSONOf folds the events into the wire form, in the same order the rendered projection
 // walks them, so the two accounts of the same directions cannot disagree about order.
-func AvenuesJSONOf(evs []*Event, win WindowIndex) AvenuesJSON {
-	out := AvenuesJSON{Avenues: []AvenueJSON{}}
-	for _, a := range AvenuesOf(evs, win) {
-		out.Avenues = append(out.Avenues, AvenueJSON{
-			ID: a.ID, Line: a.Line, Hypothesis: a.Hypothesis, Method: a.Method,
+func InquiriesJSONOf(evs []*Event, win WindowIndex) InquiriesJSON {
+	out := InquiriesJSON{Inquiries: []InquiryJSON{}}
+	for _, a := range InquiriesOf(evs, win) {
+		out.Inquiries = append(out.Inquiries, InquiryJSON{
+			ID: a.ID, Question: a.Question, Hypothesis: a.Hypothesis, Method: a.Method,
 			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
 			SeatID: a.SeatID, Ruling: a.Ruling,
 		})

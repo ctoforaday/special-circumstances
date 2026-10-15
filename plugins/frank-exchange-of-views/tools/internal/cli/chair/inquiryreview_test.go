@@ -25,7 +25,7 @@ import (
 // A flag a seat can pass and the record ignores is worse than one that does not exist, and the way
 // this regrows is somebody restoring "the id it votes on" without noticing the event has nowhere to
 // put it. So the absence is asserted rather than assumed.
-func TestTheAvenueReviewOffersNoRetiredFlags(t *testing.T) {
+func TestTheInquiryReviewOffersNoRetiredFlags(t *testing.T) {
 	// Verbs(), not a role-scoped tree: the chair surface is assembled by the root from this list,
 	// so asking it directly is asking the same question one construction step earlier.
 	var review *cobra.Command

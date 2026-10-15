@@ -67,7 +67,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// both texts promised one. The `How` also named a status set that excluded `pursued`,
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
-		for _, a := range StaleAvenuesOf(evs, win) {
+		for _, a := range StaleInquiriesOf(evs, win) {
 			add(fmt.Sprintf("avenue %s is at %q and has not moved since epoch %d — an avenue declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
 		}
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS

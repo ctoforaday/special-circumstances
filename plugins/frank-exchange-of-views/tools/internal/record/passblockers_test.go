@@ -67,9 +67,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.add("blue-respond", gradeMotion)
 		}, true},
-		{"no avenue review", BlockerAvenueReview, true, true, func(b *stage) {
-			b.add("blue-synthesize", &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("a line"),
-				Hypothesis: proto.String("h"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()})
+		{"no avenue review", BlockerInquiryReview, true, true, func(b *stage) {
+			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a line"),
+				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
 		}, true},
 		{"nothing holds", "", true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
@@ -274,8 +274,8 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 		{"nothing blocks", func(b *stage) {}, true},
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }, false},
 		{"avenue with no review this epoch", func(b *stage) {
-			b.add("blue-respond", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-				Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")})
+			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
 		}, true},
 		{"unanswered contradiction", func(b *stage) { b.add(evLens, contradictingVerify("the claim")) }, false},
 		{"docket motion on a closed gap", func(b *stage) {
@@ -370,8 +370,8 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 	}
 	t.Run("converged, the chair's own item", func(t *testing.T) {
 		b := convergedBoard(t)
-		b.add("blue-respond", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-			Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")})
+		b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
 		run := b.seed()
 		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
 		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "avenue review") {

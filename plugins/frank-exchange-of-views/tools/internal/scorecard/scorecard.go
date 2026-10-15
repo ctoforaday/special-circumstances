@@ -424,7 +424,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	total := 0
 	var thinLines []string
 	if fam != nil {
-		for _, q := range record.AvenuesOf(fam.Events, fam.At) {
+		for _, q := range record.InquiriesOf(fam.Events, fam.At) {
 			total++
 			st := q.Status
 			if _, seen := statusCount[st]; !seen {
@@ -432,7 +432,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			}
 			statusCount[st]++
 			if st != "pursued" && len(strings.TrimSpace(q.Reason)) < 20 {
-				thinLines = append(thinLines, q.Line)
+				thinLines = append(thinLines, q.Question)
 			}
 		}
 	}

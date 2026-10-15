@@ -143,9 +143,9 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return riskMatrix(a.bj) }},
 	// THREE DESCRIPTIVE AREAS, and every avenue lands in exactly one. See taken, deferred and
 	// setAside in assemble.go for why three and why setAside is a complement.
-	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, compose: avenues},
-	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: avenues},
-	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, compose: avenues},
+	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, compose: inquiries},
+	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: inquiries},
+	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, compose: inquiries},
 	{File: FileReport, Heading: "Open questions", Composer: Blue,
 		From:    "the section of this name in the report's text, which closes it",
 		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",
@@ -250,7 +250,7 @@ func orList(words []string) string {
 }
 
 // AvenueSections says which fate lands under which heading, written from the avenue rows.
-var AvenueSections = func() string {
+var InquirySections = func() string {
 	var parts []string
 	for _, s := range layout {
 		if s.fate == nil {
@@ -267,7 +267,7 @@ var AvenueSections = func() string {
 
 // AvenueSectionsRule says whose those sections are, on the pages of the acts that write an avenue.
 // A seat told only that its words are "printed in the report under" them writes the section too.
-var AvenueSectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: " + AvenueSections +
+var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: " + InquirySections +
 	". They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record."
 
 // AssembledNote is what the page that prints the report's text says about what ships, and the

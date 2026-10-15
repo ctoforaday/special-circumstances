@@ -28,7 +28,7 @@ import (
 // enum word, carried by valueRenames. The ruling itself is a COLUMN named for the oneof arm, which
 // identity refuses outright when the current body does not declare it; avenueArm renames it first.
 // Either one missing refuses the event, and this test says which.
-func TestAnOldAvenueRulingMigratesUnderTheOneWord(t *testing.T) {
+func TestAnOldInquiryRulingMigratesUnderTheOneWord(t *testing.T) {
 	runDir := t.TempDir()
 	untar(t, archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"), runDir)
 
@@ -70,10 +70,10 @@ func TestAnOldAvenueRulingMigratesUnderTheOneWord(t *testing.T) {
 			continue
 		}
 		found = true
-		if r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
+		if r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 			t.Errorf("the ruling's subject arrived as %v, want avenue — the value rename did not run", r.GetSubject())
 		}
-		if r.GetAvenue() != recordpb.AvenueRuling_AVENUE_RULING_ENDORSED {
+		if r.GetInquiry() != recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED {
 			t.Errorf("the ruling arrived as %v, want endorsed under the avenue arm — the column rename did not run", r.GetRuling())
 		}
 	}

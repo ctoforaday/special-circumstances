@@ -139,12 +139,12 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 // beside the proof that computes it. `concluded` straight from `proposed` gets the plain tag too.
 func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	board := famOf(t, []*record.Event{
-		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("sieve to the square root")}),
-		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("the bound is 9, so the sieve adds nothing")}),
-		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("check a computer-algebra system")}),
-		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("sieve to the square root")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Reason: proto.String("the bound is 9, so the sieve adds nothing")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("check a computer-algebra system")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Reason: proto.String("no such system is available here")}),
 	})
-	alt := avenueSection(t, board, "Alternatives considered")
+	alt := inquirySection(t, board, "Alternatives considered")
 	const fate = "\n  - **Fate:** abandoned. **Why:** "
 	if !strings.Contains(alt, "- **Question:** sieve to the square root"+fate+"the bound is 9, so the sieve adds nothing") {
 		t.Errorf("a line pursued and then abandoned keeps the plain fate:\n%s", alt)
@@ -162,20 +162,20 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 // report's. On universe-m22 the line "…showing that a single passing test is not evidence of
 // primality" stood in bold beside the finding that a passing test IS evidence; the hypothesis was
 // on the record and printed nowhere.
-func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
-	av := func(id string, st recordpb.AvenueStatus, line, hyp, reason string) *record.Event {
-		return recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String(id), Status: st.Enum(),
-			Line: proto.String(line), Hypothesis: proto.String(hyp), Reason: proto.String(reason)})
+func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
+	av := func(id string, st recordpb.InquiryStatus, line, hyp, reason string) *record.Event {
+		return recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String(id), Status: st.Enum(),
+			Question: proto.String(line), Hypothesis: proto.String(hyp), Reason: proto.String(reason)})
 	}
 	board := famOf(t, []*record.Event{
-		av("Q1", recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED, "whether one Fermat test settles it", "a passing test is no evidence of primality", "whether one Fermat test settles it"),
-		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Method: proto.String("computation"),
-			Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REFUTED), Reason: proto.String("a passing test is evidence, not proof")}),
-		av("Q2", recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED, "whether trial division settles it", "", "7 divides 91"),
-		av("Q3", recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED, "whether a sieve is faster", "it is", "whether a sieve is faster"),
-		av("Q4", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "whether a lookup table exists", "one does", "the bound is 9"),
+		av("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether one Fermat test settles it", "a passing test is no evidence of primality", "whether one Fermat test settles it"),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Method: proto.String("computation"),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Reason: proto.String("a passing test is evidence, not proof")}),
+		av("Q2", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "whether trial division settles it", "", "7 divides 91"),
+		av("Q3", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether a sieve is faster", "it is", "whether a sieve is faster"),
+		av("Q4", recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED, "whether a lookup table exists", "one does", "the bound is 9"),
 	})
-	research := avenueSection(t, board, "Research areas")
+	research := inquirySection(t, board, "Research areas")
 	for name, want := range map[string]string{
 		"a refuted avenue prints its hypothesis as one and says it did not hold": "- **Question:** whether one Fermat test settles it _(computation)_\n" +
 			"  - **Hypothesis:** a passing test is no evidence of primality\n" +
@@ -193,7 +193,7 @@ func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 	if strings.Contains(research, "**whether") {
 		t.Errorf("a question is printed in bold, as a claim of the report's would be:\n%s", research)
 	}
-	alt := avenueSection(t, board, "Alternatives considered")
+	alt := inquirySection(t, board, "Alternatives considered")
 	if want := "  - **Hypothesis:** one does\n  - **Fate:** declined. **Why:** the bound is 9"; !strings.Contains(alt, want) {
 		t.Errorf("an approach that did not run found nothing: its reason is why it stands there; want\n%s\nin\n%s", want, alt)
 	}
@@ -204,12 +204,12 @@ func TestAnAvenueRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 // the blank line ended the item, the later paragraphs stood outside the list, and the hypothesis
 // and fate opened a list of their own. Markdown and the site read the same rule: a line indented
 // under an item, with no blank line before it, continues the item.
-func TestAnAvenueRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
-	board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-		Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REFUTED), Method: proto.String("census"),
-		Line: proto.String("APPROACH: census the plan.\n\nARGUMENT: ordering is scarce."), Hypothesis: proto.String("one exists\nand it is explicit"),
+func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
+	board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Method: proto.String("census"),
+		Question: proto.String("APPROACH: census the plan.\n\nARGUMENT: ordering is scarce."), Hypothesis: proto.String("one exists\nand it is explicit"),
 		Reason: proto.String("none exists.\n\nThe plan names no function.")})})
-	got := avenueSection(t, board, "Research areas")
+	got := inquirySection(t, board, "Research areas")
 	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce. _(census)_\n" +
 		"  - **Hypothesis:** one exists  \n    and it is explicit\n" +
 		"  - **Fate:** refuted. **Found:** none exists.  \n    The plan names no function."
@@ -229,19 +229,19 @@ func TestAnAvenueRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 // holds — an archived `abandoned` whose reason is a refutation, an archived `pursued` that is where
 // an approach came to rest — so the word stands alone. Only an approach that ran reports what it
 // FOUND. A fate the enum gains fails here until its label is decided.
-func TestEveryAvenueFateIsSaidOnItsRow(t *testing.T) {
+func TestEveryInquiryFateIsSaidOnItsRow(t *testing.T) {
 	label := map[string]string{
 		"proposed": "Why", "pursued": "Found", "concluded": "Found", "refuted": "Found",
 		"deferred": "Why", "declined": "Why", "abandoned": "Why",
 	}
-	for _, status := range record.AvenueStatusNames() {
-		st := recordpb.AvenueStatus(recordpb.AvenueStatus_value["AVENUE_STATUS_"+strings.ToUpper(status)])
-		board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-			Status: st.Enum(), Line: proto.String("whether a sieve is faster"), Reason: proto.String("the bound is 9")})})
+	for _, status := range record.InquiryStatusNames() {
+		st := recordpb.InquiryStatus(recordpb.InquiryStatus_value["AVENUE_STATUS_"+strings.ToUpper(status)])
+		board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+			Status: st.Enum(), Question: proto.String("whether a sieve is faster"), Reason: proto.String("the bound is 9")})})
 		want := "- **Question:** whether a sieve is faster\n  - **Fate:** " + status + ". **" + label[status] + ":** the bound is 9"
 		var got string
 		for _, heading := range []string{"Research areas", "Future research directions", "Alternatives considered"} {
-			if s := avenueSection(t, board, heading); strings.Contains(s, "**Question:**") {
+			if s := inquirySection(t, board, heading); strings.Contains(s, "**Question:**") {
 				got = s
 			}
 		}
@@ -251,17 +251,17 @@ func TestEveryAvenueFateIsSaidOnItsRow(t *testing.T) {
 	}
 }
 
-func TestAvenuesSplitByFate(t *testing.T) {
+func TestInquiriesSplitByFate(t *testing.T) {
 	board := famOf(t, []*record.Event{
-		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
-		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
-		recordtest.Event(t, "red-lens-r1", &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("profile the hot path"), Method: proto.String("bench")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Question: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
+		recordtest.Event(t, "red-lens-r1", &recordpb.Inquiry{InquiryId: proto.String("Q3"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
 	})
-	exp := avenueSection(t, board, "Research areas")
+	exp := inquirySection(t, board, "Research areas")
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
 		t.Errorf("research areas must carry ONLY pursued and proposed avenues:\n%s", exp)
 	}
-	alt := avenueSection(t, board, "Alternatives considered")
+	alt := inquirySection(t, board, "Alternatives considered")
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
 		t.Errorf("an abandoned avenue is an alternative considered, its reason the counter:\n%s", alt)
 	}
@@ -272,7 +272,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
 	}
 	// No avenues of a fate → flagged, not blank.
-	if none := avenueSection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
+	if none := inquirySection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -306,7 +306,7 @@ func TestAvenuesSplitByFate(t *testing.T) {
 //
 // EVERY status lands in EXACTLY ONE section, so a sixth that matches no predicate fails here
 // rather than vanishing the way `proposed` and `deferred` once did.
-func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
+func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
 		"pursued":   "research",
 		"concluded": "research", // a line followed to its end is one the research took
@@ -316,8 +316,8 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 		"declined":  "alternatives",
 		"abandoned": "alternatives",
 	}
-	for _, status := range record.AvenueStatusNames() {
-		st, ok := record.AvenueStatusOf(status)
+	for _, status := range record.InquiryStatusNames() {
+		st, ok := record.InquiryStatusOf(status)
 		if !ok {
 			t.Fatalf("the declared status %q does not resolve to a schema value — the vocabulary and "+
 				"the enum have drifted apart", status)
@@ -330,14 +330,14 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 			continue
 		}
 		board := famOf(t, []*record.Event{
-			recordtest.Event(t, "blue-r1", &recordpb.Avenue{
-				AvenueId: proto.String("Q1"), Status: st.Enum(), Line: proto.String("the only line"),
+			recordtest.Event(t, "blue-r1", &recordpb.Inquiry{
+				InquiryId: proto.String("Q1"), Status: st.Enum(), Question: proto.String("the only line"),
 			}),
 		})
 		in := map[string]bool{
-			"research":     strings.Contains(avenueSection(t, board, "Research areas"), "the only line"),
-			"future":       strings.Contains(avenueSection(t, board, "Future research directions"), "the only line"),
-			"alternatives": strings.Contains(avenueSection(t, board, "Alternatives considered"), "the only line"),
+			"research":     strings.Contains(inquirySection(t, board, "Research areas"), "the only line"),
+			"future":       strings.Contains(inquirySection(t, board, "Future research directions"), "the only line"),
+			"alternatives": strings.Contains(inquirySection(t, board, "Alternatives considered"), "the only line"),
 		}
 		var got []string
 		for name, present := range in {
@@ -361,11 +361,11 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 		heading := map[string]string{"research": "Research areas", "future": "Future research directions", "alternatives": "Alternatives considered"}
 		said := ""
 		for name, h := range heading {
-			from := strings.Index(AvenueSections, h)
+			from := strings.Index(InquirySections, h)
 			if from < 0 {
-				t.Fatalf("AvenueSections does not name %q: %s", h, AvenueSections)
+				t.Fatalf("AvenueSections does not name %q: %s", h, InquirySections)
 			}
-			clause := AvenueSections[from+len(h):]
+			clause := InquirySections[from+len(h):]
 			for _, other := range heading {
 				if i := strings.Index(clause, other); i >= 0 {
 					clause = clause[:i]
@@ -376,13 +376,13 @@ func TestEveryAvenueStatusLandsWhereItsFateSays(t *testing.T) {
 			}
 		}
 		if said != want {
-			t.Errorf("AvenueSections puts %q under %q and the assembler under %q: %s", status, said, want, AvenueSections)
+			t.Errorf("AvenueSections puts %q under %q and the assembler under %q: %s", status, said, want, InquirySections)
 		}
 	}
 }
 
 // avenueSection renders the avenue section under heading, through its row.
-func avenueSection(t *testing.T, fam record.Family, heading string) string {
+func inquirySection(t *testing.T, fam record.Family, heading string) string {
 	t.Helper()
 	return sectionBlock(t, heading, &assembly{fam: fam})
 }
@@ -437,8 +437,8 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 		}
 	}
 	// The avenue rule reaches the seat that records an approach's fate in the table's own sentence.
-	if seat := "blue-lane-1"; !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), AvenueSections) {
-		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, AvenueSections)
+	if seat := "blue-lane-1"; !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), InquirySections) {
+		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, InquirySections)
 	}
 }
 
@@ -581,17 +581,17 @@ func TestComposedInFindsWhatTheToolComposes(t *testing.T) {
 
 // A MOVED AVENUE IS ONE LINE. Reading raw events rendered a line pursued in epoch 0 and
 // abandoned in epoch 2 under BOTH headings — as an expansion and as an alternative to itself.
-func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
+func TestARecordedInquiryIsRenderedOnce(t *testing.T) {
 	board := famOf(t, []*record.Event{
-		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("rewrite the parser")}),
 		// Two chair sittings put the move in epoch 2 — the epoch is the number of the chair's
 		// stored sittings at or before the row, not read off the seat id.
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{}),
-		recordtest.Event(t, "blue-r2", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
+		recordtest.Event(t, "blue-r2", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Question: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
 	})
-	exp := avenueSection(t, board, "Research areas")
-	alt := avenueSection(t, board, "Alternatives considered")
+	exp := inquirySection(t, board, "Research areas")
+	alt := inquirySection(t, board, "Alternatives considered")
 	if strings.Contains(exp, "rewrite the parser") {
 		t.Errorf("an avenue ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
 	}
@@ -609,23 +609,23 @@ func TestAMovedAvenueIsRenderedOnce(t *testing.T) {
 // the proposing seat's id after it; the report is research prose and tool markers, and both are on
 // the ledger. The ruling's opinion renders in judgments.md, and the ruling beside the line's path
 // in avenues.md (view.TestAnAvenueRulingRendersBesideTheMoveMadeAgainstIt).
-func TestAvenueRulingAndSeatStayOutOfTheReport(t *testing.T) {
+func TestInquiryRulingAndSeatStayOutOfTheReport(t *testing.T) {
 	board := famOf(t, []*record.Event{
-		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("survey the adjacent literature")}),
 		// The LIVE vocabulary: red rules a direction through `motion avenue rule`, whose motion_id
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
 		// fixture used to write the retired `avenue-rule` type, which nothing has written since
 		// the motion collapse and which no longer has a read arm.
 		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_AVENUE),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 			Opinion:  proto.String("a real question, not THIS run's"),
-			Ruling:   &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_OUT_OF_SCOPE},
+			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 		}),
 		// Blue pursues it ANYWAY: the ruling binds no move, and the move is what blue does about it.
-		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("survey the adjacent literature")}),
 	})
-	exp := avenueSection(t, board, "Research areas")
+	exp := inquirySection(t, board, "Research areas")
 	if !strings.Contains(exp, "- **Question:** survey the adjacent literature\n") {
 		t.Fatalf("the line itself must still reach the report:\n%s", exp)
 	}

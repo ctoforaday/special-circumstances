@@ -51,17 +51,17 @@ import (
 // newAvenue is the chair's half of the one verb the concept has. Blue's surface carries
 // `avenue propose | move`; this carries `avenue review` — the same group, scoped by role the way
 // `motion`'s subjects are, so a seat asking what it may do with an avenue looks in one place.
-func newAvenue() *cobra.Command {
+func newInquiry() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "avenue",
 		Short:        "read the report against every avenue on the record — `review` states what that reading found",
 		SilenceUsage: true,
 	}
-	c.AddCommand(newAvenueReview())
+	c.AddCommand(newInquiryReview())
 	return c
 }
 
-func newAvenueReview() *cobra.Command {
+func newInquiryReview() *cobra.Command {
 	c := seat.Prose(seat.New("review", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
@@ -76,10 +76,10 @@ func newAvenueReview() *cobra.Command {
 		//
 		// So --id and --as no longer reach the record. That is the schema's decision, not a
 		// conversion slip: the flags are gone from the surface and from the help,
-		if _, err := record.Append(s.Identity(), &recordpb.AvenueReview{Reason: proto.String(text)}); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
 			return nil, err
 		}
-		return avenueReviewResult{}, nil
+		return inquiryReviewResult{}, nil
 	}))
 
 	// NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
@@ -110,6 +110,6 @@ func newAvenueReview() *cobra.Command {
 	return seat.SaysRequired(c, flags.Reason)
 }
 
-type avenueReviewResult struct{}
+type inquiryReviewResult struct{}
 
-func (r avenueReviewResult) Human() string { return "avenue review recorded" }
+func (r inquiryReviewResult) Human() string { return "avenue review recorded" }

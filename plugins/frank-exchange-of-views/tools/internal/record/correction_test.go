@@ -369,15 +369,15 @@ func TestLivePutsTheReplacementInTheStruckActsPlace(t *testing.T) {
 // THE SQL WINNERS READ THE SAME ORDER: a proposal corrected after the line was moved keeps its place,
 // so avenue reads the corrected wording AND the move's status — not the replacement's
 // `proposed`, which MAX(event_id) would have picked.
-func TestAvenueReadsACorrectedProposalInItsPlace(t *testing.T) {
+func TestInquiryReadsACorrectedProposalInItsPlace(t *testing.T) {
 	run := corrRun(t)
 	blue := sit(t, run, "blue-respond")
-	propose := func(line string) *recordpb.Avenue {
-		return &recordpb.Avenue{AvenueId: proto.String("A1"), Line: proto.String(line), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()}
+	propose := func(line string) *recordpb.Inquiry {
+		return &recordpb.Inquiry{InquiryId: proto.String("A1"), Question: proto.String(line), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
 	}
 	k := mustAppend(t, blue, propose("try the  method")).GetKey()
-	mustAppend(t, blue, &recordpb.Avenue{AvenueId: proto.String("A1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(), SupersedesStatus: proto.String("proposed")})
-	if _, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_AVENUE, k, "the shell ate it"), propose("try the recorded method")); err != nil {
+	mustAppend(t, blue, &recordpb.Inquiry{InquiryId: proto.String("A1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(), SupersedesStatus: proto.String("proposed")})
+	if _, err := replayed(correcting(blue, recordpb.EventType_EVENT_TYPE_INQUIRY, k, "the shell ate it"), propose("try the recorded method")); err != nil {
 		t.Fatal(err)
 	}
 	var line, status string

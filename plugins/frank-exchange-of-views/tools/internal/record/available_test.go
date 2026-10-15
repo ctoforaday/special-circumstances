@@ -413,16 +413,16 @@ func mentions(ds []Item, want string) bool {
 }
 
 // avenueAt builds one `avenue` event, so a test can place a line at a status in a round.
-func avenueAt(t *testing.T, id, status string) *Event {
+func inquiryAt(t *testing.T, id, status string) *Event {
 	t.Helper()
-	st, ok := AvenueStatusOf(status)
+	st, ok := InquiryStatusOf(status)
 	if !ok {
 		t.Fatalf("%q is not an avenue status", status)
 	}
-	return recordtest.Event(t, "blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String(id),
-		Status:   &st,
-		Line:     proto.String("a line"),
+	return recordtest.Event(t, "blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String(id),
+		Status:    &st,
+		Question:  proto.String("a line"),
 	})
 }
 
@@ -444,26 +444,26 @@ func chairSits(t *testing.T) *Event {
 // of that status, "you are following it, OR YOU FOLLOWED IT" — produced the identical line to a
 // line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
 // and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
-func TestAPursuedAvenueReaffirmedThisRoundIsNotStale(t *testing.T) {
+func TestAUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	b := loadedFamilyT(t, nil, []*Event{
 		// Epoch 0: the base phase, before any chair has sat.
-		avenueAt(t, "Q1", "proposed"),
-		avenueAt(t, "Q1", "pursued"),
-		avenueAt(t, "Q2", "pursued"),
-		avenueAt(t, "Q3", "pursued"), // never revisited
-		avenueAt(t, "Q4", "deferred"),
-		avenueAt(t, "Q5", "abandoned"),
-		avenueAt(t, "Q7", "concluded"), // followed to its end in epoch 0, never touched again
+		inquiryAt(t, "Q1", "proposed"),
+		inquiryAt(t, "Q1", "pursued"),
+		inquiryAt(t, "Q2", "pursued"),
+		inquiryAt(t, "Q3", "pursued"), // never revisited
+		inquiryAt(t, "Q4", "deferred"),
+		inquiryAt(t, "Q5", "abandoned"),
+		inquiryAt(t, "Q7", "concluded"), // followed to its end in epoch 0, never touched again
 		// The chair sits twice: everything below is in epoch 2, the current one.
 		chairSits(t),
 		chairSits(t),
-		avenueAt(t, "Q2", "pursued"),  // reaffirmed in the current epoch
-		avenueAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a move whenever asked
-		avenueAt(t, "Z", "pursued"),   // carries the epoch forward
+		inquiryAt(t, "Q2", "pursued"),  // reaffirmed in the current epoch
+		inquiryAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a move whenever asked
+		inquiryAt(t, "Z", "pursued"),   // carries the epoch forward
 	})
 
 	stale := map[string]bool{}
-	for _, a := range StaleAvenuesOf(b.Events, b.At) {
+	for _, a := range StaleInquiriesOf(b.Events, b.At) {
 		stale[a.ID] = true
 	}
 

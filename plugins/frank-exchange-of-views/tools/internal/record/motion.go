@@ -42,7 +42,7 @@ var MotionVerdicts = map[string][]EnumValue{
 	// subject's ruling enum, in declaration order.
 	"grade":    evsOf(recordpb.GradeRuling(0).Descriptor()),
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
-	"avenue":   evsOf(recordpb.AvenueRuling(0).Descriptor()),
+	"avenue":   evsOf(recordpb.InquiryRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
 	// the same words `lens close` uses, which is what "one vocabulary, whichever verb closed it"
 	// means. Copying the words here would be the second list that drifts, and an August draft of
@@ -292,7 +292,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 	// is filled, and a direction motion comes out with no filer, no epoch and no ask — rendering as
 	// an answer to a question nobody asked.
 	for _, e := range evs {
-		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
+		av, ok := recordpb.BodyAs[*recordpb.Inquiry](e)
 		// A MOVE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
 		// `supersedes_status` marks the event as a move, so a proposal does not carry the field at
 		// all — `GetSupersedesStatus() == ""` would fold a field somebody set to the empty string
@@ -300,9 +300,9 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 		if !ok || av.SupersedesStatus != nil {
 			continue
 		}
-		if a := av.GetAvenueId(); a != "" {
+		if a := av.GetInquiryId(); a != "" {
 			w := win.Of(e)
-			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetLine(), epoch: w.Epoch, sitting: w.Sitting}
+			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetQuestion(), epoch: w.Epoch, sitting: w.Sitting}
 		}
 	}
 
@@ -359,9 +359,9 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				if fil.Petition.Class != nil {
 					m.Fields["class"] = enumWord(fil.Petition.GetClass())
 				}
-			case *recordpb.Motion_Avenue:
-				if fil.Avenue.AvenueId != nil {
-					m.Fields["avenue_id"] = fil.Avenue.GetAvenueId()
+			case *recordpb.Motion_Inquiry:
+				if fil.Inquiry.InquiryId != nil {
+					m.Fields["avenue_id"] = fil.Inquiry.GetInquiryId()
 				}
 			case *recordpb.Motion_Docket:
 				if fil.Docket.GapId != nil {
@@ -385,7 +385,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			// ruling is also its creation; every other subject is created by its `motion` event,
 			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
 			if _, ok := byID[id]; !ok {
-				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
+				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
 				}
 				// A DIRECTION MOTION IS CREATED BY ITS RULING, and that is not a special case
@@ -492,8 +492,8 @@ func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject
 	}
 	// A direction has no filing event — the proposal is the filing — so an id that resolves to an
 	// avenue IS an avenue motion by construction.
-	if subject == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-		if err := requireAvenueRef(q, id); err != nil {
+	if subject == recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+		if err := requireInquiryRef(q, id); err != nil {
 			return "", err
 		}
 		return motionSubjectWord(subject), nil

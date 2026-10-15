@@ -81,19 +81,19 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// An avenue is referable once proposed, and a move of it leaves it so.
-	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
-		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
+	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
-		Status:           recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(),
-		SupersedesStatus: proto.String(recordpb.Word(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED))}); err != nil {
+	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status:           recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(),
+		SupersedesStatus: proto.String(recordpb.Word(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED))}); err != nil {
 		t.Fatal(err)
 	}
-	if err := RequireAvenueRef(run, "Q1"); err != nil {
+	if err := RequireInquiryRef(run, "Q1"); err != nil {
 		t.Errorf("RequireAvenueRef(Q1) = %v", err)
 	}
-	if err := RequireAvenueRef(run, "Q9"); err == nil {
+	if err := RequireInquiryRef(run, "Q9"); err == nil {
 		t.Error("RequireAvenueRef accepted an avenue nobody proposed")
 	}
 

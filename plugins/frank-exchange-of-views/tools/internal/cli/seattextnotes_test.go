@@ -71,7 +71,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 	if ev := body[report.FileEvidence]; !strings.Contains(ev, `\[^\s]`) || strings.Contains(strings.ReplaceAll(ev, `\[^`, ""), "[^\\s]") {
 		t.Errorf("the evidence document carries the proof's note unescaped:\n%.600s", ev)
 	}
-	if av := body[report.FileAvenues]; !strings.Contains(av, `built on \[^,]+ splits`) {
+	if av := body[report.FileInquiries]; !strings.Contains(av, `built on \[^,]+ splits`) {
 		t.Errorf("the avenues document carries the avenue's words unescaped:\n%s", av)
 	}
 	if a := capture.FootnoteIntegrity(runtest.Open(t, set)); a.Verdict != "PASS" {

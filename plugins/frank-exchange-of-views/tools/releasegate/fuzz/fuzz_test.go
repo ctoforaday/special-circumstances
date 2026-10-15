@@ -257,14 +257,14 @@ type runner struct {
 	// avenueRulingErr is the drive's first failure to read an avenue's ruling. It fails the run:
 	// read as "not ruled" it would have red rule a settled line again, or blue leave a ruled one
 	// unanswered, and the avenue oracle would then find nothing to check.
-	avenueRulingErr string
+	inquiryRulingErr string
 	// avenueIDErr is the first `avenue propose` that SUCCEEDED and whose result carried no avenue
 	// id the harness could read. It fails the run: read as "nothing to move" it would leave the
 	// move and the avenue `--about` reference undriven behind a green sweep.
-	avenueIDErr string
+	inquiryIDErr string
 	// avenueMoves counts the moves the tool ACCEPTED on an id read from a propose result — the
 	// drive avenueIDOf feeds. The sweep gates it at zero.
-	avenueMoves int
+	inquiryRecords int
 	// positionsRefused counts the positions the tool REFUSED a seat that owes none
 	// (record.SeatOwesPosition) — a lane, the frontier, the synthesizer. The sweep gates it at zero.
 	positionsRefused int
@@ -318,7 +318,7 @@ type runner struct {
 	// avenueIDs: the tool-assigned avenue ids this run has proposed. `--about-kind avenue`
 	// CHECKS its reference against the record, so a drive needs a real one — a composed id
 	// would drive the refusal and never the success.
-	avenueIDs []string
+	inquiryIDs []string
 	// classMu guards classMade and is HELD ACROSS THE COIN, the one lock here that spans a
 	// subprocess, because the coin is a dependency rather than a contention: every mint names
 	// `--class fuzzcls`, and a lens minting while another is still coining it is refused "unknown
@@ -428,14 +428,14 @@ var applyTurn atomic.Int64
 
 // avenueIDOf pulls the tool-assigned avenue id out of a propose result, or "" when the result
 // names none.
-func avenueIDOf(out string) string { return avenueIDPat.FindString(out) }
+func inquiryIDOf(out string) string { return inquiryIDPat.FindString(out) }
 
 // THE SHAPE IS THE TABLE's. The record mints the id, it comes back on stdout and is never
 // recomposed here; the pattern that finds it there is anchor.IDPattern, the one id matcher, so a
 // change to the id shape moves this reader with it. A pattern kept by hand matches nothing after
 // such a change, and every drive fed from it — the move of a proposed line, the avenue `--about`
 // reference — silently stops: see runner.avenueIDErr and the avenue-move gate.
-var avenueIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("avenue") + `\b`)
+var inquiryIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("avenue") + `\b`)
 
 // gapIDPat folds a gap id out of a stated reason, so the reasons tally by what they say.
 var gapIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
@@ -481,18 +481,18 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
 
 // noteAvenue remembers a tool-assigned avenue id so the --about drive can name a real one.
-func (r *runner) noteAvenue(id string) {
+func (r *runner) noteInquiry(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.avenueIDs = append(r.avenueIDs, id)
+	r.inquiryIDs = append(r.inquiryIDs, id)
 }
 
 // noteAvenueIDErr keeps the first propose result no avenue id could be read from.
-func (r *runner) noteAvenueIDErr(msg string) {
+func (r *runner) noteInquiryIDErr(msg string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.avenueIDErr == "" {
-		r.avenueIDErr = msg
+	if r.inquiryIDErr == "" {
+		r.inquiryIDErr = msg
 	}
 }
 
@@ -597,10 +597,10 @@ func (r *runner) positionRefused(seatID string) {
 }
 
 // noteAvenueMove counts a move the tool accepted on an id read from a propose result.
-func (r *runner) noteAvenueMove() {
+func (r *runner) noteInquiryRecord() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.avenueMoves++
+	r.inquiryRecords++
 }
 
 // aboutAnchor picks one --about-kind/--about pair, or ("","") when nothing on the record can be
@@ -613,7 +613,7 @@ func (r *runner) noteAvenueMove() {
 // one would refuse the finding rather than the staleness — so the seeded heading is honest there.
 func (r *runner) aboutAnchor() (kind, ref string) {
 	r.mu.Lock()
-	inq := append([]string{}, r.avenueIDs...)
+	inq := append([]string{}, r.inquiryIDs...)
 	r.mu.Unlock()
 	kinds := []string{"section"}
 	if len(inq) > 0 {
@@ -1902,7 +1902,7 @@ var checkKinds = []string{"document", "computation", "source"}
 
 // `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
 // registry declares, and no run has ever recorded.
-var avenueStatus = []string{"proposed", "pursued", "concluded", "refuted", "abandoned", "declined", "deferred"}
+var inquiryStatus = []string{"proposed", "pursued", "concluded", "refuted", "abandoned", "declined", "deferred"}
 
 // nextAvenueStatus round-robins the undirected avenue's fate so every value is driven BY
 // CONSTRUCTION rather than by luck.
@@ -1916,10 +1916,10 @@ var avenueStatus = []string{"proposed", "pursued", "concluded", "refuted", "aban
 // random: the sweep makes about 1.6 undirected avenues per run, so a counter resetting each time
 // would only ever reach index 0 and 1 and the last three fates would never be driven at all.
 // Atomic because the sweep's runs are concurrent.
-var avenueTick atomic.Int64
+var inquiryTick atomic.Int64
 
-func nextAvenueStatus() string {
-	return avenueStatus[int(avenueTick.Add(1)-1)%len(avenueStatus)]
+func nextInquiryStatus() string {
+	return inquiryStatus[int(inquiryTick.Add(1)-1)%len(inquiryStatus)]
 }
 
 var obsKind = []string{"reason", "checked-held"}
@@ -1975,7 +1975,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// #246: an avenue now has an id and a LIFECYCLE. Propose, then sometimes move it — the
 	// move is the path the old one-shot append could not record at all (measured: 0 of 86
 	// events across six runs ever changed status).
-	avenue := func(role string) {
+	inquiry := func(role string) {
 		// A DECLINED OR ABANDONED avenue requires --reason (record.go: an unexplained
 		// non-pursuit is the decoration this verb exists to refuse). Without it two of the
 		// three statuses were rejected on every call, so only `pursued` ever reached the
@@ -1989,9 +1989,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// An UNDIRECTED line keeps the random status: proposing something already declined is a
 		// real shape (blue weighed it and did not start), and it carries no fate for red to
 		// rule from, so the ruling cycle and the oracle both skip it by construction.
-		line, st := pick(r.rng, avenueFates)+" ("+seatID+")", "proposed"
+		line, st := pick(r.rng, inquiryFates)+" ("+seatID+")", "proposed"
 		if r.coin(30) {
-			line, st = "fuzz undirected avenue "+seatID, nextAvenueStatus()
+			line, st = "fuzz undirected avenue "+seatID, nextInquiryStatus()
 		}
 		// PROPOSE AND MOVE ARE TWO VERBS. A proposal is born `proposed` — the tool supplies it,
 		// so there is no status to pass — and any other fate is reached by MOVING the line it
@@ -2005,16 +2005,16 @@ func (r *runner) extras(role, seatID string, open []string) {
 		if err == nil {
 			// A PROPOSAL THAT LANDED AND NAMED NO ID IS A FAILURE, NOT A SKIP. The tool minted an
 			// id and printed it; a reader that finds none there has stopped reading the tool.
-			id := avenueIDOf(out)
+			id := inquiryIDOf(out)
 			if id == "" {
-				r.noteAvenueIDErr("`avenue propose` succeeded and its result names no avenue id matching " +
-					avenueIDPat.String() + ":\n" + truncate(out))
+				r.noteInquiryIDErr("`avenue propose` succeeded and its result names no avenue id matching " +
+					inquiryIDPat.String() + ":\n" + truncate(out))
 				return
 			}
-			r.noteAvenue(id)
+			r.noteInquiry(id)
 			if _, merr := r.do("avenue move", seatID).set("--id", id).set("--as", st).
 				set("--reason", "fuzz: what changed this line's fate").run(); merr == nil {
-				r.noteAvenueMove()
+				r.noteInquiryRecord()
 			}
 		}
 	}
@@ -2084,12 +2084,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// out-of-scope line could be pursued and an endorsed one abandoned, and the record kept
 		// both halves while joining them nowhere. The avenue's own --line now carries its
 		// intended fate, exactly as a gap's --fix carries its scenario.
-		r.ruleOpenAvenues(seatID)
+		r.ruleOpenInquiries(seatID)
 		// `near-match` is NOT driven here any more: it is a lens verb now, the screen a lens runs
 		// BEFORE minting (roundless §III.B.3), so it sits beside the mint it precedes — see the
 		// fresh-mint loop in envelopeFor's chair branch.
 	case "blue":
-		r.maybe(45, func() { avenue("blue") })
+		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM STATUS MOVE HERE. answerAvenueRulings owns moves now: it answers red's
 		// ruling, comply or contest, one decision per avenue. A second writer sliding statuses
 		// at random fought it — the oracle caught it immediately, 24 of 60, reporting endorsed
@@ -2385,7 +2385,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// minted with; blue reads it back off the board and does what it says. This replaces a
 		// blanket 40%-per-gap dispute roll plus a 50% verbatim-apply coin, neither of which
 		// looked at what red had actually asked for.
-		r.answerAvenueRulings(seatID)
+		r.answerInquiryRulings(seatID)
 		r.disputedThisRound = nil
 		r.presented.add(open...)
 		r.blueRespondTo(seatID, open)
@@ -2835,7 +2835,7 @@ type outcome struct {
 	// (runner.avenueMoves). The `avenue` verb gate is satisfied by a proposal alone, and blue's
 	// answer to a ruling moves a line by an id read off the record, so neither notices the
 	// propose-result reader going blind.
-	avenueMoves int
+	inquiryRecords int
 	// positionsRefused is the positions the tool refused a seat that owes none
 	// (runner.positionsRefused).
 	positionsRefused int
@@ -3307,12 +3307,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
 		return res
 	}
-	if r.avenueRulingErr != "" {
-		res.err = "avenue drive: an avenue's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.avenueRulingErr
+	if r.inquiryRulingErr != "" {
+		res.err = "avenue drive: an avenue's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.inquiryRulingErr
 		return res
 	}
-	if r.avenueIDErr != "" {
-		res.err = "avenue drive: " + r.avenueIDErr
+	if r.inquiryIDErr != "" {
+		res.err = "avenue drive: " + r.inquiryIDErr
 		return res
 	}
 	if r.positionAdmittedErr != "" {
@@ -3777,7 +3777,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// does about one it disagrees with is the avenue's own move. The oracle joins the two — the
 	// ruling the view states and the status the fold reads — against the fate each line was
 	// proposed to take.
-	if msg := avenueRulingOracle(oracleRun, board); msg != "" {
+	if msg := inquiryRulingOracle(oracleRun, board); msg != "" {
 		res.err = msg
 		return res
 	}
@@ -3927,7 +3927,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	res.citeAnchors = strings.Count(md, "<!--cite:")
 	r.mu.Lock()
-	res.avenueMoves = r.avenueMoves
+	res.inquiryRecords = r.inquiryRecords
 	res.positionsRefused = r.positionsRefused
 	res.ordersRefused = r.ordersRefused
 	res.quotesRefused = r.quotesRefused
@@ -3996,9 +3996,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 // A RULING IT CANNOT READ IS A BREACH, NOT AN UNRULED AVENUE. "" from AvenueRuling means red has
 // not ruled, and that avenue has nothing to check; an error means the check did not happen, and
 // passing over it would report an unaudited avenue as a clean one.
-func avenueRulingOracle(run record.Run, board record.Family) string {
-	for _, a := range record.AvenuesOf(board.Events, board.At) {
-		ruling, err := record.AvenueRuling(run, a.ID)
+func inquiryRulingOracle(run record.Run, board record.Family) string {
+	for _, a := range record.InquiriesOf(board.Events, board.At) {
+		ruling, err := record.InquiryRuling(run, a.ID)
 		if err != nil {
 			return "avenue " + a.ID + ": its ruling could not be read, so whether the ruling had its consequence is unchecked: " + err.Error()
 		}
@@ -4006,7 +4006,7 @@ func avenueRulingOracle(run record.Run, board record.Family) string {
 			continue // never ruled, or blue has not answered yet
 		}
 		switch {
-		case strings.HasPrefix(a.Line, avContest):
+		case strings.HasPrefix(a.Question, avContest):
 			if a.Status != "pursued" {
 				return "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
 			}
@@ -4603,7 +4603,7 @@ func TestFuzzDebate(t *testing.T) {
 	verbatimApplied := 0                   // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
 	typedVerbatim := 0                     // those blue typed rather than accepted
 	estoppels := 0                         // the TOOL's own refusals of a mint against text blue applied verbatim
-	avenueMoves := 0                       // moves accepted on an avenue id read from a propose result
+	inquiryRecords := 0                    // moves accepted on an avenue id read from a propose result
 	quotesRefused := 0                     // verifications and corroborations refused for a quote the report does not hold
 	ordersRefused := 0                     // edits refused for a section out of the order the report ships in
 	positionsRefused := 0                  // positions refused a lane, the frontier or the synthesizer
@@ -4679,7 +4679,7 @@ func TestFuzzDebate(t *testing.T) {
 			verbatimApplied += o.verbatimApplied
 			typedVerbatim += o.typedVerbatim
 			estoppels += o.estoppels
-			avenueMoves += o.avenueMoves
+			inquiryRecords += o.inquiryRecords
 			positionsRefused += o.positionsRefused
 			ordersRefused += o.ordersRefused
 			quotesRefused += o.quotesRefused
@@ -4720,7 +4720,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
-	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", avenueMoves, dcov["avenue"])
+	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", inquiryRecords, dcov["avenue"])
 	t.Logf("reopened readied: %d plan(s) readied the evidence lens for a reopened citation or proof alone (of %d holding a reopened blocker)", reopenedReadied, reopenedPlans)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
@@ -4792,7 +4792,7 @@ func TestFuzzDebate(t *testing.T) {
 		// the reader of that result is a pattern: one that matches nothing leaves every proposal
 		// unmoved and every avenue `--about` reference unpassed, with the `avenue` verb gate
 		// above still green on the proposals themselves.
-		if avenueMoves == 0 {
+		if inquiryRecords == 0 {
 			t.Errorf("fuzz moved ZERO avenues by an id read from `avenue propose` across %d runs (with %d avenue events) — "+
 				"the propose result named no id the harness reads, or the tool refused every move; the avenue lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["avenue"])
 		}
@@ -5173,7 +5173,7 @@ const (
 	avContest = "FUZZ-AVENUE-CONTESTED: red rules it out and blue pursues it anyway, with reasons"
 )
 
-var avenueFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
+var inquiryFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
 
 // rulingFor maps a proposed line to the ruling red should give it.
 //
@@ -5196,32 +5196,32 @@ func rulingFor(line string) string {
 }
 
 // ruleOpenAvenues has red rule every avenue that has no ruling yet, from the line it carries.
-func (r *runner) ruleOpenAvenues(seatID string) {
+func (r *runner) ruleOpenInquiries(seatID string) {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return
 	}
-	for _, a := range record.AvenuesOf(b.Events, b.At) {
-		if rulingFor(a.Line) == "" {
+	for _, a := range record.InquiriesOf(b.Events, b.At) {
+		if rulingFor(a.Question) == "" {
 			continue
 		}
-		if ruling, ok := r.avenueRuling(a.ID); !ok || ruling != "" {
+		if ruling, ok := r.inquiryRuling(a.ID); !ok || ruling != "" {
 			continue
 		}
 		_, _ = r.exec("motion", "avenue", "rule", "--seat-id", seatID, "--id", a.ID,
-			"--as", rulingFor(a.Line), "--reason", "fuzz: ruling as the line was proposed")
+			"--as", rulingFor(a.Question), "--reason", "fuzz: ruling as the line was proposed")
 	}
 }
 
 // avenueRuling is the drive's read of red's ruling on an avenue: record.AvenueRuling, with a read
 // that fails kept on the runner so runOne fails the run on it. ok is false for that read, and the
 // caller leaves the avenue alone — it knows neither that the line is ruled nor that it is not.
-func (r *runner) avenueRuling(avenueID string) (ruling string, ok bool) {
-	ruling, err := record.AvenueRuling(r.run(), avenueID)
+func (r *runner) inquiryRuling(inquiryID string) (ruling string, ok bool) {
+	ruling, err := record.InquiryRuling(r.run(), inquiryID)
 	if err != nil {
 		r.mu.Lock()
-		if r.avenueRulingErr == "" {
-			r.avenueRulingErr = err.Error()
+		if r.inquiryRulingErr == "" {
+			r.inquiryRulingErr = err.Error()
 		}
 		r.mu.Unlock()
 		return "", false
@@ -5231,18 +5231,18 @@ func (r *runner) avenueRuling(avenueID string) (ruling string, ok bool) {
 
 // answerAvenueRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
 // anyway with an argument. Which one is decided by the line, not by a coin.
-func (r *runner) answerAvenueRulings(seatID string) {
+func (r *runner) answerInquiryRulings(seatID string) {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return
 	}
-	for _, a := range record.AvenuesOf(b.Events, b.At) {
-		ruling, ok := r.avenueRuling(a.ID)
+	for _, a := range record.InquiriesOf(b.Events, b.At) {
+		ruling, ok := r.inquiryRuling(a.ID)
 		if !ok || ruling == "" || a.Status != "proposed" {
 			continue
 		}
 		switch {
-		case strings.HasPrefix(a.Line, avContest):
+		case strings.HasPrefix(a.Question, avContest):
 			// THE CONTEST IS THE MOVE: the ruling binds none, so blue pursues the line against it.
 			r.do("avenue move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()

@@ -14,7 +14,7 @@ import (
 // it, and a direction that died mid-run had no way to say so. These pin the lifecycle that
 // replaces that.
 
-func avenueSeat(t *testing.T, runDir string) string {
+func inquirySeat(t *testing.T, runDir string) string {
 	t.Helper()
 	const seat = "blue-respond"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seat); err != nil {
@@ -25,9 +25,9 @@ func avenueSeat(t *testing.T, runDir string) string {
 
 // A proposal gets a tool-assigned id and starts undecided — the state the old shape could
 // not express, which forced blue to declare a fate before it had one.
-func TestAvenueProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
+func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 
 	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division by hand", "--hypothesis", "if 7 has no divisor in 2..6 it is prime")
@@ -37,9 +37,9 @@ func TestAvenueProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	if !strings.Contains(out, handleText(t, runDir, "Q1")) {
 		t.Errorf("the tool must assign the id, not the seat: %q", out)
 	}
-	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_AVENUE)
-	a, _ := recordpb.BodyAs[*recordpb.Avenue](ev)
-	if got := a.GetStatus(); got != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED {
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_INQUIRY)
+	a, _ := recordpb.BodyAs[*recordpb.Inquiry](ev)
+	if got := a.GetStatus(); got != recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED {
 		t.Errorf("status = %q, want proposed — a fresh proposal has no fate yet", recordpb.Word(got))
 	}
 	if a.GetHypothesis() == "" {
@@ -48,10 +48,10 @@ func TestAvenueProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 }
 
 // THE MOVE IS THE POINT: a direction that dies mid-run can now say so.
-func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
+func TestInquiryRecordKeepsItsSubstance(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir) // the path below names r1; the chair sitting is what makes it epoch 1
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
@@ -73,9 +73,9 @@ func TestAvenueStatusMovesAndKeepsItsSubstance(t *testing.T) {
 }
 
 // A move that says nothing is the unfalsifiable status this replaces.
-func TestAvenueMoveRequiresWhatChanged(t *testing.T) {
+func TestInquiryRecordRequiresWhatChanged(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
@@ -89,9 +89,9 @@ func TestAvenueMoveRequiresWhatChanged(t *testing.T) {
 }
 
 // A dangling reference is refused at the write, like every other (refs.go).
-func TestAvenueMoveRefusesAnUnknownID(t *testing.T) {
+func TestInquiryRecordRefusesAnUnknownID(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	_, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
 		"--id", "Q9", "--as", "pursued", "--reason", "why")
 	if err == nil {
@@ -107,7 +107,7 @@ func TestAvenueMoveRefusesAnUnknownID(t *testing.T) {
 // handler had to catch. They are two verbs, and `propose` simply has no --id to pass.
 func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := runAt(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--reason", "a line"); err == nil {
 		t.Fatal("`propose --id` was accepted; the two contracts are still reachable through one shape")
@@ -116,9 +116,9 @@ func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 
 // RED RULES AND NEVER PROPOSES. Across the corpus red rejected zero avenues because it had
 // no verb to; this is that verb.
-func TestRedRulesOnAProposedAvenue(t *testing.T) {
+func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func TestRedRulesOnAProposedAvenue(t *testing.T) {
 // A ruling is an argument, not a command — so it must carry one.
 func TestRulingRequiresAReason(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 }
 
 // BLUE HAS NO BOARD VERBS AND RED HAS NO PROPOSAL VERB. The role boundary is the engine.
-func TestRedCannotProposeAAvenue(t *testing.T) {
+func TestRedCannotProposeAnInquiry(t *testing.T) {
 	runDir := newRun(t)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "red's own direction"); err == nil {
@@ -163,9 +163,9 @@ func TestRedCannotProposeAAvenue(t *testing.T) {
 
 // The awaiting-a-decision block is what makes the revisit duty checkable rather than hoped
 // for — the measured failure was that nothing ever asked blue to choose again after round 0.
-func TestOpenAvenuesAreSurfacedAsOwingADecision(t *testing.T) {
+func TestOpenInquiriesAreSurfacedAsOwingADecision(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "still open"); err != nil {
 		t.Fatal(err)
 	}

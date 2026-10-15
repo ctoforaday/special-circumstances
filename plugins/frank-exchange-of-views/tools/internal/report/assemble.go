@@ -660,14 +660,14 @@ func setAside(status string) bool { return !taken(status) && !deferred(status) }
 // itself stays, because it is subject content: `refuted` means the approach ran and its hypothesis did not hold. What a reader of the report
 // needs is which lines the research followed, which it kept for later, and which it weighed and
 // set down, each with the reason in its own words.
-func avenues(a *assembly, s Section) string {
+func inquiries(a *assembly, s Section) string {
 	fam, want := a.fam, s.fate
 	var rows []string
-	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
+	for _, a := range record.InquiriesOf(fam.Events, fam.At) {
 		if !want(a.Status) {
 			continue
 		}
-		row := "- **Question:** " + inItem(a.Line, "  ")
+		row := "- **Question:** " + inItem(a.Question, "  ")
 		if a.Method != "" {
 			row += fmt.Sprintf(" _(%s)_", a.Method)
 		}
@@ -681,7 +681,7 @@ func avenues(a *assembly, s Section) string {
 		row += "\n  - **Fate:** " + a.Status + "."
 		// A PROPOSAL'S REASON IS ITS LINE: `avenue propose` writes the one text to both fields, so
 		// until the avenue is moved there is nothing found, and the question is not printed twice.
-		if a.Reason != "" && a.Reason != a.Line {
+		if a.Reason != "" && a.Reason != a.Question {
 			label := "Why"
 			if ran(a.Status) {
 				label = "Found"

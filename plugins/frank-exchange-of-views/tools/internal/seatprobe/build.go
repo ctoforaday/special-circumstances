@@ -218,7 +218,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 	}
 
-	for i, a := range b.Avenues {
+	for i, a := range b.Inquiries {
 		// THE ID COMES BACK FROM THE TOOL; IT IS NOT RECOMPOSED HERE.
 		//
 		// This used to propose the line, throw the output away, and rebuild the id as

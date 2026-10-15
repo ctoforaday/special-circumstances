@@ -41,8 +41,8 @@ func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, erro
 	// does not. A section name is not checked — the report's headings are blue's to change mid-run,
 	// and refusing on a stale one would refuse the finding rather than the staleness.
 	switch k {
-	case recordpb.AboutKind_ABOUT_KIND_AVENUE:
-		if err := RequireAvenueRef(run, ref); err != nil {
+	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
+		if err := RequireInquiryRef(run, ref); err != nil {
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_GAP:

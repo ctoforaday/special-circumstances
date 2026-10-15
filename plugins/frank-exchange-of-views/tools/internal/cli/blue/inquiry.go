@@ -16,7 +16,7 @@ import (
 
 // The pages of the two acts that write an avenue print whose the report's avenue sections are, from
 // the assembler's own sentence.
-func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule }
+func init() { seat.HelpValues["AvenueSectionsRule"] = report.InquirySectionsRule }
 
 // avenue: an avenue, and what became of it.
 //
@@ -62,20 +62,20 @@ func init() { seat.HelpValues["AvenueSectionsRule"] = report.AvenueSectionsRule 
 // --hypothesis is what makes a later move checkable: an avenue that says what would be true if it
 // paid off is concluded or refuted against its own claim rather than set down on a shrug. It is
 // the ONLY place a predicted result goes: the line is the question, and it is never rewritten.
-func newAvenue() *cobra.Command {
+func newInquiry() *cobra.Command {
 	c := &cobra.Command{
 		Use:          "avenue",
 		Short:        "an approach the research could take, and what became of it — `propose` one, `move` one you already proposed",
 		SilenceUsage: true,
 	}
-	c.AddCommand(newAvenuePropose(), newAvenueMove())
+	c.AddCommand(newInquiryPropose(), newInquiryRecord())
 	return c
 }
 
 // propose is open at any point in a run because an avenue that occurs to a seat in its third sitting
 // is exactly the one a later run needs. --hypothesis exists so the fate is judged against a stated
 // prediction: checkable, where a fate with none is a shrug.
-func newAvenuePropose() *cobra.Command {
+func newInquiryPropose() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("propose", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
@@ -93,15 +93,15 @@ func newAvenuePropose() *cobra.Command {
 			return nil, err
 		}
 		if prior != "" {
-			return avenueResult{ID: prior, Status: "proposed", Line: why, Idempotent: true}, nil
+			return inquiryResult{ID: prior, Status: "proposed", Question: why, Idempotent: true}, nil
 		}
 		id := record.NewID("avenue")
 		if err != nil {
 			return nil, err
 		}
-		proposed := recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED
-		body := &recordpb.Avenue{
-			AvenueId:   proto.String(id),
+		proposed := recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED
+		body := &recordpb.Inquiry{
+			InquiryId:  proto.String(id),
 			Method:     proto.String(seat.Str(cmd, flags.Method)),
 			Hypothesis: proto.String(seat.Str(cmd, flags.Hypothesis)),
 			Status:     &proposed,
@@ -116,7 +116,7 @@ func newAvenuePropose() *cobra.Command {
 		// channel, so the same act wrote two different values whenever the seat used
 		// the file spelling that flag used to have: the line went in empty and the reason went in
 		// whole. Both read seat.Reason, the one resolver.
-		body.Line = proto.String(why)
+		body.Question = proto.String(why)
 		body.Reason = proto.String(why)
 		// THE ADVISORY, over exactly what `avenues()` composes into report.md from this act: the
 		// line (which is also the reason — propose writes the same resolved prose to both), the
@@ -129,7 +129,7 @@ func newAvenuePropose() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return avenueResult{ID: id, Status: "proposed", Line: body.GetLine(), VoiceTells: tells}, nil
+		return inquiryResult{ID: id, Status: "proposed", Question: body.GetQuestion(), VoiceTells: tells}, nil
 	}), "avenue"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
@@ -149,22 +149,22 @@ func newAvenuePropose() *cobra.Command {
 // move: the fate is not the point; the account of what settled it is. An avenue given its fate
 // against its own stated hypothesis is evidence of choosing, and one set down on a shrug is not —
 // which is why the reason is required where the record requires it and printed in the report.
-func newAvenueMove() *cobra.Command {
+func newInquiryRecord() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("move", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
 		}
 		id := seat.Str(cmd, flags.ID)
-		if err := record.RequireAvenueRef(run, id); err != nil {
+		if err := record.RequireInquiryRef(run, id); err != nil {
 			return nil, err
 		}
-		st, known := record.AvenueStatusOf(seat.Str(cmd, flags.As))
+		st, known := record.InquiryStatusOf(seat.Str(cmd, flags.As))
 		if !known {
 			return nil, feov.Errorf(feov.Validation, "%q is not a fate an avenue can take", seat.Str(cmd, flags.As))
 		}
-		body := &recordpb.Avenue{
-			AvenueId:         proto.String(id),
+		body := &recordpb.Inquiry{
+			InquiryId:        proto.String(id),
 			SupersedesStatus: proto.String("1"),
 			Status:           &st,
 		}
@@ -182,10 +182,10 @@ func newAvenueMove() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return avenueResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true, VoiceTells: tells}, nil
+		return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Recorded: true, VoiceTells: tells}, nil
 	}), "avenue"))
 
-	c.Flags().Var(flags.AvenueID().WithCheck(record.AvenueExists), flags.ID, "the avenue whose fate you are moving; the avenues projection lists every one")
+	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the avenue whose fate you are moving; the avenues projection lists every one")
 	seat.Require(c, flags.ID)
 	// THE VALUES ARE NOT RE-LISTED HERE. The hand-written line this replaced carried FOUR of the
 	// five statuses — `deferred` had been added to AvenueStatuses and never to the string — and
@@ -195,11 +195,11 @@ func newAvenueMove() *cobra.Command {
 	return c
 }
 
-type avenueResult struct {
-	ID     string `json:"avenue_id"`
-	Status string `json:"status"`
-	Line   string `json:"line,omitempty"`
-	Moved  bool   `json:"moved,omitempty"`
+type inquiryResult struct {
+	ID       string `json:"avenue_id"`
+	Status   string `json:"status"`
+	Question string `json:"line,omitempty"`
+	Recorded bool   `json:"moved,omitempty"`
 	// Idempotent says this call recorded NOTHING and returned the line it already had — a retry of a
 	// propose whose first attempt the seat never saw the answer to.
 	Idempotent bool `json:"idempotent,omitempty"`
@@ -210,12 +210,12 @@ type avenueResult struct {
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
-func (r avenueResult) Human() string {
-	head := "avenue " + r.ID + " recorded (" + r.Status + "): " + r.Line
+func (r inquiryResult) Human() string {
+	head := "avenue " + r.ID + " recorded (" + r.Status + "): " + r.Question
 	if r.Idempotent {
 		head = "avenue " + r.ID + " already records this avenue (idempotent retry — nothing written)"
 	}
-	if r.Moved {
+	if r.Recorded {
 		head = "avenue " + r.ID + " moved to " + r.Status
 	}
 	if len(r.VoiceTells) == 0 {

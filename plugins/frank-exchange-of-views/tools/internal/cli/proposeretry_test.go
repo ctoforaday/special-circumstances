@@ -53,7 +53,7 @@ func TestARepeatedProposalReturnsTheSameLine(t *testing.T) {
 	// second event carrying the FIRST id would pass the check above and still double the ledger.
 	proposals := 0
 	for _, e := range events(t, runDir) {
-		if a, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok && a.GetStatus() == recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED {
+		if a, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok && a.GetStatus() == recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED {
 			proposals++
 		}
 	}

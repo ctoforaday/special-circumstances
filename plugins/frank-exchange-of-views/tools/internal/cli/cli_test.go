@@ -1088,7 +1088,7 @@ func TestBlueVerbContracts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("a proposal needs no fate: %v", err)
 		}
-		id := avenueIDOf(out)
+		id := inquiryIDOf(out)
 		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "declined"); err == nil {
 			t.Error("a move with no reason was accepted — a status that slides silently is decoration")
@@ -1818,7 +1818,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 }
 
 // avenueIDOf pulls the tool-assigned avenue id out of a propose result.
-func avenueIDOf(out string) string {
+func inquiryIDOf(out string) string {
 	m := regexp.MustCompile(`\b(Q-[0-9a-f]{8})\b`).FindStringSubmatch(out)
 	if m == nil {
 		return ""

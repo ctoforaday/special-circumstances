@@ -18,7 +18,7 @@ import (
 
 func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	line := "This run grepped the repo for primality helpers [minority: lane-2]"
 	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", line, "--hypothesis", "a helper already exists")
@@ -31,17 +31,17 @@ func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 		}
 	}
 	// ADVICE, NOT A REWRITE: the record keeps exactly what the seat wrote.
-	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_AVENUE)
-	a, _ := recordpb.BodyAs[*recordpb.Avenue](ev)
-	if a.GetLine() != line {
-		t.Errorf("the advisory altered the recorded line: got %q, want %q", a.GetLine(), line)
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_INQUIRY)
+	a, _ := recordpb.BodyAs[*recordpb.Inquiry](ev)
+	if a.GetQuestion() != line {
+		t.Errorf("the advisory altered the recorded line: got %q, want %q", a.GetQuestion(), line)
 	}
 }
 
 // The method is composed into the same report.md row, as _(method)_, so it is advised too.
 func TestProposeAdvisesOnTheMethod(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
 		"--method", "as the debate required")
@@ -58,7 +58,7 @@ func TestProposeAdvisesOnTheMethod(t *testing.T) {
 // this act writes.
 func TestProposeAdvisesOnAVoicedHypothesis(t *testing.T) {
 	runDir := newRun(t)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "this run will find a factor below 10")
 	if err != nil {
@@ -73,7 +73,7 @@ func TestProposeAdvisesOnAVoicedHypothesis(t *testing.T) {
 func TestMoveAdvisesOnAVoicedReason(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
@@ -92,10 +92,10 @@ func TestMoveAdvisesOnAVoicedReason(t *testing.T) {
 }
 
 // Clean prose says nothing extra, on either verb.
-func TestACleanAvenueCarriesNoNote(t *testing.T) {
+func TestACleanInquiryCarriesNoNote(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir)
-	seat := avenueSeat(t, runDir)
+	seat := inquirySeat(t, runDir)
 	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
 		"--method", "exhaustive search")

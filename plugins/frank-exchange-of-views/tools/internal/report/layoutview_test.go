@@ -109,7 +109,7 @@ func TestTheReportTemplateListsTheLayoutsSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	noRow := map[string]bool{FileAvenues + " (by fate)": true, FileRun + " Cost": true}
+	noRow := map[string]bool{FileInquiries + " (by fate)": true, FileRun + " Cost": true}
 	var listed []string
 	file := ""
 	for _, ln := range strings.Split(string(b), "\n") {

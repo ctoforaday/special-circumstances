@@ -97,8 +97,6 @@ CREATE TABLE "enum_event_type" (
   "correct" TEXT NOT NULL REFERENCES "enum_correction_tier"("value")
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('anchor', 'a marker placed in the report', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue', 'an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('avenue_review', 'a review of the avenues themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('base_ingest', 'the report as blue ingested it, stored verbatim as the origin every recorded edit replays over', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('blue_edit', 'a change to the report, recorded as old and new so the edit itself is auditable', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against', 'none');
@@ -112,6 +110,8 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('declare', '
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('finding', 'something red found, graded but not yet minted as a gap', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry', 'an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry_review', 'a review of the avenues themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('log', 'an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to', 'none');
@@ -163,9 +163,9 @@ CREATE TABLE "enum_motion_subject" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('avenue', 'a ruling on an avenue blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('inquiry', 'a ruling on an avenue blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
 
 CREATE TABLE "enum_grade_dimension" (
@@ -214,13 +214,13 @@ CREATE TABLE "enum_petition_ruling" (
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('denied', 'the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest');
 INSERT INTO "enum_petition_ruling" ("value", "means") VALUES ('granted', 'the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow');
 
-CREATE TABLE "enum_avenue_ruling" (
+CREATE TABLE "enum_inquiry_ruling" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — blue should take it up');
-INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
-INSERT INTO "enum_avenue_ruling" ("value", "means") VALUES ('too_thin', 'in scope, and the hypothesis does not carry its budget as stated');
+INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — blue should take it up');
+INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
+INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('too_thin', 'in scope, and the hypothesis does not carry its budget as stated');
 
 CREATE TABLE "enum_disposition" (
   "value" TEXT PRIMARY KEY,
@@ -248,8 +248,8 @@ CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('avenue', 'an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
 CREATE TABLE "enum_check_kind" (
@@ -331,17 +331,17 @@ CREATE TABLE "enum_soundness" (
 INSERT INTO "enum_soundness" ("value", "means") VALUES ('sound', 'you READ the script and it computes what it claims to compute');
 INSERT INTO "enum_soundness" ("value", "means") VALUES ('unsound', 'it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to');
 
-CREATE TABLE "enum_avenue_status" (
+CREATE TABLE "enum_inquiry_status" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('concluded', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('deferred', 'not this run. REQUIRES a reason saying what a later run should pick it up FOR');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end');
-INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'not this run. REQUIRES a reason saying what a later run should pick it up FOR');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end');
 
 CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,
@@ -442,9 +442,9 @@ CREATE TABLE "motion_petition" (
   FOREIGN KEY ("class") REFERENCES "enum_petition_class"("value")
 ) STRICT;
 
-CREATE TABLE "motion_avenue" (
+CREATE TABLE "motion_inquiry" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
-  "avenue_id" TEXT
+  "inquiry_id" TEXT
 ) STRICT;
 
 CREATE TABLE "motion_docket" (
@@ -461,14 +461,14 @@ CREATE TABLE "motion_rule" (
   "binds" TEXT,
   "grade" TEXT,
   "petition" TEXT,
-  "avenue" TEXT,
+  "inquiry" TEXT,
   "ruling_case" TEXT,
-  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("avenue" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
+  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("inquiry" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value"),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
   FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value"),
-  FOREIGN KEY ("avenue") REFERENCES "enum_avenue_ruling"("value")
+  FOREIGN KEY ("inquiry") REFERENCES "enum_inquiry_ruling"("value")
 ) STRICT;
 
 CREATE TABLE "motion_rule_docket" (
@@ -732,16 +732,16 @@ CREATE TABLE "reproduce" (
   FOREIGN KEY ("soundness") REFERENCES "enum_soundness"("value")
 ) STRICT;
 
-CREATE TABLE "avenue" (
+CREATE TABLE "inquiry" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "avenue_id" TEXT,
-  "line" TEXT,
+  "inquiry_id" TEXT,
+  "question" TEXT,
   "hypothesis" TEXT,
   "method" TEXT,
   "status" TEXT NOT NULL,
   "supersedes_status" TEXT,
   "reason" TEXT,
-  FOREIGN KEY ("status") REFERENCES "enum_avenue_status"("value")
+  FOREIGN KEY ("status") REFERENCES "enum_inquiry_status"("value")
 ) STRICT;
 
 CREATE TABLE "blue_edit" (
@@ -803,7 +803,7 @@ CREATE TABLE "log" (
   FOREIGN KEY ("source") REFERENCES "enum_log_source"("value")
 ) STRICT;
 
-CREATE TABLE "avenue_review" (
+CREATE TABLE "inquiry_review" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "reason" TEXT
 ) STRICT;
@@ -1610,14 +1610,14 @@ SELECT
   ids."motion_id"                                        AS "motion_id",
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
-  fr."avenue"                                            AS "avenue",
+  fr."inquiry"                                           AS "inquiry",
   -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
   -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
   -- (it carries the principle, the tension and what would reopen it), so its disposition lives
   -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
   -- made and RequireUnruledMotion reads the whole docket as unanswered.
   rd."disposition"                                       AS "docket",
-  COALESCE(fr."grade", fr."petition", fr."avenue", rd."disposition") AS "ruling",
+  COALESCE(fr."grade", fr."petition", fr."inquiry", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."id"                                            AS "ruled_seq",
   fa."reason"                                            AS "appeal_reason",
@@ -1642,32 +1642,32 @@ LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 -- substance; the LATEST avenue event carries the status; the LATEST avenue-subject
 -- ruling carries red's answer, including a later ruling that carried no word — an unset arm
 -- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
-CREATE VIEW "avenue_state" AS
+CREATE VIEW "inquiry_state" AS
 SELECT
-  p."avenue_id"                        AS "avenue_id",
+  p."inquiry_id"                       AS "inquiry_id",
   pe."seat_id"                         AS "proposed_by",
   pe."id"                           AS "proposed_seq",
-  fp."line"                            AS "line",
+  fp."question"                        AS "question",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  lr."avenue"                          AS "avenue_ruling",
+  lr."inquiry"                         AS "inquiry_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
 -- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
 -- place, and its replacement does not become the line's LATEST status.
-FROM (SELECT a0."avenue_id" AS "avenue_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
-        FROM "avenue" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
-        WHERE COALESCE(a0."avenue_id", '') != '' AND a0."supersedes_status" IS NULL
-        GROUP BY a0."avenue_id") p
-JOIN "avenue" fp ON fp."event_id" = p."pid"
+FROM (SELECT a0."inquiry_id" AS "inquiry_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
+        FROM "inquiry" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
+        WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
+        GROUP BY a0."inquiry_id") p
+JOIN "inquiry" fp ON fp."event_id" = p."pid"
 JOIN "events" pe ON pe."id" = p."pid"
-LEFT JOIN "avenue" ls ON ls."event_id" =
-  (SELECT x."event_id" FROM "avenue" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
-     WHERE x."avenue_id" = p."avenue_id" ORDER BY lx."pos" DESC LIMIT 1)
+LEFT JOIN "inquiry" ls ON ls."event_id" =
+  (SELECT x."event_id" FROM "inquiry" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
+     WHERE x."inquiry_id" = p."inquiry_id" ORDER BY lx."pos" DESC LIMIT 1)
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'avenue' ORDER BY ly."pos" DESC LIMIT 1)
+     WHERE y."motion_id" = p."inquiry_id" AND y."subject" = 'inquiry' ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
