@@ -62,7 +62,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id != "" {
 		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id, err)
 	}
-	if ids, err := allGapIDs(run); err != nil || len(ids) != 2 || !ids["G1"] || !ids["G2"] {
+	if ids, err := allGapIDs(recordOf(t, run)); err != nil || len(ids) != 2 || !ids["G1"] || !ids["G2"] {
 		t.Errorf("allGapIDs = (%v, %v)", ids, err)
 	}
 
@@ -73,10 +73,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
-	if rounds, err := priorClosureEpochs(run, "G1"); err != nil || len(rounds) != 1 || rounds[0] != 1 {
+	if rounds, err := priorClosureEpochs(recordOf(t, run), "G1"); err != nil || len(rounds) != 1 || rounds[0] != 1 {
 		t.Errorf("priorClosureEpochs = (%v, %v)", rounds, err)
 	}
-	if rounds, err := priorClosureEpochs(run, "G2"); err != nil || rounds != nil {
+	if rounds, err := priorClosureEpochs(recordOf(t, run), "G2"); err != nil || rounds != nil {
 		t.Errorf("priorClosureEpochs on a never-closed gap = (%v, %v)", rounds, err)
 	}
 
@@ -109,10 +109,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id != "" {
 		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id, err)
 	}
-	if err := requireFindings(run, []string{"F-0a0a0a0a"}, "--found-by"); err != nil {
+	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a"}, "--found-by"); err != nil {
 		t.Errorf("requireFindings on a recorded id = %v", err)
 	}
-	if err := requireFindings(run, []string{"F-0a0a0a0a", "F-99999999"}, "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
+	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a", "F-99999999"}, "--found-by"); err == nil || !strings.Contains(err.Error(), "F-99999999") {
 		t.Errorf("requireFindings must name the first missing id: %v", err)
 	}
 	if loc, err := UnplacedLocation(run, "F-0a0a0a0a"); err != nil || loc != "L" {

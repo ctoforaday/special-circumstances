@@ -70,7 +70,7 @@ func TestEveryLensAreaHasAMintScale(t *testing.T) {
 	id := budgetRun(t, 1, 0, 0, "red-lens-evidence")
 	// The refusal names the SEAT, not an area cut off it: `banana` is not an area the engine has
 	// ever heard of, and quoting it as one read like a scale that had merely gone missing.
-	if err := requireMintWithinBudget(id.Run, "red-lens-banana"); err == nil || !strings.Contains(err.Error(), `"red-lens-banana"`) {
+	if err := requireMintWithinBudget(viewOf(t, id.Run), "red-lens-banana"); err == nil || !strings.Contains(err.Error(), `"red-lens-banana"`) {
 		t.Errorf("a lens seat with no scale was not refused by name: %v", err)
 	}
 }
@@ -136,7 +136,7 @@ func TestEachMeasureReadsTheRecord(t *testing.T) {
 		"voice":        {6, 4},
 		"architecture": {6, 4},
 	} {
-		b, err := lensBudgetAt(id.Run, area, 1)
+		b, err := lensBudgetAt(recordOf(t, id.Run), area, 1)
 		if err != nil {
 			t.Errorf("%s: %v", area, err)
 			continue
@@ -151,10 +151,10 @@ func TestEachMeasureReadsTheRecord(t *testing.T) {
 func TestAMeasureThatCannotReadIsLoud(t *testing.T) {
 	id := budgetRun(t, 1, 0, 0, "red-lens-voice")
 	withRenderer(t, nil)
-	if _, err := lensBudgetAt(id.Run, "voice", 1); err == nil || !strings.Contains(err.Error(), "no report renderer") {
+	if _, err := lensBudgetAt(recordOf(t, id.Run), "voice", 1); err == nil || !strings.Contains(err.Error(), "no report renderer") {
 		t.Errorf("an unregistered renderer measured something: %v", err)
 	}
-	if _, err := lensBudgetAt(id.Run, "evidence", 1); err != nil {
+	if _, err := lensBudgetAt(recordOf(t, id.Run), "evidence", 1); err != nil {
 		t.Errorf("the record-row measures do not need the renderer: %v", err)
 	}
 	if _, err := Append(id, budgetMint("G1")); err != nil {

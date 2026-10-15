@@ -59,7 +59,7 @@ func TestAFailTheGateAdmitsIsNotDivergentAfterTheFact(t *testing.T) {
 			Impact: recordtest.P(gHigh), Basis: proto.String("worse than it looked")}).
 		register("red-chair")
 	run := b.seed()
-	gate, err := convergenceOf(run)
+	gate, err := convergenceOf(viewOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 		recordtest.Seed(t, dir, b.evs[:i]...)
 		run := mustRun(t, dir)
 		setFraction(t, run, 0.5)
-		c, err := convergenceOf(run)
+		c, err := convergenceOf(viewOf(t, run))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -272,7 +272,7 @@ func TestTheGateAndTheScorecardJudgeEveryVerdictAlike(t *testing.T) {
 	// At the newest event "as it stood" is "now": the board at that point is the gap view's open
 	// board on its CURRENT grades and its own "material" column — the rule convergence_at restates
 	// at every other point.
-	now, err := convergenceOf(run)
+	now, err := convergenceOf(viewOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func TestTheDetectorIsRefusedOnlyByABadFraction(t *testing.T) {
 	if err != nil || len(eps) != 1 || eps[0].Fraction != 0.5 {
 		t.Errorf("ConvergenceVsVerdict beside maxEpochs 0 = (%+v, %v), want one row at fraction 0.5", eps, err)
 	}
-	if c, err := convergenceOf(run); err != nil || c.Fraction != 0.5 {
+	if c, err := convergenceOf(viewOf(t, run)); err != nil || c.Fraction != 0.5 {
 		t.Errorf("the gate beside maxEpochs 0 = (%+v, %v), want fraction 0.5", c, err)
 	}
 
@@ -334,7 +334,7 @@ func TestAMissingConvergenceRowIsAnError(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).
 		add(evLens, gradedMint("G1", gLow, gLow, gLow)).seed()
-	if _, err := convergenceOf(run); err != nil {
+	if _, err := convergenceOf(viewOf(t, run)); err != nil {
 		t.Fatalf("the healthy read failed: %v", err)
 	}
 	db, err := openRunForRead(run)
@@ -348,7 +348,7 @@ func TestAMissingConvergenceRowIsAnError(t *testing.T) {
 	  0.0 AS "max_severity_mass", 0 AS "material_open", 0 AS "fresh_material_mints" WHERE 0`); err != nil {
 		t.Fatal(err)
 	}
-	if c, err := convergenceOf(run); err == nil {
+	if c, err := convergenceOf(viewOf(t, run)); err == nil {
 		t.Errorf("convergenceOf with no row at the newest event = %+v, nil — want the error", c)
 	}
 }

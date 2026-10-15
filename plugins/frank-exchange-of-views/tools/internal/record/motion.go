@@ -11,6 +11,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // ONE ADJUDICATION MECHANISM, WITH AN ID (#344).
@@ -476,13 +477,23 @@ func rowOf(q rowQuerier, dest []any, query string, args ...any) (found bool, err
 // IT RETURNS THE SUBJECT THE MOTION WAS FILED UNDER, read by the same lookup that proves it exists,
 // so the reference is resolved once and the answer passed down.
 func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string) (filed string, err error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", err
+	}
+	return requireMotionSubjectRef(db, subject, id)
+}
+
+// requireMotionSubjectRef is RequireMotionSubjectRef asked of q — the write path's transaction, or
+// the run's handle.
+func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject, id string) (filed string, err error) {
 	if id == "" {
 		return "", fmt.Errorf("--id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
 	// A direction has no filing event — the proposal is the filing — so an id that resolves to an
 	// avenue IS an avenue motion by construction.
 	if subject == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-		if err := RequireAvenueRef(run, id); err != nil {
+		if err := requireAvenueRef(q, id); err != nil {
 			return "", err
 		}
 		return motionSubjectWord(subject), nil
@@ -490,7 +501,7 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 	// The stored word is the schema's spelling; the SURFACE word goes through the same
 	// motionSubjectWord mapping the fold uses.
 	var word sql.NullString
-	found, err := queryRow(run, []any{&word},
+	found, err := queryRowAt(q, []any{&word},
 		`SELECT "subject" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
 	if err != nil {
 		return "", err
@@ -517,7 +528,17 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 // A fact recovered from tree position rather than read from the record is exactly what
 // facts-are-fields is about. The record carries the subject; this reads it, once.
 func RequireSubjectMatches(run Run, subject recordpb.MotionSubject, id string) error {
-	filed, err := RequireMotionSubjectRef(run, subject, id)
+	db, err := openRunForRead(run)
+	if err != nil {
+		return err
+	}
+	return requireSubjectMatches(db, subject, id)
+}
+
+// requireSubjectMatches is RequireSubjectMatches asked of q — the write path's transaction, or the
+// run's handle.
+func requireSubjectMatches(q recordsql.Querier, subject recordpb.MotionSubject, id string) error {
+	filed, err := requireMotionSubjectRef(q, subject, id)
 	if err != nil {
 		return err
 	}

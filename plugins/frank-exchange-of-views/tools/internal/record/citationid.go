@@ -9,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // CITATION IDENTITY MIRRORS FINDING IDENTITY — see NewID for the full argument.
@@ -164,11 +165,20 @@ func CiteByLabel(run Run, label string) (*recordpb.Cite, error) {
 // the unbacked_citations detector. Only blue cites carry a `label`; red's `lens cite` does
 // not, so this is exactly the set of tool-inserted citation anchors that must be present.
 func CitationLabels(run Run) ([]string, error) {
-	m, err := MergedEvents(run)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
 	}
-	return citationLabelsOf(m.Events), nil
+	return citationLabelsAt(db)
+}
+
+// citationLabelsAt is CitationLabels asked of q — the write path's transaction, or the run's handle.
+func citationLabelsAt(q recordsql.Querier) ([]string, error) {
+	evs, _, err := eventsAt(q)
+	if err != nil {
+		return nil, err
+	}
+	return citationLabelsOf(evs), nil
 }
 
 // CitationLabelsOf is CitationLabels over events already read — for a caller holding a board,

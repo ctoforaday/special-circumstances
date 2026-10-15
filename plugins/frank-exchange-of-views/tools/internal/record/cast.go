@@ -189,7 +189,16 @@ func castAt(q recordsql.Querier) ([]string, error) {
 // member (`judge-petition-<s>`, the shape roster.go admits for a cast seat s). The second value is
 // whether the record HAS a cast at all, so a caller can tell "not in it" from "nothing to be in".
 func InCast(run Run, seatID string) (member, hasCast bool, err error) {
-	cast, err := CastOf(run)
+	db, err := openRunForRead(run)
+	if err != nil {
+		return false, false, err
+	}
+	return inCastAt(db, seatID)
+}
+
+// inCastAt is InCast asked of q — the write path's transaction, or the run's handle.
+func inCastAt(q recordsql.Querier, seatID string) (member, hasCast bool, err error) {
+	cast, err := castAt(q)
 	if err != nil {
 		return false, false, err
 	}

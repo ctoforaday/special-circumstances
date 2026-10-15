@@ -114,8 +114,8 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			}
 
 			// The gate.
-			passErr := validate(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
-			failErr := validate(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, fail)
+			passErr := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
+			failErr := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, fail)
 			if c.kind == "" {
 				if passErr != nil || failErr != nil {
 					t.Fatalf("nothing holds, yet PASS = %v, FAIL = %v", passErr, failErr)
@@ -244,7 +244,7 @@ func passRefusalOver(t *testing.T, run Run, kinds ...BlockerKind) error {
 			}
 		}
 	}
-	return requireNoBlockers(run, recordpb.Verdict_VERDICT_PASS, of)
+	return requireNoBlockers(viewOf(t, run), recordpb.Verdict_VERDICT_PASS, of)
 }
 
 func petitionMotion(id string) *recordpb.Motion {

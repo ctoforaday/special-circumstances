@@ -41,11 +41,11 @@ func (c *Convergence) atFraction(fraction float64) {
 // judged at. A run with no record has no board and has not converged. A record that HAS events and
 // no row at its newest one is an error, never "not converged": that miss would read exactly like a
 // board the rule does not hold on, and admit the FAIL the refusal exists to stop.
-func convergenceOf(run Run) (Convergence, error) {
+func convergenceOf(w writeView) (Convergence, error) {
 	var c Convergence
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return c, err
+	db := w.q
+	if noRecord(db) {
+		return c, nil
 	}
 	var events int
 	if _, err := queryRowAt(db, []any{&events}, `SELECT count(*) FROM "events"`); err != nil {
@@ -62,7 +62,7 @@ func convergenceOf(run Run) (Convergence, error) {
 	if !found {
 		return c, fmt.Errorf("convergence_at has no row at this record's newest event, so whether the board has converged cannot be read: the view does not answer for the record it is over")
 	}
-	fraction, err := runConvergenceFraction(run)
+	fraction, err := w.files.convergenceFraction()
 	if err != nil {
 		return c, err
 	}
@@ -88,7 +88,7 @@ func convergenceOf(run Run) (Convergence, error) {
 // position, which the bench reads in the transcript and the report renders under the epoch's
 // no-verdict heading, or in the stale area's spot-check where the defect lies in one.
 // TestTheConvergenceRefusalNamesOnlyTheChairsActs walks the rendered text against the chair's tree.
-func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
+func requireFailIsNotConvergent(w writeView, blockers []Blocker) error {
 	var own []string
 	for _, b := range blockers {
 		if !b.ChairOwned() {
@@ -96,7 +96,7 @@ func requireFailIsNotConvergent(run Run, blockers []Blocker) error {
 		}
 		own = append(own, b.WorkItem())
 	}
-	c, err := convergenceOf(run)
+	c, err := convergenceOf(w)
 	if err != nil {
 		return err
 	}
