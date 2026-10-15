@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // EVERY REFERENCE IS CHECKED AGAINST THE THING IT REFERENCES.
@@ -42,20 +43,30 @@ import (
 // helper: one check answers several verbs, the renderer prints the one the seat typed, and
 // "--id names gap R9-9, which no mint event created" is the whole sentence it needs.
 func GapExists(runDir, flag, id string) error {
-	run, err := OpenRun(runDir)
+	db, err := recordOfDir(runDir)
 	if err != nil {
 		return err
 	}
-	return requireGap(run, id, flag)
+	return requireGap(db, id, flag)
 }
 
 // AvenueExists resolves an avenue.
 func AvenueExists(runDir, flag, id string) error {
-	run, err := OpenRun(runDir)
+	db, err := recordOfDir(runDir)
 	if err != nil {
 		return err
 	}
-	return requireAvenue(run, id, flag)
+	return requireAvenue(db, id, flag)
+}
+
+// recordOfDir is the record of the run in runDir, for a flag's check: the handle, or a nil one for a
+// run that has recorded nothing (openRunForRead), which every reference check reads as no record.
+func recordOfDir(runDir string) (recordsql.Querier, error) {
+	run, err := OpenRun(runDir)
+	if err != nil {
+		return nil, err
+	}
+	return openRunForRead(run)
 }
 
 // THESE THREE KEEP A `runDir string`, AND IT IS NOT AN OVERSIGHT.
@@ -75,11 +86,11 @@ func AvenueExists(runDir, flag, id string) error {
 // verb does not have.
 func CitationExists(advice string) func(runDir, flag, label string) error {
 	return func(runDir, flag, label string) error {
-		run, err := OpenRun(runDir)
+		db, err := recordOfDir(runDir)
 		if err != nil {
 			return err
 		}
-		return requireCitation(run, label, flag, advice)
+		return requireCitation(db, label, flag, advice)
 	}
 }
 
@@ -87,11 +98,14 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 // copy of the same refusal alike: blue's own act, in blue's words.
 const ProveCitesAdvice = "The method is cited first, with blue's `cite`; a proof pointing at a citation that does not exist claims a provenance it does not have"
 
-func requireGap(run Run, id, flag string) error {
+// THE REFERENCE AND STATE CHECKS BELOW ASK q, which on the write path is the writing transaction
+// (writeView): a gap that closes, or is minted, between a check and the insert it admits is the
+// race #1252 names.
+func requireGap(q recordsql.Querier, id, flag string) error {
 	if id == "" {
 		return nil
 	}
-	ids, err := allGapIDs(run)
+	ids, err := allGapIDs(q)
 	if err != nil {
 		return err
 	}
@@ -102,9 +116,9 @@ func requireGap(run Run, id, flag string) error {
 }
 
 // requireGaps is the list form, naming the first that does not resolve.
-func requireGaps(run Run, ids []string, flag string) error {
+func requireGaps(q recordsql.Querier, ids []string, flag string) error {
 	for _, id := range ids {
-		if err := requireGap(run, id, flag); err != nil {
+		if err := requireGap(q, id, flag); err != nil {
 			return err
 		}
 	}
@@ -116,7 +130,7 @@ func requireGaps(run Run, ids []string, flag string) error {
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
 // read back by the capture-recapture estimate. An invented id inflates the count of
 // lens-sourced gaps with a finding nobody made.
-func requireFindings(run Run, ids []string, flag string) error {
+func requireFindings(q recordsql.Querier, ids []string, flag string) error {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -124,7 +138,7 @@ func requireFindings(run Run, ids []string, flag string) error {
 	// FIRST missing one exactly as the set-membership walk did. The list is bounded by what a
 	// seat passes to --found-by, not by the record's size.
 	for _, l := range ids {
-		found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1`, l)
+		found, err := recordHasAt(q, `SELECT 1 FROM "finding" WHERE "id" = ? LIMIT 1`, l)
 		if err != nil {
 			return err
 		}
@@ -142,11 +156,11 @@ func requireFindings(run Run, ids []string, flag string) error {
 // cite a citation that does not exist and the assembled report would carry the link as though it
 // meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
 // axis, one verb over.
-func requireCitation(run Run, label, flag, advice string) error {
+func requireCitation(q recordsql.Querier, label, flag, advice string) error {
 	if label == "" {
 		return nil
 	}
-	known, err := CitationLabels(run)
+	known, err := citationLabelsAt(q)
 	if err != nil {
 		return err
 	}
@@ -167,13 +181,13 @@ func requireCitation(run Run, label, flag, advice string) error {
 // `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
 // a status change for an avenue that was never opened — and the avenues view
 // renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireAvenue(run Run, id, flag string) error {
+func requireAvenue(q recordsql.Querier, id, flag string) error {
 	if id == "" {
 		return nil
 	}
 	// Avenues(b) keys every avenue on Avenue events carrying a non-empty avenue_id,
 	// so membership is one existence question.
-	found, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
+	found, err := recordHasAt(q, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
@@ -201,9 +215,9 @@ func requireAvenue(run Run, id, flag string) error {
 // gapState answers what a gap IS, not merely whether it exists. The gap view's "open" means no
 // closing act of either arm stands (closure_act over live_event: a red close, or a docket ruling
 // whose disposition closes) — an unknown gap answers not-closed: requireGap owns existence.
-func gapState(run Run, id string) (closed bool, err error) {
+func gapState(q recordsql.Querier, id string) (closed bool, err error) {
 	var open bool
-	found, err := queryRow(run, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)
+	found, err := queryRowAt(q, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)
 	if err != nil || !found {
 		return false, err
 	}
@@ -211,11 +225,11 @@ func gapState(run Run, id string) (closed bool, err error) {
 }
 
 // requireOpenGap refuses an act that only makes sense on a live gap.
-func requireOpenGap(run Run, id, flag, why string) error {
+func requireOpenGap(q recordsql.Querier, id, flag, why string) error {
 	if id == "" {
 		return nil
 	}
-	closed, err := gapState(run, id)
+	closed, err := gapState(q, id)
 	if err != nil {
 		return err
 	}
@@ -227,12 +241,12 @@ func requireOpenGap(run Run, id, flag, why string) error {
 
 // requireClosedGap is the mirror: spot-check re-verifies the ARCHIVE, so naming a gap that
 // was never closed is not a sample of anything.
-func requireClosedGaps(run Run, ids []string, flag string) error {
+func requireClosedGaps(q recordsql.Querier, ids []string, flag string) error {
 	for _, id := range ids {
 		if id == "" {
 			continue
 		}
-		closed, err := gapState(run, id)
+		closed, err := gapState(q, id)
 		if err != nil {
 			return err
 		}
@@ -246,12 +260,11 @@ func requireClosedGaps(run Run, ids []string, flag string) error {
 // openMaterialGaps is the board's open MATERIAL gaps, sorted: the set the PASS gate refuses over
 // and the set a migrated PASS records as admitted. One query, so the gate and the admission it
 // is exempt from cannot disagree about which gaps they mean.
-func openMaterialGaps(run Run) ([]string, error) {
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return nil, err
+func openMaterialGaps(q recordsql.Querier) ([]string, error) {
+	if noRecord(q) {
+		return nil, nil
 	}
-	rows, err := db.Query(`SELECT g."gap_id" FROM "gap" g WHERE g."open" AND g."material" ORDER BY g."minted_event"`)
+	rows, err := q.Query(`SELECT g."gap_id" FROM "gap" g WHERE g."open" AND g."material" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)
 	}
@@ -278,7 +291,7 @@ func openMaterialGaps(run Run) ([]string, error) {
 // non-PASS carrying it is refused (a FAIL admits nothing), and a PASS whose source already carries
 // it — a run this binary migrated before — must carry exactly what the board yields now: the
 // gaps' class material is kept as recorded, so the two agree unless the record was altered.
-func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
+func stampMigrationAdmission(q recordsql.Querier, g *recordpb.Gate) error {
 	arrived := append([]string(nil), g.GetMigrationAdmittedGapIds()...)
 	if !Migrating {
 		if len(arrived) > 0 {
@@ -294,7 +307,7 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 		}
 		return nil
 	}
-	open, err := openMaterialGaps(run)
+	open, err := openMaterialGaps(q)
 	if err != nil {
 		return err
 	}
@@ -321,11 +334,11 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 //
 // Tokens break on anything outside [A-Za-z0-9-], so "G5: Quantify…" yields "G5" with
 // its trailing colon shed, and a longer id is never matched by a shorter one's prefix.
-func gapNamedIn(run Run, prose string) (string, error) {
+func gapNamedIn(q recordsql.Querier, prose string) (string, error) {
 	if strings.TrimSpace(prose) == "" {
 		return "", nil
 	}
-	ids, err := allGapIDs(run)
+	ids, err := allGapIDs(q)
 	if err != nil {
 		return "", err
 	}

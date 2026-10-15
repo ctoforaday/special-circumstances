@@ -101,7 +101,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)
 	}
-	refusal := validate(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
+	refusal := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if refusal == nil {
 		t.Fatal("the gate admits the PASS m19's chair recorded at event 494")
 	}

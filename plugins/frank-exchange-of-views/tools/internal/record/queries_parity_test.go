@@ -98,12 +98,12 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	// gapState against the family.
 	for _, g := range b.Gaps {
-		got, err := gapState(run, g.ID)
+		got, err := gapState(recordOf(t, run), g.ID)
 		if err != nil || got != !g.Open {
 			t.Errorf("gapState(%s) = (%v, %v), family says closed=%v", g.ID, got, err, !g.Open)
 		}
 	}
-	if got, err := gapState(run, "G4"); got || err != nil {
+	if got, err := gapState(recordOf(t, run), "G4"); got || err != nil {
 		t.Errorf("gapState on an unknown gap = (%v, %v), want (false, nil) — existence is requireGap's question", got, err)
 	}
 
@@ -112,19 +112,19 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	noChange := &recordpb.GradeMotion{GapId: proto.String("G1"),
 		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_IMPACT.Enum(),
 		Proposed:  recordpb.Grade_GRADE_HIGH.Enum()}
-	if err := requireGradeMotionAsksForAChange(run, noChange); err == nil {
+	if err := requireGradeMotionAsksForAChange(recordOf(t, run), noChange); err == nil {
 		t.Error("a motion proposing the regraded current grade was not refused — the query missed the regrade overlay")
 	}
 	change := &recordpb.GradeMotion{GapId: proto.String("G1"),
 		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_IMPACT.Enum(),
 		Proposed:  recordpb.Grade_GRADE_LOW.Enum()}
-	if err := requireGradeMotionAsksForAChange(run, change); err != nil {
+	if err := requireGradeMotionAsksForAChange(recordOf(t, run), change); err != nil {
 		t.Errorf("a motion proposing a different grade was refused: %v", err)
 	}
 	untouched := &recordpb.GradeMotion{GapId: proto.String("G1"),
 		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(),
 		Proposed:  recordpb.Grade_GRADE_MEDIUM.Enum()}
-	if err := requireGradeMotionAsksForAChange(run, untouched); err == nil {
+	if err := requireGradeMotionAsksForAChange(recordOf(t, run), untouched); err == nil {
 		t.Error("a motion proposing the mint's grade on an axis no regrade touched was not refused")
 	}
 
@@ -134,10 +134,10 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// requireAvenue: the proposed line resolves, an unknown one is refused.
-	if err := requireAvenue(run, "Q1", "--id"); err != nil {
+	if err := requireAvenue(recordOf(t, run), "Q1", "--id"); err != nil {
 		t.Errorf("requireAvenue(Q1) = %v", err)
 	}
-	if err := requireAvenue(run, "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
+	if err := requireAvenue(recordOf(t, run), "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
 		t.Errorf("requireAvenue on an unknown id = %v, want the refusal", err)
 	}
 
@@ -203,7 +203,7 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if v, err := RecordedOutcome(run); err != nil || v != "" {
 		t.Errorf("RecordedOutcome = (%q, %v)", v, err)
 	}
-	if closed, err := gapState(run, "G1"); closed || err != nil {
+	if closed, err := gapState(recordOf(t, run), "G1"); closed || err != nil {
 		t.Errorf("gapState = (%v, %v)", closed, err)
 	}
 	if err := passRefusalOver(t, run, BlockerStrandedGap); err != nil {

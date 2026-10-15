@@ -46,7 +46,11 @@ func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, erro
 			return nil, nil, err
 		}
 	case recordpb.AboutKind_ABOUT_KIND_GAP:
-		if err := requireGap(run, ref, "--about"); err != nil {
+		db, err := openRunForRead(run)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := requireGap(db, ref, "--about"); err != nil {
 			return nil, nil, err
 		}
 	}

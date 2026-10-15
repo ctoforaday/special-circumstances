@@ -512,18 +512,46 @@ func PassBlockers(run Run) ([]Blocker, error) {
 			return nil
 		}
 		var err error
-		if r.evs, r.win, err = eventsAt(q); err != nil {
-			return err
-		}
-		if r.fresh, err = freshMaterialOf(q); err != nil {
-			return err
-		}
-		r.gaps, err = openGaps(q)
+		r, err = passBlockerReadsAt(q)
 		return err
 	}); err != nil || absent {
 		return nil, err
 	}
-	return passBlockersOf(r.evs, r.win.IDs(r.evs), r.win, blockerGapsOfOpen(r.gaps), r.fresh), nil
+	return passBlockersOfReads(r), nil
+}
+
+// passBlockersAt is PassBlockers asked of q, the write path's transaction: the gate and the outcome
+// read the blockers on the record their verdict lands on, so a mint, a motion or a finding another
+// seat commits cannot fall between the blockers read and the verdict written.
+func passBlockersAt(q recordsql.Querier) ([]Blocker, error) {
+	if noRecord(q) {
+		return nil, nil
+	}
+	r, err := passBlockerReadsAt(q)
+	if err != nil {
+		return nil, err
+	}
+	return passBlockersOfReads(r), nil
+}
+
+// passBlockerReadsAt is every answer the gate's list takes off the record: the stream, the fresh
+// material gaps and the open gaps.
+func passBlockerReadsAt(q recordsql.Querier) (planReads, error) {
+	var r planReads
+	var err error
+	if r.evs, r.win, err = eventsAt(q); err != nil {
+		return r, err
+	}
+	if r.fresh, err = freshMaterialOf(q); err != nil {
+		return r, err
+	}
+	r.gaps, err = openGaps(q)
+	return r, err
+}
+
+// passBlockersOfReads folds the gate's list from what passBlockerReadsAt read.
+func passBlockersOfReads(r planReads) []Blocker {
+	return passBlockersOf(r.evs, r.win.IDs(r.evs), r.win, blockerGapsOfOpen(r.gaps), r.fresh)
 }
 
 // requireNoBlockers is the verdict gate. A PASS is refused over every blocker; any verdict, and
@@ -536,7 +564,7 @@ func PassBlockers(run Run) ([]Blocker, error) {
 // The archived b7 and b9 runs' PASSes stand over gaps their classes now make material, and
 // refusing them would drop a real event and call the loss a translation. The exemption is not
 // silent: stampMigrationAdmission records those gaps on the PASS, and verify reads them there.
-func requireNoBlockers(run Run, verdict recordpb.Verdict, blockers []Blocker) error {
+func requireNoBlockers(w writeView, verdict recordpb.Verdict, blockers []Blocker) error {
 	var holding []Blocker
 	for _, b := range blockers {
 		if b.Every() || (verdict == recordpb.Verdict_VERDICT_PASS && !Migrating) {
@@ -547,7 +575,7 @@ func requireNoBlockers(run Run, verdict recordpb.Verdict, blockers []Blocker) er
 		return blockerRefusal(holding)
 	}
 	if verdict == recordpb.Verdict_VERDICT_FAIL && !Migrating {
-		return requireFailIsNotConvergent(run, blockers)
+		return requireFailIsNotConvergent(w, blockers)
 	}
 	return nil
 }
@@ -562,12 +590,12 @@ func requireNoBlockers(run Run, verdict recordpb.Verdict, blockers []Blocker) er
 //
 // A HALT IS EXEMPT. It is the bench's own decision to end the run, taken with the record in view;
 // refusing it would force rulings after the bench has already stopped the run.
-func requireBenchMotionsRuled(run Run) error {
-	halted, err := recordHas(run, `SELECT 1 FROM "halt" LIMIT 1`)
+func requireBenchMotionsRuled(q recordsql.Querier) error {
+	halted, err := recordHasAt(q, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil || halted {
 		return err
 	}
-	blockers, err := PassBlockers(run)
+	blockers, err := passBlockersAt(q)
 	if err != nil {
 		return err
 	}

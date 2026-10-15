@@ -540,7 +540,7 @@ func TestAFailOnAConvergentBoardIsRefused(t *testing.T) {
 	if _, err := Append(chair, fail); err == nil || !strings.Contains(err.Error(), "converged") {
 		t.Fatalf("a FAIL over a converged board landed: %v", err)
 	}
-	c, _ := convergenceOf(run)
+	c, _ := convergenceOf(viewOf(t, run))
 	if c.Peak != 9 || c.Mass != 1 || c.MaxSeverityMass != 1 || c.FreshMaterialMints != 0 {
 		t.Errorf("convergence = %+v, want peak 9, mass 1, top severity 1, no fresh material mint", c)
 	}

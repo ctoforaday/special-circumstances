@@ -167,10 +167,16 @@ func PlanDispatch(run Run) (Plan, error) {
 	}); err != nil {
 		return emptyPlan(), err
 	}
+	return planFrom(r, filesOf(run))
+}
+
+// planFrom is the plan from what planReadsAt read, under the run's terms — refused where the record
+// holds no cast, or where the fold breaks a rule the plan's declaration states.
+func planFrom(r planReads, files runFiles) (Plan, error) {
 	if r.cast == nil {
 		return emptyPlan(), errNoCast
 	}
-	params, err := RunParams(run)
+	params, err := files.params()
 	if err != nil {
 		return emptyPlan(), err
 	}
@@ -974,32 +980,11 @@ func unopenedChairSitting(evs []*Event, win WindowIndex) (DispatchGroup, bool) {
 	return g, true
 }
 
-// dispatchEventsOf reads the stream the dispatch folds read, or nil for a run with no record — on one
-// snapshot (readSnapshot): the stream and its window index are several queries, and a sitting opened
-// between them would index acts the stream does not hold.
-func dispatchEventsOf(run Run) ([]*Event, WindowIndex, error) {
-	var evs []*Event
-	var win WindowIndex
-	err := readSnapshot(run, func(q recordsql.Querier) error {
-		var err error
-		evs, win, err = eventsAt(q)
-		return err
-	})
-	if err != nil {
-		return nil, windowIndexOf(nil, nil), err
-	}
-	return evs, win, nil
-}
-
-// RequireChairSittingOpened refuses `dispatch next` in a chair sitting no register opened (see
-// unopenedChairSitting). It is the write-time half of the chair's "register for this sitting" work
-// item: the verb is the chair's first act every sitting, so refusing it there puts the register
-// ahead of every act the sitting records.
-func RequireChairSittingOpened(run Run) error {
-	evs, win, err := dispatchEventsOf(run)
-	if err != nil {
-		return err
-	}
+// requireChairSittingOpened refuses `dispatch next` in a chair sitting no register opened (see
+// unopenedChairSitting), over the stream DispatchNext read in its transaction. It is the write-time
+// half of the chair's "register for this sitting" work item: the verb is the chair's first act every
+// sitting, so refusing it there puts the register ahead of every act the sitting records.
+func requireChairSittingOpened(evs []*Event, win WindowIndex) error {
 	g, owed := unopenedChairSitting(evs, win)
 	if !owed {
 		return nil
@@ -1019,27 +1004,24 @@ func chairRegisterOwed(g DispatchGroup) string {
 		strings.Join(sat, ", "), g.rows[0].pin)
 }
 
-// DispatchStands reports whether plan is already the record's standing dispatch: nobody has
+// dispatchStands reports whether plan is already the record's standing dispatch: nobody has
 // registered since the latest dispatch rows, and those rows name exactly plan's parties, on the
 // same gaps, at plan's head. `dispatch next` then records nothing new — asking twice in one
 // sitting, for the prose and then for --json, is one decision, and the B5 and B6 chairs each wrote
-// it twice. A plan that differs is a new decision and is recorded.
-func DispatchStands(run Run, plan Plan) (bool, error) {
-	if len(plan.Parties) == 0 || len(plan.ToFile) > 0 {
-		return false, nil
-	}
-	evs, win, err := dispatchEventsOf(run)
-	if err != nil || evs == nil {
-		return false, err
+// it twice. A plan that differs is a new decision and is recorded. It reads the stream DispatchNext
+// read in the transaction the plan was folded in and the rows would be written in.
+func dispatchStands(evs []*Event, win WindowIndex, plan Plan) bool {
+	if len(plan.Parties) == 0 || len(plan.ToFile) > 0 || evs == nil {
+		return false
 	}
 	groups := DispatchGroups(evs, win)
 	if len(groups) == 0 {
-		return false, nil
+		return false
 	}
 	g := groups[len(groups)-1]
 	for _, e := range evs[g.Last+1:] {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
-			return false, nil
+			return false
 		}
 	}
 	// The occasions are part of the decision: the bench convened for a petition as well as its
@@ -1060,14 +1042,14 @@ func DispatchStands(run Run, plan Plan) (bool, error) {
 		asked[key(p.SeatID, plan.Head, p.GapIDs, p.Occasions)] = true
 	}
 	if len(asked) != len(standing) {
-		return false, nil
+		return false
 	}
 	for k := range asked {
 		if !standing[k] {
-			return false, nil
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
 // owedSitting is the latest dispatch naming seatID that the seat has not sat for, by sittingFor.

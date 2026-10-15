@@ -187,6 +187,21 @@ func FamilyOf(run Run) (Family, error) {
 	if err != nil {
 		return Family{}, err
 	}
+	return familyOfReads(r)
+}
+
+// familyAt is FamilyOf asked of q, the write path's transaction: the mint's duplicate screen reads
+// the board the mint lands on.
+func familyAt(q recordsql.Querier) (Family, error) {
+	r, err := familyReadsAt(q)
+	if err != nil {
+		return Family{}, err
+	}
+	return familyOfReads(r)
+}
+
+// familyOfReads folds the family from what familyReadsAt read.
+func familyOfReads(r familyReads) (Family, error) {
 	gaps, err := gapStatesOf(r)
 	if err != nil {
 		return Family{}, err
