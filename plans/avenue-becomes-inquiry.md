@@ -1,17 +1,14 @@
 # An avenue becomes an inquiry: the noun, its question, its fates and the act that records them
 
-> STATUS: **PROPOSED 2026-10-13; every fork ruled (§III.1, gblock, 2026-10-13).** It awaits the plan-auditor gate.
-> No code changes with this file.
+> STATUS: **PROPOSED 2026-10-13; every fork ruled (§III.1); audited five times; the two local gaps of the fifth audit and its forks are resolved in this revision (N25–N28); awaiting the owner's approval.**
 
-`F` is `plugins/frank-exchange-of-views`, `T` is `F/tools`. Every census is a command run from the repository
-root after the four assignments under S1; a command that begins `go -C` names its own directory. Line numbers and
-counts are at `e8f6ec9c` (`origin/main`, 2026-10-13, event-schema epoch 25); the implementer re-runs each census
-on the pull request's base. `L/F` is lines / files. Archive figures come from
-`python3 -I ~/.claude/scratch/inquiry-rename/plan/final.py <dir>` over the 20 tarballs of `run-archive/` extracted
-to `<dir>` (its first draft is `~/.claude/scratch/inquiry-rename/scan.py`). It is not committed: the PR pastes the
-script and its whole output — per archive the act and final-state counts, the totals, the `supersedes_status`
-values, the proposals whose `reason` equals their `line`, and the rows ending `concluded` whose reason holds
-`refut|falsif`.
+`F` is `plugins/frank-exchange-of-views`, `T` is `F/tools`, `X` is `~/.claude/scratch/inquiry-rename` and `K` is
+`X/kit`, where the Appendix is extracted by the command at its head (N22); `L/F` is lines / files. Each census runs
+from the repository root after `. $K/kit.sh`, whose helpers are named where used. Line numbers and counts are at
+`815082ad` (`origin/main`, 2026-10-14, event-schema epoch 25); the implementer re-runs each on the PR's base and the
+PR carries the figures. **`E0` is `origin/main`'s event-schema epoch at the attempt and `E` is `E0 + 1`** (§III.9
+step 3). Archive figures come from `python3 -I $K/archives.py $X/arch` over the 20 tarballs, extracted by the
+Appendix's second command.
 
 ## I. Summary & Goals
 
@@ -21,98 +18,85 @@ concept say something other than what the thing is.
 | Today | What it fails to say | Evidence |
 |---|---|---|
 | `avenue` (the noun) | It holds a question, a hypothesis and a finding, and names none. The report labels its text `**Question:**` and its id letter is Q | `T/internal/flags/shapes.go:174`; `plans/rulebook-audit.md:109–111` |
-| `line`, filled by `--reason` | That it is a question. `--reason` names two different texts on the two acts of one group, and `propose` writes its question into the field `reason` as well | 275 of 275 archived proposals hold `reason == line` (`final.py`) |
-| `concluded` | Whether the answer was yes | on universe-m22 two seats read it two ways and the dispute held the gate (`T/internal/record/recordpb/record.proto:432–435`) |
-| `pursued` | That it is still open: the one running state reads as a finished past tense | a prompt has to explain it (`F/skills/research-protocol/scripts/debate.js:218`) |
+| `line`, filled by `--reason` | That it is a question. `--reason` names two different texts on the two acts of one group, and `propose` writes its question into the field `reason` as well | 275 of 275 archived proposals hold `reason == line` (`archives.py`) |
+| `concluded` | Whether the answer was yes | on universe-m22 two seats read it two ways and the dispute held the gate (`T/internal/record/recordpb/record.proto:431`) |
+| `pursued` | That it is still open: the one running state reads as a finished past tense | a prompt has to explain it (`F/skills/research-protocol/scripts/debate.js:225`) |
 | `avenue move` | What re-recording the same state is: `move --as pursued` on a pursued avenue moves nothing | `T/internal/cli/seat/help/move.md:7` |
 
 **The objective.** One noun, **inquiry**; its text is its **question**; it is **underway** while open, and
 **confirmed** or **refuted** when it ran and answered; the act that says what became of it is **`inquiry record`**.
-After one pull request the live tree accepts and prints only these words, at epoch 26, with one translation in
-`migrate` per changed word.
+After one pull request the live tree accepts and prints only these words, at epoch `E`, one `migrate` translation each.
 
 ### Success criteria
 
 | # | Criterion | Command | Today | Target |
 |---|---|---|---|---|
-| S1 | No old word in the live tree | under this table | noun 2,247 lines / 226 files; fate words 366 / 116 | noun: no output; fate words: the English list, byte for byte |
-| S2 | Inside `migrate`, an old word is a translation key | under this table | 36 lines | no output |
-| S3 | Every archive migrates | `go -C T test -count=1 -run 'TestEveryArchivedRunRenders\|TestEveryArchivedRunMigrates' ./internal/record/migrate/` | 20 runs, 0 refusals at 25 | 20 runs, 0 refusals at 26 |
-| S4 | Assembled archive documents differ only in the renamed words | §V.3 | — | the mapped diff prints nothing |
-| S5 | A record at epoch 25 is refused, then migrates | §V.4 | — | the refusal names 25, 26 and `migrate`; 0 refusals after |
+| S1 | No old word or earlier name in the live tree: in any case, inside any name, in a path name | `s1` (Appendix) | noun 2,219 lines / 229 files; fates and earlier names 969 / 315; path names 11; 14 files `git grep` cannot read | noun, path names: no output; command 2: the English list; command 4: the same 14 names |
+| S2 | Inside `migrate`, an old word is a literal and every such literal a key | under this table | 45 tokens; 41 literals | no output; the literal census prints keys and English only |
+| S3 | Every archive migrates | §V.3 step 1 | `PASS: 2`; 20 subtests; 0 refusals at 25 | the same at `E`, one subtest per tarball |
+| S4 | Assembled archive documents differ only in the renamed words | §V.3 step 3 | — | `docs` prints nothing (N27) |
+| S5 | A record at `E0` is refused, then migrates | §V.4 | — | the refusal names `E0`, `E` and `migrate`; 0 refusals after |
 | S6 | No translation is unexercised | §V.2 step 3 | — | every deleted registry row fails a named test |
 | S7 | Gates | `go -C scripts run ./check`; the release fuzz (§V.5) | — | fail count 0; `fuzzed 40 debate runs · 0 failed` |
 | S8 | The engine runs | §V.6, before merge | — | a VERIFIED or CEILING outcome whose report set holds `inquiries.md` |
 
-S1 — over every tracked file outside §III.2's not-the-live-tree list:
+S1 — the kit's `s1`, over every tracked file outside §III.2's not-the-live-tree list; both filters test the PATH
+field only. `OLD` is a substring (`motion_direction`, `MOTION_SUBJECT_DIRECTION`, `xDirection`); the kit's `any`
+matches at a name boundary in every case style (`GetLine`, `avenue_line`, `MAX_LINES`). Command 1 is the noun, 3 the
+path names (the 11 files §III.4's rule renames), 4 what `git grep` cannot read: two empty files, the OCR model, a PDF
+and ten PNGs drawn by `tessocr/testdata/{main,pages}.go`. Command 2: 969 lines (363 fate words, 619 earlier names,
+35 inside a longer name, `planguard/growth.go:61` among them); 230 generated, 404 in tests and test data, 335
+authored. The earlier names are those the registry entry for this concept lists (`T/internal/terms/terms.json:924–957`);
+`direction` is the concept at `T/internal/cli/root.go:76` (rendered into two constitutions), `record.proto:257`,
+`cli/motion/verbs.go:300`, `report/motions.go:32`, and English or a remand's direction elsewhere. **Every line of command 2 is read (N14,
+§III.3)**: the concept is renamed, English stays. After the rename it prints the English list, pasted in the PR; S1
+holds when `diff` against it prints nothing. A line main adds that §III.9 step 5 reads as English joins the list.
+
+S2 — inside `migrate` an old word is a translation key, or a test's archived input or planted row, and nothing else:
+never an identifier, a file name or a comment. The tokenizer reads Go by token, so a raw string spanning lines is one
+literal and a comment is never taken for one; any other file is read by line:
 
 ```
-F=plugins/frank-exchange-of-views; T=$F/tools
-NOT='^(plans|law|research|run-archive)/|^feov-memory/[a-z]+-scorecard\.md$'
-NOT="$NOT|^$T/(research|internal/record/migrate|internal/tessocr/testdata/corpus)/"
-GEN="^$F/agents/|\.golden$|\.pb\.go$|/testdata/|^$F/docs/vocabulary\.md$|^$F/skills/(research-protocol|adversarial-audit)/SKILL\.md$"
-git grep -lIi 'avenue' | grep -vE "$NOT"                           # the noun: no output
-git grep -IiE 'conclud|pursu' | grep -vE "$NOT" | sort             # the fate words and their inflections
+oldwords "$OLD" $(git ls-files $T/internal/record/migrate) | command grep -v ':literal:'           # no output
+oldwords "$OLD|\blines?\b" $(git ls-files $T/internal/record/migrate) | command grep ':literal:'   # the literal census
 ```
 
-The noun's grep returns nothing: a plain-English use is reworded too (§III.6). The fate pattern is a substring, so
-it takes the enum identifier, the quoted word, the bare word in a sentence and the verb's other forms alike: 366
-lines today — 134 generated, 131 in tests, 101 authored — of which 111 hold a fate as an identifier, a quoted word
-or a value after `--as`, and the rest are prose. **Every one is read (N14).** A line that names the fate is
-renamed; plain English ("the lens concluded that…") stays exactly as it is. What the second command prints after
-the rename is the English list: each line marked English by its reader, pasted in the PR, never committed. S1
-holds when `diff` of the command's output against the list in the PR prints nothing. The output carries no line
-numbers, so a merge that only moves a line leaves it equal; a line the diff prints arrived or left with that
-merge, and is read before it is renamed or joins the list. The excluded set — `grep -E "$NOT"` in place of
-`grep -vE` — holds those path prefixes and nothing else.
-
-S2 — inside `migrate` an old word is a string literal: a key a translation maps from, or in a test the archived
-input and the planted row that feed one. It is never an identifier, a file name or a comment:
-
-```
-git grep -nIiE 'avenue|conclud|pursu' -- $T/internal/record/migrate | grep -vE '"[^"]*(avenue|conclud|pursu)[^"]*"'
-```
-
-S1 and S2 are run by hand, at landing and on every merge attempt (§III.9). Neither is committed as a gate.
+Today the first prints 45 (25 comments, `eraentries.go:207`'s `motion_direction` among them; 18 identifiers; 2 file
+names). A literal is not thereby a key: the literal census (41 today) is classified in §III.5. S1 and S2 run by hand,
+at landing and on every attempt; neither is a gate.
 
 ### The value case
 
 - **What it buys.** The five rows above stop being taught. Two have a measured cost: a gate held on universe-m22 by
   two readings of one fate, and one flag meaning two texts in one group. The report already prints "Question /
-  Hypothesis / Fate"; the record, the verbs, the flag and the prompts then say the same words.
-- **What it costs.** The noun is on 2,247 lines in 226 files of the live tree: 675 regenerate and about 1,570 are
-  edited by an identifier rename or by hand, 913 of them in 91 test files outside `migrate`; one review of a diff
-  near 4,000 lines each way. Reading no tool shortens: 366 fate-word lines, and 1,026 lines holding `line` and 589
-  holding `move` in the files that name the concept (§III.3). The rationale comments that narrate a run or an
-  incident in the old words are deleted from 37 files (§III.2): that reasoning then lives in the commit history
-  and nowhere in the tree. One epoch: every live run and scratch record is refused until migrated. The landing:
-  two or three merge attempts and one or two smoke runs of about 45 minutes, two to four hours from the finished
-  tree (§III.9). The enum-rendered lists (§III.6) add about 30 lines of Go and one generated constant, and remove
-  seven hand-kept lists.
+  Hypothesis / Fate"; the record, the verbs, the flag, the help pages and the prompts then say the same words.
+- **What it costs.** The noun is on 2,219 lines in 229 files: 641 regenerate and 1,578 are edited, 949 of them in
+  tests; one review of a diff near 4,000 lines each way. Reading no tool shortens: 969 fate-word and earlier-name
+  lines, 1,123 `line` and 632 `move` lines (§III.3), five help pages read to closure (N19). The narrations N7 deletes
+  keep their reasoning in the commit history only. One epoch: every live run and scratch record is refused until
+  migrated. The landing: one or more merge attempts and one 45-minute smoke (§III.9). No test and no generator is
+  added for the fate words (N9).
 
 ## II. Technical Context
 
-Go 1.27 (`GOTOOLCHAIN=local`), one module at `T`; Node for the engine script and simulator. The record is SQLite,
-append-only.
+Go 1.27 (`GOTOOLCHAIN=local`), one module at `T`; Node for the engine script and simulator; SQLite, append-only.
 
 - **Schema and epoch.** `T/internal/record/recordpb/record.proto` is the source: message and field names become
-  table and column names, enum values become the words stored and typed, `(means)` becomes help text and the
-  `enum_*` tables. The stored views are hand-written SQL in `T/internal/record/recordsql/views.go`. The epoch
-  (`F/requirements.json`, `eventSchema: 25`) is compared at `setup` and at every open of a database the binary did
-  not create; a mismatch either way is refused with a pointer to `migrate`.
-- **Migrate** replays an old record through the current write path. Its registry is keyed by the old word, one hop
-  to the current word (`Entries()`, `T/internal/record/migrate/entries.go:15`; `eraEntries()`, `eraentries.go`);
-  `renamedBodyTables` (`sqlitesource.go:228`), `valueRenames` (`valuerenames.go:19`, keyed by the current enum's
-  full name) and `avenueArm` (`eraentries.go:211`) carry the other renames. A migrated id is
-  `sha256(source hash ‖ archived id)` under the kind's letter (`remap.go:173–182`), independent of the kind's name.
-  Migrate reads tables, never views.
+  tables and columns, enum values the words stored and typed, `(means)` help text and the `enum_*` tables. Stored
+  views are hand-written SQL (`T/internal/record/recordsql/views.go`). The epoch (`F/requirements.json`,
+  `eventSchema`) is compared at `setup` and at every open of a database the binary did not create; a mismatch either
+  way is refused with a pointer to `migrate`.
+- **Migrate** replays an old record through the current write path. Its registry maps each old word one hop to the
+  current word (`Entries()`, `T/internal/record/migrate/entries.go:15`; `eraEntries()`); `renamedBodyTables`
+  (`sqlitesource.go:228`), `valueRenames` (`valuerenames.go:19`) and `avenueArm` (`eraentries.go:211`) carry the
+  other renames. A migrated id (`remap.go:173–182`) does not depend on the kind's name. It reads tables, never views.
 - **Generators.** Each is re-run, never hand-resolved.
 
   | Command | Source → output | Check |
   |---|---|---|
   | `go -C scripts run ./protogen` | `record.proto` → `record.pb.go`, `record.proto.sha256` | `git diff --exit-code` after a re-run |
   | `go -C scripts run ./schemagen` | `F/requirements.json` → `recordpb.EventSchema` | `schemagen -check` |
-  | `go -C T run ./devcmd/enginegen` | roster, enums, `record.Plan` → `debate.js:106–125`, `:357–411` | gate `enginegen` |
+  | `go -C T run ./devcmd/enginegen` | roster, enums, `record.Plan` → `debate.js:106–125`, `:364–423` | gate `enginegen` |
   | `go -C scripts run ./agentgen` | `scripts/agentgen/src/**`, the tool's `manual` → `F/agents/*.md` (11), two `SKILL.md` | `agentgen -check` |
   | `go -C scripts run ./vocabdoc` | `T/internal/terms/terms.json` → `F/docs/vocabulary.md` | gate `vocabdoc` |
   | `UPDATE_GOLDENS=1 go -C T test -count=1 <pkg>` | the binary → `difftest/testdata/*.golden` (22), `recordsql/testdata/schema.sql`, `recordpb/testdata/payload-keys.txt`, `dashboard/testdata/*.golden` | gate `golden`; `go -C scripts run ./golden -review` |
@@ -121,23 +105,21 @@ append-only.
 - **Gates that bear on the rename** (under `T`). `TestEveryEnumValueNamedInAPromptIsAccepted`
   (`integration/surface/promptverbs_test.go:926`) fails a `--<flag> <value>` no enum bound to that flag holds.
   `TestVocabularyProse` (`integration/surface/vocabulary_prose_test.go:47`) runs the terms registry over
-  `vocabularySources(t)`; it fails a banned variant and a mask or allow that did no work, and requires no entry
-  for any word. `TestNoSeatPromptGrowsPastItsCeiling` (`internal/seatprobe/promptsize_test.go:92`) counts bytes for
-  four seats. `archaeology` reads ADDED lines of agent-facing files, so a renamed line re-arms it on wording the
-  line already held; `rulesweep` needs its two commit trailers; `decisions` reads
-  `F/docs/seat-command-triggers.md`; `deadcode` fails a function nothing reaches.
-- **CI.** The `hooks` workflow on a pull request takes a median 5.5 minutes from push to every check done, maximum
-  6.1 (22 green runs, 2026-10-12T12:06Z to 2026-10-13T06:50Z: `gh run list --event pull_request --limit 60 --json
-  createdAt,updatedAt,conclusion`). Its longest job runs `go test ./...` whole on `T`, the race leg over the tests
-  `scripts/racescope` selects and one raced fuzz test (`gh run view 38353666439 --json jobs`); Windows runs
-  `-short`. The release fuzz is not in it.
+  `vocabularySources(t)` (the GENERATED agents, not their sources), failing a banned variant and an idle mask or allow.
+  `TestNoSeatPromptGrowsPastItsCeiling` counts bytes for four seats. `archaeology` reads ADDED lines of agent-facing
+  files, so a renamed line re-arms it on wording it already held; `rulesweep` needs its two commit trailers;
+  `decisions` reads `F/docs/seat-command-triggers.md`.
+- **CI and the merge.** The `hooks` workflow on a pull request takes about 5.5 minutes; its job
+  `feov-record (ubuntu-latest)` (`.github/workflows/hooks.yml:370`, `:693`) runs `go test ./...` whole on `T`;
+  Windows runs `-short`. The release fuzz is not in it: the same job runs it nightly under `schedule`, on `main`. `main` has no branch protection
+  and no ruleset (`gh api repos/ctoforaday/special-circumstances/branches/main/protection` → 404; `…/rulesets` → `[]`):
+  a PR whose CI ran against an older `main` still merges.
 - **Constraints.** CLAUDE.md, Change discipline: the live code accepts and prints only the new form; `migrate` is
-  the only upgrader. Versions do not move in this PR. No network, secret or privilege is involved. `gopls` is not
-  installed on the development box, and installing it writes outside the working tree: no step uses it.
+  the only upgrader. Versions do not move. No network, secret or privilege; no step uses `gopls` (not installed).
 
 ## III. Proposed Changes
 
-### III.1 Rulings (gblock, 2026-10-13)
+### III.1 Rulings (gblock; N1–N16 2026-10-13; N9, N15, N16 widened, N17–N20 2026-10-14; N15, N20 rewritten, N21–N28 2026-10-15)
 
 | # | RULED |
 |---|---|
@@ -146,109 +128,113 @@ append-only.
 | N3 | The act `avenue move` → **`inquiry record`**: one verb, every state, `--as <fate> --reason …` |
 | N4 | The fates `concluded` → **confirmed**, `pursued` → **underway**; `refuted`, `abandoned`, `declined`, `deferred` unchanged |
 | N5 | Kept: the verb `propose` and the state `proposed`; the fate's prose flag `--reason`; the id letter `Q-`; `--hypothesis`, `--method`; the three report headings; `## Open questions`; the title's `**Question:**` line; the grade-motion ruling `rejected`; the `inquest` verb |
-| N6 | ONE pull request, epoch 25 → 26, one translation per changed word in `migrate`, each tested on an archived run |
+| N6 | ONE pull request, ONE epoch bump (to `E`), one translation per changed word in `migrate`, each tested on an archived run |
 | N7 | Every occurrence of an old word in the live tree is renamed. A passage whose only job is to say what something was called, or to narrate a run or incident in the old words, is DELETED; its why goes in the commit. What is not the live tree is §III.2's list and nothing else |
 | N8 | The terms registry defines `inquiry` and holds no ban, no note about an earlier name and no new collision note. No word is added to any roster of retired names |
-| N9 | The forward check is two things and no more. A test fails an `--as` value that is not a fate of its verb, read from the enum, per verb. Where agent-facing text ENUMERATES the fates, the list is rendered from the enum. No check judges a backticked word in prose (§III.6) |
+| N9 | FATE WORDING TAKES THE LEAST MACHINERY. No new fate test: once the old words leave the enum, `TestEveryEnumValueNamedInAPromptIsAccepted` fails an old `--as` value in a prompt. The `debate.js` sections constant stays a hand copy, pinned byte for byte to the Go sentence by `report/assemble_test.go:440`; the static fate lists are reworded to need no list; the passages that teach particular fates are renamed by the sweep and held by review. Nothing new is generated (§III.6) |
 | N10 | A proposal holds a question and NO reason: `propose` stops filling `reason`, migrate drops the copied text (M15), the report's guard on the copy is deleted, the thin-reason detector skips `proposed` |
 | N11 | The scorecard metrics are `inquiries` and `thin_inquiry_reasons` |
 | N12 | The archive before/after harness is committed as `T/devcmd/archdump`, in the PR's first commit |
 | N13 | No freeze. The rename lands by merge-main-in, regenerate, re-verify, each time main moves (§III.9). Merging on green CI is the owner's standing instruction for this workstream |
 | N14 | READ EVERY ONE. The sweep takes every occurrence of each old fate word in the live tree; each is read and classified. A fate is renamed; plain English stays as written and is not reworded. The classification is pasted in the PR and never kept in the tree (S1) |
-| N15 | THE SMOKE RUNS BEFORE MERGE. A universe is built from the finished branch and a smoke reaches an outcome before the PR merges (§V.6, §III.9) |
-| N16 | `F/tests/simulator/testdata/m16-chair6-relay.json`, a captured chair relay, is a TEST INPUT in the live tree and not a record: its text is rewritten in the new words like everything else |
+| N15 | THE SMOKE RUNS BEFORE MERGE, on the FIRST COMPLETE TREE, and the merge waits until it has ENDED verified or ceiling. A later attempt re-runs it only under N21 (§III.9, §V.6) |
+| N16 | The captured chair relays, `git ls-files "$F/tests/simulator/testdata/*.json"` (m16, m3, o3), are TEST INPUTS in the live tree and not records: their text is rewritten in the new words like everything else (o3 holds only a remand's `direction`) |
+| N17 | The plan carries what the implementer needs once; measured figures only the PR can settle (main's rate of change, the attempt window, attempt and smoke counts, prompt sizes after, the deleted passages) go to the PR |
+| N18 | NO ARCHAEOLOGY; THE HELP PAGE TEACHES THE VERB. Each renamed verb's `--help` teaches it completely on its own: what each flag holds, every fate's meaning, what is refused and what to do next. Prompts, constitutions and skills keep the DUTY — what a seat must do and why — and carry no command mechanics: mechanics the sweep finds there move to the help page. No renamed text says what anything was called or narrates an incident (§III.6, §III.8 steps 4 and 6) |
+| N19 | A FRESH READER CHECKS EACH HELP PAGE. For `inquiry propose`, `inquiry record`, `inquiry review`, `motion inquiry rule` and `show inquiries`, a fresh subagent given ONLY the page rendered from the built binary answers what the verb does, what each flag takes, what is refused and why, and what to do next. Each open question it records is closed by a change to the page; the reading repeats until it records none. The PR carries each page's final questions and answers (§III.8 step 4) |
+| N20 | EVERY CHECK SEES ALL IT CERTIFIES, AND NOTHING RELIED ON IS STALE. Each census, sweep, test or reading sees every input it certifies — any case, inside any name, path names, generated, binary and test-data files, every directory of the live tree, and what main adds; a value main can move (the epoch, the base, a count, CI, a generated file, a before-image) is re-read where it is relied on. The once-only checks re-run under N21 alone (§III.9) |
+| N21 | ONCE-ONLY CHECKS RE-RUN ONLY ON THE BRANCH'S OWN HAND CHANGES. S6, both archive dumps (§V.3), §V.4, the release fuzz with its race leg (§V.5) and the smoke re-run only when the branch's hand changes on their surface differ from those they passed on: a conflict resolution beyond renaming main's hunk, or any other edit that is not the word-map rename. Main's commits merging in, the word-map rename of a line main added, and generated output re-arm nothing; main's changes are covered by CI and the nightly fuzz, as for every other PR (§III.9) |
+| N22 | THE KIT IS IN THE PLAN. Its scripts are the Appendix, extracted to scratch at the start of the work and never committed: a committed old-word pattern is an old-word list in the live tree. The plan file alone carries every command, after a container restart |
+| N23 | THE KIT IS TRIMMED. `pairs.awk` runs once, at step 0, as N7's worklist; the gzipped fetch-cache bodies join the third-party bytes outside the live tree; the two-questions census goes (N19's reader asks it); §III.4's names come from `git grep -o`, and the tokenizer serves S2 alone |
+| N24 | FIX, NOT ACCEPT. `anchor.IDPattern` refuses a kind name it does not know, for every kind, with its test (§III.5); `law/precedents.md`'s three lines holding the noun are renamed, because the judge reads law in every run, and the rest of `law/` stays as ruled (§III.2) |
+| N25 | THE SMOKE IS BOUND TO ITS BUILD, by the smallest binding that holds. A §V.6 step writing the note would add no line to the PR but fails open — a later build from another commit leaves it naming `S` — so the build writes its own, removing it as it starts: four lines in a script that ships nowhere. `scripts/universe.sh build` refuses a dirty tree and writes `<WORKDIR>/built-from`: the commit it built and the UTC time it finished. `ran smoke S DB` takes the universe as DB's path before `/src/research/` and refuses unless that file names `S`, the record's `schema_epoch` is `S`'s `eventSchema`, the run's first event follows the build, and the outcome is verified or ceiling (§V.6). The other `ran`s bind by discipline (§III.9) |
+| N26 | THE WORD MAP COVERS EVERY RULED RENAME: the noun in every case and compound, the two fates, `line` → `question` (`GetLine`, `.Line`), `move` → `record`, `Moved` → `Recorded`, `direction` as the concept, `--reason` → `--question` on propose, and the table, column, view and file names — so the rename of a line main added re-arms nothing. A `-`/`+` pair cancels only when its two sides, path included, are EQUAL once both pass the whole map and their inner blanks are collapsed: a hand change that differs in any other token counts, and gofmt's realignment beside a renamed name does not. Residue: a pair differing only in mapped words, in either direction, cancels whatever the context; a line moved or reordered within a file cancels as a pair; a renamed line reverted to the old word leaves no diff. `stands` sees none of the three; S1, the compiler and the archive tests hold them. No hunk-local cancellation is built |
+| N27 | THE ARCHIVE DIFF IS TWO-SIDED: `docs` cancels each pair by `hand`'s map and prints only what is not the rename; expected, nothing (§V.3) |
+| N28 | CONFIRMED, the fifth audit's reading of N21: an epoch re-bump is a hand change and re-arms §V.4 and §V.5 — and every check whose surface holds `requirements.json`, which is all five, since schemagen compiles the epoch into the binary each one runs and main's bump brings its own `migrate` translation; test files and test data count only for S6 and the fuzz; a conflict resolution re-arms unless it is main's hunk renamed |
 
-**The naming census the rulings rest on.** `inquiry`:
-`git grep -nIi inquir -- $T $F/skills $F/agents scripts/agentgen/src` → 35 lines in 11 files — `migrate` keys
-(identity after §III.5), one narrated incident (deleted, N7) and two registry bans (deleted, N8). `question`:
-`git grep -nIE '"question"|--question|flags\.Question' -- "$T/*.go" ':!*_test.go'` prints nothing — no flag,
-field, JSON key or enum value; the run's brief line and `## Open questions` are kept by N5. `underway`: `git grep -ci underway -- $F
-scripts` → 0. `confirmed`: plain English only. `record` as a verb: `git grep -n 'Use: *"record' -- $T` → 0; the
-noun is the tool and the store (R5). `inquest`: a verb group on the bench and the chair, 67 lines in 18 Go files
-(`git grep -nIi inquest -- "$T/*.go"`; R5).
+**The naming census the rulings rest on.** `git grep -nIi inquir -- $T $F/skills $F/agents scripts/agentgen/src` → 35
+lines in 11 files: `migrate` keys, one narrated incident (N7), two registry bans (N8).
+`git grep -nIE '"question"|--question|flags\.Question|\bQuestion\b' -- $T $F/skills $F/agents scripts/agentgen/src ':!*.pb.go' ":!$T/research"`
+→ 24 lines in 7 files, no flag, key or identifier: the title's `**Question:**` (`report/layout.go:110`,
+`references/report_template.md:52`), the RUN's question (N5), as in the `(means)` at `record.proto:266,320,323,485`;
+and each approach's `- **Question:**` row (`report/assemble.go:670`). Both senses already share the word; §III.6
+keeps them apart. `git grep -ci underway -- $F scripts` → 0; `confirmed`: English only; `git grep -n 'Use: *"record' -- $T` → 0;
+`git grep -nIi inquest -- "$T/*.go"` → a bench and chair verb group, 67 lines in 18 files (R5).
 
 ### III.2 Carrier census (the consumer census for every contract below)
 
-Per row: `git grep -niI avenue -- <path> | wc -l`, and `-l` for files. **Complete when S1's noun grep prints
-nothing and the noun census at the base surfaces no path this table omits.**
+Per row: `git grep -niI avenue -- <path>`, lines and `-l` files. **Complete when S1 commands 1 and 3 print nothing.**
 
 | Carrier | Path | L/F | How it changes |
 |---|---|---|---|
 | Schema, generated code | `T/internal/record/recordpb/record.proto`; `record.pb.go` | 50/1; 205/1 | by hand from §III.4; `protogen` |
 | Stored views, schema goldens | `recordsql/views.go`; `recordsql/testdata/schema.sql`, `recordpb/testdata/payload-keys.txt` | 20/1; 46/2 | by hand (2 views); regenerate, read |
-| Migrate | `T/internal/record/migrate/*.go` | 28/6 non-test | by hand, §III.5; old words stay only as literals (S2) |
+| Migrate | `T/internal/record/migrate/*.go` | 28/6 non-test | by hand, §III.5; old words stay only as keys (S2) |
 | Record folds | `T/internal/record/*.go` non-test | 210/22 | identifier rename, then literals and comments |
-| CLI and help pages | `T/internal/cli/**` non-test `.go`; `cli/seat/help/{propose,move,review,dispatch,mint}.md` | 105/17; 15/5 | by hand; `move.md` → `record.md` |
+| CLI and help pages | `T/internal/cli/**` non-test `.go`; `cli/seat/help/{propose,move,review,dispatch,mint}.md` | 107/17; 13/5 | by hand; `move.md` → `record.md`; each page teaches its verb (N18, N19) |
 | Report, view, scorecard, consistency, seatprobe, flags | `T/internal/{report,view,scorecard,consistency,seatprobe,flags}` non-test | 145/15 | rename, then literals and comments |
-| Other Go | `anchor`, `graph`, `diagnostics`, `refusalcheck`, `reportvoice`, `enumhelp`, `fetchcache` | 1–2 each | by hand |
-| Go tests; of them the release fuzz | `*_test.go`; `T/releasegate/fuzz/` | 939/95; 167/3 | compiler, then literals and comments; the fuzz by hand (§III.8 step 8) |
-| Engine prompts | `F/skills/research-protocol/scripts/debate.js` | 20/1 | by hand; `:399` and the sections sentence by `enginegen` |
-| Constitutions and skills | `scripts/agentgen/src/**` → `F/agents/*.md`, `F/skills/**/SKILL.md`; `references/{report_template,run-directory}.md` | 15/6 → 235/11, 19/4 | sources and references by hand; `agentgen` |
-| Goldens, simulator | `T/internal/difftest/testdata/`; `F/tests/simulator/` | 133/22; 69/11 | regenerate (§III.8 step 7); `debate.test.mjs` and the relay fixture (N16; 4 old words) by hand |
+| Other Go | `anchor`, `graph`, `diagnostics`, `refusalcheck`, `reportvoice`, `fetchcache` | 1–2 each | by hand; `anchor.IDPattern` refuses an unknown kind (N24, §III.5) |
+| Go tests; of them the release fuzz | `*_test.go`; `T/releasegate/fuzz/` | 918/92; 167/3 | compiler, then literals and comments; the fuzz by hand (§III.8 step 8) |
+| Engine prompts | `F/skills/research-protocol/scripts/debate.js` | 20/1 | by hand; the blocker kind at `:409` by `enginegen` |
+| Constitutions and skills | `scripts/agentgen/src/**` → `F/agents/*.md`, `F/skills/**` | 15/7 → 212/11; 17/3 | sources and references by hand; `agentgen` |
+| Goldens, simulator | `T/internal/difftest/testdata/`; `T/internal/dashboard/testdata/render-{live,terminal}.golden`; `F/tests/simulator/` | 125/22; 2/2; 70/12 | regenerate (§III.8 step 7); `debate.test.mjs` and the relay fixtures (N16) by hand |
 | Terms | `T/internal/terms/terms.json`; `F/docs/vocabulary.md` | 7/1; 8/1 | by hand (§III.6); `vocabdoc` |
-| Docs, class registry | `F/README.md`; `F/docs/{seat-command-triggers,seat-surface-naming,duty-docket-preregistration,why-a-seat-stops}.md`; `feov-memory/protocol-class-registry.md:110` | 1; 17/4; 1 | by hand |
-| Names | 13 files (`git ls-files \| grep -i avenue \| grep -vc '^plans/'`); 30 test functions (`git grep -nIE 'func Test[A-Za-z0-9_]*Avenue'`) | — | `git mv`; by hand |
+| Docs, class registry, the law the judge reads | `F/README.md`; `F/docs/{seat-command-triggers,seat-surface-naming,duty-docket-preregistration,why-a-seat-stops}.md`; `feov-memory/protocol-class-registry.md:110`; `law/precedents.md:15,21,69` | 1; 17/4; 1; 3/1 | by hand (N24) |
+| Names | 13 files (S1 command 3, and S2's 2 in `migrate`); 30 test functions (`git grep -nIE 'func Test[A-Za-z0-9_]*Avenue'`) | — | `git mv`; by hand |
 
-**Not carriers**: `git grep -ciIE 'avenue|inquir' -- plugins ':!plugins/frank-exchange-of-views'` → 0; the same
-over `$F/hooks $T/internal/capture $T/cmd $T/devcmd` → 0.
-
-**Not the live tree** — the whole list; S1 excludes exactly these prefixes.
+**Not carriers**: `git grep -ciIE 'avenue|inquir' -- plugins ':!plugins/frank-exchange-of-views'` → 0; the same over
+`$F/hooks $T/internal/capture $T/cmd $T/devcmd` → 0. **Not the live tree** — the whole list, S1's exclusions:
 
 | Path | Why |
 |---|---|
-| `T/internal/record/migrate/` — the string keys a translation maps from, and the tests that read archived runs | that is what `migrate` is; S2 holds it to literals |
+| `T/internal/record/migrate/` — the string keys a translation maps from, and the tests that read archived runs | that is what `migrate` is; S2 holds it to keys |
 | `run-archive/` | the gzipped record of each captured run |
 | `plans/` (this file included) | dated design records: `plans/README.md` keeps a plan as the record of what changed |
-| `law/` | holdings and proposed classes, as ruled |
+| `law/`, except `precedents.md` | holdings and proposed classes, as ruled. `precedents.md` is the live tree: `setup.MirrorLaw` copies `law/` into each run's `inputs/law`, which the judge reads (`debate.js:517`), so its three lines holding the noun are renamed (N24); its `direction` lines are English |
 | `research/`, `T/research/` | the research corpus: reports and records as written |
 | `feov-memory/*-scorecard.md` | scorecard history, appended run over run at capture |
-| `T/internal/tessocr/testdata/corpus/` | a third party's page as OCR read it (`FIFTH AVENUE BANK`, one line): not this concept, not this repository's text |
+| `T/internal/tessocr/testdata/corpus/`, `T/internal/fetchcache/testdata/bodies/` | third-party bytes: a page as OCR read it (`FIFTH AVENUE BANK`, one line) and 13 gzipped pages publishers served (`direction` in CSS and titles): not this concept, not this repository's text |
 
-**Passages deleted under N7.** The finder —
+**Passages deleted under N7.** A narration's old word and its marker are often on adjacent lines, and an old phrase
+can break across lines or literals, so step 0's worklist (§III.8, block 0: `pairs.awk`, run once) reads each line
+JOINED to the one before it — comment leaders, a string-literal join and a line-end hyphen stripped — and prints a
+**split** pair (an old word only the joined text holds) and a **narration** (an old word or `inquir` beside a dated or
+measured marker: `MEASURED`, a date, `universe-mN`, `#NNN`, "N of M", `verbatim`, `retired`, `CUT`, `used to`,
+`became`; generated files skipped). Over the whole live tree: 256 narration pairs in 96 files —
+`.github/workflows/hooks.yml`, `F/docs`, `scripts/agentgen/src`, two other plugins' Go and `record.proto:960` among
+them — and 2 split pairs (`record.proto:960`, "line / of inquiry", and its `record.pb.go` copy). Each is a sentence in
+the present voice, renamed, or a narration, deleted whole and never renamed in place; an instruction a deleted passage
+carried is restated in the present tense where it stood (R7).
 
-```
-git grep -nIiE 'avenue|inquir|conclud|pursu' -- plugins scripts feov-memory ':!*.golden' ':!*.pb.go' ':!*testdata*' \
-    ":!$F/agents" ":!$T/research" ":!$T/internal/record/migrate" ':!feov-memory/*-scorecard.md' \
-  | grep -E 'MEASURED|[Mm]easured|20[0-9]{2}-[0-9]{2}-[0-9]{2}|universe-m[0-9]+|#[0-9]{3,}|\b[0-9]+ of [0-9]+\b|verbatim|retired|CUT|used to|became'
-```
+### III.3 The words grep cannot settle: the earlier names, `line` and `move`
 
-— prints 59 lines in 37 files. Each is a sentence in the code's present voice, which is renamed, or a narration,
-which is deleted whole and never renamed in place. Known members: the incident above `whereItLives`
-(`T/internal/cli/root.go:288–297`) and its copy (`refusalteaches_test.go:201–205`; the test keeps its assertion and
-takes a current verb as input); the stories in `record.proto:238,432–435`, `T/integration/surface/promptverbs_test.go:20–23,95–97`,
-`T/internal/cli/blue/avenue.go:49–53`, `T/internal/record/{avenue.go:17,available.go:65–67}` and
-`T/internal/fetchcache/backends.go:863–869`; the measurement tables and the retired or CUT rows of the four `F/docs`
-files. An instruction a deleted passage carried is restated in the present tense where it stood (R7).
+A fate word or earlier name is the concept or English; a `line` is mostly a text line; a `move` mostly gaps and
+grades. Each sweep's file set is closed by a command; every classification table goes in the PR.
 
-### III.3 The words grep cannot settle: the fate words, `line` and `move`
-
-A fate word in a sentence is a fate or English; `\blines?\b` is mostly text lines; `\bmov(e|ed|es|ing)\b` is
-mostly gaps and grades. Each sweep's file set is closed by a command that selects on the word it sweeps for, and
-the three classification tables are pasted in the PR.
-
-1. **The fate words: S1's second command**, 366 lines, classified **fate** (renamed) or **English** (left).
-2. **`line` and `move`, each in every authored file that names the concept:**
-   `for w in '\blines?\b' '\bmov(e|ed|es|ing)\b'; do git grep -lIi avenue | grep -vE "$NOT|$GEN" | xargs git grep -nIiE "$w" --; done`
-   → `line`: 1,026 lines in 132 files (524 in 60 outside tests); `move`: 589 lines in 113 files (291 in 59),
-   among them the seven that hold `move` beside the noun and no `line` (`record/{dispatch,refs,required,id,
-   convergence_refusal}.go`, `cli/lens/mint.go`, `report/motions.go`). Each `line` is classified **inquiry** (the
-   thing: "a declined line"), **question** (its text: "the line you propose") or **unrelated** ("one line on
-   why"); each `move` as **record** ("its fate is recorded") or unrelated. A file that says `move` of this concept
-   and never names it is outside the set: passes 3 and 4 are what reach it.
-3. **The compiler lists the readers.** Renaming `Avenue.Line` and `GetLine()` breaks every site that reads the
-   field. At each, the comment above and the literal beside it are read.
-4. **The rendered text is read, not its source.** After §III.8 step 6 the eleven regenerated `F/agents/*.md`, the
-   two generated `SKILL.md`, the fourteen simulator prompt goldens and the relay fixture are searched for all three
-   patterns (`line` 209 lines, `move` 199 today) and every hit classified again: a sentence assembled from two
-   constants shows its seam only here.
+1. **Fates and earlier names, BEFORE their ban is deleted.** S1 command 2 and the worklist are classified at step 0, compounds
+   like the rest: **concept** (→ `inquiry`, or the new fate) or **English** (stays); step 5 deletes the registry
+   entry only after this table exists.
+2. **`line` and `move`, in every authored file that names the concept, the relay fixtures included:**
+   `for w in "$LINE" "$MOVE"; do git grep -lIi avenue | live | authored | xargs git grep -nIE "$w" --; done`
+   → `line` 1,123 lines in 135 files (562 in 61 outside tests and test data), `move` 632 in 116 (296 in 61). A `line`
+   is **inquiry** ("a declined line"), **question** ("the line you propose") or **unrelated**; a `move` is **record**
+   or unrelated. A file that says `move` of this concept and never names it is reached by passes 3 and 4.
+3. **The compiler lists the readers.** Renaming `Avenue.Line` and `GetLine()` breaks every reading site; at each,
+   the comment above and the literal beside it are read.
+4. **The rendered text is read, not its source.** After §III.8 step 7, every pattern above is searched in what a seat
+   reads as printed — `$F/agents`, the two generated `SKILL.md`, `$F/tests/simulator/testdata` (the prompt goldens
+   and the relays), `$T/internal/difftest/testdata` (every help page and refusal as printed) and
+   `$T/internal/dashboard/testdata` (`line` 260, `move` 286 today) — and each hit classified again: a sentence
+   assembled from two constants shows its seam only here.
 
 ### III.4 The name table
 
-Numbers, positions and every unlisted name are unchanged. **The rule:** a name holding `avenue`, `Avenue` or
-`AVENUE` takes `inquiry` in the same case and position (plural `inquiries`) — the Go names (127 distinct, 54 of
-them outside tests:
-`git grep -hoIE '\b[A-Za-z0-9_]*(Avenue|AVENUE)[A-Za-z0-9_]*\b|\bavenue[A-Z][A-Za-z0-9_]*\b' -- "$T/*.go" ':!*.pb.go' | sort -u`),
-the 13 files, the 30 test functions, and every row below that states no exception.
+Numbers, positions and every unlisted name are unchanged. **The rule:** a name holding `avenue` in any case takes
+`inquiry` in the same case and position (plural `inquiries`), and a name holding `pursued` or `concluded` takes
+`underway` or `confirmed` the same way. The Go names are every word holding one, so a lower-case, snake or compound
+name is in the list — `git grep -ohIiE '\w*(avenue|pursued|concluded)\w*' -- "$T/*.go" ':!*.pb.go' | sort -u` → 141,
+words of comments and literals among them, where step 2's pass rewrites nothing; the 13 files; the 30 test
+functions; and every row below that states no exception.
 
 **[MODIFY] `record.proto` (then `protogen`) and the SQL derived from it.**
 
@@ -261,12 +247,13 @@ the 13 files, the 30 test functions, and every row below that states no exceptio
 | field, column | `Avenue.line = 2`, `(sql).flag: "reason"` | `Inquiry.question = 2`, `(sql).flag: "question"` |
 | unchanged | status words `proposed = 1`, `deferred = 3`, `declined = 4`, `abandoned = 5`, `refuted = 7`; the ruling words; fields `hypothesis = 3`, `method = 4`, `status = 5`, `supersedes_status = 6`, `reason = 7` | — |
 | view (`views.go:793`) | `avenue_state`, columns `avenue_id`, `line`, `avenue_ruling` | `inquiry_state`, columns `inquiry_id`, `question`, `inquiry_ruling` |
-| `(means)` text | 11 annotations: the seven status meanings, the two event types', the motion subject's, the about-kind's | rewritten under §III.3; each is seat-facing help |
+| `(means)` text | 11 annotations: the seven status meanings, the two event types', the motion subject's, the about-kind's | rewritten under §III.3 and N18: each is the help page's own teaching of that value |
 
 **[MODIFY] CLI surface** — each row is a contract; its consumers are the lines of
-`git grep -nE 'avenue move|avenue propose|avenue review|motion avenue|show avenues'` — 59 authored
-(`-- plugins scripts ':!*.golden' ':!*_test.go' ':!*.mjs' ":!$F/agents" ':!*testdata*'`), 85 in tests
-(`-- '*_test.go' '*.mjs'`) and 80 generated — and every one changes.
+`git grep -nE 'avenue move|avenue propose|avenue review|motion avenue|show avenues' | live` — 59 authored, 88 in
+tests and test data, 59 generated (S1's path split) — and of the same verbs as argv,
+`git grep -nE '"avenue",\s*"(move|propose|review)"|"show",\s*"avenues"|"motion",\s*"avenue"'` — 72, 70 in tests and
+`seatprobe/build.go:231,244` — and every one changes.
 
 | Old | New |
 |---|---|
@@ -275,25 +262,27 @@ the 13 files, the 30 test functions, and every row below that states no exceptio
 | `chair avenue review --reason …`; `motion avenue rule --id <Q-…> --as endorsed\|out_of_scope\|too_thin` | `chair inquiry review …`; `motion inquiry rule …` |
 | `show avenues` (and `--json`: `{"avenues":[{"id","line",…}]}`) | `show inquiries`; `{"inquiries":[{"id","question",…}]}` |
 | `--about-kind section\|avenue\|gap`; `--as pursued\|concluded` | `--about-kind section\|inquiry\|gap`; `--as underway\|confirmed` |
-| result keys `avenue_id`, `line`, `moved` (`blue/avenue.go:193–196`; `moved` is read at `:212`) | `inquiry_id`, `question`, `recorded` |
+| result keys `avenue_id`, `line`, `moved` (`blue/avenue.go:199–202`; `moved` is read at `:218`) | `inquiry_id`, `question`, `recorded` |
 | flag shape `avenue-id` (`flags/shapes.go:177`), id kind `avenue` (`anchor/anchor.go:70`) | `inquiry-id`, `inquiry`; the prefix stays `Q-` |
-| blocker kind `avenue_review` (`record/passblockers.go:39`; `debate.js:399`, generated) | `inquiry_review` |
+| blocker kind `avenue_review` (`record/passblockers.go:39`; `debate.js:409`, generated) | `inquiry_review` |
 | scorecard metrics `avenues`, `thin_avenue_reasons` (`scorecard/scorecard.go:451–473`) | `inquiries`, `thin_inquiry_reasons` |
 | consistency check `avenue-md` (`consistency/consistency.go:506`) | `inquiry-md` |
 | run file `avenues.md`, nav `Avenues`, title `avenues` (`report/docs.go:54,136`); its headings `## pursued (n)`, `## concluded (n)` | `inquiries.md`, `Inquiries`, `inquiries`; `## underway (n)`, `## confirmed (n)` (from the enum) |
-| help template value `{{.AvenueSectionsRule}}`; `debate.js` constants `AVENUE_SECTIONS`, `avenueClause` | `{{.InquirySectionsRule}}`; `INQUIRY_SECTIONS` (generated, §III.6), `inquiryClause` |
+| help template value `{{.AvenueSectionsRule}}`; `debate.js` constants `AVENUE_SECTIONS`, `avenueClause` | `{{.InquirySectionsRule}}`; `INQUIRY_SECTIONS` (a hand copy, §III.6), `inquiryClause` |
 
 **Identifiers that are not the rule:** `.Line`, `GetLine` → `.Question`, `GetQuestion`; `newAvenueMove` →
 `newInquiryRecord`; `avenueResult.Moved` → `inquiryResult.Recorded`; the fuzz's `avenueMoves` → `inquiryRecords`;
 `ExistingProposalByText`'s parameter `line` → `question`; `TestRedCannotProposeAAvenue` →
 `TestRedCannotProposeAnInquiry`. `report.ran()` reads `underway`, `confirmed`, `refuted`.
 
-**[NEW] `flags.Question = "question"`**, registered on `propose` with `flags.Text` (as `--hypothesis` is, which
-attaches the quoting rule) and `seat.Require`. `propose` stops being a `seat.Prose` verb: its `ReasonIs` row is
-[DELETE]d (`seat/seat.go:941`); `satisfiedByAnyOf["line"]` (`seat.go:537`) and the payload-key row `"line": Reason`
-(`flags/names.go:430`) become `"question": {flags.Question}` and `"question": Question`; `record.go:1307`'s refusal
-names `--question` through `flags.ForPayloadKey`. The 12 call sites passing `--reason` to `propose`
-(`git grep -nIE 'avenue.{0,3}propose.{0,80}--reason|"propose".{0,60}"--reason"' -- plugins scripts`) change with it.
+**[NEW] `flags.Question = "question"`**, registered on `propose` with `flags.Text` (which attaches the quoting rule)
+and `seat.Require`. `propose` leaves `seat.Prose`: its `ReasonIs` row (`seat/seat.go:941`) is [DELETE]d;
+`satisfiedByAnyOf["line"]` (`seat.go:537`) and `"line": Reason` (`flags/names.go:430`) become `"question"` rows;
+`record.go:1307`'s refusal names `--question` through `flags.ForPayloadKey`. The sites passing `--reason` to
+`propose` — the kit's `reasonsites avenue`, which reads each file whole so a call broken across two lines is seen
+(`avenue_test.go:32`, `avenuevoice_test.go:23`, `seatprobe/build.go:231`) — are 36, and follow. It is what finds a
+refusal that TEACHES the call (`record/refs.go:183`: "`avenue propose --reason …`"), which no gate reads; a call
+itself fails loudly, since `propose` no longer registers `--reason` and cobra refuses it.
 
 **[MODIFY] A proposal holds no reason (N10).** Consumer census —
 `git grep -nE '\b(a|q)\.Reason\b|\ba\.GetReason\(\)' -- $T/internal/{report,view,scorecard} $T/internal/record/avenue.go ':!*_test.go'`
@@ -301,28 +290,27 @@ names `--question` through `flags.ForPayloadKey`. The 12 call sites passing `--r
 
 | Site | Changes |
 |---|---|
-| `cli/blue/avenue.go:116–117` (the writer) | yes: `propose` writes `question` and leaves `reason` unset |
+| `cli/blue/avenue.go:119–120` (the writer) | yes: `propose` writes `question` and leaves `reason` unset; [NEW] `TestAProposalHoldsAQuestionAndNoReason` (`cli/inquiry_test.go`) |
 | `report/assemble.go:684` (`a.Reason != "" && a.Reason != a.Line`) | yes: the second operand is [DELETE]d |
 | `scorecard/scorecard.go:434` (`st != "pursued" && len(reason) < 20`) | yes: the detector skips `proposed` and `underway` |
-| `report/assemble.go:689`; `view/view.go:775–776`; `record/avenue.go:158,329` | no: they print or carry a reason when one exists, so `show inquiries` prints a proposed inquiry's question once |
-| `record/avenue.go:94` (`StruckAvenueTexts`: the struck act's `line`, else its reason) | no: a proposal always holds a question, and the act that holds none is a recorded fate, whose reason is its text |
+| `report/assemble.go:689`; `view/view.go:775–776`; `record/avenue.go:94,158,329` | no: they print or carry a reason when one exists (`StruckAvenueTexts`, `:94`, takes a proposal's question and a recorded fate's reason) |
 
 ```
-F/requirements.json                               [MODIFY] eventSchema 26
+F/requirements.json                               [MODIFY] eventSchema E (= origin/main's + 1, §III.9)
 F/{README.md,docs,agents,skills,tests/simulator}  [MODIFY] by hand or generated, per §III.2
-T/devcmd/archdump/main.go                         [NEW] (N12)
-T/devcmd/enginegen                                [MODIFY] writes INQUIRY_SECTIONS (§III.6)
-T/integration/surface/fatenames_test.go           [NEW] (§III.6)
-T/internal/cli/seat/help/record.md                [NEW]; move.md [DELETE]
+T/devcmd/archdump/main.go [NEW] (N12); T/internal/cli/seat/help/record.md [NEW], move.md [DELETE]
 T/internal/{cli/blue,cli/chair,record}/inquiry.go [git mv]; and 10 `inquiry*_test.go` beside their packages
 T/internal/record/recordpb/, recordsql/views.go, migrate/*.go, T/internal/terms/terms.json   [MODIFY]
-scripts/agentgen/src/** (6), feov-memory/protocol-class-registry.md (1 line)                 [MODIFY]
+T/internal/anchor/anchor.go, kinds_test.go (N24)                                              [MODIFY]
+scripts/agentgen/src/** (7), feov-memory/protocol-class-registry.md, law/precedents.md (3 lines) [MODIFY]
+scripts/universe.sh   [MODIFY] build: refuse a dirty tree; remove, then write, <WORKDIR>/built-from (N25, §V.6)
 ```
 
 ### III.5 Migration: one translation per changed word
 
 Old-word keys map straight to the current word, so a key already named `inquiry` becomes identity and is deleted,
-and a key named `avenue` becomes a new translation. No word passes through two hops. Counts: `final.py`.
+and a key named `avenue` becomes a new translation. No word passes through two hops. Counts: `archives.py` (M3–M5,
+M15, `supersedes_status`, the residue); the rest are what each test below asserts on its archive.
 
 | # | Old word | Where, with counts | Maps to | Mechanism |
 |---|---|---|---|---|
@@ -342,12 +330,25 @@ and a key named `avenue` becomes a new translation. No word passes through two h
 | M14 | `about_kind = avenue` | 33 findings, 4 mints (wave-a, m19, m20, wave-b) | `inquiry` | [NEW] `AboutKind: {"avenue": "inquiry"}` |
 | M15 | a proposal's `reason` equal to its `line` | 275 of 275 proposal acts | dropped (N10) | in the M1 and M2 entries: a row with no `supersedes_status` whose `reason` equals its `line` carries no reason forward |
 
-Not translated: `supersedes_status` holds `"1"` or nothing in all 945 acts, never a status word; the `enum_*` tables
-and views are not read by migrate; ids keep their value (§II). `remap.go`'s lists change name only.
+Not translated: `supersedes_status` (`"1"` or nothing in all 945 acts); the `enum_*` tables and views, which migrate
+does not read; ids (§II). **Residue:** `migrate` re-reads no prose, so 3 of the 25 archived inquiries that end
+`concluded` state a refutation in their reason and arrive `confirmed`.
 
-**Residue.** `migrate` translates words one for one and re-reads no prose: the 508 acts recorded `pursued` arrive
-`underway` and the 33 recorded `concluded` arrive `confirmed`, and of the 25 archived inquiries that end
-`concluded`, 3 state a refutation in their reason and arrive `confirmed`. Accepted.
+**Migrate's literals hold old AND current words.** Each of S2's literal census (41) is a **key** — a word an archive
+holds, translated from (`"line_of_inquiry"`, `valueRenames`' left side, a test's archived SQL): it stays; a
+**current** word — a translation target, an id or anchor kind, a table, arm or field of the current schema
+(`mapped("avenue", …)`, `valueRenames`' right side, `remap.go:51` and its field lists at `:76–109`): it is renamed;
+or English (`line` as a text line). After the rename the census prints keys and English only (in the PR). A missed
+current word fails an archive test (identity refuses what the current schema does not declare), `TestValueRenames`
+(a target the enum lacks), `anchor.ID` (a panic) or `anchor.IDPattern`, below.
+
+**[MODIFY] `anchor.IDPattern` refuses a kind name it does not know (N24).** Today it drops one silently
+(`anchor.go:113–123`), so a stale `"avenue"` in `remap.go:51`'s list would stop `currentID` matching an inquiry id,
+and migrate would re-hash the ids of migrated records with no error. It panics naming the name, as `anchor.ID` does
+(`anchor.go:90`), for every kind. Five callers pass constants to a package-level `regexp.MustCompile`, so a stale
+name fails every test of its package; `seatprobe/build.go:411` passes a kind at run time and panics there. [NEW]
+`TestIDPatternRefusesAKindItDoesNotKnow` (`kinds_test.go`): an unknown name panics; restoring the silent drop turns
+it red (§V.2 step 3).
 
 **Tests, each on an archived run** ([MODIFY] `inquiryfate_test.go`, `inquiryrename_test.go`, `shardarchive_test.go`):
 
@@ -363,174 +364,149 @@ and views are not read by migrate; ids keep their value (§II). `remap.go`'s lis
 | M12 (arm table) | b9 with a planted `motion_direction` row, as `avenuerename_test.go:40–48` plants a ruling today | the arm and its `inquiry_id` arrive; no archive holds such a row, and the test says so |
 | M13, M14 | `2026-09-09_is-91-prime-b`; `2026-10-12_is-91-prime-wave-b` | 2 and 7 findings (and wave-b's 3 mints) arrive `about_kind = inquiry` |
 | M15 | b9 | no migrated proposal holds a reason; every later act's reason is byte-equal to the archive's |
-| all | `TestEveryArchivedRunRenders`, `everyarchive_test.go` | 20 runs, 0 refusals; the three `migrate/testdata/archived_*.golden` files are expected unchanged — a changed line is read, not regenerated past |
+| all | `TestEveryArchivedRunRenders`, `TestEveryArchivedRunMigrates` | S3; the three `migrate/testdata/archived_*.golden` files are expected unchanged — a changed line is read, not regenerated past |
 
-### III.6 The terms registry, the fate lists and the one check on fate values
+### III.6 The terms registry, the fate wording, and duty against mechanics
 
 **[MODIFY] `terms.json`, then `vocabdoc`.** The entry at `:924` becomes **inquiry**: "An inquiry is one question the
 research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what
-became of it, ruled on by the chair, and reviewed against the report once per epoch." Its three bans (`:933–947`)
-and two collisions (`:949–957`) are [DELETE]d and nothing is added: `terms.Load` requires of an entry a term, a
-seat and a one-sentence definition, and `TestVocabularyProse` requires no entry at all (§II), so no collision note
-for `question`, `record` or `inquest` is owed. The collision at `:838` reads "an inquiry's state keeps the word".
-`retiredSurfaces` (`T/integration/surface/retiredsurfaces_test.go`) gains no row. Plain English that holds the
-noun is reworded because S1's noun grep must print nothing: "BOTH AVENUES" in
-`scripts/agentgen/src/blue-researcher.md:53,58` becomes "BOTH ROUTES".
+became of it, ruled on by the chair, and reviewed against the report once per epoch." Its bans and collisions
+(`:933–957`) are [DELETE]d after §III.3 pass 1, and nothing is added (`TestVocabularyProse` requires no entry). `:838`
+reads "an inquiry's state keeps the word"; `retiredSurfaces` gains no row; "BOTH AVENUES"
+(`scripts/agentgen/src/blue-researcher.md:52,57`) becomes "BOTH ROUTES".
 
-**Every place the fates are enumerated by hand.** The census — lines outside generated files and tests that hold
-three or more of the seven status words:
+**Fate wording, by the least machinery (N9).** The census of authored non-test lines holding three or more of the
+seven status words (`W` the seven joined by `|`; `awk` counts the seven in each lowered line) —
+`git grep -lIiE "$W" | live | authored | awk '$0 !~ /(_test[.]go|[.]mjs)$|\/testdata\//' | xargs git grep -nIiE "$W" --`
+— prints 23 lines in 13 files, in three kinds. Nothing new is generated and no test is added.
 
-```
-W='proposed|pursued|deferred|declined|abandoned|concluded|refuted'
-git grep -lIiE "$W" | grep -vE "$NOT|$GEN|_test\.go$|\.mjs$" | xargs git grep -nIiE "$W" -- \
-  | awk '{l=tolower($0); n=0; split("proposed pursued deferred declined abandoned concluded refuted",w," ");
-          for(i in w) n+=(index(l,w[i])>0); if (n>=3) print}'
-```
+1. **The sections constant stays a hand copy**: `debate.js:196` (`INQUIRY_SECTIONS`) restates
+   `report.InquirySections`, and `TestBluesPromptsNameTheSectionsTheToolComposes` (`report/assemble_test.go:408`)
+   already holds the rendered blue-lane prompt to it byte for byte; `debate.test.mjs:694` is renamed with it.
+2. **Static lists are reworded to need no list**: `cli/seat/verbs.go:292` ("every inquiry with its current fate
+   and the reason for it"), `record.proto:244` ("an inquiry: its question, its hypothesis and each fate recorded on
+   it"), `terms.json:925` (above), `F/docs/seat-command-triggers.md:89`, `references/report_template.md:74`,
+   `report/docs.go:137` ("every inquiry on the record: the path each one took…").
+3. **Passages that teach particular fates stay hand-written**, renamed by the sweep and held by review:
+   `cli/seat/help/move.md:7` (→ `record.md`), the `(means)` at `record.proto:431,436,444,981`, `view/view.go:807`,
+   and the prompt text `debate.js:215` and `:225` — the prompt two only as far as they state duty (below). The rest
+   are code (`report/assemble.go:636`, `ran()`, pinned per fate) and comments, renamed or deleted under N7.
 
-→ 23 lines in 13 files. Seven are a list of the set, and each stops being hand-kept:
+**Residue.** A value legal for another verb's `--as`, and an old word after `--as` in a help page, are held by the
+landing sweep only; a fate word in running prose is held by review alone after merge.
 
-| Site | What it is | It becomes |
-|---|---|---|
-| `T/internal/cli/seat/verbs.go:281` | the view table's two descriptions of the inquiries view, rendered into `show --help` and all 11 agent definitions | [MODIFY] joined from `record.InquiryStatusNames()` — the pattern of `view/view.go:760` |
-| `debate.js:189` (`AVENUE_SECTIONS`) | which fate prints under which heading: a hand copy of `report.AvenueSections`, which `report/layout.go:253` already writes from the layout rows | [MODIFY] `enginegen` writes `INQUIRY_SECTIONS` into its first generated region from `report.InquirySections`; the hand copy asserted at `debate.test.mjs:692` is [DELETE]d — `report/assemble_test.go:440` holds the rendered prompt to the Go sentence |
-| `record.proto:244` (the event type's `(means)`) | an annotation, which no generator can write | reworded to need no list: "an inquiry: its question, its hypothesis and each fate recorded on it" |
-| `terms.json:925` → `F/docs/vocabulary.md:529` | the definition | the definition above, which lists none |
-| `F/docs/seat-command-triggers.md:89` | a docs row | "what became of an inquiry you already proposed"; the verb's page prints the fates |
-| `references/report_template.md:74` | a template comment restating the sections rule | names the section's content without the list; the rule is `INQUIRY_SECTIONS` |
-| `T/internal/report/docs.go:137` | the run index blurb | "every inquiry on the record: the path each one took…" |
-
-The other sixteen are not lists of the set. One is code: `report/assemble.go:636` (`ran()`), pinned per fate by
-`TestEveryAvenueFateIsSaidOnItsRow`. Seven are comments, which reach no seat: `cli/blue/avenue.go:49` (deleted,
-§III.2), `cli/chair/avenue.go:19`, `record/avenue.go:154–155`, `record.proto:1335`, `report/assemble.go:612,679`.
-Eight are prose that names particular fates to say what each means: `cli/seat/help/move.md:7`, `debate.js:208`
-and `:218`, `record.proto:431,436,444,981`, `view/view.go:807`. With them go the sentences under the census's
-threshold, which S1's 366 lines hold — among them `cli/blue/avenue.go:141`, `seatprobe/boards.go:367`,
-`scorecard/scorecard.go:453`. All of these are renamed by the sweep and held by review.
-
-**[NEW] `TestEveryFateNamedToASeatIsAFate`** (`T/integration/surface/fatenames_test.go`).
-
-- **Reads.** For every leaf of the cobra tree that takes `--as`, the seat-filable names of the enum that verb
-  binds to it: `record.Names(record.SeatFilable(…))` over `record.EnumFields` for the verb's event type, and
-  `record.MotionVerdicts` for a motion's subject. No word is written in the test.
-- **Scans.** `vocabularySources(t)` — the file set of `TestVocabularyProse`: constitutions, the protocol skill with
-  its references and templates, help pages, the engine's prompt text, seat-facing Go string literals, the proto's
-  annotation text, both READMEs — plus the fourteen rendered prompts (`F/tests/simulator/testdata/prompt-*.golden`).
-- **Fails.** An `--as <value>` pair (the pair pattern of `promptverbs_test.go`, which a backticked flag never
-  matches) whose value — each side of a `|` — is not a fate of ITS verb. The verb is the command path nearest
-  before the pair in the same sentence or code line, matched as whole words, longest path first, so `inquiries`
-  is not `inquiry` and `motion inquiry rule` is not `inquiry record`. A pair with no command path before it is
-  left to `TestEveryEnumValueNamedInAPromptIsAccepted`, which passes a value legal for any enum bound to `--as`.
-  The test prints the pairs it attributed to each verb and fails when the scan yields no source.
-- **What it reads today.** No fate:
-  `git grep -nIoE -- '--as [A-Za-z][A-Za-z_|-]*' -- $F/agents $F/skills $T/internal/{cli,flags,view,record} README.md $F/README.md $F/tests/simulator/testdata ':!*_test.go' ':!*.pb.go' ":!$T/internal/record/migrate"`
-  finds 95 pairs and one holds a fate — a comment (`cli/blue/avenue.go:49`), which the scan does not read. Seats
-  learn the fates from the verb's page, which cobra prints from the enum; the check holds the next sentence that
-  tells a seat to type one.
-- **Mutation rows**, in the style of `TestVocabularyProseMutations`, each at a path the scan reads — one a prompt
-  golden — and a row whose path it does not read fails. Fail: `inquiry record --id Q-1 --as zzfate`;
-  `inquiry record --as confirmed|zzfate`; `inquiry record --as endorsed` (legal for `motion inquiry rule`, so the
-  any-enum gate passes it); "read `show inquiries`, then for each of your inquiries run `inquiry record --as
-  granted`" (a plural and a view name take no part in the attribution); `motion inquiry rule --as confirmed`.
-  Pass: `inquiry record --as confirmed`; `motion inquiry rule --as endorsed`. By hand, once: delete the test's
-  call to the scanner and it fails on the empty scan; delete `INQUIRY_STATUS_REFUTED` in a scratch copy and
-  regenerate — the two rendered lists lose the word with no edit.
-- **The blind spot, stated.** A fate word that is neither an `--as` value nor inside a rendered list — the eight
-  prose sites above, and any sentence like them — is held by the sweep at landing and by nothing afterwards.
+**Duty against mechanics (N18).** Each sentence the sweep renames in a prompt, constitution source or skill is read
+for what it is: **mechanics** (what a flag holds, what a value means, what the tool refuses or prints, which command
+to type) or **duty** (what the seat must do, when, and why). Mechanics MOVE to the verb's help page — its Long, a
+flag's usage, or the enum's `(means)` — unless the page already says it, and leave the prompt. The known case is
+`debate.js:215`: what each fate means moves to `inquiry record`'s page through `(means)`; the prompt keeps the duty
+(record each approach with the fate it had, owe no fate an entry, keep the question free of a predicted result). The
+PR lists each moved sentence. No renamed text says what anything was called or narrates an incident.
 
 ### III.7 The byte budget for prompts
 
-`go -C T test -count=1 -run TestNoSeatPromptGrowsPastItsCeiling -v ./internal/seatprobe/` at `e8f6ec9c`. `inquiry`
-is 1 byte longer than `avenue`, `inquiries` 2 longer than `avenues`, `underway` 1 longer than `pursued`,
-`confirmed` equal to `concluded`, `question` 4 longer than `line`.
-
-| Seat (gated) | Now / ceiling | Concept words in the prompt | Delta | After |
-|---|---|---|---|---|
-| `red-chair` | 10,131 / 10,200 | `debate.js:1030`: "VOTE EVERY AVENUE", "answer every line", "once per line", "BLUE'S AVENUES", "becomes of the avenue" | +1 +3 +3 +2 +1 = **+10** word for word; "answer each against that pass" in place of "answer every line…" makes it +1 | ≤ 10,141 |
-| `red-lens-evidence` | 12,289 / 12,300 | none: it takes no steelman clause (`debate.js:1011`), and its prompt goldens hold 0 concept words | 0 | 12,289 |
-| `blue-respond` | 11,170 / 15,200 | `:1035`: 2 × avenue, 1 × AVENUES, 2 × line, 1 × pursued | ≤ +12 | ≤ 11,182 |
-| `judge` | 7,056 / 7,900 | none | 0 | 7,056 |
-
-Prompts no ceiling measures: the logic and dark-side lens prompts gain about 23 bytes from the steelman clause; the
-frontier and lane prompts shrink, because "ITS LINE IS THE QUESTION the avenue asks" loses its first half. No
-ceiling is raised. The implementer pastes the `-v` table before and after.
+At `54e0ff06` (`go -C T test -count=1 -run TestNoSeatPromptGrowsPastItsCeiling -v ./internal/seatprobe/`): red-chair
+8,489 / 10,200, red-lens-evidence 10,570 / 12,300, blue-respond 9,456 / 15,200, judge 5,889 / 7,900. The word
+changes add a few bytes each and N18's moved mechanics remove more; no ceiling is raised; the PR pastes the table after.
 
 ### III.8 Order of work, and the check that closes each step
 
-By kind, never a repository-wide text replace (R1). No step begins until the one before it passes its check. One
-commit per step. The PR merges by merge commit, as every PR here does, so an intermediate commit is not required
-to pass: step 1 closes on a tree that does not compile, and its commit message says so.
+By kind, never a repository-wide text replace (R1); each step begins once the one before passes its check; one commit
+per step. The PR merges by merge commit, so step 1 may close on a tree that does not compile, and says so. A check
+closes on a COUNT read from its output (the kit's `tally`) with no `FAIL`, never on `ok` or an exit code; commands
+holding a pipe are in the block after the table, by step number.
 
 | # | Step | The check that closes it |
 |---|---|---|
-| 0 | Baseline at the base: commit `T/devcmd/archdump` (N12), touching no other path; dump every archive's assembled set to `~/.claude/scratch/inquiry-rename/before/`; build `…/bin/feov-record-25`; save each `--help` page of the group | 20 directories, 0 `REFUSALS` lines, 0 `ASSEMBLE_ERROR` |
-| 1 | Schema: `record.proto` from §III.4; `protogen`; `requirements.json` to 26 and `schemagen`; the two views by hand | `go -C T build ./internal/record/recordpb/` passes and nothing that imports it does, which is step 2's worklist |
-| 2 | Go identifiers, led by the compiler. First the names under the rule, generated and hand-written alike: for each name §III.4's census prints, `gofmt -l -w -r '<Old> -> <New>'` over `git ls-files "$T/*.go" ':!*.pb.go'` — it rewrites whole identifiers, declarations and uses, and no comment or literal; a name that holds the noun belongs to this concept wherever it stands, which is what makes a rename without types safe. Then the names outside the rule (`.Line`, `GetLine`, `Moved`, `avenueMoves`, a parameter): each declaration by hand, and `go -C T vet ./... 2>&1 \| grep -E '\.go:[0-9]+'` — which type-checks tests as well — names every reader, a package at a time as its imports come to compile; repeat until it prints nothing | `go -C T build ./... && go -C T vet ./...`; `UPDATE_GOLDENS=1 go -C T test -count=1 ./internal/record/recordsql/ ./internal/record/recordpb/`, then every changed line of `schema.sql` read: `SELECT name FROM sqlite_master GROUP BY name HAVING count(*) > 1` is empty, and `inquiry_state` reads FROM `"inquiry"` |
-| 3 | Migrate: §III.5, tests first | the tests of §III.5's table but its last row, by `-run` on their names; S6; S2 prints nothing. The package whole — whose render tests print words step 4 moves — closes at step 4 |
-| 4 | CLI: verbs, flags, JSON keys, refusals, N10, literals in the 17 CLI files and the record folds | `go -C T test -count=1 ./internal/cli/... ./internal/record/...`, migrate whole among them; each of `inquiry propose`, `inquiry record`, `inquiry review`, `motion inquiry rule`, `show inquiries` rendered with `--help` and read against step 0's page for a lost instruction |
-| 5 | Terms, the rendered lists and the fate check: §III.6; then `enginegen`, `agentgen`, `vocabdoc` | `go -C T test -count=1 -run 'TestVocabularyProse\|TestEveryFateNamedToASeatIsAFate' ./integration/surface/`: both pass, the first with no stale mask; the mutation rows fail and pass as written; `agentgen -check` and gate `enginegen` are clean |
-| 6 | Seat-facing prose: help pages, `(means)`, the four prompt constants, constitutions, skill sources, references — sentence by sentence (§III.3), inside the byte budget (§III.7); then `enginegen`, `agentgen`, `vocabdoc` | `TestEveryFateNamedToASeatIsAFate`, `TestNoSeatPromptGrowsPastItsCeiling -v`, `TestTheSeatPromptsNameNoVerb`, `TestNoPromptGrowsItsCommandCatalogue`, `TestDetailsDoNotRestateTheFlagsCobraPrints` pass; `agentgen -check` and gate `enginegen` are clean |
-| 7 | Goldens: for each, write the PREDICTED file in scratch — the old golden with §III.4's word map applied by a script — regenerate (both commands of §II's table), and `diff` predicted against regenerated | every line the two disagree on is read and explained in the PR; lines that agree are the rename and nothing else |
+| 0 | Baseline at the base: extract the kit and the archives (Appendix); commit `T/devcmd/archdump` (N12), touching no other path; dump every archive's assembled set to `$X/before/`; build `$X/bin/feov-record-E0`; render the help pages under their base names (block, 4); run N7's worklist (block, 0); classify fates and earlier names (§III.3 pass 1) | one directory per tarball, 0 `REFUSALS` lines, 0 `ASSEMBLE_ERROR`; the classification covers every line S1 command 2 and the worklist print |
+| 1 | Schema: `record.proto` from §III.4; `protogen`; `requirements.json` to `E` and `schemagen`; the two views by hand | `go -C T build ./internal/record/recordpb/` passes and nothing that imports it does, which is step 2's worklist |
+| 2 | Go identifiers, led by the compiler. First the names under the rule, generated and hand-written alike: ONE `gofmt -l -w -r '<Old> -> <New>'` pass PER DISTINCT NAME over `git ls-files "$T/*.go" ':!*.pb.go'`, the names from §III.4's word census; a pass rewrites whole identifiers, declarations and uses, and no comment or literal. Then the names outside the rule (`.Line`, `GetLine`, `Moved`, `avenueMoves`, a parameter), each declaration by hand, the readers from `go vet` (block, 2) until it prints nothing | `go -C T build ./... && go -C T vet ./...`; `UPDATE_GOLDENS=1 go -C T test -count=1 ./internal/record/recordsql/ ./internal/record/recordpb/`, then every changed line of `schema.sql` read: `SELECT name FROM sqlite_master GROUP BY name HAVING count(*) > 1` is empty, and `inquiry_state` reads FROM `"inquiry"` |
+| 3 | `anchor.IDPattern` refuses an unknown kind (N24), test first; then migrate: §III.5, tests first; the literal census classified | `TestIDPatternRefusesAKindItDoesNotKnow` and §III.5's tests by name (block, 3); S6; S2 prints nothing and its literal census only keys and English. The package whole — whose render tests print words step 4 moves — closes at step 4 |
+| 4 | CLI: verbs, flags, JSON keys, refusals, N10, literals in the 17 CLI files and the record folds; the five help pages written so each teaches its verb on its own (N18): what `--question`, `--hypothesis`, `--method`, `--id`, `--as` (every fate, with its meaning) and `--reason` hold, what is refused, and what to do next | `cli` and `record` whole (block, 4), migrate among them; each page rendered from the built binary and read twice: against step 0's page — or the latest base's (§III.9) — for a lost instruction; and by N19's fresh reader, to closure, its final questions and answers saved for the PR |
+| 5 | Terms and the fate wording: §III.6's registry entry and items 1–3; then `agentgen`, `vocabdoc` | the two named tests (block, 5), `TestVocabularyProse` with no stale mask; `TestBluesPromptsNameTheSectionsTheToolComposes` holds the sections copy; `agentgen -check` clean |
+| 6 | Seat-facing prose: help pages, `(means)`, the prompt constants, constitutions, skill sources, references — sentence by sentence (§III.3), each in a prompt, constitution or skill classified duty or mechanics and mechanics moved (§III.6, N18); then `enginegen`, `agentgen`, `vocabdoc` | the six named tests (block, 6); `agentgen -check` and gate `enginegen` clean; each moved sentence found on its destination page by rendering it |
+| 7 | Goldens: for each, write the PREDICTED file in scratch — the old golden through the kit's word map, `awk -v map=1 -f $K/wordmap.awk` — regenerate (both commands of §II's table), and `diff` predicted against regenerated; then §III.3 pass 4 | every line the two disagree on is read and explained in the PR — of the 226 golden lines the map renames, 51 also hold `line`, `move`, `--reason` or `direction`, which `map=1` leaves for this reading, with N18's rewrites; lines that agree are the rename and nothing else |
 | 8 | The release fuzz, by hand: the three files, the drive (`fuzz_test.go:1938–1988`, `:5121–5163`), the coverage key per recording verb, the oracle's messages | §V.5; and by mutation: take `refuted`, then `underway`, out of `nextInquiryStatus`'s rotation — the coverage gate turns red each time |
-| 9 | Simulator, docs, comments, tests: `debate.test.mjs`, the relay fixture (N16), the prompt goldens, `F/README.md`, `F/docs/*.md`, the class registry line, §III.2's deletions | `node --test plugins/frank-exchange-of-views/tests/simulator/*.test.mjs`; gates `decisions`, `mjsparity`, `archaeology`; **S1 holds** |
-| 10 | §V.1 to §V.5 in full, then the smoke (§V.6) | S2–S8 |
+| 9 | Simulator, docs, comments, tests: `debate.test.mjs`, the relay fixtures (N16), the prompt goldens, `F/README.md`, `F/docs/*.md`, the class registry line, `law/precedents.md`'s three lines, §III.2's deletions | the simulator suite (`fail 0`); gates `decisions`, `mjsparity`, `archaeology`; **S1 holds** |
+| 10 | §V.1 to §V.5 in full; `scripts/universe.sh`'s build record (N25), its own commit; then the smoke (§V.6) | S2–S8; each once-only check recorded by `ran` after its reading (§III.9) |
+
+```
+git grep -lI '' | live | xargs awk -v old="$OLD" -f $K/pairs.awk | sort > $X/worklist   # 0: N7's worklist, run once
+go -C $T vet ./... 2>&1 | command grep -E '[.]go:[0-9]+'      # 2: the readers; repeat until it prints nothing
+go -C $T test -count=1 -v -run '^(<the names, joined by |>)$' ./internal/record/migrate/ 2>&1 | tally   # 3: PASS = names
+go -C $T test -count=1 ./internal/cli/... ./internal/record/... 2>&1 | tally   # 4: ok + ? = `go -C $T list` of the two
+pages $X/help/after inquiry inquiries record                                   # 4: six renders (step 0: before, avenue avenues move)
+go -C $T test -count=1 -v -run '^(TestVocabularyProse|TestEveryEnumValueNamedInAPromptIsAccepted)$' ./integration/surface/ 2>&1 | tally  # 5: PASS 2
+go -C $T test -count=1 -v -run '^(TestEveryEnumValueNamedInAPromptIsAccepted|TestNoSeatPromptGrowsPastItsCeiling|TestTheSeatPromptsNameNoVerb|TestNoPromptGrowsItsCommandCatalogue|TestDetailsDoNotRestateTheFlagsCobraPrints|TestBluesPromptsNameTheSectionsTheToolComposes)$' ./integration/surface/ ./internal/seatprobe/ ./internal/cli/ ./internal/report/ 2>&1 | tally   # 6: PASS 6
+```
 
 ### III.9 Landing without a freeze (N13), with the smoke inside it (N15)
 
-**Rate, measured** (2026-10-13, the 72 hours before `1bd4332f`):
-`git log --first-parent --since='72 hours ago' --format=%ct origin/main -- $F/skills/research-protocol/scripts/debate.js $F/agents $T/internal/difftest/testdata $T/internal/record/recordpb $F/tests/simulator/testdata $T/internal/terms scripts/agentgen/src $T/internal/cli/seat/help`
-prints 38 of main's 59 commits — the ones touching a carrier this rename regenerates. The gap between two of them
-has median 80 minutes and is at least 30 minutes in 31 of 37 cases, 45 in 29, 60 in 23, 75 in 20, 90 in 17, 120
-in 13. Of the 38, 26 added a line holding the noun or a fate word to an authored seat-facing source — a sample
-taken while this concept was being worked on, so an upper figure.
+The rename lands at epoch 26 first and the slimming workstream's wave C schema PR builds on it at 27 (gblock,
+2026-10-14; context, not a ruling of this plan): `E0 + 1` derives that. On merge the implementer messages that
+workstream with the merge commit and epoch, naming each open PR whose `gh pr diff` holds a match of `OLD`.
 
-**The attempt window W, measured at the base** (16 cores, warm build cache, load 0.4 rising to 7.6 under the run
-itself; `FEOV_*` unset; `TMPDIR`, `GOTMPDIR` under `~/.claude/scratch/inquiry-rename/tmp`): step 3 takes 50 seconds
-(the Go goldens 43), step 5 takes 187 (the test subset 107, the gates 78) and CI 5.5 minutes (§II) — 10 minutes of
-machine. The rest is reading: conflicts, what main added, the golden diff. It is known only once an attempt
-exists, so the implementer times attempt 1 and writes W in the PR; the estimate below takes W = 30.
+**One attempt**, begun at the first push and again each time main moves:
 
-**One attempt**, begun at the first push and again each time main moves a carrier:
-
-1. `gh pr view <n> --json state` → `OPEN`. Note the merge base (`git merge-base HEAD origin/main`), then
-   `git fetch origin main && git merge origin/main` — a merge, never a rebase.
-2. Conflicts. In an AUTHORED source (`record.proto`, `views.go`, Go, `debate.js` outside its generated regions,
-   `scripts/agentgen/src`, `terms.json`, help pages, docs): take main's hunk and re-apply §III.4's names to it. In a
-   GENERATED file: resolve nothing by hand — take either side; step 3 overwrites it.
-3. Regenerate, in this order: `protogen`; `schemagen`; `go -C T build ./...` (the compiler names every identifier
+1. `gh pr view <n> --json state` → `OPEN`; note `git merge-base HEAD origin/main`; `git fetch origin main && git
+   merge origin/main` — never a rebase.
+2. Conflicts: in an AUTHORED source take main's hunk and re-apply §III.4's names; in a GENERATED file take either
+   side, and step 4 overwrites it.
+3. **The epoch is main's plus one, on every attempt.** Main may bump the epoch for another shape change; both sides
+   then make the same edit, git merges it cleanly, and two shape changes would share one epoch. The kit's `epoch`
+   (on the working tree) exits non-zero on a mismatch, naming both; then `eventSchema` is set to `E0 + 1`,
+   `schemagen` re-run and `feov-record-E0` rebuilt in a base image of the new base. The re-bump is a hand change on
+   `requirements.json`, so every once-only check re-arms (N28). §III.5's rows still map each old word straight to the current one.
+4. Regenerate, in this order: `protogen`; `schemagen`; `go -C T build ./...` (the compiler names every identifier
    main added under an old name); `enginegen`; `agentgen`; `vocabdoc`; both golden commands of §II's table.
-4. Read what main ADDED:
-   `git diff <the noted merge base>..origin/main | grep -E '^\+[^+]' | grep -iE 'avenue|conclud|pursu|\blines?\b|\bmov(e|ed|es|ing)\b'`
-   — every line it prints is a new sentence that may be in the old words, and is classified as §III.3 classifies.
-   Then S1 holds and S2 prints nothing; `git diff HEAD -- '*.golden' '*.sql'` is read — every changed line is one
-   main changed.
-5. The fast subset: `go -C T vet ./...`;
-   `go -C T test -count=1 ./internal/record/... ./internal/cli/... ./internal/report/ ./internal/view/ ./internal/seatprobe/ ./internal/difftest/ ./integration/surface/`;
-   `node --test plugins/frank-exchange-of-views/tests/simulator/*.test.mjs`;
-   `go -C scripts run ./check -only archaeology,frontmatter,decisions,rulesweep,validatejson,vocabdoc,enginegen,agentgen,golden`
-   → fail count 0 in each.
-6. Commit the merge, check `gh pr view <n> --json state` again, push, and read CI by fail count. **Merge when CI is
-   green and the smoke stands** (N13, N15). If main moves a carrier first, that is the next attempt; a main commit
-   that touches no carrier needs only steps 1, 4 and 5.
+5. Read what main ADDED: `added <the noted merge base> > $X/added` (each added line as `path:line:` in
+   `origin/main`'s copy); then `command grep -iE "$OLD" $X/added; command grep -E "$LINE|$MOVE" $X/added`. A hit is
+   opened with `git show origin/main:<path> | sed -n '<n>p'`, found in the merged tree by its text and classified as
+   §III.3 does. Then S1 — all four commands, so a path or an unreadable file main added is seen — and S2 hold, and
+   `git diff HEAD -- '*.golden' '*.sql'` shows only lines main changed. Residue: an old phrase main splits across two
+   lines is read by review alone (N23).
+6. The fast subset, no `FAIL` in each: `go -C T vet ./...`; `go -C T test -count=1 ./internal/record/...
+   ./internal/cli/... ./internal/report/ ./internal/view/ ./internal/seatprobe/ ./internal/difftest/ ./integration/surface/ 2>&1 | tally`;
+   the simulator suite; `go -C scripts run ./check -only archaeology,frontmatter,decisions,rulesweep,validatejson,vocabdoc,enginegen,agentgen,golden`.
+7. Commit, check `gh pr view <n> --json state`, push, wait for CI. **Merge only through `bash $K/premerge.sh <n>`**
+   (Appendix), run IMMEDIATELY before the merge it ends in (N13, N15, N21). It refuses unless `origin/main` is the
+   commit this attempt merged, the branch's epoch is main's plus one, the PR is open at this head, every check passed
+   with `feov-record (ubuntu-latest)` among them, and every once-only check stands; a refusal begins a new attempt (a
+   pending check: wait and run it again). `--match-head-commit` refuses a head that moved after the check. Residue: a
+   commit landing on `main` in the seconds between its fetch and the merge (§II: no branch protection) is made loud
+   by its last line, and S1 and the epoch check then run on `origin/main` and a defect is fixed forward.
 
-**What gates a later attempt, and what runs once.** On every attempt the gate is step 5 and CI's suite, which runs
-the whole of `T`'s tests (§II). Run once, on the first complete tree, and again only when a merged commit touches
-the re-arm surface: §V.2 steps 1 to 3; §V.3 and §V.4 on `T/internal/{record,report,view}`; §V.5 on a record, flag
-or enum change; §V.6 as below. **`before` at a moved base** (§V.3): `archdump` exists only on the branch, and step
-0's commit touches no other path and is written against the base's names, so
-`git worktree add --detach ~/.claude/scratch/inquiry-rename/base origin/main`, `git -C …/base cherry-pick <step 0's commit>`,
-and the dump runs from there; it fails to compile, loudly, if main changed what it calls.
+**Once-only checks (N21).** Every attempt runs steps 3, 5, 6, CI and step 7. S6 (§V.2 step 3), the dumps (§V.3 steps
+2–3), §V.4, the fuzz's two legs (§V.5) and the smoke (§V.6) each run once and, when passed and read, are recorded by
+`ran <check> <commit>` from a clean tree; the smoke's record binds to its build (N25). `ran s6|dumps|e0 HEAD` and
+`ran fuzz <commit>` bind by discipline: no test log names its commit, so each is recorded at once, on the one it ran
+on. A record holds the branch's HAND CHANGES at that commit — the kit's `hand`: its diff from the main it merged, on a
+diff no configuration reshapes, generated output and enginegen's two regions of `debate.js` dropped, each `-`/`+` pair
+cancelled whose sides are equal under the word map (N26). It refuses when a diff fails or a changed text file yields
+no line: a reshaped diff is never read as no change. `stands <check>` passes only while the hand changes on that
+check's surface (`surf`) are the same at HEAD. A pair the map does not cancel — a conflict resolution beyond main's
+hunk renamed, an article it leaves wrong, any edit beside a renamed word — re-arms each check whose surface holds its
+file; main's commits, the map's rename of a line main added and regeneration re-arm none (residue: N26). Main's own
+changes reach these checks only through CI and the nightly release fuzz, as for every other PR. Later attempts take
+§V.2 step 1 from CI's `feov-record (ubuntu-latest)`; N19's readings repeat when a page rendered from HEAD differs from
+the page last read.
 
-**The smoke, once.** It runs on the tree of the first attempt, beside that attempt's CI. A later attempt re-arms
-it only when it changed a seat-facing carrier BY HAND — a conflict resolved in step 2, or a line step 4 renamed,
-in a file `vocabularySources(t)` reads (§III.6), a cobra command or flag declaration, or `record.proto`. A clean
-merge and a regeneration change nothing the rename wrote, and re-arm nothing.
+**A surface is every file its check reads or mutates**, so a hand change to any of them re-arms it. Three reads derive
+it, re-run at step 10: what the check runs (`go -C T list -deps -test` of its packages stays inside `T/internal`;
+`command grep -rn 'repotree\.' T/releasegate/fuzz` adds `debate.js` and `hooks/hooks.json`; `universe.sh` stages
+`plugins/` whole through `universe-manifest.py` and `marketplace.json`, and setup reads
+`feov-memory/class-registry.json`); what it mutates (S6's registry rows, `anchor.IDPattern`, propose's `body.Reason`,
+and their killing tests in `migrate/`, `anchor/` and `cli/inquiry_test.go`); and the source and generator of each
+generated file it reads, which `hand` drops (`requirements.json`, `class-registry.json`,
+`scripts/{protogen,schemagen,classgen,agentgen,vocabdoc}`, `T/devcmd/enginegen`). `run-archive/` is on S6's, the
+dumps' and §V.4's, a tarball by its blob. No surface holds `law/`: setup mirrors `<cwd>/law`, and a universe's `src`
+has none.
 
-**Estimate.** An attempt lands when no carrier moves on main within its window. A plain attempt, W = 30, lands 84%
-of the time. The first attempt carries the smoke — the universe's build, about 45 minutes of run, the reading of
-its outcome — so its window is 75 to 90 minutes and it lands about half the time (54% to 46%): the smoke roughly
-triples the window. When it does not land, the next attempt re-arms the smoke in at most 26 of 38 cases. Expected:
-about 1.5 smokes and two or three attempts, two to four hours from the finished tree. Past that, the attempt is
-begun at a quiet hour; nothing in §V is cut.
+**A base image** — `before` (§V.3), the before-pages (step 4), `feov-record-E0`, §V.2's `ok` count — is made at the
+commit compared against, in a worktree of its own under the main checkout, removed after: `b=$(git rev-parse --short
+origin/main); D=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.claude/worktrees/base-$b; git
+worktree add --detach "$D" origin/main`, step 0's file written in from `git show <step 0's commit>:$T/devcmd/archdump/main.go`
+(it fails to compile, loudly, if main changed what it calls), and `git worktree remove --force "$D"` after.
 
 ## IV. Risk & Mitigation
 
@@ -538,108 +514,386 @@ Graded likelihood × impact × cost to mitigate (L/M/H).
 
 | # | Risk | L × I × cost | Mitigation, and the step or gate that carries it |
 |---|---|---|---|
-| R1 | A mechanical rename damages what it cannot read: a view lands on a table's name, a phrase is split across literals, an article is left wrong, a check passes for the wrong reason | H × H × M | Step 2's `sqlite_master` check; step 2 renames whole identifiers and touches no literal; §III.3 pass 4 reads rendered text; S6 deletes each translation; `git grep -nIE '\ba inquir'` → 0 at step 9. No step uses a repository-wide text replace |
-| R2 | Main moves under the branch, and adds a sentence in the old words | H × M × M | §III.9: generated files are never resolved by hand; step 4 reads what main added on every attempt and S1 is re-run; `gh pr view --json state` before every push |
-| R3 | After the merge, new prose names a fate or a surface that does not exist | M × L × L | An identifier fails to compile; an `--as` value fails `TestEveryFateNamedToASeatIsAFate`; a list of the fates is rendered and cannot be stale; a verb or view a prompt names fails `TestEveryVerbNamedInAPromptExists` or `TestEveryViewNamedInAPromptExists`. A fate word in running prose is held by review alone (§III.6, the blind spot) |
-| R4 | The epoch bump refuses every live run, scratch record and universe at epoch ≤ 25 | H × M × L | That is the rule working. The PR names `feov-record migrate --from <old> --to <new>`; a running session keeps the binary it loaded. §V.4 proves the refusal's wording and the migration on a real epoch-25 record |
-| R5 | `inquiry record` reads as a noun phrase beside "the record" and `feov-record`; `inquest` is read for `inquiry` on the chair's root help | M × L × L | The group's Short and the page's menu line open with the act ("say what became of an inquiry you proposed"); the Shorts are read side by side in step 4; the seat-probe board (`seatprobe/boards.go:367`) and the smoke (§V.6), which runs before merge, show whether a seat finds the verb |
-| R6 | A translation is wrong and silent: `question` filled from the wrong column, or M15 dropping a real reason | M × H × L | M1/M3's test compares `question` with the archived `line` byte for byte; M15's asserts every non-proposal reason is byte-equal; S4 diffs every assembled document of 20 archives |
-| R7 | A deleted passage carried the only statement of a live instruction, or a deleted docs row is one `decisions` reads | M × M × L | Each deletion is read for an instruction first, and the instruction restated in the present tense (§III.2); gate `decisions` at step 9; the PR lists every deleted passage by file and line range |
-| R8 | The fate check reads nothing, or attributes a value to the wrong verb | M × M × L | It reads no fate value in today's text and the plan says so (§III.6); its mutation rows are what prove it fires — a path the scan does not read fails, a value legal for another verb fails, the empty scan fails |
-| R9 | The chair prompt passes its ceiling (59 bytes spare after +10); a lens prompt no ceiling measures grows unseen | L × M × L | §III.7's wording; gate `TestNoSeatPromptGrowsPastItsCeiling`; the fourteen simulator prompt goldens show every byte in the diff |
-| R10 | `archaeology` fails a renamed line for wording it already carried; `deadcode` fails a helper the rename orphans; the `manual` golden hoists a block repeated on two pages into SHARED and renumbers | M × L × M | The first two are loud and in `check`; an archaeology hit is fixed in the sentence, never allow-listed. Step 7's predicted-against-regenerated diff isolates a renumbering |
-| R11 | `propose` leaving the prose channel loses a protection the channel gave (the quoting rule, the heredoc trim) | L × M × L | `flags.Text` attaches the same rule (`flags/register.go:23–32`); `TestEveryFreeTextVerbShowsTheQuotingRule` holds it; the trim (`Prose.Read`) is applied to `--question` and pinned by a test that passes a value ending in a newline |
-| R12 | Another plugin or an outside reader depends on a FEOV record word | L × M × L | None does: §III.2's not-carriers command → 0, re-run in §V.1 |
-| R13 | The smoke is run in a universe that is not the branch, bills API credits, or is repeated on every attempt | M × M × L | §V.6: the installed copy is grepped for the change, the auth method is read before the run, the run's own binary is named by absolute path; §III.9 re-arms the smoke only on a hand change to a seat-facing carrier |
+| R1 | A mechanical rename damages what it cannot read, or a check passes for what it cannot see: a view lands on a table's name, a phrase is split across literals or lines, an old word sits inside a longer name or a path, an article is left wrong | H × H × M | Step 2's `sqlite_master` check; step 2 renames whole identifiers from §III.4's word census and touches no literal; S1's substring and name-boundary patterns, path names and unread files; step 0's joined-pair worklist; §III.3 pass 4 reads rendered text; S6 deletes each translation; `git grep -nIE '\ba inquir'` → 0 at step 9. No step uses a repository-wide text replace (N20) |
+| R2 | Main moves under the branch: adds a sentence in the old words, bumps the epoch, or lands between a green CI and the merge | H × M × M | §III.9: generated files are never resolved by hand; step 3 fails an attempt whose epoch is not main's plus one; step 5 reads what main added and S1 is re-run whole; `premerge.sh` merges only while main is the commit the attempt merged, with `--match-head-commit`, and makes the remaining seconds-wide window loud; a once-only check re-runs on the branch's own hand change, and main's changes are CI's (N21, residue) |
+| R3 | After the merge, new prose names a fate or a surface that does not exist | M × L × L | An identifier fails to compile; an `--as` value no enum holds fails `TestEveryEnumValueNamedInAPromptIsAccepted`; a verb or view a prompt names fails `TestEveryVerbNamedInAPromptExists` or `TestEveryViewNamedInAPromptExists`; the open PRs holding an old word are named on merge (§III.9). A fate word in running prose, a value legal for another verb's `--as`, and an old word after `--as` in a help page are held by review alone (§III.6, residue) |
+| R4 | The epoch bump refuses every live run, scratch record and universe below `E` | H × M × L | That is the rule working. The PR names `feov-record migrate --from <old> --to <new>`; a running session keeps the binary it loaded. §V.4 proves the refusal's wording and the migration on a real record at `E0` |
+| R5 | `inquiry record` reads as a noun phrase beside "the record" and `feov-record`; `inquest` is read for `inquiry` on the chair's root help; `question` is read as the run's | M × L × L | The group's Short and the page's menu line open with the act ("say what became of an inquiry you proposed"); the Shorts are read side by side in step 4; N19's reader asks whose question `--question` holds; the seat-probe board (`seatprobe/boards.go:367`) and the smoke (§V.6) show whether a seat finds the verb |
+| R6 | A translation is wrong and silent: `question` filled from the wrong column, M15 dropping a real reason, a current word left in a migrate literal | M × H × L | M1/M3's test compares `question` with the archived `line` byte for byte; M15's asserts every non-proposal reason is byte-equal; §III.5's literal census; `anchor.IDPattern` panics on a stale kind name (N24); S4 diffs every assembled document of every archive |
+| R7 | A deleted passage carried the only statement of a live instruction, or a deleted docs row is one `decisions` reads; a moved mechanic lands on no page | M × M × L | Each deletion is read for an instruction first, and the instruction restated in the present tense (§III.2); gate `decisions` at step 9; the PR lists every deleted passage and every moved sentence; step 6 renders each destination page |
+| R8 | A seat prompt passes its ceiling; a lens prompt no ceiling measures grows unseen | L × M × L | §III.7; gate `TestNoSeatPromptGrowsPastItsCeiling`; the fourteen simulator prompt goldens show every byte in the diff |
+| R9 | `archaeology` fails a renamed line for wording it already carried; `deadcode` fails a helper the rename orphans; the `manual` golden hoists a block repeated on two pages into SHARED and renumbers | M × L × M | The first two are loud and in `check`; an archaeology hit is fixed in the sentence, never allow-listed. Step 7's predicted-against-regenerated diff isolates a renumbering |
+| R10 | `propose` leaving the prose channel loses a protection the channel gave (the quoting rule, the heredoc trim) | L × M × L | `flags.Text` attaches the same rule (`flags/register.go:23–32`); `TestEveryFreeTextVerbShowsTheQuotingRule` holds it; the trim (`Prose.Read`) is applied to `--question` and pinned by a test that passes a value ending in a newline |
+| R11 | Another plugin or an outside reader depends on a FEOV record word | L × M × L | None does: §III.2's not-carriers command → 0, re-run in §V.1 |
 
 ## V. Verification Plan
 
-Before any FEOV command: `unset $(env | grep -o '^FEOV_[A-Z_]*')`; `GOTOOLCHAIN=local`. Each check names what
-re-arms it. Logs go to `~/.claude/scratch/inquiry-rename/logs/`.
+First, the Appendix's two extraction commands. Before any FEOV command: `unset $(env | grep -o '^FEOV_[A-Z_]*')`;
+`GOTOOLCHAIN=local`; `. $K/kit.sh`. Logs: `$X/logs/`; the kit's `tally` counts a run's top-level
+`--- PASS/FAIL/SKIP` and its `ok`, `?` and `FAIL` package lines, keeping the log as `last.log`.
 
 ### V.1 Generators and censuses · re-armed by any edit to a source in §II's table, and by every merge of main
 
 1. Each generator of §II re-run, then its check: `protogen` and `vocabdoc` leave `git diff --exit-code` clean;
-   `schemagen -check` and `go -C T run ./cmd/feov-record --schema` → 26; `agentgen -check` and
-   `go -C scripts run ./check -only enginegen` → clean.
-2. S1 holds — the noun grep prints nothing, the fate grep equals the list in the PR — and S2 prints nothing; S1's
-   excluded set → only §III.2's prefixes. R12's command → 0.
+   `schemagen -check`; `go -C T run ./cmd/feov-record --schema` → `E` (§III.9 step 3); `agentgen -check`, gate `enginegen`.
+2. S1, S2 and R11's command, as §I and §III.2 state them.
 
-### V.2 Suites · steps 1 to 3 on the first complete tree and on their re-arm surface (§III.9); step 4 and CI on every attempt
+### V.2 Suites · steps 1 and 2 on the first complete tree, step 3 (S6) re-armed under N21; step 4 and CI on every attempt
 
-1. `go -C T test -count=1 -timeout 90m ./... > …/tools.log 2>&1`, then `grep -c '^FAIL' …/tools.log` → 0 and
-   `grep -c '^ok' …/tools.log` equal to what the same command prints in a detached worktree at
-   `git merge-base HEAD origin/main` — the merged base, never a number written here. The branch adds no test
-   package.
-2. `go -C scripts test -count=1 ./...` → 0 FAIL. `node --test plugins/frank-exchange-of-views/tests/simulator/*.test.mjs` → `fail 0`.
-3. **S6, by hand** · re-armed by any change under `T/internal/record/migrate`. Delete, one at a time, each of
-   M1–M15's registry rows, the `question` rename, the two `InquiryStatus` rows and the `inquiryArm` field rename;
-   run `go -C T test -count=1 ./internal/record/migrate/`. Each deletion fails a named test; the PR lists the
-   pairs. A deletion nothing fails is a missing assertion, fixed before merge. The same for N10: restore
-   `body.Reason` in `propose`, and a named test fails.
+1. `go -C T test -count=1 -timeout 90m ./... 2>&1 | tally` → no `FAIL`, and `ok` equal to the same command's count
+   in the base image (§III.9); the branch adds no package.
+2. `go -C scripts test -count=1 ./... 2>&1 | tally` → no `FAIL`. `node --test plugins/frank-exchange-of-views/tests/simulator/*.test.mjs` → `fail 0`.
+3. **S6, by hand.** Delete, one at a time, each of M1–M15's registry rows, the `question` rename, the two
+   `InquiryStatus` rows and the `inquiryArm` field rename; likewise restore `body.Reason` in `propose` (N10) and
+   `IDPattern`'s silent drop (N24). After each, `go -C T test -count=1 ./internal/record/migrate/ ./internal/anchor/
+   ./internal/cli/ 2>&1 | tally` prints a `FAIL` naming a test — `TestAProposalHoldsAQuestionAndNoReason` and
+   `TestIDPatternRefusesAKindItDoesNotKnow` for the last two (the PR lists the pairs); one that prints none is a
+   missing assertion, fixed before merge. Then `ran s6 HEAD`.
 4. `go -C scripts run ./check > …/check.log 2>&1` → the summary line's failed count is 0. `qlty` and `actionlint`
    run only in CI: read the PR's checks by fail count.
 
-### V.3 Real data: every archived run, before and after (S3, S4) · re-armed by any change under `T/internal/{record,report,view}`
+### V.3 Real data: every archived run, before and after (S3, S4) · steps 2–3 re-armed under N21
 
-1. Before, at the base: `go -C T run ./devcmd/archdump -archives run-archive -out ~/.claude/scratch/inquiry-rename/before`
-   (rebuilt at a moved base as §III.9 says).
-2. After, on the branch: the same with `-out …/after` → 20 directories; `cat …/after/*/REFUSALS | wc -l` → 0;
-   `ls …/after/*/ASSEMBLE_ERROR` → none.
-3. Apply the word map to a COPY of `before` (`wordmap.py`, kept in scratch and pasted in the PR) — in `report.md`
-   the `**Fate:**` word; in `inquiries.md` its file name, nav label, title, the two fate headings and the `path:`
-   words; in `README.md` and the link bars the file name and label; in `run.md` and the dashboard the two metric
-   names and the status keys; in `debate.md` and `judgments.md` the verb and subject words where an act is named —
-   then `diff -r …/before-mapped …/after` → **no output**. No archive rests at `proposed`
-   (`grep -c '^## proposed' …/before/*/avenues.md` → 0 each), so N10 changes no document. A line that differs is a
-   defect.
+1. **S3.** `go -C T test -count=1 -v -run '^(TestEveryArchivedRunRenders|TestEveryArchivedRunMigrates)$'
+   ./internal/record/migrate/ 2>&1 | tally` → `PASS: 2`, no `FAIL`; `command grep -c '^    --- PASS:
+   TestEveryArchivedRunMigrates/' …/last.log` equals `git ls-files 'run-archive/*.tar.gz' | wc -l` (20 today).
+2. `go -C T run ./devcmd/archdump -archives run-archive -out $X/before` in the base image (§III.9); then on the
+   branch with `-out $X/after` → one directory per tarball, `cat $X/after/*/REFUSALS | wc -l` → 0, no
+   `$X/after/*/ASSEMBLE_ERROR`.
+3. **S4.** The kit's `docs` (`before` with `avenues.md` named `inquiries.md`, `diff -r` against `after`, each pair
+   cancelled by `hand`'s map, N27) → **no output**: migrate re-reads no prose, so a seat's own text is byte-equal, and
+   each word the tool renders is the rename; a printed line is a defect, fixed before merge. No archive rests at
+   `proposed` (`command grep -c '^## proposed' $X/before/*/avenues.md` → 0 each), so N10 changes no document. Then
+   `ran dumps HEAD`.
 4. Read by hand, in `after`: `2026-10-11_is-91-prime-m20/report.md`'s three inquiry sections and `inquiries.md`
    whole; `2026-09-11_is-91-prime-b9/inquiries.md` (`## underway (7)`).
 
-### V.4 Real data: a record at epoch 25 is refused, then migrates (S5) · re-armed by any change to the epoch or to `migrate`
+### V.4 Real data: a record at `E0` is refused, then migrates (S5) · re-armed under N21
 
-1. With `feov-record-25` (step 0), make a real epoch-25 record: extract `run-archive/2026-10-12_is-91-prime-wave-b.tar.gz`
-   to `~/.claude/scratch/inquiry-rename/e24/` and run `feov-record-25 migrate --from …/e24/<run> --to …/e25/wave-b`.
-2. Branch binary: `feov-record show --run …/e25/wave-b --seat-id red-chair inquiries` → **refused**; the message
-   names epoch 25, epoch 26 and `migrate`.
-   `go -C T test -count=1 -run TestEveryArchivedRunBehindThisBinaryIsRefusedUnmigrated ./internal/record/migrate/`
-   passes over all 20 archives.
-3. `feov-record migrate --from …/e25/wave-b --to …/e26/wave-b` → exit 0, 0 refusals in `inputs/migration.json`.
-4. `feov-record show --run …/e26/wave-b --seat-id red-chair inquiries --json | jq '[.inquiries[].status] | group_by(.) | map({(.[0]): length}) | add'`
-   → `{"confirmed": 4}`; `… | jq '.inquiries[0] | keys'` holds `question` and not `line`.
+1. With `feov-record-E0` (built in the base image, rebuilt on a re-bump), make a real record at `E0`: extract
+   `run-archive/2026-10-12_is-91-prime-wave-b.tar.gz` to `$X/archived/`, then
+   `feov-record-E0 migrate --from $X/archived/<run> --to $X/at-e0/wave-b`.
+2. Branch binary: `feov-record show --run …/at-e0/wave-b --seat-id red-chair inquiries` → **refused**, naming `E0`,
+   `E` and `migrate`; `TestEveryArchivedRunBehindThisBinaryIsRefusedUnmigrated` (migrate) passes over every archive.
+3. `feov-record migrate --from …/at-e0/wave-b --to …/at-e/wave-b` → exit 0, 0 refusals in `inputs/migration.json`.
+4. `feov-record show --run …/at-e/wave-b --seat-id red-chair inquiries --json | jq '[.inquiries[].status] | group_by(.) | map({(.[0]): length}) | add'`
+   → `{"confirmed": 4}`; `… | jq '.inquiries[0] | keys'` holds `question` and not `line`. Then `ran e0 HEAD`.
 
-### V.5 The release fuzz · re-armed by any record, flag or enum change (this is one)
+### V.5 The release fuzz · re-armed under N21 (an epoch re-bump is a hand change)
 
 1. `FEOV_RELEASE_GATE=1 go -C T test -count=1 -v -timeout 40m ./releasegate/fuzz/ > …/fuzz.log 2>&1` →
-   `grep -o 'fuzzed [0-9]* debate runs · [0-9]* failed' …/fuzz.log` prints `fuzzed 40 debate runs · 0 failed`;
-   `grep -c -- '^--- FAIL'` → 0; `grep -c -- '^--- SKIP'` → 0 (a skip means the variable was not set). The coverage
-   table shows `inquiry record` driving `underway`, `confirmed`, `refuted`, `deferred`, `declined`, `abandoned`.
+   `command grep -o 'fuzzed [0-9]* debate runs · [0-9]* failed' …/fuzz.log` prints `fuzzed 40 debate runs · 0 failed`;
+   `^--- FAIL` and `^--- SKIP` (the variable unset) count 0; the coverage table shows `inquiry record` driving
+   `underway`, `confirmed`, `refuted`, `deferred`, `declined`, `abandoned`.
 2. `FEOV_RELEASE_GATE=1 FUZZ_N=6 FUZZ_C=6 go -C T test -count=1 -race -v -timeout 30m -run TestFuzzDebate ./releasegate/fuzz/`
-   → `grep -c 'DATA RACE'` → 0. A red in either is run on `origin/main` before the branch is blamed.
+   → `command grep -c 'DATA RACE'` → 0. A red in either is run on `origin/main` before the branch is blamed. When
+   both pass on one commit, `ran fuzz <that commit>`.
 
-### V.6 The engine runs · BEFORE merge (N15) · re-armed by a hand change to a seat-facing carrier (§III.9)
+### V.6 The engine runs · BEFORE merge, on the first complete tree (N15) · re-armed under N21
 
-1. `scripts/universe.sh build` from the finished branch. Prove the universe carries the change:
-   `grep -rl 'inquiry record' <the installed plugin copy>` prints the chair's and blue's agent definitions, and
-   S1's two commands over that copy print only `tools/internal/record/migrate/`, `tools/research/`, the OCR corpus
-   and the English list.
-2. Two traps, each checked before the run. `CLAUDE_CONFIG_DIR=<universe>/config claude auth status` shows
-   `"authMethod": "claude.ai"`: an isolated config directory that lost the subscription bills API credits. Every
-   `feov-record` call from outside the run names the run's own binary by absolute path: a bare `feov-record`
-   reaches the host's install cache at the earlier epoch and is refused.
+1. `scripts/universe.sh build` from the finished branch at a clean commit `S`, which it writes, with the time it
+   finished, to `<WORKDIR>/built-from` (N25). Prove the universe carries the change, with `command grep -r` (the
+   installed copy is no git repository, where `git grep` errors and prints nothing): `-rlIi 'inquiry record'` over
+   `<the installed plugin copy>/agents` prints the chair's and blue's definitions; `-ac 'inquiry record'` over its
+   `bin/feov-record` is non-zero; `-rlIiE "$OLD"` over the copy prints only `tools/internal/record/migrate/`,
+   `tools/research/`, the OCR corpus and files holding English-list lines.
+2. Before the run: `CLAUDE_CONFIG_DIR=<universe>/config claude auth status` shows `"authMethod": "claude.ai"` (a
+   config that lost the subscription bills API credits), and every `feov-record` call from outside the run names
+   the run's own binary by absolute path (a bare one reaches the host cache at the earlier epoch and is refused).
 3. `SMOKE=1 scripts/universe.sh run "<topic>"`, detached, its stream to a log: one lane, `haiku` on both tiers,
-   `--mint-budget 3 --k-max 2`. `scripts/universe.sh watch` reads the board meanwhile.
-4. It reaches an outcome, VERIFIED or CEILING, before the PR merges. Read in it: the frontier seat's first
-   `inquiry propose` carries `--question` and is accepted first time; at least one
-   `inquiry record --as confirmed|refuted`; every refusal a seat met on the `inquiry` group (`feov-record
-   dashboard`, the run's `ops log`), each with the sentence that taught the seat what it typed; the chair's
-   `inquiry review`; `inquiries.md` in the report set; the outcome and wall clock against the last smoke. A
-   refusal that traces to the rename is fixed, and the fix re-arms the smoke.
+   `--mint-budget 3 --k-max 2`; `scripts/universe.sh watch` reads the board.
+4. It ENDS verified or ceiling before the PR merges. Read: the frontier seat's first `inquiry propose` carries
+   `--question` and is accepted first time; at least one `inquiry record --as confirmed|refuted`; every refusal on the
+   `inquiry` group (`feov-record dashboard`, `ops log`) with the help page or prompt sentence that taught what the
+   seat typed; the chair's `inquiry review`; `inquiries.md` in the report set; outcome and wall clock against the last
+   smoke. A refusal that traces to the rename is fixed; the fix, a hand change, re-arms the smoke. After the reading,
+   `ran smoke S <WORKDIR>/src/research/<run>/records/record.db`, which refuses any other record (the archived wave-b
+   `record.db`: no `built-from` above it); `premerge.sh` refuses until it has recorded.
 
 ### V.7 The auditor gate
 
 `/prosthetic-conscience:plan-audit plans/avenue-becomes-inquiry.md` — approved on the second consecutive PASS, or by
-gblock when every remaining gap is `local`. Its NOTES travel into the PR, with: S1's English list and its excluded
-set, the deleted passages (R7), the three §III.3 classification tables, the §III.7 size table before and after,
-the S6 pairs, `final.py` and its output, W, the attempt and smoke counts (§III.9), the smoke's outcome, and the
-censuses of §III.2 re-run on the PR's base.
+gblock when every remaining gap is `local`. Its NOTES travel into the PR with S1's English list and excluded set, the
+fate and earlier-name, `line` and `move` tables, the migrate literal classes, the deleted passages and moved
+sentences (R7), N19's final questions and answers, the §III.7 table after, the S6 pairs, the kit's output and
+`archives.py`'s, main's rate of change and the attempt and smoke figures (N17), the smoke's outcome, and §III.2 re-run.
+
+## Appendix: the kit (N22)
+
+Extracted before any census, from the repository root, and never committed; the second command extracts the 20
+archives for `archives.py`:
+
+```
+K=~/.claude/scratch/inquiry-rename/kit; mkdir -p "$K" && awk -v k="$K" '/^## Appendix/ {a = 1} a && /^#### `[^`]+`$/ {f = k "/" substr($2, 2, length($2) - 2); next} a && f != "" && /^```/ {o = !o; if (!o) f = ""; next} o {print > f}' plans/avenue-becomes-inquiry.md && ls "$K"
+for t in run-archive/*.tar.gz; do d=~/.claude/scratch/inquiry-rename/arch/$(basename "$t" .tar.gz); mkdir -p "$d" && tar -xzf "$t" -C "$d"; done
+```
+
+#### `kit.sh`
+
+```sh
+# The kit of plans/avenue-becomes-inquiry.md: `. ~/.claude/scratch/inquiry-rename/kit/kit.sh` from the repository root.
+# The agent shell's grep is a function that can refuse a pattern and print nothing: every grep here is the system one.
+unset -f grep; set -o pipefail
+F=plugins/frank-exchange-of-views; T=$F/tools; DJ=$F/skills/research-protocol/scripts/debate.js
+K=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); X=${X:-~/.claude/scratch/inquiry-rename}
+export NOT="^(plans|law|research|run-archive)/|^feov-memory/[a-z]+-scorecard[.]md\$|^$T/(research|internal/record/migrate|internal/tessocr/testdata/corpus|internal/fetchcache/testdata/bodies)/"
+export GEN="^$F/agents/|[.]golden\$|[.]pb[.]go\$|_gen[.]go\$|[.]sha256\$|/testdata/(schema[.]sql|payload-keys[.]txt)\$|^$F/docs/vocabulary[.]md\$|^$F/skills/(research-protocol|adversarial-audit)/SKILL[.]md\$"
+OLD='avenue|conclud|pursu|direction|lines?[-_ ]?of[-_ ]?inquir'
+any() { echo "(^|[^A-Za-z0-9])$1([^a-z0-9]|\$)|(^|[^A-Z0-9])$2([^a-z0-9]|\$)|(^|[^A-Z0-9])$3([^A-Z0-9]|\$)"; }
+LINE=$(any 'lines?' 'Lines?' 'LINES?'); MOVE=$(any 'mov(e|ed|es|ing)' 'Mov(e|ed|es|ing)' 'MOV(E|ED|ES|ING)')
+# live: drop what is not the live tree, law/precedents.md excepted (the judge reads it); authored: drop generated output
+live() { awk -F: '$1 !~ ENVIRON["NOT"] || $1 == "law/precedents.md"'; }; authored() { awk -F: '$1 !~ ENVIRON["GEN"]'; }
+[ -z "$(git status --porcelain)" ] || echo 'UNCOMMITTED: git grep reads the working tree, not the commit' >&2
+
+s1() {
+  git grep -lIi avenue | live                                                         # 1 the noun: no output
+  git grep -IiE 'conclud|pursu|direction|lines?[-_ ]?of[-_ ]?inquir' | live | sort    # 2 fates, earlier names: the English list
+  git ls-files | live | command grep -iE "$OLD"                                       # 3 path names: no output
+  comm -23 <(git ls-files | live | sort) <(git grep -lI '' | sort)                    # 4 what git grep cannot read: 14 names
+}
+oldwords() { go run "$K/oldwords.go" -re "$@"; }   # Go by token (name, ident, comment, literal); any other file by line (text)
+
+# tally: a test run read by its counts, never by its exit code or an `ok`
+tally() { mkdir -p $X/logs; tee $X/logs/last.log | awk '/^--- /{n[$2]++} /^(ok|\?|FAIL)[ \t]/{n[$1]++} END {for (k in n) print k, n[k]}'; }
+
+# reasonsites: every site passing --reason to propose, a call broken across two lines included ($1: the group's word)
+reasonsites() { git grep -lIE propose -- plugins scripts | xargs perl -0777 -ne 'while (/(?:'"$1"'\W{1,4}propose\b|"propose")[^\n]*?(?:\n[^\n]*?)?--reason/g) { my $n = () = substr($_, 0, $-[0]) =~ /\n/g; print "$ARGV:", $n + 1, "\n" }'; }
+
+# pages DIR NOUN PLURAL RECORD-VERB: the five help pages, rendered from a binary built here, for the seat whose surface holds each
+pages() { local d=$1 n=$2 pl=$3 rec=$4 s v; mkdir -p "$d"; go -C $T build -o "$d/feov-record" ./cmd/feov-record || return
+  while read -r s v; do "$d/feov-record" --seat-id $s $v --help > "$d/$s-${v// /-}.txt" || echo "NO PAGE: $s $v" >&2
+  done <<< "blue-respond $n propose
+blue-respond $n $rec
+blue-respond show $pl
+red-chair $n review
+red-chair motion $n rule
+red-chair show $pl"; }
+
+# gd: a diff no configuration reshapes — prefixes, colour, an external or textconv driver, rename pairing, a relative root
+gd() { git -c diff.noprefix=false -c color.diff=never -c diff.external= diff --no-ext-diff --no-color --no-textconv \
+  --no-renames --no-relative --src-prefix=a/ --dst-prefix=b/ "$@"; }
+# added BASE: each line origin/main added since BASE, as path:line: in origin/main's copy (the header state keeps an
+# added line that itself begins with +)
+added() { gd --unified=0 "$1"..origin/main | awk '/^diff --git /{h=1; next}
+  h && /^\+\+\+ /{f=substr($0,7); next} /^@@ /{h=0; split($3,a,/[+,]/); n=a[2]; next}
+  !h && /^\+/{print f":"n": "substr($0,2); n++}'; }
+# epoch [REV]: fails unless the branch's epoch (at REV; default the working tree) is origin/main's plus one
+epoch() { local e0 e; e0=$(git show origin/main:$F/requirements.json | jq -e .eventSchema) || return
+  if [ -n "${1:-}" ]; then e=$(git show "$1:$F/requirements.json" | jq -e .eventSchema); else e=$(jq -e .eventSchema $F/requirements.json); fi || return
+  [ "$e" -eq $((e0 + 1)) ] || { echo "EPOCH MISMATCH: branch $e, origin/main $e0" >&2; return 1; }; }
+
+# hand REV: the branch's own hand changes at REV — its diff from the main it merged, generated files and enginegen's two
+# regions of debate.js dropped, each -/+ pair the word map explains cancelled — as sorted path:-text and path:+text, and
+# path:=mode blob for a binary, empty or mode-only change. Each diff's status is read, and a changed text file that
+# yields no line (a reshaped diff) is refused rather than read as no change.
+hand() { local b d=$X/ran/hand.$$; mkdir -p $X/ran; b=$(git merge-base "$1" origin/main) || return
+  gd --numstat "$b" "$1" > $d.n && gd -U0 "$b" "$1" -- . ":!$DJ" > $d.t && gd -U99999 "$b" "$1" -- "$DJ" > $d.j || return
+  { awk '/^diff --git /{h=1} h && /^(--- a|\+\+\+ b)\//{f=substr($0,7)} /^@@ /{h=0; next} !h && /^[-+]/{print f ":" $0}' $d.t
+    awk -v f="$DJ" 'BEGIN{h=1} /^@@ /{h=0; next} h{next}
+      /^.\/\/ BEGIN GENERATED/{g=1} !g && /^[-+]/{print f ":" $0} /^.\/\/ END GENERATED/{g=0}' $d.j
+    awk -F'\t' '$1 == "-" || $1 + $2 == 0 {print $3}' $d.n | while read -r p; do
+      git ls-tree "$1" -- "$p" | awk -v p="$p" '{print p ":=" $1 " " $3; n++} END {if (!n) print p ":=deleted"}'; done
+  } | authored > $d.l || return
+  awk -F'\t' -v j="$DJ" '$1 != "-" && $1 + $2 > 0 && $3 != j {print $3}' $d.n | authored | sort -u > $d.c
+  cut -d: -f1 $d.l | sort -u | comm -23 $d.c - > $d.m
+  command grep -q "	$DJ\$" $d.n && [ ! -s $d.j ] && echo "$DJ" >> $d.m
+  [ ! -s $d.m ] || { echo "hand: $(wc -l < $d.m) changed file(s) yield no diff line: $(head -1 $d.m)" >&2; rm -f $d.*; return 1; }
+  awk -f "$K/wordmap.awk" $d.l | sort; rm -f $d.*; }
+# surf CHECK: the hand changes on a once-only check's surface — the files it reads or mutates (§III.9), code by r and
+# tests by t; G is the sources and generators of the generated files a built binary holds, which hand drops
+surf() { local r t='^$' G="^$F/requirements[.]json\$|^feov-memory/class-registry[.]json\$|^scripts/(protogen|schemagen|classgen)/"
+  case $1 in
+  s6) r="^$T/internal/|^$T/go[.](mod|sum)\$|^run-archive/|$G"; t="^$T/internal/(record/migrate|anchor)/|^$T/internal/cli/inquiry_test[.]go\$";;
+  dumps) r="^$T/(internal|devcmd/archdump)/|^$T/go[.](mod|sum)\$|^run-archive/|$G";;
+  e0) r="^$T/(cmd|internal)/|^$T/go[.](mod|sum)\$|^run-archive/2026-10-12_is-91-prime-wave-b[.]tar[.]gz\$|$G";;
+  fuzz) r="^$T/(cmd|internal|devcmd/enginegen)/|^$T/go[.](mod|sum)\$|^$F/hooks/|^$DJ\$|$G"; t="^$T/releasegate/";;
+  smoke) r="^plugins/|^scripts/(universe[.]sh|universe-manifest[.]py)\$|^scripts/(agentgen|vocabdoc)/|^[.]claude-plugin/marketplace[.]json\$|$G";;
+  *) echo "surf: no check $1" >&2; return 1;; esac
+  awk -F: -v r="$r" -v t="$t" '$1 ~ r && $1 !~ /_test[.]go$|\/testdata\// || $1 ~ t'; }
+# ran CHECK REV [RECORD]: CHECK passed on REV, recorded AFTER its reading, from a clean tree. The smoke takes its run's
+# record.db and is recorded only when the run is a universe's (its path before /src/research/), that universe's build
+# names REV, the record states REV's epoch, the run began after the build, and it ENDED verified or ceiling.
+ran() { local u c t; surf "$1" < /dev/null || return
+  [ -z "$(git status --porcelain)" ] || { echo "ran: the tree is dirty" >&2; return 1; }
+  if [ "$1" = smoke ]; then u=${3:?the run record.db}; u=${u%%/src/research/*}
+    { [ "$u" != "$3" ] && read -r c t < "$u/built-from"; } 2>/dev/null || { echo "ran: no universe build record for $3" >&2; return 1; }
+    [ "$c" = "$(git rev-parse "$2^{commit}")" ] || { echo "ran: the universe was built from $c, not $2" >&2; return 1; }
+    python3 -I - "$3" "$(git show "$2:$F/requirements.json" | jq -e .eventSchema)" "$t" <<'PY' || return
+import sqlite3, sys
+db, want, built = sys.argv[1:]; c = sqlite3.connect('file:' + db + '?mode=ro', uri=True)
+e, = c.execute('select epoch from schema_epoch').fetchone(); s, = c.execute('select min(ts) from events').fetchone()
+o = c.execute('select verdict from outcome').fetchone()
+if str(e) != want: sys.exit(f'ran: the record states epoch {e}, the branch {want}')
+if (s or '')[:19] <= built[:19]: sys.exit(f'ran: the run began {s}, not after the build at {built}')
+if not o or o[0] not in ('verified', 'ceiling'): sys.exit(f'ran: the smoke ended {o[0] if o else "with no outcome"}: not recorded')
+PY
+  fi; hand "$2" > $X/ran/$1.new && mv $X/ran/$1.new $X/ran/$1.hand && git rev-parse "$2" > $X/ran/$1.at; }
+# stands CHECK: CHECK passed, and the branch's own hand changes on its surface are those it passed on
+stands() { [ -s $X/ran/$1.at ] || { echo "$1: never passed" >&2; return 1; }; hand HEAD > $X/ran/now.hand || return
+  surf $1 < $X/ran/$1.hand > $X/ran/a && surf $1 < $X/ran/now.hand > $X/ran/b || return
+  cmp -s $X/ran/a $X/ran/b || { echo "$1: re-armed by a hand change since $(cat $X/ran/$1.at)" >&2; return 1; }; }
+
+# docs: S4 — every assembled document, before against after, file name mapped, each -/+ pair cancelled by hand's map
+docs() { [ -d $X/before ] && [ -d $X/after ] || return; rm -rf $X/named && cp -r $X/before $X/named || return
+  for f in $X/named/*/avenues.md; do mv "$f" "${f%/*}/inquiries.md"; done
+  { diff -r $X/named $X/after; [ $? -le 1 ]; } | awk '/^diff -r /{f=$3; sub(/.*\/named\//, "", f); next} /^[<>] /{print f ":" ($1 == "<" ? "-" : "+") substr($0, 3); next}
+    /^[^-0-9]/{print}' | awk -f "$K/wordmap.awk"; }
+```
+
+#### `wordmap.awk`
+
+```awk
+# The word map, case kept: every rename the plan rules. wm holds the words that are renamed in every context (the noun
+# and its compounds, the two fates); wx adds those whose sense the context decides (line, move, direction, --reason).
+# With -v map=1 it prints each line through wm. Otherwise it reads path:-text, path:+text and path:=... lines and cancels
+# each -/+ pair whose two sides, path included, are equal once BOTH are put through wx and their inner runs of blanks
+# collapsed (gofmt realignment); it prints the rest, and any other line, as it came. Mapping both sides is what makes a
+# context-dependent rule safe to hold: a pair cancels only when it differs in nothing but mapped words.
+function wm(s) {
+  gsub(/AAvenue/, "AnInquiry", s); gsub(/BOTH AVENUES/, "BOTH ROUTES", s)
+  gsub(/avenue move/, "inquiry record", s); gsub(/Avenue move/, "Inquiry record", s); gsub(/AVENUE MOVE/, "INQUIRY RECORD", s)
+  gsub(/avenues/, "inquiries", s); gsub(/Avenues/, "Inquiries", s); gsub(/AVENUES/, "INQUIRIES", s)
+  gsub(/avenue/, "inquiry", s); gsub(/Avenue/, "Inquiry", s); gsub(/AVENUE/, "INQUIRY", s)
+  gsub(/pursued/, "underway", s); gsub(/Pursued/, "Underway", s); gsub(/PURSUED/, "UNDERWAY", s)
+  gsub(/concluded/, "confirmed", s); gsub(/Concluded/, "Confirmed", s); gsub(/CONCLUDED/, "CONFIRMED", s)
+  return s }
+function wx(s) { s = wm(s); gsub(/--reason/, "--question", s)
+  gsub(/directions/, "inquiries", s); gsub(/Directions/, "Inquiries", s); gsub(/DIRECTIONS/, "INQUIRIES", s)
+  gsub(/direction/, "inquiry", s); gsub(/Direction/, "Inquiry", s); gsub(/DIRECTION/, "INQUIRY", s)
+  gsub(/moved/, "recorded", s); gsub(/Moved/, "Recorded", s); gsub(/MOVED/, "RECORDED", s)
+  gsub(/moving/, "recording", s); gsub(/Moving/, "Recording", s); gsub(/MOVING/, "RECORDING", s)
+  gsub(/move/, "record", s); gsub(/Move/, "Record", s); gsub(/MOVE/, "RECORD", s)
+  gsub(/line/, "question", s); gsub(/Line/, "Question", s); gsub(/LINE/, "QUESTION", s)
+  return s }
+function key(p, s,   l, t) { s = wx(s); match(s, /^[ \t]*/); l = substr(s, 1, RLENGTH); t = substr(s, RLENGTH + 1)
+  gsub(/[ \t]+/, " ", t); sub(/ $/, "", t); return wx(p) l t }
+map { print wm($0); next }
+!/^[^:]*:[-+]/ { print; next }
+{ i = index($0, ":"); n++; P[n] = substr($0, 1, i); S[n] = substr($0, i + 1, 1); L[n] = substr($0, i + 2); K[n] = key(P[n], L[n]); if (S[n] == "+") plus[K[n]]++ }
+END { if (map) exit; for (k = 1; k <= n; k++) if (S[k] == "-" && plus[K[k]] > 0) { plus[K[k]]--; used[K[k]]++; gone[k] = 1 }
+  for (k = 1; k <= n; k++) if (S[k] == "-") { if (!gone[k]) print P[k] "-" L[k] } else if (used[K[k]] > 0) used[K[k]]--; else print P[k] "+" L[k] }
+```
+
+#### `pairs.awk`
+
+```awk
+# Each line joined to the one before it: comment leaders, a string-literal join and a line-end hyphen stripped.
+# split: an old word only the joined pair holds. narration: an old word or the noun beside a dated or measured marker.
+FNR == 1 { p = "" }
+{ c = $0; sub(/^[ \t]*(\/\/|#|\*|--|>)?[ \t]*["'`]?/, "", c); q = p; sub(/["'`]?[ \t]*[+,]?[ \t]*$/, "", q); h = q; sub(/-$/, "", h)
+  j = tolower(q " " c); if ((j ~ old || tolower(h c) ~ old) && tolower(p) !~ old && tolower(c) !~ old) print "split " FILENAME ":" FNR ":" q " " c
+  if (FILENAME !~ ENVIRON["GEN"] && j ~ (old "|inquir") && (q " " c) ~ /MEASURED|[Mm]easured|20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]|universe-m[0-9]+|#[0-9][0-9][0-9]|\<[0-9]+ of [0-9]+\>|verbatim|retired|CUT|used to|became/) print "narration " FILENAME ":" FNR ":" q " " c
+  p = c }
+```
+
+#### `premerge.sh`
+
+```sh
+# premerge.sh N: run from the repository root IMMEDIATELY before the merge it ends in; any refusal begins a new attempt
+. "$(dirname "$0")/kit.sh"; set -eu; N=$1; H=$(git rev-parse HEAD)
+git fetch -q origin main; B=$(git rev-parse origin/main)
+git merge-base --is-ancestor "$B" HEAD                 # main has not moved since this attempt merged it
+epoch HEAD                                             # the branch's epoch is main's plus one
+[ "$(gh pr view "$N" --json state,headRefOid -q '.state + " " + .headRefOid')" = "OPEN $H" ]
+gh pr checks "$N" --json name,bucket > $X/checks.json  # a pending or failed check exits non-zero: wait, run again
+jq -e 'length > 0 and all(.[]; .bucket == "pass" or .bucket == "skipping")
+  and any(.[]; .name == "feov-record (ubuntu-latest)" and .bucket == "pass")' $X/checks.json > /dev/null
+for c in s6 dumps e0 fuzz smoke; do stands $c; done    # every once-only check passed on the hand changes as they stand
+gh pr merge "$N" --merge --match-head-commit "$H"
+M=$(gh pr view "$N" --json mergeCommit -q .mergeCommit.oid); git fetch -q origin main; [ "$(git rev-parse "$M^1")" = "$B" ]
+```
+
+#### `oldwords.go`
+
+```go
+// oldwords -re PATTERN FILE...: every place PATTERN (case-insensitive) occurs, as path:line:kind:text — kind name (the
+// path), ident, comment or literal in a Go file, read by token so a raw string spanning lines is one literal at its
+// first line; text in any other file, by line. Run: go run ~/.claude/scratch/inquiry-rename/kit/oldwords.go -re ...
+package main
+
+import (
+	"bytes"
+	"flag"
+	"fmt"
+	"go/scanner"
+	"go/token"
+	"os"
+	"regexp"
+	"strings"
+)
+
+func main() {
+	pat := flag.String("re", "", "pattern, matched case-insensitively")
+	flag.Parse()
+	re, bad := regexp.MustCompile("(?i)"+*pat), false
+	for _, path := range flag.Args() {
+		if re.MatchString(path) {
+			fmt.Printf("%s:0:name:%s\n", path, path)
+		}
+		src, err := os.ReadFile(path)
+		if err != nil || !strings.HasSuffix(path, ".go") && bytes.IndexByte(src, 0) >= 0 {
+			fmt.Fprintln(os.Stderr, path, "not read (binary or unreadable):", err)
+			bad = true
+			continue
+		}
+		if !strings.HasSuffix(path, ".go") {
+			for i, l := range strings.Split(string(src), "\n") {
+				if re.MatchString(l) {
+					fmt.Printf("%s:%d:text:%s\n", path, i+1, l)
+				}
+			}
+			continue
+		}
+		fset := token.NewFileSet()
+		var s scanner.Scanner
+		s.Init(fset.AddFile(path, fset.Base(), len(src)), src, func(pos token.Position, msg string) {
+			fmt.Fprintln(os.Stderr, pos, msg)
+			bad = true
+		}, scanner.ScanComments)
+		for pos, tok, lit := s.Scan(); tok != token.EOF; pos, tok, lit = s.Scan() {
+			kind := map[token.Token]string{token.IDENT: "ident", token.COMMENT: "comment", token.STRING: "literal", token.CHAR: "literal"}[tok]
+			if kind != "" && re.MatchString(lit) {
+				fmt.Printf("%s:%d:%s:%s\n", path, fset.Position(pos).Line, kind, strings.ReplaceAll(lit, "\n", `\n`))
+			}
+		}
+	}
+	if bad {
+		os.Exit(2)
+	}
+}
+```
+
+#### `archives.py`
+
+```python
+# archives.py DIR: the archive figures of §III.5 — each archive's acts and final fates on the proposal table, the
+# supersedes_status values, the proposals whose reason is their line, and the concluded ones whose reason states a refutation.
+import sys, os, sqlite3, glob, json, collections, re
+acts, final_all, sup, prop, conc = *(collections.Counter() for _ in range(4)), []
+for d in sorted(glob.glob(sys.argv[1] + '/2026-*')):
+    dbs, rows = glob.glob(d + '/**/record.db', recursive=True), []
+    if dbs:
+        c = sqlite3.connect('file:' + dbs[0] + '?mode=ro', uri=True)
+        rows = list(c.execute('select avenue_id, line, status, supersedes_status, reason from avenue order by event_id'))
+    else:
+        evs = []
+        for n in sorted(glob.glob(d + '/**/*.jsonl', recursive=True)):
+            for ln in open(n, errors='replace'):
+                try: e = json.loads(ln)
+                except ValueError: continue
+                if isinstance(e, dict) and e.get('type') == 'line-of-inquiry':
+                    p = e['payload'] if isinstance(e.get('payload'), dict) else e
+                    evs.append((str(e.get('ts') or e.get('seq') or 0), p))
+        rows = [(p.get('inquiry_id'), p.get('line'), p.get('status'), p.get('supersedes_status'), p.get('reason')) for _, p in sorted(evs, key=lambda x: x[0])]
+    final = {}
+    for aid, line, st, ss, rs in rows:
+        acts[st] += 1; sup[str(ss)] += 1
+        if line: prop['reason == line' if rs == line else 'reason differs or empty'] += 1
+        final[aid] = (st, rs or '')
+    fc = collections.Counter(v[0] for v in final.values()); final_all.update(fc)
+    print(os.path.basename(d), 'db' if dbs else 'jsonl', 'acts', len(rows), 'final', dict(fc))
+    conc += [(os.path.basename(d), a, r) for a, (st, r) in final.items() if st == 'concluded']
+print('acts by status', dict(acts), '· final', dict(final_all), '· supersedes_status', dict(sup), '· proposals', dict(prop))
+hit = [x for x in conc if re.search(r'refut|falsif', x[2], re.I)]
+print('final concluded', len(conc), '· stating a refutation', len(hit)); [print(' ', n, a, r[:160].replace('\n', ' ')) for n, a, r in hit]
+```
