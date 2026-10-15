@@ -1339,13 +1339,17 @@ THE PER-TURN MEASUREMENTS ARE BROUGHT ACROSS, not replayed: they are measurement
 
 THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`), where that moves whole sections and nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its author's order. The manifest's report_order says which: no_report, in_order, reordered, as_written.
 
+THE RUN IS BUILT BESIDE --to AND MOVED INTO PLACE WHEN IT IS COMPLETE. It is built in a directory named .<name>.migrating-<random> next to --to, its files are synced, and it is then moved onto --to, so an interrupted migration leaves --to as it was (on Windows, a --to that was an empty directory may be absent). Its directory entries are synced where the filesystem allows — best effort: a directory that could not be synced is a warning on stderr, and on Windows none are. A leftover .<name>.migrating-<random> directory beside --to is what an interrupted migration left behind; nothing reads it and nothing removes it, and it is safe to delete by hand.
+
+--to must be absent, or an empty plain directory — not a link, a junction or a mount point — in a parent you can write, with a base name short enough to take the .migrating-<random> suffix. A separated record root (FEOV_RECORD_ROOT set) is refused. An existing empty --to is REPLACED, not filled: its mode, owner and attributes become the new directory's. On Unix a shell sitting in it is left in the old directory until it changes directory; on Windows a directory in use cannot be removed, so the move fails after the build and the built run is kept beside --to.
+
 Usage:
   feov-record migrate --from <oldRunDir> --to <newRunDir> [flags]
 
 Flags:
       --accept-loss strings   accept a registry-documented loss for exactly this word (repeatable); the acceptance lands in the manifest
       --from string           the old run directory (its records/record.db file set is read from a copy)
-      --to string             the fresh run directory to write — refused if it already holds anything
+      --to string             the run directory to publish — absent, or an empty plain directory (not a link, junction or mount point) in a writable parent; an empty one is replaced
 ========
 $ feov-record ocr --help
 ocr operates on a document `fetch` has already cached. `ocr pages` rasterises the document and names the images; `ocr read` runs the local OCR engine over them and records the reading. A document whose text layer was already extracted is refused unless --force, because reading pixels re-derives, less accurately, what a file already says.
