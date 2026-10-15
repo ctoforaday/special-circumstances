@@ -350,7 +350,7 @@ func allGapIDs(run Run) (map[string]bool, error) {
 	}
 	rows, err := db.Query(`SELECT "gap_id" FROM "mint"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its gap ids: %w", err)
+		return nil, fmt.Errorf("asking the record for its gap ids: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -379,7 +379,7 @@ func priorClosureEpochs(run Run, gapID string) ([]int, error) {
 	rows, err := db.Query(`SELECT e."epoch" FROM "close" c JOIN "events_w" e ON e."id" = c."event_id"
 	  WHERE c."gap_id" = ? ORDER BY c."event_id"`, gapID)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for prior closures of %s: %w", gapID, err)
+		return nil, fmt.Errorf("asking the record for prior closures of %s: %w", gapID, err)
 	}
 	defer rows.Close()
 	var out []int
@@ -489,7 +489,7 @@ func loadRegistry(run Run) (*classRegistry, error) {
 	}
 	var reg classRegistry
 	if err := json.Unmarshal(b, &reg); err != nil {
-		return nil, fmt.Errorf("record: the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file — removing it does NOT loosen the check any more, it refuses every mint instead", p, err)
+		return nil, fmt.Errorf("the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file — removing it does NOT loosen the check any more, it refuses every mint instead", p, err)
 	}
 	// EVERY ROW CARRIES ITS MATERIAL DEFAULT, and a row without one is refused rather than read as
 	// `by_grade`: the default decides whether the class's open gaps hold the PASS gate. Setup
@@ -497,10 +497,10 @@ func loadRegistry(run Run) (*classRegistry, error) {
 	// refused at open — so a row reaching here without it was written or altered after setup.
 	for _, c := range reg.Classes {
 		if c.MaterialDefault == nil {
-			return nil, fmt.Errorf("record: the class registry at %s has no material_default on class %q — the registry setup staged has been changed since. Restore that row's `material_default` (always | never | by_grade)", p, c.Slug)
+			return nil, fmt.Errorf("the class registry at %s has no material_default on class %q — the registry setup staged has been changed since. Restore that row's `material_default` (always | never | by_grade)", p, c.Slug)
 		}
 		if _, ok := ClassMaterialOf(*c.MaterialDefault); !ok {
-			return nil, fmt.Errorf("record: the class registry at %s gives class %q the material_default %q, which is not always | never | by_grade — the registry setup staged has been changed since. Restore that row's value", p, c.Slug, *c.MaterialDefault)
+			return nil, fmt.Errorf("the class registry at %s gives class %q the material_default %q, which is not always | never | by_grade — the registry setup staged has been changed since. Restore that row's value", p, c.Slug, *c.MaterialDefault)
 		}
 	}
 	return &reg, nil
@@ -529,14 +529,14 @@ func classMaterialFor(run Run, slug string) (cm recordpb.ClassMaterial, found bo
 	var word sql.NullString
 	var n int
 	if err := db.QueryRow(`SELECT count(*), MAX("material_default") FROM "class_new" WHERE "slug" = ?`, slug).Scan(&n, &word); err != nil {
-		return 0, false, fmt.Errorf("record: asking the record how class %s was coined: %w", slug, err)
+		return 0, false, fmt.Errorf("asking the record how class %s was coined: %w", slug, err)
 	}
 	if n == 0 {
 		return 0, false, nil
 	}
 	v, ok := ClassMaterialOf(word.String)
 	if !ok {
-		return 0, false, fmt.Errorf("record: class %s was coined in this run with no material default on the record (%q) — every mint of it would have no materiality to start from", slug, word.String)
+		return 0, false, fmt.Errorf("class %s was coined in this run with no material default on the record (%q) — every mint of it would have no materiality to start from", slug, word.String)
 	}
 	return v, true, nil
 }
@@ -550,10 +550,10 @@ func classMaterialFor(run Run, slug string) (cm recordpb.ClassMaterial, found bo
 func stampClassMaterial(run Run, m *recordpb.Mint) error {
 	if m.ClassMaterial != nil {
 		if !Migrating {
-			return fmt.Errorf("record: a mint's class material is stamped by the tool from the class registry, never supplied by a seat — mint without it")
+			return fmt.Errorf("a mint's class material is stamped by the tool from the class registry, never supplied by a seat — mint without it")
 		}
 		if m.GetClassMaterial() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
-			return fmt.Errorf("record: the archived mint of %s carries a class material that is not always | never | by_grade", m.GetGapId())
+			return fmt.Errorf("the archived mint of %s carries a class material that is not always | never | by_grade", m.GetGapId())
 		}
 		return nil
 	}
@@ -586,7 +586,7 @@ func knownClasses(run Run) (map[string]bool, []string, error) {
 	if db != nil {
 		rows, err := db.Query(`SELECT "slug" FROM "class_new"`)
 		if err != nil {
-			return nil, nil, fmt.Errorf("record: asking the record for coined classes: %w", err)
+			return nil, nil, fmt.Errorf("asking the record for coined classes: %w", err)
 		}
 		defer rows.Close()
 		for rows.Next() {
@@ -610,7 +610,7 @@ func knownClasses(run Run) (map[string]bool, []string, error) {
 	// run (setup.StageClassRegistry); a run without one has lost the file, and accepting every
 	// slug is the worst of the three available answers.
 	if reg == nil {
-		return nil, nil, fmt.Errorf("record: no gap-class registry is staged for this run — every --class would be accepted, so a mint is refused rather than waved through. run-setup stages it from feov-memory/class-registry.json; if this run was built by hand, stage one or coin the classes it needs with `class new`")
+		return nil, nil, fmt.Errorf("no gap-class registry is staged for this run — every --class would be accepted, so a mint is refused rather than waved through. run-setup stages it from feov-memory/class-registry.json; if this run was built by hand, stage one or coin the classes it needs with `class new`")
 	}
 	known, slugs := map[string]bool{}, []string(nil)
 	for _, c := range reg.Classes {
@@ -714,7 +714,7 @@ func validateClass(run Run, mint *recordpb.Mint) error {
 	if len(slugs) < hintN {
 		hintN = len(slugs)
 	}
-	return fmt.Errorf("record: unknown class %s — use a registry slug (e.g. %s, ...) or coin this one first with `class new --class %s --definition ... --neighbor ... --distinguisher ...`",
+	return fmt.Errorf("unknown class %s — use a registry slug (e.g. %s, ...) or coin this one first with `class new --class %s --definition ... --neighbor ... --distinguisher ...`",
 		mint.GetClass(), strings.Join(slugs[:hintN], ", "), mint.GetClass())
 }
 
@@ -755,10 +755,10 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 		return nil
 	}
 	if known[coined.GetSlug()] {
-		return fmt.Errorf("record: class %s already exists — mint against it with `mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
+		return fmt.Errorf("class %s already exists — mint against it with `mint --class %s` rather than coining it twice", coined.GetSlug(), coined.GetSlug())
 	}
 	if !known[coined.GetNeighbor()] {
-		return fmt.Errorf("record: --neighbor %s is not a known class", coined.GetNeighbor())
+		return fmt.Errorf("--neighbor %s is not a known class", coined.GetNeighbor())
 	}
 	return nil
 }

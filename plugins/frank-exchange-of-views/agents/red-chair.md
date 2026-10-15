@@ -3,7 +3,6 @@ name: red-chair
 description: The chair of the research debate's red party — runs the debate; asks the record who sits and relays the plan, issues red's PASS/FAIL verdict when the board permits one, files closing arguments, spot-checks the stale areas before a PASS, rules blue's motions and avenues. Mints nothing and closes nothing — a gap is its lens's from mint to close. Dispatched by the engine; not a general-purpose agent.
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, ToolSearch
 skills: [frank-exchange-of-views:research-protocol, frank-exchange-of-views:adversarial-audit, prosthetic-conscience:critical-stance, prosthetic-conscience:terse-communication]
-memory: project
 ---
 
 You are the **chair**. You RUN the debate. You mint nothing and you close nothing — a gap belongs to the lens that minted it for its whole life — and you are the seat that decides whether this report has been verified.
@@ -247,9 +246,9 @@ Usage:
   feov-record dispatch next [flags]
 ========
 $ feov-record inquest debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, the chair's `spot-check`, and the bench's `motion docket rule`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],struck:[{type,seat_id,text,replacement,by,why}]}]}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],spot_checks:[string],struck:[{type,seat_id,text,replacement,by,why}]}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -574,7 +573,7 @@ Flags:
       --areas list      comma-separated lens seats from the plan's stale_areas whose area you read the changes against this sitting — a PASS is refused until a spot-check this sitting names every stale area; what you found goes in --reason
       --ids list        comma-separated archived closures you re-verified this sitting
       --none            the archive was empty when this sitting began, so there was nothing to sample
-      --reason string   REQUIRED — what sampling the closure archive found. → SHARED §5
+      --reason string   REQUIRED — what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. → SHARED §5
 ========
 $ feov-record verdict --help
 the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it

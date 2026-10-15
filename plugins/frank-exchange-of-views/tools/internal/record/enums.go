@@ -98,7 +98,7 @@ func dispositionsWhere(keep func(closes bool) bool) []EnumValue {
 		}
 		closes, declared, err := recordpb.Facet(vd, "closes")
 		if err != nil || !declared {
-			panic(fmt.Sprintf("record: disposition %s does not declare whether it closes the gap — "+
+			panic(fmt.Sprintf("disposition %s does not declare whether it closes the gap — "+
 				"a value added without answering that reads as closing BY DEFAULT, which is how "+
 				"`grade_adjusted` retired a gap the bench had explicitly deferred", vd.Name()))
 		}
@@ -107,7 +107,7 @@ func dispositionsWhere(keep func(closes bool) bool) []EnumValue {
 		}
 		means, err := recordpb.EnumValueDoc(vd)
 		if err != nil {
-			panic(fmt.Sprintf("record: disposition %s carries no meaning, so the set would reach a "+
+			panic(fmt.Sprintf("disposition %s carries no meaning, so the set would reach a "+
 				"seat as a bare noun: %v", vd.Name(), err))
 		}
 		out = append(out, ev(word, means))

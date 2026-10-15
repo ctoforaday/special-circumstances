@@ -48,7 +48,7 @@ func ClassRoster(run Run) ([]ClassRow, error) {
 	// slug would be accepted, so a roster printed here would be a list of what this run happens to
 	// have coined, presented as the vocabulary. An empty list and a missing gate look identical.
 	if reg == nil {
-		return nil, fmt.Errorf("record: no gap-class registry is staged for this run — there is no vocabulary to list, and every --class would be accepted. run-setup stages it from feov-memory/class-registry.json")
+		return nil, fmt.Errorf("no gap-class registry is staged for this run — there is no vocabulary to list, and every --class would be accepted. run-setup stages it from feov-memory/class-registry.json")
 	}
 
 	rows := make([]ClassRow, 0, len(reg.Classes))
@@ -72,7 +72,7 @@ func ClassRoster(run Run) ([]ClassRow, error) {
 		// so a duplicate here would mean the record disagrees with the registry staged beside it.
 		// Skipping it silently would hide that; it is reported as the conflict it is.
 		if seen[c.Slug] {
-			return nil, fmt.Errorf("record: class %s is both staged in this run's registry and coined on its record — the two disagree about the vocabulary, and a roster cannot say which is authoritative", c.Slug)
+			return nil, fmt.Errorf("class %s is both staged in this run's registry and coined on its record — the two disagree about the vocabulary, and a roster cannot say which is authoritative", c.Slug)
 		}
 		rows = append(rows, c)
 	}
@@ -94,7 +94,7 @@ func coinedClasses(run Run) ([]ClassRow, error) {
 	// would type.
 	sqlRows, err := db.Query(`SELECT "slug", "definition", "neighbor", "distinguisher", "material_default" FROM "class_new"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for coined classes: %w", err)
+		return nil, fmt.Errorf("asking the record for coined classes: %w", err)
 	}
 	defer sqlRows.Close()
 

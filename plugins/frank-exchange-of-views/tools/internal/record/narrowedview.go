@@ -55,7 +55,7 @@ var narrowedViews = map[string]declaredView{}
 // second declaration under one name would leave the parity test walking only the last, so it panics.
 func declareNarrowedView[T any](name string, render narrowedRenderer[T], families ...recordpb.EventType) narrowedView[T] {
 	if _, dup := narrowedViews[name]; dup {
-		panic(fmt.Sprintf("record: the narrowed view %q is declared twice", name))
+		panic(fmt.Sprintf("the narrowed view %q is declared twice", name))
 	}
 	v := narrowedView[T]{families: families, render: render}
 	narrowedViews[name] = v
@@ -121,7 +121,7 @@ func readSnapshot(run Run, read func(q recordsql.Querier) error) error {
 	}
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return fmt.Errorf("record: opening a read of the record: %w", err)
+		return fmt.Errorf("opening a read of the record: %w", err)
 	}
 	defer tx.Rollback()
 	return read(tx)

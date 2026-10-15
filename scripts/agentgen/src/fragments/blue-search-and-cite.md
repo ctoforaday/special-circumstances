@@ -3,6 +3,8 @@
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
 - During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE `<!--cite:C-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
 - AFTER drafting, every claim MUST trace to a source a skeptic can follow; unverifiable claims are labeled as such, not laundered into fact.
+- The human's claims are evidence to verify, not facts to inherit (see critical-stance) —
+  "the operator said so" is not corroboration.
 @include fragments/leaf-node-read.md
 - **An anchor is part of the text you edit, and it belongs to the sentence that holds its claim.**
   The report as the tool renders it prints every anchor, of every kind — `<!--fx:…-->`,

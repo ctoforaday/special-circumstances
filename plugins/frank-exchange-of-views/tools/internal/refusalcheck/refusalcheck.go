@@ -5,12 +5,12 @@
 //
 // THE RENDERER NAMES THE COMMAND. seat.RenderRefusal prints `feov-record: <path>: <diagnosis>`,
 // and the JSON envelope carries the command in its `verb` field. A diagnosis that names the
-// command it refuses says it a second time — `feov-record: close: record: close --id names gap …`
+// command it refuses says it a second time — `feov-record: close: close --id names gap …`
 // — and a seat reading for what was wrong reads past two names to reach it.
 //
 // WHAT COUNTS AS NAMING IT. The command's path or its last word, standing as THE COMMAND BEING
-// REFUSED: leading the diagnosis, alone or behind a role word or the record layer's word (`lens
-// finding requires`, `record: mint …`, "`motion` has no …"); followed by a flag, by `requires`, by
+// REFUSED: leading the diagnosis, alone or behind a role word (`lens finding requires`, "`motion`
+// has no …"); followed by a flag, by `requires`, by
 // `refused` or by a colon, in backquotes or bare (blue's `prove` --answers names …); or behind the
 // tool's name (`for "feov-record count-claims"`).
 //
@@ -23,7 +23,6 @@
 package refusalcheck
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -56,10 +55,8 @@ func Again(path string, roles []string, diagnosis string) []string {
 				found = append(found, "opens "+strings.TrimSpace(open))
 			}
 		}
-		for _, form := range []string{"record: " + n + " ", "`" + n + "` --"} {
-			if strings.Contains(d, form) {
-				found = append(found, "holds "+strings.TrimSpace(form))
-			}
+		if form := "`" + n + "` --"; strings.Contains(d, form) {
+			found = append(found, "holds "+form)
 		}
 		for _, form := range []string{n + ":", n + " --", n + " requires", n + " refused", Tool + " " + n} {
 			if standsAsCommand(d, form) {
@@ -73,23 +70,19 @@ func Again(path string, roles []string, diagnosis string) []string {
 	return found
 }
 
-// LayerWords are the heads the record layer writes on its own messages — `record: asking the record
-// for its open gaps`. The readings here pass over them: Again and the source gate read the message
-// BEHIND one for a command's name. They are a label of the same kind StageHead catches, on some 160
-// messages, and stay until those are reworded together.
-var LayerWords = []string{"record", "recordsql"}
-
 // StageHead is the word a message opens with when that word is a LABEL — one lowercase word and a
 // colon, in front of the sentence — and "" for a message that starts at what is wrong.
 //
 // A STAGE NAME IS THE COMMAND'S NAME AGAIN, ONE LEVEL DOWN. `feov-record: show report: render: no
 // base has been ingested` names the command, from the renderer, and then the function that
 // noticed: a word of the tool's own source, which the seat has no surface for and cannot act on.
+// A package's name is the same label one level further down (`record: … names no run`), and is
+// read as one.
 // A wrapped failure says what was being DONE, in words — `replaying edit 3 of 5: …`, `reading the
 // board: …` — and a phrase is not a label: only a single word is read as one.
 func StageHead(message string) string {
 	word, _, found := strings.Cut(message, ": ")
-	if !found || word == "" || slices.Contains(LayerWords, word) {
+	if !found || word == "" {
 		return ""
 	}
 	for _, r := range word {
@@ -175,7 +168,7 @@ func namesOf(path string) []string {
 
 // standsAsCommand reports whether `form` occurs in s as a word of its own — at the start of s or
 // after anything but a letter, a digit, `-` or `_` — and is not the pointer at the command's own
-// page. `close --id` stands in `record: close --id`; it does not in `--carry-close --id`, and
+// page. `close --id` stands in `the close --id names`; it does not in `--carry-close --id`, and
 // `close --help` is the page's name.
 func standsAsCommand(s, form string) bool {
 	for at := 0; ; {

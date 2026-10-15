@@ -22,9 +22,13 @@ import (
 //
 // The rendered gate (cli_test.go's `run`, difftest's, the release gate's) reads every refusal a
 // test DRIVES. This one reads the source, so a refusal no test reaches is held to the same rule:
-// every message string in the layers a command calls into is parsed, and none opens — alone or
-// behind the record layer's word — with a role word, a command's name or path, or a `%s` in the
-// place a name would stand, followed by a colon, a flag, `requires` or `refused`.
+// every message string in the layers a command calls into is parsed, and none opens with a role
+// word, a command's name or path, or a `%s` in the place a name would stand, followed by a colon, a
+// flag, `requires` or `refused` — nor with a stage's or a package's name as a label.
+//
+// A PANIC IS NOT A MESSAGE. The gate reads the first string argument of the message makers below;
+// `panic("record: " + err.Error())` is a defect's trace, never a rendered refusal, and keeps the
+// package that raised it.
 //
 // The command names are the trees' own: every path, and every path's last word, on every seat's
 // surface and the operator's.
@@ -71,20 +75,19 @@ func commandNames() []string {
 // composedHead is the head a message opens with when that head names a command or a role the way
 // a rendered refusal's own head does; "" for a message that starts at what is wrong.
 func composedHead(message string, names, roles []string) string {
-	rest := strings.TrimPrefix(message, "record: ")
 	for _, role := range roles {
-		if strings.HasPrefix(rest, role+": ") {
+		if strings.HasPrefix(message, role+": ") {
 			return role + ":"
 		}
 		for _, n := range names {
-			if strings.HasPrefix(rest, role+" "+n+" ") || strings.HasPrefix(rest, role+" "+n+":") {
+			if strings.HasPrefix(message, role+" "+n+" ") || strings.HasPrefix(message, role+" "+n+":") {
 				return role + " " + n
 			}
 		}
 	}
 	for _, n := range names {
 		for _, tail := range []string{": ", " --", " requires", " refused"} {
-			if strings.HasPrefix(rest, n+tail) {
+			if strings.HasPrefix(message, n+tail) {
 				return n + tail
 			}
 		}
@@ -92,7 +95,7 @@ func composedHead(message string, names, roles []string) string {
 	// A `%s` WHERE A NAME WOULD STAND. `%s: ` is left out: it heads a table row or wraps a path far
 	// more often than it heads a refusal, and the rendered gates read what it prints.
 	for _, tail := range []string{" --", " requires", " refused"} {
-		if strings.HasPrefix(rest, "%s"+tail) {
+		if strings.HasPrefix(message, "%s"+tail) {
 			return "%s" + tail
 		}
 	}
@@ -199,30 +202,32 @@ func TestNoMessageOpensWithACommandOrARole(t *testing.T) {
 func TestTheMessageGateTellsAHeadFromASentence(t *testing.T) {
 	names, roles := commandNames(), roleWords()
 	for message, composed := range map[string]bool{
-		"record: mint refused — the first sentence":          true,
-		"record: %s requires --%s":                           true,
+		"mint refused — the first sentence":                  true,
+		"%s requires --%s":                                   true,
 		"%s refused — the originator":                        true,
-		"record: close --id names gap %s":                    true,
-		"record: motion docket rule requires --reopens-on":   true,
+		"close --id names gap %s":                            true,
+		"motion docket rule requires --reopens-on":           true,
 		"lens finding requires --reason":                     true,
 		"chair: no such gap":                                 true,
 		"fetch: %s returned %d":                              true,
 		"migrate: reading %s: %w":                            true,
+		"record: a %s names the gap it is about":             true,
+		"recordsql: opening %s: %w":                          true,
 		"requires --reason: the explanation":                 false,
-		"record: %s has already recorded a %s this sitting":  false,
+		"%s has already recorded a %s this sitting":          false,
 		"the --id names gap %s, which no mint event created": false,
 		"a carry restates an earlier closure":                false,
 		"closing it twice double-counts closure history":     false,
-		"recordsql: opening %s: %w":                          false,
+		"opening %s: %w":                                     false,
 		"render: replaying edit %d of %d: %w":                true,
 		"replaying edit %d of %d: %w":                        false,
 		"%s was minted --check-kind computation":             false,
 		"mints are budgeted: this lens has %d left":          false,
-		"record: a %s names the gap it is about":             false,
+		"a %s names the gap it is about":                     false,
 		"--accept: no gap %s on the board":                   false,
 		"reading the report to ingest at %s: %w":             false,
-		"record: another seat's verdict stands this sitting": false,
-		"record: unknown class %s — use a registry slug":     false,
+		"another seat's verdict stands this sitting":         false,
+		"unknown class %s — use a registry slug":             false,
 		"%s ran to exit %d, but its output carries an error": false,
 	} {
 		if got := composedHead(message, names, roles) != ""; got != composed {

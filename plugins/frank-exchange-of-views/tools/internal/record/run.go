@@ -71,7 +71,7 @@ func OpenRun(dir string) (Run, error) {
 		// Conflict used to be returned, and a caller switching on the code would have seen that
 		// distinction quietly disappear.
 		return Run{}, feov.Wrap(feov.NotFound, err,
-			"record: %s names no run — the directory is not there (%v). "+
+			"%s names no run — the directory is not there (%v). "+
 				"A mistyped --run resolves like any other path, so this is refused rather than "+
 				"reported as an empty board, which is the one answer that is never true", dir, err)
 	}
@@ -90,7 +90,7 @@ func resolveRun(dir string) (Run, error) {
 		// The empty string is the state this type exists to stop carrying. It means "nobody
 		// supplied a run", and it must not resolve to anything.
 		return Run{}, feov.Errorf(feov.MissingField,
-			"record: no run directory supplied — pass --run <runDir>, or run inside a dispatch that injects it")
+			"no run directory supplied — pass --run <runDir>, or run inside a dispatch that injects it")
 	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {

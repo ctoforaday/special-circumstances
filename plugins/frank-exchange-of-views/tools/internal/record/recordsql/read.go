@@ -139,7 +139,7 @@ func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*re
 	}
 	rows, err := db.Query(q, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("recordsql: reading the record: %w", err)
+		return nil, nil, fmt.Errorf("reading the record: %w", err)
 	}
 	defer rows.Close()
 
@@ -161,7 +161,7 @@ func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*re
 		w.ID = id
 		t, ok := recordpb.EventTypeOf(typ)
 		if !ok {
-			return nil, nil, fmt.Errorf("recordsql: event %d has type %q, which the schema does not declare", id, typ)
+			return nil, nil, fmt.Errorf("event %d has type %q, which the schema does not declare", id, typ)
 		}
 		ev := &recordpb.Event{
 			SeatId: proto.String(seatID),
@@ -201,7 +201,7 @@ func eventsWhere(db Querier, withWindows bool, where string, args ...any) ([]*re
 func refuseUndeclaredTypes(db Querier) error {
 	rows, err := db.Query(`SELECT DISTINCT type FROM events`)
 	if err != nil {
-		return fmt.Errorf("recordsql: reading the record's event types: %w", err)
+		return fmt.Errorf("reading the record's event types: %w", err)
 	}
 	defer rows.Close()
 	var undeclared []string
@@ -221,7 +221,7 @@ func refuseUndeclaredTypes(db Querier) error {
 		return nil
 	}
 	sort.Strings(undeclared)
-	return fmt.Errorf("recordsql: this record holds event types the schema does not declare (%s), so a "+
+	return fmt.Errorf("this record holds event types the schema does not declare (%s), so a "+
 		"narrowed read of it cannot be trusted: the rows are there and SQL filters them out before "+
 		"anything looks at them, which returns an empty projection and exit 0 — the same bytes as a "+
 		"record that holds nothing. Read it with the binary that wrote it, or replay it through this "+
@@ -262,7 +262,7 @@ func loadBodies(db Querier, ids []int64, evs []*recordpb.Event) error {
 		evm := ev.ProtoReflect()
 		arm, ok := recordpb.BodyField(recordpb.Word(ev.GetType()))
 		if !ok {
-			return fmt.Errorf("recordsql: no body message for %s", recordpb.Word(ev.GetType()))
+			return fmt.Errorf("no body message for %s", recordpb.Word(ev.GetType()))
 		}
 		arms[i] = arm
 		msgs[i] = evm.NewField(arm).Message()
@@ -373,7 +373,7 @@ func (b *tableBatch) load(db Querier) error {
 func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 	row, ok := b.rows[id]
 	if !ok && len(b.scalars) > 0 {
-		return fmt.Errorf("recordsql: event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table)
+		return fmt.Errorf("event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table)
 	}
 	for i, fd := range b.scalars {
 		v := row[i]
@@ -382,7 +382,7 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 		}
 		pv, err := protoValue(fd, v)
 		if err != nil {
-			return fmt.Errorf("recordsql: %s.%s: %w", b.table, fd.Name(), err)
+			return fmt.Errorf("%s.%s: %w", b.table, fd.Name(), err)
 		}
 		msg.Set(fd, pv)
 	}
@@ -397,7 +397,7 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 		for _, e := range v {
 			pv, err := protoValue(lfd, e)
 			if err != nil {
-				return fmt.Errorf("recordsql: %s_%s: %w", b.table, name, err)
+				return fmt.Errorf("%s_%s: %w", b.table, name, err)
 			}
 			l.Append(pv)
 		}
@@ -415,7 +415,7 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 		a := b.arms[which]
 		arow, ok := a.rows[id]
 		if !ok && len(a.scalars) > 0 {
-			return fmt.Errorf("recordsql: event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table+"_"+which)
+			return fmt.Errorf("event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table+"_"+which)
 		}
 		inner := msg.NewField(fd).Message()
 		for i, afd := range a.scalars {
@@ -425,7 +425,7 @@ func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
 			}
 			pv, err := protoValue(afd, v)
 			if err != nil {
-				return fmt.Errorf("recordsql: %s.%s: %w", b.table+"_"+which, afd.Name(), err)
+				return fmt.Errorf("%s.%s: %w", b.table+"_"+which, afd.Name(), err)
 			}
 			inner.Set(afd, pv)
 		}
@@ -456,13 +456,13 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 			}
 		}
 		if len(absent) > 0 {
-			return nil, fmt.Errorf("recordsql: reading %s: the table has no column %s", table, strings.Join(absent, ", "))
+			return nil, fmt.Errorf("reading %s: the table has no column %s", table, strings.Join(absent, ", "))
 		}
 	}
 	q := `SELECT "event_id", ` + join(cols, ", ") + fmt.Sprintf(" FROM %q", table)
 	rows, err := db.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
+		return nil, fmt.Errorf("reading %s: %w", table, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -473,7 +473,7 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 			targets[i] = new(any)
 		}
 		if err := rows.Scan(targets...); err != nil {
-			return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
+			return nil, fmt.Errorf("reading %s: %w", table, err)
 		}
 		vals := make([]any, len(cols))
 		for i := range vals {
@@ -487,7 +487,7 @@ func scanTable(db Querier, table string, cols []string) (map[int64][]any, error)
 func scanLists(db Querier, table string) (map[int64][]any, error) {
 	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
 	if err != nil {
-		return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
+		return nil, fmt.Errorf("reading %s: %w", table, err)
 	}
 	defer rows.Close()
 	out := map[int64][]any{}

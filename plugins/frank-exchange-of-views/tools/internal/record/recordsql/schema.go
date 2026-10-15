@@ -202,18 +202,18 @@ func Bodies() ([]protoreflect.MessageDescriptor, error) {
 	md := (&recordpb.Event{}).ProtoReflect().Descriptor()
 	od := md.Oneofs().ByName("body")
 	if od == nil {
-		return nil, fmt.Errorf("recordsql: Event has no `body` oneof — the schema cannot be derived")
+		return nil, fmt.Errorf("Event has no `body` oneof — the schema cannot be derived")
 	}
 	out := make([]protoreflect.MessageDescriptor, 0, od.Fields().Len())
 	for i := 0; i < od.Fields().Len(); i++ {
 		f := od.Fields().Get(i)
 		if f.Message() == nil {
-			return nil, fmt.Errorf("recordsql: body arm %q is not a message", f.Name())
+			return nil, fmt.Errorf("body arm %q is not a message", f.Name())
 		}
 		out = append(out, f.Message())
 	}
 	if len(out) == 0 {
-		return nil, fmt.Errorf("recordsql: the body oneof declares no arms — an empty schema would apply cleanly and hold nothing")
+		return nil, fmt.Errorf("the body oneof declares no arms — an empty schema would apply cleanly and hold nothing")
 	}
 	return out, nil
 }
@@ -382,7 +382,7 @@ func references(fd protoreflect.FieldDescriptor) (string, error) {
 	}
 	table, col, ok := strings.Cut(ref, ".")
 	if !ok || table == "" || col == "" {
-		return "", fmt.Errorf("recordsql: %s declares references %q — it must be \"table.column\"", fd.FullName(), ref)
+		return "", fmt.Errorf("%s declares references %q — it must be \"table.column\"", fd.FullName(), ref)
 	}
 	return fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(%q)", fd.Name(), table, col), nil
 }
@@ -401,7 +401,7 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 		// nobody can read with a plain SELECT is one people will build a second view over.
 		return "TEXT", nil
 	}
-	return "", fmt.Errorf("recordsql: %s has no SQL type for kind %s", fd.FullName(), fd.Kind())
+	return "", fmt.Errorf("%s has no SQL type for kind %s", fd.FullName(), fd.Kind())
 }
 
 // enumTable is one vocabulary, as rows.
@@ -448,7 +448,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		// plausible value in the record where an unanswered question was.
 		means, err := recordpb.EnumValueDoc(v)
 		if err != nil {
-			return "", fmt.Errorf("recordsql: %s: %w", ed.FullName(), err)
+			return "", fmt.Errorf("%s: %w", ed.FullName(), err)
 		}
 		fs := map[string]bool{}
 		ns := map[string]float64{}
@@ -464,7 +464,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 				if ok {
 					fvd := recordpb.FacetEnum(name).Values().ByNumber(n)
 					if fvd == nil || n == 0 {
-						return "", fmt.Errorf("recordsql: %s declares `%s` with no word of %s — the zero is absence, not an answer",
+						return "", fmt.Errorf("%s declares `%s` with no word of %s — the zero is absence, not an answer",
 							v.FullName(), name, recordpb.FacetEnum(name).FullName())
 					}
 					ws[name] = recordpb.Spelling(fvd)
@@ -509,7 +509,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			continue
 		}
 		if n != len(rows) {
-			return "", fmt.Errorf("recordsql: %s declares `%s` on %d of its %d values — a facet the "+
+			return "", fmt.Errorf("%s declares `%s` on %d of its %d values — a facet the "+
 				"machinery switches on cannot have a default, because the default is an answer given "+
 				"on behalf of whoever added the value without one",
 				ed.FullName(), name, n, len(rows))
@@ -575,7 +575,7 @@ func b2i(b bool) int {
 func subsetCheck(fd protoreflect.FieldDescriptor, facet string) (string, error) {
 	ed := fd.Enum()
 	if ed == nil {
-		return "", fmt.Errorf("recordsql: %s declares subset %q but is not an enum — a subset of what?", fd.FullName(), facet)
+		return "", fmt.Errorf("%s declares subset %q but is not an enum — a subset of what?", fd.FullName(), facet)
 	}
 	var words []string
 	for i := 0; i < ed.Values().Len(); i++ {
@@ -586,10 +586,10 @@ func subsetCheck(fd protoreflect.FieldDescriptor, facet string) (string, error) 
 		}
 		val, ok, err := recordpb.Facet(v, facet)
 		if err != nil {
-			return "", fmt.Errorf("recordsql: %s: %w", fd.FullName(), err)
+			return "", fmt.Errorf("%s: %w", fd.FullName(), err)
 		}
 		if !ok {
-			return "", fmt.Errorf("recordsql: %s restricts to `%s` but %s does not declare it — the "+
+			return "", fmt.Errorf("%s restricts to `%s` but %s does not declare it — the "+
 				"subset would silently exclude a value nobody ruled on", fd.FullName(), facet, v.Name())
 		}
 		if val {
@@ -597,7 +597,7 @@ func subsetCheck(fd protoreflect.FieldDescriptor, facet string) (string, error) 
 		}
 	}
 	if len(words) == 0 {
-		return "", fmt.Errorf("recordsql: %s restricts to `%s` and no value in %s carries it — the "+
+		return "", fmt.Errorf("%s restricts to `%s` and no value in %s carries it — the "+
 			"column would admit nothing, which is a constraint that reads as strict and is simply broken",
 			fd.FullName(), facet, ed.FullName())
 	}
@@ -720,7 +720,7 @@ func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescri
 		f := md.Fields().Get(i)
 		col, fchecks, ffks, err := scalarField(f)
 		if err != nil {
-			return "", fmt.Errorf("recordsql: %s (arm %s of %s): %w", f.FullName(), fd.Name(), TableName(parent), err)
+			return "", fmt.Errorf("%s (arm %s of %s): %w", f.FullName(), fd.Name(), TableName(parent), err)
 		}
 		cols = append(cols, "  "+col)
 		checks = append(checks, fchecks...)
@@ -735,7 +735,7 @@ func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescri
 	// nothing; the first arm to need one would have been the first to be silently unprotected.
 	mc, err := messageCheckExprs(md)
 	if err != nil {
-		return "", fmt.Errorf("recordsql: arm %s of %s: %w", fd.Name(), TableName(parent), err)
+		return "", fmt.Errorf("arm %s of %s: %w", fd.Name(), TableName(parent), err)
 	}
 	checks = append(checks, mc...)
 	var b strings.Builder
@@ -845,10 +845,10 @@ func messageCheckExprs(md protoreflect.MessageDescriptor) ([]string, error) {
 	var out []string
 	for _, c := range MessageChecks(md) {
 		if c.GetExpr() == "" {
-			return nil, fmt.Errorf("recordsql: %s declares a check with no expression", md.FullName())
+			return nil, fmt.Errorf("%s declares a check with no expression", md.FullName())
 		}
 		if c.GetWhy() == "" {
-			return nil, fmt.Errorf("recordsql: %s declares the check %q and does not say what it protects — "+
+			return nil, fmt.Errorf("%s declares the check %q and does not say what it protects — "+
 				"a constraint that fires with only its expression tells a reader what was refused and nothing "+
 				"about which invariant they walked into", md.FullName(), c.GetExpr())
 		}

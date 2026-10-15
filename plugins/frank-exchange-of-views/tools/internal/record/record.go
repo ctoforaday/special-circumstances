@@ -151,7 +151,7 @@ type Identity struct {
 func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where string, err error) {
 	run, seatID := id.Run, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
-		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+		return 0, "", fmt.Errorf("invalid --seat-id %s", strconv.Quote(seatID))
 	}
 	// THE ROSTER GATE, AND IT BELONGS HERE RATHER THAN AT EVERY VERB. Register is the one call
 	// that takes a seat's word for who it is; everything after it reads the binding this call
@@ -204,11 +204,11 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// the directory has to EXIST, because a seat records into a run `setup` already made.
 	if !run.Valid() {
 		return 0, "", feov.Errorf(feov.MissingField,
-			"record: this registration names no run — pass --run <runDir>, or run inside a dispatch that injects it")
+			"this registration names no run — pass --run <runDir>, or run inside a dispatch that injects it")
 	}
 	if st, err := os.Stat(run.Dir()); err != nil || !st.IsDir() {
 		return 0, "", feov.Errorf(feov.NotFound,
-			"record: no run directory at %s — a seat records into a run `setup` already made and never creates one",
+			"no run directory at %s — a seat records into a run `setup` already made and never creates one",
 			run.Dir())
 	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
@@ -415,7 +415,7 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	var sitting int
 	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ?`,
 		seatID).Scan(&sitting); err != nil {
-		return "", fmt.Errorf("record: counting %s's sittings for its key: %w", seatID, err)
+		return "", fmt.Errorf("counting %s's sittings for its key: %w", seatID, err)
 	}
 	if singleton[typ] {
 		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
@@ -439,7 +439,7 @@ func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Mes
 	// re-registered seat's first act collided with its own earlier one and was refused outright.
 	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = ?`,
 		seatID, slug).Scan(&prior); err != nil {
-		return "", fmt.Errorf("record: counting this seat's %s events: %w", slug, err)
+		return "", fmt.Errorf("counting this seat's %s events: %w", slug, err)
 	}
 	return fmt.Sprintf("%s:%s:#%d", seatID, slug, prior+1), nil
 }
@@ -533,7 +533,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	// somewhere nobody reads.
 	if !run.Valid() {
 		return nil, feov.Errorf(feov.MissingField,
-			"record: this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
+			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
 	ev := &Event{}
@@ -550,7 +550,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	// the gap, which the bench rules. An archived record that holds an appeal is replayed with it.
 	if typ == recordpb.EventType_EVENT_TYPE_MOTION_APPEAL && !Migrating {
 		return nil, feov.Errorf(feov.Validation,
-			"record: an appeal is written by migrate from an archived record, never by a seat — a ruling stands as made, and a seat that disagrees with one answers it with another act")
+			"an appeal is written by migrate from an archived record, never by a seat — a ruling stands as made, and a seat that disagrees with one answers it with another act")
 	}
 	// A CORRECTION IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. An archived record holds the ones its
 	// seats made, and migrate replays each as the pair it was written as; a live record gains none —
@@ -559,11 +559,11 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if c := id.Correct; c != nil && typ == c.Type {
 		if !Migrating {
 			return nil, feov.Errorf(feov.Validation,
-				"record: a correction is written by migrate together with the act it replaces, never by a seat — an act stands as filed, and a wrong one is answered by a new act")
+				"a correction is written by migrate together with the act it replaces, never by a seat — an act stands as filed, and a wrong one is answered by a new act")
 		}
 		if c.written {
 			return nil, feov.Errorf(feov.Validation,
-				"record: this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
+				"this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
 				c.Key, recordpb.Word(typ))
 		}
 		c.written = true
@@ -640,7 +640,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 				tail = " " + a
 			}
 			return feov.Errorf(feov.Validation,
-				"record: %s has already recorded a %s on %q this sitting — the record keeps your first one "+
+				"%s has already recorded a %s on %q this sitting — the record keeps your first one "+
 					"rather than quietly replacing it (a retried write lands on the same key on purpose).%s",
 				seatID, recordpb.Word(typ), keyLabel(body), tail)
 		}
@@ -734,17 +734,17 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
 		// transaction as the replacement it names; one without the other is a strike with nothing
 		// in its place, or a replacement nothing marks as one.
-		return fmt.Errorf("record: a correction is written by migrate together with the act it replaces, never on its own")
+		return fmt.Errorf("a correction is written by migrate together with the act it replaces, never on its own")
 	case *recordpb.Anchor:
 		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
 		// deriveKey, so a retry writes one event rather than a second marker.
 		// An id no anchor kind claims spells no token a reader recognises, so its gap would read `gone`
 		// beside a stray comment in the report: the empty id and every such id are refused here.
 		if anchor.Kind(b.GetId()) == "" {
-			return fmt.Errorf("record: anchor requires id — the id of the finding, citation, proof or gap whose marker this places; %q is none of them", b.GetId())
+			return fmt.Errorf("anchor requires id — the id of the finding, citation, proof or gap whose marker this places; %q is none of them", b.GetId())
 		}
 		if b.GetLocation() == "" {
-			return fmt.Errorf("record: anchor requires location (the quote the marker sits at the end of)")
+			return fmt.Errorf("anchor requires location (the quote the marker sits at the end of)")
 		}
 	case *recordpb.ClassNew:
 		return validateClassNew(run, b)
@@ -925,7 +925,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 		}
 		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor == nil {
-			return fmt.Errorf("record: repaired_with_regression requires --superseded-by (lineage never drops)")
+			return fmt.Errorf("repaired_with_regression requires --superseded-by (lineage never drops)")
 		}
 		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
 		// mattering. It refused `closed-with-regression` and `Closed_With_Regression`: spellings
@@ -991,7 +991,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// a test pinning it, and its --none --reason exists for the same distinction this makes.
 	case *recordpb.Log:
 		if b.GetText() == "" {
-			return fmt.Errorf("record: a log entry requires --reason. Every entry asserts a problem, and an entry with no sentence is silence with an event attached — say what you hit")
+			return fmt.Errorf("a log entry requires --reason. Every entry asserts a problem, and an entry with no sentence is silence with an event attached — say what you hit")
 		}
 		// A TOOL-ONLY WORD MUST CARRY THE TOOL AS ITS SOURCE (#782).
 		//
@@ -1010,7 +1010,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return ferr
 			}
 			if declared && !may && b.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL {
-				return fmt.Errorf("record: a `%s` log entry is the TOOL's own record of what it "+
+				return fmt.Errorf("a `%s` log entry is the TOOL's own record of what it "+
 					"refused, so it cannot be filed under a seat's name — an entry claiming one "+
 					"would be a refusal that never happened, and the operator triage channel "+
 					"filters on this type", recordpb.Word(lt))
@@ -1040,10 +1040,10 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		}
 	case *recordpb.Motion:
 		if b.Subject == nil || b.GetBasis() == "" {
-			return fmt.Errorf("record: a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
+			return fmt.Errorf("a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
 		}
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
-			return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
+			return fmt.Errorf("%q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
 		}
 		// THE FILER DOES NOT RULE THE SUBJECT (rulerfiles.go) — asked of every writer, because the
 		// verb's absence from the ruler's surface refuses only a seat that types it.
@@ -1061,7 +1061,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// it refused before, and inventing a refusal here would be a new gate wearing a
 		// migration's clothes.
 		if b.GetFiling() != nil && filingSubject(b) != b.GetSubject() {
-			return fmt.Errorf("record: a %s motion carries a %s filing — the subject and the filing are one fact written twice, and a reader that switches on the subject would ask this motion for fields it does not have",
+			return fmt.Errorf("a %s motion carries a %s filing — the subject and the filing are one fact written twice, and a reader that switches on the subject would ask this motion for fields it does not have",
 				recordpb.Word(b.GetSubject()), recordpb.Word(filingSubject(b)))
 		}
 		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
@@ -1141,7 +1141,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
-				return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
+				return fmt.Errorf("--final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
 			}
 		}
 		// The motion's reference, its subject and the subject's being one at all were settled above,
@@ -1164,7 +1164,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// (MotionVerdictEnum), which evsOf generates from the subject's ruling enum — so the
 		// refusal and the help offer one list.
 		if w := rulingWord(b); w == "" || rulingSubject(b) != b.GetSubject() {
-			return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
+			return fmt.Errorf("%q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
 				w, recordpb.Word(b.GetSubject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.GetSubject())]), " | "))
 		}
 	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
@@ -1180,7 +1180,7 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 	// reads.
 	case *recordpb.Cast:
 		if len(b.GetSeatIds()) == 0 {
-			return fmt.Errorf("record: a cast with no seats — setup writes the run's admissible seats, and a run nobody may sit in is not a run")
+			return fmt.Errorf("a cast with no seats — setup writes the run's admissible seats, and a run nobody may sit in is not a run")
 		}
 		// A LANE THE CAST DOES NOT SEAT IS REFUSED AT THE WRITE, which is what makes lane_seat_ids a
 		// field rather than a second opinion. The tier join and the register gate both read it, so a
@@ -1192,18 +1192,18 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			}
 			for _, id := range b.GetLaneSeatIds() {
 				if !seated[id] {
-					return fmt.Errorf("record: the cast names lane %q, which is not among its seats — a lane is a SUBSET of the cast, and one outside it would be admitted at register and absent from the run's own membership", id)
+					return fmt.Errorf("the cast names lane %q, which is not among its seats — a lane is a SUBSET of the cast, and one outside it would be admitted at register and absent from the run's own membership", id)
 				}
 			}
 		}
 		if existing, err := CastOf(run); err != nil {
 			return err
 		} else if existing != nil {
-			return fmt.Errorf("record: the cast is written ONCE, before any seat registers, and this record already holds one (%d seats) — a second cast would make membership a question of which one a reader picked", len(existing))
+			return fmt.Errorf("the cast is written ONCE, before any seat registers, and this record already holds one (%d seats) — a second cast would make membership a question of which one a reader picked", len(existing))
 		}
 	case *recordpb.Dispatch:
 		if b.GetPin() <= 0 {
-			return fmt.Errorf("record: a dispatch requires a pin — the events.id of the report head the party audits; the verb computes it, and a dispatch against nothing is a dispatch against a moving target")
+			return fmt.Errorf("a dispatch requires a pin — the events.id of the report head the party audits; the verb computes it, and a dispatch against nothing is a dispatch against a moving target")
 		}
 		member, hasCast, err := InCast(run, b.GetSeatId())
 		if err != nil {
@@ -1319,12 +1319,12 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PURSUED &&
 			st != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED && b.GetReason() == "" {
 			if st == recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED {
-				return fmt.Errorf("record: a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+				return fmt.Errorf("a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
 			}
 			if st == recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED || st == recordpb.AvenueStatus_AVENUE_STATUS_REFUTED {
-				return fmt.Errorf("record: a %s avenue requires --reason — what the approach found, in the subject's terms. It is printed in the report on the avenue's row, and an approach that ran with nothing said about what it found reads as one that was dropped", recordpb.Word(st))
+				return fmt.Errorf("a %s avenue requires --reason — what the approach found, in the subject's terms. It is printed in the report on the avenue's row, and an approach that ran with nothing said about what it found reads as one that was dropped", recordpb.Word(st))
 			}
-			return fmt.Errorf("record: a %s avenue requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
+			return fmt.Errorf("a %s avenue requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
 	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S AVENUES.
 	//
@@ -1368,14 +1368,14 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// found in, and it would read as a page check owed where none is.
 		origin := b.GetSourceTextOrigin()
 		if origin == recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_UNSPECIFIED {
-			return fmt.Errorf("record: cite carries no source_text_origin — the tool stamps where the cited text came from (embedded, ocr or none) before it writes, and this write skipped that")
+			return fmt.Errorf("cite carries no source_text_origin — the tool stamps where the cited text came from (embedded, ocr or none) before it writes, and this write skipped that")
 		}
 		if origin != recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR &&
 			(b.OcrQuote != nil || len(b.GetPages()) > 0 || b.OcrEngine != nil || b.OcrTextSha != nil) {
-			return fmt.Errorf("record: cite carries an OCR quote, pages or reading pins on a source whose text origin is %s — those locate a quote in the local engine's reading, and this source has none", recordpb.Word(origin))
+			return fmt.Errorf("cite carries an OCR quote, pages or reading pins on a source whose text origin is %s — those locate a quote in the local engine's reading, and this source has none", recordpb.Word(origin))
 		}
 		if len(b.GetPages()) > 0 && (b.GetOcrQuote() == "" || b.GetOcrEngine() == "" || b.GetOcrTextSha() == "") {
-			return fmt.Errorf("record: cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
+			return fmt.Errorf("cite carries pages without the quote and the reading (ocr_quote, ocr_engine, ocr_text_sha) they were found in — a page nobody can re-locate is a claim nothing can check")
 		}
 		// WHAT THE LITERATURE SAYS ABOUT THE WORK IS ALSO THE TOOL'S TO STAMP, and for the same
 		// reason the origin above is: no flag teaches it, so an unstamped value is a write path
@@ -1383,19 +1383,19 @@ func validateAgainst(run Run, seatID string, typ recordpb.EventType, body proto.
 		// reader — it renders as an ordinary source, which is exactly what a retracted one is
 		// not.
 		if b.GetWorkStatus() == recordpb.WorkStatus_WORK_STATUS_UNSPECIFIED {
-			return fmt.Errorf("record: cite carries no work_status — the tool stamps what the indexes say about the cited work (standing, retracted, or not_checked) before it writes, and this write skipped that")
+			return fmt.Errorf("cite carries no work_status — the tool stamps what the indexes say about the cited work (standing, retracted, or not_checked) before it writes, and this write skipped that")
 		}
 		// AND WHICH PART OF THE WORK THE COPY IS, for the same reason: a cite of an abstract with
 		// the field unstamped renders exactly like a cite of the paper.
 		if b.GetSourceCompleteness() == recordpb.SourceCompleteness_SOURCE_COMPLETENESS_UNSPECIFIED {
-			return fmt.Errorf("record: cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
+			return fmt.Errorf("cite carries no source_completeness — the tool stamps which part of the work the cited copy is (full, abstract, unverified, not_the_work, or not_asked) before it writes, and this write skipped that")
 		}
 	case *recordpb.Verify:
 		// THE PAGE AND ITS TWO HASHES ARE ONE FACT: which image red checked, and which render the
 		// reading came from. One without the others is a check nobody can re-run.
 		if pinned := b.GetPageRenderSha() != "" || b.GetReadingRenderSha() != ""; b.Page != nil || pinned {
 			if b.GetPage() < 1 || b.GetPageRenderSha() == "" || b.GetReadingRenderSha() == "" {
-				return fmt.Errorf("record: verify carries a page without both render hashes, or hashes without a page — the page red checked, the sha of its image and the reading's render sha are written together")
+				return fmt.Errorf("verify carries a page without both render hashes, or hashes without a page — the page red checked, the sha of its image and the reading's render sha are written together")
 			}
 		}
 		// A VERIFICATION OF NOTHING WAS RECORDABLE. The bare verb — no flags at all — printed

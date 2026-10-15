@@ -37,7 +37,7 @@ type remandRow struct {
 func remandRulingsOf(db recordsql.Querier) (map[string][]remandRow, error) {
 	rows, err := db.Query(`SELECT "gap_id", "event_id", "sitting_id", COALESCE("reopens_on", '') FROM "remand" ORDER BY "pos"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for the bench's remands: %w", err)
+		return nil, fmt.Errorf("asking the record for the bench's remands: %w", err)
 	}
 	defer rows.Close()
 	out := map[string][]remandRow{}

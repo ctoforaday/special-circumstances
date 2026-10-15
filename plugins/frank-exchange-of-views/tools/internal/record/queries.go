@@ -62,7 +62,7 @@ func queryRowAt(db recordsql.Querier, dest []any, q string, args ...any) (found 
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
-		return false, fmt.Errorf("record: asking the record: %w", err)
+		return false, fmt.Errorf("asking the record: %w", err)
 	}
 	return true, nil
 }
@@ -133,7 +133,7 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 	vd, ok := recordpb.BySpelling(recordpb.CheckKind(0).Descriptor(), word)
 	if !ok {
 		return recordpb.CheckKind_CHECK_KIND_UNSPECIFIED,
-			fmt.Errorf("record: gap %s was minted with check_kind %q, which this binary's schema does not declare", gapID, word)
+			fmt.Errorf("gap %s was minted with check_kind %q, which this binary's schema does not declare", gapID, word)
 	}
 	return recordpb.CheckKind(vd.Number()), nil
 }
@@ -210,7 +210,7 @@ func epochsAt(q recordsql.Querier) ([]int, error) {
 	  WHERE "id" = (SELECT MIN("id") FROM "events") OR "id" = (SELECT MAX("id") FROM "events")
 	  ORDER BY "id"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its epochs: %w", err)
+		return nil, fmt.Errorf("asking the record for its epochs: %w", err)
 	}
 	defer rows.Close()
 	var ends []int
@@ -243,7 +243,7 @@ func RegisteredSeats(run Run) ([]string, error) {
 	}
 	rows, err := db.Query(`SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id" ORDER BY r."event_id"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its registered seats: %w", err)
+		return nil, fmt.Errorf("asking the record for its registered seats: %w", err)
 	}
 	defer rows.Close()
 	var out []string
@@ -292,13 +292,13 @@ func ReportProjectionAt(db recordsql.Querier) (base string, haveBase bool, ops [
 	}
 	baseRows, err := db.Query(`SELECT "text" FROM "base_ingest" ORDER BY "event_id"`)
 	if err != nil {
-		return "", false, nil, fmt.Errorf("record: reading the report base: %w", err)
+		return "", false, nil, fmt.Errorf("reading the report base: %w", err)
 	}
 	defer baseRows.Close()
 	seen := 0
 	for baseRows.Next() {
 		if seen++; seen > 1 {
-			return "", false, nil, fmt.Errorf("record: two base_ingest events on this run — the base is written once and never rewritten")
+			return "", false, nil, fmt.Errorf("two base_ingest events on this run — the base is written once and never rewritten")
 		}
 		var t sql.NullString
 		if err := baseRows.Scan(&t); err != nil {
@@ -316,7 +316,7 @@ func ReportProjectionAt(db recordsql.Querier) (base string, haveBase bool, ops [
 	// more than one anchor — so replay is deterministic rather than whatever SQLite returns.
 	opRows, err := db.Query(`SELECT "kind", "a", "b", "exact" FROM "report_op" ORDER BY "event_id", "a"`)
 	if err != nil {
-		return "", false, nil, fmt.Errorf("record: reading the report ops: %w", err)
+		return "", false, nil, fmt.Errorf("reading the report ops: %w", err)
 	}
 	defer opRows.Close()
 	for opRows.Next() {

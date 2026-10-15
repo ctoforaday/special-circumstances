@@ -15,14 +15,14 @@ func EventByKey(db *sql.DB, key string) (ev *recordpb.Event, id int64, found boo
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, 0, false, nil
 		}
-		return nil, 0, false, fmt.Errorf("recordsql: reading the event keyed %q: %w", key, err)
+		return nil, 0, false, fmt.Errorf("reading the event keyed %q: %w", key, err)
 	}
 	evs, _, err := eventsWhere(db, false, ` WHERE e."id" = ?`, id)
 	if err != nil {
 		return nil, 0, false, err
 	}
 	if len(evs) != 1 {
-		return nil, 0, false, fmt.Errorf("recordsql: event %d (key %q) read back as %d events", id, key, len(evs))
+		return nil, 0, false, fmt.Errorf("event %d (key %q) read back as %d events", id, key, len(evs))
 	}
 	return evs[0], id, true, nil
 }
