@@ -74,14 +74,14 @@ func openRunForRead(run Run) (*sql.DB, error) {
 	// exists and is simply unreachable.
 	if run.Separated() {
 		if _, err := os.Stat(abs); err != nil {
-			return nil, fmt.Errorf("record: run %s keeps its record at %s, which is no longer there (%v) — "+
+			return nil, fmt.Errorf("run %s keeps its record at %s, which is no longer there (%v) — "+
 				"the events are gone or the directory moved. This is NOT an empty run and will not be "+
 				"reported as one; re-declare the root with %s=<path> if it moved", run.Dir(), abs, err, RecordRootEnv)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(abs, dbName)); os.IsNotExist(err) {
 		if shards := legacyShards(abs); len(shards) > 0 {
-			return nil, fmt.Errorf("record: %s holds %d event shard(s) of a FORMER record format "+
+			return nil, fmt.Errorf("%s holds %d event shard(s) of a FORMER record format "+
 				"(%s …) and no %s — this run recorded events that THIS BINARY CANNOT READ, which is "+
 				"not the same as a run that recorded nothing, and reporting it as an empty board "+
 				"would make every invariant pass over zero events. Read it with a binary of the "+

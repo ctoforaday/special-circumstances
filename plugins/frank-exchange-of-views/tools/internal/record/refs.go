@@ -253,7 +253,7 @@ func openMaterialGaps(run Run) ([]string, error) {
 	}
 	rows, err := db.Query(`SELECT g."gap_id" FROM "gap" g WHERE g."open" AND g."material" ORDER BY g."minted_event"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its open gaps: %w", err)
+		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)
 	}
 	defer rows.Close()
 	var open []string
@@ -289,7 +289,7 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 	}
 	if g.GetVerdict() != recordpb.Verdict_VERDICT_PASS {
 		if len(arrived) > 0 {
-			return fmt.Errorf("record: the archived %s verdict carries migration_admitted_gap_ids (%s) — only a PASS is admitted over open gaps",
+			return fmt.Errorf("the archived %s verdict carries migration_admitted_gap_ids (%s) — only a PASS is admitted over open gaps",
 				recordpb.Word(g.GetVerdict()), strings.Join(arrived, ", "))
 		}
 		return nil
@@ -301,7 +301,7 @@ func stampMigrationAdmission(run Run, g *recordpb.Gate) error {
 	if len(arrived) > 0 {
 		sort.Strings(arrived)
 		if strings.Join(arrived, "\x00") != strings.Join(open, "\x00") {
-			return fmt.Errorf("record: the archived PASS carries migration_admitted_gap_ids (%s), but the open material gaps at it are (%s) — the record was altered after it was written",
+			return fmt.Errorf("the archived PASS carries migration_admitted_gap_ids (%s), but the open material gaps at it are (%s) — the record was altered after it was written",
 				strings.Join(arrived, ", "), strings.Join(open, ", "))
 		}
 	}

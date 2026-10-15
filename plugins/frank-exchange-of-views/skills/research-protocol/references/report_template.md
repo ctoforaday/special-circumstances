@@ -105,13 +105,14 @@
 ## The board                             <!-- [RECORD] open gaps with grades + the closure index; then the lens findings
                                               credited by no gap's found_by — red's leaf audit the chair weighed and did
                                               not mint. A finding is addressed by COALESCENCE and nothing else since #327
-                                              retired observe/dispose. Then red's archive spot-checks and blue's
+                                              retired observe/dispose. Then red's spot-checks — the stale areas
+                                              and archived closures each named, and what it found — and blue's
                                               correctness manifest. -->
 
 # debate.md — the transcript
 
 ## The debate                            <!-- [RECORD] ONE transcript: per epoch the parties' positions, closings and grade
-                                              motions, and the bench's opinions; then the terminal bench disposition
+                                              motions, the chair's spot-checks, and the bench's opinions; then the terminal bench disposition
                                               (halt / certification), which also states plainly if any petition went unruled. -->
 
 # judgments.md — the bench's rulings

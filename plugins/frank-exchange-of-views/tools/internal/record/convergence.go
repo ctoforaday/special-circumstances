@@ -42,7 +42,7 @@ func ConvergenceVsVerdict(run Run) ([]VerdictConvergence, error) {
 	rows, err := db.Query(`SELECT "epoch", "verdict", ` + convergenceColumns +
 		` FROM "convergence_at" WHERE "verdict" IS NOT NULL ORDER BY "seq"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for convergence-vs-verdict: %w", err)
+		return nil, fmt.Errorf("asking the record for convergence-vs-verdict: %w", err)
 	}
 	defer rows.Close()
 	var out []VerdictConvergence

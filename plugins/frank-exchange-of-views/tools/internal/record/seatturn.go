@@ -34,7 +34,7 @@ func AppendSeatTurns(run Run, agentID string, turns []seatturn.Turn) (int, error
 		// FILED AGAINST NOTHING IS WORSE THAN NOT FILED. A row keyed on an empty agent joins to
 		// no register event, so it would sit in the table contributing to totals while belonging
 		// to no seat — present in the count and absent from every per-seat view.
-		return 0, fmt.Errorf("record: refusing to file %d seat turns against an empty agent id", len(turns))
+		return 0, fmt.Errorf("refusing to file %d seat turns against an empty agent id", len(turns))
 	}
 	if len(turns) == 0 {
 		return 0, nil
@@ -53,7 +53,7 @@ func AppendSeatTurns(run Run, agentID string, turns []seatturn.Turn) (int, error
 	  ("agent_id","turn_idx","ts_ms","model","input_tokens","output_tokens","cache_read","cache_creation","is_thinking","is_tool")
 	  VALUES (?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
-		return 0, fmt.Errorf("record: preparing the seat-turn insert: %w", err)
+		return 0, fmt.Errorf("preparing the seat-turn insert: %w", err)
 	}
 	defer stmt.Close()
 
@@ -62,14 +62,14 @@ func AppendSeatTurns(run Run, agentID string, turns []seatturn.Turn) (int, error
 		res, err := stmt.Exec(agentID, t.Index, t.TSMillis, t.Model,
 			t.Input, t.Output, t.CacheRead, t.CacheCreation, boolInt(t.Thinking), boolInt(t.Tool))
 		if err != nil {
-			return 0, fmt.Errorf("record: writing turn %d for agent %s: %w", t.Index, agentID, err)
+			return 0, fmt.Errorf("writing turn %d for agent %s: %w", t.Index, agentID, err)
 		}
 		if n, aerr := res.RowsAffected(); aerr == nil {
 			written += int(n)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("record: committing %d seat turns: %w", len(turns), err)
+		return 0, fmt.Errorf("committing %d seat turns: %w", len(turns), err)
 	}
 	return written, nil
 }
@@ -96,7 +96,7 @@ func CountSeatTurns(run Run) (int, error) {
 	}
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM "seat_turn"`).Scan(&n); err != nil {
-		return 0, fmt.Errorf("record: counting seat turns: %w", err)
+		return 0, fmt.Errorf("counting seat turns: %w", err)
 	}
 	return n, nil
 }
@@ -141,7 +141,7 @@ func SeatMetrics(run Run) ([]SeatMetric, error) {
 	  "input_tokens","output_tokens","cache_read","cache_creation","wall_ms","acts"
 	  FROM "seat_metrics" ORDER BY COALESCE("seat_id", ''), "agent_id"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: reading seat metrics: %w", err)
+		return nil, fmt.Errorf("reading seat metrics: %w", err)
 	}
 	defer rows.Close()
 	var out []SeatMetric
@@ -149,7 +149,7 @@ func SeatMetrics(run Run) ([]SeatMetric, error) {
 		var m SeatMetric
 		if err := rows.Scan(&m.AgentID, &m.SeatID, &m.AgentType, &m.Turns, &m.ThinkingTurns, &m.ToolTurns,
 			&m.InputTokens, &m.OutputTokens, &m.CacheRead, &m.CacheCreation, &m.WallMillis, &m.Acts); err != nil {
-			return nil, fmt.Errorf("record: scanning a seat metric: %w", err)
+			return nil, fmt.Errorf("scanning a seat metric: %w", err)
 		}
 		out = append(out, m)
 	}

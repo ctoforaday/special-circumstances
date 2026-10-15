@@ -225,7 +225,7 @@ func RequireAvenueRef(run Run, id string) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("record: --id names avenue %s, which no avenue event proposed — a dangling reference is accepted here and dropped at replay", id)
+	return fmt.Errorf("--id names avenue %s, which no avenue event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
 // StaleAvenuesOf is StaleAvenues over the events themselves.
@@ -264,10 +264,10 @@ func AvenueRuling(run Run, avenueID string) (string, error) {
 	found, err := queryRow(run, []any{&word},
 		`SELECT "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = ?`, avenueID)
 	if err != nil {
-		return "", fmt.Errorf("record: the ruling on avenue %s: %w", avenueID, err)
+		return "", fmt.Errorf("the ruling on avenue %s: %w", avenueID, err)
 	}
 	if !found {
-		return "", fmt.Errorf("record: the ruling on avenue %s: avenue_state holds no row for it — no proposal that stands created that avenue", avenueID)
+		return "", fmt.Errorf("the ruling on avenue %s: avenue_state holds no row for it — no proposal that stands created that avenue", avenueID)
 	}
 	return word.String, nil
 }

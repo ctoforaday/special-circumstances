@@ -71,7 +71,7 @@ func ChangesJSONOfDB(db *sql.DB) (ChangesJSON, error) {
 	    "delta", "reason", "applied_verbatim", "accepted"
 	  FROM "change" ORDER BY "pos", "event_id"`)
 	if err != nil {
-		return out, fmt.Errorf("record: asking the change view: %w", err)
+		return out, fmt.Errorf("asking the change view: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {

@@ -63,11 +63,11 @@ func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
 	}
 	if !found {
 		return nil, feov.Errorf(feov.Validation,
-			"record: a correction names %q, and no act on this record carries that key", key)
+			"a correction names %q, and no act on this record carries that key", key)
 	}
 	body, ok := recordpb.Body(ev)
 	if !ok {
-		return nil, fmt.Errorf("record: event %d (key %q) carries no body", id, key)
+		return nil, fmt.Errorf("event %d (key %q) carries no body", id, key)
 	}
 	return &correctionTarget{ID: id, Key: key, SeatID: ev.GetSeatId(), Type: ev.GetType(), Body: body}, nil
 }
@@ -75,12 +75,12 @@ func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
 func requireSameSeatAndType(t *correctionTarget, seatID string, typ recordpb.EventType) error {
 	if t.Type != typ {
 		return feov.Errorf(feov.Validation,
-			"record: %s is a %s, and its replacement is a %s — a correction replaces an act with one of its own type",
+			"%s is a %s, and its replacement is a %s — a correction replaces an act with one of its own type",
 			t.Key, recordpb.Word(t.Type), recordpb.Word(typ))
 	}
 	if t.SeatID != seatID {
 		return feov.Errorf(feov.Validation,
-			"record: %s was written by %s, not by %s — a correction strikes only its own seat's act",
+			"%s was written by %s, not by %s — a correction strikes only its own seat's act",
 			t.Key, t.SeatID, seatID)
 	}
 	return nil
@@ -110,22 +110,22 @@ func validateCorrection(t *correctionTarget, seatID string, typ recordpb.EventTy
 			why = "the tool wrote it, as its own record of what it did, and a seat cannot restate that"
 		}
 		return feov.Errorf(feov.Validation,
-			"record: %s is a %s, which no correction strikes — %s",
+			"%s is a %s, which no correction strikes — %s",
 			t.Key, recordpb.Word(t.Type), why)
 	}
 	if a, b := keyLabel(t.Body), keyLabel(body); a != b {
 		return feov.Errorf(feov.Validation,
-			"record: a correction keeps the act's label — %s is on %q and this replacement is on %q. An act about something else is a new act, not a correction",
+			"a correction keeps the act's label — %s is on %q and this replacement is on %q. An act about something else is a new act, not a correction",
 			t.Key, a, b)
 	}
 	if proto.Equal(t.Body, body) {
 		return feov.Errorf(feov.Validation,
-			"record: this correction changes nothing — the replacement equals event %d", t.ID)
+			"this correction changes nothing — the replacement equals event %d", t.ID)
 	}
 	if tier == recordpb.CorrectionTier_CORRECTION_TIER_PROSE {
 		if diff := frozenDiff(t.Body, body); len(diff) > 0 {
 			return feov.Errorf(feov.Validation,
-				"record: a %s correction changes only the seat's own wording (%s); this one changes %s, which stays as event %d recorded it",
+				"a %s correction changes only the seat's own wording (%s); this one changes %s, which stays as event %d recorded it",
 				recordpb.Word(t.Type), strings.Join(proseFlags(t.Body.ProtoReflect().Descriptor()), ", "), strings.Join(diff, ", "), t.ID)
 		}
 	}
@@ -216,7 +216,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	run, seatID := id.Run, id.SeatID
 	if strings.TrimSpace(c.Why) == "" {
 		return nil, feov.Errorf(feov.MissingField,
-			"record: a correction says what was wrong with the act it strikes, and this one says nothing; a reader sees it beside the struck text")
+			"a correction says what was wrong with the act it strikes, and this one says nothing; a reader sees it beside the struck text")
 	}
 	if existing, err := correctionRetry(db, seatID, c.Key, body); existing != nil || err != nil {
 		// THE RETRY IS ANSWERED WITH THE ACT THAT STANDS.
@@ -254,11 +254,11 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	var before, now int
 	if err := tx.QueryRow(sittingBeforeAndNowSQL,
 		seatID, target.ID).Scan(&before, &now); err != nil {
-		return nil, fmt.Errorf("record: counting %s's sittings: %w", seatID, err)
+		return nil, fmt.Errorf("counting %s's sittings: %w", seatID, err)
 	}
 	if before != now {
 		return nil, feov.Errorf(feov.Validation,
-			"record: %s was written in an earlier sitting of %s (sitting %d; this is sitting %d) — a correction belongs to the sitting that wrote the act it strikes",
+			"%s was written in an earlier sitting of %s (sitting %d; this is sitting %d) — a correction belongs to the sitting that wrote the act it strikes",
 			target.Key, seatID, before, now)
 	}
 	// F7: NOT ONCE RELIED ON. Any act by another seat after the target counts, whatever it was —
@@ -274,10 +274,10 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		target.ID, seatID, HarnessSeat, recordpb.Word(recordpb.LogSource_LOG_SOURCE_TOOL)).Scan(&fid, &fseat, &ftype); {
 	case err == nil:
 		return nil, feov.Errorf(feov.Validation,
-			"record: another seat has acted since this %s (event %d, a %s by %s); a correction strikes an act only before any other seat acts",
+			"another seat has acted since this %s (event %d, a %s by %s); a correction strikes an act only before any other seat acts",
 			recordpb.Word(target.Type), fid, ftype, fseat)
 	case !errors.Is(err, sql.ErrNoRows):
-		return nil, fmt.Errorf("record: asking whether another seat has acted since %s: %w", target.Key, err)
+		return nil, fmt.Errorf("asking whether another seat has acted since %s: %w", target.Key, err)
 	}
 	// A MOTION IS ANSWERED ONCE, and a replayed ruling does not ask again: the type is
 	// PROSE tier, so validateCorrection has held the replacement to its target's motion, and the
@@ -292,7 +292,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("record: walking the correction chain of %s: %w", target.Key, err)
+			return nil, fmt.Errorf("walking the correction chain of %s: %w", target.Key, err)
 		}
 		root, depth = prev, depth+1
 	}
@@ -323,18 +323,19 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 // the case where "the gap is already closed" is the correction's own premise, not a refusal. A read
 // that fails answers false, so the ordinary guard runs and says what it says.
 //
-// THE EARLIEST STANDING RED CLOSE, read from closure_act itself, where the gap view states the
-// LAST: the question is whether the target is the act that closed the gap, and a later standing
-// close on a closed gap is a carry that restates it.
+// The act that closed the gap is the gap view's `close_event`, its last standing red close. While a
+// red close stands the gap is closed, so a second fresh close is refused and every later one is a
+// carry; a correction strikes an act only before any other seat acts, so no other seat's carry
+// follows the target. The first standing red close and the last part only where the target's own
+// seat carried it in the same sitting, and no record holds that: only migrate writes a correction,
+// and no archived run holds a gap with two standing red closes.
 func closedByTarget(run Run, gapID string, target *correctionTarget) bool {
 	if target == nil || gapID == "" {
 		return false
 	}
-	var seq int64
-	found, err := queryRow(run, []any{&seq}, `SELECT c."event_id" FROM "closure_act" c
-	  JOIN "live_event" l ON l."event_id" = c."event_id"
-	  WHERE c."gap_id" = ? AND c."arm" = 'close' ORDER BY l."pos" LIMIT 1`, gapID)
-	return err == nil && found && seq == target.ID
+	var seq sql.NullInt64
+	found, err := queryRow(run, []any{&seq}, `SELECT "close_event" FROM "gap" WHERE "gap_id" = ?`, gapID)
+	return err == nil && found && seq.Valid && seq.Int64 == target.ID
 }
 
 // correctionRetry answers a correction this seat already made of this key: the SAME replacement is
@@ -354,7 +355,7 @@ func correctionRetry(db *sql.DB, seatID, key string, body proto.Message) (*Event
 		return nil, err
 	}
 	if !found {
-		return nil, fmt.Errorf("record: %s names replacement %s, which is not on the record", correctionKey(seatID, key), replacement)
+		return nil, fmt.Errorf("%s names replacement %s, which is not on the record", correctionKey(seatID, key), replacement)
 	}
 	if sb, ok := recordpb.Body(stored); ok && proto.Equal(sb, body) {
 		return stored, nil
@@ -364,7 +365,7 @@ func correctionRetry(db *sql.DB, seatID, key string, body proto.Message) (*Event
 		return nil, err
 	}
 	return nil, feov.Errorf(feov.Validation,
-		"record: %s was already corrected — the act that stands now is %s", key, head)
+		"%s was already corrected — the act that stands now is %s", key, head)
 }
 
 // liveHead follows a key's correction chain to the act that stands now. A key nobody corrected is
@@ -384,7 +385,7 @@ func liveHead(q interface {
 		}
 		head = next
 	}
-	return "", fmt.Errorf("record: the correction chain of %s does not end", key)
+	return "", fmt.Errorf("the correction chain of %s does not end", key)
 }
 
 // Struck is one corrected act: the act that replaced it, who corrected it and why.

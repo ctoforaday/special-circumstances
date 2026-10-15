@@ -2,6 +2,7 @@ package record
 
 import (
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -73,6 +74,36 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 	)
 	if _, fe := SpotCheckAudit(b); len(fe) != 0 {
 		t.Errorf("an honestly-empty claim is not a contradiction: %v", fe)
+	}
+}
+
+// A SPOT-CHECK'S PROSE IS PRINTED WHATEVER IT NAMES. Over a converged board the chair records no
+// verdict and states a defect it found in a stale area in that area's spot-check, which names areas
+// and no closure — so a rendering that keeps the prose only beside named closures delivers the
+// defect to no reader.
+func TestADescribedSpotCheckCarriesItsProseWhateverItNames(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		sc   SpotCheck
+		want []string
+	}{
+		{"stale areas only", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []string{"red-lens-logic", "red-lens-voice"}, Prose: "the new paragraph contradicts the table"},
+			[]string{"#4 (red-chair)", "read stale area(s) red-lens-logic, red-lens-voice", "the new paragraph contradicts the table"}},
+		{"stale areas and closures", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []string{"red-lens-logic"}, Sampled: []string{"G1"}, Archived: 3, Prose: "G1's anchor resolves"},
+			[]string{"read stale area(s) red-lens-logic", "re-verified G1 of 3 archived closure(s)", "G1's anchor resolves"}},
+		{"closures only", SpotCheck{Sitting: 4, SeatID: "red-chair", Sampled: []string{"G1"}, Archived: 1, Prose: "G1's anchor resolves"},
+			[]string{"re-verified G1 of 1 archived closure(s)", "G1's anchor resolves"}},
+		{"nothing to sample", SpotCheck{Sitting: 4, SeatID: "red-chair", Areas: []string{"red-lens-logic"}, None: true, Prose: "the archive was empty"},
+			[]string{"read stale area(s) red-lens-logic", "**nothing to sample**", "the archive was empty"}},
+		{"naming nothing", SpotCheck{Sitting: 4, SeatID: "red-chair", Prose: "read the plan"},
+			[]string{"naming no stale area and no closure", "read the plan"}},
+	} {
+		got := c.sc.Describe()
+		for _, w := range c.want {
+			if !strings.Contains(got, w) {
+				t.Errorf("%s: Describe() = %q, missing %q", c.name, got, w)
+			}
+		}
 	}
 }
 

@@ -947,7 +947,7 @@ var ReasonIs = map[string]string{
 	"log":          "the entry: what you concluded about the tooling",
 	"position":     "your sitting's argument — your THINKING, not your process. " + flags.ReasonNotProcess,
 	"closing":      "your closing argument on this gap — your THINKING, not your process. " + flags.ReasonNotProcess,
-	"spot-check":   "what sampling the closure archive found. " + flags.ReasonNotProcess,
+	"spot-check":   "what reading the stale areas and sampling the closure archive found, a defect included — printed with the spot-check in the report's board and in the debate transcript. " + flags.ReasonNotProcess,
 	"certify":      "what a human should re-examine after the run, and why. " + flags.ReasonNotProcess,
 	"declare":      "the holding: how the whole record is to be READ. " + flags.ReasonNotProcess,
 	"halt":         "the opinion: the boundary, and why continuing would itself be the harm. " + flags.ReasonNotProcess,

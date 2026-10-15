@@ -59,12 +59,12 @@ Run `feov-record mint --help` for what it takes, flag by flag.
 $ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 2
 stderr:
-feov-record: mint: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
+feov-record: mint: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 $ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check same class again --severity low --likelihood low --impact low --problem extension accepted
 exit 2
 stderr:
-feov-record: mint: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
+feov-record: mint: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -74,8 +74,8 @@ feov-record: mint: record: unknown class attestation-inflation — use a registr
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --problem: requires --impact, --likelihood, --severity","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --problem: requires --impact, --likelihood, --severity","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_LOG"}
 {"key":"red-lens-evidence:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --problem: requires --impact, --likelihood, --severity","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
-{"key":"red-lens-evidence:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `mint` with --check --check-kind --class --impact --likelihood --problem --severity: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- avenues

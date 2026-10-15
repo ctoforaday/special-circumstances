@@ -42,7 +42,7 @@ func correctionQuery(run Run, q string) ([]string, error) {
 	}
 	rows, err := db.Query(q)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the correction views: %w", err)
+		return nil, fmt.Errorf("asking the correction views: %w", err)
 	}
 	defer rows.Close()
 	out := []string{}

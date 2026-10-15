@@ -801,7 +801,7 @@ func provenance(m *recordpb.Mint, findings map[string]*record.Event) string {
 
 // boardSection composes the board from the replayed gaps: every open gap with its grades and
 // required fix, then the closure index — and, appended below, blue's correctness manifest and
-// red's archive spot-checks. This is the ledger's content, drawn from the replayed board rather
+// red's spot-checks. This is the ledger's content, drawn from the replayed board rather
 // than read back from the projection file.
 //
 // THREE PARTIES WRITE INTO THIS SECTION, which is why it is named for none of them: red mints
@@ -908,7 +908,7 @@ func boardSection(fam record.Family) string {
 	if un := unmintedFindings(fam); un != "" {
 		fmt.Fprintf(&b, "\n\n%s", un)
 	}
-	if sc := archiveSpotChecks(fam); sc != "" {
+	if sc := spotChecks(fam); sc != "" {
 		fmt.Fprintf(&b, "\n\n%s", sc)
 	}
 	if cm := correctnessManifest(fam); cm != "" {
@@ -987,20 +987,21 @@ func correctnessManifest(fam record.Family) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// archiveSpotChecks renders red's re-verification of its own closure archive — which closures the
-// chair re-read in each spot-check it filed, and what that found.
+// spotChecks renders the chair's spot-checks — the stale areas each read, the closures each
+// re-read, and what that found.
 //
 // The closure index is the report's claim that a gap was dealt with. A reader deciding how much to
 // trust it is shown which sittings re-read it; a spot-check claiming an empty archive the board
-// contradicts is shown as that.
-func archiveSpotChecks(fam record.Family) string {
+// contradicts is shown as that. A defect the chair found in a stale area is stated in that area's
+// spot-check, with no verdict recorded, so its prose is printed whatever the spot-check names.
+func spotChecks(fam record.Family) string {
 	checks, falseEmpty := record.SpotCheckAudit(fam)
 	if len(checks) == 0 {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "### Archive spot-checks (%d)\n\n", len(checks))
-	b.WriteString("Red re-reading its own closure record. A closure index is only as good as the last time anyone looked; these are the sittings that looked.\n\n")
+	fmt.Fprintf(&b, "### Spot-checks (%d)\n\n", len(checks))
+	b.WriteString("Red re-reading before a PASS what it would otherwise take on trust: the stale areas, each a retired lens's area the report has moved past since it sat, and its own closure record, which is only as good as the last time anyone looked. These are the sittings that looked, and what each found.\n\n")
 	for _, sc := range checks {
 		b.WriteString("- " + sc.Describe() + "\n")
 	}
@@ -1153,7 +1154,7 @@ func unmintedFindings(fam record.Family) string {
 }
 
 // debate composes the one transcript from the event log: per epoch, the parties' positions
-// and closings, the grade disputes and their answers, then the bench's docket dispositions and
+// and closings, the chair's spot-checks, the grade disputes and their answers, then the bench's docket dispositions and
 // petition rulings; then the terminal bench disposition (halt / certify). Everything the parties and
 // the bench put on the record, in one place — the seat re-narrated none of it.
 // debate takes the BOARD as well as the events, because a petition's ruling cannot be attributed
@@ -1178,6 +1179,7 @@ func debate(fam record.Family) string {
 	// motion's FILING, so the join is computed once here — record.DocketGapByMotion is the one place
 	// it lives, and recovering it a second way is how two renderers come to disagree.
 	docketGapOf := record.DocketGapByMotion(fam.Events)
+	archive := record.ArchiveOf(fam.Gaps)
 
 	var parts []string
 	for _, r := range order {
@@ -1232,6 +1234,13 @@ func debate(fam record.Family) string {
 				case "blue":
 					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), l.Markdown(c.GetText())))
 				}
+				continue
+			}
+			// THE SPOT-CHECK IS PART OF RED'S ARGUMENT: a defect the chair finds in a stale area is
+			// stated there, with no verdict recorded, and this transcript is where a reader of the
+			// sitting looks for it.
+			if sc, ok := record.SpotCheckOf(e, fam.At, archive); ok {
+				epoch = append(epoch, "### RED SPOT-CHECK\n"+l.Markdown(sc.Describe()))
 			}
 		}
 

@@ -484,7 +484,7 @@ func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error
 		rows, err := q.Query(`SELECT c."gap_id", MIN(c."event_id") FROM "closure_act" c
 		  JOIN "live_event" l ON l."event_id" = c."event_id" GROUP BY c."gap_id"`)
 		if err != nil {
-			return fmt.Errorf("record: asking the record where each closed gap closed: %w", err)
+			return fmt.Errorf("asking the record where each closed gap closed: %w", err)
 		}
 		defer rows.Close()
 		for rows.Next() {
@@ -1250,7 +1250,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	    COALESCE(g."docket_reopens_on", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its open gaps: %w", err)
+		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)
 	}
 	defer rows.Close()
 	var out []openGap

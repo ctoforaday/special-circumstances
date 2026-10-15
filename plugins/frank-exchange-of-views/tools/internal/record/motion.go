@@ -115,7 +115,7 @@ func gradeMotionAxes() []EnumValue {
 func AxisMeans(d recordpb.GradeDimension) string {
 	vd := d.Descriptor().Values().ByNumber(d.Number())
 	if vd == nil {
-		panic(fmt.Sprintf("record: %d is not a grade axis", d.Number()))
+		panic(fmt.Sprintf("%d is not a grade axis", d.Number()))
 	}
 	means, err := recordpb.EnumValueDoc(vd)
 	if err != nil {
@@ -255,8 +255,9 @@ func MotionsOf(evs []*Event, win WindowIndex) []*Motion { return motionsAt(evs, 
 //
 // A MOTION'S ANSWER IS ITS FIRST RULING THAT STANDS — the rule the write enforces
 // (requireUnanswered) and motion_answers states in SQL.
-// TestEveryMotionReaderStatesFirstWins holds this walk, AvenuesOf and the view to it on a record
-// seeded past the write.
+// TestEveryMotionReaderStatesTheRulingThatStands holds this walk, AvenuesOf and the view to one
+// answer; recordsql's TestMotionAnswersStatesFirstWinsOnce holds the view to first-wins on the two
+// rulings only a raw insert produces.
 //
 // Each filing, proposal and ruling carries the epoch and sitting the record stored it in (win): a
 // filing made in a sitting-record repair is the repaired sitting's, and one made before its
@@ -457,7 +458,7 @@ func rowOf(q rowQuerier, dest []any, query string, args ...any) (found bool, err
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
-		return false, fmt.Errorf("record: asking the record: %w", err)
+		return false, fmt.Errorf("asking the record: %w", err)
 	}
 	return true, nil
 }
@@ -476,7 +477,7 @@ func rowOf(q rowQuerier, dest []any, query string, args ...any) (found bool, err
 // so the reference is resolved once and the answer passed down.
 func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string) (filed string, err error) {
 	if id == "" {
-		return "", fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
+		return "", fmt.Errorf("--id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
 	// A direction has no filing event — the proposal is the filing — so an id that resolves to an
 	// avenue IS an avenue motion by construction.
@@ -495,7 +496,7 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 		return "", err
 	}
 	if !found {
-		return "", fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
+		return "", fmt.Errorf("--id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
 	}
 	if vd, ok := recordpb.BySpelling(recordpb.MotionSubject(0).Descriptor(), word.String); ok {
 		return motionSubjectWord(recordpb.MotionSubject(vd.Number())), nil
@@ -521,7 +522,7 @@ func RequireSubjectMatches(run Run, subject recordpb.MotionSubject, id string) e
 		return err
 	}
 	if subject == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
-		return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(subject), strings.Join(MotionSubjects, " | "))
+		return fmt.Errorf("%q is not a motion subject — one of %s", recordpb.Word(subject), strings.Join(MotionSubjects, " | "))
 	}
 	asked := motionSubjectWord(subject)
 	if filed == asked {
@@ -536,7 +537,7 @@ func RequireSubjectMatches(run Run, subject recordpb.MotionSubject, id string) e
 			ruler = "the " + r
 		}
 	}
-	return fmt.Errorf("record: motion %s was filed as a %s motion and you are ruling it as a %s — it is ruled with %s's `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
+	return fmt.Errorf("motion %s was filed as a %s motion and you are ruling it as a %s — it is ruled with %s's `motion %s rule`. The subject decides BOTH who holds the gavel and which verdicts exist, so ruling under the wrong one answers with a vocabulary the motion does not have",
 		id, filed, asked, ruler, filed)
 }
 
@@ -578,7 +579,7 @@ func RequireUnruledMotion(q rowQuerier, id, answer string) error {
 		return err
 	}
 	if found {
-		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer%s",
+		return fmt.Errorf("motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer%s",
 			id, word.String, seat.String, sentenceAfter(answer))
 	}
 	return nil
