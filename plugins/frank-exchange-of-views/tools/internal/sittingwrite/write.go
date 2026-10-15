@@ -57,8 +57,9 @@ const (
 )
 
 // WriteToolEntry records what a hook saw happen to a seat's call — a denial or a failure — as the
-// tool's log entry of that phase's type, under the seat the agent registered as. An agent with no
-// register is no seat, and a run with an outcome is over; nothing is written for either.
+// tool's log entry of that phase's type, under the seat the agent is bound to (record.SeatOfAgent:
+// its latest register, or the bracket that named its seat). An agent bound to no seat is no seat,
+// and a run with an outcome is over; nothing is written for either.
 func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 	typ, ok := map[Phase]recordpb.LogType{
 		Refusal: recordpb.LogType_LOG_TYPE_REFUSAL,
@@ -95,9 +96,10 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 // WriteLimit records that a seat's sitting reached the run's per-sitting tool-call limit and was
 // stopped by the PreToolUse hook.
 //
-// THE SEAT AND THE SITTING ARE CHECKED AGAINST THE RECORD. The hook counted against a sitting that
-// register opened; the seat is resolved here by the agent's latest register, and a sitting number
-// the seat has not reached is refused rather than written.
+// THE SEAT IS RESOLVED ON THE RECORD, by the agent's binding (record.SeatOfAgent: its latest
+// register, or the bracket that named its seat). The sitting is the number the hook's count was
+// keyed by — the seat's stored sitting count when `register` started it — so it names a sitting the
+// record already holds, and nothing here counts sittings a second way.
 func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
 	if agentID == "" {
 		return fmt.Errorf("sittingwrite: refusing a sitting limit with no agent id")
@@ -114,14 +116,7 @@ func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
 		return err
 	}
 	if !found {
-		return fmt.Errorf("sittingwrite: agent %s has no register on this record, so no sitting of it was counted", agentID)
-	}
-	n, err := record.SittingsOf(run, seat)
-	if err != nil {
-		return err
-	}
-	if sitting > n {
-		return fmt.Errorf("sittingwrite: %s has opened %d sitting(s), so sitting %d cannot have reached a limit", seat, n, sitting)
+		return fmt.Errorf("sittingwrite: agent %s is bound to no seat on this record, so no sitting of it was counted", agentID)
 	}
 	body := &recordpb.SittingLimit{
 		AgentId: proto.String(agentID),

@@ -6,8 +6,8 @@
 // The record stores a seat's sittings (events.sitting_id, ranked by events_w): the hook's bracket
 // opens one and the seat's register under the same agent joins it. This counts from the register,
 // the one act every sitting that writes performs: `register` writes a header naming the agent's
-// seat and sitting number, and every call after it is counted against that sitting until the next
-// register replaces the header.
+// seat and stored sitting number, and every call after it is counted against that sitting until a
+// register in a later sitting moves the header on to that one.
 //
 // SubagentStart and the sitting_open span are the other candidates, and neither fires on every
 // sitting that writes. A warm session resumed for a second sitting fires neither, and a seat that
@@ -69,8 +69,9 @@ const ConfigKey = "maxSittingCalls"
 const Dir = ".sitting-calls"
 
 // Header is what register writes: which seat the agent sits as and which of that seat's sittings is
-// open. The sitting number is the seat's register count (register's dispatch ordinal), which keys
-// this counter; it is not the stored sitting ordinal events_w ranks.
+// open. The sitting number is the seat's stored sitting count when it registered — the ordinal events_w
+// ranks, which every `#N` on the record reads — and it keys this counter, so a second register in one
+// sitting keeps that sitting's count.
 type Header struct {
 	SeatID  string `json:"seatId"`
 	Sitting int    `json:"sitting"`

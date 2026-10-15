@@ -54,8 +54,9 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 			return emptyPlan(), false, err
 		}
 	}
-	// THE CHAIR REGISTERS FOR EVERY SITTING, a resumed one included: refused before anything is
-	// folded or written, so the register lands ahead of every act of the sitting.
+	// EVERY CHAIR SITTING IS OPENED BEFORE IT DISPATCHES — by the hook's bracket, or by the chair's
+	// register where none did, a resumed sitting's included: refused before anything is folded or
+	// written, so the opening lands ahead of every act of the sitting.
 	if err := requireChairSittingOpened(evs, win); err != nil {
 		return emptyPlan(), false, err
 	}

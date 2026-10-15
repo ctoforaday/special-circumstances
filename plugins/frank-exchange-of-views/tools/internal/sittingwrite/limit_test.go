@@ -51,15 +51,16 @@ func TestASittingLimitLandsNamingTheSeatSittingAndLimit(t *testing.T) {
 	}
 }
 
-// A SITTING THE RECORD CANNOT ACCOUNT FOR IS REFUSED rather than written.
+// A LIMIT NO SEAT CAN BE NAMED FOR IS REFUSED rather than written: an agent the record binds to no
+// seat, a sitting below 1, a limit below 1.
 func TestASittingLimitTheRecordCannotAccountForIsRefused(t *testing.T) {
 	run := newRun(t)
-	if err := WriteLimit(run, "agent_ghost", "", 1, 150); err == nil || !strings.Contains(err.Error(), "no register") {
-		t.Errorf("an agent that never registered: %v, want a refusal naming the missing register", err)
+	if err := WriteLimit(run, "agent_ghost", "", 1, 150); err == nil || !strings.Contains(err.Error(), "bound to no seat") {
+		t.Errorf("an agent bound to no seat: %v, want a refusal naming the missing binding", err)
 	}
 	registerAs(t, run, "agent_07", "red-chair")
-	if err := WriteLimit(run, "agent_07", "", 2, 150); err == nil {
-		t.Error("sitting 2 of a seat that has opened one was written")
+	if err := WriteLimit(run, "agent_07", "", 0, 150); err == nil {
+		t.Error("sitting 0 was written")
 	}
 	if err := WriteLimit(run, "agent_07", "", 1, 0); err == nil {
 		t.Error("a limit of 0 was written")

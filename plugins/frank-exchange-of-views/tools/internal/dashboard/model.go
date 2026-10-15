@@ -424,22 +424,15 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 // page for a bench that never sat.
 func buildJudiciary(fam record.Family) Judiciary {
 	j := Judiciary{Measured: true, Rulings: map[string]int{}, ChainSpans: map[int]int{}}
-	// A judge sitting is a stored sitting whose register names an occasion: the record refuses an
-	// occasion on any seat but the bench and requires one on the bench, so every occasion — docket,
-	// petition, terminal, assemble — is the bench sitting. Counted by the sitting the record holds
-	// each register in, so a register that joined its hook's bracket, a second register in one
-	// sitting, or a repair's register adds none.
-	judgeSat := map[int64]bool{}
-	for _, e := range fam.Live() {
-		reg, ok := recordpb.BodyAs[*recordpb.Register](e)
-		if !ok || reg.GetOccasion() == recordpb.Occasion_OCCASION_UNSPECIFIED {
-			continue
-		}
-		if id := fam.At.Of(e).SittingID; id != 0 {
-			judgeSat[id] = true
+	// A judge sitting is a stored sitting of the bench's seat: the hook's bracket opens it, or the
+	// bench's register where no bracket did. Counted by opening, so a register that joined its
+	// bracket's sitting, or a second register in one sitting, adds none, and a sitting the bracket
+	// opened that the bench never registered in counts.
+	for _, e := range fam.Events {
+		if seat, opens := fam.At.Opens(e); opens && record.SeatOwesOccasion(seat) {
+			j.JudgeSittings++
 		}
 	}
-	j.JudgeSittings = len(judgeSat)
 	// MotionsOf reads the acts that stand, so a ruling struck in its sitting is not counted.
 	for _, m := range record.MotionsOf(fam.Events, fam.At) {
 		switch m.Subject {

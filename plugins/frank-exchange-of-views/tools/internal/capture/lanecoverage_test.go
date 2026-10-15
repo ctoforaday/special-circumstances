@@ -101,7 +101,7 @@ func TestLaneCoverageFailsOnALaneTheConfigNeverAskedFor(t *testing.T) {
 	if got.Verdict != "FAIL" {
 		t.Fatalf("a lane beyond the declared count must FAIL: got %s — %s", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "blue-lane-3 registered beyond the declared count") {
+	if !strings.Contains(got.Detail, "the cast names blue-lane-3 beyond the declared count") {
 		t.Errorf("detail must name the excess lane; got:\n%s", got.Detail)
 	}
 }

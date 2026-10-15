@@ -139,8 +139,8 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 	minted := map[string]string{}    // gap -> the lens that minted it
 	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
 	movement := map[string][]int64{} // gap -> ids of movement events
-	dispatches, registers := dispatchLedger(evs, ids, win)
-	closer := sittingCloserOf(evs, ids, win, registers, when)
+	dispatches, openings := dispatchLedger(evs, ids, win)
+	closer := sittingCloserOf(evs, ids, win, openings, when)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -181,7 +181,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen) map
 	// seat's write path can decide what this read reports.
 	sittings := map[string][]partySitting{}
 	for _, d := range dispatches {
-		start, sat := sittingFor(registers[d.seat], d)
+		start, sat := sittingFor(openings[d.seat], d)
 		if !sat {
 			continue // engaged, never sat: no exchange yet, and rule 1 keeps readying it
 		}

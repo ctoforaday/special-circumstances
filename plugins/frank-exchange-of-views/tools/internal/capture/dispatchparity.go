@@ -15,13 +15,13 @@ import (
 // chair's verb records who sits; the chair relays that into its envelope; the workflow dispatches
 // what the envelope says — and the chair could drop, add or alter a party on the way. Two halves:
 //
-// REGISTERS AGAINST DISPATCH ROWS. Within the window from the first dispatch to termination, every
-// register between one chair sitting's dispatches D and the next's D+1 is either a party named in D
-// or the seat that authors D+1 (the chair registering to run the verb is exempt BY RULE, not by
-// allowlist), and every party named in D SAT for it — record.DispatchGroup's Sat, the one "has this
-// seat sat" predicate — before D+1. The bookends register outside the window by position: the base
-// phase before the first dispatch, and the bench's terminal and assembly sittings after the last
-// chair sitting.
+// SITTINGS AGAINST DISPATCH ROWS. Within the window from the first dispatch to termination, every
+// sitting opened between one chair sitting's dispatches D and the next's D+1 — by the hook's bracket
+// or by a register — is either a party named in D or the seat that authors D+1 (the chair opening
+// its sitting to run the verb is exempt BY RULE, not by allowlist), and every party named in D SAT
+// for it — record.DispatchGroup's Sat, the one "has this seat sat" predicate — before D+1. The
+// bookends sit outside the window by position: the base phase before the first dispatch, and the
+// bench's terminal and assembly sittings after the last chair sitting.
 //
 // RELAYED FIELDS AGAINST DISPATCH ROWS. A chair result in the journal is the one whose `plan` is an
 // object with a `parties` array — the chair envelope is the only one carrying a plan, and it is how
@@ -34,7 +34,7 @@ import (
 // pin. The row is the LAST one naming the party in the group — a plan that files a docket, or one that
 // changed since the chair asked, is never standing, so a chair that asks twice can write two rows,
 // and the later is the dispatch. Without this half a wrong gap
-// id or head reached a seat and every register still matched, so the relay read as faithful.
+// id or head reached a seat and every sitting still matched, so the relay read as faithful.
 //
 // RELAYED FIELDS NO ROW CARRIES AGAINST THE RECORD AT THE END OF THE CHAIR'S SITTING. The engine
 // branches on more of the plan than the rows record: its no-progress valve keys on the docket, the
@@ -75,33 +75,44 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 	if len(groups) == 0 && len(relays) == 0 {
 		return Audit{Check: "dispatch-parity", Verdict: "SKIP", Detail: "no dispatch on the record — a run before the chair dispatched, or one that never reached the debate" + notCompared}
 	}
-	type reg struct {
+	// A SITTING IS THE STORED ONE (fam.At): the hook's bracket opens it where the configuration
+	// seats one seat, a register where no bracket did. Each is read at its opening, so a seat that
+	// sat by its bracket alone is a sitting here, and a register that joined its bracket's sitting
+	// is not a second one.
+	type sitting struct {
 		pos  int
 		seat string
-		// occasion is WHAT THE SITTING WAS CONVENED TO DO, off the register. Empty for every seat
-		// whose id already says, and empty on a record written before the field existed.
+		// occasion is WHAT THE SITTING WAS CONVENED TO DO, off the register in it that states one.
+		// Empty for every seat whose id already says, for a bench sitting no register stated one
+		// in, and on a record written before the field existed.
 		occasion string
 	}
-	var regs []reg
 	// How many of the bench's registers said what they were for, so a record that predates the
 	// field is reported as NOT MEASURED rather than read as though every bench sitting were a
 	// docket ruling.
 	var benchRegs, benchRegsWithOccasion int
-	for i, e := range fam.Events {
+	occasionOf := map[int64]string{} // a sitting's opening id -> the occasion a register in it states
+	for _, e := range fam.Events {
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			continue
 		}
-		r := reg{pos: i, seat: e.GetSeatId()}
+		occasion := ""
 		if b, ok := recordpb.BodyAs[*recordpb.Register](e); ok {
-			r.occasion = recordpb.Word(b.GetOccasion())
+			occasion = recordpb.Word(b.GetOccasion())
 		}
-		if record.SeatOwesOccasion(r.seat) {
+		if record.SeatOwesOccasion(e.GetSeatId()) {
 			benchRegs++
-			if r.occasion != "" {
+			if occasion != "" {
 				benchRegsWithOccasion++
+				occasionOf[fam.At.Of(e).SittingID] = occasion
 			}
 		}
-		regs = append(regs, r)
+	}
+	var regs []sitting
+	for i, e := range fam.Events {
+		if seat, opens := fam.At.Opens(e); opens {
+			regs = append(regs, sitting{pos: i, seat: seat, occasion: occasionOf[fam.At.Of(e).ID]})
+		}
 	}
 	// THE OCCASION IS EITHER THERE FOR THE WHOLE BENCH OR IT IS NOT MEASURED. A record written
 	// before the field carries none; a half-carrying one is worse than either, because it would
@@ -142,6 +153,12 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 			if r.seat == "red-chair" || engineConvened(r.seat, r.occasion) {
 				continue
 			}
+			// A BENCH SITTING NO REGISTER STATED AN OCCASION IN is not judged: whether the engine
+			// or the chair convened it is the register's to say, and it wrote none. It answers no
+			// dispatch either — the absent check below wants a sitting of the occasion.
+			if occasionsMeasured && record.SeatOwesOccasion(r.seat) && r.occasion == "" {
+				continue
+			}
 			// The bench is a party for the occasions its row convened it for, and only those: a
 			// petition sitting under a row that convened a docket answers nothing the chair asked.
 			if party[r.seat] && (!occasionsMeasured || !record.SeatOwesOccasion(r.seat) || slices.Contains(g.PartyRows[r.seat].Occasions, r.occasion)) {
@@ -153,10 +170,10 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 				continue
 			}
 			if party[r.seat] {
-				strays = append(strays, fmt.Sprintf("%s registered for %s after dispatch %d, whose row convened it for %s", r.seat, r.occasion, k+1, setOf(g.PartyRows[r.seat].Occasions)))
+				strays = append(strays, fmt.Sprintf("%s sat for %s after dispatch %d, whose row convened it for %s", r.seat, r.occasion, k+1, setOf(g.PartyRows[r.seat].Occasions)))
 				continue
 			}
-			strays = append(strays, fmt.Sprintf("%s registered after dispatch %d and was not a party to it", r.seat, k+1))
+			strays = append(strays, fmt.Sprintf("%s sat after dispatch %d and was not a party to it", r.seat, k+1))
 		}
 		for _, p := range g.Parties {
 			// A BENCH DISPATCHED FOR AN OCCASION MUST HAVE SAT FOR *THAT*, and the occasion is
@@ -233,7 +250,7 @@ func DispatchParityAudit(run record.Run, results []map[string]any, journalPresen
 		}
 	}
 	if len(findings) == 0 {
-		return Audit{Check: "dispatch-parity", Verdict: "PASS", Detail: fmt.Sprintf("%d dispatch(es); every register between them was a named party or the chair, and every party sat", len(groups)) + compared + notCompared}
+		return Audit{Check: "dispatch-parity", Verdict: "PASS", Detail: fmt.Sprintf("%d dispatch(es); every sitting opened between them was a named party's or the chair's, and every party sat", len(groups)) + compared + notCompared}
 	}
 	return Audit{Check: "dispatch-parity", Verdict: "FAIL", Detail: strings.Join(findings, "; ") + notCompared}
 }

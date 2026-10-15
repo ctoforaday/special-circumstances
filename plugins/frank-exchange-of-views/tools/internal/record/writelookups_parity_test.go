@@ -36,8 +36,8 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if _, found, err := SeatOfAgent(run, "agent-999"); err != nil || found {
 		t.Errorf("SeatOfAgent on an unknown agent = (found=%v, %v)", found, err)
 	}
-	if seats, err := RegisteredSeats(run); err != nil || strings.Join(seats, ",") != "red-chair,blue-respond" {
-		t.Errorf("RegisteredSeats = (%v, %v), want event order", seats, err)
+	if seats, err := SeatsThatSat(run); err != nil || strings.Join(seats, ",") != "red-chair,blue-respond" {
+		t.Errorf("SeatsThatSat = (%v, %v), want the order the sittings opened", seats, err)
 	}
 
 	// Mints: the key lookup returns the first match.
