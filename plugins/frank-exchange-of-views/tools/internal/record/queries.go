@@ -11,8 +11,7 @@ import (
 
 // This file is plans/record-sqlite.md §III step 4: the hand-written projections, replaced with
 // queries, one at a time, each with its test (queries_parity_test.go holds each one against the
-// fold it replaced). ConvergenceVsVerdict was the first and is the template; everything here
-// follows its contract:
+// fold it replaced). Everything here follows one contract:
 //
 //   - `openRunForRead` returning (nil, nil) is a run that has recorded nothing yet — every
 //     question below answers with its honest zero, exactly as the fold answered over an empty

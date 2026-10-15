@@ -38,7 +38,7 @@ func filesOf(run Run) runFiles { return runFiles{dir: run.Dir(), records: run.Re
 // params is the run's terms (RunParams).
 func (f runFiles) params() (Params, error) { return paramsIn(f.dir) }
 
-// convergenceFraction is the run's convergence fraction (runConvergenceFraction).
+// convergenceFraction is the run's convergence fraction (convergenceFractionIn).
 func (f runFiles) convergenceFraction() (float64, error) { return convergenceFractionIn(f.dir) }
 
 // registry is the staged class registry (loadRegistry).
