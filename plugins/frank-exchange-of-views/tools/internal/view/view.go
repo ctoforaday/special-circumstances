@@ -187,11 +187,11 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 // MarkdownViews() is what a test iterates now. A renderer with no name in this table does not
 // compile in; a name here with no test is one the coverage walk reports.
 var markdownViews = map[string]func(in Input, scope string) ([]byte, error){
-	"changes": func(in Input, scope string) ([]byte, error) { return changesMD(in, scope) },
-	"ledger":  func(in Input, _ string) ([]byte, error) { return ledgerMD(in), nil },
-	"archive": func(in Input, _ string) ([]byte, error) { return archiveMD(in), nil },
-	"debate":  func(in Input, _ string) ([]byte, error) { return debateMD(in), nil },
-	"avenues": func(in Input, _ string) ([]byte, error) { return inquiryMD(in), nil },
+	"changes":   func(in Input, scope string) ([]byte, error) { return changesMD(in, scope) },
+	"ledger":    func(in Input, _ string) ([]byte, error) { return ledgerMD(in), nil },
+	"archive":   func(in Input, _ string) ([]byte, error) { return archiveMD(in), nil },
+	"debate":    func(in Input, _ string) ([]byte, error) { return debateMD(in), nil },
+	"inquiries": func(in Input, _ string) ([]byte, error) { return inquiryMD(in), nil },
 }
 
 // MarkdownViews returns the markdown projection names, sorted. Exported so a test iterates the
@@ -730,10 +730,10 @@ func debateMD(in Input) []byte {
 
 // avenueMD — the exploration space grouped by fate. Trailing newline (render.go parity).
 func inquiryMD(in Input) []byte {
-	inquiry := []string{"# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
+	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
 	body := InquiryBody(in.Events, in.At)
 	if body == "" {
-		inquiry = append(inquiry, "_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration",
+		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
 		return []byte(strings.Join(inquiry, "\n"))
@@ -810,9 +810,9 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
 			"_Unsettled and not moved this epoch: "+strings.Join(ids, ", ")+". Each owes a move or a",
-			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this epoch just",
-			"as a fate does; an avenue declared once and never revisited records an intention, not a",
-			"choice. An approach that ran is `concluded` or `refuted`; every fate but `proposed` and `pursued`",
+			"REAFFIRMATION — re-recording `underway` with what you learned settles it for this epoch just",
+			"as a fate does; an inquiry declared once and never revisited records an intention, not a",
+			"choice. An approach that ran is `confirmed` or `refuted`; every fate but `proposed` and `underway`",
 			"is settled and never appears here._", "")
 	}
 	return strings.Join(inquiry, "\n") + "\n"

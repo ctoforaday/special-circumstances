@@ -67,7 +67,7 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.add("blue-respond", gradeMotion)
 		}, true},
-		{"no avenue review", BlockerInquiryReview, true, true, func(b *stage) {
+		{"no inquiry review", BlockerInquiryReview, true, true, func(b *stage) {
 			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a line"),
 				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
 		}, true},
@@ -273,7 +273,7 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	}{
 		{"nothing blocks", func(b *stage) {}, true},
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }, false},
-		{"avenue with no review this epoch", func(b *stage) {
+		{"inquiry with no review this epoch", func(b *stage) {
 			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
 		}, true},
@@ -374,8 +374,8 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
 		run := b.seed()
 		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
-		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "avenue review") {
-			t.Fatalf("FAIL over a converged board holding only the chair's avenue review = %v, want the convergence refusal naming the review", err)
+		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "inquiry review") {
+			t.Fatalf("FAIL over a converged board holding only the chair's inquiry review = %v, want the convergence refusal naming the review", err)
 		}
 	})
 }

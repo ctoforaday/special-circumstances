@@ -40,15 +40,15 @@ func TestInquiriesComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
 	rows := blueRows(record.Run{}, []map[string]any{{}}, nil, board, record.WhileRunning)
 
-	r := rowByMetric(rows, "avenues")
+	r := rowByMetric(rows, "inquiries")
 	if r == nil {
-		t.Fatal("no avenues row at all")
+		t.Fatal("no inquiries row at all")
 	}
 	if r.Value == nil {
 		t.Fatalf("the record holds two lines and the scorecard reported none: %q", r.Note)
 	}
 	got := string(r.Value.(objJSON))
-	for _, want := range []string{"pursued", "declined"} {
+	for _, want := range []string{"underway", "declined"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the status breakdown is missing %q: %s", want, got)
 		}
@@ -69,9 +69,9 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 		}(),
 	})
 	rows := blueRows(record.Run{}, nil, nil, board, record.WhileRunning)
-	got := string(rowByMetric(rows, "avenues").Value.(objJSON))
-	if !strings.Contains(got, `"pursued":1`) {
-		t.Errorf("a line that moved declined->pursued is not counted under its CURRENT status: %s", got)
+	got := string(rowByMetric(rows, "inquiries").Value.(objJSON))
+	if !strings.Contains(got, `"underway":1`) {
+		t.Errorf("a line that moved declined->underway is not counted under its CURRENT status: %s", got)
 	}
 	if strings.Contains(got, `"declined":1`) {
 		t.Errorf("the superseded status was counted as a second line: %s", got)
@@ -82,7 +82,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 // avenues recorded" would be the same defect one layer up — a failed read wearing the words of
 // a finding.
 func TestAnUnreadableRecordSaysNotMeasuredRatherThanNone(t *testing.T) {
-	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil, record.WhileRunning), "avenues")
+	r := rowByMetric(blueRows(record.Run{}, nil, nil, nil, record.WhileRunning), "inquiries")
 	if r == nil || r.Value != nil {
 		t.Fatalf("expected an uncomputed row, got %+v", r)
 	}

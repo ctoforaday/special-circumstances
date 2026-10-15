@@ -224,20 +224,20 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// in the record. Q2 was recorded straight as `abandoned`, with no `pursued` step, and the
 	// report's tag is the fate its seat recorded.
 	inquiryDoc := read(FileInquiries)
-	for _, want := range []string{"## pursued (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
+	for _, want := range []string{"## underway (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
 		if !strings.Contains(inquiryDoc, want) {
-			t.Errorf("avenues.md missing %q\n---\n%s", want, inquiryDoc)
+			t.Errorf("inquiries.md missing %q\n---\n%s", want, inquiryDoc)
 		}
 	}
 	if !strings.Contains(got, "- **Question:** rewrite the cache lock-free\n  - **Fate:** abandoned. **Why:** cost exceeds the benefit at this scale") {
-		t.Errorf("an avenue abandoned with no pursued step carries the plain fate in report.md:\n%s", got)
+		t.Errorf("an inquiry abandoned with no underway step carries the plain fate in report.md:\n%s", got)
 	}
-	if !strings.Contains(index, "[Avenues](avenues.md)") {
-		t.Errorf("README.md does not name avenues.md — a document the index omits is one nobody opens\n---\n%s", index)
+	if !strings.Contains(index, "[Inquiries](inquiries.md)") {
+		t.Errorf("README.md does not name inquiries.md — a document the index omits is one nobody opens\n---\n%s", index)
 	}
 	// The link bar is built over the documents actually written, so it reaches the new one.
-	if !strings.Contains(got, "[Avenues](avenues.md)") {
-		t.Errorf("report.md's link bar does not reach avenues.md\n---\n%s", got)
+	if !strings.Contains(got, "[Inquiries](inquiries.md)") {
+		t.Errorf("report.md's link bar does not reach inquiries.md\n---\n%s", got)
 	}
 	// EVERY DOCUMENT WRITTEN IS IN THE SET THE OUTSIDE READERS ASK FOR. Files() — docOrder — is what
 	// the capture screens, the archive and the fuzz oracle read, and what Write sweeps for stale
@@ -341,7 +341,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	alt := got[strings.Index(got, "## Alternatives considered"):]
 	alt = alt[:strings.Index(alt, "## Open questions")]
 	if strings.Contains(alt, "model-check the two-writer") {
-		t.Errorf("a pursued avenue leaked into Alternatives considered:\n%s", alt)
+		t.Errorf("a underway inquiry leaked into Alternatives considered:\n%s", alt)
 	}
 }
 

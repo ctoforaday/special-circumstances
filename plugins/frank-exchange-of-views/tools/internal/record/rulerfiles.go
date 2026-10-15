@@ -54,7 +54,7 @@ func RefuseRulerFiling(subj recordpb.MotionSubject, seatID string, proposal bool
 		who = who[:i] + " and" + who[i+1:]
 	}
 	if proposal {
-		filing, who = "the proposal that files one", "An avenue is blue's to propose."
+		filing, who = "the proposal that files one", "An inquiry is blue's to propose."
 	}
 	msg := Article(word) + " " + word + " motion is ruled by the " + ruler + " seat, so " + filing + " is not on your surface; you are " +
 		seatID + " (" + seatclass.RoleOfSeat(seatID) + "). The seat that rules a subject files nothing on it, because a motion its own ruler " +

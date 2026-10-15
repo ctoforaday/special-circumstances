@@ -1318,26 +1318,18 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 			}
 		}
 		if b.GetInquiryId() == "" {
-			return fmt.Errorf("an avenue requires an id — the tool assigns one on a proposal and --id names it on a move; an avenue with no identity has no lifecycle and cannot be ruled on or revisited")
+			return fmt.Errorf("an inquiry requires an id — the tool assigns one on a proposal and --id names it when its fate is recorded; an inquiry with no identity has no lifecycle and cannot be ruled on or revisited")
 		}
-		// A MOVE (--id) carries only the new status and its reason; the substance lives on
-		// the proposal it moves, so requiring --line here would make a move impossible.
+		// A RECORD of a fate (--id) carries only the new status and its reason; the substance lives
+		// on the proposal it names, so requiring the question here would make recording a fate
+		// impossible.
 		if b.GetSupersedesStatus() == "" && b.GetQuestion() == "" {
-			// THE FLAG NAME IS DERIVED, NOT SPELLED. The payload key is `line`; the flag that fills
-			// it is --reason, because prose reaches every verb through one channel. This message
-			// said "requires --line" for its whole life — a flag that appears on no surface and
-			// cannot be typed.
-			//
-			// MEASURED 2026-08-21: a blue seat hit it, believed it (the tool said so), invented
-			// `--line`, was refused again as an unknown flag, gave up after four attempts, and
-			// filed friction reporting "the tool requires an undocumented --line flag". The seat
-			// was right that something was wrong and wrong about what — because the refusal
-			// pointed it at a flag that does not exist. A refusal naming something the seat cannot
-			// type is worse than a bare "invalid": it is a false lead with the tool's authority
-			// behind it.
-			return fmt.Errorf("requires --%s (what you are going to try — an unnamed avenue teaches a future run nothing)", flags.ForPayloadKey("line"))
+			// THE FLAG NAME IS DERIVED, NOT SPELLED: the refusal names the flag that fills the
+			// payload key, so it can only point a seat at a flag the verb registers. A refusal naming
+			// something the seat cannot type is a false lead with the tool's authority behind it.
+			return fmt.Errorf("requires --%s (the question this inquiry asks — an unnamed inquiry teaches a future run nothing)", flags.ForPayloadKey("question"))
 		}
-		// An avenue given a fate with no reason is the decoration this verb exists to prevent: the
+		// An inquiry given a fate with no reason is the decoration this verb exists to prevent: the
 		// road not taken is worthless without why, and an approach that ran with nothing said about
 		// what it found reads as one that was dropped.
 		// The guard excludes the zero, so the reason rule never reports a missing status as a
@@ -1350,12 +1342,12 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 			st != recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY &&
 			st != recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED && b.GetReason() == "" {
 			if st == recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED {
-				return fmt.Errorf("a deferred avenue requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
+				return fmt.Errorf("a deferred inquiry requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
 			}
 			if st == recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED || st == recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED {
-				return fmt.Errorf("a %s avenue requires --reason — what the approach found, in the subject's terms. It is printed in the report on the avenue's row, and an approach that ran with nothing said about what it found reads as one that was dropped", recordpb.Word(st))
+				return fmt.Errorf("a %s inquiry requires --reason — what the approach found, in the subject's terms. It is printed in the report on the inquiry's row, and an approach that ran with nothing said about what it found reads as one that was dropped", recordpb.Word(st))
 			}
-			return fmt.Errorf("a %s avenue requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
+			return fmt.Errorf("a %s inquiry requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
 	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S AVENUES.
 	//

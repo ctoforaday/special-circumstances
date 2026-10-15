@@ -36,7 +36,7 @@ const (
 	BlockerLensReady     BlockerKind = "lens_ready"
 	BlockerStaleArea     BlockerKind = "stale_area"
 	BlockerUnruledMotion BlockerKind = "unruled_motion"
-	BlockerInquiryReview BlockerKind = "avenue_review"
+	BlockerInquiryReview BlockerKind = "inquiry_review"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
@@ -300,9 +300,9 @@ var blockerKinds = []blockerKind{
 	// question about a document that no longer exists.
 	{
 		kind:  BlockerInquiryReview,
-		gloss: "no avenue review this epoch",
+		gloss: "no inquiry review this epoch",
 		item: func(Blocker) string {
-			return "the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found"
+			return "the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry review` says what the read found"
 		},
 		// THE SHORTFALL IS A DEFECT THE CHAIR FOUND, and the chair mints nothing: this refusal told
 		// it to "MINT A GAP" and to "issue `--as FAIL`" otherwise, and the chair reads it alone. It
@@ -310,17 +310,17 @@ var blockerKinds = []blockerKind{
 		// is refused too (requireFailIsNotConvergent). Where a shortfall stops the chair, it weighs it
 		// like any defect it finds; the stopping judgment in its constitution says where that goes.
 		refusal: func([]Blocker) string {
-			return "this epoch has no avenue review. " +
+			return "this epoch has no inquiry review. " +
 				"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
-				"`show avenues`, and answer in one act: `avenue review --reason \"<what the report " +
-				"says at those avenues>\"`. Where an avenue's research is thin, missing or unsupported by the text, " +
+				"`show inquiries`, and answer in one act: `inquiry review --reason \"<what the report " +
+				"says at those inquiries>\"`. Where an inquiry's research is thin, missing or unsupported by the text, " +
 				"that shortfall is a defect you found, weighed before your verdict like any other; this " +
 				"event only records that the read happened, because an absent review reads exactly like a sound " +
 				"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
 				"of the report; record the review before a PASS"
 		},
 		why: func(b Blocker) string {
-			return "this epoch has no avenue review — " + planHold(b, "PASS is not permitted until one is recorded")
+			return "this epoch has no inquiry review — " + planHold(b, "PASS is not permitted until one is recorded")
 		},
 	},
 }

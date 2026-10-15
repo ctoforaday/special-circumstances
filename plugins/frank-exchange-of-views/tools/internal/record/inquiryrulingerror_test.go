@@ -34,25 +34,25 @@ func TestInquiryRulingReturnsTheReadItCannotMake(t *testing.T) {
 	// The healthy answers first: the schema's word verbatim, "" for the line red has not ruled,
 	// and an error for an id that names no avenue.
 	if got, err := InquiryRuling(run, "Q1"); err != nil || got != "out_of_scope" {
-		t.Fatalf("AvenueRuling on a ruled avenue = (%q, %v), want the schema's word out_of_scope", got, err)
+		t.Fatalf("InquiryRuling on a ruled inquiry = (%q, %v), want the schema's word out_of_scope", got, err)
 	}
 	if got, err := InquiryRuling(run, "Q2"); err != nil || got != "" {
-		t.Fatalf("AvenueRuling on an avenue red has not ruled = (%q, %v), want \"\" and no error", got, err)
+		t.Fatalf("InquiryRuling on an inquiry red has not ruled = (%q, %v), want \"\" and no error", got, err)
 	}
 	if got, err := InquiryRuling(run, "Q9"); err == nil || got != "" || !strings.Contains(err.Error(), "Q9") {
-		t.Errorf("AvenueRuling on an id no proposal created = (%q, %v), want an error naming Q9 — \"\" here reads as an avenue red never ruled", got, err)
+		t.Errorf("InquiryRuling on an id no proposal created = (%q, %v), want an error naming Q9 — \"\" here reads as an inquiry red never ruled", got, err)
 	}
 
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
 		t.Fatalf("open the run's handle: (%v, %v)", db, err)
 	}
-	if _, err := db.Exec(`DROP VIEW "avenue_state"`); err != nil {
+	if _, err := db.Exec(`DROP VIEW "inquiry_state"`); err != nil {
 		t.Fatal(err)
 	}
 	for _, id := range []string{"Q1", "Q2"} {
-		if got, err := InquiryRuling(run, id); err == nil || got != "" || !strings.Contains(err.Error(), "avenue_state") {
-			t.Errorf("AvenueRuling(%s) over a failing read = (%q, %v), want the read error naming avenue_state — \"\" with no error is the never-ruled answer", id, got, err)
+		if got, err := InquiryRuling(run, id); err == nil || got != "" || !strings.Contains(err.Error(), "inquiry_state") {
+			t.Errorf("InquiryRuling(%s) over a failing read = (%q, %v), want the read error naming inquiry_state — \"\" with no error is the never-ruled answer", id, got, err)
 		}
 	}
 }

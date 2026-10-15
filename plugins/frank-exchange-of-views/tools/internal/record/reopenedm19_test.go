@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -21,9 +22,9 @@ const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 //
 // THE IDS ARE LITERALS, DERIVED BY SQL OUTSIDE THE FOLD — the last `blue_edit_reopened` row naming
 // each anchor, and the last verify or reproduce of it before that — so a wrong fold cannot agree
-// with them by construction. They are this archive's row ids: a change that moves the event-schema
-// epoch routes this test through Migrate, re-derives the three pairs from the migrated record and
-// updates this table in the same commit. The anchors do not move.
+// with them by construction. They are the row ids of the archive as migrated, which replays its
+// events in order; a migration that renumbers them re-derives the three pairs from the migrated
+// record and updates this table in the same commit. The anchors do not move.
 var m19Reopened = []reopened{
 	{anchor: "C-706fda63", edit: 400, lastCheck: 171},
 	{anchor: "C-4dae2507", edit: 368, lastCheck: 330},
@@ -38,14 +39,26 @@ func m19At(t *testing.T, whole []*Event, n int) Run {
 	return archiveAt(t, m19Archive, whole, n)
 }
 
-// archivedEvents is the named archive's whole stream, read off its event tables on a plain read-only
-// handle. The run's own open refuses the archive: its `gap` view is the one its creating binary
-// wrote, and a view change does not move the epoch. Its EVENT rows are this epoch's, and they are
-// all these tests take — each replays a prefix of them into a record of this binary's making
-// (archiveAt), so no view of the archive's is ever asked.
+// archiveMigrate brings an archived run forward into a fresh run directory; archivemigrate_test.go
+// installs migrate here.
+var archiveMigrate func(src, dst string) error
+
+// archivedEvents is the named archive's whole stream, migrated to this epoch and read off the
+// migrated record's event tables on a plain read-only handle. Each test replays a prefix of them
+// into a record of this binary's making (archiveAt), so no view of the archive's is ever asked.
 func archivedEvents(t *testing.T, archive string) []*Event {
 	t.Helper()
-	path := filepath.Join(recordtest.RequireArchive(t, archive), "records", "record.db")
+	if archiveMigrate == nil {
+		t.Fatal("no migration installed: archivemigrate_test.go installs migrate before any test runs")
+	}
+	migrated := filepath.Join(t.TempDir(), "run")
+	if err := archiveMigrate(recordtest.RequireArchive(t, archive), migrated); err != nil {
+		t.Fatalf("migrating %s: %v", archive, err)
+	}
+	if err := recordsql.CloseUnder(migrated); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(migrated, "records", "record.db")
 	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
 	if err != nil {
 		t.Fatal(err)

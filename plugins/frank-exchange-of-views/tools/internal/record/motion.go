@@ -31,7 +31,7 @@ import (
 // express "required only when --on=grade", so a flag-discerned subject would put three divergent
 // contracts into hand-written RunE validation — a flag combination policed by prose, which is
 // the shape this suite exists to remove.
-var MotionSubjects = []string{"grade", "petition", "avenue", "docket"}
+var MotionSubjects = []string{"grade", "petition", "inquiry", "docket"}
 
 // MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
 // flag is `--as` on every one of them, which is the point: §I of the plan names
@@ -42,7 +42,7 @@ var MotionVerdicts = map[string][]EnumValue{
 	// subject's ruling enum, in declaration order.
 	"grade":    evsOf(recordpb.GradeRuling(0).Descriptor()),
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
-	"avenue":   evsOf(recordpb.InquiryRuling(0).Descriptor()),
+	"inquiry":  evsOf(recordpb.InquiryRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
 	// the same words `lens close` uses, which is what "one vocabulary, whichever verb closed it"
 	// means. Copying the words here would be the second list that drifts, and an August draft of
@@ -361,7 +361,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				}
 			case *recordpb.Motion_Inquiry:
 				if fil.Inquiry.InquiryId != nil {
-					m.Fields["avenue_id"] = fil.Inquiry.GetInquiryId()
+					m.Fields["inquiry_id"] = fil.Inquiry.GetInquiryId()
 				}
 			case *recordpb.Motion_Docket:
 				if fil.Docket.GapId != nil {
@@ -398,7 +398,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				// 45 rulings — so the report's "N motions received no ruling" would have been
 				// dominated by lines nobody was ever going to rule on, and the one signal that
 				// message exists to carry (a sitting that did not happen) would have drowned in it.
-				m := &Motion{ID: id, Subject: "avenue", Fields: map[string]string{"avenue_id": id}}
+				m := &Motion{ID: id, Subject: "inquiry", Fields: map[string]string{"inquiry_id": id}}
 				if p, ok := proposals[id]; ok {
 					m.Filer, m.Epoch, m.Sitting, m.Basis = p.filer, p.epoch, p.sitting, p.basis
 				}

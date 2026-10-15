@@ -73,7 +73,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 			motion: "M2", ruling: "remanded",
 		},
 		{
-			name: "a second avenue ruling is refused",
+			name: "a second inquiry ruling is refused",
 			act: func(t *testing.T, run Run) error {
 				chair := sit(t, run, "red-chair")
 				mustAppend(t, chair, inquiryRule(recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE))
@@ -266,7 +266,7 @@ func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 		var ruling, why sql.NullString
 		var epoch sql.NullInt64
 		err := db.QueryRow(`
-		  SELECT a."avenue", mr."opinion", w."epoch"
+		  SELECT a."inquiry", mr."opinion", w."epoch"
 		  FROM "motion_answers" a
 		  LEFT JOIN "motion_rule" mr ON mr."event_id" = a."ruled_seq"
 		  LEFT JOIN "events_w" w ON w."id" = a."ruled_seq"
@@ -276,7 +276,7 @@ func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 		}
 		got := [3]any{a.Ruling, a.RulingWhy, a.RuledEpoch}
 		if want := [3]any{ruling.String, why.String, int(epoch.Int64)}; got != want {
-			t.Errorf("avenue %s: AvenuesOf reads (ruling, why, epoch) %v and motion_answers reads %v", a.ID, got, want)
+			t.Errorf("inquiry %s: InquiriesOf reads (ruling, why, epoch) %v and motion_answers reads %v", a.ID, got, want)
 		}
 	}
 	return out
@@ -363,7 +363,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	}
 	_, ruledAt := standing("motion_rule", "Q2")
 	if _, appealedAt := standing("motion_appeal", "Q2"); appealedAt >= ruledAt {
-		t.Fatalf("avenue Q2's appeal (pos %d) does not precede its ruling (pos %d)", appealedAt, ruledAt)
+		t.Fatalf("inquiry Q2's appeal (pos %d) does not precede its ruling (pos %d)", appealedAt, ruledAt)
 	}
 
 	motions := motionReadersAgree(t, run)
@@ -378,10 +378,10 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	}
 	inquiries := inquiryReadersAgree(t, run)
 	if a := inquiries["Q1"]; a == nil || a.Ruling != "out_of_scope" || a.RulingWhy != "the ruling's argument" {
-		t.Errorf("avenue Q1 reads %+v; its ruling is out_of_scope, with that ruling's argument", a)
+		t.Errorf("inquiry Q1 reads %+v; its ruling is out_of_scope, with that ruling's argument", a)
 	}
 	if a := inquiries["Q2"]; a == nil || a.Ruling != "too_thin" {
-		t.Errorf("avenue Q2 reads %+v; its ruling is too_thin, whatever appeal the archive holds beside it", a)
+		t.Errorf("inquiry Q2 reads %+v; its ruling is too_thin, whatever appeal the archive holds beside it", a)
 	}
 }
 

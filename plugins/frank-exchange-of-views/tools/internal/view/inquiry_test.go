@@ -30,10 +30,10 @@ func TestAnInquiryRulingRendersBesideTheFateRecordedAgainstIt(t *testing.T) {
 		"RED RULED **out_of_scope**",
 		"a real question, not this one's",
 		"the adjacent literature is what the question turns on",
-		"proposed -> e0 pursued",
+		"proposed -> e0 underway",
 	} {
 		if !strings.Contains(got, want) {
-			t.Errorf("the avenue's document does not carry %q:\n%s", want, got)
+			t.Errorf("the inquiry's document does not carry %q:\n%s", want, got)
 		}
 	}
 }

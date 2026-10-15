@@ -62,10 +62,10 @@ func TestAFindingCannotClaimBothAnchors(t *testing.T) {
 func TestAnAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	runDir := seatRun(t)
 	_, err := runAt(t, "finding", "--run", runDir, "--seat-id", "red-lens-logic",
-		"--key", "F4", "--about-kind", "avenue", "--about", "Q99",
+		"--key", "F4", "--about-kind", "inquiry", "--about", "Q99",
 		"--reason", "the decline reason is a category error",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err == nil {
-		t.Fatal("a finding anchored to an avenue id nothing proposed was accepted")
+		t.Fatal("a finding anchored to an inquiry id nothing proposed was accepted")
 	}
 }

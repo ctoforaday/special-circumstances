@@ -216,8 +216,8 @@ func init() {
 			continue
 		}
 		fates := fatesOf(*s)
-		s.From = "the avenues on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate, and what was found or why it stands there, in their author's words"
-		s.Path = "Blue's `avenue propose` puts an approach on the record as `proposed`, and blue's `avenue move` gives it a fate with `--as`. An avenue that is " +
+		s.From = "the inquiries on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate, and what was found or why it stands there, in their author's words"
+		s.Path = "Blue's `inquiry propose` puts an approach on the record as `proposed`, and blue's `inquiry record` gives it a fate with `--as`. An inquiry that is " +
 			orList(ticked(fates)) + " is listed under this heading; the heading is not written into the report's text, and neither is a list of approaches under another one."
 	}
 }
@@ -225,7 +225,7 @@ func init() {
 // fatesOf is the avenue statuses a section holds, in the record's order.
 func fatesOf(s Section) []string {
 	var out []string
-	for _, status := range record.Names(record.MustEnum("avenue", "status").Values) {
+	for _, status := range record.Names(record.MustEnum("inquiry", "status").Values) {
 		if s.fate(status) {
 			out = append(out, status)
 		}
@@ -258,7 +258,7 @@ var InquirySections = func() string {
 		}
 		verb := " each one "
 		if len(parts) == 0 {
-			verb = " holds each avenue that is "
+			verb = " holds each inquiry that is "
 		}
 		parts = append(parts, s.Heading+verb+orList(fatesOf(s)))
 	}
@@ -267,7 +267,7 @@ var InquirySections = func() string {
 
 // AvenueSectionsRule says whose those sections are, on the pages of the acts that write an avenue.
 // A seat told only that its words are "printed in the report under" them writes the section too.
-var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: " + InquirySections +
+var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inquiries on the record: " + InquirySections +
 	". They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record."
 
 // AssembledNote is what the page that prints the report's text says about what ships, and the

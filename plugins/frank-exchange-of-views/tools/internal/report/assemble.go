@@ -633,7 +633,7 @@ func taken(status string) bool { return ran(status) || status == "proposed" }
 // ran is the fates of an approach that RAN: its reason is what it FOUND, where the reason of any
 // other is WHY it stands where it does.
 func ran(status string) bool {
-	return status == "pursued" || status == "concluded" || status == "refuted"
+	return status == "underway" || status == "confirmed" || status == "refuted"
 }
 func deferred(status string) bool { return status == "deferred" }
 
@@ -676,12 +676,11 @@ func inquiries(a *assembly, s Section) string {
 		}
 		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
-		// exactly as one concluded or refuted straight from `proposed` ran; a missing `pursued` step is
-		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
+		// exactly as one confirmed or refuted straight from `proposed` ran; a missing `underway` step is
+		// a fate the seat did not record, which is the debate's fact and renders in inquiries.md.
 		row += "\n  - **Fate:** " + a.Status + "."
-		// A PROPOSAL'S REASON IS ITS LINE: `avenue propose` writes the one text to both fields, so
-		// until the avenue is moved there is nothing found, and the question is not printed twice.
-		if a.Reason != "" && a.Reason != a.Question {
+		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
+		if a.Reason != "" {
 			label := "Why"
 			if ran(a.Status) {
 				label = "Found"

@@ -502,12 +502,12 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 	if len(gt.inquiries) > 0 {
-		if inq, err := view.MarkdownFrom(rin, "avenues", ""); err != nil {
-			add("avenue-md", "render failed: %v", err)
+		if inq, err := view.MarkdownFrom(rin, "inquiries", ""); err != nil {
+			add("inquiry-md", "render failed: %v", err)
 		} else {
 			for id := range gt.inquiries {
 				if !strings.Contains(string(inq), id) {
-					add("avenue-md", "avenue %s missing from avenues", id)
+					add("inquiry-md", "inquiry %s missing from inquiries", id)
 				}
 			}
 		}

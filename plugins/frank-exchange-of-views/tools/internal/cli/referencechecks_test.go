@@ -88,7 +88,7 @@ var referenceChecks = []struct {
 		extra: []string{"--reason", "checked"}},
 	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
-	{verb: []string{"avenue", "move"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
+	{verb: []string{"inquiry", "record"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
@@ -106,7 +106,7 @@ var referenceChecks = []struct {
 	// path: asked for "motion" alone it answered "lens", and the fixture ran a verb that seat cannot
 	// name. The refusal comes from the body and names the LINE, which is the right word for an id the
 	// subject keys on Q.
-	{verb: []string{"motion", "avenue", "rule"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
+	{verb: []string{"motion", "inquiry", "rule"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "endorsed", "--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.

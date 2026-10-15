@@ -77,7 +77,7 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 			m := fileGradeMotion(t, runDir)
 			must(t, runDir, "motion", "grade", "rule", "--seat-id", "red-chair", "--id", m, "--as", "rejected", "--reason", "the evidence does not reach it")
 			proposeQ1(t, runDir)
-			must(t, runDir, "motion", "avenue", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
+			must(t, runDir, "motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
 			d := drive{t: t, run: runDir}
 
 			// The grade subject is on every surface, so the refusal is the subject's own: it names
@@ -91,13 +91,13 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 				t.Errorf("the refusal of a grade appeal does not say what a grade motion holds for %s:\n%s", seatID, grade)
 			}
 			// The avenue subject is on the ruler's surface alone.
-			inquiry := d.refused("an appeal of the avenue ruling", seatID, "motion", "avenue", "appeal", "--id", "Q1", "--reason", "it is this question")
-			want := "the chair's `motion avenue`"
+			inquiry := d.refused("an appeal of the inquiry ruling", seatID, "motion", "inquiry", "appeal", "--id", "Q1", "--reason", "it is this question")
+			want := "the chair's `motion inquiry`"
 			if seatID == "red-chair" {
-				want = "an avenue motion has no `appeal` verb — it has rule"
+				want = "an inquiry motion has no `appeal` verb — it has rule"
 			}
 			if !strings.Contains(inquiry, want) {
-				t.Errorf("the refusal of an avenue appeal by %s does not say %q:\n%s", seatID, want, inquiry)
+				t.Errorf("the refusal of an inquiry appeal by %s does not say %q:\n%s", seatID, want, inquiry)
 			}
 			if n := len(eventsOfWord(t, runDir, "motion_appeal")); n != 0 {
 				t.Fatalf("the record holds %d appeal(s) after refused invocations", n)
@@ -112,7 +112,7 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 				d.docketMotion("a docket motion on the gap whose grade ruling the seat disagrees with", seatID)
 			}
 			if seatID == "blue-respond" {
-				d.admitted("a move of the avenue against its ruling", seatID, "avenue", "move", "--id", "Q1", "--as", "pursued",
+				d.admitted("a fate recorded against its ruling", seatID, "inquiry", "record", "--id", "Q1", "--as", "underway",
 					"--reason", "the ruling reads the question too narrowly, and this line answers it")
 			}
 		})

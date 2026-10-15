@@ -1082,20 +1082,20 @@ func TestBlueVerbContracts(t *testing.T) {
 		}
 	})
 
-	t.Run("an avenue is proposed, then moved with what changed", func(t *testing.T) {
-		out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seatID,
-			"--reason", "the road taken", "--hypothesis", "it leads somewhere")
+	t.Run("an inquiry is proposed, then moved with what changed", func(t *testing.T) {
+		out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seatID,
+			"--question", "the road taken", "--hypothesis", "it leads somewhere")
 		if err != nil {
 			t.Fatalf("a proposal needs no fate: %v", err)
 		}
 		id := inquiryIDOf(out)
-		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seatID,
+		if _, err := run(t, "inquiry", "record", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "declined"); err == nil {
 			t.Error("a move with no reason was accepted — a status that slides silently is decoration")
 		}
-		if _, err := run(t, "avenue", "move", "--run", runDir, "--seat-id", seatID,
+		if _, err := run(t, "inquiry", "record", "--run", runDir, "--seat-id", seatID,
 			"--id", id, "--as", "invented", "--reason", "r"); err == nil {
-			t.Error("an undefined avenue status was accepted; the render groups BY status")
+			t.Error("an undefined inquiry status was accepted; the render groups BY status")
 		}
 	})
 }

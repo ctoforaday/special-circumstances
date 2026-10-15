@@ -73,7 +73,7 @@ func TestTheConvergenceRefusalNamesOnlyTheChairsActs(t *testing.T) {
 		add  func(b *board)
 	}{
 		{"converged, nothing else", func(*board) {}},
-		{"converged, the chair's own avenue review owed", func(b *board) {
+		{"converged, the chair's own inquiry review owed", func(b *board) {
 			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")})
 		}},

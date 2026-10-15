@@ -228,20 +228,20 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// reports a failed board as a harness fault rather than as a fixture speaking a retired
 		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
 		// stdout, and composing it from a loop index is a hope about someone else's counter.
-		out, err := exec("avenue", "propose", "--run", run.Dir(), "--seat-id", "blue-respond",
-			"--reason", a.Line, "--hypothesis", a.Hypothesis)
+		out, err := exec("inquiry", "propose", "--run", run.Dir(), "--seat-id", "blue-respond",
+			"--question", a.Line, "--hypothesis", a.Hypothesis)
 		if err != nil {
-			return fmt.Errorf("avenue %d: %w", i+1, err)
+			return fmt.Errorf("inquiry %d: %w", i+1, err)
 		}
 		if a.Ruled == "" {
 			continue
 		}
-		id := minted("avenue", out)
+		id := minted("inquiry", out)
 		if id == "" {
-			return fmt.Errorf("avenue %d: the tool did not report a minted id in %q — the ruling "+
+			return fmt.Errorf("inquiry %d: the tool did not report a minted id in %q — the ruling "+
 				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
 		}
-		if _, err := exec("motion", "avenue", "rule", "--run", run.Dir(), "--seat-id", "red-chair",
+		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--id", id, "--as", a.Ruled,
 			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
 			return fmt.Errorf("rule %s: %w", id, err)

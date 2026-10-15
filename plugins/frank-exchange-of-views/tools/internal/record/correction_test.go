@@ -323,11 +323,11 @@ func TestRelianceIgnoresTheHarnessAndTheTool(t *testing.T) {
 // named; every other type is NONE — and a type added later is NONE until someone rules otherwise.
 func TestTheCorrectionTiersAreTheOwnersRuling(t *testing.T) {
 	full := map[string]bool{"manifest_row": true, "position": true, "closing": true, "revision": true, "log": true,
-		"avenue_review": true, "spot_check": true, "regrade": true}
+		"inquiry_review": true, "spot_check": true, "regrade": true}
 	// cite and proof joined PROSE on gblock's 2026-09-11 ruling (#886): the title, the argument and
 	// the proof note are report text a seat may need to re-word in the sitting that wrote it.
 	prose := map[string]bool{"motion_rule": true, "motion_appeal": true, "declare": true, "certify": true, "close": true,
-		"avenue": true, "reproduce": true, "outcome": true, "halt": true, "cite": true, "proof": true}
+		"inquiry": true, "reproduce": true, "outcome": true, "halt": true, "cite": true, "proof": true}
 	ed := recordpb.EventType(0).Descriptor()
 	for i := 0; i < ed.Values().Len(); i++ {
 		typ := recordpb.EventType(ed.Values().Get(i).Number())
@@ -381,18 +381,18 @@ func TestInquiryReadsACorrectedProposalInItsPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	var line, status string
-	if _, err := queryRow(run, []any{&line, &status}, `SELECT "line", "status" FROM "avenue_state" WHERE "avenue_id" = 'A1'`); err != nil {
+	if _, err := queryRow(run, []any{&line, &status}, `SELECT "question", "status" FROM "inquiry_state" WHERE "inquiry_id" = 'A1'`); err != nil {
 		t.Fatal(err)
 	}
-	if line != "try the recorded method" || status != "pursued" {
-		t.Errorf("avenue = (%q, %q), want the corrected line and the move's status", line, status)
+	if line != "try the recorded method" || status != "underway" {
+		t.Errorf("inquiry = (%q, %q), want the corrected question and the recorded fate", line, status)
 	}
 	var n int
-	if _, err := queryRow(run, []any{&n}, `SELECT count(*) FROM "avenue_state"`); err != nil {
+	if _, err := queryRow(run, []any{&n}, `SELECT count(*) FROM "inquiry_state"`); err != nil {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Errorf("avenue has %d rows, want 1 — a replacement proposal is not a second line", n)
+		t.Errorf("inquiry has %d rows, want 1 — a replacement proposal is not a second line", n)
 	}
 }
 

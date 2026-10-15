@@ -36,8 +36,8 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 		switch {
 		case len(args) > 0 && args[0] == "mint":
 			return fmt.Sprintf("minted G-%08x", calls), nil
-		case len(args) > 1 && args[0] == "avenue" && args[1] == "propose":
-			return fmt.Sprintf("avenue Q-%08x recorded", calls), nil
+		case len(args) > 1 && args[0] == "inquiry" && args[1] == "propose":
+			return fmt.Sprintf("inquiry Q-%08x recorded", calls), nil
 		case len(args) > 2 && args[0] == "motion" && args[2] == "file":
 			return fmt.Sprintf("motion M-%08x filed", calls), nil
 		}
@@ -68,16 +68,16 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 // is matched by a letter-and-digits pattern, and a kind reads only its own letter.
 func TestMintedReadsTheIDOfItsKindFromTheVerbsConfirmation(t *testing.T) {
 	for _, c := range []struct{ kind, out, want string }{
-		{"avenue", "avenue Q-7cdcd115 recorded (proposed): is the 42% figure reproducible", "Q-7cdcd115"},
+		{"inquiry", "inquiry Q-7cdcd115 recorded (proposed): is the 42% figure reproducible", "Q-7cdcd115"},
 		{"gap", "minted G-0badf00d\n  found_by: F-7cdcd115 (evidence)", "G-0badf00d"},
 		{"motion", "motion M-00c0ffee filed (docket)", "M-00c0ffee"},
 		// A kind reads only its own letter: the gap a motion names is not the motion's id.
 		{"motion", "closing filed for G-0badf00d", ""},
-		{"avenue", "minted G-0badf00d", ""},
+		{"inquiry", "minted G-0badf00d", ""},
 		// Exactly eight hex: a shorter or longer run is not an id.
-		{"avenue", "avenue Q-7cdcd11 recorded", ""},
-		{"avenue", "avenue Q-7cdcd1155 recorded", ""},
-		{"avenue", "avenue Q1 recorded", ""},
+		{"inquiry", "inquiry Q-7cdcd11 recorded", ""},
+		{"inquiry", "inquiry Q-7cdcd1155 recorded", ""},
+		{"inquiry", "inquiry Q1 recorded", ""},
 	} {
 		if got := minted(c.kind, c.out); got != c.want {
 			t.Errorf("minted(%q, %q) = %q, want %q", c.kind, c.out, got, c.want)

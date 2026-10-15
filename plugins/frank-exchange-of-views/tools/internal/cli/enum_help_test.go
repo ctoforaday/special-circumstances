@@ -351,7 +351,7 @@ func TestNoEnumhelpFlagAlsoSpellsItsSetInItsUsage(t *testing.T) {
 			if setInHelp.MatchString(f.Usage) {
 				t.Errorf("%s --%s is enumhelp-registered AND spells a set in its usage line — that is a "+
 					"hand-kept copy of the %d values the Enumerated block already renders from the record, and it "+
-					"drifts the way `avenue --status` did (4 of 5, never learned `deferred`). Say what the FIELD is "+
+					"drifts the way `inquiry --status` did (4 of 5, never learned `deferred`). Say what the FIELD is "+
 					"for and let the record list the values.\nusage: %s", c.Name(), f.Name, len(registered[f.Name]), f.Usage)
 			}
 		})

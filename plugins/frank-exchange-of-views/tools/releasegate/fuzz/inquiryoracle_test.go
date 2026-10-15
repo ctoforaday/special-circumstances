@@ -60,7 +60,7 @@ func TestTheInquiryOracleFailsOnARulingItCannotRead(t *testing.T) {
 		healthy    string // "" = the oracle passes the healthy record
 	}{
 		{"a clean record", avEndorse, recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED, ""},
-		{"a record with a breach", avScope, recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE, "ruled out_of_scope and pursued anyway"},
+		{"a record with a breach", avScope, recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE, "ruled out_of_scope and underway anyway"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			run, board := inquiryOracleRun(t, tc.line, tc.ruling)
@@ -73,12 +73,12 @@ func TestTheInquiryOracleFailsOnARulingItCannotRead(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := db.Exec(`DROP VIEW "avenue_state"`); err != nil {
+			if _, err := db.Exec(`DROP VIEW "inquiry_state"`); err != nil {
 				t.Fatal(err)
 			}
 			got = inquiryRulingOracle(run, board)
-			if !strings.Contains(got, "could not be read") || !strings.Contains(got, "avenue_state") {
-				t.Errorf("the oracle over a ruling it cannot read = %q, want a failure naming the read (avenue_state) — \"\" here is an avenue passed without being checked", got)
+			if !strings.Contains(got, "could not be read") || !strings.Contains(got, "inquiry_state") {
+				t.Errorf("the oracle over a ruling it cannot read = %q, want a failure naming the read (inquiry_state) — \"\" here is an inquiry passed without being checked", got)
 			}
 		})
 	}

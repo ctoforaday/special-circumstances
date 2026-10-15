@@ -164,7 +164,7 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 		}
 	}
 	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
-		t.Error("a direction ruling named Q1, which no avenue created, and was accepted")
+		t.Error("a direction ruling named Q1, which no inquiry created, and was accepted")
 	}
 	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
 	if _, _, err := RegisterSeat(blue, "", ""); err != nil {

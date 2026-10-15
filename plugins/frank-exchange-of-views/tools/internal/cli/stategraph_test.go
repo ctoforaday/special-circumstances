@@ -513,13 +513,13 @@ func petitionMotionProbe() entityProbe {
 // That asymmetry is why this subject was left unprobed in the first pass, and stating it was not
 // the same as covering it.
 func inquiryMotionProbe() entityProbe {
-	return motionProbe("avenue", "Q1", []probeAct{inquiryPropose()}, []probeAct{
-		{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
+	return motionProbe("inquiry", "Q1", []probeAct{inquiryPropose()}, []probeAct{
+		{"rule", []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed",
 			"--reason", "worth this run's time"}},
 	}, []string{"unruled", "ruled"},
 		map[string]string{"ruled": "rule"},
 		map[string]string{
-			"ruled": "The same finish as a grade motion's: the ruling is the motion's one answer. It is an argument beside the line, not a command — the LINE itself stays movable (the avenue probe), and the motion's answer does not reopen.",
+			"ruled": "The same finish as a grade motion's: the ruling is the motion's one answer. It is an argument beside the line, not a command — the LINE itself stays movable (the inquiry probe), and the motion's answer does not reopen.",
 		})
 }
 
@@ -532,13 +532,13 @@ func inquiryMotionProbe() entityProbe {
 // state rather than as a transition.
 
 func inquiryPropose() probeAct {
-	return probeAct{"propose", []string{"avenue", "propose",
-		"--reason", "a line worth taking", "--hypothesis", "it would settle the open question"}}
+	return probeAct{"propose", []string{"inquiry", "propose",
+		"--question", "a line worth taking", "--hypothesis", "it would settle the open question"}}
 }
 
 func inquiryProbe() entityProbe {
 	moveTo := func(status string) probeAct {
-		return probeAct{"move:" + status, []string{"avenue", "move", "--id", "Q1",
+		return probeAct{"move:" + status, []string{"inquiry", "record", "--id", "Q1",
 			"--as", status, "--reason", "what became of it"}}
 	}
 	// Every status the vocabulary offers is built and probed, because a fate nobody can leave is
@@ -552,10 +552,10 @@ func inquiryProbe() entityProbe {
 			acts = append(acts, moveTo(fate))
 		}
 	}
-	acts = append(acts, probeAct{"rule", []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed",
+	acts = append(acts, probeAct{"rule", []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed",
 		"--reason", "worth this run's time"}})
 	return entityProbe{
-		name: "avenue", id: "Q1",
+		name: "inquiry", id: "Q1",
 		states: states,
 		acts:   acts,
 		buildTo: func(t *testing.T, state string) string {
@@ -565,11 +565,11 @@ func inquiryProbe() entityProbe {
 				return runDir
 			}
 			if !build(t, runDir, inquiryPropose()) {
-				t.Fatalf("no seat could propose an avenue")
+				t.Fatalf("no seat could propose an inquiry")
 			}
 			if state != "proposed" {
 				if !build(t, runDir, moveTo(state)) {
-					t.Fatalf("no seat could move an avenue to %q", state)
+					t.Fatalf("no seat could move an inquiry to %q", state)
 				}
 			}
 			return runDir
@@ -589,7 +589,7 @@ func inquiryProbe() entityProbe {
 				return map[string]string{}
 			}
 			return map[string]string{
-				"line": q.Question, "hypothesis": q.Hypothesis, "reason": q.Reason,
+				"question": q.Question, "hypothesis": q.Hypothesis, "reason": q.Reason,
 				"ruling": q.Ruling, "ruling_why": q.RulingWhy,
 				// APPEND-ONLY, and listed in `accumulates`: History is a line per move, so a
 				// re-recorded fate keeps every earlier one beside it.
@@ -635,9 +635,9 @@ var entityEvents = map[string][]string{
 	// motion_rule is here as well as under "motion" because a DOCKET ruling closes a gap: the
 	// bench's disposition is a motion ruling now, so the gap's third exit is an event the motion
 	// entity also owns. One event, two entities, and saying so is what keeps both graphs honest.
-	"gap":    {"mint", "close", "regrade", "opinion", "motion_rule"},
-	"motion": {"motion", "motion_rule"},
-	"avenue": {"avenue"},
+	"gap":     {"mint", "close", "regrade", "opinion", "motion_rule"},
+	"motion":  {"motion", "motion_rule"},
+	"inquiry": {"inquiry"},
 }
 
 // TestEveryVerbThatTouchesAProbedEntityIsProbed keeps the act tables honest.

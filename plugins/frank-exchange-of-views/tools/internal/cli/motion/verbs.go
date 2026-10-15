@@ -297,7 +297,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			case recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY:
 				v, ok := enumOf[recordpb.InquiryRuling](recordpb.InquiryRuling(0).Descriptor(), word)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a direction", word)
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on an inquiry", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
@@ -392,8 +392,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 // walks this tree now and markRequired is the one writer of that word, so a hand-written copy here
 // rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
-	if subject == "avenue" {
-		return "the AVENUE id: an avenue's filing is the proposal, so it joins on the avenue's own id, not a motion's"
+	if subject == "inquiry" {
+		return "the INQUIRY id: an inquiry's filing is the proposal, so it joins on the inquiry's own id, not a motion's"
 	}
 	return "the motion id"
 }
@@ -476,7 +476,7 @@ var ruleFlagHelp = map[string]string{
 // the second is STRONGER than existence, being bound to the subject. A checker here would have been a
 // second implementation of a check that already refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
-	if subject == "avenue" {
+	if subject == "inquiry" {
 		return flags.InquiryID()
 	}
 	if filing {

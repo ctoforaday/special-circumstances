@@ -290,11 +290,11 @@ func TestFindingsAndCitations(t *testing.T) {
 func TestInquiryLifecycle(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:avenue:Q1", &recordpb.Inquiry{
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:inquiry:Q1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"), Question: proto.String("survey the standard forms"),
 			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Reason: proto.String("opening"),
 		}),
-		recordtest.At(t, "blue-respond", "blue-respond:avenue:Q1", &recordpb.Inquiry{
+		recordtest.At(t, "blue-respond", "blue-respond:inquiry:Q1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"), Question: proto.String("survey the standard forms"),
 			Status:           recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
 			SupersedesStatus: proto.String("proposed"), Reason: proto.String("nothing standard exists"),

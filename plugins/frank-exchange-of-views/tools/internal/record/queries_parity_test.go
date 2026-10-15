@@ -135,10 +135,10 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	// requireAvenue: the proposed line resolves, an unknown one is refused.
 	if err := requireInquiry(recordOf(t, run), "Q1", "--id"); err != nil {
-		t.Errorf("requireAvenue(Q1) = %v", err)
+		t.Errorf("requireInquiry(Q1) = %v", err)
 	}
-	if err := requireInquiry(recordOf(t, run), "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
-		t.Errorf("requireAvenue on an unknown id = %v, want the refusal", err)
+	if err := requireInquiry(recordOf(t, run), "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no inquiry") {
+		t.Errorf("requireInquiry on an unknown id = %v, want the refusal", err)
 	}
 
 	// Estoppel: the byte-exact pair, the proof join, the edit's old span.

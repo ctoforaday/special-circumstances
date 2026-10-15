@@ -53,7 +53,7 @@ var viewWriters = map[string][]string{
 	// All four, because the view answers two different questions with one table: what blue
 	// offered as backing (`cite`, `prove`) and what red made of it (`verify`, `reproduce`).
 	"evidence":  {"cite", "prove", "verify", "reproduce"},
-	"avenues":   {"avenue", "propose"},
+	"inquiries": {"inquiry", "propose"},
 	"telemetry": {},
 	"board":     {"mint", "close", "regrade", "retire"},
 }
@@ -103,7 +103,7 @@ func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
 		}
 		if !named {
 			t.Errorf("`%s --help` describes view %q without naming any verb that fills it (%s).\n"+
-				"A seat reads the projection and builds a verb name out of it: measured, one read `--view avenues` and typed `blue avenue`, which does not exist. Name the verb in the view's own description so the two arrive together.",
+				"A seat reads the projection and builds a verb name out of it: measured, one read `--view inquiries` and typed `blue inquiry`, which does not exist. Name the verb in the view's own description so the two arrive together.",
 				seat.GroupOf(view), view, strings.Join(writers, ", "))
 		}
 	}

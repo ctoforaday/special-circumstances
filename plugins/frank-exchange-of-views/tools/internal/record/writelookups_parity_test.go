@@ -91,10 +91,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := RequireInquiryRef(run, "Q1"); err != nil {
-		t.Errorf("RequireAvenueRef(Q1) = %v", err)
+		t.Errorf("RequireInquiryRef(Q1) = %v", err)
 	}
 	if err := RequireInquiryRef(run, "Q9"); err == nil {
-		t.Error("RequireAvenueRef accepted an avenue nobody proposed")
+		t.Error("RequireInquiryRef accepted an inquiry nobody proposed")
 	}
 
 	// Findings and their markers: the key lookup, the reference check, the anchor pair heal.

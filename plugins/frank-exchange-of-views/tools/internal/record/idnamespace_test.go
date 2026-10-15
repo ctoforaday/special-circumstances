@@ -53,7 +53,7 @@ func kindShape(kind string) *regexp.Regexp {
 func idKinds() []idKind {
 	return []idKind{
 		{name: "gap", pattern: flags.GapID().Shape(), anchored: true},
-		{name: "avenue", pattern: flags.InquiryID().Shape()},
+		{name: "inquiry", pattern: flags.InquiryID().Shape()},
 		{name: "motion", pattern: flags.MotionID().Shape()},
 		{name: "citation", pattern: flags.CitationAnchor().Shape(), anchored: true},
 		{name: "finding", pattern: kindShape("finding"), anchored: true},
@@ -211,7 +211,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	case "gap":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
-	case "avenue":
+	case "inquiry":
 		// An avenue is blue's to propose: the chair rules on them and files none.
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Inquiry{InquiryId: proto.String(id), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED), Question: proto.String("a line"), Reason: proto.String("r")})
 		return err

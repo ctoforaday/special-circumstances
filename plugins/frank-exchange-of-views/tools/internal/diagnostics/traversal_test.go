@@ -15,8 +15,8 @@ func TestCommandWordsReadsTheShapesSeatsActuallyWrite(t *testing.T) {
 			// The majority shape. BinFields matches the path inside the ASSIGNMENT, so the fields
 			// begin at `;` — and breaking there cost blue-synthesize 26 of its 27 invocations.
 			name:    "assignment then invocation",
-			command: `B="/tmp/x/runbin/feov-record"; $B --seat-id blue-synthesize show avenues 2>&1 | head -120`,
-			want:    []string{"show", "avenues"},
+			command: `B="/tmp/x/runbin/feov-record"; $B --seat-id blue-synthesize show inquiries 2>&1 | head -120`,
+			want:    []string{"show", "inquiries"},
 		},
 		{
 			// Flags carried in a variable. `$S` is neither a dash-flag nor a verb token, and the

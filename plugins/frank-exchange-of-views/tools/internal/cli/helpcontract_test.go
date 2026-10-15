@@ -287,7 +287,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		return "1"
 	case "gap-id":
 		return "G-00000000"
-	case "avenue-id":
+	case "inquiry-id":
 		return "Q-00000000"
 	case "motion-id":
 		return "M-00000000"
@@ -302,7 +302,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		// question the path was being used to guess at. The path form went stale the moment
 		// `motion direction` became `motion avenue` — this branch used to say `motion direction`
 		// and silently stopped matching, feeding a gap id to a flag that wanted a line's.
-		if f.Value.Type() == "avenue-id" {
+		if f.Value.Type() == "inquiry-id" {
 			return "Q1"
 		}
 		joined := strings.Join(path, " ")
@@ -362,9 +362,9 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the gap a probe's --id names"); err != nil {
 		t.Fatalf("seed gap: %v", err)
 	}
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
-		"--reason", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
-		t.Fatalf("seed avenue: %v", err)
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+		"--question", "a seeded line", "--hypothesis", "it would settle something"); err != nil {
+		t.Fatalf("seed inquiry: %v", err)
 	}
 	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "G1", "--dimension", "severity", "--proposed", "low",

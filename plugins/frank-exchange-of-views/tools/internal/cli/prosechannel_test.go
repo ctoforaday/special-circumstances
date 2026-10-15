@@ -14,25 +14,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
 
-// A VERB'S PROSE LANDS IN EVERY FIELD THAT READS THE CHANNEL.
-//
-// # The instance this was written for
-//
-// `avenue propose` filled its `line` payload key from the raw --reason FLAG and its
-// `reason` key from the resolved CHANNEL. When the channel had a file spelling too, that spelling
-// filled only one of the two, and the write was refused for a missing field the seat had supplied.
-//
-// FOUND BY A SEAT, 2026-08-21, and only because it had somewhere to say so. It filed a friction
-// report naming the tool rather than working around it, though it could not name the cause — the
-// refusal pointed at `--line`, a flag on no surface.
-//
-// # What is still true with one spelling
-//
-// The channel is --reason alone now, so two spellings can no longer disagree. What remains is the
-// half that was always the point: every field a verb fills from its prose must receive the prose.
-// So this drives each cheap-to-drive prose verb with --reason and asserts the text reached the
-// record — and, for propose, that it reached BOTH `line` and `reason`.
-// TestNoVerbReadsTheProseFlagDirectly holds the same invariant at every site by source scan.
+// A VERB'S PROSE LANDS IN EVERY FIELD THAT READS THE CHANNEL. Every field a verb fills from its
+// prose must receive the prose, so this drives each cheap-to-drive prose verb with --reason and
+// asserts the text reached the record. TestNoVerbReadsTheProseFlagDirectly holds the same invariant
+// at every site by source scan.
 func TestProseLandsInEveryFieldThatReadsTheChannel(t *testing.T) {
 	const prose = "the same paragraph, in every field that reads it"
 
@@ -43,7 +28,6 @@ func TestProseLandsInEveryFieldThatReadsTheChannel(t *testing.T) {
 		args   []string
 		fields []string
 	}{
-		{blueSeat, []string{"avenue", "propose", "--hypothesis", "h"}, []string{"line", "reason"}},
 		{blueSeat, []string{"position"}, nil},
 		{blueSeat, []string{"log", "--type", "defect"}, nil},
 		// A SEAT THE STAGED BOARD HAS NOT ALREADY USED. The docket board records a `position` for
@@ -117,7 +101,7 @@ func recordOnce(t *testing.T, seatID string, args []string, prose string) string
 func recordTypeOf(t *testing.T, args []string) recordpb.EventType {
 	t.Helper()
 	word := args[0]
-	if w, ok := map[string]string{"avenue": "avenue"}[word]; ok {
+	if w, ok := map[string]string{"inquiry": "inquiry"}[word]; ok {
 		word = w
 	}
 	typ, ok := recordpb.EventTypeOf(strings.ReplaceAll(word, "-", "_"))
@@ -143,7 +127,7 @@ func payloadOfLast(t *testing.T, runDir string, typ recordpb.EventType) string {
 	seen := map[string]string{}
 	body.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		switch string(fd.Name()) {
-		case "avenue_id", "gap_id":
+		case "inquiry_id", "gap_id":
 			return true // minted per run; equality here would be a test of the id generator
 		}
 		keys = append(keys, string(fd.Name()))

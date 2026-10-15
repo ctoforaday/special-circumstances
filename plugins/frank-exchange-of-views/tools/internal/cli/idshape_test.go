@@ -32,7 +32,7 @@ func TestEveryIDFlagDeclaresWhichKindItTakes(t *testing.T) {
 	if len(plain) > 0 {
 		t.Errorf("%d --id flag(s) are registered as a plain string, so the help prints `string` and a "+
 			"wrong-kind value is refused by a lookup rather than by its shape. Register through a shaped "+
-			"value (flags.GapID(), flags.MotionID(), flags.AvenueID(), flags.SHA(), …) so the page names "+
+			"value (flags.GapID(), flags.MotionID(), flags.InquiryID(), flags.SHA(), …) so the page names "+
 			"the kind and the refusal can say what it got:\n  %s", len(plain), strings.Join(plain, "\n  "))
 	}
 }

@@ -47,8 +47,8 @@ func refusals() []struct {
 		name string
 		args []string
 	}{
-		{"a verb refusing on a missing required flag", []string{"avenue", "propose", "--seat-id", "blue-respond"}},
-		{"a group invoked with no verb", []string{"avenue", "--seat-id", "blue-respond"}},
+		{"a verb refusing on a missing required flag", []string{"inquiry", "propose", "--seat-id", "blue-respond"}},
+		{"a group invoked with no verb", []string{"inquiry", "--seat-id", "blue-respond"}},
 		{"a role with no verb", []string{"blue"}},
 		{"an unknown top-level command", []string{"frobnicate"}},
 		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond"}},
@@ -261,9 +261,9 @@ func TestAGroupedActIsToldWhereItLives(t *testing.T) {
 		argv     []string
 		wantSeat string // empty where no seat holds the act
 	}{
-		{"blue-respond", []string{"avenue", "review"}, "chair"},
-		{"red-chair", []string{"avenue", "propose"}, "blue"},
-		{"blue-respond", []string{"avenue", "nonsense"}, ""},
+		{"blue-respond", []string{"inquiry", "review"}, "chair"},
+		{"red-chair", []string{"inquiry", "propose"}, "blue"},
+		{"blue-respond", []string{"inquiry", "nonsense"}, ""},
 		{"blue-respond", []string{"motion", "nonsense"}, ""},
 	} {
 		_, err := run(t, append(append([]string{}, tc.argv...), "--seat-id", tc.seat)...)

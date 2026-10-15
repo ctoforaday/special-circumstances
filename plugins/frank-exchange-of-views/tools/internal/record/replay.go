@@ -426,8 +426,8 @@ func ExistingProposalByText(run Run, seatID, question, hypothesis string) (strin
 	}
 	var id string
 	if _, err := queryRow(run, []any{&id},
-		`SELECT a."avenue_id" FROM "avenue" a JOIN "events" e ON e."id" = a."event_id"
-		  WHERE e."seat_id" = ? AND a."line" = ? AND COALESCE(a."hypothesis", '') = ?
+		`SELECT a."inquiry_id" FROM "inquiry" a JOIN "events" e ON e."id" = a."event_id"
+		  WHERE e."seat_id" = ? AND a."question" = ? AND COALESCE(a."hypothesis", '') = ?
 		    AND a."status" = 'proposed'
 		  ORDER BY a."event_id" LIMIT 1`, seatID, question, hypothesis); err != nil {
 		return "", err

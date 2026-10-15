@@ -417,7 +417,7 @@ func inquiryAt(t *testing.T, id, status string) *Event {
 	t.Helper()
 	st, ok := InquiryStatusOf(status)
 	if !ok {
-		t.Fatalf("%q is not an avenue status", status)
+		t.Fatalf("%q is not an inquiry status", status)
 	}
 	return recordtest.Event(t, "blue-respond", &recordpb.Inquiry{
 		InquiryId: proto.String(id),
@@ -448,18 +448,18 @@ func TestAUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	b := loadedFamilyT(t, nil, []*Event{
 		// Epoch 0: the base phase, before any chair has sat.
 		inquiryAt(t, "Q1", "proposed"),
-		inquiryAt(t, "Q1", "pursued"),
-		inquiryAt(t, "Q2", "pursued"),
-		inquiryAt(t, "Q3", "pursued"), // never revisited
+		inquiryAt(t, "Q1", "underway"),
+		inquiryAt(t, "Q2", "underway"),
+		inquiryAt(t, "Q3", "underway"), // never revisited
 		inquiryAt(t, "Q4", "deferred"),
 		inquiryAt(t, "Q5", "abandoned"),
-		inquiryAt(t, "Q7", "concluded"), // followed to its end in epoch 0, never touched again
+		inquiryAt(t, "Q7", "confirmed"), // followed to its end in epoch 0, never touched again
 		// The chair sits twice: everything below is in epoch 2, the current one.
 		chairSits(t),
 		chairSits(t),
-		inquiryAt(t, "Q2", "pursued"),  // reaffirmed in the current epoch
+		inquiryAt(t, "Q2", "underway"), // reaffirmed in the current epoch
 		inquiryAt(t, "Q6", "proposed"), // undecided, and `proposed` owes a move whenever asked
-		inquiryAt(t, "Z", "pursued"),   // carries the epoch forward
+		inquiryAt(t, "Z", "underway"),  // carries the epoch forward
 	})
 
 	stale := map[string]bool{}
@@ -468,11 +468,11 @@ func TestAUnderwayInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 	}
 
 	if stale["Q2"] {
-		t.Error("A2 was reaffirmed as `pursued` in the current epoch and is still reported as owing a decision — " +
+		t.Error("A2 was reaffirmed as `underway` in the current epoch and is still reported as owing a decision — " +
 			"recording exactly what the enum asks for must settle the line, or the only way to clear it is to abandon it")
 	}
 	if !stale["Q3"] {
-		t.Error("A3 has sat at `pursued` since epoch 0 and is NOT reported — that is the neglect this exists to catch")
+		t.Error("A3 has sat at `underway` since epoch 0 and is NOT reported — that is the neglect this exists to catch")
 	}
 	if !stale["Q6"] {
 		t.Error("A6 is `proposed` — the enum calls that \"the state that owes a move\", with no round condition")

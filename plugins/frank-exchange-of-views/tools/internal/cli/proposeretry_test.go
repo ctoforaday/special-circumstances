@@ -21,13 +21,13 @@ func TestARepeatedProposalReturnsTheSameLine(t *testing.T) {
 	const line = "trial division to the square root settles it"
 	const hyp = "every composite has a factor at or below its square root"
 
-	first, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
-		"--reason", line, "--hypothesis", hyp)
+	first, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+		"--question", line, "--hypothesis", hyp)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
-		"--reason", line, "--hypothesis", hyp)
+	second, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+		"--question", line, "--hypothesis", hyp)
 	if err != nil {
 		t.Fatalf("the retry was refused rather than answered: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestARepeatedProposalReturnsTheSameLine(t *testing.T) {
 	}
 	if a, b := id(first), id(second); a == "" || a != b {
 		t.Errorf("the retry recorded %q where the first call recorded %q — two ids for one line, which is "+
-			"how a run ends up with ten avenues for five questions", b, a)
+			"how a run ends up with ten inquiries for five questions", b, a)
 	}
 	// AND IT SAYS SO, because a seat that cannot tell a retry from a fresh record will not know its
 	// ledger is intact.
@@ -64,8 +64,8 @@ func TestARepeatedProposalReturnsTheSameLine(t *testing.T) {
 	// A DIFFERENT HYPOTHESIS IS A DIFFERENT LINE, and this is the arm that keeps the dedup honest:
 	// --reason is required and --hypothesis is not, so matching the line alone would collapse two
 	// proposals that share required prose and test different claims.
-	third, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
-		"--reason", line, "--hypothesis", "a different claim entirely")
+	third, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+		"--question", line, "--hypothesis", "a different claim entirely")
 	if err != nil {
 		t.Fatal(err)
 	}

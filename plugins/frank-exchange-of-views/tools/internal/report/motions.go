@@ -29,7 +29,7 @@ func motions(fam record.Family) string {
 	for _, m := range ms {
 		rows = append(rows, motionRow(m, &unruled, struckRulings[m.ID]))
 	}
-	out := "Every contested question and how it was answered: grade motions, petitions, and rulings on proposed directions. One mechanism, one id — an ask and its answer are one row.\n\n" +
+	out := "Every contested question and how it was answered: grade motions, petitions, and rulings on proposed inquiries. One mechanism, one id — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
 	if unruled > 0 {
 		out += fmt.Sprintf("\n\n**%d motion(s) received no ruling.** A motion is answered before the debate moves on; a filing with no ruling means that sitting is missing, not that the ask was withdrawn.", unruled)
@@ -93,8 +93,8 @@ func motionHead(m *record.Motion) string {
 		return fmt.Sprintf("grade of %s (%s to %s)", m.Fields["gap_id"], m.Fields["dimension"], m.Fields["proposed"])
 	case "petition":
 		return "petition (" + m.Fields["class"] + ")"
-	case "avenue":
-		return "avenue " + m.Fields["avenue_id"]
+	case "inquiry":
+		return "inquiry " + m.Fields["inquiry_id"]
 	case "docket":
 		// THE SECOND SUBJECT THAT IS ABOUT A GAP, and the row is unreadable without it. Left to
 		// the default arm this renders as the bare word "docket" — the bench's disposition of a

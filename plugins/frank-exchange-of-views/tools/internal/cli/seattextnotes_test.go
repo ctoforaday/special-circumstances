@@ -27,8 +27,8 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		"--script", script, "--reason", "an empty body parses to nothing, which the class [^\\s] never matches"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
-		"--reason", "whether a tokenizer built on [^,]+ splits an empty field", "--hypothesis", "it does not"); err != nil {
+	if _, err := runAt(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+		"--question", "whether a tokenizer built on [^,]+ splits an empty field", "--hypothesis", "it does not"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence", "--quote", sentence,
@@ -72,7 +72,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		t.Errorf("the evidence document carries the proof's note unescaped:\n%.600s", ev)
 	}
 	if av := body[report.FileInquiries]; !strings.Contains(av, `built on \[^,]+ splits`) {
-		t.Errorf("the avenues document carries the avenue's words unescaped:\n%s", av)
+		t.Errorf("the inquiries document carries the inquiry's words unescaped:\n%s", av)
 	}
 	if a := capture.FootnoteIntegrity(runtest.Open(t, set)); a.Verdict != "PASS" {
 		t.Errorf("the set a finding and a log entry were printed into fails the footnote audit: %s", a.Detail)

@@ -34,7 +34,7 @@ func TestInquiriesShowTheStruckWording(t *testing.T) {
 	prop := func(line string) *recordpb.Inquiry {
 		return &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String(line), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
 	}
-	k := "blue-respond:avenue:#1"
+	k := "blue-respond:inquiry:#1"
 	evs := []*record.Event{
 		recordtest.At(t, "blue-respond", k, prop("try the  method")),
 		recordtest.At(t, "blue-respond", k+"~1", prop("try the recorded method")),

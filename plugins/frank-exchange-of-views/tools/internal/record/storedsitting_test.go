@@ -440,7 +440,7 @@ func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 		t.Errorf("CurrentEpoch = %d, want 1: epoch 2 holds a register and the harness's own rows, and no work", got)
 	}
 	if stale := StaleInquiriesOf(m.Events, m.At); len(stale) != 0 {
-		t.Errorf("an avenue pursued in epoch 1 reads stale in an epoch with no work in it: %+v", stale)
+		t.Errorf("an inquiry underway in epoch 1 reads stale in an epoch with no work in it: %+v", stale)
 	}
 }
 

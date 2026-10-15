@@ -229,14 +229,14 @@ func requireInquiryRef(q recordsql.Querier, id string) error {
 	// EVERY Avenue event answers this, proposal or move, exactly as the fold's type test did —
 	// the check is that the id was ever WRITTEN by the avenue verb, not that the
 	// event was the proposal.
-	found, err := recordHasAt(q, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
+	found, err := recordHasAt(q, `SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
 	if found {
 		return nil
 	}
-	return fmt.Errorf("--id names avenue %s, which no avenue event proposed — a dangling reference is accepted here and dropped at replay", id)
+	return fmt.Errorf("--id names inquiry %s, which no inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
 // StaleAvenuesOf is StaleAvenues over the events themselves.
@@ -247,7 +247,7 @@ func StaleInquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 		switch a.Status {
 		case "proposed":
 			out = append(out, a)
-		case "pursued":
+		case "underway":
 			if a.Epoch < now {
 				out = append(out, a)
 			}
@@ -273,12 +273,12 @@ func InquiryRuling(run Run, inquiryID string) (string, error) {
 	// (`out_of_scope`), the one AvenuesOf puts on Avenue.Ruling and every surface accepts.
 	var word sql.NullString
 	found, err := queryRow(run, []any{&word},
-		`SELECT "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = ?`, inquiryID)
+		`SELECT "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = ?`, inquiryID)
 	if err != nil {
-		return "", fmt.Errorf("the ruling on avenue %s: %w", inquiryID, err)
+		return "", fmt.Errorf("the ruling on inquiry %s: %w", inquiryID, err)
 	}
 	if !found {
-		return "", fmt.Errorf("the ruling on avenue %s: avenue_state holds no row for it — no proposal that stands created that avenue", inquiryID)
+		return "", fmt.Errorf("the ruling on inquiry %s: inquiry_state holds no row for it — no proposal that stands created that inquiry", inquiryID)
 	}
 	return word.String, nil
 }
@@ -312,7 +312,7 @@ func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
 // contract rather than a dump of whatever the fold happens to carry.
 type InquiryJSON struct {
 	ID         string `json:"id"`
-	Question   string `json:"line"`
+	Question   string `json:"question"`
 	Hypothesis string `json:"hypothesis,omitempty"`
 	Method     string `json:"method,omitempty"`
 	Status     string `json:"status"`
@@ -327,7 +327,7 @@ type InquiryJSON struct {
 
 // AvenuesJSON is the wire form of the exploration space.
 type InquiriesJSON struct {
-	Inquiries []InquiryJSON `json:"avenues"`
+	Inquiries []InquiryJSON `json:"inquiries"`
 }
 
 // AvenuesJSONOf folds the events into the wire form, in the same order the rendered projection

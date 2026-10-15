@@ -74,8 +74,8 @@ const (
 // gap is open — reaches that seat through its prompt and the `motion` pages, since the record
 // refuses it neither.
 var superseders = map[supersederKey]superseder{
-	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}:                            {act: "a move of the avenue"},
-	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW}:                     {act: "a new review of the avenues", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}:                            {act: "a new record of the inquiry's fate"},
+	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW}:                     {act: "a new review of the inquiries", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}:                            {act: "a new certification", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CITE}:                               {act: "a new citation", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:                              {act: "a docket motion on the gap"},

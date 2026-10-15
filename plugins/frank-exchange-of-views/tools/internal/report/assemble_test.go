@@ -147,7 +147,7 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	alt := inquirySection(t, board, "Alternatives considered")
 	const fate = "\n  - **Fate:** abandoned. **Why:** "
 	if !strings.Contains(alt, "- **Question:** sieve to the square root"+fate+"the bound is 9, so the sieve adds nothing") {
-		t.Errorf("a line pursued and then abandoned keeps the plain fate:\n%s", alt)
+		t.Errorf("a line underway and then abandoned keeps the plain fate:\n%s", alt)
 	}
 	if !strings.Contains(alt, "- **Question:** check a computer-algebra system"+fate+"no such system is available here") {
 		t.Errorf("a line abandoned straight from proposed carries the fate its seat recorded:\n%s", alt)
@@ -177,12 +177,12 @@ func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 	})
 	research := inquirySection(t, board, "Research areas")
 	for name, want := range map[string]string{
-		"a refuted avenue prints its hypothesis as one and says it did not hold": "- **Question:** whether one Fermat test settles it _(computation)_\n" +
+		"a refuted inquiry prints its hypothesis as one and says it did not hold": "- **Question:** whether one Fermat test settles it _(computation)_\n" +
 			"  - **Hypothesis:** a passing test is no evidence of primality\n" +
 			"  - **Fate:** refuted. **Found:** a passing test is evidence, not proof",
-		"an avenue with no hypothesis prints no hypothesis line": "- **Question:** whether trial division settles it\n" +
-			"  - **Fate:** concluded. **Found:** 7 divides 91",
-		"an avenue never moved has found nothing, and its question is not printed twice": "- **Question:** whether a sieve is faster\n" +
+		"an inquiry with no hypothesis prints no hypothesis line": "- **Question:** whether trial division settles it\n" +
+			"  - **Fate:** confirmed. **Found:** 7 divides 91",
+		"an inquiry never moved has found nothing, and its question is not printed twice": "- **Question:** whether a sieve is faster\n" +
 			"  - **Hypothesis:** it is\n" +
 			"  - **Fate:** proposed.",
 	} {
@@ -231,11 +231,11 @@ func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 // FOUND. A fate the enum gains fails here until its label is decided.
 func TestEveryInquiryFateIsSaidOnItsRow(t *testing.T) {
 	label := map[string]string{
-		"proposed": "Why", "pursued": "Found", "concluded": "Found", "refuted": "Found",
+		"proposed": "Why", "underway": "Found", "confirmed": "Found", "refuted": "Found",
 		"deferred": "Why", "declined": "Why", "abandoned": "Why",
 	}
 	for _, status := range record.InquiryStatusNames() {
-		st := recordpb.InquiryStatus(recordpb.InquiryStatus_value["AVENUE_STATUS_"+strings.ToUpper(status)])
+		st := recordpb.InquiryStatus(recordpb.InquiryStatus_value["INQUIRY_STATUS_"+strings.ToUpper(status)])
 		board := famOf(t, []*record.Event{recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 			Status: st.Enum(), Question: proto.String("whether a sieve is faster"), Reason: proto.String("the bound is 9")})})
 		want := "- **Question:** whether a sieve is faster\n  - **Fate:** " + status + ". **" + label[status] + ":** the bound is 9"
@@ -259,17 +259,17 @@ func TestInquiriesSplitByFate(t *testing.T) {
 	})
 	exp := inquirySection(t, board, "Research areas")
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
-		t.Errorf("research areas must carry ONLY pursued and proposed avenues:\n%s", exp)
+		t.Errorf("research areas must carry ONLY underway and proposed inquiries:\n%s", exp)
 	}
 	alt := inquirySection(t, board, "Alternatives considered")
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
-		t.Errorf("an abandoned avenue is an alternative considered, its reason the counter:\n%s", alt)
+		t.Errorf("an abandoned inquiry is an alternative considered, its reason the counter:\n%s", alt)
 	}
 	if !strings.Contains(alt, "third-party audit") {
-		t.Errorf("a declined avenue is also an alternative considered:\n%s", alt)
+		t.Errorf("a declined inquiry is also an alternative considered:\n%s", alt)
 	}
 	if strings.Contains(alt, "profile the hot path") {
-		t.Errorf("a pursued avenue must not appear under alternatives:\n%s", alt)
+		t.Errorf("a underway inquiry must not appear under alternatives:\n%s", alt)
 	}
 	// No avenues of a fate → flagged, not blank.
 	if none := inquirySection(t, record.NewFamily(nil, record.Merged{}), "Research areas"); !strings.Contains(none, "none on the record") {
@@ -308,8 +308,8 @@ func TestInquiriesSplitByFate(t *testing.T) {
 // rather than vanishing the way `proposed` and `deferred` once did.
 func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	section := map[string]string{
-		"pursued":   "research",
-		"concluded": "research", // a line followed to its end is one the research took
+		"underway":  "research",
+		"confirmed": "research", // a line followed to its end is one the research took
 		"refuted":   "research", // a refutation is an answer: it stands beside the confirmations
 		"proposed":  "research", // an undecided line IS an area this run is researching
 		"deferred":  "future",
@@ -348,7 +348,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		sort.Strings(got)
 		switch {
 		case len(got) != 1:
-			t.Errorf("status %q rendered under %v, want exactly [%s] — an avenue in two sections is an alternative to "+
+			t.Errorf("status %q rendered under %v, want exactly [%s] — an inquiry in two sections is an alternative to "+
 				"itself, and one in NONE loses the seat's recorded prose entirely (TestFuzzDebate's A1-A3 class "+
 				"caught exactly that when `proposed` was excluded)", status, got, want)
 		case got[0] != want:
@@ -363,7 +363,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 		for name, h := range heading {
 			from := strings.Index(InquirySections, h)
 			if from < 0 {
-				t.Fatalf("AvenueSections does not name %q: %s", h, InquirySections)
+				t.Fatalf("InquirySections does not name %q: %s", h, InquirySections)
 			}
 			clause := InquirySections[from+len(h):]
 			for _, other := range heading {
@@ -376,7 +376,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 			}
 		}
 		if said != want {
-			t.Errorf("AvenueSections puts %q under %q and the assembler under %q: %s", status, said, want, InquirySections)
+			t.Errorf("InquirySections puts %q under %q and the assembler under %q: %s", status, said, want, InquirySections)
 		}
 	}
 }
@@ -438,7 +438,7 @@ func TestBluesPromptsNameTheSectionsTheToolComposes(t *testing.T) {
 	}
 	// The avenue rule reaches the seat that records an approach's fate in the table's own sentence.
 	if seat := "blue-lane-1"; !strings.Contains(strings.ReplaceAll(renderedPrompt(t, seat), "\n", " "), InquirySections) {
-		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (AvenueSections): %s", seat, InquirySections)
+		t.Errorf("the %s prompt does not state which fate lands under which heading as the table does (InquirySections): %s", seat, InquirySections)
 	}
 }
 
@@ -461,11 +461,11 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 		}
 		if s.fate != nil {
 			if !strings.Contains(s.From, "the question it asks, its hypothesis, its fate, and what was found or why it stands there") {
-				t.Errorf("avenue section %q: its row does not say what a row of it holds: from %q", s.Heading, s.From)
+				t.Errorf("inquiry section %q: its row does not say what a row of it holds: from %q", s.Heading, s.From)
 			}
 			for _, f := range fatesOf(s) {
 				if !strings.Contains(s.Path, "`"+f+"`") || !strings.Contains(s.From, f) {
-					t.Errorf("avenue section %q holds %q and its row does not say so: from %q, path %q", s.Heading, f, s.From, s.Path)
+					t.Errorf("inquiry section %q holds %q and its row does not say so: from %q, path %q", s.Heading, f, s.From, s.Path)
 				}
 			}
 		}
@@ -593,14 +593,14 @@ func TestARecordedInquiryIsRenderedOnce(t *testing.T) {
 	exp := inquirySection(t, board, "Research areas")
 	alt := inquirySection(t, board, "Alternatives considered")
 	if strings.Contains(exp, "rewrite the parser") {
-		t.Errorf("an avenue ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
+		t.Errorf("an inquiry ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
 	}
 	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
-		t.Errorf("the abandoned avenue must carry its current reason:\n%s", alt)
+		t.Errorf("the abandoned inquiry must carry its current reason:\n%s", alt)
 	}
 	// The substance came from the CREATION event and the reason from the MOVE. The PATH between
 	// them is the debate, not the subject: it renders in avenues.md, never in the report.
-	if strings.Contains(alt, "e0 pursued") || strings.Contains(alt, "history:") {
+	if strings.Contains(alt, "e0 underway") || strings.Contains(alt, "history:") {
 		t.Errorf("the status history is reconstructable from the ledger and is not report text:\n%s", alt)
 	}
 }

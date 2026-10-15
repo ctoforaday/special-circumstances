@@ -45,8 +45,8 @@ func refusesTheSection(t *testing.T, out string, err error, want ...string) {
 	}
 }
 
-var inquiryWay = []string{`"## Alternatives considered"`, "report.md", "the avenues on the record that are declined or abandoned",
-	"`avenue propose`", "`avenue move`", "`declined` or `abandoned`"}
+var inquiryWay = []string{`"## Alternatives considered"`, "report.md", "the inquiries on the record that are declined or abandoned",
+	"`inquiry propose`", "`inquiry record`", "`declined` or `abandoned`"}
 
 func TestIngestRefusesASectionTheToolComposes(t *testing.T) {
 	runDir := newRun(t)
@@ -164,7 +164,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		at += i
 	}
 	for _, want := range []string{"composed by: tool, from the open gaps on the board", "how content reaches it: No act of blue's adds a row",
-		"composed by: blue, from the section of this name in the report's text, which closes it", "`avenue move`",
+		"composed by: blue, from the section of this name in the report's text, which closes it", "`inquiry record`",
 		// A section the report does not have ships nothing, and this is where a seat reads that.
 		"a report with no section of this name ships without one.",
 		// The order the write holds is on the entries of the sections it places.
@@ -177,9 +177,9 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 
 	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Appendix: the divisions\n\n91 / 7 = 13.\n")
 	registerBlue(t, runDir)
-	if out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", blueSeat, "--reason", "whether trial division to 9 settles it",
+	if out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", blueSeat, "--question", "whether trial division to 9 settles it",
 		"--method", "trial division", "--hypothesis", "a factor below 10 exists"); err != nil {
-		t.Fatalf("avenue propose: %v\n%s", err, out)
+		t.Fatalf("inquiry propose: %v\n%s", err, out)
 	}
 	out, err = run(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)
 	if err != nil {
@@ -208,7 +208,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		}
 	}
 	if s := by["Research areas"]; !s.Ships || !strings.Contains(s.Text, "whether trial division to 9 settles it") || s.Composer != report.Tool {
-		t.Errorf("Research areas does not carry the avenue just proposed: %+v", s)
+		t.Errorf("Research areas does not carry the inquiry just proposed: %+v", s)
 	}
 	if s := by["The report's own sections"]; !s.Ships || !slices.Equal(s.AuthoredHeadings, []string{"TL;DR", "Appendix: the divisions"}) || !strings.HasPrefix(s.Text, "## TL;DR\n") || !strings.HasSuffix(s.Text, "91 / 7 = 13.") {
 		t.Errorf("the body does not carry the report's own section under its author's heading: %+v", s)

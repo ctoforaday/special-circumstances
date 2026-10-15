@@ -32,7 +32,7 @@ func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
 		"gap-id":          GapID,
 		"motion-id":       MotionID,
-		"avenue-id":       InquiryID,
+		"inquiry-id":      InquiryID,
 		"anchor":          AnchorID,
 		"citation-anchor": CitationAnchor,
 		"sha256":          SHA,
@@ -53,7 +53,7 @@ var minted = []struct {
 	{"citation", []string{"anchor", "citation-anchor"}},
 	{"proof", []string{"anchor"}},
 	{"gap", []string{"anchor", "gap-id"}},
-	{"avenue", []string{"avenue-id"}},
+	{"inquiry", []string{"inquiry-id"}},
 	{"motion", []string{"motion-id"}},
 }
 

@@ -168,10 +168,10 @@ func TestTheStreamArmsOfTheGateAnswerForAPrefix(t *testing.T) {
 		return slices.ContainsFunc(eventBlockersOf(evs, win.IDs(evs), win), func(b Blocker) bool { return b.Kind == BlockerInquiryReview })
 	}
 	if !due(evs[:cut]) {
-		t.Fatalf("the prefix before the review owes no avenue review — the arm read past the stream it was handed")
+		t.Fatalf("the prefix before the review owes no inquiry review — the arm read past the stream it was handed")
 	}
 	if due(evs) {
-		t.Fatalf("the whole record still owes an avenue review — the fixture's review does not answer it, so the prefix proved nothing")
+		t.Fatalf("the whole record still owes an inquiry review — the fixture's review does not answer it, so the prefix proved nothing")
 	}
 }
 

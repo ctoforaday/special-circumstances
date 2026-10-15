@@ -532,10 +532,10 @@ var satisfiedByAnyOf = map[string][]string{
 	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
 	// same sentence it calls the field required.
 	"problem": {flags.Problem, flags.Reason},
-	// An avenue's own statement and a manifest receipt are the verb's prose, so they
-	// arrive through the same channel every other prose field does.
-	"line": {flags.Reason},
-	"row":  {flags.Reason},
+	// An inquiry's question arrives through its own flag; a manifest receipt is the verb's prose,
+	// so it arrives through the same channel every other prose field does.
+	"question": {flags.Question},
+	"row":      {flags.Reason},
 }
 
 // markTree annotates every LEAF under a role. Verbs with subgroups are the ordinary shape now,
@@ -934,12 +934,11 @@ func Prose(c *cobra.Command) *cobra.Command {
 
 // ReasonIs is what --reason IS on the verbs whose prose is the artifact itself rather than an
 // argument about an act. flags.DescReason asks "why you graded, closed, ruled or edited", which
-// misdescribes an avenue, a receipt, a log entry or a holding. Keyed by verb name because
+// misdescribes a fate's account, a receipt, a log entry or a holding. Keyed by verb name because
 // Prose is where the flag is registered; TestReasonIsNamesOnlyProseVerbs refuses a key no prose
 // verb carries, so a renamed verb cannot silently fall back to the generic text.
 var ReasonIs = map[string]string{
-	"propose":      "the avenue's LINE: the question it asks, holding no predicted result — research prose for a reader of the SUBJECT, printed in the report word for word as the question",
-	"move":         "the account of what settled this fate, in the SUBJECT's terms — printed in the report beside the avenue",
+	"record":       "the account of what settled this fate, in the SUBJECT's terms — printed in the report on the inquiry's row, beside its question",
 	"finding":      "the finding itself — what is wrong and why, in one text: this flag carries it and no other flag states the problem. It is what the findings view prints and what the repair is re-audited against. " + flags.ReasonNotProcess,
 	"cite":         "why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report",
 	"prove":        "the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it",

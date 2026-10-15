@@ -187,14 +187,14 @@ func requireInquiry(q recordsql.Querier, id, flag string) error {
 	}
 	// Avenues(b) keys every avenue on Avenue events carrying a non-empty avenue_id,
 	// so membership is one existence question.
-	found, err := recordHasAt(q, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
+	found, err := recordHasAt(q, `SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
 	if found {
 		return nil
 	}
-	return fmt.Errorf("%s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`avenue propose --reason …`, which ASSIGNS the id); --id moves an avenue that already exists",
+	return fmt.Errorf("%s=%s names no inquiry on the record — `show inquiries` lists every one with its id and fate. Propose it first (`inquiry propose --question …`, which ASSIGNS the id); --id names an inquiry that already exists",
 		flag, id)
 }
 

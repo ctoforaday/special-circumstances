@@ -187,7 +187,7 @@ const (
 	rowGradeRule   = "a docket motion on the gap"
 	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition    = "a declaration"
-	rowInquiry     = "a move of the avenue"
+	rowInquiry     = "a new record of the inquiry's fate"
 	rowReproduce   = "a new re-run of the proof, whose reason says which earlier re-run it replaces"
 )
 
@@ -427,26 +427,26 @@ func answerDrives() []answerDrive {
 		}},
 		// NO ROW: the chair holds no act that answers its own ruling on an avenue. A docket motion
 		// names a gap and an avenue is not one, so the route a grade ruling has is refused here.
-		{name: "a ruling on an avenue", drive: func(d drive) {
+		{name: "a ruling on an inquiry", drive: func(d drive) {
 			proposeQ1(d.t, d.run)
-			d.admitted("the ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
-			d.endsWithoutARow(d.refused("a second ruling", "red-chair", "motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed", "--reason", "again"))
+			d.admitted("the ruling", "red-chair", "motion", "inquiry", "rule", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
+			d.endsWithoutARow(d.refused("a second ruling", "red-chair", "motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed", "--reason", "again"))
 			for _, seatID := range []string{"red-chair", "blue-respond"} {
-				d.refused("a docket motion naming the avenue, by "+seatID, seatID, "motion", "docket", "file", "--id", "Q1", "--reason", "the bench should decide the avenue")
+				d.refused("a docket motion naming the inquiry, by "+seatID, seatID, "motion", "docket", "file", "--id", "Q1", "--reason", "the bench should decide the inquiry")
 			}
 			// THE RULING BINDS NO MOVE: what blue does about one it disagrees with is the avenue's
 			// own row, in every status.
-			for _, status := range []string{"pursued", "declined", "deferred"} {
-				d.admitted("a move to "+status+" against the ruling", "blue-respond", "avenue", "move", "--id", "Q1", "--as", status, "--reason", "what the question turns on")
+			for _, status := range []string{"underway", "declined", "deferred"} {
+				d.admitted("a move to "+status+" against the ruling", "blue-respond", "inquiry", "record", "--id", "Q1", "--as", status, "--reason", "what the question turns on")
 			}
 		}},
-		{name: "avenue", row: rowInquiry, helps: []string{"blue avenue propose", "blue avenue move"}, drive: func(d drive) {
+		{name: "inquiry", row: rowInquiry, helps: []string{"blue inquiry propose", "blue inquiry record"}, drive: func(d drive) {
 			proposeQ1(d.t, d.run)
-			for _, status := range []string{"pursued", "deferred", "declined", "abandoned", "concluded", "refuted", "proposed"} {
-				d.admitted("a move to "+status, "blue-respond", "avenue", "move", "--id", "Q1", "--as", status, "--reason", "moved to "+status)
+			for _, status := range []string{"underway", "deferred", "declined", "abandoned", "confirmed", "refuted", "proposed"} {
+				d.admitted("a move to "+status, "blue-respond", "inquiry", "record", "--id", "Q1", "--as", status, "--reason", "moved to "+status)
 			}
 			d.admitted("register another blue seat", "blue-synthesize", "register")
-			d.admitted("a move by another blue seat", "blue-synthesize", "avenue", "move", "--id", "Q1", "--as", "pursued", "--reason", "another seat moves it")
+			d.admitted("a move by another blue seat", "blue-synthesize", "inquiry", "record", "--id", "Q1", "--as", "underway", "--reason", "another seat moves it")
 		}},
 		{name: "reproduce", row: rowReproduce, helps: []string{"lens reproduce"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
@@ -454,7 +454,7 @@ func answerDrives() []answerDrive {
 			sha := lastBody(d.t, d.run, &recordpb.Proof{}).GetProofSha()
 			twice(lensSeat, "reproduce", "--id", sha, "--as", "sound")(d)
 		}},
-		{name: "avenue review", row: "a new review of the avenues", helps: []string{"chair avenue review"}, drive: twice("red-chair", "avenue", "review")},
+		{name: "inquiry review", row: "a new review of the inquiries", helps: []string{"chair inquiry review"}, drive: twice("red-chair", "inquiry", "review")},
 		{name: "log", row: "a new log entry", helps: []string{"blue log", "lens log", "chair log", "bench log"}, drive: func(d drive) {
 			for _, s := range []string{"blue-respond", lensSeat, "red-chair", "judge"} {
 				twice(s, "log", "--type", "defect")(d)

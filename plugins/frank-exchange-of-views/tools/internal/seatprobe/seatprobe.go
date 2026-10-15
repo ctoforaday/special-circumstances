@@ -158,10 +158,10 @@ func isRole(s string) bool {
 // which the event type alone does not distinguish). They named nothing before this change and
 // name nothing after it. Reported, not fixed here.
 var verbOfEvent = map[recordpb.EventType]string{
-	recordpb.EventType_EVENT_TYPE_INQUIRY:        "avenue",
+	recordpb.EventType_EVENT_TYPE_INQUIRY:        "inquiry",
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:      "edit",
 	recordpb.EventType_EVENT_TYPE_CLASS_NEW:      "class-new",
-	recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW: "avenue review",
+	recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW: "inquiry review",
 	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE:    "motion rule",
@@ -194,7 +194,7 @@ func motionSubject(e *record.Event) string {
 // the failure mode this file's own comment warns about, arriving through the rename.
 func subjectVerb(s recordpb.MotionSubject) string {
 	if s == recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
-		return "avenue"
+		return "inquiry"
 	}
 	return recordpb.Word(s)
 }

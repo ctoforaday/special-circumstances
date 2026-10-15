@@ -30,7 +30,7 @@ func TestTheInquiryReviewOffersNoRetiredFlags(t *testing.T) {
 	// so asking it directly is asking the same question one construction step earlier.
 	var review *cobra.Command
 	for _, group := range Verbs() {
-		if group.Name() != "avenue" {
+		if group.Name() != "inquiry" {
 			continue
 		}
 		for _, sub := range group.Commands() {
@@ -40,17 +40,17 @@ func TestTheInquiryReviewOffersNoRetiredFlags(t *testing.T) {
 		}
 	}
 	if review == nil {
-		t.Fatal("the chair has no avenue review verb — if it was renamed, retarget this test rather than deleting it: the flags are the point")
+		t.Fatal("the chair has no inquiry review verb — if it was renamed, retarget this test rather than deleting it: the flags are the point")
 	}
 	for _, dead := range []string{flags.ID, flags.As} {
 		if f := review.Flags().Lookup(dead); f != nil {
-			t.Errorf("avenue review offers --%s again. The record has nowhere to put it: AvenueReview "+
+			t.Errorf("inquiry review offers --%s again. The record has nowhere to put it: InquiryReview "+
 				"carries prose alone, so a seat passing this flag is answered with silence rather than a "+
 				"refusal. If the per-line verdict is wanted back, it needs a field first.", dead)
 		}
 	}
 	// The prose channel IS the act, so its absence would be the opposite failure.
 	if f := review.Flags().Lookup(flags.Reason); f == nil {
-		t.Error("avenue review has no --reason — the review carries prose and nothing else, so with no prose it records nothing at all")
+		t.Error("inquiry review has no --reason — the review carries prose and nothing else, so with no prose it records nothing at all")
 	}
 }

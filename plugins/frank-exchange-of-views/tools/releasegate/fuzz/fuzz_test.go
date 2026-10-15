@@ -435,7 +435,7 @@ func inquiryIDOf(out string) string { return inquiryIDPat.FindString(out) }
 // change to the id shape moves this reader with it. A pattern kept by hand matches nothing after
 // such a change, and every drive fed from it — the move of a proposed line, the avenue `--about`
 // reference — silently stops: see runner.avenueIDErr and the avenue-move gate.
-var inquiryIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("avenue") + `\b`)
+var inquiryIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("inquiry") + `\b`)
 
 // gapIDPat folds a gap id out of a stated reason, so the reasons tally by what they say.
 var gapIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
@@ -617,15 +617,15 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 	r.mu.Unlock()
 	kinds := []string{"section"}
 	if len(inq) > 0 {
-		kinds = append(kinds, "avenue")
+		kinds = append(kinds, "inquiry")
 	}
 	gaps := r.openGaps()
 	if len(gaps) > 0 {
 		kinds = append(kinds, "gap")
 	}
 	switch pick(r.rng, kinds) {
-	case "avenue":
-		return "avenue", inq[r.rng.Intn(len(inq))]
+	case "inquiry":
+		return "inquiry", inq[r.rng.Intn(len(inq))]
 	case "gap":
 		return "gap", gaps[r.rng.Intn(len(gaps))]
 	default:
@@ -1902,7 +1902,7 @@ var checkKinds = []string{"document", "computation", "source"}
 
 // `deferred` was added as a fate in #246 and never driven — a value the tool accepts, the
 // registry declares, and no run has ever recorded.
-var inquiryStatus = []string{"proposed", "pursued", "concluded", "refuted", "abandoned", "declined", "deferred"}
+var inquiryStatus = []string{"proposed", "underway", "confirmed", "refuted", "abandoned", "declined", "deferred"}
 
 // nextAvenueStatus round-robins the undirected avenue's fate so every value is driven BY
 // CONSTRUCTION rather than by luck.
@@ -1991,12 +1991,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// rule from, so the ruling cycle and the oracle both skip it by construction.
 		line, st := pick(r.rng, inquiryFates)+" ("+seatID+")", "proposed"
 		if r.coin(30) {
-			line, st = "fuzz undirected avenue "+seatID, nextInquiryStatus()
+			line, st = "fuzz undirected inquiry "+seatID, nextInquiryStatus()
 		}
 		// PROPOSE AND MOVE ARE TWO VERBS. A proposal is born `proposed` — the tool supplies it,
 		// so there is no status to pass — and any other fate is reached by MOVING the line it
 		// proposed, which is the cycle red rules on and the oracle reads.
-		out, err := r.do("avenue propose", seatID).set("--reason", line).
+		out, err := r.do("inquiry propose", seatID).set("--question", line).
 			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
 			on(50, "--method", "fuzz-method").run()
 		// A MOVE BACK TO `proposed` IS A REAL STATE — the line is still open and the seat is
@@ -2007,12 +2007,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// id and printed it; a reader that finds none there has stopped reading the tool.
 			id := inquiryIDOf(out)
 			if id == "" {
-				r.noteInquiryIDErr("`avenue propose` succeeded and its result names no avenue id matching " +
+				r.noteInquiryIDErr("`inquiry propose` succeeded and its result names no inquiry id matching " +
 					inquiryIDPat.String() + ":\n" + truncate(out))
 				return
 			}
 			r.noteInquiry(id)
-			if _, merr := r.do("avenue move", seatID).set("--id", id).set("--as", st).
+			if _, merr := r.do("inquiry record", seatID).set("--id", id).set("--as", st).
 				set("--reason", "fuzz: what changed this line's fate").run(); merr == nil {
 				r.noteInquiryRecord()
 			}
@@ -2039,7 +2039,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// A coin is the wrong shape for a duty. What varies between runs is what the review FINDS,
 		// not whether the read happened.
-		r.do("avenue review", seatID).
+		r.do("inquiry review", seatID).
 			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
@@ -3308,11 +3308,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	if r.inquiryRulingErr != "" {
-		res.err = "avenue drive: an avenue's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.inquiryRulingErr
+		res.err = "inquiry drive: an inquiry's ruling could not be read, so the drive could not tell a ruled line from an unruled one: " + r.inquiryRulingErr
 		return res
 	}
 	if r.inquiryIDErr != "" {
-		res.err = "avenue drive: " + r.inquiryIDErr
+		res.err = "inquiry drive: " + r.inquiryIDErr
 		return res
 	}
 	if r.positionAdmittedErr != "" {
@@ -4000,23 +4000,23 @@ func inquiryRulingOracle(run record.Run, board record.Family) string {
 	for _, a := range record.InquiriesOf(board.Events, board.At) {
 		ruling, err := record.InquiryRuling(run, a.ID)
 		if err != nil {
-			return "avenue " + a.ID + ": its ruling could not be read, so whether the ruling had its consequence is unchecked: " + err.Error()
+			return "inquiry " + a.ID + ": its ruling could not be read, so whether the ruling had its consequence is unchecked: " + err.Error()
 		}
 		if ruling == "" || a.Status == "proposed" {
 			continue // never ruled, or blue has not answered yet
 		}
 		switch {
 		case strings.HasPrefix(a.Question, avContest):
-			if a.Status != "pursued" {
-				return "avenue " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
+			if a.Status != "underway" {
+				return "inquiry " + a.ID + " was proposed as CONTESTED but ended " + a.Status + " — blue was to pursue it against the ruling"
 			}
 		case ruling == "endorsed":
-			if a.Status != "pursued" {
-				return "avenue " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
+			if a.Status != "underway" {
+				return "inquiry " + a.ID + " was ENDORSED and ended " + a.Status + " — a ruling with no consequence"
 			}
 		default:
-			if a.Status == "pursued" {
-				return "avenue " + a.ID + " was ruled " + ruling + " and pursued anyway, on a line the drive declines"
+			if a.Status == "underway" {
+				return "inquiry " + a.ID + " was ruled " + ruling + " and underway anyway, on a line the drive declines"
 			}
 		}
 	}
@@ -4070,7 +4070,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "regrade", "mint", "close",
-	"cite", "verify", "finding", "avenue", "reproduce", "log", "retire",
+	"cite", "verify", "finding", "inquiry", "reproduce", "log", "retire",
 	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
@@ -4096,7 +4096,7 @@ var verbsWithEvents = []string{
 	// hook first refuses a call past the limit. No verb writes it either.
 	"sitting_limit",
 	// The remaining schema types, named so the census below has a complete list to check against.
-	"closing", "avenue_review", "register",
+	"closing", "inquiry_review", "register",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
@@ -4270,7 +4270,7 @@ var dialecticProseKey = map[string]string{
 	// The board.
 	"mint": "problem", "finding": "text", "regrade": "basis",
 	// Directions: the line, red's ruling on it, and blue's reason for its fate.
-	"avenue": "line",
+	"inquiry": "question",
 	// Red's per-round verdict that the REPORT still carries the line. It renders ON THE LINE'S OWN
 	// ROW in the three research areas rather than in a section of its own, because the claim it
 	// answers ("we pursued X") lives there and a verdict a reader has to go and find is a verdict
@@ -4328,9 +4328,9 @@ var reportExemptions = map[string]string{
 	// a reader wants is the outcome of that reading, which arrives as an ordinary GAP when the
 	// treatment falls short. Named here rather than left silent, because the gate is right that
 	// an unclassified event type is how a report loses a whole exchange.
-	"avenue_review": "read by record.AvenueReviewDue as a per-round duty gate, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
-	"outcome":       "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":       "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	"inquiry_review": "read by record.InquiryReviewDue as a per-round duty gate, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
+	"outcome":        "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -4720,7 +4720,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · epochs=%v · exits=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim (%d typed) · %d estoppel refusals%s",
 		completed, len(failures), verdicts, epochHist, whyHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, typedVerbatim, estoppels, misses)
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
-	t.Logf("avenue lifecycle: %d moves accepted on an id read from `avenue propose` (of %d avenue events)", inquiryRecords, dcov["avenue"])
+	t.Logf("inquiry lifecycle: %d moves accepted on an id read from `inquiry propose` (of %d inquiry events)", inquiryRecords, dcov["inquiry"])
 	t.Logf("reopened readied: %d plan(s) readied the evidence lens for a reopened citation or proof alone (of %d holding a reopened blocker)", reopenedReadied, reopenedPlans)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
@@ -4742,7 +4742,7 @@ func TestFuzzDebate(t *testing.T) {
 	measured := completed >= surfaceQuorum
 	if !measured {
 		t.Logf("NOT MEASURED: %d runs is under the surface quorum of %d, so these gates did NOT run: "+
-			"the per-verb event gate, the citation/provenance floors, the avenue-move floor, the full-surface command gate, "+
+			"the per-verb event gate, the citation/provenance floors, the inquiry-move floor, the full-surface command gate, "+
 			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/finding "+
 			"floor below was checked. Run the default sweep to assert the surface.", completed, surfaceQuorum)
 	}
@@ -4793,8 +4793,8 @@ func TestFuzzDebate(t *testing.T) {
 		// unmoved and every avenue `--about` reference unpassed, with the `avenue` verb gate
 		// above still green on the proposals themselves.
 		if inquiryRecords == 0 {
-			t.Errorf("fuzz moved ZERO avenues by an id read from `avenue propose` across %d runs (with %d avenue events) — "+
-				"the propose result named no id the harness reads, or the tool refused every move; the avenue lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["avenue"])
+			t.Errorf("fuzz moved ZERO inquiries by an id read from `inquiry propose` across %d runs (with %d inquiry events) — "+
+				"the propose result named no id the harness reads, or the tool refused every move; the inquiry lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["inquiry"])
 		}
 		// THE REOPENED GATE. A citation or proof whose sentence changed after its check readies the
 		// evidence lens through its own arm of the plan. The lens is also readied by a head moved
@@ -5163,14 +5163,14 @@ func (r *runner) anchorsLeftFor(claim string) string {
 // avenueFates are the scenarios an avenue is proposed under. The line itself carries it, the
 // way a gap's required_fix does — red rules from it, and blue's next move answers the ruling.
 const (
-	avEndorse = "FUZZ-AVENUE-ENDORSE: a line worth the run's time"
-	avScope   = "FUZZ-AVENUE-OUT-OF-SCOPE: a real question, but not this run's"
-	avThin    = "FUZZ-AVENUE-TOO-THIN: in scope, but the hypothesis does not carry its budget"
+	avEndorse = "FUZZ-INQUIRY-ENDORSE: a line worth the run's time"
+	avScope   = "FUZZ-INQUIRY-OUT-OF-SCOPE: a real question, but not this run's"
+	avThin    = "FUZZ-INQUIRY-TOO-THIN: in scope, but the hypothesis does not carry its budget"
 	// avContest is the case gb's design named and the tool could not express: red rules the
 	// line out, and blue PURSUES IT ANYWAY with an argument. A ruling is an argument, never a
 	// command — `blue dispute --id A1` is refused outright, because disputes are gap-shaped —
 	// so the move itself is the contest, and it is now recorded as one.
-	avContest = "FUZZ-AVENUE-CONTESTED: red rules it out and blue pursues it anyway, with reasons"
+	avContest = "FUZZ-INQUIRY-CONTESTED: red rules it out and blue pursues it anyway, with reasons"
 )
 
 var inquiryFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
@@ -5208,7 +5208,7 @@ func (r *runner) ruleOpenInquiries(seatID string) {
 		if ruling, ok := r.inquiryRuling(a.ID); !ok || ruling != "" {
 			continue
 		}
-		_, _ = r.exec("motion", "avenue", "rule", "--seat-id", seatID, "--id", a.ID,
+		_, _ = r.exec("motion", "inquiry", "rule", "--seat-id", seatID, "--id", a.ID,
 			"--as", rulingFor(a.Question), "--reason", "fuzz: ruling as the line was proposed")
 	}
 }
@@ -5244,13 +5244,13 @@ func (r *runner) answerInquiryRulings(seatID string) {
 		switch {
 		case strings.HasPrefix(a.Question, avContest):
 			// THE CONTEST IS THE MOVE: the ruling binds none, so blue pursues the line against it.
-			r.do("avenue move", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "underway").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":
-			r.do("avenue move", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "underway").
 				set("--reason", "fuzz: endorsed, taking it up").run()
 		default:
-			r.do("avenue move", seatID).set("--id", a.ID).set("--as", "declined").
+			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "declined").
 				set("--reason", "fuzz: accepting the ruling").run()
 		}
 	}

@@ -275,9 +275,9 @@ var EnumFields = map[string][]EnumField{
 	// `avenue`, the schema's word. It was "avenue" — an event type the schema does not
 	// declare — so this whole set was advertised against a body that does not exist, and nothing
 	// noticed because the key was only ever looked up by the same stale name.
-	"avenue": {{
+	"inquiry": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
-		Why: "the avenues projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
+		Why: "the inquiries projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
 	// `avenue-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
 	// Its predecessor `avenue review` carried a four-value `--as` (supported / weakened /

@@ -169,9 +169,9 @@ func TestInquiryAndEvidenceListingsKeepTheStruckAct(t *testing.T) {
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String(note)}
 	}
 	evs := []*Event{
-		recordtest.At(t, "blue-respond", "blue-respond:avenue:#1", prop("try the  method")),
-		recordtest.At(t, "blue-respond", "blue-respond:avenue:#1~1", prop("try the recorded method")),
-		correctionOf(t, "blue-respond", "blue-respond:avenue:#1"),
+		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1", prop("try the  method")),
+		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1~1", prop("try the recorded method")),
+		correctionOf(t, "blue-respond", "blue-respond:inquiry:#1"),
 		recordtest.At(t, "blue-respond", "blue-respond:proof:#1", &recordpb.Proof{ProofId: proto.String("p-1"), ProofSha: proto.String("abc")}),
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1", rerun("it  computes")),
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1~1", rerun("it computes primality")),

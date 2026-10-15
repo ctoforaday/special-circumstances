@@ -20,8 +20,8 @@ func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
 	line := "This run grepped the repo for primality helpers [minority: lane-2]"
-	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", line, "--hypothesis", "a helper already exists")
+	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", line, "--hypothesis", "a helper already exists")
 	if err != nil {
 		t.Fatalf("the advisory refused a proposal — it must refuse nothing: %v\n%s", err, out)
 	}
@@ -42,8 +42,8 @@ func TestProposeAdvisesOnAVoicedLine(t *testing.T) {
 func TestProposeAdvisesOnTheMethod(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
+	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
 		"--method", "as the debate required")
 	if err != nil {
 		t.Fatalf("propose: %v\n%s", err, out)
@@ -59,8 +59,8 @@ func TestProposeAdvisesOnTheMethod(t *testing.T) {
 func TestProposeAdvisesOnAVoicedHypothesis(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "this run will find a factor below 10")
+	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "this run will find a factor below 10")
 	if err != nil {
 		t.Fatalf("propose: %v\n%s", err, out)
 	}
@@ -69,25 +69,25 @@ func TestProposeAdvisesOnAVoicedHypothesis(t *testing.T) {
 	}
 }
 
-// A move's reason lands in the same report.md row as the line it moves.
-func TestMoveAdvisesOnAVoicedReason(t *testing.T) {
+// A fate's reason lands in the same report.md row as the inquiry's question.
+func TestRecordAdvisesOnAVoicedReason(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
+	out, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "the debate settled it, so the line was dropped")
 	if err != nil {
-		t.Fatalf("the advisory refused a move — it must refuse nothing: %v\n%s", err, out)
+		t.Fatalf("the advisory refused a record — it must refuse nothing: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "moved to") {
-		t.Errorf("the advisory replaced the move's confirmation:\n%s", out)
+	if !strings.Contains(out, "recorded as") {
+		t.Errorf("the advisory replaced the record's confirmation:\n%s", out)
 	}
 	if !strings.Contains(out, "process-voice") {
-		t.Errorf("a voiced move reason reaches report.md and was not advised:\n%s", out)
+		t.Errorf("a voiced fate reason reaches report.md and was not advised:\n%s", out)
 	}
 }
 
@@ -96,8 +96,8 @@ func TestACleanInquiryCarriesNoNote(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir)
 	seat := inquirySeat(t, runDir)
-	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
+	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
 		"--method", "exhaustive search")
 	if err != nil {
 		t.Fatal(err)
@@ -105,8 +105,8 @@ func TestACleanInquiryCarriesNoNote(t *testing.T) {
 	if strings.Contains(out, "NOTE") {
 		t.Errorf("a clean proposal carries an advisory:\n%s", out)
 	}
-	out, err = runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
-		"--id", "Q1", "--as", "pursued", "--reason", "7 divides 91, so the line paid off")
+	out, err = runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--as", "underway", "--reason", "7 divides 91, so the line paid off")
 	if err != nil {
 		t.Fatal(err)
 	}

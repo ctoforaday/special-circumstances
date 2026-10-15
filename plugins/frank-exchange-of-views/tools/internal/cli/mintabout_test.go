@@ -60,11 +60,11 @@ func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	registerLensOnce(t, runDir)
 	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G3", "--class", "scope-creep", "--about-kind", "avenue", "--about", "Q99",
+		"--key", "G3", "--class", "scope-creep", "--about-kind", "inquiry", "--about", "Q99",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
 	if err == nil {
-		t.Fatal("a gap anchored to an avenue id nothing proposed was accepted")
+		t.Fatal("a gap anchored to an inquiry id nothing proposed was accepted")
 	}
 }
 
@@ -102,7 +102,7 @@ func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 // page says which of the two reaches anybody.
 func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond", "--reason", "test primality by trial division"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond", "--question", "test primality by trial division"); err != nil {
 		t.Fatal(err)
 	}
 	inquiry := ""
@@ -113,10 +113,10 @@ func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *te
 	}
 	const lens = "red-lens-logic"
 	registerSeatOnce(t, runDir, lens)
-	const objection = "a section carries this approach and the avenue says it was never run"
-	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", lens, "--key", "F1", "--about-kind", "avenue", "--about", inquiry,
+	const objection = "a section carries this approach and the inquiry says it was never run"
+	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", lens, "--key", "F1", "--about-kind", "inquiry", "--about", inquiry,
 		"--reason", objection, "--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("a finding about an avenue was refused: %v", err)
+		t.Fatalf("a finding about an inquiry was refused: %v", err)
 	}
 	work := func(seat string) string {
 		out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "--json", "work")
@@ -128,18 +128,18 @@ func TestAGapAboutAnInquiryReachesBlueAndAFindingAboutOneReachesNoWorkList(t *te
 	seats := []string{"blue-respond", "red-chair", lens, lensSeat, "judge"}
 	for _, seat := range seats {
 		if w := work(seat); strings.Contains(w, objection) || strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
-			t.Errorf("a finding about an avenue is on %s's work list; `finding --help` says it reaches none:\n%s", seat, w)
+			t.Errorf("a finding about an inquiry is on %s's work list; `finding --help` says it reaches none:\n%s", seat, w)
 		}
 	}
-	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an avenue reaches no seat's work list; a gap anchors to an avenue the same way, and a material one is on blue's") {
-		t.Errorf("`finding --help` does not say that a finding about an avenue reaches no work list and that the gap is what does:\n%s", h)
+	if h := help(t, "finding", "--help", "--seat-id", lens); !strings.Contains(h, "A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's") {
+		t.Errorf("`finding --help` does not say that a finding about an inquiry reaches no work list and that the gap is what does:\n%s", h)
 	}
-	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "scope-creep", "--about-kind", "avenue", "--about", inquiry,
-		"--problem", "The trial-division approach is listed as never run and a section reports its result.", "--check-kind", "document", "--check", "the avenue's fate and the section agree",
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lens, "--key", "G1", "--class", "scope-creep", "--about-kind", "inquiry", "--about", inquiry,
+		"--problem", "The trial-division approach is listed as never run and a section reports its result.", "--check-kind", "document", "--check", "the inquiry's fate and the section agree",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("a gap anchored to an avenue was refused: %v", err)
+		t.Fatalf("a gap anchored to an inquiry was refused: %v", err)
 	}
-	if w := work("blue-respond"); !strings.Contains(w, `"about_kind": "avenue"`) || !strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
-		t.Errorf("a gap anchored to an avenue is not on blue's work list with what it is about:\n%s", w)
+	if w := work("blue-respond"); !strings.Contains(w, `"about_kind": "inquiry"`) || !strings.Contains(w, `"about_ref": "`+inquiry+`"`) {
+		t.Errorf("a gap anchored to an inquiry is not on blue's work list with what it is about:\n%s", w)
 	}
 }

@@ -334,22 +334,22 @@ func validateContractCases() []validateContract {
 
 		// An unknown status is UNREPRESENTABLE: AvenueStatus is an enum, so `shelved` cannot be built.
 		// What remains is the ABSENT case below, which the type cannot refuse.
-		{"an avenue with no status at all", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("l")}, "requires --as"},
-		{"an avenue with no id", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, "requires an id"},
-		{"a deferred avenue needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED), Question: proto.String("l")}, "requires --reason"},
+		{"an inquiry with no status at all", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("l")}, "requires --as"},
+		{"an inquiry with no id", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, "requires an id"},
+		{"a deferred inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED), Question: proto.String("l")}, "requires --reason"},
 		// THE REFUSAL NAMES --reason, NOT --line. The payload key is `line`; the flag that fills it
 		// is --reason, because prose reaches every verb through one channel. This expected "--line"
 		// for its whole life — a flag on no surface — and a seat believed it, invented the flag,
 		// was refused again as unknown, and filed friction about an undocumented --line (measured
 		// 2026-08-21). The refusal derives the flag name now.
-		{"an avenue without --line", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY)}, "requires --reason"},
-		{"a declined avenue needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l")}, "requires --reason"},
-		{"an abandoned avenue needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Question: proto.String("l")}, "requires --reason"},
-		{"a refuted avenue needs a reason, and is asked for what the approach found", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Question: proto.String("l")}, "a refuted avenue requires --reason — what the approach found"},
-		{"a concluded avenue is asked for what the approach found", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED), Question: proto.String("l")}, "a concluded avenue requires --reason — what the approach found"},
-		{"a refuted avenue with a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Question: proto.String("l"), Reason: proto.String("what it found")}, ""},
-		{"a PURSUED avenue does not need a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, ""},
-		{"a declined avenue with a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l"), Reason: proto.String("why")}, ""},
+		{"an inquiry proposed without a question", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY)}, "requires --question"},
+		{"a declined inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l")}, "requires --reason"},
+		{"an abandoned inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Question: proto.String("l")}, "requires --reason"},
+		{"a refuted inquiry needs a reason, and is asked for what the approach found", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Question: proto.String("l")}, "a refuted inquiry requires --reason — what the approach found"},
+		{"a confirmed inquiry is asked for what the approach found", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED), Question: proto.String("l")}, "a confirmed inquiry requires --reason — what the approach found"},
+		{"a refuted inquiry with a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Question: proto.String("l"), Reason: proto.String("what it found")}, ""},
+		{"an underway inquiry does not need a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, ""},
+		{"a declined inquiry with a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l"), Reason: proto.String("why")}, ""},
 
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
@@ -937,7 +937,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 	// is a decision someone makes on purpose.
 	for _, w := range []string{
 		"reason", "run", "seat-id", "json", "help", "id", "as",
-		"quote", "new", "line", "hypothesis", "method", "problem", "fix", "check",
+		"quote", "new", "question", "hypothesis", "method", "problem", "fix", "check",
 		"superseded-by", "supersedes", "ids", "none", "cites", "access-date", "relief", "class",
 	} {
 		known[w] = true
@@ -1200,13 +1200,13 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
 	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
 	writeShard(t, runDir, []*Event{
-		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:avenue:#1", &recordpb.Inquiry{
+		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:inquiry:#1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"),
 			Status:    recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
 			Question:  proto.String("opened"),
 			Reason:    proto.String("opened"),
 		}), "2026-08-22T10:00:00.000000000Z"),
-		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:avenue:#1", &recordpb.Inquiry{
+		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:inquiry:#1", &recordpb.Inquiry{
 			InquiryId:        proto.String("Q1"),
 			Status:           recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED.Enum(),
 			SupersedesStatus: proto.String("proposed"),
@@ -1233,7 +1233,7 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	// was already correct, so only a consumer walking Board.Events could see the defect.
 	inq := InquiriesOf(b.Events, b.At)
 	if len(inq) != 1 {
-		t.Fatalf("expected one avenue, got %d", len(inq))
+		t.Fatalf("expected one inquiry, got %d", len(inq))
 	}
 	if got := inq[0].Status; got != "abandoned" {
 		t.Errorf("Q1 status = %q, want abandoned — the later event must win. %q means the projection "+

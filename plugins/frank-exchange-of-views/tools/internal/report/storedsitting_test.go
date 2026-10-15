@@ -71,7 +71,7 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		registersUnder(t, "blue-respond", "B1", "#1"), // blue sitting 1, epoch 2
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		recordtest.At(t, "blue-respond", "blue-respond:position:#1", &recordpb.Position{Text: proto.String("G1 is answered")}),
-		recordtest.At(t, "blue-respond", "blue-respond:avenue:#1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("survey the literature")}),
 		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:B1", &recordpb.SittingClose{AgentId: proto.String("B1")}),
 		// The repair: a sitting of the seat's own, whose acts are the sitting it repairs.
@@ -157,10 +157,10 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		absent("debate.md", d, "### Epoch 1\n")
 	})
 
-	t.Run("the avenues view", func(t *testing.T) {
+	t.Run("the inquiries view", func(t *testing.T) {
 		got := record.InquiriesJSONOf(fam.Events, fam.At).Inquiries
 		if len(got) != 1 || got[0].Epoch != 2 {
-			t.Errorf("show avenues = %+v, want Q1 at epoch 2", got)
+			t.Errorf("show inquiries = %+v, want Q1 at epoch 2", got)
 		}
 	})
 

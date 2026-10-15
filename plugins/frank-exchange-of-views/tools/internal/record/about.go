@@ -34,7 +34,7 @@ func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, erro
 	}
 	k, ok := AboutKindOf(kind)
 	if !ok || k == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
-		return nil, nil, fmt.Errorf("%q is not a thing this can be about (section | avenue | gap)", kind)
+		return nil, nil, fmt.Errorf("%q is not a thing this can be about (section | inquiry | gap)", kind)
 	}
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
 	// borrowed from a nearby paragraph: an avenue id either names a line this run proposed or it

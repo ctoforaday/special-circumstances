@@ -181,7 +181,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
-		"motion avenue rule":   {"a proposed avenue", func(b Board) bool { return len(b.Inquiries) > 0 }},
+		"motion inquiry rule":  {"a proposed inquiry", func(b Board) bool { return len(b.Inquiries) > 0 }},
 		"reproduce":            {"a recorded proof", func(b Board) bool { return len(b.Proofs) > 0 }},
 		"regrade":              {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"close":                {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
@@ -190,7 +190,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		"verify":               {"at least one cited claim", func(b Board) bool { return len(b.Claims) > 0 }},
 		"render-page":          {"a cited claim with pages", func(b Board) bool { return len(b.PagedClaims) > 0 }},
 		"retire":               {"a claim in the report to remove", func(b Board) bool { return len(b.Claims) > 0 }},
-		"avenue":               {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
+		"inquiry":              {"nothing — a seat may always propose a line", func(b Board) bool { return true }},
 	}
 
 	for name, b := range Boards() {
@@ -252,10 +252,10 @@ func TestEveryRuledFixtureCarriesTheArgumentForItsRuling(t *testing.T) {
 				continue
 			}
 			if strings.TrimSpace(a.RuledWhy) == "" {
-				t.Errorf("board %q avenue %d is ruled %q with no RuledWhy — a seat asked what to do about it is guessing", name, i+1, a.Ruled)
+				t.Errorf("board %q inquiry %d is ruled %q with no RuledWhy — a seat asked what to do about it is guessing", name, i+1, a.Ruled)
 				continue
 			}
-			assertNotRestatement(t, name, "avenue", a.Ruled, a.RuledWhy)
+			assertNotRestatement(t, name, "inquiry", a.Ruled, a.RuledWhy)
 		}
 		for i, m := range b.Motions {
 			if m.Ruled == "" {

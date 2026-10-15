@@ -83,8 +83,8 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		"put a GAP before the bench: any seat but the bench files, the BENCH rules, and its disposition decides the gap's fate",
 		[]string{flags.ID},
 		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
-	mount(subject(actingRole, "avenue",
-		"rule on an avenue blue proposed: the chair rules. NO file verb — the proposal (blue's `avenue propose`) is the filing",
+	mount(subject(actingRole, "inquiry",
+		"rule on an inquiry blue proposed: the chair rules. NO file verb — the proposal (blue's `inquiry propose`) is the filing",
 		nil, nil))
 	seat.MarkTree(c)
 	return c

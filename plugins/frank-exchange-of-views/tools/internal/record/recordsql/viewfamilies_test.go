@@ -162,24 +162,24 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 
 	var line, status string
 	var ruling sql.NullString
-	if err := db.QueryRow(`SELECT "line", "status", "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = 'Q1'`).
+	if err := db.QueryRow(`SELECT "question", "status", "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = 'Q1'`).
 		Scan(&line, &status, &ruling); err != nil {
 		t.Fatal(err)
 	}
 	if line != "a direction" {
 		t.Errorf("line = %q, want the PROPOSAL's substance — a move must not blank it", line)
 	}
-	if status != "pursued" {
+	if status != "underway" {
 		t.Errorf("status = %q, want the latest move's", status)
 	}
 	if ruling.Valid {
-		t.Errorf("avenue_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
+		t.Errorf("inquiry_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
 	}
 	var n int
-	if err := db.QueryRow(`SELECT count(*) FROM "avenue_state"`).Scan(&n); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM "inquiry_state"`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Errorf("avenue has %d rows for one line moved once, want 1", n)
+		t.Errorf("inquiry has %d rows for one line moved once, want 1", n)
 	}
 }

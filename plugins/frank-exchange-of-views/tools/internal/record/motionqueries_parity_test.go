@@ -107,14 +107,14 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, "Q1"); err != nil || got != "avenue" {
-		t.Errorf("RequireMotionSubjectRef(Q1) = (%q, %v) — an avenue IS an avenue motion by construction", got, err)
+	if got, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, "Q1"); err != nil || got != "inquiry" {
+		t.Errorf("RequireMotionSubjectRef(Q1) = (%q, %v) — an inquiry IS an inquiry motion by construction", got, err)
 	}
 	if _, err := RequireMotionSubjectRef(run, recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY, "Z9"); err == nil {
-		t.Error("RequireMotionSubjectRef accepted an id that names no avenue")
+		t.Error("RequireMotionSubjectRef accepted an id that names no inquiry")
 	}
 	if got, err := InquiryRuling(run, "Q1"); err != nil || got != inquiryRulingFold(t, run, "Q1") || got != "" {
-		t.Errorf("AvenueRuling before any ruling = (%q, %v), fold says %q", got, err, inquiryRulingFold(t, run, "Q1"))
+		t.Errorf("InquiryRuling before any ruling = (%q, %v), fold says %q", got, err, inquiryRulingFold(t, run, "Q1"))
 	}
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
@@ -125,6 +125,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, err := InquiryRuling(run, "Q1"); err != nil || got != inquiryRulingFold(t, run, "Q1") || got != "out_of_scope" {
-		t.Errorf("AvenueRuling = (%q, %v), fold says %q, want the schema's word out_of_scope", got, err, inquiryRulingFold(t, run, "Q1"))
+		t.Errorf("InquiryRuling = (%q, %v), fold says %q, want the schema's word out_of_scope", got, err, inquiryRulingFold(t, run, "Q1"))
 	}
 }

@@ -179,7 +179,7 @@ func TestNoConditionallyRequiredFieldIsMarkedUnconditional(t *testing.T) {
 	// The fields a verb may legitimately omit, each with the verb that omits it. A field marked
 	// required that appears here is the contradiction this test exists to catch.
 	conditional := map[string]string{
-		"feov.record.v1.Avenue.line":        "a MOVE names an existing line and carries only its new status and reason",
+		"feov.record.v1.Inquiry.line":       "a MOVE names an existing line and carries only its new status and reason",
 		"feov.record.v1.Close.successor":    "only CLOSED_WITH_REGRESSION names one; the message-level check says so",
 		"feov.record.v1.Close.carried_from": "a carry restates an earlier closure; an ordinary close has none",
 		"feov.record.v1.SpotCheck.ids":      "the --none form samples nothing and says why",

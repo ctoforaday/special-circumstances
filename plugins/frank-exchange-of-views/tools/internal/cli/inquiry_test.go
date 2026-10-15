@@ -7,12 +7,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// THE UNIT IS THE CHOICE, NOT THE ENTRY (#246).
-//
-// Measured over 86 avenue events in six runs: zero lines recorded twice, zero statuses ever
-// changed, 83 of 86 minted in round 0. "Pursued" meant "I intend to", nothing could falsify
-// it, and a direction that died mid-run had no way to say so. These pin the lifecycle that
-// replaces that.
+// THE UNIT IS THE CHOICE, NOT THE ENTRY. These pin the inquiry's lifecycle: proposed with a
+// question and a hypothesis, then given a fate — and given another — as the research moves.
 
 func inquirySeat(t *testing.T, runDir string) string {
 	t.Helper()
@@ -23,14 +19,13 @@ func inquirySeat(t *testing.T, runDir string) string {
 	return seat
 }
 
-// A proposal gets a tool-assigned id and starts undecided — the state the old shape could
-// not express, which forced blue to declare a fate before it had one.
+// A proposal gets a tool-assigned id and starts undecided: blue owes no fate before it has one.
 func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
 
-	out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "trial division by hand", "--hypothesis", "if 7 has no divisor in 2..6 it is prime")
+	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "trial division by hand", "--hypothesis", "if 7 has no divisor in 2..6 it is prime")
 	if err != nil {
 		t.Fatalf("propose: %v", err)
 	}
@@ -47,21 +42,21 @@ func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	}
 }
 
-// THE MOVE IS THE POINT: a direction that dies mid-run can now say so.
+// RECORDING A FATE IS THE POINT: an inquiry that dies mid-run says so, and keeps its question.
 func TestInquiryRecordKeepsItsSubstance(t *testing.T) {
 	runDir := newRun(t)
 	registerChairOnce(t, runDir) // the path below names r1; the chair sitting is what makes it epoch 1
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
+	if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
 		"--id", "Q1", "--as", "abandoned", "--reason", "every implementation agrees at n=7; the hypothesis is dead"); err != nil {
 		t.Fatalf("move: %v", err)
 	}
 
-	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "avenues")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,12 +71,12 @@ func TestInquiryRecordKeepsItsSubstance(t *testing.T) {
 func TestInquiryRecordRequiresWhatChanged(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
+	_, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", "abandoned")
 	if err == nil {
-		t.Fatal("an avenue slid to abandoned with no stated reason")
+		t.Fatal("an inquiry slid to abandoned with no stated reason")
 	}
 	if !strings.Contains(err.Error(), "reason") {
 		t.Errorf("the refusal must name what is missing: %v", err)
@@ -92,10 +87,10 @@ func TestInquiryRecordRequiresWhatChanged(t *testing.T) {
 func TestInquiryRecordRefusesAnUnknownID(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	_, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", seat,
-		"--id", "Q9", "--as", "pursued", "--reason", "why")
+	_, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
+		"--id", "Q9", "--as", "underway", "--reason", "why")
 	if err == nil {
-		t.Fatal("a move against an avenue nobody proposed was accepted")
+		t.Fatal("a move against an inquiry nobody proposed was accepted")
 	}
 	if !strings.Contains(err.Error(), handleText(t, runDir, "Q9")) {
 		t.Errorf("the refusal must name the dangling id: %v", err)
@@ -108,8 +103,8 @@ func TestInquiryRecordRefusesAnUnknownID(t *testing.T) {
 func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := runAt(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--id", "Q1", "--reason", "a line"); err == nil {
+	if _, err := runAt(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--question", "a line"); err == nil {
 		t.Fatal("`propose --id` was accepted; the two contracts are still reachable through one shape")
 	}
 }
@@ -119,18 +114,18 @@ func TestProposeHasNoIDToConfuseTheMoveWith(t *testing.T) {
 func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat,
-		"--reason", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "quantum primality frameworks", "--hypothesis", "post-quantum changes the answer"); err != nil {
 		t.Fatal(err)
 	}
 	// A direction motion joins on the LINE's own id: it has no `file` verb because the
 	// proposal IS the filing, which is why A1 works here and no M-number is minted.
-	if _, err := runAt(t, "motion", "avenue", "rule", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--as", "out_of_scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "avenues")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "inquiries")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,10 +138,10 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 func TestRulingRequiresAReason(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "avenue-rule", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := runAt(t, "inquiry-rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--ruling", "too_thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
@@ -155,8 +150,8 @@ func TestRulingRequiresAReason(t *testing.T) {
 // BLUE HAS NO BOARD VERBS AND RED HAS NO PROPOSAL VERB. The role boundary is the engine.
 func TestRedCannotProposeAnInquiry(t *testing.T) {
 	runDir := newRun(t)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", "red-chair",
-		"--reason", "red's own direction"); err == nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "red-chair",
+		"--question", "red's own direction"); err == nil {
 		t.Fatal("red proposed a research direction; directing research is what a gap's required_fix does")
 	}
 }
@@ -166,14 +161,55 @@ func TestRedCannotProposeAnInquiry(t *testing.T) {
 func TestOpenInquiriesAreSurfacedAsOwingADecision(t *testing.T) {
 	runDir := newRun(t)
 	seat := inquirySeat(t, runDir)
-	if _, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", seat, "--reason", "still open"); err != nil {
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat, "--question", "still open"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "avenues")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out, "Awaiting a decision") || !strings.Contains(out, handleText(t, runDir, "Q1")) {
-		t.Errorf("an undecided avenue was not surfaced as owing a decision:\n%s", out)
+		t.Errorf("an undecided inquiry was not surfaced as owing a decision:\n%s", out)
+	}
+}
+
+// A PROPOSAL HOLDS A QUESTION AND NO REASON. The question is what the inquiry asks; a reason is the
+// account of a fate, and a proposal has none yet. propose writes --question into `question` and
+// leaves `reason` unset, and it does not take --reason at all.
+func TestAProposalHoldsAQuestionAndNoReason(t *testing.T) {
+	runDir := newRun(t)
+	seat := inquirySeat(t, runDir)
+	const question = "whether trial division to 9 settles whether 91 is prime"
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", question, "--hypothesis", "a factor below 10 exists"); err != nil {
+		t.Fatal(err)
+	}
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_INQUIRY)
+	a, _ := recordpb.BodyAs[*recordpb.Inquiry](ev)
+	if a.GetQuestion() != question {
+		t.Errorf("question = %q, want %q", a.GetQuestion(), question)
+	}
+	if a.Reason != nil {
+		t.Errorf("a proposal holds a reason (%q): its text is its question, and a reason is a fate's account", a.GetReason())
+	}
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "another question", "--reason", "a reason"); err == nil {
+		t.Error("propose took --reason; a proposal has a question and no reason")
+	}
+}
+
+// THE QUESTION TAKES THE PROSE CHANNEL'S TRIM: a value written through a heredoc ends in a newline
+// the seat did not mean as text, and the record holds the question without it.
+func TestAProposedQuestionIsTrimmedOfItsTrailingNewline(t *testing.T) {
+	runDir := newRun(t)
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "whether 91 is prime\n"); err != nil {
+		t.Fatal(err)
+	}
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_INQUIRY)
+	a, _ := recordpb.BodyAs[*recordpb.Inquiry](ev)
+	if got := a.GetQuestion(); got != "whether 91 is prime" {
+		t.Errorf("question = %q, want it without the trailing newline", got)
 	}
 }
