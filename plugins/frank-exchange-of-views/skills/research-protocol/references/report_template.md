@@ -119,14 +119,14 @@
 ## Motions                               <!-- [RECORD] every adjudicated exchange, joined on its id: the FILING (class, basis,
                                               relief sought) and its ruling, never the ruling alone. -->
 
-# avenues.md — each avenue and what became of it
+# inquiries.md — each inquiry and what became of it
 
-## (by fate)                             <!-- [RECORD] every avenue grouped by its current fate, each with its hypothesis,
-                                              the PATH its status took epoch by epoch, the seat that last moved it and red's
-                                              ruling; then the avenues still awaiting a decision. The same
-                                              rendering a seat reads through the tool. report.md carries only each avenue's
+## (by fate)                             <!-- [RECORD] every inquiry grouped by its current fate, each with its hypothesis,
+                                              the PATH its status took epoch by epoch, the seat that last recorded its fate and red's
+                                              ruling; then the inquiries still awaiting a decision. The same
+                                              rendering a seat reads through the tool. report.md carries only each inquiry's
                                               fate and reason; this is where how it got there lives. Omitted when the run
-                                              recorded no avenue. -->
+                                              recorded no inquiry. -->
 
 # evidence.md — the computations
 
