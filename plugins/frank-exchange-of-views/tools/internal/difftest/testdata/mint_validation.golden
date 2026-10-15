@@ -82,10 +82,10 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_material":"CLASS_MATERIAL_BY_GRADE","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

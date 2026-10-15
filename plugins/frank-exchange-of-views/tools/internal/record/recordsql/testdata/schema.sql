@@ -220,7 +220,7 @@ CREATE TABLE "enum_inquiry_ruling" (
 ) STRICT;
 INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('endorsed', 'worth this run''s time — blue should take it up');
 INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
-INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('too_thin', 'in scope, and the hypothesis does not carry its budget as stated');
+INSERT INTO "enum_inquiry_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis as stated does not justify what testing it would cost this run');
 
 CREATE TABLE "enum_disposition" (
   "value" TEXT PRIMARY KEY,
@@ -337,9 +337,9 @@ CREATE TABLE "enum_inquiry_status" (
 ) STRICT;
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'not this run. REQUIRES a reason saying what a later run should pick it up FOR');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'you intend to take up this question and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a fate');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'put forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached');
 
@@ -1187,8 +1187,8 @@ WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root")
 -- EVERY ACT, WHERE IT STANDS IN AN ORDERING, AND WHEN IT STOPPED STANDING. Its position "pos" is its
 -- own id, or — for a replacement — the id of the act at the ROOT of its chain: a correction takes its
 -- target's place in every ordering, so a reader picking the FIRST or the LATEST act orders by "pos",
--- and a replacement cannot jump ahead of a later act by the same seat (a line of avenue's proposal
--- corrected after it was moved must not become the line's latest status). "struck_seq" is the
+-- and a replacement cannot jump ahead of a later act by the same seat (an inquiry's proposal
+-- corrected after its fate was recorded must not become the inquiry's latest status). "struck_seq" is the
 -- events.id of the correction that struck it, NULL while nothing has.
 --
 -- TWO AXES, AND THEY ANSWER DIFFERENT QUESTIONS. "pos" ORDERS the acts that stand; WHETHER an act
@@ -1603,7 +1603,7 @@ SELECT
 -- ruling and the FIRST appeal are the ones that count, and a second of either is refused at the
 -- write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
 -- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
--- because an avenue motion has no filing row (the avenue's proposal IS the
+-- because an inquiry motion has no filing row (the inquiry's proposal IS the
 -- filing) and its answers must be askable all the same.
 CREATE VIEW "motion_answers" AS
 SELECT
@@ -1636,10 +1636,9 @@ LEFT JOIN "motion_appeal" fa ON fa."event_id" =
     WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
 LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
--- A AVENUE, whole: proposed by whom, saying what, where its status stands now, and
--- how red last ruled the avenue — the join that used to live in three separate readers
--- (the Avenues fold, AvenueRuling, and the report's rows). The proposal row carries the
--- substance; the LATEST avenue event carries the status; the LATEST avenue-subject
+-- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
+-- how red last ruled the inquiry. The proposal row carries the
+-- substance; the LATEST inquiry event carries the status; the LATEST inquiry-subject
 -- ruling carries red's answer, including a later ruling that carried no word — an unset arm
 -- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
 CREATE VIEW "inquiry_state" AS
@@ -1653,8 +1652,8 @@ SELECT
   lr."inquiry"                         AS "inquiry_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
--- Only the acts that stand, in their "pos" order: a proposal corrected after it was moved keeps its
--- place, and its replacement does not become the line's LATEST status.
+-- Only the acts that stand, in their "pos" order: a proposal corrected after its fate was recorded keeps its
+-- place, and its replacement does not become the inquiry's LATEST status.
 FROM (SELECT a0."inquiry_id" AS "inquiry_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
         FROM "inquiry" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL

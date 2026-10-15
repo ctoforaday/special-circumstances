@@ -405,17 +405,17 @@ ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it 
 $ feov-record inquiry propose --help
 put an inquiry on the record, when a question is worth taking up and a later run needs to know you chose it
 
-The tool assigns the id (`Q-` and eight hex) and returns it. The inquiry starts as `proposed` — the state that OWES a fate — so say what became of it with `inquiry record`, naming that id. Red's chair may rule on it with `motion inquiry rule`; the ruling is an argument, and the fate stays yours to record.
+This is blue's act, and the only one that creates an inquiry; red rules on inquiries and does not propose them. The tool assigns the id (`Q-` and eight hex) and returns it. The inquiry starts as `proposed` — the state that OWES a fate — so say what became of it with `inquiry record`, naming that id: `underway` — the open fate — while you are still working it, then the fate it reached; `inquiry record`'s own page lists every fate and what each means. A record of a fate takes only the fate and its reason. An open inquiry left without a fate at the end of your sitting is on your work list as owed, and red reads it as a decision nobody made. Red's chair may rule on it with `motion inquiry rule`; the ruling is an argument, and the fate stays yours to record.
 
 You may propose one AT ANY POINT in a run, not only at the start.
 
 WHAT YOU WRITE HERE IS PRINTED IN THE REPORT word for word, on this inquiry's row in the section its fate puts it under, each part under its own label: the question the inquiry asks, its hypothesis, and its method beside them. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inquiries on the record: Research areas holds each inquiry that is proposed, underway, confirmed or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
 
-THE QUESTION HOLDS NO ANSWER. A result you expect is a prediction, and the prediction is the hypothesis: "whether a single Fermat test settles whether 91 is prime" is a question, and "a passing test in one base is no evidence of primality" is its hypothesis. A question that states a result is printed as the question whatever the research then finds, and it stands as proposed: no act rewrites a question.
+THE QUESTION HOLDS NO ANSWER. A result you expect is a prediction, and the prediction is the hypothesis: "whether a single Fermat test settles whether 91 is prime" is a question, and "a passing test in one base is no evidence of primality" is its hypothesis. A question that states a result is accepted and printed as the question whatever the research then finds, and it stands as proposed: no act rewrites a question or a hypothesis: a question worded wrongly is corrected by proposing the right one as a new inquiry and recording the old one's fate. Where the text sounds like the run rather than the subject, the tool says so after recording it; it refuses nothing for that. The hypothesis is not required, and it is what the fate is judged against: an inquiry with none has nothing its fate can be judged by. The method, also optional, names a source class (peer-reviewed papers, a standard, a dataset) or a technique (trial division, a simulation).
 
 So write it as research prose for a reader of the SUBJECT — the question the inquiry asks, not a log of what you did to ask it. No provenance or attribution tags, no notes to another seat, no narration of the run: "whether 91's factorisation follows from a divisibility test short of trial division" is a question, "ran this lane's slice against the last inquiry and grepped the repo" is a diary. Who recorded each fate, the path it took and red's ruling are already on the record, and ship in inquiries.md.
 
-Refused: a proposal with no question. Proposing the same question with the same hypothesis again from your seat records nothing and returns the id the first proposal got.
+Refused: a proposal with no question. A repeat is not refused: proposing again, from your own seat, the same question with the same hypothesis — or with none on both — (the method is not compared) records nothing and returns, as a success, the id the first proposal got. A different hypothesis, or another seat's proposal, is a new inquiry.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -425,7 +425,7 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a new record of the inquiry's fate.
 
 Flags:
       --hypothesis string   your PREDICTION: what would be TRUE if this inquiry pays off. The report prints it as the inquiry's hypothesis, and the fate is judged against it — confirmed where it held, refuted where it did not
-      --method string       the source class or technique it belongs to, when that is what distinguishes it
+      --method string       optional free text: the source class or technique the approach belongs to, when that is what distinguishes it
       --question string     REQUIRED — the QUESTION this inquiry asks, holding no predicted result — research prose for a reader of the SUBJECT, printed in the report word for word as the inquiry's question; a result you expect goes in --hypothesis
 ========
 $ feov-record inquiry record --help
@@ -433,13 +433,15 @@ say what became of an inquiry you proposed — every open inquiry owes this befo
 
 Name the inquiry by the id its proposal returned, give it its fate, and say what settled it. Recording a fate changes neither the question nor the hypothesis: they stand as proposed.
 
-An open inquiry — proposed or underway — owes this before your sitting ends; re-recording `underway` with what you learned is a REAFFIRMATION and settles it for this sitting. An approach you RAN ends at what it found, and owes nothing further: `confirmed` where the hypothesis held, `refuted` where what it found contradicted it — a refutation is an answer, and the report prints it beside the confirmations. `abandoned` is only for an approach you started that gave no answer, and `declined` only for one you never ran.
+An open inquiry — proposed or underway — owes this before your sitting ends: one left without it stays on your work list as owed, and red reads it as a decision nobody made. Re-recording `underway` with what you learned is a REAFFIRMATION and settles it for this sitting. An approach you RAN ends at what it found, and owes nothing further: `confirmed` where the hypothesis held, `refuted` where what it found contradicted it — a refutation is an answer, and the report prints it beside the confirmations. `abandoned` is only for an approach you started that gave no answer, and `declined` only for one you never ran. `deferred`, `declined` and `abandoned` settle it too: it owes nothing further in this run, and a later run takes up a deferred one by proposing it there. Recording `proposed` returns an inquiry to undecided: it owes a fate as before.
 
 THE REASON IS PRINTED IN THE REPORT, on the inquiry's own row beside its question and its hypothesis, in the section the fate you give it here puts it under: as what was found for an approach that ran, and as why it stands there for one that did not. THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inquiries on the record: Research areas holds each inquiry that is proposed, underway, confirmed or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned. They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record.
 
+EVERY RECORD IS KEPT: the report prints the latest fate and its reason, and inquiries.md the path through every one.
+
 Give the account in the SUBJECT'S terms — what was found about the question that settled this fate — not the steps you took to find it. A reason states the outcome; it does not narrate an earlier version of itself, and a record that corrects one says only what stands. No provenance or attribution tags, no notes to another seat, no narration of the run. "The trial-division bound is 9, so no subtler test is needed" is a reason; "fetched and read the sources at the leaf, then grepped the repo" is a diary. What you did, in order, is already on the record.
 
-Refused: an id no proposal on the record holds — propose it first with `inquiry propose`; a fate the list below does not hold; and, for every fate but `underway` and `proposed`, a missing reason. Red's ruling on the inquiry binds nothing here: record the fate the research reached, with the ruling or against it.
+Refused: an id no proposal on the record holds — `inquiry propose` is the only act that creates an inquiry, and a fate recorded here, `proposed` included, names one that exists; a fate the list below does not hold; and, for every fate but `underway` and `proposed`, a missing reason. A reason on `underway` or `proposed` is not checked, and `underway` should carry one all the same: a reaffirmation with none says nothing was learned. Any blue seat may record the fate of any inquiry on the record, not only one it proposed. Red's ruling on the inquiry binds nothing here: record the fate the research reached, with the ruling or against it.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -454,12 +456,12 @@ Flags:
 
 Enumerated values:
   --as
-    proposed   you intend to take up this question and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a fate
+    proposed   put forward and undecided — the state `inquiry propose` gives an inquiry; red may rule on it, and it owes a fate
     underway   you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached
     confirmed  you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`
     refuted    you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this
-    deferred   not this run. REQUIRES a reason saying what a later run should pick it up FOR
-    declined   you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
+    deferred   left for a later research run, not this one — kept, not set aside. REQUIRES a reason saying what a later run should pick it up FOR
+    declined   you considered it and did NOT run it, and set it aside: one worth a later run is `deferred`. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came
     abandoned  you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this
 ========
 $ feov-record log --help
@@ -730,7 +732,7 @@ Flags:
       --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §15
 ========
 $ feov-record show inquiries --help
-the exploration space: every inquiry with its question, its current fate and the reason for it; --json gives the same inquiries with their types intact. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
+the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question, its hypothesis and method, its current fate and the reason for it. The fate is the `status` key, one of proposed, underway, confirmed, refuted, deferred, declined, abandoned — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with the epoch it was recorded in) and the chair's ruling, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `epoch` is the epoch of the latest fate, `history` each fate it took, in order, as `e<epoch> <fate>`, `seat_id` the seat that recorded the latest, and `ruling` the chair's ruling from `motion inquiry rule` (`endorsed`, `out_of_scope` or `too_thin` — an argument that changes no fate), empty while none. Red reads the awaiting list as decisions blue has not made. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{id,question,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
 

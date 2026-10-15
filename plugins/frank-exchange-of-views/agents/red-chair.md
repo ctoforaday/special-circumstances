@@ -108,14 +108,14 @@ an alternation is one call where a phrase at a time is several. Every match is r
 §9 (on 5 pages):
 the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
-§10 (on 5 pages):
-REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-
-§11 (on 2 pages):
+§10 (on 2 pages):
 ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
-§12 (on 2 pages):
+§11 (on 2 pages):
 Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
+
+§12 (on 3 pages):
+REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 §13 (on 2 pages):
 EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
@@ -269,9 +269,9 @@ Flags:
 $ feov-record inquiry review --help
 your one read, each sitting the report has moved, of its account of its inquiries — required before a PASS
 
-Where the report has moved, read it ONCE and record what it says at the inquiries the record claims this run investigated — `show inquiries` lists them. Where it has not, your earlier read is the one this owes.
+You need not work out whether it is owed: your work list marks this owed when it is — in the first sitting you hold once the report exists, and in each later one where the report has moved since your last read. Read the report ONCE — `show report` reads it — and record, in one reason covering every inquiry, what it says at the inquiries the record claims this run investigated: `show inquiries` lists them, and the report accounts for them in the entries of its Research areas, Future research directions and Alternatives considered sections and in its own sections that carry the research those rows claim. Where the report has not moved, nothing is owed: your earlier read stands.
 
-Presence is not the question — the inquiries are generated from the record. The question is whether the BODY delivered the research; a shortfall is a defect you found, weighed before your verdict like any other — not a vote.
+Presence is not the question — the inquiries are generated from the record. The question is whether the BODY — the report's own sections — delivered the research; a shortfall — thin treatment, a hypothesis left unanswered, a method never run — is a defect you found: say it in the reason, and weigh it before your verdict like any other — not a vote. Your `verdict`'s PASS is refused while the review this epoch owes is missing. A review is accepted whenever you file it, owed or not, and a new one from you replaces your earlier one as the read that counts; both stay on the record. Refused: an empty reason — silence cannot clear this duty.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -280,7 +280,7 @@ Presence is not the question — the inquiries are generated from the record. Th
 IF WHAT YOU RECORDED WAS WRONG, say so in a new review of the inquiries.
 
 Flags:
-      --reason string   → SHARED §10
+      --reason string   REQUIRED — your one read of the report: what it SAYS where it accounts for the inquiries this run investigated — quote it — and where its body falls short of what an inquiry claims; one text covers every inquiry
 ========
 $ feov-record log --help
 an entry for the operator who can retool you — what it asserts, said in the positive
@@ -314,17 +314,17 @@ Enumerated values:
 $ feov-record motion docket file --help
 file a docket motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §11
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §10
 
 It puts a GAP before the bench — the channel for a gap the filing seat cannot settle itself, and for a seat that disagrees with a ruling on the gap's grade.
 
-(Every seat but the one that rule…) → SHARED §12
+(Every seat but the one that rule…) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
       --id gap-id       REQUIRED — the gap this motion is about
-      --reason string   → SHARED §10
+      --reason string   → SHARED §12
 ========
 $ feov-record motion grade rule --help
 rule on a grade motion — this verb is the chair seat's, and it appears only on that surface.
@@ -338,7 +338,7 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a docket motion on the gap.
 Flags:
       --as accepted|rejected   REQUIRED — your ruling
       --id motion-id           REQUIRED — the motion id
-      --reason string          → SHARED §10
+      --reason string          → SHARED §12
 
 Enumerated values:
   --as
@@ -346,37 +346,39 @@ Enumerated values:
     rejected  the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion
 ========
 $ feov-record motion inquiry rule --help
-rule on an inquiry motion — this verb is the chair seat's, and it appears only on that surface.
+rule on an inquiry blue proposed — this verb is the chair seat's, and it appears only on that surface.
 
 (EVERY SUBJECT AND ITS GAVEL: gra…) → SHARED §13
+
+AN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the `Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on the record holds is refused. Rule on each inquiry blue proposed that you have not ruled — an unruled one is on your work list and holds your PASS: say whether it is worth this run's time — a judgment you argue in the reason: `endorsed` asks blue to take it up, `out_of_scope` and `too_thin` argue against it. The ruling is an argument beside the inquiry and changes no fate — the fate is what blue records with `inquiry record` (that page lists the fates), with your reason in front of it, whichever way you ruled; blue owes every open inquiry a fate each sitting. The first ruling on an inquiry is the one that stands, and a second is refused.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
       --as endorsed|out_of_scope|too_thin   REQUIRED — your ruling
       --id inquiry-id                       REQUIRED — the INQUIRY id: an inquiry's filing is the proposal, so it joins on the inquiry's own id, not a motion's
-      --reason string                       → SHARED §10
+      --reason string                       REQUIRED — your argument for the ruling: why the inquiry is, or is not, worth this run's time — blue reads it before it records the inquiry's fate
 
 Enumerated values:
   --as
     endorsed      worth this run's time — blue should take it up
     out_of_scope  a real question, but not THIS question
-    too_thin      in scope, and the hypothesis does not carry its budget as stated
+    too_thin      in scope, but the hypothesis as stated does not justify what testing it would cost this run
 ========
 $ feov-record motion petition file --help
 file a petition motion — the tool assigns its id.
 
-(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §11
+(ONE EVENT, DIFFERENT CONTRACTS: …) → SHARED §10
 
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
-(Every seat but the one that rule…) → SHARED §12
+(Every seat but the one that rule…) → SHARED §11
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
       --class class-value   REQUIRED — the class of objection
-      --reason string       → SHARED §10
+      --reason string       → SHARED §12
       --relief string       REQUIRED — what you ask the bench to do about it
 
 Enumerated values:
@@ -500,7 +502,7 @@ Flags:
       --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §9
 ========
 $ feov-record show inquiries --help
-the exploration space: every inquiry with its question, its current fate and the reason for it; --json gives the same inquiries with their types intact. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
+the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question, its hypothesis and method, its current fate and the reason for it. The fate is the `status` key, one of proposed, underway, confirmed, refuted, deferred, declined, abandoned — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with the epoch it was recorded in) and the chair's ruling, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `epoch` is the epoch of the latest fate, `history` each fate it took, in order, as `e<epoch> <fate>`, `seat_id` the seat that recorded the latest, and `ruling` the chair's ruling from `motion inquiry rule` (`endorsed`, `out_of_scope` or `too_thin` — an argument that changes no fate), empty while none. Red reads the awaiting list as decisions blue has not made. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
 
 OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{id,question,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
 
