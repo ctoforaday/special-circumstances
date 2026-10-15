@@ -61,7 +61,7 @@ func TestAWarmChairOwesTheRegisterThatOpensItsSitting(t *testing.T) {
 	if owed := chairOwed(t, newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").dispatch(2, evLens).seed()); len(owed) != 0 {
 		t.Fatalf("the chair is still in the sitting that dispatched and owes %+v", owed)
 	}
-	if err := RequireChairSittingOpened(newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").dispatch(2, evLens).seed()); err != nil {
+	if err := chairSittingRefusal(t, newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").dispatch(2, evLens).seed()); err != nil {
 		t.Fatalf("dispatch refused in the sitting that dispatched: %v", err)
 	}
 
@@ -71,7 +71,7 @@ func TestAWarmChairOwesTheRegisterThatOpensItsSitting(t *testing.T) {
 	if len(owed) != 1 || !strings.Contains(owed[0].What, evLens) || !strings.Contains(owed[0].What, "head 2") {
 		t.Fatalf("owed = %+v, want one blocking item naming the lens that sat and head 2", owed)
 	}
-	if err := RequireChairSittingOpened(warm); err == nil || !strings.Contains(err.Error(), "Register for this sitting") {
+	if err := chairSittingRefusal(t, warm); err == nil || !strings.Contains(err.Error(), "Register for this sitting") {
 		t.Fatalf("dispatch in an unopened chair sitting = %v, want the refusal naming the register", err)
 	}
 
@@ -80,7 +80,7 @@ func TestAWarmChairOwesTheRegisterThatOpensItsSitting(t *testing.T) {
 	if owed := chairOwed(t, opened); len(owed) != 0 {
 		t.Fatalf("the chair registered for its sitting and still owes %+v", owed)
 	}
-	if err := RequireChairSittingOpened(opened); err != nil {
+	if err := chairSittingRefusal(t, opened); err != nil {
 		t.Fatalf("dispatch refused after the chair registered: %v", err)
 	}
 
@@ -103,7 +103,7 @@ func whats(items []Item) []string {
 func TestADispatchAskedAgainStands(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").dispatch(2, evLens).seed()
 	same := Plan{Head: 2, Parties: []Party{{SeatID: evLens}}}
-	if ok, err := DispatchStands(run, same); err != nil || !ok {
+	if ok, err := dispatchStandsOn(t, run, same); err != nil || !ok {
 		t.Fatalf("the same plan with nobody sat since = %v (%v), want standing", ok, err)
 	}
 	for name, p := range map[string]Plan{
@@ -111,12 +111,12 @@ func TestADispatchAskedAgainStands(t *testing.T) {
 		"another gap":   {Head: 2, Parties: []Party{{SeatID: evLens, GapIDs: []string{"G1"}}}},
 		"another party": {Head: 2, Parties: []Party{{SeatID: evLens}, {SeatID: "blue-respond"}}},
 	} {
-		if ok, _ := DispatchStands(run, p); ok {
+		if ok, _ := dispatchStandsOn(t, run, p); ok {
 			t.Errorf("%s: a different plan stood as the recorded one", name)
 		}
 	}
 	sat := newStage(t).cast(evLens, "red-chair").ingest().register("red-chair").dispatch(2, evLens).register(evLens).seed()
-	if ok, _ := DispatchStands(sat, same); ok {
+	if ok, _ := dispatchStandsOn(t, sat, same); ok {
 		t.Error("the lens sat since the dispatch, and the same plan stood — a new sitting's dispatch would go unrecorded")
 	}
 }

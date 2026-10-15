@@ -44,10 +44,14 @@ var DefaultParams = Params{K: 2, KMax: 6, MintBudget: 15, ConvergenceFraction: 0
 // unusable (zero or negative, a fraction outside (0, 1]) is an error: a limit of zero would put
 // every gap at impasse before its first exchange, and a reader that silently repaired it would
 // hide exactly the misconfiguration the file exists to make visible.
-func RunParams(run Run) (Params, error) {
+func RunParams(run Run) (Params, error) { return paramsIn(run.Dir()) }
+
+// paramsIn is RunParams for the run directory dir — the form the write path reads (runFiles), which
+// holds no Run.
+func paramsIn(dir string) (Params, error) {
 	p := DefaultParams
 	p.MaxEpochs = 0
-	rc, err := readRunConfig(run)
+	rc, err := readRunConfig(dir)
 	if err != nil || rc == nil {
 		return p, err
 	}
@@ -82,8 +86,11 @@ func RunParams(run Run) (Params, error) {
 // the fraction is not refused for another term it never uses (an epoch limit of 0 says nothing about
 // what fraction of the peak a converged board sits below). No file, or no fraction in it, is setup's
 // default; a fraction outside (0, 1], or a file that does not parse, is an error.
-func runConvergenceFraction(run Run) (float64, error) {
-	rc, err := readRunConfig(run)
+func runConvergenceFraction(run Run) (float64, error) { return convergenceFractionIn(run.Dir()) }
+
+// convergenceFractionIn is runConvergenceFraction for the run directory dir.
+func convergenceFractionIn(dir string) (float64, error) {
+	rc, err := readRunConfig(dir)
 	if err != nil {
 		return 0, err
 	}
@@ -102,9 +109,10 @@ type runConfig struct {
 	MaxEpochs           *int     `json:"maxEpochs"`
 }
 
-// readRunConfig reads the run's terms; a run with no run-config.json has none (nil, nil).
-func readRunConfig(run Run) (*runConfig, error) {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
+// readRunConfig reads the terms of the run in directory dir; a run with no run-config.json has none
+// (nil, nil).
+func readRunConfig(dir string) (*runConfig, error) {
+	b, err := os.ReadFile(filepath.Join(dir, "inputs", "run-config.json"))
 	if err != nil {
 		return nil, nil
 	}

@@ -33,7 +33,7 @@ func TestACiteOriginAndItsPinsAreCheckedAtTheWrite(t *testing.T) {
 		{"no completeness", &recordpb.Cite{Label: proto.String("c-1"), SourceTextOrigin: embedded.Enum(),
 			WorkStatus: recordpb.WorkStatus_WORK_STATUS_STANDING.Enum()}, "carries no source_completeness"},
 	} {
-		err := validate(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
+		err := validateRun(run, "blue-respond", recordpb.EventType_EVENT_TYPE_CITE, tc.body)
 		switch {
 		case tc.want == "" && err != nil:
 			t.Errorf("%s: refused: %v", tc.name, err)
@@ -53,12 +53,12 @@ func TestAVerifyPageAndItsHashesAreOneFact(t *testing.T) {
 	half := base()
 	half.Page = proto.Int32(2)
 	half.PageRenderSha = proto.String("a")
-	if err := validate(run, "red-lens-evidence", recordpb.EventType_EVENT_TYPE_VERIFY, half); err == nil || !strings.Contains(err.Error(), "written together") {
+	if err := validateRun(run, "red-lens-evidence", recordpb.EventType_EVENT_TYPE_VERIFY, half); err == nil || !strings.Contains(err.Error(), "written together") {
 		t.Errorf("a page with one hash was not refused: %v", err)
 	}
 	whole := base()
 	whole.Page, whole.PageRenderSha, whole.ReadingRenderSha = proto.Int32(2), proto.String("a"), proto.String("b")
-	if err := validate(run, "red-lens-evidence", recordpb.EventType_EVENT_TYPE_VERIFY, whole); err != nil && strings.Contains(err.Error(), "written together") {
+	if err := validateRun(run, "red-lens-evidence", recordpb.EventType_EVENT_TYPE_VERIFY, whole); err != nil && strings.Contains(err.Error(), "written together") {
 		t.Errorf("a page with both hashes was refused as partial: %v", err)
 	}
 }

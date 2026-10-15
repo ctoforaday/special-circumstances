@@ -264,7 +264,7 @@ func TestAPlanAskedAgainKeepsTheSittingsDocket(t *testing.T) {
 	if !slices.Equal(plan.Docket, []string{"G1"}) || len(plan.ToFile) != 0 {
 		t.Fatalf("asked again: docket %v, to file %v — want [G1] and nothing to file", plan.Docket, plan.ToFile)
 	}
-	if ok, err := DispatchStands(run, plan); err != nil || !ok {
+	if ok, err := dispatchStandsOn(t, run, plan); err != nil || !ok {
 		t.Fatalf("asked again with nobody sat, the plan stands = %v (%v)", ok, err)
 	}
 	next, err := PlanDispatch(impasse().register(benchSeat).register("red-chair").seed())

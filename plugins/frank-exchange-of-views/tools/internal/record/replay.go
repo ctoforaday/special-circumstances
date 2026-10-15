@@ -339,16 +339,13 @@ type Observation struct {
 // the gap view, the typed loader and the family (FamilyOf), and the consistency oracle
 // holds THAT assembly to its own raw walk. Gap is the family's per-gap shape, filled by FamilyOf.
 
-func allGapIDs(run Run) (map[string]bool, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, err
-	}
+// allGapIDs is every gap id a mint on q created. A q that is no record holds none.
+func allGapIDs(q recordsql.Querier) (map[string]bool, error) {
 	out := map[string]bool{}
-	if db == nil {
+	if noRecord(q) {
 		return out, nil
 	}
-	rows, err := db.Query(`SELECT "gap_id" FROM "mint"`)
+	rows, err := q.Query(`SELECT "gap_id" FROM "mint"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its gap ids: %w", err)
 	}
@@ -368,15 +365,11 @@ func allGapIDs(run Run) (map[string]bool, error) {
 // A `--carried-from` closure claims to restate an earlier one, and a claim about the
 // record is checked against the record — the same rule mint applies to `supersedes`,
 // which refuses an ancestor no mint event created.
-func priorClosureEpochs(run Run, gapID string) ([]int, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, err
-	}
-	if db == nil {
+func priorClosureEpochs(q recordsql.Querier, gapID string) ([]int, error) {
+	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT e."epoch" FROM "close" c JOIN "events_w" e ON e."id" = c."event_id"
+	rows, err := q.Query(`SELECT e."epoch" FROM "close" c JOIN "events_w" e ON e."id" = c."event_id"
 	  WHERE c."gap_id" = ? ORDER BY c."event_id"`, gapID)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for prior closures of %s: %w", gapID, err)
@@ -480,8 +473,11 @@ type classRegistry struct {
 //
 // An unreachable record root is not this function's error to report: MergedEvents fails loudly on
 // it, and every caller reaches that first, so erroring twice only makes the diagnosis harder.
-func loadRegistry(run Run) (*classRegistry, error) {
-	recDir := run.Records()
+func loadRegistry(run Run) (*classRegistry, error) { return loadRegistryIn(run.Records()) }
+
+// loadRegistryIn is loadRegistry for the records directory recDir — the form the write path reads
+// (runFiles), which holds no Run.
+func loadRegistryIn(recDir string) (*classRegistry, error) {
 	p := filepath.Join(recDir, "class-registry.json")
 	b, err := os.ReadFile(p)
 	if err != nil {
@@ -509,8 +505,8 @@ func loadRegistry(run Run) (*classRegistry, error) {
 // classMaterialFor is where a mint of this class starts its materiality: the staged registry's
 // row, else the run's own coining of the class. found is false when neither knows the slug — the
 // class refusal is then the one a seat needs, and the caller gives it.
-func classMaterialFor(run Run, slug string) (cm recordpb.ClassMaterial, found bool, err error) {
-	reg, err := loadRegistry(run)
+func classMaterialFor(w writeView, slug string) (cm recordpb.ClassMaterial, found bool, err error) {
+	reg, err := w.files.registry()
 	if err != nil {
 		return 0, false, err
 	}
@@ -522,13 +518,12 @@ func classMaterialFor(run Run, slug string) (cm recordpb.ClassMaterial, found bo
 			}
 		}
 	}
-	db, err := openRunForRead(run)
-	if err != nil || db == nil {
-		return 0, false, err
+	if noRecord(w.q) {
+		return 0, false, nil
 	}
 	var word sql.NullString
 	var n int
-	if err := db.QueryRow(`SELECT count(*), MAX("material_default") FROM "class_new" WHERE "slug" = ?`, slug).Scan(&n, &word); err != nil {
+	if err := w.q.QueryRow(`SELECT count(*), MAX("material_default") FROM "class_new" WHERE "slug" = ?`, slug).Scan(&n, &word); err != nil {
 		return 0, false, fmt.Errorf("asking the record how class %s was coined: %w", slug, err)
 	}
 	if n == 0 {
@@ -547,7 +542,7 @@ func classMaterialFor(run Run, slug string) (cm recordpb.ClassMaterial, found bo
 // its gap's materiality could mint every gap harmless. Under a migration the source is the record,
 // not a seat, so a value the archived mint carries is kept as recorded; an archived mint without
 // one (a run written before the field) is stamped from the registry the migration translated.
-func stampClassMaterial(run Run, m *recordpb.Mint) error {
+func stampClassMaterial(w writeView, m *recordpb.Mint) error {
 	if m.ClassMaterial != nil {
 		if !Migrating {
 			return fmt.Errorf("a mint's class material is stamped by the tool from the class registry, never supplied by a seat — mint without it")
@@ -560,12 +555,12 @@ func stampClassMaterial(run Run, m *recordpb.Mint) error {
 	if m.GetClass() == "" {
 		return nil // the required-field refusal names --class, which comes first
 	}
-	cm, found, err := classMaterialFor(run, m.GetClass())
+	cm, found, err := classMaterialFor(w, m.GetClass())
 	if err != nil {
 		return err
 	}
 	if !found {
-		return validateClass(run, m)
+		return validateClass(w, m)
 	}
 	m.ClassMaterial = cm.Enum()
 	return nil
@@ -573,18 +568,14 @@ func stampClassMaterial(run Run, m *recordpb.Mint) error {
 
 // knownClasses is the registry as it stands for this run: the staged corpus plus every slug the
 // run has coined. An absent registry is an ERROR, not a licence — see below.
-func knownClasses(run Run) (map[string]bool, []string, error) {
-	reg, err := loadRegistry(run)
-	if err != nil {
-		return nil, nil, err
-	}
-	db, err := openRunForRead(run)
+func knownClasses(w writeView) (map[string]bool, []string, error) {
+	reg, err := w.files.registry()
 	if err != nil {
 		return nil, nil, err
 	}
 	coined := map[string]bool{}
-	if db != nil {
-		rows, err := db.Query(`SELECT "slug" FROM "class_new"`)
+	if !noRecord(w.q) {
+		rows, err := w.q.Query(`SELECT "slug" FROM "class_new"`)
 		if err != nil {
 			return nil, nil, fmt.Errorf("asking the record for coined classes: %w", err)
 		}
@@ -702,8 +693,8 @@ func ClassCoinedInRun(run Run, slug string) bool {
 }
 
 // validateClass holds a MINT to a class the registry recognises.
-func validateClass(run Run, mint *recordpb.Mint) error {
-	known, slugs, err := knownClasses(run)
+func validateClass(w writeView, mint *recordpb.Mint) error {
+	known, slugs, err := knownClasses(w)
 	if err != nil {
 		return err
 	}
@@ -726,7 +717,7 @@ func validateClass(run Run, mint *recordpb.Mint) error {
 // remain are the FLAG WORDS the refusal names, which are the seat's vocabulary and not the
 // schema's — they stayed strings on purpose, because a seat reading this message types `--neighbor`
 // and has never seen a field name.
-func validateClassNew(run Run, coined *recordpb.ClassNew) error {
+func validateClassNew(w writeView, coined *recordpb.ClassNew) error {
 	if coined.GetSlug() == "" {
 		return fmt.Errorf("requires --class (the slug being coined)")
 	}
@@ -747,7 +738,7 @@ func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 	if coined.GetMaterialDefault() == recordpb.ClassMaterial_CLASS_MATERIAL_UNSPECIFIED {
 		return fmt.Errorf("requires --material-default (always | never | by_grade) — every gap minted under the class starts its materiality from it")
 	}
-	known, _, err := knownClasses(run)
+	known, _, err := knownClasses(w)
 	if err != nil {
 		return err
 	}

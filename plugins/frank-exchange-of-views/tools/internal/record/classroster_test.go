@@ -39,7 +39,7 @@ func TestTheRosterListsExactlyWhatTheNeighborCheckAccepts(t *testing.T) {
 		inRoster[r.Slug] = true
 	}
 
-	known, _, err := knownClasses(run)
+	known, _, err := knownClasses(viewOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}

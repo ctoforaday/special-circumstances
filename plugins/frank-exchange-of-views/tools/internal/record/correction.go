@@ -206,11 +206,11 @@ func proseFlags(md protoreflect.MessageDescriptor) []string {
 // The retry is recognised FIRST, before anything that could have changed since: a crash between a
 // correction's commit and the seat seeing it must re-answer the same, even if another seat has acted
 // in between. Then what cannot change — the target's type, seat, tier and fields — is checked
-// against the target read once. Then the record-level guards run against the target (a closure's
-// correction names a closed gap by definition). Finally, INSIDE the transaction whose BEGIN took
-// the write lock, what can change: the sitting, whether another seat has acted since (F7), and the
-// chain the replacement's key extends. A reliance check made before the transaction would race a
-// lens writing in parallel.
+// against the target read once. Then, INSIDE the transaction whose BEGIN took the write lock, what
+// can change: the record-level guards, run against the target (a closure's correction names a closed
+// gap by definition), the sitting, whether another seat has acted since (F7), and the chain the
+// replacement's key extends. A check made before the transaction would race a lens writing in
+// parallel.
 func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType, body proto.Message) (*Event, error) {
 	c := id.Correct
 	run, seatID := id.Run, id.SeatID
@@ -229,10 +229,8 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	if err := validateCorrection(target, seatID, typ, body); err != nil {
 		return nil, err
 	}
-	if err := validateAgainst(run, seatID, typ, body, target); err != nil {
-		return nil, err
-	}
 
+	writeBegins()
 	tx, err := db.Begin()
 	if err != nil {
 		return nil, err
@@ -247,6 +245,10 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		_ = tx.Rollback()
 		return correctionRetry(db, seatID, c.Key, body)
 	case !errors.Is(err, sql.ErrNoRows):
+		return nil, err
+	}
+	// THE RECORD-LEVEL GUARDS, against the record this replacement lands on (writeView).
+	if err := validateAgainst(writeView{q: tx, files: filesOf(run)}, seatID, typ, body, target); err != nil {
 		return nil, err
 	}
 	// F6: THE SAME SITTING. The target's sitting is the writer's sittings opened before it; the
@@ -329,12 +331,12 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 // follows the target. The first standing red close and the last part only where the target's own
 // seat carried it in the same sitting, and no record holds that: only migrate writes a correction,
 // and no archived run holds a gap with two standing red closes.
-func closedByTarget(run Run, gapID string, target *correctionTarget) bool {
+func closedByTarget(q recordsql.Querier, gapID string, target *correctionTarget) bool {
 	if target == nil || gapID == "" {
 		return false
 	}
 	var seq sql.NullInt64
-	found, err := queryRow(run, []any{&seq}, `SELECT "close_event" FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&seq}, `SELECT "close_event" FROM "gap" WHERE "gap_id" = ?`, gapID)
 	return err == nil && found && seq.Valid && seq.Int64 == target.ID
 }
 

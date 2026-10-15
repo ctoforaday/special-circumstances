@@ -111,7 +111,7 @@ func TestPlanFactsAnswerForTheRecordAsItStoodAtThePoint(t *testing.T) {
 		register("red-chair").add("red-chair", &recordpb.Close{GapId: proto.String("G3"),
 		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), CarriedFrom: proto.String("1"), Prose: proto.String("as before")})
 	run := b.seed()
-	evs, win, err := dispatchEventsOf(run)
+	evs, win, err := eventsAt(recordOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestTheStreamArmsOfTheGateAnswerForAPrefix(t *testing.T) {
 	cut := len(b.evs)
 	b.register("red-chair").add("red-chair", &recordpb.AvenueReview{Reason: proto.String("read")})
 	run := b.seed()
-	evs, win, err := dispatchEventsOf(run)
+	evs, win, err := eventsAt(recordOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestTheRelayHeldKindsAreStatedOnTheKindTable(t *testing.T) {
 		register(evLens).add(evLens, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 		Basis: proto.String("b"), Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}})
 	run := b.seed()
-	evs, win, err := dispatchEventsOf(run)
+	evs, win, err := eventsAt(recordOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}

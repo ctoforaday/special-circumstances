@@ -34,7 +34,7 @@ func TestAnOutcomeWithoutAVerdictIsRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := validate(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_OUTCOME,
+	err := validateRun(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_OUTCOME,
 		&recordpb.Outcome{Prose: proto.String("ended on safety grounds")})
 	if err == nil {
 		t.Fatal("an outcome with no verdict was accepted — the run records that it ENDED and not how, " +
@@ -45,7 +45,7 @@ func TestAnOutcomeWithoutAVerdictIsRefused(t *testing.T) {
 	}
 
 	// And the complete act is still accepted, or the requirement is a wall rather than a gate.
-	if err := validate(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_OUTCOME, &recordpb.Outcome{
+	if err := validateRun(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_OUTCOME, &recordpb.Outcome{
 		Verdict: recordpb.RunOutcome_RUN_OUTCOME_HALTED.Enum(),
 		Prose:   proto.String("ended on safety grounds"),
 	}); err != nil {

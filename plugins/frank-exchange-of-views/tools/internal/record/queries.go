@@ -361,10 +361,10 @@ func gradeAtColumn(d recordpb.GradeDimension) string {
 // gradeAt is a gap's CURRENT grade at one dimension — the gap view's regrade overlay, which is
 // the one SQL statement of "latest regrade that touched the axis, else the mint's". found=false
 // is a gap that is not on the record.
-func gradeAt(run Run, gapID, col string) (word string, found bool, err error) {
+func gradeAt(q recordsql.Querier, gapID, col string) (word string, found bool, err error) {
 	var v sql.NullString
 	// The column name is drawn from gradeAtColumn's closed set, never from input.
-	found, err = queryRow(run, []any{&v},
+	found, err = queryRowAt(q, []any{&v},
 		fmt.Sprintf(`SELECT %q FROM "gap" WHERE "gap_id" = ?`, "current_"+col), gapID)
 	return v.String, found, err
 }
