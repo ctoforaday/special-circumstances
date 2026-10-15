@@ -110,12 +110,12 @@ INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('declare', '
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('finding', 'something red found, graded but not yet minted as a gap', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry', 'an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned', 'prose');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry_review', 'a review of the avenues themselves, rather than of a finding', 'full');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry', 'an inquiry: its question, its hypothesis and each fate recorded on it', 'prose');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('inquiry_review', 'a review of the inquiries themselves, rather than of a finding', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('log', 'an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it', 'full');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to', 'none');
-INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed', 'none');
+INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or an inquiry proposed', 'none');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_appeal', 'an appeal of a ruling already made on a motion', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds', 'prose');
 INSERT INTO "enum_event_type" ("value", "means", "correct") VALUES ('observe', 'an observation recorded without a claim attached to it', 'none');
@@ -165,7 +165,7 @@ CREATE TABLE "enum_motion_subject" (
 ) STRICT;
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('inquiry', 'a ruling on an avenue blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('inquiry', 'a ruling on an inquiry blue proposed; the id is the INQUIRY''s own, because the proposal IS the filing');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
 
 CREATE TABLE "enum_grade_dimension" (
@@ -249,7 +249,7 @@ CREATE TABLE "enum_about_kind" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor');
 INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
 
 CREATE TABLE "enum_check_kind" (
@@ -336,12 +336,12 @@ CREATE TABLE "enum_inquiry_status" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('abandoned', 'you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('confirmed', 'you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('declined', 'you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came');
 INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('deferred', 'not this run. REQUIRES a reason saying what a later run should pick it up FOR');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this');
-INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('proposed', 'you intend to take up this question and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a fate');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('refuted', 'you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this');
+INSERT INTO "enum_inquiry_status" ("value", "means") VALUES ('underway', 'you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached');
 
 CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,

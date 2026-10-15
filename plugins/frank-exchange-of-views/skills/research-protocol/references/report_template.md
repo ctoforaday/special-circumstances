@@ -71,23 +71,22 @@
 |---|---|---|---|---|
 | <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
-## Research areas                        <!-- [RECORD] avenues PROPOSED, PURSUED, CONCLUDED and REFUTED — a research topic
-                                              taken on, and what it yielded: `concluded` ran and its hypothesis held,
-                                              `refuted` ran and its hypothesis did not hold. Every avenue row is
+## Research areas                        <!-- [RECORD] the inquiries taken up, and what each yielded — a research topic
+                                              taken on, under the fate the record gives it. Every inquiry row is
                                               labelled: the question it asks, its hypothesis, its fate, and what was
                                               found — or, for an approach that did not run, why it stands there. -->
 
-## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not set aside: worth taking and not by THIS
-                                              run. --reason says what a later run should pick it up FOR. It reaches the
+## Future research directions            <!-- [RECORD] inquiries DEFERRED — kept, not set aside: worth taking and not by THIS
+                                              run. Its reason says what a later run should pick it up FOR. It reaches the
                                               report as a proposal a human selects, never an automatic seed. This is its
                                               OWN section because filing it under "Alternatives considered" said the
                                               opposite of its fate. -->
 
-## Alternatives considered               <!-- [RECORD] avenues DECLINED (weighed, never run) and ABANDONED (started, no answer) —
+## Alternatives considered               <!-- [RECORD] inquiries DECLINED (weighed, never run) and ABANDONED (started, no answer) —
                                               each with its reason (the counter), in the subject's terms. The fate is the
-                                              one its seat recorded, whatever path led to it. Who proposed a
-                                              line, the path its status took and red's ruling are the debate,
-                                              not the subject: they render in avenues.md and judgments.md. -->
+                                              one its seat recorded, whatever path led to it. Who proposed an
+                                              inquiry, the path its fate took and red's ruling are the debate,
+                                              not the subject: they render in inquiries.md and judgments.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding.
                                               The last section of the report's text. -->

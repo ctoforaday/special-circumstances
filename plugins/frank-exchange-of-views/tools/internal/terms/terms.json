@@ -835,7 +835,7 @@
       "collisions": [
         {
           "word": "fate",
-          "resolution": "an avenue's state keeps the word"
+          "resolution": "an inquiry's state keeps the word"
         },
         {
           "word": "carry",
@@ -921,8 +921,8 @@
       ]
     },
     {
-      "term": "avenue",
-      "definition": "An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, refuted, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.",
+      "term": "inquiry",
+      "definition": "An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.",
       "seats": [
         "lens",
         "chair",
@@ -930,32 +930,8 @@
         "bench",
         "operator"
       ],
-      "bans": [
-        {
-          "variant": "line of inquiry, line-of-inquiry (the verb and the view)",
-          "kind": "GATED",
-          "pattern": "\\blines? of inquiry\\b"
-        },
-        {
-          "variant": "inquiry (an avenue)",
-          "kind": "GATED",
-          "pattern": "\\binquir(y|ies)\\b"
-        },
-        {
-          "variant": "direction (an avenue)",
-          "kind": "REGISTRY-ONLY"
-        }
-      ],
-      "collisions": [
-        {
-          "word": "direction",
-          "resolution": "plain English only: a bench REMAND states a research direction its one more exchange between the minting lens and blue owes, and the report's own heading is Future research directions — neither is an avenue"
-        },
-        {
-          "word": "line",
-          "resolution": "an avenue's `line` is its statement, the text `--reason` fills, and never a name for the avenue itself"
-        }
-      ]
+      "bans": [],
+      "collisions": []
     },
     {
       "term": "reopened",

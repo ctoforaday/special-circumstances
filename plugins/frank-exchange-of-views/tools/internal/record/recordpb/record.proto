@@ -241,7 +241,7 @@ enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_REGISTER = 1 [(correct) = CORRECTION_TIER_NONE, (means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
   EVENT_TYPE_ANCHOR = 2 [(correct) = CORRECTION_TIER_NONE, (means) = "a marker placed in the report"];
-  EVENT_TYPE_INQUIRY = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned"];
+  EVENT_TYPE_INQUIRY = 3 [(correct) = CORRECTION_TIER_PROSE, (means) = "an inquiry: its question, its hypothesis and each fate recorded on it"];
   EVENT_TYPE_BLUE_EDIT = 4 [(correct) = CORRECTION_TIER_NONE, (means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(correct) = CORRECTION_TIER_PROSE, (means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(correct) = CORRECTION_TIER_PROSE, (means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
@@ -254,7 +254,7 @@ enum EventType {
   EVENT_TYPE_HALT = 14 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   EVENT_TYPE_MANIFEST_ROW = 15 [(correct) = CORRECTION_TIER_FULL, (means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(correct) = CORRECTION_TIER_NONE, (means) = "a gap put on the board — the act that creates the entity every other act refers to"];
-  EVENT_TYPE_MOTION = 17 [(correct) = CORRECTION_TIER_NONE, (means) = "a motion filed: a grade contested, a petition to the bench, or a direction proposed"];
+  EVENT_TYPE_MOTION = 17 [(correct) = CORRECTION_TIER_NONE, (means) = "a motion filed: a grade contested, a petition to the bench, or an inquiry proposed"];
   EVENT_TYPE_MOTION_APPEAL = 18 [(correct) = CORRECTION_TIER_PROSE, (means) = "an appeal of a ruling already made on a motion"];
   EVENT_TYPE_MOTION_RULE = 19 [(correct) = CORRECTION_TIER_PROSE, (means) = "the bench's ruling on a filed motion, and whom it binds"];
   EVENT_TYPE_OBSERVE = 20 [(correct) = CORRECTION_TIER_NONE, (means) = "an observation recorded without a claim attached to it"];
@@ -273,7 +273,7 @@ enum EventType {
   EVENT_TYPE_SPOT_CHECK = 29 [(correct) = CORRECTION_TIER_FULL, (means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
   EVENT_TYPE_VERDICT = 30 [(correct) = CORRECTION_TIER_NONE, (means) = "the chair's verdict for its epoch: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(correct) = CORRECTION_TIER_NONE, (means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
-  EVENT_TYPE_INQUIRY_REVIEW = 32 [(correct) = CORRECTION_TIER_FULL, (means) = "a review of the avenues themselves, rather than of a finding"];
+  EVENT_TYPE_INQUIRY_REVIEW = 32 [(correct) = CORRECTION_TIER_FULL, (means) = "a review of the inquiries themselves, rather than of a finding"];
   EVENT_TYPE_BASE_INGEST = 33 [(correct) = CORRECTION_TIER_NONE, (means) = "the report as blue ingested it, stored verbatim as the origin every recorded edit replays over"];
   EVENT_TYPE_SITTING_OPEN = 34 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
   EVENT_TYPE_SITTING_CLOSE = 35 [(correct) = CORRECTION_TIER_NONE, (means) = "the harness's agent returning — the other end of that span"];
@@ -418,30 +418,24 @@ enum Soundness {
   SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to"]; // the dangerous cell, because it looks maximally credible
 }
 
-// AvenueStatus is an avenue's fate. The avenues projection groups BY status, so
-// a value outside the set did not fail — it silently vanished from the section that exists to
-// show the roads not taken.
+// InquiryStatus is an inquiry's fate. The inquiries projection groups BY status, so a value outside
+// the set would not fail — it would silently vanish from the section that exists to show the roads
+// not taken.
 enum InquiryStatus {
   INQUIRY_STATUS_UNSPECIFIED = 0;
-  INQUIRY_STATUS_PROPOSED = 1 [(means) = "you intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move"];
-  INQUIRY_STATUS_UNDERWAY = 2 [(means) = "you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end"];
-  // CONCLUDED IS THE END OF A LINE THAT WORKED. Without it a line could only close by dying: on
-  // universe-m13 blue moved four confirmed hypotheses to `abandoned`, "the hypothesis was satisfied,
-  // not that they failed", and the report listed every successful line as a dead end.
-  INQUIRY_STATUS_CONFIRMED = 6 [(means) = "you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`"];
-  // REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. A refutation had no fate of its own: on
-  // universe-m22 a lane marked a refuted hypothesis `abandoned`, the logic lens read the same line
-  // as `concluded`, and the gap between the two words held the gate. It is an answer, so it ships
-  // beside the concluded lines; `abandoned` is left for the line that produced none.
-  INQUIRY_STATUS_REFUTED = 7 [(means) = "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this"];
+  INQUIRY_STATUS_PROPOSED = 1 [(means) = "you intend to take up this question and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a fate"];
+  INQUIRY_STATUS_UNDERWAY = 2 [(means) = "you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached"];
+  // CONFIRMED IS THE END OF AN INQUIRY THAT WORKED: an approach that ran and answered yes ships as
+  // an answer, not as a dead end.
+  INQUIRY_STATUS_CONFIRMED = 6 [(means) = "you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`"];
+  // REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. It is an answer, so it ships beside the
+  // confirmed inquiries; `abandoned` is left for the inquiry that produced none.
+  INQUIRY_STATUS_REFUTED = 7 [(means) = "you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this"];
   INQUIRY_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR"]; // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
-  // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
-  // on universe-m21 a lane ran a check, then proposed the approach and declined it with the
-  // check's result as the reason, and the report printed it as rejected beside the section that
-  // carries it. The record holds no link from a proof or a section to an avenue, so no write can
-  // tell a declined line that was run from one that was not; the fate's own meaning is where the
-  // seat is told.
-  INQUIRY_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"];
+  // DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not. The
+  // record holds no link from a proof or a section to an inquiry, so no write can tell a declined
+  // inquiry that was run from one that was not; the fate's own meaning is where the seat is told.
+  INQUIRY_STATUS_DECLINED = 4 [(means) = "you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came"];
   INQUIRY_STATUS_ABANDONED = 5 [(means) = "you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this"]; // what stopped it is the part a future run needs: it stops a later run re-walking it
 }
 
@@ -451,7 +445,7 @@ enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
   MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "chair"];
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
-  MOTION_SUBJECT_INQUIRY = 3 [(means) = "a ruling on an avenue blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "chair"];
+  MOTION_SUBJECT_INQUIRY = 3 [(means) = "a ruling on an inquiry blue proposed; the id is the INQUIRY's own, because the proposal IS the filing", (ruled_by) = "chair"];
   MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
 }
 
@@ -978,7 +972,7 @@ message SpotCheck {
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
   ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
-  ABOUT_KIND_INQUIRY = 2 [(means) = "an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor"];
+  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor"];
   ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
 }
 
@@ -1319,14 +1313,14 @@ message Inquiry {
   // become stricter — it becomes wrong.
   optional string question = 2 [(sql) = {
     flag: "question"
-    why: "what you are going to try — an unnamed avenue teaches a future run nothing"
+    why: "the question this inquiry asks — an unnamed inquiry teaches a future run nothing"
   }, (prose) = true];
   optional string hypothesis = 3 [(prose) = true];
   optional string method = 4 [(prose) = true];
   optional InquiryStatus status = 5 [(sql) = {
     required: true
     flag: "as"
-    why: "the line's fate; the avenues projection groups by it"
+    why: "the inquiry's fate; the inquiries projection groups by it"
   }];
 
   // supersedes_status marks this event as a MOVE rather than a proposal.

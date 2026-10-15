@@ -800,16 +800,15 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 		}
 		inquiry = append(inquiry, "")
 	}
-	// The revisit duty, made visible: an avenue still open late in a run is one nobody has
-	// decided. The measured failure was not bad choosing, it was that nothing ever asked
-	// blue to choose again after epoch 0.
+	// The revisit duty, made visible: an inquiry still open late in a run is one nobody has
+	// decided, and this asks blue to choose again.
 	if stale := record.StaleInquiriesOf(evs, win); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
-			"_Unsettled and not moved this epoch: "+strings.Join(ids, ", ")+". Each owes a move or a",
+			"_Unsettled and no fate recorded this epoch: "+strings.Join(ids, ", ")+". Each owes a fate or a",
 			"REAFFIRMATION — re-recording `underway` with what you learned settles it for this epoch just",
 			"as a fate does; an inquiry declared once and never revisited records an intention, not a",
 			"choice. An approach that ran is `confirmed` or `refuted`; every fate but `proposed` and `underway`",

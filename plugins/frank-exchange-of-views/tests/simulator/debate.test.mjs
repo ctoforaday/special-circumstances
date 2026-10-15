@@ -688,10 +688,10 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
       'the avenue clause must keep the predicted result out of the line')
     assert.ok(!/not only the one you took/.test(lane) && !/considered and declined is what makes/.test(lane) && !/dead ends matter most/.test(lane) && !/you put each approach on it/.test(lane),
       'the avenue clause presses for an entry')
-    // THE AVENUE SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
+    // THE INQUIRY SECTIONS HAVE AN ACTOR, AND IT IS THE TOOL: who composes the three sections, which
     // fate lands under which, and that blue writes none of them.
     assert.ok(/THE TOOL WRITES THE REPORT'S ACCOUNT OF THEM, NOT YOU/.test(lane) && /You write none of those three headings in the report/.test(lane))
-    assert.ok(/Research areas holds each avenue that is proposed, pursued, concluded or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
+    assert.ok(/Research areas holds each inquiry that is proposed, underway, confirmed or refuted, Future research directions each one deferred, and Alternatives considered each one declined or abandoned/.test(lane))
   }
   // THE CARD IS RETIRED, VERB AND CLAUSE (#1126). `show work` and the scorecard were the same
   // intent from two designs; work is the one that kept it. Measured 2026-09-22: 36 reads and 36 of

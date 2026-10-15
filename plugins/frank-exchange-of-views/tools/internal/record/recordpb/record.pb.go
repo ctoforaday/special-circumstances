@@ -829,31 +829,25 @@ func (Soundness) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{10}
 }
 
-// AvenueStatus is an avenue's fate. The avenues projection groups BY status, so
-// a value outside the set did not fail — it silently vanished from the section that exists to
-// show the roads not taken.
+// InquiryStatus is an inquiry's fate. The inquiries projection groups BY status, so a value outside
+// the set would not fail — it would silently vanish from the section that exists to show the roads
+// not taken.
 type InquiryStatus int32
 
 const (
 	InquiryStatus_INQUIRY_STATUS_UNSPECIFIED InquiryStatus = 0
 	InquiryStatus_INQUIRY_STATUS_PROPOSED    InquiryStatus = 1
 	InquiryStatus_INQUIRY_STATUS_UNDERWAY    InquiryStatus = 2
-	// CONCLUDED IS THE END OF A LINE THAT WORKED. Without it a line could only close by dying: on
-	// universe-m13 blue moved four confirmed hypotheses to `abandoned`, "the hypothesis was satisfied,
-	// not that they failed", and the report listed every successful line as a dead end.
+	// CONFIRMED IS THE END OF AN INQUIRY THAT WORKED: an approach that ran and answered yes ships as
+	// an answer, not as a dead end.
 	InquiryStatus_INQUIRY_STATUS_CONFIRMED InquiryStatus = 6
-	// REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. A refutation had no fate of its own: on
-	// universe-m22 a lane marked a refuted hypothesis `abandoned`, the logic lens read the same line
-	// as `concluded`, and the gap between the two words held the gate. It is an answer, so it ships
-	// beside the concluded lines; `abandoned` is left for the line that produced none.
+	// REFUTED IS AN APPROACH THAT RAN AND ANSWERED NO. It is an answer, so it ships beside the
+	// confirmed inquiries; `abandoned` is left for the inquiry that produced none.
 	InquiryStatus_INQUIRY_STATUS_REFUTED  InquiryStatus = 7
 	InquiryStatus_INQUIRY_STATUS_DEFERRED InquiryStatus = 3 // a deferral with no stated reason is indistinguishable from forgetting, and this status exists to be read by a run that has not happened yet
-	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not:
-	// on universe-m21 a lane ran a check, then proposed the approach and declined it with the
-	// check's result as the reason, and the report printed it as rejected beside the section that
-	// carries it. The record holds no link from a proof or a section to an avenue, so no write can
-	// tell a declined line that was run from one that was not; the fate's own meaning is where the
-	// seat is told.
+	// DECLINED IS AN APPROACH NOBODY RAN, and the meaning says so because the word alone does not. The
+	// record holds no link from a proof or a section to an inquiry, so no write can tell a declined
+	// inquiry that was run from one that was not; the fate's own meaning is where the seat is told.
 	InquiryStatus_INQUIRY_STATUS_DECLINED  InquiryStatus = 4
 	InquiryStatus_INQUIRY_STATUS_ABANDONED InquiryStatus = 5 // what stopped it is the part a future run needs: it stops a later run re-walking it
 )
@@ -7672,16 +7666,16 @@ const file_record_proto_rawDesc = "" +
 	"\x05_note\"=\n" +
 	"\rInquiryReview\x12!\n" +
 	"\x06reason\x18\x01 \x01(\tB\x04\xc0\xb5\x18\x01H\x00R\x06reason\x88\x01\x01B\t\n" +
-	"\a_reason\"\xb4\x04\n" +
+	"\a_reason\"\xc0\x04\n" +
 	"\aInquiry\x12\"\n" +
 	"\n" +
-	"inquiry_id\x18\x01 \x01(\tH\x00R\tinquiryId\x88\x01\x01\x12\x81\x01\n" +
-	"\bquestion\x18\x02 \x01(\tB`\x82\xb5\x18X\x12\bquestion\x1aLwhat you are going to try — an unnamed avenue teaches a future run nothing\xc0\xb5\x18\x01H\x01R\bquestion\x88\x01\x01\x12)\n" +
+	"inquiry_id\x18\x01 \x01(\tH\x00R\tinquiryId\x88\x01\x01\x12\x87\x01\n" +
+	"\bquestion\x18\x02 \x01(\tBf\x82\xb5\x18^\x12\bquestion\x1aRthe question this inquiry asks — an unnamed inquiry teaches a future run nothing\xc0\xb5\x18\x01H\x01R\bquestion\x88\x01\x01\x12)\n" +
 	"\n" +
 	"hypothesis\x18\x03 \x01(\tB\x04\xc0\xb5\x18\x01H\x02R\n" +
 	"hypothesis\x88\x01\x01\x12!\n" +
-	"\x06method\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x06method\x88\x01\x01\x12|\n" +
-	"\x06status\x18\x05 \x01(\x0e2\x1d.feov.record.v1.InquiryStatusB@\x82\xb5\x18<\b\x01\x12\x02as\x1a4the line's fate; the avenues projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
+	"\x06method\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x03R\x06method\x88\x01\x01\x12\x81\x01\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x1d.feov.record.v1.InquiryStatusBE\x82\xb5\x18A\b\x01\x12\x02as\x1a9the inquiry's fate; the inquiries projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
 	"\x11supersedes_status\x18\x06 \x01(\tH\x05R\x10supersedesStatus\x88\x01\x01\x12!\n" +
 	"\x06reason\x18\a \x01(\tB\x04\xc0\xb5\x18\x01H\x06R\x06reason\x88\x01\x01B\r\n" +
 	"\v_inquiry_idB\v\n" +
@@ -7945,12 +7939,12 @@ const file_record_proto_rawDesc = "" +
 	"\x1bCORRECTION_TIER_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
 	"\x14CORRECTION_TIER_NONE\x10\x01\x1a\x96\x01\x8a\xb5\x18\x91\x01not correctable: the act creates an identity, decides a fate no restatement may move, or is written by the tool or the harness rather than a seat\x12\x9c\x01\n" +
 	"\x15CORRECTION_TIER_PROSE\x10\x02\x1a\x80\x01\x8a\xb5\x18|only the seat's own wording may change — the fields that declare (prose); every other field must equal the corrected act's\x12Y\n" +
-	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\x94#\n" +
+	"\x14CORRECTION_TIER_FULL\x10\x03\x1a?\x8a\xb5\x18;every field may change except the label the act is keyed on*\xfb\"\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12{\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1ab\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\xb8\xb5\x18\x01\x12<\n" +
-	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1a%\x8a\xb5\x18\x1da marker placed in the report\xb8\xb5\x18\x01\x12\x7f\n" +
-	"\x12EVENT_TYPE_INQUIRY\x10\x03\x1ag\x8a\xb5\x18_an avenue, from proposed through pursued to concluded, refuted, deferred, declined or abandoned\xb8\xb5\x18\x02\x12q\n" +
+	"\x11EVENT_TYPE_ANCHOR\x10\x02\x1a%\x8a\xb5\x18\x1da marker placed in the report\xb8\xb5\x18\x01\x12e\n" +
+	"\x12EVENT_TYPE_INQUIRY\x10\x03\x1aM\x8a\xb5\x18Ean inquiry: its question, its hypothesis and each fate recorded on it\xb8\xb5\x18\x02\x12q\n" +
 	"\x14EVENT_TYPE_BLUE_EDIT\x10\x04\x1aW\x8a\xb5\x18Oa change to the report, recorded as old and new so the edit itself is auditable\xb8\xb5\x18\x01\x12n\n" +
 	"\x12EVENT_TYPE_CERTIFY\x10\x05\x1aV\x8a\xb5\x18Na seat's signed statement about its own work — what it asserts on the record\xb8\xb5\x18\x02\x12v\n" +
 	"\x0fEVENT_TYPE_CITE\x10\x06\x1aa\x8a\xb5\x18Ya source brought into the debate, with the hash and access date that make it re-checkable\xb8\xb5\x18\x02\x12\x83\x01\n" +
@@ -7963,8 +7957,8 @@ const file_record_proto_rawDesc = "" +
 	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb5\x01\x8a\xb5\x18\xac\x01an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing\xb8\xb5\x18\x03\x12h\n" +
 	"\x0fEVENT_TYPE_HALT\x10\x0e\x1aS\x8a\xb5\x18Kthe bench ending the run on a safety, ethics, consent or integrity boundary\xb8\xb5\x18\x02\x12f\n" +
 	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aI\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\xb8\xb5\x18\x03\x12q\n" +
-	"\x0fEVENT_TYPE_MINT\x10\x10\x1a\\\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\xb8\xb5\x18\x01\x12r\n" +
-	"\x11EVENT_TYPE_MOTION\x10\x11\x1a[\x8a\xb5\x18Sa motion filed: a grade contested, a petition to the bench, or a direction proposed\xb8\xb5\x18\x01\x12T\n" +
+	"\x0fEVENT_TYPE_MINT\x10\x10\x1a\\\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\xb8\xb5\x18\x01\x12q\n" +
+	"\x11EVENT_TYPE_MOTION\x10\x11\x1aZ\x8a\xb5\x18Ra motion filed: a grade contested, a petition to the bench, or an inquiry proposed\xb8\xb5\x18\x01\x12T\n" +
 	"\x18EVENT_TYPE_MOTION_APPEAL\x10\x12\x1a6\x8a\xb5\x18.an appeal of a ruling already made on a motion\xb8\xb5\x18\x02\x12[\n" +
 	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a?\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\xb8\xb5\x18\x02\x12V\n" +
 	"\x12EVENT_TYPE_OBSERVE\x10\x14\x1a>\x8a\xb5\x186an observation recorded without a claim attached to it\xb8\xb5\x18\x01\x12j\n" +
@@ -7977,8 +7971,8 @@ const file_record_proto_rawDesc = "" +
 	"\x13EVENT_TYPE_REVISION\x10\x1c\x1a/\x8a\xb5\x18'a revision to a seat's own earlier text\xb8\xb5\x18\x03\x12r\n" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aW\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\xb8\xb5\x18\x03\x12f\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1aN\x8a\xb5\x18Fthe chair's verdict for its epoch: PASS or FAIL against the open board\xb8\xb5\x18\x01\x12|\n" +
-	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1ae\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\xb8\xb5\x18\x01\x12c\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aD\x8a\xb5\x18<a review of the avenues themselves, rather than of a finding\xb8\xb5\x18\x03\x12\x82\x01\n" +
+	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1ae\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\xb8\xb5\x18\x01\x12e\n" +
+	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aF\x8a\xb5\x18>a review of the inquiries themselves, rather than of a finding\xb8\xb5\x18\x03\x12\x82\x01\n" +
 	"\x16EVENT_TYPE_BASE_INGEST\x10!\x1af\x8a\xb5\x18^the report as blue ingested it, stored verbatim as the origin every recorded edit replays over\xb8\xb5\x18\x01\x12\x97\x01\n" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1az\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\xb8\xb5\x18\x01\x12b\n" +
 	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1aD\x8a\xb5\x18<the harness's agent returning — the other end of that span\xb8\xb5\x18\x01\x12\xaa\x01\n" +
@@ -8045,21 +8039,21 @@ const file_record_proto_rawDesc = "" +
 	"\tSoundness\x12\x19\n" +
 	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
 	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12z\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\xf0\f\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1ac\x8a\xb5\x18_it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to*\x86\r\n" +
 	"\rInquiryStatus\x12\x1e\n" +
-	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\x9b\x01\n" +
-	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1a~\x8a\xb5\x18zyou intend to follow this line and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a move\x12\xb7\x01\n" +
-	"\x17INQUIRY_STATUS_UNDERWAY\x10\x02\x1a\x99\x01\x8a\xb5\x18\x94\x01you are following the line — say what you learned in --reason. It stays open: each sitting re-records it with what changed, or moves it to its end\x12\x96\x02\n" +
-	"\x18INQUIRY_STATUS_CONFIRMED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further move. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc3\x02\n" +
-	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further move. A refutation is an answer, and the row prints beside the concluded ones. An approach that gave no answer is `abandoned`, not this\x12n\n" +
+	"\x1aINQUIRY_STATUS_UNSPECIFIED\x10\x00\x12\xa1\x01\n" +
+	"\x17INQUIRY_STATUS_PROPOSED\x10\x01\x1a\x83\x01\x8a\xb5\x18\x7fyou intend to take up this question and have not resolved it; the tool assigns it an id, red may rule on it, and it owes a fate\x12\xc7\x01\n" +
+	"\x17INQUIRY_STATUS_UNDERWAY\x10\x02\x1a\xa9\x01\x8a\xb5\x18\xa4\x01you are working the question and it is still open — say what you learned in --reason. Each sitting re-records it with what changed, or records the fate it reached\x12\x96\x02\n" +
+	"\x18INQUIRY_STATUS_CONFIRMED\x10\x06\x1a\xf7\x01\x8a\xb5\x18\xf2\x01you RAN the approach and the hypothesis HELD — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. An approach that ran and refuted its hypothesis is `refuted`, and one that gave no answer is `abandoned`\x12\xc3\x02\n" +
+	"\x16INQUIRY_STATUS_REFUTED\x10\a\x1a\xa6\x02\x8a\xb5\x18\xa1\x02you RAN the approach and what it found CONTRADICTED the hypothesis — REQUIRES a reason saying what it found, which is in the report; it owes no further fate. A refutation is an answer, and the row prints beside the confirmed ones. An approach that gave no answer is `abandoned`, not this\x12n\n" +
 	"\x17INQUIRY_STATUS_DEFERRED\x10\x03\x1aQ\x8a\xb5\x18Mnot this run. REQUIRES a reason saying what a later run should pick it up FOR\x12\x90\x02\n" +
-	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xf2\x01\x8a\xb5\x18\xed\x01you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `concluded` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
-	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xc3\x04\n" +
+	"\x17INQUIRY_STATUS_DECLINED\x10\x04\x1a\xf2\x01\x8a\xb5\x18\xed\x01you considered it and did NOT run it. REQUIRES a reason. An approach you ran is not this, whatever it found: `confirmed` if the hypothesis held, `refuted` if what it found contradicted it, `abandoned` if it was started and no answer came\x12\x84\x02\n" +
+	"\x18INQUIRY_STATUS_ABANDONED\x10\x05\x1a\xe5\x01\x8a\xb5\x18\xe0\x01you STARTED it and NO ANSWER CAME — the method broke, the data was unavailable, or the question was given up. REQUIRES a reason saying what stopped it. An approach that ran and refuted its hypothesis is `refuted`, not this*\xc5\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05chair\x12\x89\x01\n" +
-	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x8c\x01\n" +
-	"\x16MOTION_SUBJECT_INQUIRY\x10\x03\x1ap\x8a\xb5\x18ca ruling on an avenue blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
+	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x8e\x01\n" +
+	"\x16MOTION_SUBJECT_INQUIRY\x10\x03\x1ar\x8a\xb5\x18ea ruling on an inquiry blue proposed; the id is the INQUIRY's own, because the proposal IS the filing\xa2\xb5\x18\x05chair\x12\xa3\x01\n" +
 	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\xad\x03\n" +
 	"\vGradeRuling\x12\x1c\n" +
 	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x12\xce\x01\n" +
@@ -8073,11 +8067,11 @@ const file_record_proto_rawDesc = "" +
 	"\x1aINQUIRY_RULING_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x17INQUIRY_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12K\n" +
 	"\x1bINQUIRY_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12a\n" +
-	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xde\x04\n" +
+	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1aD\x8a\xb5\x18@in scope, and the hypothesis does not carry its budget as stated*\xe0\x04\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x8c\x02\n" +
-	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\xf3\x01\x8a\xb5\x18\xee\x01an avenue, by its id: an objection to the avenue as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor\x12v\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\x8e\x02\n" +
+	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\xf5\x01\x8a\xb5\x18\xf0\x01an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor\x12v\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1ab\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
 	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +
