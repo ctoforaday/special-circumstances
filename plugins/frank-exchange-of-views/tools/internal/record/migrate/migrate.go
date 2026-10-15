@@ -88,16 +88,15 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 	var src Source
 	var unclassified []string
 	var discarded []DiscardedSitting
-	// The source's scratch copy lives outside the build, so the published run holds exactly the
-	// file set the migration writes. On a tmpfs temporary directory that copy is held in memory;
-	// an archived record is megabytes.
+	// The source's scratch copy lives INSIDE the build, and is removed before the publish. Inside,
+	// so that a killed migration leaves exactly one thing behind — the build directory the help
+	// tells the operator to delete — and not a copy of the source record somewhere else nobody is
+	// told about (a system temp directory did that). Removed before the publish, so the published
+	// run holds exactly the file set the migration writes.
 	release := func() {}
 	defer func() { release() }()
 	if _, serr := os.Stat(filepath.Join(fromDir, "records", dbSiblings[0])); serr == nil {
-		scratch, err := os.MkdirTemp("", "feov-migrate-src-")
-		if err != nil {
-			return nil, err
-		}
+		scratch := filepath.Join(toDir, ".migrate-src")
 		release = func() { os.RemoveAll(scratch) }
 		sq, err := OpenSQLite(filepath.Join(fromDir, "records"), scratch)
 		if err != nil {

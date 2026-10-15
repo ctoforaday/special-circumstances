@@ -223,6 +223,36 @@ func TestThePublishSyncsEveryFileBeforeTheRename(t *testing.T) {
 	if len(m.Warnings) != 0 {
 		t.Errorf("the real seams warned on a local filesystem: %q", m.Warnings)
 	}
+}
+
+// The source's scratch copy is made inside the build (a SQLite source has one; the archive above is
+// from the shard era and has none) and is gone before the publish: the published run holds exactly
+// what the migration writes, and nothing of the source is left anywhere else.
+func TestTheSourcesScratchCopyIsNotPublished(t *testing.T) {
+	src := tinySource(t, false)
+	to := filepath.Join(recordtest.TmpRun(t), "out")
+	recordSeams(t)
+	sawCopy := false
+	inner := syncFile
+	syncFile = func(path string) error {
+		if strings.Contains(path, ".migrate-src") {
+			sawCopy = true
+		}
+		return inner(path)
+	}
+	inner2 := renameDir
+	renameDir = func(from, dst string) error {
+		if _, err := os.Stat(filepath.Join(from, ".migrate-src")); err == nil {
+			t.Error("the source's scratch copy is still in the build when it is published")
+		}
+		return inner2(from, dst)
+	}
+	if _, err := Migrate(src, to, Entries(), Options{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if sawCopy {
+		t.Error("the source's scratch copy was synced as part of the run")
+	}
 	if strings.Contains(listingString(t, to), ".migrate-src") {
 		t.Error("the source's scratch copy is in the published run")
 	}
