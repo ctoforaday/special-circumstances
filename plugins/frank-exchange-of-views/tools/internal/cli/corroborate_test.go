@@ -95,6 +95,107 @@ func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 	}
 }
 
+// THE QUOTE IS THE REPORT'S SENTENCE UNDER EVERY OUTCOME, ON BOTH VERBS.
+//
+// A source that contradicts a claim, or is silent on it, leaves a PASS blocker whose subject is
+// the quote, and the finding that clears it must quote the report: a quote of the SOURCE's words
+// would leave a blocker nothing can clear. Each verb under each outcome is refused, and the
+// refusals leave nothing on the record.
+func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
+	const sourceWords = "91 is not a prime number. It is a composite number."
+	verifies := func(t *testing.T, runDir string) int {
+		t.Helper()
+		b, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return record.EvidenceJSONOf(b.Events, b.At).Counts.Verifications
+	}
+	var outcomes []string
+	for n := range recordpb.SourceOutcome_name {
+		if o := recordpb.SourceOutcome(n); o != recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
+			outcomes = append(outcomes, recordpb.Word(o))
+		}
+	}
+	if len(outcomes) != 6 {
+		t.Fatalf("the outcome enum holds %d words, want six: %v", len(outcomes), outcomes)
+	}
+	for _, as := range outcomes {
+		t.Run(as, func(t *testing.T) {
+			runDir := corroborateRun(t)
+			// The citation `verify` adjudicates: a corroboration that backs a sentence places one.
+			if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+				"--url", "https://example.org/placed", "--title", "T", "--quote", corroborated,
+				"--as", "supports", "--confidence", "high", "--reason", "read it at the leaf"); err != nil {
+				t.Fatal(err)
+			}
+			_, tok := anchoredLine(t, runDir)
+			anchor := strings.TrimSuffix(strings.TrimPrefix(tok, "<!--cite:"), "-->")
+			if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
+				t.Fatal(err)
+			}
+			before := verifies(t, runDir)
+			for _, verb := range [][]string{
+				{"corroborate", "--url", "https://example.org/says-otherwise", "--title", "T"},
+				{"verify", "--anchor", anchor},
+			} {
+				_, err := run(t, append(append(verb, "--run", runDir, "--seat-id", "red-lens-evidence"),
+					"--quote", sourceWords, "--as", as, "--confidence", "high", "--reason", "r")...)
+				if err == nil {
+					t.Fatalf("%s --as %s recorded a quote the report does not hold", verb[0], as)
+				}
+				for _, want := range []string{"--quote", "REPORT's sentence", "contradicts", "says nothing about", "--reason", "show report"} {
+					if !strings.Contains(err.Error(), want) {
+						t.Errorf("%s --as %s: the refusal does not say %q: %v", verb[0], as, want, err)
+					}
+				}
+				// Report text that occurs twice names no one sentence, and the refusal says how to
+				// make it name one.
+				_, err = run(t, append(append(verb, "--run", runDir, "--seat-id", "red-lens-evidence"),
+					"--quote", "finding", "--as", as, "--confidence", "high", "--reason", "r")...)
+				if err == nil || !strings.Contains(err.Error(), "more than once") {
+					t.Errorf("%s --as %s: a quote the report holds twice was not refused as occurring more than once: %v", verb[0], as, err)
+				}
+			}
+			if got := verifies(t, runDir); got != before {
+				t.Errorf("the refusals left %d verification(s) on the record, want none", got-before)
+			}
+		})
+	}
+}
+
+// A REFUTING CORROBORATION IS CLEARED BY THE FINDING ITS READER FILES, through the verbs: the
+// quote the corroboration was held to is one a finding can place.
+func TestARefutingCorroborationIsClearedByAFindingAtItsQuote(t *testing.T) {
+	runDir := corroborateRun(t)
+	contradictions := func() []string {
+		t.Helper()
+		b, err := record.FamilyOf(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+	}
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
+		"--quote", "the finding prose lands in a quoted sentence.", "--as", "refutes", "--confidence", "high",
+		"--reason", "the source says the opposite at page 9"); err != nil {
+		t.Fatal(err)
+	}
+	if got := contradictions(); len(got) != 1 {
+		t.Fatalf("unanswered contradictions = %v, want the one just recorded", got)
+	}
+	// The finding quotes the whole sentence, as `show report` prints it; the claim is a clause of it.
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "k1",
+		"--quote", corroborated, "--reason", "the source says the opposite at page 9",
+		"--severity", "high", "--likelihood", "high", "--impact", "medium"); err != nil {
+		t.Fatal(err)
+	}
+	if got := contradictions(); len(got) != 0 {
+		t.Errorf("unanswered contradictions = %v after a finding at the sentence, want none", got)
+	}
+}
+
 // THE QUOTE MUST BE IN THE LIVE REPORT, so a corroboration of a claim blue has since edited
 // away is refused rather than spliced blind — the same rule blue's own cite is held to.
 func TestACorroborationOfAnAbsentClaimIsRefused(t *testing.T) {
