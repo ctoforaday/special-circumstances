@@ -219,6 +219,11 @@ var errNoRenderer = fmt.Errorf("this binary registers no report renderer (intern
 // (internal/reportproj) imports this package, so the write path is handed it instead. It asks the
 // record nothing, so a reader holding a read transaction takes the rows on it and replays after the
 // transaction closes.
+//
+// IT IS A LEFT FOLD OF THE OPS OVER THE BASE: replaying B over the text A replayed to is replaying A
+// then B over the base. The write path folds the ops another write added onto a render it made before
+// its lock (landingReport.fold) and reads the result as the report; TestTheReportReplayIsAFold
+// (internal/record/migrate) holds the renderer to it on archived runs.
 var reportRenderer func(base string, haveBase bool, ops []ReportOp) (string, error)
 
 // RegisterReportRenderer hands the write path the renderer the report-sized budgets read.

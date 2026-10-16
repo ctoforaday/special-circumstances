@@ -17,7 +17,9 @@ import (
 // in another process lands its act. The test opens db on the run's record outside the cache
 // (recordsql.OpenSeparate), as only a test may. The acts land once, at the first write to begin. A
 // verb that checks the record before its write's transaction has already checked by then, and admits
-// the write over them; a check made inside the transaction (record.Guard) reads them.
+// the write over them; a check made inside the transaction (record.Guard) reads them. A write whose
+// guards read the report (record.CheckOnReport) has rendered it before the lock by then, so acts that
+// move the report make that render stale, and the guard is handed the report rendered under the lock.
 //
 // Each act is stamped as its write path would stamp it. A mint carries the class material that path
 // would give it.

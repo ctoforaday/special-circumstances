@@ -48,8 +48,17 @@ func reportVersionAt(q recordsql.Querier) (reportVersion, error) {
 // 3,100, so seven lenses writing at once queue for seconds against the busy budget past which a
 // write fails. Made before the lock, it is checked under the lock with one query: the version it was
 // rendered at against the version the write lands on. Equal, the render is the landing report's, by
-// what the version covers. Moved, which is the race, the report is rendered again inside, and the
-// check reads the report it lands on all the same.
+// what the version covers.
+//
+// MOVED IS THE COMMON CASE UNDER LOAD, NOT THE RARE ONE. Every placing act writes an anchor, and an
+// anchor is a report op, so of seven lenses filing findings at once, the six that wait for the lock
+// all find the version moved: measured, six of seven, every round. Rendering again from the base,
+// each holds the lock as long as it did before (#1394), and the queue is as long. So the ops the other
+// writes added are folded onto the render made before the lock: the replay is a left fold of the ops
+// over the base (RegisterReportRenderer), and the ops added since are exactly the rows above the
+// version's newest id, where the count says no other row moved. A fold that cannot be made — the
+// base moved, the count disagrees, a mutation does not apply — renders again from the base, so the
+// report and any failure to replay it are the full render's own.
 type landingReport struct {
 	// declared is whether the write said it reads the report (CheckOnReport, or a validation that
 	// reads it), and so made a render before the lock. A write that did not declare it and reads it
@@ -59,9 +68,9 @@ type landingReport struct {
 	at       reportVersion
 	text     string
 	err      error
-	// renderedInside counts the renders made under the lock, for the tests that hold the reuse to
-	// its version.
-	renderedInside int
+	// foldedInside and renderedInside count what the write did under the lock — folded the ops added
+	// since onto its render, or rendered from the base — for the tests that hold each to its case.
+	foldedInside, renderedInside int
 }
 
 // renderBefore renders run's report before the write takes the lock, from one read snapshot, so
@@ -104,10 +113,31 @@ func (r *landingReport) report(q recordsql.Querier) (string, error) {
 	if r.have && r.at == v {
 		return r.text, r.err
 	}
+	if text, ok := r.fold(q, v); ok {
+		r.text, r.at = text, v
+		r.foldedInside++
+		return r.text, nil
+	}
 	r.text, r.err = RenderAt(q)
 	r.at, r.have = v, true
 	r.renderedInside++
 	return r.text, r.err
+}
+
+// fold is the report at version v: the ops added since r's render, replayed over it. ok is false where
+// the fold is not the render — r holds no render that replayed, the base moved, or a row other than
+// the ones added since moved (the count of all rows is not the count before plus those) — or where a
+// mutation does not apply, so that the full render states the failure in its own words.
+func (r *landingReport) fold(q recordsql.Querier, v reportVersion) (string, bool) {
+	if !r.have || r.err != nil || v.bases != r.at.bases || v.lastBase != r.at.lastBase || v.lastOp <= r.at.lastOp {
+		return "", false
+	}
+	ops, err := reportOpsAfter(q, r.at.lastOp)
+	if err != nil || int64(len(ops)) != v.ops-r.at.ops || reportRenderer == nil {
+		return "", false
+	}
+	text, err := reportRenderer(r.text, true, ops)
+	return text, err == nil
 }
 
 // report is the report this write lands on. A write with no landingReport is a batch's — a
