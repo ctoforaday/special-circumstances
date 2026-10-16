@@ -117,14 +117,14 @@ func TestBenchDispositionsLeaveBothCounts(t *testing.T) {
 }
 
 // THE ORDERING THAT SEPARATES THE PREDICATE FROM THE FLAG, and the whole reason this does not
-// read ClosedByBench. Blue closes with a full anchor triple; the bench afterwards rules on the
-// same gap. ClosedByBench is TRUE there — it follows the last closing event — while the closure
-// on the board is blue's, anchored. Keyed on the flag this gap vanishes from both counts and a
+// read a closer flag. Blue closes with a full anchor triple; the bench afterwards rules on the
+// same gap. BenchClosedLast is TRUE there — the bench's word stands — while the closure on the
+// board is blue's, anchored. Keyed on the flag this gap vanishes from both counts and a
 // genuinely anchored repair goes unmeasured.
 func TestABlueCloseTheBenchLaterRuledOnStaysCounted(t *testing.T) {
 	g := closedGap(&recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")})
 	g.BenchClosure = &recordpb.DocketRuling{}
-	g.ClosedByBench = true // the LAST closer was the bench; the closure is still blue's
+	g.BenchClosedLast = true // the bench ruled last; the closure is still blue's
 
 	a, total := ComputeAnchoredClosures((boardOf(map[string]*record.Gap{"G1": g}, "G1")))
 	if a != 1 || total != 1 {

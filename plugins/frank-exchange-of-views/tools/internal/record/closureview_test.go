@@ -69,17 +69,29 @@ func docketRuling(motion string, word recordpb.Disposition) *recordpb.MotionRule
 // ruled is the pair a bench disposition is: the chair dockets G1, the bench sits and rules it word.
 func (s *closureStage) ruled(word recordpb.Disposition) *Event {
 	s.t.Helper()
+	return s.rule(s.docketed(), word)
+}
+
+// docketed is the chair putting G1 before the bench, and rule the bench sitting to rule that motion
+// — apart, for the record where the gap closes between the two.
+func (s *closureStage) docketed() string {
+	s.t.Helper()
 	s.motions++
 	id := "M" + string(rune('0'+s.motions))
 	mustAppend(s.t, s.chair, docketMotion(id, "G1"))
+	return id
+}
+
+func (s *closureStage) rule(motion string, word recordpb.Disposition) *Event {
+	s.t.Helper()
 	s.bench = sit(s.t, s.run, "judge")
-	return mustAppend(s.t, s.bench, docketRuling(id, word))
+	return mustAppend(s.t, s.bench, docketRuling(motion, word))
 }
 
 // closureWant is what every reader must say of G1.
 type closureWant struct {
 	open          bool
-	byBench       bool
+	byBench       bool // the act that ended G1 is the bench's
 	epoch         int
 	fate          string // the last closer's word
 	bodyClass     string // the embedded board body's closure_class, as the body spells it ("" when the body is the bench's)
@@ -91,9 +103,10 @@ type closureWant struct {
 	closureAbsent bool
 }
 
-// A GAP'S CLOSURE IS ITS LAST STANDING CLOSING ACT, on each arm, and whichever arm acted last is the
-// one that closed it. The board, the family and the work list each say so of the same record: a
-// carried or re-ruled gap reads its carry or its second ruling.
+// A GAP'S CLOSURE IS ITS LAST STANDING CLOSING ACT, on each arm: whichever arm acted last gives the
+// word and the epoch, and the arm whose act came FIRST is the one that closed it. The board, the
+// family and the work list each say so of the same record: a carried or re-ruled gap reads its
+// carry or its second ruling, and a gap its lens closed before the bench ruled is the lens's.
 func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 	const (
 		repaired   = recordpb.Disposition_DISPOSITION_REPAIRED
@@ -110,7 +123,16 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		{"a: red closes, the bench rules it closed in a later sitting", func(s *closureStage) {
 			s.close(repaired, "red's close")
 			s.epoch().ruled(notADefect)
-		}, closureWant{byBench: true, epoch: 2, fate: "not_a_defect", bodyClass: "DISPOSITION_REPAIRED", benchDispo: "not_a_defect",
+		}, closureWant{epoch: 2, fate: "not_a_defect", bodyClass: "DISPOSITION_REPAIRED", benchDispo: "not_a_defect",
+			closureProse: "red's close", estopped: true}},
+		// universe-m25 G-e205e589: the chair dockets the gap at its exchange limit (ev391), the lens
+		// closes it repaired (ev440), and the bench rules the docket repaired (ev488) to clear the
+		// PASS. The lens closed it; the ruling's word stands and bars re-raising it.
+		{"f: the lens closes a gap a docket motion stands on, and the bench rules the motion after", func(s *closureStage) {
+			m := s.docketed()
+			s.close(repaired, "red's close")
+			s.rule(m, repaired)
+		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "DISPOSITION_REPAIRED", benchDispo: "repaired",
 			closureProse: "red's close", estopped: true}},
 		{"b: the bench remands", func(s *closureStage) {
 			s.ruled(remanded)
@@ -219,14 +241,15 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			case w.estopped && (len(wj.Estopped) != 1 || wj.Estopped[0].ID != "G1" || wj.Estopped[0].Fate != w.fate):
 				t.Errorf("work: estopped = %+v, want G1 with fate %q", wj.Estopped, w.fate)
 			case !w.estopped && len(wj.Estopped) != 0:
-				t.Errorf("work: estopped = %+v, want none — the bench's is not the act that closed G1", wj.Estopped)
+				t.Errorf("work: estopped = %+v, want none — the bench's is not G1's last closing act", wj.Estopped)
 			}
 		})
 	}
 }
 
 // THE BOARD BESIDE ITS CLOSURES, on one record: a gap closed by BOTH arms (attribution follows the
-// LAST closing act while the embedded body prefers the red close), a non-closing docket ruling that
+// act that ended it, the epoch the LAST closing act, and the embedded body prefers the red close), a
+// non-closing docket ruling that
 // must close nothing, regrade overlays, credited and uncredited findings, and the verify/cite count
 // split.
 func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
@@ -325,11 +348,12 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	for _, g := range append(append([]GapJSON{}, bj.Open...), bj.Closed...) {
 		byID[g.ID] = g
 	}
-	// G3: closed by red (r1), then ruled by the bench (r2). Attribution follows the bench;
-	// the embedded body stays red's close (its prose proves which body rendered).
+	// G3: closed by red (r1), then ruled by the bench (r2). Red's close ended it, so attribution is
+	// red's; the epoch is the bench's later ruling, and the embedded body stays red's close (its
+	// prose proves which body rendered).
 	g3 := byID["G3"]
-	if g3.Open || !g3.ClosedByBench || g3.ClosedEpoch != 2 {
-		t.Errorf("G3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedEpoch)
+	if g3.Open || g3.ClosedByBench || g3.ClosedEpoch != 2 {
+		t.Errorf("G3 attribution = open=%v bench=%v round=%d, want closed/red/2", g3.Open, g3.ClosedByBench, g3.ClosedEpoch)
 	}
 	if g3.Closure == nil || g3.Closure["prose"] != "verified at the leaf" {
 		t.Errorf("G3 embedded closure = %v, want red's close body (red's close is preferred)", g3.Closure)
@@ -345,7 +369,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 		t.Error("a carried ruling closed G2 — the vocabulary's own facet says it must not")
 	}
 	// G1 (computation, unproved) and G2 (carried) stay open; G3 closed by both arms.
-	if bj.Counts.Open != 2 || bj.Counts.Closed != 1 || bj.Counts.ClosedByBench != 1 {
+	if bj.Counts.Open != 2 || bj.Counts.Closed != 1 || bj.Counts.ClosedByBench != 0 {
 		t.Errorf("counts = %+v", bj.Counts)
 	}
 	if bj.Counts.Citations != 1 || bj.Counts.CitationsAuthored != 1 {
@@ -382,12 +406,12 @@ func TestAClosingActTheReadDidNotLoadIsLoud(t *testing.T) {
 		{"the red close", absent, sql.NullInt64{}, "names event 4242 as its close_event"},
 		{"the bench's ruling", sql.NullInt64{}, absent, "names event 4242 as its bench_close_event"},
 	} {
-		got, err := closeStateOf("G1", c.close, c.bench, c.bench.Valid, map[int64]*Event{}, WindowIndex{})
+		got, err := closeStateOf("G1", c.close, c.bench, c.bench.Valid, c.bench.Valid, map[int64]*Event{}, WindowIndex{})
 		if got != nil || err == nil || !strings.Contains(err.Error(), "gap G1") || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s the read did not load: closeStateOf = (%v, %v), want an error naming gap G1 and %q", c.name, got, err, c.want)
 		}
 	}
-	if got, err := closeStateOf("G1", sql.NullInt64{}, sql.NullInt64{}, false, nil, WindowIndex{}); got != nil || err != nil {
+	if got, err := closeStateOf("G1", sql.NullInt64{}, sql.NullInt64{}, false, false, nil, WindowIndex{}); got != nil || err != nil {
 		t.Errorf("a gap no act closes: closeStateOf = (%v, %v), want (nil, nil)", got, err)
 	}
 
