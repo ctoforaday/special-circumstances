@@ -425,3 +425,47 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 		t.Errorf("an existing run directory was refused: %v", err)
 	}
 }
+
+// RecordRootSet is the condition under which RecordsDir adopts a root, asked without adopting
+// one: migrate refuses a separated destination on it before it creates anything. It must agree
+// with RecordsDir on every spelling of the variable — a predicate that said "unset" for a
+// whitespace-padded root would let a separated run be built — and it must write nothing.
+func TestRecordRootSetAgreesWithRecordsDir(t *testing.T) {
+	for _, tc := range []struct {
+		name, val string
+		want      bool
+	}{
+		{"unset", "", false},
+		{"blank", "   ", false},
+		{"a root", "elsewhere", true},
+		{"a padded root", "  elsewhere  ", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolate(t)
+			base := recordtest.TmpRun(t)
+			val := tc.val
+			if strings.TrimSpace(val) != "" {
+				val = strings.Replace(val, "elsewhere", filepath.Join(base, "elsewhere"), 1)
+			}
+			t.Setenv(RecordRootEnv, val)
+			run := filepath.Join(base, "run")
+			if err := os.Mkdir(run, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if got := RecordRootSet(); got != tc.want {
+				t.Fatalf("RecordRootSet() = %v with %s=%q, want %v", got, RecordRootEnv, val, tc.want)
+			}
+			if _, err := os.Stat(filepath.Join(run, separatedMarker)); err == nil {
+				t.Fatal("RecordRootSet wrote a marker — the predicate must not adopt the root")
+			}
+			got, err := RecordsDir(run)
+			if err != nil {
+				t.Fatalf("resolve: %v", err)
+			}
+			separated := got != filepath.Join(run, "records")
+			if separated != tc.want {
+				t.Fatalf("RecordsDir separated = %v (%s), RecordRootSet = %v — the two disagree", separated, got, tc.want)
+			}
+		})
+	}
+}

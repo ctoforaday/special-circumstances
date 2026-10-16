@@ -1186,6 +1186,38 @@ func (r *runner) minterOf(gapID string) string {
 // fuzzLensStock is the defects one lens finds in a run: past it, its sittings draw no fresh mint.
 const fuzzLensStock = 2
 
+// findsFresh reports whether a lens sitting now may put a fresh gap on the board: always in a drawn
+// run, and only at the first chair sitting in a run forced to a verdict.
+//
+// A FORCED VERDICT IS REACHED INSIDE THE EPOCH LIMIT BY CONSTRUCTION, NOT BY THE DRAW. Both forced
+// verdicts need a board nobody is ready for, and a fresh material gap readies its exchange, blue's
+// edit moves the head, the moved head readies the lenses, and a lens sitting may mint again — each
+// late mint buys the run another march to the docket. When those mints land is not a function of
+// the seed: the seats of an epoch run on their own goroutines and draw from one shared stream in
+// the order the scheduler runs them (lockedRand says why), and of two near-identical mints the
+// board refuses whichever lands second. MEASURED on one binary and one seed, 48 forced-UNVERIFIED
+// runs: 1 to 7 gaps landed at the first sitting and the run took 2 to 12 chair sittings. The
+// length follows the LAST mint: the seven whose mints all landed at the first sitting ended in 2
+// to 5, and the four that ended CEILING at the limit of twelve last minted at their sixth or
+// eighth. Load widens the spread; it does not cause it.
+//
+// PER-SEAT STREAMS WOULD NOT REMOVE IT. A stream per (seed, seat, sitting) fixes what each seat
+// draws, not what its draw meets: which duplicate the board refuses, which gaps openGaps lists,
+// and whether a lens's stock has landed are the order the writes land in, and the seats contend
+// on one run directory on purpose. A forced run needs a BOUND, and the bound is structural.
+//
+// Minted at the first sitting only — where every lens sits, never having sat — the forced run's
+// gaps all start their march together, and the run ends one march after its first sitting on
+// every interleaving. A drawn run mints at every sitting.
+func (r *runner) findsFresh() bool {
+	if !r.forceUnverified && !r.forceVerified {
+		return true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.chairRegisters <= 1
+}
+
 // landedMints is the mints of seatID that landed in this run.
 func (r *runner) landedMints(seatID string) int {
 	r.mu.Lock()
@@ -1735,7 +1767,11 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		// per lens that refusal is the usual case, and the remainder is
 		// forwarded to a gap the board already holds open — which is what a successor is: a real,
 		// still-open gap, and the record refuses a dead-end forwarding address either way.
-		succ := r.mint(closer)
+		// A forced run past its first sitting forwards only: a successor is a fresh gap (see findsFresh).
+		succ := ""
+		if r.findsFresh() {
+			succ = r.mint(closer)
+		}
 		if succ == "" {
 			for _, other := range r.openGaps() {
 				if other != id {
@@ -2544,7 +2580,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// run with them. A stock of two per lens over the floor of one still drives both sides
 			// of the budget: the second mint is refused while the first is open, and lands once it
 			// has closed.
-			if r.landedMints(seatID) >= fuzzLensStock {
+			if r.landedMints(seatID) >= fuzzLensStock || !r.findsFresh() {
 				break
 			}
 			r.maybe(40, func() {
@@ -2554,7 +2590,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		if r.forceEstoppel {
 			r.mintEstopped(seatID)
-		} else {
+		} else if r.findsFresh() {
 			r.maybe(35, func() { r.mintEstopped(seatID) })
 		}
 		fallthrough
