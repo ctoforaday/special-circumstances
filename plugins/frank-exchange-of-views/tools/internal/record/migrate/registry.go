@@ -7,17 +7,16 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // Entry is one authored translation. Exactly one of Translate / Loss is set.
 type Entry struct {
 	// Translate builds the new bodies for one old event, in append order — usually one, two
-	// for a concept that split (opinion → docket motion + ruling). dst is the DESTINATION
-	// run, holding only already-replayed events, for a translation that must ask what the
-	// migrated record holds so far — never for reading the old record.
-	Translate func(old OldEvent, dst record.Run) ([]proto.Message, error)
+	// for a concept that split (opinion → docket motion + ruling). It is a function of the old
+	// event alone: it runs while replay's batch holds the destination record, which it has no
+	// way to read.
+	Translate func(old OldEvent) ([]proto.Message, error)
 	// Loss marks the word untranslatable, and says why. A loss fails the migration unless
 	// the operator accepts it BY WORD (--accept-loss), and an accepted loss is recorded in
 	// the manifest: acknowledged loss is visible loss.
@@ -33,12 +32,12 @@ type Registry map[string]Entry
 
 // Translate resolves one old event: the word's entry if one exists, the identity default
 // otherwise.
-func (r Registry) Translate(old OldEvent, dst record.Run) ([]proto.Message, error) {
+func (r Registry) Translate(old OldEvent) ([]proto.Message, error) {
 	if e, ok := r[old.Word]; ok {
 		if e.Loss != "" {
 			return nil, LossError{Word: old.Word, Reason: e.Loss}
 		}
-		return e.Translate(old, dst)
+		return e.Translate(old)
 	}
 	body, err := identityBody(old)
 	if err != nil {

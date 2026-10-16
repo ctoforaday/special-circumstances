@@ -275,13 +275,13 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 			stored[fmt.Sprintf("%x", sha256.Sum256(body))] = true
 		}
 		for _, old := range evs { // the table is filled first, as Replay fills it
-			bodies, _ := reg.Translate(old, record.Run{})
+			bodies, _ := reg.Translate(old)
 			for _, body := range bodies {
 				rm.apply(body, old.Fields["label"])
 			}
 		}
 		for _, old := range evs {
-			bodies, err := reg.Translate(old, record.Run{})
+			bodies, err := reg.Translate(old)
 			if err != nil {
 				continue // a refused or lost word translates to nothing the remap could change
 			}
