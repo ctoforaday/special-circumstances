@@ -1,7 +1,6 @@
 package migrate
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -97,7 +96,8 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 }
 
 // replay writes src's events through batch, which its caller began on dst, holds and commits, with
-// record.Migrating set; it pins record.Now per event and leaves restoring it to the caller. With
+// record.Migrating set; it pins record.Now per event and restores it on return, so each pass — the
+// reorder trial and the replay as written after it — starts from the clock its caller had. With
 // inOrder set, the report's base is written in the order its text ships in (order.go).
 //
 // dst IS AN ADDRESS, NEVER A HANDLE. While the batch is open, the batch's transaction holds the
@@ -106,8 +106,11 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 // destination goes through batch.Querier().
 //
 // An act the write refuses is a Refusal, and the replay goes on. A failure of the batch itself
-// (record.ErrBatchFailed) ends it: it is returned, and nothing the batch wrote can be kept.
+// (record.ErrBatchFailed) is asked of the batch once, at the end — whichever append it landed on —
+// and returned: nothing the batch wrote can be kept.
 func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt Options, inOrder bool) (*Result, error) {
+	was := record.Now
+	defer func() { record.Now = was }()
 	evs, err := src.Events()
 	if err != nil {
 		return nil, err
@@ -258,9 +261,6 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				continue
 			}
 			ev, err := batch.Append(id, body)
-			if errors.Is(err, record.ErrBatchFailed) {
-				return nil, err
-			}
 			if err != nil {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				continue
@@ -268,9 +268,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			res.Out[wordOf(ev)]++
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
-				if _, err := batch.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); errors.Is(err, record.ErrBatchFailed) {
-					return nil, err
-				} else if err != nil {
+				if _, err := batch.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
 					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
@@ -284,6 +282,11 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				res.Out[correctionWord]++
 			}
 		}
+	}
+	// THE BATCH'S FAILURE IS ASKED ONCE, HERE. After a savepoint fails, every later append answers
+	// the same failure and each was recorded above as a refusal; none of it may stand.
+	if err := batch.Err(); err != nil {
+		return nil, err
 	}
 	res.IDs, res.GapAnchors = rm.ids, place.census
 	return res, nil

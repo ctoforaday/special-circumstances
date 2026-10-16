@@ -132,6 +132,11 @@ func (b *Batch) savepoint(stmt string) error {
 // the batch has written, and they are the only reads that do not wait on it.
 func (b *Batch) Querier() recordsql.Querier { return b.tx }
 
+// Err is the batch's failure, if it has one: nil while every act's savepoint has held. A caller
+// that records refused acts and carries on asks it at the end, so a failure that landed on any one
+// act — whichever site wrote it — ends the replay rather than reading as a refusal.
+func (b *Batch) Err() error { return b.err }
+
 // Commit commits every act the batch wrote. A failed batch does not commit: its error is returned and
 // the transaction rolled back.
 func (b *Batch) Commit() error {

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -278,7 +279,9 @@ func TestAFailedTrialBatchFailsTheMigration(t *testing.T) {
 	t.Cleanup(func() { record.SavepointTestHook = nil })
 	record.SavepointTestHook = func(stmt string) error {
 		if strings.HasPrefix(stmt, "SAVEPOINT") {
-			if savepoints++; savepoints == 3 {
+			// The fifth act lands after the report's base: the trial has a base to reorder, so a
+			// failure here is the case where replaying as written would otherwise be tried.
+			if savepoints++; savepoints == 5 {
 				return errors.New("disk I/O error")
 			}
 		}
@@ -293,5 +296,23 @@ func TestAFailedTrialBatchFailsTheMigration(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(to, "inputs", migrate.ManifestName)); !os.IsNotExist(err) {
 		t.Errorf("a migration whose trial batch failed published a manifest at --to (%v)", err)
+	}
+}
+
+// A migration hands back the clock it was given: every pass pins record.Now to its events, and
+// none of those stamps may outlive it. (That each pass also STARTS from the caller's clock is held
+// by replay's own restore; it shows only for a source whose first stamp does not parse, which no
+// fixture has.)
+func TestAMigrationRestoresTheClock(t *testing.T) {
+	from := sourceRun(t, movHead+movOwn+movCat+movOpen, [2]string{"7 divides it", "7 divides it, 13 times"})
+	fixed := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
+	was := record.Now
+	record.Now = func() time.Time { return fixed }
+	t.Cleanup(func() { record.Now = was })
+	if _, err := migrate.Migrate(from, recordtest.TmpRun(t), migrate.Entries(), migrate.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := record.Now(); !got.Equal(fixed) {
+		t.Errorf("after a migration record.Now answers %v, want the caller's %v — a pass left its pinned stamp behind", got, fixed)
 	}
 }

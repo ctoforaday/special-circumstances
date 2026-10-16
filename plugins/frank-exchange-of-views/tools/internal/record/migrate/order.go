@@ -77,12 +77,13 @@ func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Resu
 		if err := batch.Rollback(); err != nil {
 			return nil, fmt.Errorf("discarding the reordered replay: %w", err)
 		}
-		// The trial pinned the clock to its events; the replay as written starts from the clock the
-		// trial did, since the synthesized cast pins it only when the first stamp parses.
-		record.Now = was
-		if batch, err = record.BeginBatch(dst); err != nil {
+		// Begun into its own variable: the deferred rollback above reads batch, and a failed begin must
+		// leave it holding the trial's (already rolled back) batch, never nil.
+		next, err := record.BeginBatch(dst)
+		if err != nil {
 			return nil, err
 		}
+		batch = next
 		if res, err = replay(src, reg, batch, dst, opt, false); err != nil {
 			return nil, err
 		}
