@@ -687,7 +687,7 @@ Flags:
       --cites citation-anchor   the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
       --key string              → SHARED §7
-      --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs
+      --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
       --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). An ABSOLUTE path is read where it lies, so a script drafted in your scratchpad is passed from there; a relative path is read from the run directory. The tool keeps its own copy with the proof, so nothing of yours is written into the run directory
 ========

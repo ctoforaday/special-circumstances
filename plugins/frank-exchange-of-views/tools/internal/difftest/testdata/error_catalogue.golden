@@ -198,8 +198,14 @@ Run `feov-record motion grade file --help` for what it takes, flag by flag.
 
 ── verification outcome outside the set
 exit 2
-feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --quote, --reason.
+feov-record: verify: --as takes one of supports|supports_with_bridge|weak|refutes|absent|unreachable, not "banana". THE NEGATIVE HALF IS THE POINT. A citation that does NOT hold is recorded here — `refutes`, `absent`, `unreachable` — and not left as prose, because the audit that catches a report shipping a refuted citation reads this field and nothing else. This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence
+
+    supports              you read the source and it says what the claim says. Where the run's copy of it is only the work's abstract, the record stamps that beside your verdict: it confirms what the abstract says, not what the study shows
+    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
+    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry
+    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: the source says nothing about the claim, where a refuting source says otherwise
+    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -207,34 +213,34 @@ Run `feov-record verify --help` for what it takes, flag by flag.
 exit 2
 feov-record: verify: requires --anchor
 
-      --anchor <!--cite:C-…-->   REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->   REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
 ── verification with no stated confidence
 exit 2
-feov-record: verify: unknown flag: --independent — not one of this verb's flags, and no verb on this surface takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --quote, --reason.
+feov-record: verify: requires --confidence
+
+      --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
 ── verification of nothing
 exit 2
-feov-record: verify: requires --anchor, --as, --confidence, --quote, --reason
+feov-record: verify: requires --anchor, --as, --confidence, --reason
 
-      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`
+      --anchor <!--cite:C-…-->     REQUIRED — the id of the citation you checked, from the report's <!--cite:C-…--> token — resolve it with `show evidence`. The sentence holding that token is the claim recorded
       --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work
       --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as
-      --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. It is the REPORT's sentence under every --as value, never the source's
       --reason string                REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
 ── verification confidence outside the set
 exit 2
-feov-record: verify: --confidence takes one of high|medium|low, not "banana". CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.
+feov-record: verify: --confidence takes one of high|medium|low, not "banana". CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --as: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.
 
-It is NOT a property of the source and NOT a support scale — how well the source backs the claim is --outcome, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail
+It is NOT a property of the source and NOT a support scale — how well the source backs the claim is --as, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail
 
     high    you read the source at the leaf and would defend this determination as it stands
     medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement

@@ -10,11 +10,11 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
-$ verify --run {RUN} --seat-id red-lens-evidence --quote claim one --title https://example.invalid/a --trust high --access-date 2026-07-18
+$ verify --run {RUN} --seat-id red-lens-evidence --title https://example.invalid/a --trust high --access-date 2026-07-18
 exit 2
 stderr:
 feov-record: verify: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it.
-This verb's flags: --access-date, --anchor, --as, --confidence, --page, --quote, --reason.
+This verb's flags: --access-date, --anchor, --as, --confidence, --page, --reason.
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
@@ -84,7 +84,7 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, no
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --quote: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_LOG"}
+{"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify`: unknown flag: --title — not one of this verb's flags. On this surface `corroborate` takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_LOG"}
 {"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_HIGH","likelihood":"GRADE_MEDIUM","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_REGISTER"}

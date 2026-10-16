@@ -165,7 +165,7 @@ func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 	for _, id := range anchor.IDs(oldSpan) { // in reading order, so a refusal names the first anchor dropped
 		switch want, got := o[id], n[id]; {
 		case got == 0:
-			sent, _ := sentenceAround(oldSpan, anchor.Token(id))
+			sent, _ := SentenceAround(oldSpan, anchor.Token(id))
 			on, near := fmt.Sprintf("on the sentence %q", sent), ""
 			if sent == "" {
 				on = "bare of any sentence"
@@ -280,8 +280,8 @@ func ReopenedAnchors(before, after string) []string {
 	}
 	var out []string
 	for _, id := range claimcount.ProtectedAnchorIDs(before) {
-		b, okB := sentenceAround(before, anchor.Token(id))
-		a, okA := sentenceAround(after, anchor.Token(id))
+		b, okB := SentenceAround(before, anchor.Token(id))
+		a, okA := SentenceAround(after, anchor.Token(id))
 		// An anchor that is GONE from `after` is not reopened — it is dropped, which is a refusal
 		// the caller has already made. Saying both would report one fault as two.
 		if !okB || !okA {
@@ -301,10 +301,11 @@ func ReopenedAnchors(before, after string) []string {
 	return out
 }
 
-// sentenceAround returns the sentence holding tok, as anchor.Sentences splits the document, with
+// SentenceAround returns the sentence holding tok, as anchor.Sentences splits the document, with
 // every anchor token stripped, so a SECOND anchor arriving in the same sentence does not read as
-// the first one's referent changing.
-func sentenceAround(doc, tok string) (string, bool) {
+// the first one's referent changing. It is also the claim `verify` records for a citation, so the
+// sentence a verification read is the one whose change reopens it.
+func SentenceAround(doc, tok string) (string, bool) {
 	a, b := sentenceOf(doc, strings.Index(doc, tok), len(tok))
 	if a < 0 {
 		return "", false

@@ -148,7 +148,8 @@ func newProve() *cobra.Command {
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil
 	}))
 
-	flags.Text(c, flags.Quote, flags.DescQuote)
+	// DescQuoteAlone: this verb's --reason is the proof note the report prints, no place for a section name.
+	flags.Text(c, flags.Quote, flags.DescQuoteAlone)
 	c.Flags().String(flags.Script, "", "path of the program that settles it (.py, .js, .mjs, .sh or .go). An ABSOLUTE path is read where it lies, so a script drafted in your scratchpad is passed from there; a relative path is read from the run directory. The tool keeps its own copy with the proof, so nothing of yours is written into the run directory")
 	seat.Require(c, flags.Quote, flags.Script)
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")

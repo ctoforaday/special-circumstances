@@ -3,6 +3,7 @@ package lens
 import (
 	"errors"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -18,6 +21,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
@@ -90,19 +94,53 @@ var verifyAnchorAdvice = "--anchor names the citation you checked, so it is read
 func newVerify() *cobra.Command {
 	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		body := &recordpb.Verify{Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor)))}
+		claim, err := citedSentence(s, body.GetAnchor())
+		if err != nil {
+			return nil, err
+		}
+		body.Claim = proto.String(claim)
 		if err := checkedPage(s, cmd, body); err != nil {
 			return nil, err
 		}
 		return writeVerify(s, cmd, body, adjudates)
 	}))
 
-	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`")
+	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(verifyAnchorAdvice)), flags.Anchor, "the id of the citation you checked, from the report's `"+anchor.Token("C-…")+"` token — resolve it with `show evidence`. The sentence holding that token is the claim recorded")
 	seat.Require(c, flags.Anchor)
 	// A verification is keyed on the citation it names.
 	seat.KeysOn(c, "anchor")
+	seat.Supplies(c, "claim", "the sentence holding the --anchor token in the report as it stands (citedSentence)")
 	c.Flags().Int(flags.Page, 0, "for a citation with pages: the page whose image you checked, drawn first with render-page")
 	verifyAxes(c)
 	return c
+}
+
+// citedSentence is the claim a verification of citation id records: the sentence holding its anchor
+// in the report as it stands, read the way an edit reads it to reopen the citation
+// (bluedoc.SentenceAround). The lens names the citation and the tool reads the sentence, so a
+// verdict cannot sit on a sentence the citation does not mark. A citation with no such sentence —
+// its anchor out of the report, or bare, or the report unrendered — has no claim to read a source
+// against, and is refused.
+func citedSentence(s seat.Context, id string) (string, error) {
+	run, err := s.Run()
+	if err != nil {
+		return "", err
+	}
+	report, err := reportproj.RenderFromRecord(run)
+	if err != nil {
+		return "", feov.Wrap(feov.Conflict, err, "the report does not render, so the sentence citation %s marks cannot be read, and nothing can be verified until it does: %v. "+
+			"The board's anomalies say why; record that you could not verify it with `log`", id, err)
+	}
+	sentence, ok := bluedoc.SentenceAround(report, anchor.Token(id))
+	switch {
+	case !ok:
+		return "", feov.Errorf(feov.Conflict, "citation %s's anchor is not in the report — blue retired its claim, or the anchor never placed — so the report holds no sentence for it and there is nothing to verify. "+
+			"Verify the citations whose anchors the report carries", id)
+	case slices.Contains(claimcount.BareAnchorIDs(report), id):
+		return "", feov.Errorf(feov.Conflict, "citation %s's anchor stands bare in the report: the sentence it backed was cut, and it backs no prose, so there is nothing to verify. "+
+			"The anchor leaves with blue's retire of its claim", id)
+	}
+	return sentence, nil
 }
 
 // checkedPage holds a verification of a citation with pages to the page image red checked.
@@ -194,11 +232,15 @@ func newCorroborate() *cobra.Command {
 			Independent: proto.Bool(true),
 			Url:         proto.String(seat.Str(cmd, flags.URL)),
 			Title:       proto.String(seat.Str(cmd, flags.Title)),
+			Claim:       proto.String(seat.Location(cmd)),
 		}, cites)
 	}), "verify"))
 
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	flags.Text(c, flags.Title, flags.DescTitle)
+	// The flag names whose sentence the quote is because, beside `refutes`, the sentence that does
+	// the refuting is the source's, and writeVerify refuses it.
+	flags.Text(c, flags.Quote, flags.DescQuote+". It is the REPORT's sentence under every --as value, never the source's")
 	seat.Require(c, flags.URL, flags.Title)
 	verifyAxes(c)
 	// A corroboration is keyed on the source it read — or, when the source backs the claim, on the
@@ -207,20 +249,18 @@ func newCorroborate() *cobra.Command {
 	return c
 }
 
-// verifyAxes are the flags both verbs share: WHAT was checked, what the source DID, how sure red
-// is of that, and when it was read. Registered from one place so the two verbs cannot drift into
-// describing the same four fields differently — which is how this vocabulary got into trouble.
+// verifyAxes are the flags both verbs share: what the source DID, how sure red is of that, and
+// when it was read. Registered from one place so the two verbs cannot drift into describing the
+// same three fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
-	// The flag names whose sentence the quote is because, beside `refutes`, the sentence that does
-	// the refuting is the source's, and writeVerify refuses it.
-	flags.Text(c, flags.Quote, flags.DescQuote+". It is the REPORT's sentence under every --as value, never the source's")
 	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade. Absent is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
 
-// writeVerify records what both verbs agree on. The caller has already put the fact that
-// distinguishes them — an anchor, or the source it read — into the payload.
+// writeVerify records what both verbs agree on. The caller has already put the facts that
+// distinguish them into the payload: an anchor and the sentence it marks, or the source it read and
+// the claim it quoted.
 // citing says whether this verb may turn a supporting read into a FOOTNOTE.
 //
 // `corroborate` may: red found the source, blue never cited it, and a human reader cares that
@@ -264,7 +304,6 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	if err != nil {
 		return nil, err
 	}
-	body.Claim = proto.String(seat.Location(cmd))
 	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
 	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
 	// same defect that made `lens close` write `successor = ''` and fail every closure once the
@@ -353,21 +392,24 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 			if err := seat.PlaceOwed(s, run, prior, ""); err != nil {
 				return nil, err
 			}
-			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true, VoiceTells: tells}, nil
+			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
 		}
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced.
 		body.Label = proto.String(record.NewID("citation"))
 	}
-	// THE QUOTE IS THE REPORT'S SENTENCE, WHATEVER THE SOURCE DID FOR IT. One placement check, for
-	// both verbs and every outcome, against the current render; a refusal records nothing. Where
-	// the source backs the claim, the quote is where the citation's marker stands. Where the source
-	// contradicts the claim or is silent on it, the quote is the subject of a PASS blocker that a
-	// finding quoting that sentence clears (record.unansweredContradictionsBy), and a finding's
-	// quote is held to the report by this same placement — so a quote the report does not hold
-	// would be a blocker no seat can clear.
-	if err := seat.Places(run, body.GetLabel(), body.GetClaim(), claimRefusal); err != nil {
-		return nil, err
+	// A CORROBORATION'S QUOTE IS THE REPORT'S SENTENCE, WHATEVER THE SOURCE DID FOR IT. One
+	// placement check, for every outcome, against the current render; a refusal records nothing.
+	// Where the source backs the claim, the quote is where the citation's marker stands. Where the
+	// source contradicts the claim or is silent on it, the quote is the subject of a PASS blocker
+	// that a finding quoting that sentence clears (record.unansweredContradictionsBy), and a
+	// finding's quote is held to the report by this same placement — so a quote the report does
+	// not hold would be a blocker no seat can clear. A verification's claim needs no check: the
+	// tool read it from the report (citedSentence).
+	if mayCite == cites {
+		if err := seat.Places(run, body.GetLabel(), body.GetClaim(), claimRefusal); err != nil {
+			return nil, err
+		}
 	}
 
 	// WHICH PART OF THE WORK RED'S COPY IS, on every verdict that names a source — a `supports`
@@ -389,6 +431,7 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		Label:      body.GetLabel(),
 		Source:     body.GetTitle(),
 		Outcome:    recordpb.Word(body.GetOutcome()),
+		Claim:      body.GetClaim(),
 		VoiceTells: tells,
 	}, nil
 }
@@ -399,6 +442,9 @@ type verifyResult struct {
 	Idempotent bool   `json:"idempotent,omitempty"`
 	Source     string `json:"source,omitempty"`
 	Outcome    string `json:"outcome"`
+	// Claim is the sentence the verdict sits on: for a verification, the one the tool read off the
+	// anchor, which a finding raising a contradiction quotes whole.
+	Claim string `json:"claim"`
 	// VoiceTells is ADVICE on a labelled corroboration's title, which prints in the source's note and Bibliography entry.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
@@ -412,20 +458,21 @@ func (r verifyResult) human() string {
 	if r.Anchor == "" {
 		subject = "corroborating source " + r.Source
 	}
+	claim := `"` + r.Claim + `"` // unescaped: a finding copies it as printed
 	switch r.Outcome {
 	case "refutes":
-		return subject + " REFUTES the claim — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
+		return subject + " REFUTES the claim " + claim + " — recorded. The report still carries it; that is a finding, and this event is the evidence for it"
 	case "absent":
-		return subject + " does NOT contain the claim — recorded as absent (the source says nothing about it; it does not say otherwise)"
+		return subject + " does NOT contain the claim " + claim + " — recorded as absent (the source says nothing about it; it does not say otherwise)"
 	case "unreachable":
 		return subject + " could not be read — recorded as unreachable, with what you tried"
 	default:
-		return subject + " verified: " + r.Outcome
+		return subject + " verified: " + r.Outcome + ", on the claim " + claim
 	}
 }
 
-// claimRefusal is the refusal `verify` and `corroborate` give for a --quote Attach will not place.
-// One wording for every outcome, so it says what the quote is under each.
+// claimRefusal is the refusal `corroborate` gives for a --quote Attach will not place. One wording
+// for every outcome, so it says what the quote is under each.
 func claimRefusal(err error) error {
 	switch {
 	case errors.Is(err, anchortext.ErrMisQuote):
