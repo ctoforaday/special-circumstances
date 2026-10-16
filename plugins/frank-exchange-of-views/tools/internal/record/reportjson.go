@@ -64,7 +64,7 @@ func reportHeadAt(q recordsql.Querier) (int64, error) {
 func ReportAtHead(run Run) (report string, head int64, err error) {
 	err = readSnapshot(run, func(q recordsql.Querier) error {
 		var rerr error
-		if report, rerr = renderProjection(ReportProjectionAt(q)); rerr != nil {
+		if report, rerr = RenderAt(q); rerr != nil {
 			return rerr
 		}
 		head, rerr = reportHeadAt(q)

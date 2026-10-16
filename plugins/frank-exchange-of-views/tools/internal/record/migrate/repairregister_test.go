@@ -23,7 +23,6 @@ import (
 // silent drop reads identically whether the source was an honest archive or a record claiming a
 // field its epoch could not hold. It is not an epoch-7 row — that is the point of refusing it.
 func TestAnArchivedRegisterOpensASitting(t *testing.T) {
-	dst := runtest.New(t, recordtest.TmpRun(t))
 	entry, ok := migrate.Entries()["register"]
 	if !ok {
 		t.Fatal("no register translation: epoch 8 moved the register's shape and migrate has no step for it")
@@ -36,7 +35,7 @@ func TestAnArchivedRegisterOpensASitting(t *testing.T) {
 			"run_via":      "injected",
 			"agent_type":   "frank-exchange-of-views:blue-researcher",
 		}}
-	bodies, err := entry.Translate(archived, dst)
+	bodies, err := entry.Translate(archived)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +53,7 @@ func TestAnArchivedRegisterOpensASitting(t *testing.T) {
 
 	forged := archived
 	forged.Fields = map[string]any{"agent_id": "a", "repairs_sitting": "blue-respond:register:#3"}
-	switch _, err := entry.Translate(forged, dst); {
+	switch _, err := entry.Translate(forged); {
 	case err == nil:
 		t.Error("a row carrying a column its epoch could not hold was translated rather than refused")
 	case !strings.Contains(err.Error(), "repairs_sitting") || !strings.Contains(err.Error(), "blue-respond:register:#1"):

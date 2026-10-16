@@ -54,7 +54,7 @@ func guardsAt(w writeView, guards []Guard) error {
 // Report is the report as the record the write lands on renders it.
 func (l *Landing) Report() (string, error) {
 	if !l.rendered {
-		l.report, l.reportErr = renderProjection(ReportProjectionAt(l.w.q))
+		l.report, l.reportErr = RenderAt(l.w.q)
 		l.rendered = true
 	}
 	return l.report, l.reportErr

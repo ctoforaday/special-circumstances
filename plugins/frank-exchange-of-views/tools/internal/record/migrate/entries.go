@@ -5,7 +5,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -38,7 +37,7 @@ func Entries() Registry {
 // Every other type passes through by name. A log event is text, type, source and estopped_by; the
 // translation is explicit about all four rather than inheriting the identity path, because a word
 // this entry exists to DROP must not be able to reach that path by another column.
-func logEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+func logEntry(old OldEvent) ([]proto.Message, error) {
 	l := &recordpb.Log{}
 	for col, v := range old.Fields {
 		s, ok := v.(string)
@@ -80,7 +79,7 @@ func logEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // LogType vocabulary kept those words. What the rename ADDED is `source` — the old channel
 // was seat-filed except for the tool's own estoppel refusals, which is exactly the
 // (TOOL, ESTOPPEL) pairing the new model spells out.
-func frictionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+func frictionEntry(old OldEvent) ([]proto.Message, error) {
 	l := &recordpb.Log{Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
 	for col, v := range old.Fields {
 		s, ok := v.(string)
@@ -119,7 +118,7 @@ func frictionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // text came from — no run before epoch 7 recorded it. A guessed `embedded` would tell red an OCR
 // quote needs no page check; NOT_RECORDED says the question was never asked. Filled only where
 // absent, so a cite that carries an origin keeps it.
-func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+func citeEntry(old OldEvent) ([]proto.Message, error) {
 	body, err := identityBody(old)
 	if err != nil {
 		return nil, err
@@ -155,7 +154,7 @@ func citeEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // that reads identically whether the source was an honest epoch-7 run or a record claiming a field
 // its epoch could not hold — and a translation that cannot fail on any real row is a comment. The
 // refusal names what it found, which is how this repository turns away data by its content.
-func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+func registerEntry(old OldEvent) ([]proto.Message, error) {
 	if v, ok := old.Fields["repairs_sitting"]; ok {
 		return nil, fmt.Errorf("register %s carries repairs_sitting (%v), which no run before epoch 8 could record — "+
 			"this row did not come from the epoch this step reads, and translating it would put a repair on the record no writer checked", old.Key, v)
@@ -174,7 +173,7 @@ func registerEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // frictionNoneEntry: the explicit empty form carried "none" as an entry. The type that said so is
 // retired and clean is derived from a bracketed sitting that filed nothing, so the row translates
 // to no event at all — the statement survives, computed rather than stored.
-func frictionNoneEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+func frictionNoneEntry(old OldEvent) ([]proto.Message, error) {
 	for col := range old.Fields {
 		if col != "text" && col != "reason" { // `reason` is the shard era's spelling
 			return nil, fmt.Errorf("old column friction_none.%s has no place on Log — extend the friction_none entry", col)
@@ -187,7 +186,7 @@ func frictionNoneEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 // a docket MOTION naming the gap and a docket RULING carrying the bench's answer. One old
 // event becomes two, both stamped with the opinion's own ts and seat — the bench raised the
 // question and the bench answered it, which is what an opinion was.
-func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
+func opinionEntry(old OldEvent) ([]proto.Message, error) {
 	// UNIQUE BY CONSTRUCTION. The pair is named for the opinion's own event id, which no other
 	// event shares and no motion the archive filed is spelled like; the remap then gives that
 	// name its id in the one shape, as it does every archived id.

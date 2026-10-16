@@ -6,8 +6,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // THE ARCHIVE THAT HOLDS THE OLD WORD. is-7-prime-run2's bench deferred gap R1-1 under the
@@ -60,8 +58,7 @@ func TestAnIdentityRowHoldingTheOldDispositionMigrates(t *testing.T) {
 		Fields: map[string]any{"motion_id": "M1", "subject": "docket", "ruling_case": "docket"},
 		Arms:   map[string]map[string]any{"docket": {"disposition": "carried", "principle": "correctness first"}},
 	}
-	dst := runtest.New(t, recordtest.TmpRun(t))
-	bodies, err := (migrate.Registry{}).Translate(old, dst)
+	bodies, err := (migrate.Registry{}).Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}

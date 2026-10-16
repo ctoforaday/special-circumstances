@@ -20,8 +20,9 @@ import (
 // an identity that carries one outside a migration. An act a seat got wrong is answered by another
 // act (supersede.go).
 //
-// The replayed replacement is the one body of Type written through the identity; Append routes it
-// to appendCorrected, which writes it and a Correction event in one transaction.
+// The replayed replacement is the one body of Type written through the identity; the act's write
+// (appendAct) routes it to appendCorrected, which writes it and a Correction event in the act's
+// transaction.
 type Correct struct {
 	Type recordpb.EventType // the type of the struck act and of its replacement
 	Key  string             // the migrated key of the struck act
@@ -56,8 +57,8 @@ type correctionTarget struct {
 
 // readTarget reads the act `key` names. Absent is an ERROR: a correction of nothing is a seat that
 // mistyped a key, and saying "nothing to correct" would read like success.
-func readTarget(db *sql.DB, key string) (*correctionTarget, error) {
-	ev, id, found, err := recordsql.EventByKey(db, key)
+func readTarget(q recordsql.Querier, key string) (*correctionTarget, error) {
+	ev, id, found, err := recordsql.EventByKey(q, key)
 	if err != nil {
 		return nil, err
 	}
@@ -199,59 +200,39 @@ func proseFlags(md protoreflect.MessageDescriptor) []string {
 	return out
 }
 
-// appendCorrected writes a replacement and its Correction in ONE transaction.
+// appendCorrected writes a replacement and its Correction inside tx, the act's transaction, which
+// its caller holds, commits, and rolls back on a refusal.
 //
 // # What is checked where, and why the order
 //
-// The retry is recognised FIRST, before anything that could have changed since: a crash between a
-// correction's commit and the seat seeing it must re-answer the same, even if another seat has acted
-// in between. Then what cannot change — the target's type, seat, tier and fields — is checked
-// against the target read once. Then, INSIDE the transaction whose BEGIN took the write lock, what
-// can change: the record-level guards, run against the target (a closure's correction names a closed
-// gap by definition), the sitting, whether another seat has acted since (F7), and the chain the
-// replacement's key extends. A check made before the transaction would race a lens writing in
-// parallel.
-func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType, body proto.Message, guards []Guard) (*Event, error) {
+// Every read is asked of tx, whose BEGIN took the write lock, so nothing checked here can change
+// before the write lands. The retry is recognised FIRST: a crash between a correction's commit and
+// the seat seeing it must re-answer the same, even if another seat has acted in between, and two
+// invocations of one correction resolve to one write and one idempotent answer. Then what belongs
+// to the act alone — the target's type, seat, tier and fields — is checked against the target read
+// once. Then what the record around it decides: the record-level guards, run against the target (a
+// closure's correction names a closed gap by definition), the sitting, whether another seat has
+// acted since (F7), and the chain the replacement's key extends. Only migrate reaches this path
+// (Migrating), so holding the write lock for these reads costs no seat anything.
+func appendCorrected(id Identity, tx *sql.Tx, ev *Event, typ recordpb.EventType, body proto.Message) (*Event, error) {
 	c := id.Correct
 	run, seatID := id.Run, id.SeatID
 	if strings.TrimSpace(c.Why) == "" {
 		return nil, feov.Errorf(feov.MissingField,
 			"a correction says what was wrong with the act it strikes, and this one says nothing; a reader sees it beside the struck text")
 	}
-	if existing, err := correctionRetry(db, seatID, c.Key, body); existing != nil || err != nil {
+	if existing, err := correctionRetry(tx, seatID, c.Key, body); existing != nil || err != nil {
 		// THE RETRY IS ANSWERED WITH THE ACT THAT STANDS.
 		return existing, err
 	}
-	target, err := readTarget(db, c.Key)
+	target, err := readTarget(tx, c.Key)
 	if err != nil {
 		return nil, err
 	}
 	if err := validateCorrection(target, seatID, typ, body); err != nil {
 		return nil, err
 	}
-
-	WriteBegins()
-	tx, err := db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	// THE RETRY AGAIN, under the lock: two invocations of one correction racing each other must
-	// resolve to one write and one idempotent answer, not two refusals or two replacements.
-	var prior string
-	switch err := tx.QueryRow(`SELECT c."replacement" FROM "correction" c JOIN "events" e ON e."id" = c."event_id" WHERE e."key" = ?`,
-		correctionKey(seatID, c.Key)).Scan(&prior); {
-	case err == nil:
-		_ = tx.Rollback()
-		return correctionRetry(db, seatID, c.Key, body)
-	case !errors.Is(err, sql.ErrNoRows):
-		return nil, err
-	}
-	// THE RECORD-LEVEL GUARDS, against the record this replacement lands on (writeView): the
-	// caller's, then validation's.
-	if err := guardsAt(writeView{q: tx, files: filesOf(run)}, guards); err != nil {
-		return nil, err
-	}
+	// THE RECORD-LEVEL GUARDS, against the record this replacement lands on (writeView).
 	if err := validateAgainst(writeView{q: tx, files: filesOf(run)}, seatID, typ, body, target); err != nil {
 		return nil, err
 	}
@@ -319,9 +300,6 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	if _, err := recordsql.InsertTx(tx, corr); err != nil {
 		return nil, err
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	return ev, nil
 }
 
@@ -347,16 +325,16 @@ func closedByTarget(q recordsql.Querier, gapID string, target *correctionTarget)
 // correctionRetry answers a correction this seat already made of this key: the SAME replacement is
 // the idempotent success (0 new events, the stored replacement returned so its key is shown), a
 // different one is refused naming the act that stands now. (nil, nil) means no prior correction.
-func correctionRetry(db *sql.DB, seatID, key string, body proto.Message) (*Event, error) {
+func correctionRetry(q recordsql.Querier, seatID, key string, body proto.Message) (*Event, error) {
 	var replacement string
-	switch err := db.QueryRow(`SELECT c."replacement" FROM "correction" c JOIN "events" e ON e."id" = c."event_id" WHERE e."key" = ?`,
+	switch err := q.QueryRow(`SELECT c."replacement" FROM "correction" c JOIN "events" e ON e."id" = c."event_id" WHERE e."key" = ?`,
 		correctionKey(seatID, key)).Scan(&replacement); {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, nil
 	case err != nil:
 		return nil, err
 	}
-	stored, _, found, err := recordsql.EventByKey(db, replacement)
+	stored, _, found, err := recordsql.EventByKey(q, replacement)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +344,7 @@ func correctionRetry(db *sql.DB, seatID, key string, body proto.Message) (*Event
 	if sb, ok := recordpb.Body(stored); ok && proto.Equal(sb, body) {
 		return stored, nil
 	}
-	head, err := liveHead(db, key)
+	head, err := liveHead(q, key)
 	if err != nil {
 		return nil, err
 	}
