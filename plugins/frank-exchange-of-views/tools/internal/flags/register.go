@@ -25,6 +25,12 @@ func Text(c *cobra.Command, name, desc string) { TextVar(c, new(string), name, d
 // TextVar is Text bound to a variable.
 func TextVar(c *cobra.Command, p *string, name, desc string) {
 	c.Flags().StringVar(p, name, "", desc)
+	markText(c, name)
+}
+
+// markText makes a declared flag free text: the annotation that marks it, and the quoting rule in
+// the verb's help.
+func markText(c *cobra.Command, name string) {
 	_ = c.Flags().SetAnnotation(name, FreeTextAnnotation, []string{"true"})
 	if !strings.Contains(c.Long, ProseFooter) {
 		c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + ProseFooter
