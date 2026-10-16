@@ -1,11 +1,14 @@
 package sittingwrite
 
 import (
+	"database/sql"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 
@@ -45,6 +48,17 @@ func TestAHookRefusalIsLoggedUnderTheRefusedSeat(t *testing.T) {
 	}
 }
 
+// otherSeat is another seat's own connection on runDir's record, as a seat in another process holds.
+func otherSeat(t *testing.T, runDir string) *sql.DB {
+	t.Helper()
+	db, err := recordsql.OpenSeparate(filepath.Join(runDir, "records", "record.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
 // V8 (#1252): AN ENTRY IS WRITTEN ONLY ON A RUN THAT IS NOT OVER, ASKED AS IT LANDS. The bench records
 // the outcome at the moment the hook logs a seat's failed call; asked before the entry's write, the
 // entry lands after the outcome, on a record closed to seats.
@@ -53,7 +67,7 @@ func TestAHookEntryIsNotWrittenAfterTheOutcome(t *testing.T) {
 	registerAs(t, runDir, "agent-1", "red-lens-adversary")
 	outcome := recordtest.At(t, "judge", "race:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(),
 		VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended")})
-	if err := runtest.Overtaken(t, runDir, []*recordpb.Event{outcome}, func() error {
+	if err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{outcome}, func() error {
 		return WriteToolEntry(runDir, Failure, "agent-1", "`Read` failed on `/x`: File does not exist")
 	}); err != nil {
 		t.Fatalf("an entry on a run whose outcome landed at that moment is written as nothing, not an error: %v", err)

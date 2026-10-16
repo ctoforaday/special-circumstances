@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"database/sql"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -25,6 +27,17 @@ const (
 	raceSentence = "Costs rose sharply across the first quarter"
 	raceReport   = "# Costs\n\nThe year opened badly. " + raceSentence + ". Volume recovered later.\n"
 )
+
+// otherSeat is another seat's own connection on runDir's record, as a seat in another process holds.
+func otherSeat(t *testing.T, runDir string) *sql.DB {
+	t.Helper()
+	db, err := recordsql.OpenSeparate(filepath.Join(runDir, "records", "record.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
+}
 
 // raceRun is raceReport frozen, with the chair, the evidence lens and blue seated.
 func raceRun(t *testing.T) string {
@@ -66,7 +79,7 @@ func findingAt(t *testing.T, lens, id, loc string) []*recordpb.Event {
 func TestAFindingIsPlacedOnTheReportItsAnchorLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	edit := blueEditBy(t, "blue-lane-1", "race:edit", raceSentence, "Costs rose only modestly in the first quarter")
-	err := runtest.Overtaken(t, runDir, []*recordpb.Event{edit}, func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{edit}, func() error {
 		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F", "--quote", raceSentence,
 			"--reason", "the rise is not sourced", "--severity", "low", "--likelihood", "low", "--impact", "low")
 		return err
@@ -89,7 +102,7 @@ func TestAnOwedAnchorIsPlacedOnTheReportItLandsOn(t *testing.T) {
 	recordtest.Seed(t, runDir, recordtest.At(t, lensSeat, lensSeat+":finding:"+id, &recordpb.Finding{
 		Id: proto.String(id), FindingKey: proto.String("F"), Location: proto.String(raceSentence), Text: proto.String("the rise is not sourced")}))
 	edit := blueEditBy(t, "blue-lane-1", "race:edit", raceSentence, "Costs rose only modestly in the first quarter")
-	err := runtest.Overtaken(t, runDir, []*recordpb.Event{edit}, func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{edit}, func() error {
 		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F", "--quote", raceSentence,
 			"--reason", "the rise is not sourced", "--severity", "low", "--likelihood", "low", "--impact", "low")
 		return err
@@ -110,7 +123,7 @@ func TestAnOwedAnchorIsPlacedOnTheReportItLandsOn(t *testing.T) {
 func TestAnEditIsPlannedOnTheReportItLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	id := record.NewID("finding")
-	err := runtest.Overtaken(t, runDir, findingAt(t, lensSeat, id, "Costs rose sharply"), func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, lensSeat, id, "Costs rose sharply"), func() error {
 		_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E", "--quote", raceSentence,
 			"--new", "Costs rose only modestly in the first quarter", "--reason", "the source gives a modest rise")
 		return err
@@ -137,7 +150,7 @@ func TestARetireIsCheckedOnTheReportItLandsOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	back := blueEditBy(t, "blue-lane-1", "race:edit", "Volume recovered later", raceSentence+". Volume recovered later")
-	err := runtest.Overtaken(t, runDir, []*recordpb.Event{back}, func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{back}, func() error {
 		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", raceSentence, "--reason", "no source gives the rise")
 		return err
 	})
@@ -168,7 +181,7 @@ func TestEstoppelIsAskedOfTheRecordTheMintLandsOn(t *testing.T) {
 	tok := anchor.Token(g1)
 	accept := recordtest.At(t, "blue-lane-1", "race:accept", &recordpb.BlueEdit{Old: proto.String(was + tok), New: proto.String(fix + tok),
 		Answers: proto.String(g1), Accepted: proto.Bool(true), AppliedVerbatim: proto.Bool(true), Text: proto.String("red's text is right")})
-	err = runtest.Overtaken(t, runDir, []*recordpb.Event{accept}, func() error {
+	err = runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{accept}, func() error {
 		_, err := mintQuote(t, runDir, "G2", was)
 		return err
 	})
@@ -194,7 +207,7 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	// refusal bluedoc words for blue (anchor.Label names `edit` and `retire`), which reaches a lens
 	// through any --new over an anchored span, race or none — a wording defect of its own, not this
 	// guard's.
-	err := runtest.Overtaken(t, runDir, findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
 		t.Cleanup(func() { _ = recordsql.CloseUnder(runDir) })
 		_, err := Invoke(NewRootFor(lensSeat), []string{"mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", "G1", "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
@@ -221,7 +234,7 @@ func TestAMintsClassNewIsReadOffTheRecordItLandsOn(t *testing.T) {
 	coin := recordtest.At(t, "red-lens-logic", "race:class", &recordpb.ClassNew{Slug: proto.String("race-coined"),
 		Definition: proto.String("a defect of one shape"), Neighbor: proto.String("overclaim"), Distinguisher: proto.String("it is not an overclaim"),
 		MaterialDefault: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum()})
-	err := runtest.Overtaken(t, runDir, []*recordpb.Event{coin}, func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{coin}, func() error {
 		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "race-coined",
 			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low", "--quote", raceSentence)
@@ -242,7 +255,7 @@ func TestTheOutcomeIsCrossCheckedOnTheRecordItLandsOn(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	runDir := actFixture(t)
 	pass := recordtest.At(t, "red-chair", "race:gate", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})
-	err := runtest.Overtaken(t, runDir, []*recordpb.Event{pass}, func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{pass}, func() error {
 		_, err := run(t, "outcome", "--run", runDir, "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "the run ended")
 		return err
 	})
@@ -261,7 +274,7 @@ func TestARefusalIsNotLoggedAfterTheOutcome(t *testing.T) {
 	runDir := raceRun(t)
 	outcome := recordtest.At(t, "judge", "race:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(),
 		VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended")})
-	err := runtest.Overtaken(t, runDir, []*recordpb.Event{outcome}, func() error {
+	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{outcome}, func() error {
 		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--quote", raceSentence)
 		return err
 	})
