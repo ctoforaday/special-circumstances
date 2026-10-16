@@ -324,9 +324,9 @@ func TestMarkdownInjectionInProblemText(t *testing.T) {
 
 // THE ANCHOR-RECORD RULE STILL FIRES, AND IT NO LONGER FIRES ON AN HONEST RECORD.
 //
-// The rule catches a real crash window: `lens finding` appends the finding and its anchor event
-// as a PAIR after splicing the marker, so a finding with no anchor event means the process died
-// between the two appends and an idempotent retry never looked.
+// The rule catches a split pair: `lens finding` writes the finding and its anchor event as a PAIR,
+// in one transaction, so a finding with no anchor event is one an archived run's crash split and
+// migrate brought forward, which no retry has finished.
 //
 // That reasoning held while EVERY finding named a quoted sentence. A finding may now anchor to a
 // section, an avenue or a gap (#742, shipped #787) — things that are not report text, so

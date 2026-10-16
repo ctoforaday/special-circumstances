@@ -73,13 +73,6 @@ func newEdit() *cobra.Command {
 		//
 		// WHAT BLUE STILL SUPPLIES IS ITS REASON. Accepting is an act it should argue for, and
 		// --reason is the argument red re-audits against; nothing about agreeing removes that.
-		//
-		// The pair is read over the render the edit validates against, so the accepted span carries
-		// the gap's anchor as the report holds it.
-		peek, err := reportproj.RenderFromRecord(run)
-		if err != nil {
-			return nil, err
-		}
 		if accepting {
 			if gapID == "" {
 				return nil, feov.Errorf(feov.MissingField, "--accept needs --answers: the gap whose prescribed fix you are accepting")
@@ -87,31 +80,10 @@ func newEdit() *cobra.Command {
 			if oldStr != "" || newStr != "" {
 				return nil, feov.Errorf(feov.Validation, "--accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
 			}
-			loc, fix, found, err := record.Proposal(run, gapID, peek)
-			if err != nil {
-				return nil, err
-			}
-			if !found {
-				return nil, feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", gapID)
-			}
-			if strings.TrimSpace(fix) == "" {
-				return nil, feov.Errorf(feov.Conflict, "--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
-			}
-			oldStr, newStr = loc, fix
-		}
-
-		if oldStr == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
-		}
-		if oldStr == newStr {
-			return nil, feov.Errorf(feov.Validation, "--old and --new are identical — no change to make")
+		} else if err := typedPair(oldStr, newStr); err != nil {
+			return nil, err
 		}
 		key := seat.Str(cmd, flags.Key)
-
-		// ADVISORY, COMPUTED BEFORE ANY RETURN so an idempotent retry carries it too — a seat
-		// re-running a crashed edit should hear the same note, not lose it to the fast path.
-		// Nothing here can refuse: the tells are collected and ride back on the result.
-		tells := spanVoiceTells(newStr)
 
 		// Crash-retry: a committed blue_edit for this key means the op is already on the
 		// stack — reconcile the write idempotently, do NOT append a second op.
@@ -122,92 +94,146 @@ func newEdit() *cobra.Command {
 		if prior {
 			// The op is already on the diff-stack, so the render already reflects it — there is
 			// nothing to re-apply. Under report-as-record the edit IS the event; no file to reconcile.
+			//
+			// ADVISORY, so an idempotent retry carries it too — a seat re-running a crashed edit
+			// should hear the same note, not lose it to the fast path. An accepted edit's text is the
+			// fix red recorded, read here for the note alone.
+			tells := spanVoiceTells(newStr)
+			if accepting {
+				if peek, err := reportproj.RenderFromRecord(run); err == nil {
+					if _, fix, found, err := record.Proposal(run, gapID, peek); err == nil && found {
+						tells = spanVoiceTells(fix)
+					}
+				}
+			}
 			return editResult{VoiceTells: tells, Idempotent: true}, nil
 		}
 
-		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
-		// mis-quote or a marker-spanning edit never lands a phantom stack op. The snapshot is the
-		// render of the record so far — there is no file.
-		planned, applied, exact, err := validateEdit(peek, oldStr, newStr)
-		if err != nil {
-			// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` now refuses to verify one,
-			// but a gap minted before it did can still carry one, and calling it stale would send blue
-			// to hunt for a change in the report that never happened.
-			if accepting && errors.Is(err, reportproj.ErrNoChange) {
-				return nil, fmt.Errorf("--accept: the fix recorded on %s changes nothing — applied to the report as it stands, "+
-					"it leaves every byte where it is (%w). There is nothing to accept. If the defect red named is still there, write the "+
-					"edit yourself with --quote and --new; if it is not, argue that on the gap", gapID, err)
-			}
-			// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
-			// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
-			// commonest is the transit check's: blue placed a citation anchor against the span red
-			// located, the accepted pair carries the run the gap's anchor stands in, and red's text
-			// has no word-for-word sentence to put the citation back on.
-			if accepting {
-				return nil, fmt.Errorf("--accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
-					"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
-			}
-			return nil, err
-		}
-		if err := composedRefusal(peek, planned); err != nil {
-			return nil, err
-		}
-
-		// Event-first: commit the diff-stack op, then apply the write.
+		// FRESH: validated against the report the edit lands on, BEFORE the event commits, so a
+		// mis-quote or a marker-spanning edit never lands a phantom stack op. The report is the render
+		// of the record so far — there is no file — and it is rendered inside the write's transaction:
+		// another seat's anchor or blue's own parallel edit can commit in between, and an edit planned
+		// against the report before it is an edit replay cannot apply, which fails every render of the
+		// report from then on (#1252).
 		body := &recordpb.BlueEdit{
 			EditKey: proto.String(seat.Str(cmd, flags.Key)),
 			Answers: proto.String(seat.Str(cmd, flags.Answers)),
-			Old:     proto.String(oldStr),
-			New:     proto.String(applied), // with any anchor the tool put back, so replay splices the same bytes
 			Text:    proto.String(reason),
+		}
+		var tells []string
+		var bunched struct {
+			report, old, applied string
+			exact                bool
+		}
+		_, err = record.Append(s.Identity(), body, func(l *record.Landing) error {
+			peek, err := l.Report()
+			if err != nil {
+				return err
+			}
+			oldStr, newStr := oldStr, newStr
+			if accepting {
+				// The pair is read over the render the edit validates against, so the accepted span
+				// carries the gap's anchor as the report holds it.
+				loc, fix, found, err := l.Proposal(gapID, peek)
+				if err != nil {
+					return err
+				}
+				if !found {
+					return feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", gapID)
+				}
+				if strings.TrimSpace(fix) == "" {
+					return feov.Errorf(feov.Conflict, "--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
+				}
+				oldStr, newStr = loc, fix
+				if err := typedPair(oldStr, newStr); err != nil {
+					return err
+				}
+			}
+			// Computed before the edit can be refused below, so the note rides on the result.
+			// Nothing here can refuse: the tells are collected and ride back on the result.
+			tells = spanVoiceTells(newStr)
+
+			planned, applied, exact, err := validateEdit(peek, oldStr, newStr)
+			if err != nil {
+				// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` now refuses to verify one,
+				// but a gap minted before it did can still carry one, and calling it stale would send blue
+				// to hunt for a change in the report that never happened.
+				if accepting && errors.Is(err, reportproj.ErrNoChange) {
+					return fmt.Errorf("--accept: the fix recorded on %s changes nothing — applied to the report as it stands, "+
+						"it leaves every byte where it is (%w). There is nothing to accept. If the defect red named is still there, write the "+
+						"edit yourself with --quote and --new; if it is not, argue that on the gap", gapID, err)
+				}
+				// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
+				// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
+				// commonest is the transit check's: blue placed a citation anchor against the span red
+				// located, the accepted pair carries the run the gap's anchor stands in, and red's text
+				// has no word-for-word sentence to put the citation back on.
+				if accepting {
+					return fmt.Errorf("--accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
+						"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
+				}
+				return err
+			}
+			if err := composedRefusal(peek, planned); err != nil {
+				return err
+			}
+
+			body.Old = proto.String(oldStr)
+			body.New = proto.String(applied) // with any anchor the tool put back, so replay splices the same bytes
 			// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
 			// holds — but one that SURVIVES onto rewritten prose is a citation backing a
 			// sentence nobody read, and nothing said so. Text moves through this verb alone,
 			// so the no-loss proof and the requires-review mark belong on this one channel.
 			//
-			// Computed from the SNAPSHOT the validation used, not from a re-read: the write
-			// has not happened yet, and a second read could see a different document.
-			Reopened: bluedoc.ReopenedAnchors(peek, planned),
-		}
-		// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
-		// the field existed, whose trimmed span was a no-op, must still replay as one — so the event
-		// says which span it replaced. Absent, not false, on every ordinary edit.
-		if exact {
-			body.ExactSpan = proto.Bool(true)
-		}
-		// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
-		//
-		// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
-		// complain about at this site BY CONSTRUCTION, not by good behaviour. The fact is
-		// computed here — never claimed by either seat — and `lens mint` reads it to refuse
-		// a fresh gap relitigating text red itself prescribed.
-		//
-		// Blue is not obliged to reach this state: a counter-edit simply does not set the
-		// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
-		if accepting {
-			// BY CONSTRUCTION, NOT BY COMPARISON. The bytes came from the mint a few lines above,
-			// so there is nothing to compare and nothing a transcription slip could cost. Both
-			// facts are recorded: `accepted` says blue took red's text through the accept path,
-			// `applied_verbatim` says the text is red's — the second is what estoppel reads, and
-			// it must be true here for the same reason it is true after a perfect transcription.
-			body.Accepted = proto.Bool(true)
-			body.AppliedVerbatim = proto.Bool(true)
-		} else if gapID != "" {
-			verbatim, err := record.ProposalAppliedVerbatim(run, gapID, peek, oldStr, newStr)
-			if err != nil {
-				return nil, err
+			// Computed from the render the validation used, which is the report the edit lands on.
+			body.Reopened = bluedoc.ReopenedAnchors(peek, planned)
+			// THE LITERAL SPAN, RECORDED. Replay cannot re-derive this choice — an edit recorded before
+			// the field existed, whose trimmed span was a no-op, must still replay as one — so the event
+			// says which span it replaced. Absent, not false, on every ordinary edit.
+			if exact {
+				body.ExactSpan = proto.Bool(true)
 			}
-			if verbatim {
+			// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
+			//
+			// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
+			// complain about at this site BY CONSTRUCTION, not by good behaviour. The fact is
+			// computed here — never claimed by either seat — and `lens mint` reads it to refuse
+			// a fresh gap relitigating text red itself prescribed.
+			//
+			// Blue is not obliged to reach this state: a counter-edit simply does not set the
+			// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
+			if accepting {
+				// BY CONSTRUCTION, NOT BY COMPARISON. The bytes came from the mint a few lines above,
+				// so there is nothing to compare and nothing a transcription slip could cost. Both
+				// facts are recorded: `accepted` says blue took red's text through the accept path,
+				// `applied_verbatim` says the text is red's — the second is what estoppel reads, and
+				// it must be true here for the same reason it is true after a perfect transcription.
+				body.Accepted = proto.Bool(true)
 				body.AppliedVerbatim = proto.Bool(true)
+			} else if gapID != "" {
+				verbatim, err := l.ProposalAppliedVerbatim(gapID, peek, oldStr, newStr)
+				if err != nil {
+					return err
+				}
+				if verbatim {
+					body.AppliedVerbatim = proto.Bool(true)
+				}
 			}
-		}
-		// Red's own text, taken whole, places the gap's anchor where the tool puts it (record.Proposal).
-		if !body.GetAppliedVerbatim() {
-			if err := bunchedRefusal(run, peek, oldStr, applied, exact); err != nil {
-				return nil, err
+			// Red's own text, taken whole, places the gap's anchor where the tool puts it (record.Proposal).
+			// A bunched run is refused with what the record says each anchor marks, worded once the
+			// write has rolled back (bunchedRefusal).
+			if !body.GetAppliedVerbatim() {
+				if ids, _, _ := bunchedRun(peek, oldStr, applied, exact); ids != nil {
+					bunched.report, bunched.old, bunched.applied, bunched.exact = peek, oldStr, applied, exact
+					return errBunched
+				}
 			}
+			return nil
+		})
+		if errors.Is(err, errBunched) {
+			return nil, bunchedRefusal(run, bunched.report, bunched.old, bunched.applied, bunched.exact)
 		}
-		if _, err := record.Append(s.Identity(), body); err != nil {
+		if err != nil {
 			return nil, err
 		}
 		return editResult{VoiceTells: tells}, nil
@@ -224,6 +250,21 @@ func newEdit() *cobra.Command {
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }
+
+// typedPair refuses an edit pair that names no span, or that changes nothing.
+func typedPair(old, new string) error {
+	if old == "" {
+		return feov.Errorf(feov.MissingField, "requires --quote: the EXACT current span to replace (matched across the invisible anchors, like the Edit tool)")
+	}
+	if old == new {
+		return feov.Errorf(feov.Validation, "--old and --new are identical — no change to make")
+	}
+	return nil
+}
+
+// errBunched is the edit guard's refusal of a bunched run (bunchedRun); the verb words it with
+// bunchedRefusal once the write has rolled back.
+var errBunched = feov.Errorf(feov.Validation, "the replacement carries a run of anchors to the end of its last sentence")
 
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`
 // with `new`.

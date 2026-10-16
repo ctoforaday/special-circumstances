@@ -506,6 +506,10 @@ var Migrating bool
 // Fixed width is preserved, so lexicographic order is still time order.
 func stamp() string { return Now().Format(stampLayout) }
 
+// Stamp is stamp, for a test that lands another seat's act on that seat's own connection: the act
+// carries the stamp its write path would give it.
+func Stamp() string { return stamp() }
+
 const stampLayout = "2006-01-02T15:04:05.000000000Z"
 
 // ParseStamp reads an event's TS back as a time.
@@ -526,7 +530,40 @@ func ParseStamp(ts string) (time.Time, error) {
 // a caller that built nothing wrote a well-formed event carrying nothing and was told it succeeded.
 // SetBody refuses it by name instead: every EventType names a body message, so "no body" is not a
 // state an event can be in.
-func Append(id Identity, body proto.Message) (*Event, error) {
+//
+// GUARDS ARE THE VERB'S OWN CHECKS, asked of the record the event lands on (Guard): each runs inside
+// the write's transaction, in order, before validation, and may fill the body's derived fields.
+func Append(id Identity, body proto.Message, guards ...Guard) (*Event, error) {
+	evs, err := appendActs(id, []proto.Message{body}, guards)
+	if len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], err
+}
+
+// AppendPlaced writes act and the Anchor that places its marker — anchorID's, at loc — in ONE
+// transaction, the guards asked first; an act with no anchorID or no loc places nothing and is
+// written alone.
+//
+// ONE TRANSACTION BECAUSE THE PAIR IS ONE ACT. Written as two, another seat's edit could commit
+// between them and take the quoted text out of the report, and the Anchor then names a location
+// replay cannot place: every render of the report fails from that write on (#1252). The placement
+// guard a verb passes reads the report this Anchor lands on.
+func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards ...Guard) (*Event, error) {
+	bodies := []proto.Message{act}
+	if anchorID != "" && strings.TrimSpace(loc) != "" {
+		bodies = append(bodies, &recordpb.Anchor{Id: proto.String(anchorID), Location: proto.String(loc)})
+	}
+	evs, err := appendActs(id, bodies, guards)
+	if len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], err
+}
+
+// appendActs writes bodies, in order, in one transaction: the guards, then each body's validation,
+// key and insert (writeIn). The events come back in the bodies' order.
+func appendActs(id Identity, bodies []proto.Message, guards []Guard) ([]*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -536,11 +573,17 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
-	ev := &Event{}
-	typ, err := recordpb.SetBody(ev, body)
-	if err != nil {
-		return nil, err
+	evs := make([]*Event, len(bodies))
+	typs := make([]recordpb.EventType, len(bodies))
+	for i, body := range bodies {
+		evs[i] = &Event{}
+		typ, err := recordpb.SetBody(evs[i], body)
+		if err != nil {
+			return nil, err
+		}
+		typs[i] = typ
 	}
+	ev, typ, body := evs[0], typs[0], bodies[0]
 	db, err := openRun(run)
 	if err != nil {
 		return nil, err
@@ -566,26 +609,45 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 				"this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
 				c.Key, recordpb.Word(typ))
 		}
+		if len(bodies) > 1 {
+			return nil, feov.Errorf(feov.Internal, "a correction is written alone — it is one replacement and its Correction, never an act with an anchor")
+		}
 		c.written = true
-		return appendCorrected(id, db, ev, typ, body)
+		ev, err := appendCorrected(id, db, ev, typ, body, guards)
+		return []*Event{ev}, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	files := filesOf(run)
-	if err := insertNumbered(db, ev, seatID, typ, body, func(tx *sql.Tx) error {
-		return validate(writeView{q: tx, files: files}, seatID, typ, body)
-	}); err != nil {
-		return ev, err
+	WriteBegins()
+	tx, err := db.Begin()
+	if err != nil {
+		return evs, err
 	}
-	return ev, nil
+	defer tx.Rollback()
+	if err := guardsAt(writeView{q: tx, files: files}, guards); err != nil {
+		return evs, err
+	}
+	for i := range bodies {
+		body, typ := bodies[i], typs[i]
+		if err := writeIn(tx, evs[i], seatID, typ, body, func(tx *sql.Tx) error {
+			return validate(writeView{q: tx, files: files}, seatID, typ, body)
+		}); err != nil {
+			return evs, err
+		}
+	}
+	return evs, tx.Commit()
 }
 
-// writeBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
+// WriteBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
 // a test sets it to commit another seat's act at that instant, on that seat's own connection — the
 // moment a check made before the transaction is overtaken, and one made inside it is not.
-var writeBegins = func() {}
+//
+// It is a variable a test sets, as Now is, and exported because a verb's guards (Guard) are the
+// verb's code: they are tested from the verb's own package, through runtest.Overtaken.
+var WriteBegins = func() {}
 
 // insertNumbered stamps the envelope and writes the event in ONE transaction.
 //
@@ -603,7 +665,7 @@ var writeBegins = func() {}
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
 func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
-	writeBegins()
+	WriteBegins()
 	tx, err := db.Begin()
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // NewID mints the id of a new thing of a kind: the kind's letter, a hyphen and eight random hex.
@@ -44,15 +45,24 @@ func FindingByKey(run Run, seatID, key string) (string, error) {
 }
 
 // UnplacedLocation is the location a placing act stored for its anchor while no Anchor event places
-// it, or "": the act and its Anchor are two appends, and a crash between them leaves the act on the
-// record and its anchor out of the report. A retry places the STORED location, never its own quote,
-// so the anchor sits where the recorded act says it does.
+// it, or "". The act and its Anchor are one write (AppendPlaced), so such an act is one migrate
+// brought forward from an archive whose run crashed between the two. A retry places the STORED
+// location, never its own quote, so the anchor sits where the recorded act says it does.
 func UnplacedLocation(run Run, id string) (string, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", err
+	}
+	return unplacedLocationAt(db, id)
+}
+
+// unplacedLocationAt is UnplacedLocation asked of q.
+func unplacedLocationAt(q recordsql.Querier, id string) (string, error) {
 	var loc sql.NullString
 	if id == "" {
 		return "", nil
 	}
-	_, err := queryRow(run, []any{&loc},
+	_, err := queryRowAt(q, []any{&loc},
 		`SELECT "location" FROM (SELECT "id", "location" FROM "finding"
 		   UNION ALL SELECT "gap_id", "location" FROM "mint"
 		   UNION ALL SELECT "label", "location" FROM "cite"

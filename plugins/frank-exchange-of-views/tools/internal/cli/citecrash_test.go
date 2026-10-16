@@ -14,15 +14,13 @@ import (
 
 // A CRASH RETRY IS IDEMPOTENT, AND UNDER REPORT-AS-RECORD (#709) THE TORN-SPLICE WINDOW IS GONE.
 //
-// The report is the record projection: a marker exists only as its event, so there is no longer a
-// state where a marker sits on the page that no event backs — the "torn splice" the file world had,
-// and its orphan-adoption retry, cannot arise. What remains is the two-EVENT window: a verb that
-// appends more than one event (lens finding appends the Finding and then its Anchor) can crash
-// between them, leaving a half-appended pair. The --key retry finishes it, and that is what this
-// file now pins.
+// The report is the record projection: a marker exists only as its event, so no marker sits on the
+// page that no event backs. A placing act and its Anchor are one write (record.AppendPlaced); a record
+// migrate brought forward from an archive can still hold the act without its Anchor, where that run
+// crashed between the two. The --key retry finishes it, and that is what this file pins.
 
-// Window B on `lens finding`: the finding appended, the anchor event did not, and the idempotent
-// retry used to seal that state forever — it saw the finding, answered, and never looked.
+// `lens finding` on a record holding the finding without its anchor event: the idempotent retry
+// places the anchor, rather than answering and leaving the pair half on the record.
 func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\nThe sky is blue and the grass is green<!--fx:F-0badf00d-->.\n")

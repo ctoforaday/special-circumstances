@@ -211,7 +211,7 @@ func proseFlags(md protoreflect.MessageDescriptor) []string {
 // gap by definition), the sitting, whether another seat has acted since (F7), and the chain the
 // replacement's key extends. A check made before the transaction would race a lens writing in
 // parallel.
-func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType, body proto.Message) (*Event, error) {
+func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType, body proto.Message, guards []Guard) (*Event, error) {
 	c := id.Correct
 	run, seatID := id.Run, id.SeatID
 	if strings.TrimSpace(c.Why) == "" {
@@ -230,7 +230,7 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 		return nil, err
 	}
 
-	writeBegins()
+	WriteBegins()
 	tx, err := db.Begin()
 	if err != nil {
 		return nil, err
@@ -247,7 +247,11 @@ func appendCorrected(id Identity, db *sql.DB, ev *Event, typ recordpb.EventType,
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, err
 	}
-	// THE RECORD-LEVEL GUARDS, against the record this replacement lands on (writeView).
+	// THE RECORD-LEVEL GUARDS, against the record this replacement lands on (writeView): the
+	// caller's, then validation's.
+	if err := guardsAt(writeView{q: tx, files: filesOf(run)}, guards); err != nil {
+		return nil, err
+	}
 	if err := validateAgainst(writeView{q: tx, files: filesOf(run)}, seatID, typ, body, target); err != nil {
 		return nil, err
 	}

@@ -85,9 +85,9 @@ func newProve() *cobra.Command {
 					"leave you citing a proof of something else. Give this program its own --key",
 					seat.Str(cmd, flags.Key), prior[:12], script, now[:12])
 			}
-			// The proof and its anchor are two appends; a retry finishes the pair at the location
-			// the proof stored.
-			if err := seat.PlaceOwed(s, run, priorID, seat.Str(cmd, flags.Key)); err != nil {
+			// A proof on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the
+			// retry, at the location it stored.
+			if err := seat.PlaceOwed(s, priorID, seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return proveResult{SHA: prior, Idempotent: true, VoiceTells: tells}, nil
@@ -119,12 +119,9 @@ func newProve() *cobra.Command {
 
 		// THE ANCHOR EVENT BELOW IS THE MARKER: it carries the quote, and reportproj.Render re-places
 		// the proof anchor at replay. No file is spliced; a --key retry is idempotent (handled
-		// above). Mint the id and VALIDATE the placement against the current render — a mis-quote or
-		// in-fence quote is refused now.
+		// above). Mint the id; the placement is validated against the report the Proof and its Anchor
+		// land on — a mis-quote or in-fence quote is refused and nothing recorded.
 		label := record.NewID("proof")
-		if err := seat.Places(run, label, location, proveRefusal); err != nil {
-			return nil, err
-		}
 
 		// `output` does not survive onto the event, and that is not a silent drop: it stays in the
 		// proof cache addressed by proof_sha — content is not a fact about the debate, and the
@@ -142,7 +139,7 @@ func newProve() *cobra.Command {
 			body.Drift = proto.String(res.Drift)
 		}
 		proofFields(cmd, body, why)
-		if err := seat.AppendPlaced(s, body, label, location); err != nil {
+		if err := seat.AppendPlaced(s, body, label, location, proveRefusal); err != nil {
 			return nil, err
 		}
 		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift, VoiceTells: tells}, nil

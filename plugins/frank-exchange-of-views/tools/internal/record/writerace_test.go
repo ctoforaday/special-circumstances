@@ -14,7 +14,7 @@ import (
 )
 
 // overtaken runs write while another seat's acts commit at the instant the write is about to open
-// its transaction (writeBegins), in one commit on that seat's own connection (seatWriter) — as a
+// its transaction (WriteBegins), in one commit on that seat's own connection (seatWriter) — as a
 // seat in another process lands its act. The acts land once, at the first write to begin. A check
 // made before the write's transaction has already been made by then and admits the write over them;
 // a check made inside it reads them.
@@ -22,9 +22,9 @@ func overtaken(t *testing.T, run Run, acts []*Event, write func() error) error {
 	t.Helper()
 	db := seatWriter(t, filepath.Join(run.Records(), "record.db"))
 	var once sync.Once
-	was := writeBegins
-	t.Cleanup(func() { writeBegins = was })
-	writeBegins = func() {
+	was := WriteBegins
+	t.Cleanup(func() { WriteBegins = was })
+	WriteBegins = func() {
 		once.Do(func() {
 			tx, err := db.Begin()
 			if err != nil {

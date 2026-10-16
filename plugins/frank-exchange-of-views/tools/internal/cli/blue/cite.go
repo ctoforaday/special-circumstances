@@ -73,13 +73,13 @@ func newCite() *cobra.Command {
 		}
 
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
-		// second fetch AND no second anchor (BEFORE any effect). The cite and its anchor are two
-		// appends; a retry finishes the pair at the location the cite stored.
+		// second fetch AND no second anchor (BEFORE any effect). A cite on the record without its
+		// anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the retry, at the location it stored.
 		key := seat.Str(cmd, flags.Key)
 		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			if err := seat.PlaceOwed(s, run, prior, key); err != nil {
+			if err := seat.PlaceOwed(s, prior, key); err != nil {
 				return nil, err
 			}
 			return citeResult{Label: prior, Idempotent: true, VoiceTells: tells}, nil
@@ -118,14 +118,10 @@ func newCite() *cobra.Command {
 		}
 
 		// THE ANCHOR EVENT BELOW IS THE MARKER: it carries the quote, and reportproj.Render re-places
-		// the invisible citation anchor at that quote on every read. There is no file to splice, so
-		// a crash before the appends leaves nothing to adopt. Mint the label (it forms the marker)
-		// and VALIDATE the placement against the current render — a mis-quote or in-fence quote is
-		// refused now, and the validated bytes discarded.
+		// the invisible citation anchor at that quote on every read. There is no file to splice. Mint
+		// the label (it forms the marker); the placement is validated against the report the Cite and
+		// its Anchor land on — a mis-quote or in-fence quote is refused and nothing recorded.
 		label := record.NewID("citation")
-		if err := seat.Places(run, label, quote, citeRefusal); err != nil {
-			return nil, err
-		}
 
 		// access_date is engine-supplied from the record clock (pinned under the golden harness),
 		// not typed by the seat.
@@ -153,7 +149,7 @@ func newCite() *cobra.Command {
 			body.OcrTextSha = proto.String(ocr.loc.TextSha)
 		}
 		citeFields(cmd, body, read, why)
-		if err := seat.AppendPlaced(s, body, label, quote); err != nil {
+		if err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: ocr.pages(), VoiceTells: tells}, nil

@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // ESTOPPEL — red is bound by the fix it prescribed.
@@ -125,8 +126,17 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 // red raised the gap without prescribing concrete text — and is the caller's to refuse, because the
 // refusal it wants to give names the verb it was called from.
 func Proposal(run Run, gapID, report string) (old, fixNew string, found bool, err error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", "", false, err
+	}
+	return proposalAt(db, gapID, report)
+}
+
+// proposalAt is Proposal asked of q.
+func proposalAt(q recordsql.Querier, gapID, report string) (old, fixNew string, found bool, err error) {
 	var loc, fix sql.NullString
-	found, err = queryRow(run, []any{&loc, &fix}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	found, err = queryRowAt(q, []any{&loc, &fix}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found {
 		return "", "", false, err
 	}
@@ -172,7 +182,16 @@ func proposalOver(report, gapID, loc, fix string) (string, string) {
 // re-arguing what it wrote itself. Whitespace is NOT normalized here for that reason: the
 // looser the match, the more of blue's own writing red is barred from auditing.
 func ProposalAppliedVerbatim(run Run, gapID, report, old, new string) (bool, error) {
-	pOld, pNew, found, err := Proposal(run, gapID, report)
+	db, err := openRunForRead(run)
+	if err != nil {
+		return false, err
+	}
+	return proposalAppliedVerbatimAt(db, gapID, report, old, new)
+}
+
+// proposalAppliedVerbatimAt is ProposalAppliedVerbatim asked of q.
+func proposalAppliedVerbatimAt(q recordsql.Querier, gapID, report, old, new string) (bool, error) {
+	pOld, pNew, found, err := proposalAt(q, gapID, report)
 	if err != nil || !found || pNew == "" {
 		return false, err
 	}
@@ -249,13 +268,19 @@ const (
 // ClaimAppearsInAnEdit reports whether a claim's text appears in the OLD span of any recorded
 // blue_edit — the record's evidence that the text was in the report and was taken out.
 func ClaimAppearsInAnEdit(run Run, claim string) bool {
+	db, err := openRunForRead(run)
+	return err == nil && claimAppearsInAnEditAt(db, claim)
+}
+
+// claimAppearsInAnEditAt is ClaimAppearsInAnEdit asked of q.
+func claimAppearsInAnEditAt(q recordsql.Querier, claim string) bool {
 	if claim == "" {
 		return false
 	}
 	// instr answers presence exactly as strings.Contains did (a NULL old span yields NULL,
 	// which is not > 0 — the same miss as Contains on an empty string). A read error folds
 	// into false, as the board-read error did.
-	found, err := recordHas(run,
+	found, err := recordHasAt(q,
 		`SELECT 1 FROM "blue_edit" WHERE instr("old", ?) > 0 LIMIT 1`, claim)
 	return err == nil && found
 }
@@ -267,10 +292,18 @@ type EditSpan struct{ Old, New string }
 // reads to learn which edit took a claim out and what that edit left behind in its place.
 func EditSpans(run Run) ([]EditSpan, error) {
 	db, err := openRunForRead(run)
-	if err != nil || db == nil {
+	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(`SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"`)
+	return editSpansAt(db)
+}
+
+// editSpansAt is EditSpans asked of q.
+func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
+	if noRecord(q) {
+		return nil, nil
+	}
+	rows, err := q.Query(`SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("reading the recorded edits: %w", err)
 	}

@@ -17,7 +17,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // retire: the ONLY way substance leaves the report.
@@ -49,8 +48,7 @@ import (
 func newRetire() *cobra.Command {
 	var named flags.CSV
 	c := seat.Prose(seat.New("retire", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-		run, err := s.Run()
-		if err != nil {
+		if _, err := s.Run(); err != nil {
 			return nil, err
 		}
 		// --reason is the prose channel (Prose provides it); it lands under `reason`,
@@ -76,25 +74,34 @@ func newRetire() *cobra.Command {
 		// claim that left the report: one naming a claim that was never there is a removal
 		// the record asserts and the report never had.
 		claim := seat.Str(cmd, flags.Quote)
-		basis := record.RemovalAsserted
+		// ASKED OF THE REPORT AND THE EDITS THE RETIRE LANDS ON. Blue's own edits and a lens's
+		// anchor commit in parallel with it, and a retire checked against the report before them can
+		// name an anchor another write has since put back into prose, or explain the removal of a
+		// claim that has re-entered the report (#1252).
 		var stayed []keptAnchor
-		if md, rerr := reportproj.RenderFromRecord(run); rerr == nil {
+		guard := func(l *record.Landing) error {
+			basis := record.RemovalAsserted
+			defer func() { body.RemovalBasis = proto.String(basis) }()
+			md, rerr := l.Report()
+			if rerr != nil {
+				return nil
+			}
 			if strings.Contains(md, claim) {
-				return nil, feov.Errorf(feov.Conflict,
+				return feov.Errorf(feov.Conflict,
 					"%q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `edit` first, then retire the claim to say why it went and what replaced it",
 					claim)
 			}
 			// Absent now. Whether it was ever THERE is a different question, and the record
 			// can answer it: a claim removed by a recorded edit appears in that edit's old
 			// span. Absent from both is a retirement of something nobody can show existed.
-			if record.ClaimAppearsInAnEdit(run, claim) {
+			if l.ClaimAppearsInAnEdit(claim) {
 				basis = record.RemovalVerified
 			}
 			// THE ANCHORS THAT EXIT WITH THE CLAIM. An edit that took this claim out and left
 			// only anchors in its place left those anchors bare; they go now, with the reason.
-			spans, err := record.EditSpans(run)
+			spans, err := l.EditSpans()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			exiting := anchorsExiting(md, claim, spans)
 			// A MARKER INSIDE A SENTENCE IS NEVER BARE: when the claim was a clause, the rest of the
@@ -104,7 +111,7 @@ func newRetire() *cobra.Command {
 			left := leftByTheCut(claim, spans)
 			for _, id := range named.Value() {
 				if err := namedExits(md, id, left, spans); err != nil {
-					return nil, err
+					return err
 				}
 				if !slices.Contains(exiting, id) {
 					exiting = append(exiting, id)
@@ -115,10 +122,10 @@ func newRetire() *cobra.Command {
 			}
 			body.Anchors = exiting
 			stayed = stayedBehind(md, left, exiting)
+			return nil
 		}
-		body.RemovalBasis = proto.String(basis)
 
-		if _, err := record.Append(s.Identity(), body); err != nil {
+		if _, err := record.Append(s.Identity(), body, guard); err != nil {
 			return nil, err
 		}
 		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Stayed: stayed}, nil

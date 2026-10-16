@@ -687,8 +687,14 @@ func stageRegistry(run Run, slugs []string, defaults map[string]recordpb.ClassMa
 // meaning was "I also passed --definition, --neighbor and --distinguisher". Coining is
 // `lens class new` now; this derives the fact from what that verb wrote.
 func ClassCoinedInRun(run Run, slug string) bool {
+	db, err := openRunForRead(run)
+	return err == nil && classCoinedAt(db, slug)
+}
+
+// classCoinedAt is ClassCoinedInRun asked of q.
+func classCoinedAt(q recordsql.Querier, slug string) bool {
 	// A read error folds into false, as the merged-read error did.
-	found, err := recordHas(run, `SELECT 1 FROM "class_new" WHERE "slug" = ? LIMIT 1`, slug)
+	found, err := recordHasAt(q, `SELECT 1 FROM "class_new" WHERE "slug" = ? LIMIT 1`, slug)
 	return err == nil && found
 }
 
