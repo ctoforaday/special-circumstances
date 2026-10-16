@@ -52,8 +52,8 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // records it, so replay splices the same bytes and needs no placement of its own.
 //
 // FIRST THE ORDINARY LOCATE, which trims the quote's trailing punctuation. Its result stands unless
-// it misfires in one of the two ways the trim itself causes: the edit changes nothing, or it leaves
-// a punctuation run longer than any the report had (the old terminator standing beside the new).
+// it misfires in one of the two ways the trim itself causes: the edit changes nothing, or it doubles
+// a terminator at its seam (the old terminator standing beside the new — DoubledTerminator).
 // Then, and only when the quote ENDS in punctuation the trim dropped, the quote AS WRITTEN is tried:
 // it must occur byte-for-byte exactly once, carry its anchors unchanged, and change the report. If
 // it does, exact is true and the caller records it — replay reads the field and never re-decides.
@@ -129,7 +129,7 @@ func stripTail(s string) string {
 	return strings.TrimRight(s, anchortext.TrailingPunct+" \t\r\n")
 }
 
-// DoubledTerminator names a punctuation run the edit would CREATE and the report did not have.
+// DoubledTerminator names the punctuation run an edit leaves where a terminator lands beside another.
 //
 // MEASURED, and it is the shape this check exists for. In research/2026-09-02_quadratic-formula
 // (blue-respond) red minted a punctuation repair with a `verified` fix basis, blue applied the
@@ -137,32 +137,64 @@ func stripTail(s string) string {
 // The same happened to two of blue's own edits in that sitting. All three were invisible until
 // blue re-ran red's acceptance check against the shipped document — the verb exited 0 every time.
 //
-// It compares RUNS RATHER THAN COUNTS so ordinary prose cannot trip it: a document may legitimately
-// gain a "?!" or an ellipsis. What it refuses is a run LONGER than any the document already had,
-// which is the signature of a terminator landing beside one rather than on top of it. Anchors
-// between two marks are not content between them, so the runs are read with every anchor out.
+// It reads ONLY THE SEAMS the edit makes — where the changed text meets the text it left alone —
+// because a terminator can land beside another only there. Punctuation inside the replacement is
+// the author's prose: universe-m24's blue edit `For the query "is 91 a prime number", nine web
+// pages come up` carries a `",` in a report holding no run that long, and is a rewording. The
+// seams are where before and after stop agreeing, read from each end.
+//
+// A run at a seam doubles when BOTH sides of it carry a terminator (`!` against the report's `.`,
+// `91:` against it) or both carry the same closing quote (`"goodbye"` against the report's `".`).
+// A closing quote meeting a terminator is how a quoted phrase ends a sentence: the same sitting's
+// `Nine web pages come up for the query "is 91 a prime number"` before the report's period leaves
+// `".`, which is ordinary English.
+//
+// It reads the SHAPE OF THE SEAM rather than the document's longest run, so ordinary prose cannot
+// trip it — a document may legitimately gain a "?!" or an ellipsis — and a run the document holds
+// elsewhere cannot license it: in a report whose quoted phrase ends a sentence in `".`, a `!` landing
+// beside a period is the same artifact as in one that quotes nothing. Anchors between two marks are
+// not content between them, so the runs are read with every anchor out.
 func DoubledTerminator(before, after string) string {
-	worst := func(s string) string {
-		s, longest := claimcount.StripAnchors(s), ""
-		for i := 0; i < len(s); {
-			j := i
-			for j < len(s) && strings.ContainsRune(anchortext.TrailingPunct, rune(s[j])) {
-				j++
-			}
-			if j-i > len(longest) {
-				longest = s[i:j]
-			}
-			if j == i {
-				i++
-			} else {
-				i = j
-			}
-		}
-		return longest
+	if before == after {
+		return ""
 	}
-	got := worst(after)
-	if len(got) > len(worst(before)) {
-		return got
+	punct := func(b byte) bool { return strings.ContainsRune(anchortext.TrailingPunct, rune(b)) }
+	// The changed span of after: [lo, hi), widened to whole anchor tokens so the parts strip cleanly.
+	lo := 0
+	for lo < len(before) && lo < len(after) && before[lo] == after[lo] {
+		lo++
+	}
+	hi := len(after)
+	for k := len(before); hi > lo && k > lo && before[k-1] == after[hi-1]; k-- {
+		hi--
+	}
+	anchor.Each(after, func(start, end int, _ string) {
+		if start < lo && lo < end {
+			lo = start
+		}
+		if start < hi && hi < end {
+			hi = end
+		}
+	})
+	left, mid := claimcount.StripAnchors(after[:lo]), claimcount.StripAnchors(after[lo:hi])
+	text := left + mid + claimcount.StripAnchors(after[hi:])
+	doubles := func(a, b string) bool {
+		terminates := func(s string) bool {
+			return strings.ContainsFunc(s, func(r rune) bool { return r != '"' && r != '\'' })
+		}
+		return terminates(a) && terminates(b) || strings.ContainsRune(a, '"') && strings.ContainsRune(b, '"') || strings.ContainsRune(a, '\'') && strings.ContainsRune(b, '\'')
+	}
+	for _, at := range []int{len(left), len(left) + len(mid)} {
+		i, j := at, at
+		for i > 0 && punct(text[i-1]) {
+			i--
+		}
+		for j < len(text) && punct(text[j]) {
+			j++
+		}
+		if doubles(text[i:at], text[at:j]) {
+			return text[i:j]
+		}
 	}
 	return ""
 }

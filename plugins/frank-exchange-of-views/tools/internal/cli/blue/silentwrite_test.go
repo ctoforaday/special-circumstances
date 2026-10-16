@@ -134,6 +134,46 @@ func TestAnOrdinaryEditIsNotRefused(t *testing.T) {
 	}
 }
 
+// PUNCTUATION THE REPLACEMENT CARRIES INSIDE IT IS PROSE, REPRODUCED FROM A RUN.
+//
+// universe-m24, blue-respond (ev238, ev246, ev248): three rewordings of a sentence quoting a search
+// query, in a report holding no punctuation run longer than one mark. Each was refused for a run
+// the replacement wrote inside itself (`",` and `',`) or for the quoted phrase ending the sentence
+// before the report's period (`".`) — no terminator landed beside another in any of them.
+func TestPunctuationInsideAReplacementIsNotADoubledTerminator(t *testing.T) {
+	const report = "## Search\n\n" +
+		`A standard web search for "is 91 a prime number" returned nine pages<!--fx:F-775c786f-->. ` +
+		"The results read as snippets, not in full.\n"
+	const quote = `A standard web search for "is 91 a prime number" returned nine pages`
+	for _, tc := range []struct{ name, new, want string }{
+		{"a closing quote then a comma (ev246)", `For the query "is 91 a prime number", nine web pages come up`,
+			`For the query "is 91 a prime number", nine web pages come up<!--fx:F-775c786f-->. `},
+		{"a single quote then a comma (ev248)", `For the query 'is 91 a prime number', nine web pages come up`,
+			`For the query 'is 91 a prime number', nine web pages come up<!--fx:F-775c786f-->. `},
+		{"a quoted phrase ending the sentence (ev238)", `Nine web pages come up for the query "is 91 a prime number"`,
+			`Nine web pages come up for the query "is 91 a prime number"<!--fx:F-775c786f-->. `},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, _, _, err := validateEdit(report, quote, tc.new)
+			if err != nil {
+				t.Fatalf("the edit was refused: %v", err)
+			}
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("got %q, want it to hold %q", got, tc.want)
+			}
+		})
+	}
+	// The case the guard exists for: a terminator landing beside the report's period — refused in the
+	// report the ev238 rewording leaves, whose quoted phrase now ends its sentence in a run as long.
+	reworded, _, _, err := validateEdit(report, quote, `Nine web pages come up for the query "is 91 a prime number"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := validateEdit(reworded, "The results read as snippets, not in full", "The results read as snippets, not in full!"); err == nil {
+		t.Error("a replacement ending in `!` before the report's own period was accepted")
+	}
+}
+
 // THE SAME REFUSAL WITH THE SENTENCE'S ANCHORS BETWEEN THE TWO MARKS, REPRODUCED FROM A RUN.
 //
 // universe m16, blue-respond: the sentence's four anchors stood before its period, the edit quoted
