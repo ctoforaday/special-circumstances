@@ -178,10 +178,18 @@ func Run(runDir, scriptPath string) (*Result, error) {
 	return res, nil
 }
 
+// StoredScript is where the proof store keeps a proof's script, relative to the run directory:
+// `proofs/<sha>/script`, with the extension of the path the seat ran it from. It is the one
+// spelling of that path — the store writes it, the re-run executes it, and the shipped evidence
+// names it, because the path the seat ran is a working file outside the run more often than not.
+func StoredScript(sha, script string) string {
+	return filepath.Join("proofs", sha, "script"+filepath.Ext(script))
+}
+
 // executeStored runs the copy in `proofs/<sha>/`, which is the only copy that outlives the run
 // directory's working files and the only one a later audit can reach.
 func executeStored(runDir string, r *Result) (string, int, error) {
-	stored := filepath.Join(runDir, "proofs", r.SHA, "script"+filepath.Ext(r.Script))
+	stored := filepath.Join(runDir, StoredScript(r.SHA, r.Script))
 	argv, err := interpreterFor(stored)
 	if err != nil {
 		return "", 0, err
@@ -284,7 +292,7 @@ func store(runDir string, r *Result, body []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "script"+filepath.Ext(r.Script)), body, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runDir, StoredScript(r.SHA, r.Script)), body, 0o644); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, "output"), []byte(r.Output), 0o644)

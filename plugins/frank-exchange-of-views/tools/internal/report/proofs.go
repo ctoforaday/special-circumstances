@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -80,7 +81,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 			continue
 		}
 		fmt.Fprintf(&b, "%s: %s — a computation, not a claim: script, output and sha256 in [evidence.md](%s#%s).\n",
-			proofNote(num[label]), EscapeNotes(strings.TrimSpace(oneLine(firstNonEmpty(p.Reason, p.Script)))), FileEvidence, label)
+			proofNote(num[label]), EscapeNotes(strings.TrimSpace(oneLine(firstNonEmpty(p.Reason, storedScript(p))))), FileEvidence, label)
 	}
 	return b.String(), order
 }
@@ -116,7 +117,7 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		// An explicit anchor, because a heading's generated id is a function of its whole text
 		// and the footnotes in six other files link here by LABEL, which is stable.
 		fmt.Fprintf(&b, "<a id=\"%s\"></a>\n\n", label)
-		fmt.Fprintf(&b, "### P%d — %s\n\n", n, strings.TrimSpace(firstNonEmpty(p.Reason, p.Script)))
+		fmt.Fprintf(&b, "### P%d — %s\n\n", n, strings.TrimSpace(firstNonEmpty(p.Reason, storedScript(p))))
 		if !anchored[label] {
 			b.WriteString("- **anchored to nothing**: this computation is on the record and no document in this set references it\n")
 		}
@@ -125,15 +126,22 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 			fmt.Fprintf(&b, " — %s", p.Drift)
 		}
 		b.WriteString("\n")
-		fmt.Fprintf(&b, "- **script**: `%s` (sha256 `%s`)\n", p.Script, shortSHA(p.SHA))
+		fmt.Fprintf(&b, "- **script**: `%s` (sha256 `%s`)\n", storedScript(p), shortSHA(p.SHA))
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
 		// RED'S INDEPENDENT RE-RUN (#343). The strongest audit the engine has is worth the
 		// reader knowing about, and its absence is worth knowing about too: a proof nobody
 		// re-ran and a proof that reproduced used to render identically.
-		// A RE-RUN ITS SEAT CORRECTED is listed struck, with who struck it and why, before the one
-		// that stands.
+		// A RE-RUN ITS SEAT CORRECTED is listed struck, with why, before the one that stands.
+		//
+		// THE RE-RUN IS RED'S, and this document names the party, never the lens's seat id and
+		// sitting: the report's proof notes send its reader here, and report.md attributes nothing
+		// to a seat. Which lens re-ran it, and when, is the debate's to say (m24 dark-side ev547).
 		for _, s := range p.StruckReruns {
-			fmt.Fprintf(&b, "- %s\n", record.StruckMarkdown(fmt.Sprintf("audited by %s #%d: %s", s.SeatID, s.Sitting, s.Note), s.Struck))
+			struck := s.Struck
+			if struck != nil {
+				struck = &record.Struck{Replacement: struck.Replacement, By: "red", Why: struck.Why}
+			}
+			fmt.Fprintf(&b, "- %s\n", record.StruckMarkdown("audited by red: "+s.Note, struck))
 		}
 		if v := p.Verified; v != nil {
 			// TWO AXES. Reproducing measures determinism; soundness is red's judgement from
@@ -142,13 +150,13 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 			// credible and least useful.
 			switch {
 			case v.Reproduced && v.Sound:
-				fmt.Fprintf(&b, "- **audited by %s #%d**: it REPRODUCES, and red read the script and accepts that it establishes the claim", v.SeatID, v.Sitting)
+				b.WriteString("- **audited by red**: it REPRODUCES, and red read the script and accepts that it establishes the claim")
 			case v.Reproduced && !v.Sound:
-				fmt.Fprintf(&b, "- **audited by %s #%d — REPRODUCES BUT DOES NOT PROVE THE CLAIM.** The script re-runs to the same output, and red read it and found it does not establish what it is anchored to. Re-running measures determinism, not validity", v.SeatID, v.Sitting)
+				b.WriteString("- **audited by red — REPRODUCES BUT DOES NOT PROVE THE CLAIM.** The script re-runs to the same output, and red read it and found it does not establish what it is anchored to. Re-running measures determinism, not validity")
 			case !v.Reproduced && v.Sound:
-				fmt.Fprintf(&b, "- **audited by %s #%d**: the method is sound but it DID NOT REPRODUCE — the script no longer produces the recorded output", v.SeatID, v.Sitting)
+				b.WriteString("- **audited by red**: the method is sound but it DID NOT REPRODUCE — the script no longer produces the recorded output")
 			default:
-				fmt.Fprintf(&b, "- **audited by %s #%d — it neither reproduces NOR establishes the claim**", v.SeatID, v.Sitting)
+				b.WriteString("- **audited by red — it neither reproduces NOR establishes the claim**")
 			}
 			if v.Note != "" {
 				fmt.Fprintf(&b, " — %s", v.Note)
@@ -173,6 +181,14 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		b.WriteString("```\n" + strings.TrimRight(output, "\n") + "\n```\n\n")
 	}
 	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+// storedScript is the run's own copy of a proof's script, as the shipped set names it: the path the
+// seat ran it from is a working file, in the operator's home directory on a real run (universe-m24
+// and m25 shipped nine and eleven), and the store's copy under the proof's sha is the one a reader
+// of the run directory can open — the lead above says so.
+func storedScript(p record.Proof) string {
+	return filepath.ToSlash(proof.StoredScript(p.SHA, p.Script))
 }
 
 // oneLine keeps a captured output on a single markdown line.
