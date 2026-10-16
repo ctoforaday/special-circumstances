@@ -48,26 +48,22 @@ func TestEveryEnumValueSaysWhatItIsFor(t *testing.T) {
 	check("ClosureClasses", ClosureClasses)
 }
 
-// THE THREE VIEWS OF A SET COME FROM ONE TABLE.
+// THE TWO VIEWS OF A SET COME FROM ONE TABLE.
 //
-// The parser (enumflag), the shell completion, and the help menu are all built from EnumValue. If
+// The parser (enumflag) and the help menu are both built from EnumValue. If
 // they were assembled separately the help could advertise a value the parser refuses — which is
 // the exact shape enums.go was written to remove, one level down.
-func TestParserCompletionAndHelpAgree(t *testing.T) {
+func TestParserAndHelpAgree(t *testing.T) {
 	vs := ClosureClasses
 	ids := Identifiers(vs)
-	help := CompletionHelp(vs)
 	menu := Menu(vs)
 
-	if len(ids) != len(vs) || len(help) != len(vs) {
-		t.Fatalf("identifiers=%d completion=%d values=%d — the three must cover the same set", len(ids), len(help), len(vs))
+	if len(ids) != len(vs) {
+		t.Fatalf("identifiers=%d values=%d — the two must cover the same set", len(ids), len(vs))
 	}
 	for _, v := range vs {
 		if _, ok := ids[v.Name]; !ok {
 			t.Errorf("the parser does not accept %q, which the help offers", v.Name)
-		}
-		if help[v.Name] != v.Means {
-			t.Errorf("completion text for %q disagrees with its meaning", v.Name)
 		}
 		if !strings.Contains(menu, v.Name) || !strings.Contains(menu, v.Means) {
 			t.Errorf("the help menu omits %q or its meaning", v.Name)

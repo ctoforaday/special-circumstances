@@ -64,7 +64,7 @@ func InvokedAs() string {
 	return n
 }
 
-// seatRoles maps a resolved role to its surface and its one-line description. Built here rather
+// seatVerbs maps a resolved role to its surface and its one-line description. Built here rather
 // than in each package so the root can answer "which seat am I" once.
 func seatVerbs(role string) ([]*cobra.Command, string) {
 	switch role {
@@ -440,12 +440,11 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 		return nil
 	}
 	// COBRA BUILDS PART OF ITS OWN SURFACE DURING Execute, and refusing before that showed the
-	// seat a SMALLER surface than the one that exists: `help`, `completion`, `--help` and
-	// `--version` were all missing from the list. The golden caught it — a refusal that lists
+	// seat a SMALLER surface than the one that exists: `help`, `--help` and `--version` were all
+	// missing from the list. The golden caught it — a refusal that lists
 	// less than the tool has is a worse lie than the flag error this replaces, because it reads
 	// as authoritative.
 	root.InitDefaultHelpCmd()
-	root.InitDefaultCompletionCmd()
 	root.InitDefaultHelpFlag()
 	root.InitDefaultVersionFlag()
 

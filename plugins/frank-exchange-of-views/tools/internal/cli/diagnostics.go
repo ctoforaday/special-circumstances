@@ -278,7 +278,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 // the one holding the verb it already picked — the whole tree to leaf depth cost 3-4 calls in a
 // sitting of 16 to 32, and `manual` now prints it in one.
 //
-// `completion` and `help` are cobra's, generated onto every parent, and belong to no role.
+// `help` is cobra's, generated onto every parent, and belongs to no role.
 func groupsOf(role string) []string {
 	root := NewRootFor(record.SampleSeatOf(role))
 	if root == nil {
@@ -288,7 +288,7 @@ func groupsOf(role string) []string {
 	var walk func(c *cobra.Command, prefix string)
 	walk = func(c *cobra.Command, prefix string) {
 		for _, sub := range c.Commands() {
-			if sub.Name() == "help" || sub.Name() == "completion" {
+			if sub.Name() == "help" {
 				continue
 			}
 			path := strings.TrimSpace(prefix + " " + sub.Name())
@@ -312,7 +312,7 @@ func actsOf(role string) []string {
 	var walk func(c *cobra.Command, prefix string)
 	walk = func(c *cobra.Command, prefix string) {
 		for _, sub := range c.Commands() {
-			if sub.Name() == "help" || sub.Name() == "completion" {
+			if sub.Name() == "help" {
 				continue
 			}
 			path := strings.TrimSpace(prefix + " " + sub.Name())
