@@ -385,7 +385,9 @@ func openUncached(path string) (*sql.DB, error) {
 	// transaction and no Run (record.writeView), so it has no handle to ask — and deriveKey counts
 	// through the tx rather than around it. With one connection, a db.Query inside an open tx would
 	// deadlock on itself rather than merely contend — so asking only the transaction is
-	// load-bearing, not incidental.
+	// load-bearing, not incidental. A migration's replay holds ONE transaction across a whole run
+	// (record.Batch), with its own code running between acts; every read it makes there goes through
+	// that transaction too (Batch.Querier), for the same reason.
 	db.SetMaxOpenConns(1)
 
 	// THE CONNECTION IS MADE HERE, ON PURPOSE, rather than by the first read below. Every read

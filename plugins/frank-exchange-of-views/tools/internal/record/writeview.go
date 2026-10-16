@@ -16,7 +16,9 @@ import (
 //
 // IT HOLDS NO Run, AND THAT IS THE POINT. The run's handle is one connection, and the transaction
 // holds it: a read through the handle from inside — anything that takes a Run and opens the record —
-// waits on that transaction forever. With no Run in reach, such a read does not compile.
+// waits on that transaction forever. With no Run in reach, such a read does not compile. The same
+// holds for the whole of a migration's batch (batch.go), which keeps its transaction open between
+// acts: its caller reads through Batch.Querier, never through the run.
 type writeView struct {
 	// q is the writing transaction. Every question validation asks of the record goes to it.
 	q recordsql.Querier

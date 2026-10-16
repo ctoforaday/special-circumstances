@@ -174,7 +174,7 @@ func countRows(query string) func(recordsql.Querier) (int, error) {
 
 func countInReport(count func(string) int) func(recordsql.Querier) (int, error) {
 	return func(q recordsql.Querier) (int, error) {
-		md, err := renderProjection(ReportProjectionAt(q))
+		md, err := RenderAt(q)
 		if err != nil {
 			return 0, err
 		}

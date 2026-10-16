@@ -519,14 +519,44 @@ func ParseStamp(ts string) (time.Time, error) {
 	return time.Parse(stampLayout, strings.TrimSpace(ts))
 }
 
-// Append writes ONE typed body as an event. The body IS the type — there is no type argument to
-// disagree with it, which is the pair recordpb.SetBody exists to retire.
+// Append writes ONE typed body as an event, in a transaction of its own. The body IS the type —
+// there is no type argument to disagree with it, which is the pair recordpb.SetBody exists to
+// retire.
 //
 // A NIL BODY IS NOT AN EMPTY ONE. The old signature substituted an empty Payload for a nil one, so
 // a caller that built nothing wrote a well-formed event carrying nothing and was told it succeeded.
 // SetBody refuses it by name instead: every EventType names a body message, so "no body" is not a
 // state an event can be in.
 func Append(id Identity, body proto.Message) (*Event, error) {
+	var tx *sql.Tx
+	defer func() {
+		if tx != nil {
+			_ = tx.Rollback()
+		}
+	}()
+	ev, err := appendAct(id, body, func() (*sql.Tx, error) {
+		db, err := openRun(id.Run)
+		if err != nil {
+			return nil, err
+		}
+		writeBegins()
+		tx, err = db.Begin()
+		return tx, err
+	})
+	if err != nil {
+		return ev, err
+	}
+	return ev, tx.Commit()
+}
+
+// appendAct is one act's write, whoever holds the transaction: the guards every act passes, then
+// the write itself inside the transaction begin hands it. Append's begin opens the record and a
+// transaction of its own; a Batch's hands over the batch's (batch.go). appendAct neither commits
+// nor rolls back — a refusal it returns leaves its caller to undo what the act wrote.
+//
+// begin is called only once the guards have passed, so a refused act opens nothing, and a write
+// that names no run is refused by name before any handle is asked for.
+func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error)) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -538,10 +568,6 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
-	if err != nil {
-		return nil, err
-	}
-	db, err := openRun(run)
 	if err != nil {
 		return nil, err
 	}
@@ -566,15 +592,26 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 				"this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
 				c.Key, recordpb.Word(typ))
 		}
+		// Set before the transaction is asked for, so a replacement that then fails to land still
+		// spends the identity: the act it would have been is the one the identity names, landed or
+		// not, and a second body through it is refused either way.
 		c.written = true
-		return appendCorrected(id, db, ev, typ, body)
+		tx, err := begin()
+		if err != nil {
+			return nil, err
+		}
+		return appendCorrected(id, tx, ev, typ, body)
+	}
+	tx, err := begin()
+	if err != nil {
+		return nil, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
 	files := filesOf(run)
-	if err := insertNumbered(db, ev, seatID, typ, body, func(tx *sql.Tx) error {
+	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
 		return validate(writeView{q: tx, files: files}, seatID, typ, body)
 	}); err != nil {
 		return ev, err
@@ -616,8 +653,10 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 }
 
 // writeIn is one event's write inside a transaction the caller holds and commits: the check, the key,
-// the once-per-sitting and answered-once duties, and the insert. `dispatch next` writes several acts
-// through it in one transaction (DispatchNext).
+// the once-per-sitting and answered-once duties, and the insert. Append's act holds a transaction of
+// its own; `dispatch next` writes several acts through it in one transaction (DispatchNext), and a
+// migration's Batch every act of a replay, each inside a savepoint of the batch's one transaction
+// (batch.go).
 func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
 	if check != nil {
 		if err := check(tx); err != nil {

@@ -6,8 +6,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // The one CONCEPT translation, stated as data: an opinion's fields in, the docket pair out.
@@ -27,8 +25,7 @@ func TestOpinionBecomesTheDocketPair(t *testing.T) {
 			"reopens_on":  "blue reports the reproduction",
 		},
 	}
-	dst := runtest.New(t, recordtest.TmpRun(t))
-	bodies, err := migrate.Entries()["opinion"].Translate(old, dst)
+	bodies, err := migrate.Entries()["opinion"].Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +71,7 @@ func TestOpinionEntryRefusesAColumnItCannotPlace(t *testing.T) {
 		ID: 7, SeatID: "bench", Round: 2, TS: ts1, Word: "opinion",
 		Fields: map[string]any{"gap_id": "R1-1", "disposition": "carried", "gavel_weight": "heavy"},
 	}
-	dst := runtest.New(t, recordtest.TmpRun(t))
-	if _, err := migrate.Entries()["opinion"].Translate(old, dst); err == nil || !strings.Contains(err.Error(), "opinion.gavel_weight") {
+	if _, err := migrate.Entries()["opinion"].Translate(old); err == nil || !strings.Contains(err.Error(), "opinion.gavel_weight") {
 		t.Fatalf("want a refusal naming opinion.gavel_weight, got %v", err)
 	}
 }
@@ -87,8 +83,7 @@ func TestFrictionEstoppelBecomesToolSourced(t *testing.T) {
 		ID: 3, SeatID: "blue-lane-1", Round: 1, TS: ts1, Word: "friction",
 		Fields: map[string]any{"text": "mint refused", "kind": "estoppel", "estopped_by": "R1-2"},
 	}
-	dst := runtest.New(t, recordtest.TmpRun(t))
-	bodies, err := migrate.Entries()["friction"].Translate(old, dst)
+	bodies, err := migrate.Entries()["friction"].Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,8 +110,7 @@ func TestIdentityRebuildsAOneofArm(t *testing.T) {
 		},
 		Arms: map[string]map[string]any{"docket": {"gap_id": "R1-1"}},
 	}
-	dst := runtest.New(t, recordtest.TmpRun(t))
-	bodies, err := (migrate.Registry{}).Translate(old, dst)
+	bodies, err := (migrate.Registry{}).Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +127,6 @@ func TestIdentityRebuildsAOneofArm(t *testing.T) {
 // red an OCR quote needs no page check; the fill states the question was never asked, and a cite
 // that carries an origin keeps it.
 func TestAnOldCiteStatesItsOriginWasNotRecorded(t *testing.T) {
-	dst := runtest.New(t, recordtest.TmpRun(t))
 	for _, tc := range []struct {
 		fields map[string]any
 		want   recordpb.SourceTextOrigin
@@ -141,7 +134,7 @@ func TestAnOldCiteStatesItsOriginWasNotRecorded(t *testing.T) {
 		{map[string]any{"label": "c-1", "url": "https://x"}, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_NOT_RECORDED},
 		{map[string]any{"label": "c-2", "url": "https://x", "source_text_origin": "ocr"}, recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR},
 	} {
-		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields}, dst)
+		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -160,7 +153,6 @@ func TestAnOldCiteStatesItsOriginWasNotRecorded(t *testing.T) {
 // years before the run; `not_checked` is the right word for a live cite with no doi, and wrong
 // here, where the field did not exist. A cite that carries a status keeps it.
 func TestAnOldCiteStatesItsWorkStatusWasNotRecorded(t *testing.T) {
-	dst := runtest.New(t, recordtest.TmpRun(t))
 	for _, tc := range []struct {
 		fields map[string]any
 		want   recordpb.WorkStatus
@@ -168,7 +160,7 @@ func TestAnOldCiteStatesItsWorkStatusWasNotRecorded(t *testing.T) {
 		{map[string]any{"label": "c-1", "url": "https://x"}, recordpb.WorkStatus_WORK_STATUS_NOT_RECORDED},
 		{map[string]any{"label": "c-2", "url": "https://x", "work_status": "retracted"}, recordpb.WorkStatus_WORK_STATUS_RETRACTED},
 	} {
-		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields}, dst)
+		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -186,7 +178,6 @@ func TestAnOldCiteStatesItsWorkStatusWasNotRecorded(t *testing.T) {
 // `not_asked` would claim the fetch looked and could not tell; the field did not exist. A cite
 // that carries one keeps it.
 func TestAnOldCiteStatesItsCompletenessWasNotRecorded(t *testing.T) {
-	dst := runtest.New(t, recordtest.TmpRun(t))
 	for _, tc := range []struct {
 		fields map[string]any
 		want   recordpb.SourceCompleteness
@@ -194,7 +185,7 @@ func TestAnOldCiteStatesItsCompletenessWasNotRecorded(t *testing.T) {
 		{map[string]any{"label": "c-1", "url": "https://x"}, recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_RECORDED},
 		{map[string]any{"label": "c-2", "url": "https://x", "source_completeness": "abstract"}, recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT},
 	} {
-		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields}, dst)
+		bodies, err := migrate.Entries()["cite"].Translate(migrate.OldEvent{ID: 1, SeatID: "blue-respond", TS: ts1, Word: "cite", Fields: tc.fields})
 		if err != nil {
 			t.Fatal(err)
 		}
