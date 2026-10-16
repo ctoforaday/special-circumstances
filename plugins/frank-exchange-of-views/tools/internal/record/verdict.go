@@ -65,7 +65,7 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool, err error) {
 	}); err != nil {
 		return "", "", false, err
 	}
-	return verdictOf(run, r)
+	return verdictOf(filesOf(run), r)
 }
 
 // verdictReads is every answer the derived verdict takes off the record, read on one snapshot.
@@ -101,9 +101,9 @@ func verdictReadsAt(q recordsql.Querier) (verdictReads, error) {
 	return r, nil
 }
 
-// verdictOf derives the verdict from what verdictReadsAt read. It asks the record nothing; run is
-// for the run's terms (RunParams), read only when the verdict turns on the plan.
-func verdictOf(run Run, r verdictReads) (verdict, why string, ok bool, err error) {
+// verdictOf derives the verdict from what verdictReadsAt read. It asks the record nothing; files is
+// for the run's terms, read only when the verdict turns on the plan.
+func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, err error) {
 	halted, passed, cast := r.halted, r.passed, r.cast
 	// THE COVERAGE LIMIT RIDES ON THE BASIS, for every terminal verdict and not only a PASS.
 	//
@@ -128,7 +128,7 @@ func verdictOf(run Run, r verdictReads) (verdict, why string, ok bool, err error
 	// has remanded it again (remandStageOf), or the chair has sat for the run's last epoch under its
 	// epoch limit, a term setup records. A record with no cast cannot reach it.
 	if cast != nil {
-		params, err := RunParams(run)
+		params, err := files.params()
 		if err != nil {
 			return "", "", false, err
 		}

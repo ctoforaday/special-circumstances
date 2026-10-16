@@ -387,9 +387,9 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		if prior, err := record.ExistingCorroborationLabel(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
 		} else if prior != "" {
-			// The corroboration and its anchor are two appends; a retry finishes the pair at the
-			// claim the corroboration stored.
-			if err := seat.PlaceOwed(s, run, prior, ""); err != nil {
+			// A corroboration on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by
+			// the retry, at the claim it stored.
+			if err := seat.PlaceOwed(s, prior, ""); err != nil {
 				return nil, err
 			}
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Claim: body.GetClaim(), Idempotent: true, VoiceTells: tells}, nil
@@ -397,19 +397,6 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// The Anchor event appended after this one is the marker (it carries the claim and this
 		// label); reportproj.Render re-places it on read. No file is spliced.
 		body.Label = proto.String(record.NewID("citation"))
-	}
-	// A CORROBORATION'S QUOTE IS THE REPORT'S SENTENCE, WHATEVER THE SOURCE DID FOR IT. One
-	// placement check, for every outcome, against the current render; a refusal records nothing.
-	// Where the source backs the claim, the quote is where the citation's marker stands. Where the
-	// source contradicts the claim or is silent on it, the quote is the subject of a PASS blocker
-	// that a finding quoting that sentence clears (record.unansweredContradictionsBy), and a
-	// finding's quote is held to the report by this same placement — so a quote the report does
-	// not hold would be a blocker no seat can clear. A verification's claim needs no check: the
-	// tool read it from the report (citedSentence).
-	if mayCite == cites {
-		if err := seat.Places(run, body.GetLabel(), body.GetClaim(), claimRefusal); err != nil {
-			return nil, err
-		}
 	}
 
 	// WHICH PART OF THE WORK RED'S COPY IS, on every verdict that names a source — a `supports`
@@ -423,7 +410,20 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		body.SourceCompleteness = completeness.Enum()
 	}
 
-	if err := seat.AppendPlaced(s, body, body.GetLabel(), body.GetClaim()); err != nil {
+	// A CORROBORATION'S QUOTE IS THE REPORT'S SENTENCE, WHATEVER THE SOURCE DID FOR IT. One
+	// placement check, for every outcome, against the report the act and its Anchor land on; a
+	// refusal records nothing. Where the source backs the claim, the quote is where the citation's
+	// marker stands. Where the source contradicts the claim or is silent on it, the quote is the
+	// subject of a PASS blocker that a finding quoting that sentence clears
+	// (record.unansweredContradictionsBy), and a finding's quote is held to the report by this same
+	// placement — so a quote the report does not hold would be a blocker no seat can clear. A
+	// verification places nothing and its claim needs no check: the tool read it from the report
+	// (citedSentence), so it is handed no quote to hold.
+	quote := body.GetClaim()
+	if mayCite != cites {
+		quote = ""
+	}
+	if err := seat.AppendPlaced(s, body, body.GetLabel(), quote, claimRefusal); err != nil {
 		return nil, err
 	}
 	return verifyResult{

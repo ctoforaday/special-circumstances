@@ -52,9 +52,9 @@ func newMint() *cobra.Command {
 			return nil, err
 		}
 		if prior != "" {
-			// The mint and its anchor are two appends; a retry finishes the pair at the location the
-			// mint stored.
-			if err := seat.PlaceOwed(s, run, prior, seat.Str(cmd, flags.Key)); err != nil {
+			// A mint on the record without its anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the retry,
+			// at the location it stored.
+			if err := seat.PlaceOwed(s, prior, seat.Str(cmd, flags.Key)); err != nil {
 				return nil, err
 			}
 			return mintResult{GapID: prior, Idempotent: true}, nil
@@ -88,9 +88,14 @@ func newMint() *cobra.Command {
 		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
 		// COINING A CLASS IS `lens class new`, a verb of its own. This one names a slug
 		// the registry already has; class_new records whether THIS run coined it, which
-		// the registry knows and a seat no longer has to assert.
+		// the registry knows and a seat no longer has to assert. Asked of the record the mint lands
+		// on: another lens's coining of the slug commits in parallel, and the mint the write path
+		// admits over it is a mint of a class this run coined.
 		p.Class = proto.String(seat.Str(cmd, flags.Class))
-		p.ClassNew = proto.Bool(record.ClassCoinedInRun(run, seat.Str(cmd, flags.Class)))
+		guards := []record.Guard{func(l *record.Landing) error {
+			p.ClassNew = proto.Bool(l.ClassCoinedInRun(p.GetClass()))
+			return nil
+		}}
 
 		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 		//
@@ -118,13 +123,8 @@ func newMint() *cobra.Command {
 			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
 		}
 		// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
-		// once within one paragraph of the report as it stands. A gap is one sentence (R-4), and the
-		// board reads its location from where its anchor stands.
-		if strings.TrimSpace(loc) != "" {
-			if err := seat.Places(run, gapID, loc, mintPlacementRefusal); err != nil {
-				return nil, err
-			}
-		}
+		// once within one paragraph of the report the mint lands on (seat.AppendPlaced, below). A gap
+		// is one sentence (R-4), and the board reads its location from where its anchor stands.
 		p.Location = proto.String(loc)
 		p.AboutKind = about
 		p.AboutRef = aboutRefP
@@ -143,31 +143,22 @@ func newMint() *cobra.Command {
 		// flag. A seat asked to self-report "verified | proposed" reports the flattering
 		// one, and the field becomes decoration — the same reason the finding id and the
 		// gap id are tool-assigned rather than claimed.
-		basis := "proposed"
+		//
+		// THE PAIR IS CHECKED AGAINST THE REPORT THE MINT LANDS ON. Blue's edit can commit in
+		// parallel, and a pair validated against the report before it is a "verified" fix of text
+		// the report no longer holds.
+		p.FixBasis = proto.String("proposed")
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			report, err := reportproj.RenderFromRecord(run)
-			if err != nil {
-				return nil, err
-			}
-			if err := bluedoc.ValidateProposal(report, seat.Str(cmd, flags.Quote), fixNew); err != nil {
-				return nil, err
-			}
-			// A FIX THAT CHANGES NOTHING IS NOT VERIFIED. The pair can be distinct, present and legal
-			// and still be a no-op once located — a repair confined to trailing punctuation the quote
-			// could not reach. Asked through the SAME planner `blue edit` records with, so a prescription
-			// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
-			// owns the splice and already imports bluedoc. Past ValidateProposal, its one other refusal
-			// is an anchor the fix puts on a heading, which stands as it is.
-			if _, _, _, err := reportproj.PlanSplice(report, seat.Str(cmd, flags.Quote), fixNew); errors.Is(err, reportproj.ErrNoChange) {
-				return nil, fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
-			} else if err != nil {
-				return nil, err
-			}
-			p.FixNew = proto.String(fixNew)
-			basis = "verified"
+			guards = append(guards, func(l *record.Landing) error {
+				report, err := l.Report()
+				if err != nil {
+					return err
+				}
+				return verifiedFix(p, report, seat.Str(cmd, flags.Quote), fixNew)
+			})
 		}
-		p.FixBasis = proto.String(basis)
 		p.AcceptanceCheck = proto.String(seat.Str(cmd, flags.Check))
+
 		if w := seat.Str(cmd, flags.CheckKind); w != "" {
 			ck, ok := record.CheckKindOf(w)
 			if !ok {
@@ -200,40 +191,55 @@ func newMint() *cobra.Command {
 		// prescriptions" a per-run number on the record, which is the measurement of the
 		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
 		// rejection — the tool records the block, never the seat's memory of it.
-		if fam, berr := record.FamilyOf(run); berr == nil {
+		//
+		// ASKED OF THE RECORD THE MINT LANDS ON: blue's `edit --accept` of this lens's prescription
+		// commits in parallel, and a mint checked against the record before it opens a fresh gap
+		// against the lens's own words. The refusal is decided under the write lock; the log entry
+		// that records it is written after, as its own act.
+		guards = append(guards, func(l *record.Landing) error {
+			fam, berr := l.Family()
+			if berr != nil {
+				return nil
+			}
 			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
 				!contains(supersedes.Value(), prior) {
-				msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
-					prior, prior, prior, prescribed)
-				// The KIND is a field, not something a reader infers from the wording. The
-				// prose above is aimed at a seat and must stay editable; the count an
-				// operator reads must not move when it is edited (#283).
-				// THE TYPE IS A VALUE NOW, not a key/word pair. `text` is the field the log
-				// projection reads, and the old payload set the wrong key — every estoppel
-				// block recorded an entry that rendered with EMPTY TEXT, so the block was
-				// logged and its explanation was not. The schema removes the way to make that
-				// mistake: one prose field, one typed assertion, one source.
-				//
-				// SOURCE IS TOOL, and that is the axis the old single enum conflated: this is
-				// the tool refusing a mint, not a seat filing a report about its sitting, and
-				// an operator filtering for seat reports must not have to know which VALUES
-				// were tool values to exclude it.
-				lt := recordpb.LogType_LOG_TYPE_ESTOPPEL
-				src := recordpb.LogSource_LOG_SOURCE_TOOL
-				fr := &recordpb.Log{
-					Text:       proto.String(msg),
-					Type:       &lt,
-					Source:     &src,
-					EstoppedBy: proto.String(prior),
-				}
-				if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
-					return nil, ferr
-				}
-				return nil, record.ToolLogged(feov.Errorf(feov.Conflict, "%s", msg))
+				return estopped{prior: prior, prescribed: prescribed}
 			}
-		}
+			return nil
+		})
 
-		if err := seat.AppendPlaced(s, p, gapID, loc); err != nil {
+		var est estopped
+		switch err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
+		case errors.As(err, &est):
+			prior, prescribed := est.prior, est.prescribed
+			msg := fmt.Sprintf("estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
+				prior, prior, prior, prescribed)
+			// The KIND is a field, not something a reader infers from the wording. The
+			// prose above is aimed at a seat and must stay editable; the count an
+			// operator reads must not move when it is edited (#283).
+			// THE TYPE IS A VALUE NOW, not a key/word pair. `text` is the field the log
+			// projection reads, and the old payload set the wrong key — every estoppel
+			// block recorded an entry that rendered with EMPTY TEXT, so the block was
+			// logged and its explanation was not. The schema removes the way to make that
+			// mistake: one prose field, one typed assertion, one source.
+			//
+			// SOURCE IS TOOL, and that is the axis the old single enum conflated: this is
+			// the tool refusing a mint, not a seat filing a report about its sitting, and
+			// an operator filtering for seat reports must not have to know which VALUES
+			// were tool values to exclude it.
+			lt := recordpb.LogType_LOG_TYPE_ESTOPPEL
+			src := recordpb.LogSource_LOG_SOURCE_TOOL
+			fr := &recordpb.Log{
+				Text:       proto.String(msg),
+				Type:       &lt,
+				Source:     &src,
+				EstoppedBy: proto.String(prior),
+			}
+			if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
+				return nil, ferr
+			}
+			return nil, record.ToolLogged(feov.Errorf(feov.Conflict, "%s", msg))
+		case err != nil:
 			return nil, err
 		}
 		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
@@ -327,6 +333,34 @@ func mintPlacementRefusal(err error) error {
 		return r
 	}
 	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes", r)
+}
+
+// estopped is the estoppel guard's refusal: the gap prior prescribed text the mint's quote names, and
+// blue applied it verbatim. The verb words it and logs it once the write has rolled back.
+type estopped struct{ prior, prescribed string }
+
+func (e estopped) Error() string { return "estoppel against " + e.prior }
+
+// verifiedFix marks p's fix verified where --quote and --new are a pair blue could apply to report
+// verbatim — refusing a pair that is not legal, or that would change nothing.
+func verifiedFix(p *recordpb.Mint, report, quote, fixNew string) error {
+	if err := bluedoc.ValidateProposal(report, quote, fixNew); err != nil {
+		return err
+	}
+	// A FIX THAT CHANGES NOTHING IS NOT VERIFIED. The pair can be distinct, present and legal
+	// and still be a no-op once located — a repair confined to trailing punctuation the quote
+	// could not reach. Asked through the SAME planner `blue edit` records with, so a prescription
+	// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
+	// owns the splice and already imports bluedoc. Past ValidateProposal, its one other refusal
+	// is an anchor the fix puts on a heading, which stands as it is.
+	if _, _, _, err := reportproj.PlanSplice(report, quote, fixNew); errors.Is(err, reportproj.ErrNoChange) {
+		return fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
+	} else if err != nil {
+		return err
+	}
+	p.FixNew = proto.String(fixNew)
+	p.FixBasis = proto.String("verified")
+	return nil
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap

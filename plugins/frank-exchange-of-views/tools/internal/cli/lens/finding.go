@@ -73,10 +73,10 @@ func newFinding() *cobra.Command {
 		if prior, err := record.FindingByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
-			// THE PAIR MAY BE HALF-APPENDED: the finding and its anchor are two appends, so a crash
-			// between them leaves the finding recorded and its anchor out of the report. The retry
-			// finishes the pair at the location the finding stored.
-			if err := seat.PlaceOwed(s, run, prior, key); err != nil {
+			// THE PAIR MAY BE HALF ON THE RECORD: the finding and its anchor are one write, but a
+			// record migrate brought forward from an archive can hold a finding whose run crashed
+			// before its anchor. The retry finishes the pair at the location the finding stored.
+			if err := seat.PlaceOwed(s, prior, key); err != nil {
 				return nil, err
 			}
 			return findingResult{ID: prior, Area: area, Idempotent: true}, nil
@@ -84,22 +84,8 @@ func newFinding() *cobra.Command {
 		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
 		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
 		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
-		// reconciles a half-appended pair.
+		// finishes a pair the record holds half of.
 		findingID := record.NewID("finding")
-
-		// VALIDATE the placement against the current render: NOT FOUND -> reject (a mis-quote),
-		// in-fence -> reject. Nothing is recorded on a refusal. On success the bytes are discarded —
-		// the Finding + Anchor events below are what the report is replayed from.
-		//
-		// SKIPPED ENTIRELY FOR AN ABSENCE. There is no placement to validate when the subject is
-		// something the report does NOT contain, and running this anyway is what forced a lens to
-		// borrow a live sentence as a handle: the only way past this check was to name text that
-		// exists, whatever the finding was actually about.
-		if !aboutSet {
-			if err := seat.Places(run, findingID, location, findingRefusal); err != nil {
-				return nil, err
-			}
-		}
 
 		body := &recordpb.Finding{
 			Id:         proto.String(findingID),
@@ -115,7 +101,15 @@ func newFinding() *cobra.Command {
 		// NO ANCHOR FOR AN ABSENCE, and that is the point rather than an omission: a finding about
 		// something NOT in the report has no location to mark, and placing one would put an anchor on
 		// the innocent prose this change exists to stop borrowing.
-		if err := seat.AppendPlaced(s, body, findingID, location); err != nil {
+		// THE PLACEMENT IS VALIDATED against the report the Finding and its Anchor land on: NOT FOUND
+		// -> reject (a mis-quote), in-fence -> reject. Nothing is recorded on a refusal. The Finding
+		// and Anchor events are what the report is replayed from.
+		//
+		// SKIPPED ENTIRELY FOR AN ABSENCE: an --about finding has no quote, so it places nothing and
+		// nothing is checked. Checking anyway is what forced a lens to borrow a live sentence as a
+		// handle: the only way past the check was to name text that exists, whatever the finding was
+		// actually about.
+		if err := seat.AppendPlaced(s, body, findingID, location, findingRefusal); err != nil {
 			return nil, err
 		}
 		return findingResult{ID: findingID, Area: area}, nil

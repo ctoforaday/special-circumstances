@@ -124,8 +124,9 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding")
 
-	// A FINDING RECORDED WITHOUT ITS ANCHOR — the state a crash between a placing act's two appends
-	// leaves — at a location the report does not hold, for the retry row below.
+	// A FINDING RECORDED WITHOUT ITS ANCHOR — the state an archived run's crash between a placing act
+	// and its Anchor leaves, brought forward by migrate — at a location the report does not hold, for
+	// the retry row below.
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:seeded:F-00000ded", &recordpb.Finding{
 		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t")}))
 
