@@ -275,7 +275,7 @@ func TerminalVerdict(run Run) (string, error) {
 	// over. Its reads fail the same way the first one does, and are surfaced the same way: a
 	// busy record under the halt or gate read folded into ("", nil) convicted a finished run as
 	// TERMINATED just as the first read's fold did.
-	v, _, ok, err := verdictOf(run, derive)
+	v, _, ok, err := verdictOf(filesOf(run), derive)
 	if err != nil {
 		return "", err
 	}

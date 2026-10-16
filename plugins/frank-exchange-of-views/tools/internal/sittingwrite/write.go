@@ -18,6 +18,7 @@
 package sittingwrite
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"io"
@@ -79,17 +80,20 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 	if err != nil || !found {
 		return err // no seat for this agent
 	}
-	if v, err := record.RecordedOutcome(run); err != nil || v != "" {
-		return err // a run that is over: its record is closed to seats
-	}
 	// THE ANNOTATION LAYER IS NOT TEXT: an error can quote an anchor, and a live `<!--fx:…-->` in a
 	// log entry is a marker in every document that renders it. Stripped here, in the writer, so the
 	// hooks that hand these over link nothing more than they did.
+	//
+	// A RUN THAT IS OVER takes nothing: its record is closed to seats. Asked as the entry is written
+	// (record.UntilTheOutcome), so an outcome committed in between is seen.
 	_, err = record.Append(record.Identity{Run: run, SeatID: seat}, &recordpb.Log{
 		Text:   proto.String(anchortext.Visible(text)),
 		Type:   typ.Enum(),
 		Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
-	})
+	}, record.UntilTheOutcome)
+	if errors.Is(err, record.ErrWritesNothing) {
+		return nil
+	}
 	return err
 }
 

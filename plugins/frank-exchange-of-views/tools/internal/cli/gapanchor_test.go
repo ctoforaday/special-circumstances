@@ -347,11 +347,11 @@ func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
 	}
 }
 
-// A RETRY ANCHORS THE STORED LOCATION, for every act that places an anchor. An act appended without
-// its Anchor — the crash window between the two appends — is named by the consistency check and
-// finished by a retry under its key at the location the act stored, never at the retry's own
-// --quote; where the report has since come to hold that location twice, the retry refuses and
-// appends nothing. A corroboration's key is its source and claim, so its retry quotes the claim.
+// A RETRY ANCHORS THE STORED LOCATION, for every act that places an anchor. An act on the record
+// without its Anchor — an archived run's crash between the two, brought forward by migrate — is named
+// by the consistency check and finished by a retry under its key at the location the act stored,
+// never at the retry's own --quote; where the report has since come to hold that location twice, the
+// retry refuses and appends nothing. A corroboration's key is its source and claim, so its retry quotes the claim.
 func TestRetryAnchorsTheStoredLocation(t *testing.T) {
 	const stored, other = "Costs rose sharply.", "Volume grew."
 	for _, c := range []struct {

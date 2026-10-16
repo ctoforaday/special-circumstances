@@ -35,7 +35,7 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		return emptyPlan(), false, err
 	}
 	files := filesOf(run)
-	writeBegins()
+	WriteBegins()
 	tx, err := db.Begin()
 	if err != nil {
 		return emptyPlan(), false, err

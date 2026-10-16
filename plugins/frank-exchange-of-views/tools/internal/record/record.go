@@ -506,6 +506,10 @@ var Migrating bool
 // Fixed width is preserved, so lexicographic order is still time order.
 func stamp() string { return Now().Format(stampLayout) }
 
+// Stamp is stamp, for a test that lands another seat's act on that seat's own connection: the act
+// carries the stamp its write path would give it.
+func Stamp() string { return stamp() }
+
 const stampLayout = "2006-01-02T15:04:05.000000000Z"
 
 // ParseStamp reads an event's TS back as a time.
@@ -527,36 +531,76 @@ func ParseStamp(ts string) (time.Time, error) {
 // a caller that built nothing wrote a well-formed event carrying nothing and was told it succeeded.
 // SetBody refuses it by name instead: every EventType names a body message, so "no body" is not a
 // state an event can be in.
-func Append(id Identity, body proto.Message) (*Event, error) {
+//
+// GUARDS ARE THE VERB'S OWN CHECKS, asked of the record the event lands on (Guard): each runs inside
+// the write's transaction, in order, before validation, and may fill the body's derived fields.
+func Append(id Identity, body proto.Message, guards ...Guard) (*Event, error) {
+	return appendOwn(id, []proto.Message{body}, guards)
+}
+
+// AppendPlaced writes act and the Anchor that places its marker — anchorID's, at loc — in ONE
+// transaction, the guards asked first; an act with no anchorID or no loc places nothing and is
+// written alone.
+//
+// ONE TRANSACTION BECAUSE THE PAIR IS ONE ACT. Written as two, another seat's edit could commit
+// between them and take the quoted text out of the report, and the Anchor then names a location
+// replay cannot place: every render of the report fails from that write on (#1252). The placement
+// guard a verb passes reads the report this Anchor lands on.
+func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards ...Guard) (*Event, error) {
+	bodies := []proto.Message{act}
+	if anchorID != "" && strings.TrimSpace(loc) != "" {
+		bodies = append(bodies, &recordpb.Anchor{Id: proto.String(anchorID), Location: proto.String(loc)})
+	}
+	return appendOwn(id, bodies, guards)
+}
+
+// appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
+// each body is one appendAct over the same transaction. It returns the first body's event.
+func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
 	var tx *sql.Tx
 	defer func() {
 		if tx != nil {
 			_ = tx.Rollback()
 		}
 	}()
-	ev, err := appendAct(id, body, func() (*sql.Tx, error) {
+	begin := func() (*sql.Tx, error) {
+		if tx != nil {
+			return tx, nil
+		}
 		db, err := openRun(id.Run)
 		if err != nil {
 			return nil, err
 		}
-		writeBegins()
+		WriteBegins()
 		tx, err = db.Begin()
 		return tx, err
-	})
-	if err != nil {
-		return ev, err
 	}
-	return ev, tx.Commit()
+	var first *Event
+	for i, body := range bodies {
+		g := guards
+		if i > 0 {
+			g = nil
+		}
+		ev, err := appendAct(id, body, begin, g)
+		if i == 0 {
+			first = ev
+		}
+		if err != nil {
+			return first, err
+		}
+	}
+	return first, tx.Commit()
 }
 
-// appendAct is one act's write, whoever holds the transaction: the guards every act passes, then
-// the write itself inside the transaction begin hands it. Append's begin opens the record and a
+// appendAct is one act's write, whoever holds the transaction: the checks every act passes, then
+// the write itself inside the transaction begin hands it — the verb's guards (Guard) first, against
+// that transaction, then validation, the key and the insert. Append's begin opens the record and a
 // transaction of its own; a Batch's hands over the batch's (batch.go). appendAct neither commits
 // nor rolls back — a refusal it returns leaves its caller to undo what the act wrote.
 //
-// begin is called only once the guards have passed, so a refused act opens nothing, and a write
-// that names no run is refused by name before any handle is asked for.
-func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error)) (*Event, error) {
+// begin is called only once the checks before it have passed, so a refused act opens nothing, and
+// a write that names no run is refused by name before any handle is asked for.
+func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), guards []Guard) (*Event, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
@@ -595,6 +639,9 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error)) (
 		// Set before the transaction is asked for, so a replacement that then fails to land still
 		// spends the identity: the act it would have been is the one the identity names, landed or
 		// not, and a second body through it is refused either way.
+		if len(guards) > 0 {
+			return nil, feov.Errorf(feov.Internal, "a correction is migrate's replay of an archived act, and no verb's guard is asked of it — this write passed %d", len(guards))
+		}
 		c.written = true
 		tx, err := begin()
 		if err != nil {
@@ -606,11 +653,14 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error)) (
 	if err != nil {
 		return nil, err
 	}
+	files := filesOf(run)
+	if err := guardsAt(writeView{q: tx, files: files}, guards); err != nil {
+		return ev, err
+	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
-	files := filesOf(run)
 	if err := writeIn(tx, ev, seatID, typ, body, func(tx *sql.Tx) error {
 		return validate(writeView{q: tx, files: files}, seatID, typ, body)
 	}); err != nil {
@@ -619,10 +669,13 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error)) (
 	return ev, nil
 }
 
-// writeBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
+// WriteBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
 // a test sets it to commit another seat's act at that instant, on that seat's own connection — the
 // moment a check made before the transaction is overtaken, and one made inside it is not.
-var writeBegins = func() {}
+//
+// It is a variable a test sets, as Now is, and exported because a verb's guards (Guard) are the
+// verb's code: they are tested from the verb's own package, through runtest.Overtaken.
+var WriteBegins = func() {}
 
 // insertNumbered stamps the envelope and writes the event in ONE transaction.
 //
@@ -640,7 +693,7 @@ var writeBegins = func() {}
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
 func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error) error {
-	writeBegins()
+	WriteBegins()
 	tx, err := db.Begin()
 	if err != nil {
 		return err

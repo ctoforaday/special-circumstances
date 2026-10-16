@@ -49,9 +49,6 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	if n, err := record.SittingsOf(run, seatID); err != nil || n == 0 {
 		return
 	}
-	if v, err := record.RecordedOutcome(run); err != nil || v != "" {
-		return
-	}
 	var given []string
 	cmd.Flags().Visit(func(f *pflag.Flag) {
 		switch f.Name {
@@ -82,10 +79,11 @@ func noteRefusal(cmd *cobra.Command, err error) {
 		what = "`" + p + "`"
 	}
 	lt, src := recordpb.LogType_LOG_TYPE_REFUSAL, recordpb.LogSource_LOG_SOURCE_TOOL
+	// UntilTheOutcome: a run with an outcome is over, and nothing is written.
 	_, _ = record.Append(record.Identity{Run: run, SeatID: seatID}, &recordpb.Log{
 		Text: proto.String(fmt.Sprintf("refused %s%s: %s", what, with, why)),
 		Type: &lt, Source: &src,
-	})
+	}, record.UntilTheOutcome)
 }
 
 // persistentOnly keeps the root's own flags from an argv, with their values, so a refusal raised

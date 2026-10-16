@@ -47,31 +47,7 @@ func newOutcome() *cobra.Command {
 		// the two, so a seat could record VERIFIED over a board with open gaps and the
 		// report's stamp, capture's audits and every scorecard would believe it. Same
 		// posture as seatenv's --run: where the tool can decide, a flag that disagrees is
-		// REFUSED naming both, rather than obeyed.
-		basis, basisWhy := record.VerdictAsserted, ""
-		derived, why, ok, err := record.DeriveVerdict(run)
-		if err != nil {
-			// Not a refusal of the verdict: the record could not be read to derive one, so the
-			// call is retried as it stands.
-			return nil, fmt.Errorf("the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
-		}
-		switch {
-		case ok && verdict != derived:
-			return nil, feov.Errorf(feov.Conflict,
-				"--as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
-				verdict, derived, why)
-		case ok:
-			basis, basisWhy = record.VerdictDerived, why
-		case !strings.EqualFold(verdict, "UNVERIFIED"):
-			// THE ONLY WORD THE BENCH MAY ASSERT. When the record holds no terminal state — no
-			// halt, no PASS, no board at its ceiling — the run ended before it reached one, and
-			// UNVERIFIED is the name of that. Any other word here is a claim the record would
-			// refuse if it could decide, arriving through the one gap where it cannot.
-			return nil, feov.Errorf(feov.Conflict,
-				"--as %s, but the record holds no terminal state to derive it from (%s). Only UNVERIFIED may be asserted over such a record — a run that ended before a halt, a PASS or the ceiling",
-				verdict, why)
-		}
-
+		// REFUSED naming both, rather than obeyed (crossCheck, asked as the outcome is written).
 		// --reason IS THE RULE, NOT AN EXCEPTION, and the rule is enforced in `validate`
 		// rather than here — one write path, one enforcer. The 2026-07-20 vocabulary
 		// collapse made every claim or judgment act carry its prose, because "a ruling, a
@@ -103,17 +79,16 @@ func newOutcome() *cobra.Command {
 			return nil, feov.Errorf(feov.Validation,
 				"%q is not a verdict this record can carry", verdict)
 		}
-		body := &recordpb.Outcome{Verdict: &v, VerdictBasis: proto.String(basis)}
+		body := &recordpb.Outcome{Verdict: &v}
 		if reason != "" {
 			body.Prose = proto.String(reason)
 		}
-		// THE DERIVATION'S OWN REASONING, recorded rather than discarded. It was computed on
-		// every call and used only to phrase an error, so the report stamped a verdict and
-		// could never say why it was that one.
-		if basisWhy != "" {
-			body.VerdictWhy = proto.String(basisWhy)
-		}
-		if _, err := record.Append(s.Identity(), body); err != nil {
+		// THE CROSS-CHECK IS ASKED OF THE RECORD THE OUTCOME LANDS ON. The chair's PASS, a halt or a
+		// lens's mint can commit in parallel, and an outcome checked against the record before it
+		// carries a verdict the record it joins does not derive (#1252).
+		if _, err := record.Append(s.Identity(), body, func(l *record.Landing) error {
+			return crossCheck(l, verdict, body)
+		}); err != nil {
 			return nil, err
 		}
 		// THE RUN STOPS COUNTING AS LIVE HERE, for every agent but this one (runlive.StateOf). Written
@@ -123,13 +98,49 @@ func newOutcome() *cobra.Command {
 				"so this project's live-run marker still counts the run as live until capture closes it",
 				verdict, runlive.OutcomeMark, err)
 		}
-		return outcomeResult{Verdict: verdict, Basis: basis}, nil
+		return outcomeResult{Verdict: verdict, Basis: body.GetVerdictBasis()}, nil
 	})
 
 	seat.Prose(c)
 	c.Flags().Lookup(flags.Reason).Usage = "how this run ended, in your words — the bench's account of the sitting, and on an UNVERIFIED run the only evidence of why it stopped"
 	enumhelp.Flag(c, flags.As, record.MustEnum("outcome", "verdict"), ("the run's terminal verdict"))
 	return c
+}
+
+// crossCheck derives the run's verdict from the record the outcome lands on, refuses an --as that
+// contradicts it, and records on body how the verdict was reached.
+func crossCheck(l *record.Landing, verdict string, body *recordpb.Outcome) error {
+	basis, basisWhy := record.VerdictAsserted, ""
+	derived, why, ok, err := l.Verdict()
+	if err != nil {
+		// Not a refusal of the verdict: the record could not be read to derive one, so the
+		// call is retried as it stands.
+		return fmt.Errorf("the record could not be read to derive the run's verdict, so --as was neither checked nor refused — retry the call: %w", err)
+	}
+	switch {
+	case ok && verdict != derived:
+		return feov.Errorf(feov.Conflict,
+			"--as %s contradicts the record, which says %s (%s). The verdict is DERIVED, not claimed — if the record is wrong the fix is on the record, not in this flag",
+			verdict, derived, why)
+	case ok:
+		basis, basisWhy = record.VerdictDerived, why
+	case !strings.EqualFold(verdict, "UNVERIFIED"):
+		// THE ONLY WORD THE BENCH MAY ASSERT. When the record holds no terminal state — no
+		// halt, no PASS, no board at its ceiling — the run ended before it reached one, and
+		// UNVERIFIED is the name of that. Any other word here is a claim the record would
+		// refuse if it could decide, arriving through the one gap where it cannot.
+		return feov.Errorf(feov.Conflict,
+			"--as %s, but the record holds no terminal state to derive it from (%s). Only UNVERIFIED may be asserted over such a record — a run that ended before a halt, a PASS or the ceiling",
+			verdict, why)
+	}
+	body.VerdictBasis = proto.String(basis)
+	// THE DERIVATION'S OWN REASONING, recorded rather than discarded. It was computed on
+	// every call and used only to phrase an error, so the report stamped a verdict and
+	// could never say why it was that one.
+	if basisWhy != "" {
+		body.VerdictWhy = proto.String(basisWhy)
+	}
+	return nil
 }
 
 type outcomeResult struct {

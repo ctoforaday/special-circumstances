@@ -19,7 +19,7 @@ func seatLog(text string) *recordpb.Log {
 
 func appendOK(t *testing.T, id record.Identity, body proto.Message) *record.Event {
 	t.Helper()
-	append := record.Append
+	append := func(id record.Identity, body proto.Message) (*record.Event, error) { return record.Append(id, body) }
 	if id.Correct != nil {
 		append = replayed
 	}
