@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -72,13 +73,41 @@ func shippedDefault(slug string) (v recordpb.ClassMaterial, fill bool) {
 // body already carries what was actually observed then, and replaying it verbatim is the
 // only honest answer. Dispatch numbering survives because it derives from the key ordinal,
 // which Append's own path re-derives.
+//
+// The whole replay is one batch (record.Batch): every act is written in one transaction, each inside
+// a savepoint, and committed once at the end.
 func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
-	return replay(src, reg, dst, opt, false)
+	was := record.Now
+	defer func() { record.Now = was }()
+	record.Migrating = true
+	defer func() { record.Migrating = false }()
+	batch, err := record.BeginBatch(dst)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = batch.Rollback() }()
+	res, err := replay(src, reg, batch, dst, opt, false)
+	if err != nil {
+		return nil, err
+	}
+	if err := batch.Commit(); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
-// replay is Replay, with the report's base written in the order its text ships in when inOrder is
-// set (order.go).
-func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool) (*Result, error) {
+// replay writes src's events through batch, which its caller began on dst, holds and commits, with
+// record.Migrating set; it pins record.Now per event and leaves restoring it to the caller. With
+// inOrder set, the report's base is written in the order its text ships in (order.go).
+//
+// dst IS AN ADDRESS, NEVER A HANDLE. While the batch is open, the batch's transaction holds the
+// record's one connection, and anything that takes dst and opens the record waits on it forever. So
+// dst is used here only as the Run of the Identity each act is written under; every read of the
+// destination goes through batch.Querier().
+//
+// An act the write refuses is a Refusal, and the replay goes on. A failure of the batch itself
+// (record.ErrBatchFailed) ends it: it is returned, and nothing the batch wrote can be kept.
+func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt Options, inOrder bool) (*Result, error) {
 	evs, err := src.Events()
 	if err != nil {
 		return nil, err
@@ -93,11 +122,6 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 		return nil, err
 	}
 
-	was := record.Now
-	defer func() { record.Now = was }()
-	record.Migrating = true
-	defer func() { record.Migrating = false }()
-
 	evs, res.Serialized = serializeInstances(evs)
 	rm := newRemap(res.SourceHash)
 	// THE CAST IS SYNTHESIZED FIRST (plans/roundless.md §III.A.5): an archived run had no cast
@@ -111,7 +135,7 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 			record.Now = func() time.Time { return ts }
 		}
 	}
-	if wrote, err := writeSynthesizedCast(evs, rm, dst); err != nil {
+	if wrote, err := writeSynthesizedCast(evs, rm, batch, dst); err != nil {
 		return nil, err
 	} else if wrote {
 		res.Out["cast"]++
@@ -137,12 +161,12 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 	// stream is translated once to learn every id it mints, and again, below, to write it. An id is
 	// a function of the source alone, so both passes spell it the same.
 	for _, old := range evs {
-		bodies, _ := reg.Translate(old, dst)
+		bodies, _ := reg.Translate(old)
 		for _, body := range bodies {
 			rm.apply(body, old.Fields["label"])
 		}
 	}
-	place := newPlacer(dst, evs, rm.ids)
+	place := newPlacer(batch.Querier(), evs, rm.ids)
 	newKey := map[string]string{} // source key -> the key the migrated event carries
 	paired := map[int64]bool{}    // source corrections already written beside their replacement
 	for _, old := range evs {
@@ -161,7 +185,7 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
-		bodies, err := reg.Translate(old, dst)
+		bodies, err := reg.Translate(old)
 		if err != nil {
 			var loss LossError
 			if as(err, &loss) && opt.AcceptLoss[loss.Word] {
@@ -233,7 +257,10 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				continue
 			}
-			ev, err := record.Append(id, body)
+			ev, err := batch.Append(id, body)
+			if errors.Is(err, record.ErrBatchFailed) {
+				return nil, err
+			}
 			if err != nil {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				continue
@@ -241,7 +268,9 @@ func replay(src Source, reg Registry, dst record.Run, opt Options, inOrder bool)
 			res.Out[wordOf(ev)]++
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
-				if _, err := record.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
+				if _, err := batch.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); errors.Is(err, record.ErrBatchFailed) {
+					return nil, err
+				} else if err != nil {
 					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
@@ -300,7 +329,9 @@ func sortedKeys[V any](m map[string]V) []string {
 // like every other event. Synthesizing one as well made the original a SECOND cast, which the
 // write path refuses — so migrating any roundless-era record exited non-zero on a refusal of
 // its own membership.
-func writeSynthesizedCast(evs []OldEvent, rm *remap, dst record.Run) (bool, error) {
+//
+// The cast is written through batch, under dst as its Identity's run.
+func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Batch, dst record.Run) (bool, error) {
 	for _, old := range evs {
 		if old.Word == "cast" {
 			return false, nil
@@ -326,6 +357,6 @@ func writeSynthesizedCast(evs []OldEvent, rm *remap, dst record.Run) (bool, erro
 		return false, nil // nothing registered: nothing to admit, and nothing will register
 	}
 	sort.Strings(cast)
-	_, err := record.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast})
+	_, err := batch.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast})
 	return err == nil, err
 }

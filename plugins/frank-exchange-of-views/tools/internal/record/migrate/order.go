@@ -2,11 +2,8 @@ package migrate
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
@@ -40,33 +37,58 @@ const (
 )
 
 // replayInOrder is Replay with the report's text brought into order where that replays cleanly.
+//
+// THE TRIAL IS ONE BATCH, KEPT OR ROLLED BACK. The reordered replay is written in a batch; kept, it
+// is committed, and not kept, it is rolled back and the record replayed as written in a fresh batch
+// on the same database. The schema, applied when the record was opened and before the first batch
+// began, stays; the rolled-back trial leaves no row, so the replay as written starts from the empty
+// record the trial did. A failure of the trial's batch (record.ErrBatchFailed) is the migration's
+// failure, never a reason to replay as written.
 func replayInOrder(src Source, reg Registry, dst record.Run, opt Options) (*Result, error) {
-	res, err := replay(src, reg, dst, opt, true)
+	was := record.Now
+	defer func() { record.Now = was }()
+	record.Migrating = true
+	defer func() { record.Migrating = false }()
+	batch, err := record.BeginBatch(dst)
 	if err != nil {
 		return nil, err
 	}
-	base, have, ops, err := record.ReportProjection(dst)
+	// Every exit that does not commit — a refusal, an error, a panic — rolls the open batch back;
+	// after a commit it does nothing. batch is the variable, so this reaches the as-written batch too.
+	defer func() { _ = batch.Rollback() }()
+	res, err := replay(src, reg, batch, dst, opt, true)
+	if err != nil {
+		return nil, err
+	}
+	base, have, ops, err := record.ReportProjectionAt(batch.Querier())
 	if err != nil {
 		return nil, err
 	}
 	if have && base != res.base {
 		now, nerr := reportproj.Replay(base, true, ops)
-		was, werr := reportproj.Replay(res.base, true, ops)
-		if len(res.Refusals) == 0 && nerr == nil && werr == nil && now == report.Ordered(was) {
+		written, werr := reportproj.Replay(res.base, true, ops)
+		if len(res.Refusals) == 0 && nerr == nil && werr == nil && now == report.Ordered(written) {
+			if err := batch.Commit(); err != nil {
+				return nil, err
+			}
 			res.ReportOrder = OrderReordered
 			return res, nil
 		}
-		if err := recordsql.CloseUnder(dst.Records()); err != nil {
+		if err := batch.Rollback(); err != nil {
+			return nil, fmt.Errorf("discarding the reordered replay: %w", err)
+		}
+		// The trial pinned the clock to its events; the replay as written starts from the clock the
+		// trial did, since the synthesized cast pins it only when the first stamp parses.
+		record.Now = was
+		if batch, err = record.BeginBatch(dst); err != nil {
 			return nil, err
 		}
-		for _, name := range dbSiblings {
-			if err := os.Remove(filepath.Join(dst.Records(), name)); err != nil && !os.IsNotExist(err) {
-				return nil, fmt.Errorf("replaying the record as written: %w", err)
-			}
-		}
-		if res, err = replay(src, reg, dst, opt, false); err != nil {
+		if res, err = replay(src, reg, batch, dst, opt, false); err != nil {
 			return nil, err
 		}
+	}
+	if err := batch.Commit(); err != nil {
+		return nil, err
 	}
 	if !have {
 		res.ReportOrder = OrderNoReport

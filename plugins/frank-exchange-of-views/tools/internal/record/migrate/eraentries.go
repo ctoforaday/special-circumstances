@@ -5,7 +5,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -80,7 +79,7 @@ type (
 // refusal if the drop map is wrong), remap recorded value renames, then hold the result to
 // the same identity contract every kept word gets.
 func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entry {
-	return Entry{Translate: func(old OldEvent, _ record.Run) ([]proto.Message, error) {
+	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
 		out := OldEvent{ID: old.ID, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.Key,
 			Word: currentWord, Lists: old.Lists, Arms: old.Arms}
 		for col, v := range old.Fields {
@@ -117,12 +116,12 @@ func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entr
 // reason side by side — and the schema made the subject a oneof so a grade motion carrying a
 // petition's field is unrepresentable. The era only ever filed grade motions; anything else
 // refuses by name rather than guessing an arm.
-func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
+func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 	// TWO ERAS SHARE THIS WORD. The SQLite era already decomposed the subject into oneof arm
 	// tables — that shape is the CURRENT one and translates by identity; only the flat shard
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
-		return (Registry{}).Translate(avenueArm(old), dst)
+		return (Registry{}).Translate(avenueArm(old))
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
@@ -162,11 +161,11 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 // verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject is
 // today's `avenue` — the ruling on an avenue, whose motion_id is the avenue's own id, which is
 // exactly what the era wrote there.
-func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
+func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		return (Registry{}).Translate(avenueArm(old), dst)
+		return (Registry{}).Translate(avenueArm(old))
 	}
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)
