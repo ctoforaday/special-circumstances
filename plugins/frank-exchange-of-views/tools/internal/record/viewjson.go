@@ -324,7 +324,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// stands (#1091). Once per board and not once per gap: replaying the mutations is the expensive
 	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
 	// the anomaly below says why.
-	report, renderErr := renderProjection(ReportProjectionAt(q))
+	report, renderErr := RenderAt(q)
 
 	verified := backingOf(Live(evs))
 	// THE CLOSURE IS THE GAP VIEW'S (the last standing act of each arm, by its events.id, with the

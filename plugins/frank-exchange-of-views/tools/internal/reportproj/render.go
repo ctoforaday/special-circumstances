@@ -249,15 +249,11 @@ func collapseNewlinesAt(s string, at int) string {
 //
 // The FOLD is the irreducible sequential part: a splice must be located in the running text a prior
 // op left, which SQL cannot carry. Everything before it — which events mutate the text, and in what
-// order — is the record's own answer (record.ReportProjection over the report_op view), not a walk
+// order — is the record's own answer (record.RenderRun, over the report_op view), not a walk
 // of the whole event log rebuilt here. Two structural failures stay loud, never a plausible zero:
 // no base (nothing ingested) and two bases (the write-once rule broken) — both raised by the query.
 func RenderFromRecord(run record.Run) (string, error) {
-	base, haveBase, ops, err := record.ReportProjection(run)
-	if err != nil {
-		return "", err
-	}
-	return Replay(base, haveBase, ops)
+	return record.RenderRun(run)
 }
 
 // Replay folds the ordered mutations over the frozen base.
