@@ -288,17 +288,9 @@ func claimAppearsInAnEditAt(q recordsql.Querier, claim string) bool {
 // EditSpan is one recorded blue_edit's (old, new) pair, in record order.
 type EditSpan struct{ Old, New string }
 
-// EditSpans returns every recorded blue_edit's (old, new), in record order — what `blue retire`
-// reads to learn which edit took a claim out and what that edit left behind in its place.
-func EditSpans(run Run) ([]EditSpan, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, err
-	}
-	return editSpansAt(db)
-}
-
-// editSpansAt is EditSpans asked of q.
+// editSpansAt returns every recorded blue_edit's (old, new) on q, in record order — what `blue
+// retire` reads (Landing.EditSpans) to learn which edit took a claim out and what that edit left
+// behind in its place.
 func editSpansAt(q recordsql.Querier) ([]EditSpan, error) {
 	if noRecord(q) {
 		return nil, nil

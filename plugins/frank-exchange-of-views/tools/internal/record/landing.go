@@ -90,7 +90,7 @@ func (l *Landing) ClaimAppearsInAnEdit(claim string) bool {
 	return claimAppearsInAnEditAt(l.w.q, claim)
 }
 
-// EditSpans is record.EditSpans asked of the landing record.
+// EditSpans is every recorded edit's (old, new) on the landing record, in record order.
 func (l *Landing) EditSpans() ([]EditSpan, error) { return editSpansAt(l.w.q) }
 
 // UnplacedLocation is record.UnplacedLocation asked of the landing record.
