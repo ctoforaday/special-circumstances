@@ -83,10 +83,10 @@ func TestARootListingDoesNotCreditTheRole(t *testing.T) {
 // direct child, so Top is all-or-nothing per sitting; a subgroup's children need the subgroup
 // opened, so Leaf is the finer question.
 func TestTopAndLeafAnswerDifferentQuestions(t *testing.T) {
-	acts := []string{"avenue propose", "avenue move", "edit"}
+	acts := []string{"inquiry propose", "inquiry record", "edit"}
 	top := "Available Commands:\n" +
 		"  edit            change the report\n" +
-		"  avenue propose and move a direction\n" +
+		"  inquiry propose one and record its fate\n" +
 		"\n"
 	got, err := ReadSeen(trajectory(t, resultLine(t, top)), acts)
 	if err != nil {
@@ -95,7 +95,7 @@ func TestTopAndLeafAnswerDifferentQuestions(t *testing.T) {
 	if len(got.Top) != 2 {
 		t.Errorf("Top = %v, want the two direct children", got.Top)
 	}
-	if got.Leaf["propose"] || got.Leaf["move"] {
+	if got.Leaf["propose"] || got.Leaf["record"] {
 		t.Error("a subgroup's CHILDREN were credited from the parent listing; opening the group is the act that reveals them")
 	}
 }

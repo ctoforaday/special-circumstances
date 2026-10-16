@@ -65,9 +65,9 @@ Available Commands:
   verdict     the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
 
 Command groups — each holds commands THIS page does not list:
-  avenue      read the report against every avenue on the record — `review` states what that reading found
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  inquiry     read the report against every inquiry on the record — `review` states what that reading found
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -85,10 +85,10 @@ Use "feov-record [command] --help" for more information about a command.
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

@@ -9,12 +9,9 @@ import (
 
 // THE BIBLIOGRAPHY PRINTS SEAT TEXT, SO PROVE AND CITE MEET THE VOICE ADVISORY.
 //
-// The census that put edit, ingest and the avenue verbs under the advisory exempted cite
-// and proof as "landing only in the Bibliography". The 2026-09-11 is-91-prime run's lane drafts and
-// frozen base carried no tell; its report.md carried four, every one in a [^PN] footnote — a proof's
-// --reason, printed word for word. A cite's --title is printed the same way, as its entry. These
-// drive the real verbs, because a guard that exists and is never called survives any test of the
-// helper.
+// A proof's --reason prints word for word as a [^PN] footnote, and a cite's --title prints the same
+// way as its entry, so both meet the voice advisory. These drive the real verbs, because a guard
+// that exists and is never called survives any test of the helper.
 
 const voicedProofNote = "Recomputed trial division from scratch this sitting rather than trusting the lane draft"
 

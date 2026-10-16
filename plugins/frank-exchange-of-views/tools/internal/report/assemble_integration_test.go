@@ -16,7 +16,7 @@ import (
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
 // assembled report.md combines the two ownership classes correctly: blue's audited sections
-// ship as written, and the verdict, findings, avenues and debate are composed from the
+// ship as written, and the verdict, findings, inquiries and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
 	runDir := newRun(t)
@@ -80,8 +80,8 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// replay as no-ops (skip-if-present).
 	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
-	// Red mints a gap; the parties take positions; blue records one pursued avenue (an
-	// expansion) and one abandoned avenue (an alternative considered); the bench opines;
+	// Red mints a gap; the parties take positions; blue records one underway inquiry (an
+	// expansion) and one abandoned inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
 	add("red-chair", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader"),
@@ -93,17 +93,17 @@ func TestAssembleEndToEnd(t *testing.T) {
 	})
 	add("red-chair", &recordpb.Position{Text: proto.String("gap G1 stands until the race is shown impossible")})
 	add("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
-	add("blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
-		Line: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY),
+		Question: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
 	})
-	add("blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
-		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
+		Question: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
 	})
-	add("blue-respond", &recordpb.Avenue{
-		AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED),
-		Line: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q3"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED),
+		Question: proto.String("measure the eviction path under a stepped clock"), Reason: proto.String("needs a harness this question does not justify"),
 	})
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
@@ -218,26 +218,26 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// THE AVENUES SHIP. report.md files each avenue by its fate and nothing about how it got
-	// there; the path, the seat that last moved it and red's ruling were removed from it as debate,
-	// so they must land in a document a reader of the archived set can open — or they are data dead
-	// in the record. Q2 was recorded straight as `abandoned`, with no `pursued` step, and the
-	// report's tag is the fate its seat recorded.
-	avenueDoc := read(FileAvenues)
-	for _, want := range []string{"## pursued (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
-		if !strings.Contains(avenueDoc, want) {
-			t.Errorf("avenues.md missing %q\n---\n%s", want, avenueDoc)
+	// THE INQUIRIES SHIP. report.md files each inquiry by its fate and nothing about how it got
+	// there; the path, the seat that last recorded its fate and red's ruling are debate, not report
+	// text, so they must land in a document a reader of the archived set can open — or they are
+	// data dead in the record. Q2 was recorded straight as `abandoned`, with no `underway` step, and
+	// the report's tag is the fate its seat recorded.
+	inquiryDoc := read(FileInquiries)
+	for _, want := range []string{"## underway (1)", "## abandoned (1)", "Q1 model-check the two-writer interleaving", "(blue-respond)"} {
+		if !strings.Contains(inquiryDoc, want) {
+			t.Errorf("inquiries.md missing %q\n---\n%s", want, inquiryDoc)
 		}
 	}
 	if !strings.Contains(got, "- **Question:** rewrite the cache lock-free\n  - **Fate:** abandoned. **Why:** cost exceeds the benefit at this scale") {
-		t.Errorf("an avenue abandoned with no pursued step carries the plain fate in report.md:\n%s", got)
+		t.Errorf("an inquiry abandoned with no underway step carries the plain fate in report.md:\n%s", got)
 	}
-	if !strings.Contains(index, "[Avenues](avenues.md)") {
-		t.Errorf("README.md does not name avenues.md — a document the index omits is one nobody opens\n---\n%s", index)
+	if !strings.Contains(index, "[Inquiries](inquiries.md)") {
+		t.Errorf("README.md does not name inquiries.md — a document the index omits is one nobody opens\n---\n%s", index)
 	}
 	// The link bar is built over the documents actually written, so it reaches the new one.
-	if !strings.Contains(got, "[Avenues](avenues.md)") {
-		t.Errorf("report.md's link bar does not reach avenues.md\n---\n%s", got)
+	if !strings.Contains(got, "[Inquiries](inquiries.md)") {
+		t.Errorf("report.md's link bar does not reach inquiries.md\n---\n%s", got)
 	}
 	// EVERY DOCUMENT WRITTEN IS IN THE SET THE OUTSIDE READERS ASK FOR. Files() — docOrder — is what
 	// the capture screens, the archive and the fuzz oracle read, and what Write sweeps for stale
@@ -269,7 +269,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 
 	// EVERY SECTION ASSEMBLY SHIPS HAS A ROW, AND SHIPS IN ITS ROW'S PLACE. Read off the assembled
 	// documents: a "## " heading in any of them is a row's, or stands in the report's own text.
-	// avenues.md is not read: it is `show avenues`' rendering, under headings that carry a count.
+	// inquiries.md is not read: it is `show inquiries`' rendering, under headings that carry a count.
 	rows := map[string]bool{}
 	for _, s := range layout {
 		rows[s.File+"\x00"+normalizeHeading(s.Heading)] = true
@@ -280,7 +280,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	shipped := map[string]bool{}
 	for _, f := range Files() {
 		b, err := os.ReadFile(filepath.Join(runDir, f))
-		if err != nil || f == FileAvenues {
+		if err != nil || f == FileInquiries {
 			continue
 		}
 		eachLine(string(b), func(ln, tr string, fenced bool) {
@@ -337,11 +337,11 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
-	// Fate is not crossed: the pursued avenue is an expansion, not an alternative.
+	// Fate is not crossed: the underway inquiry is an expansion, not an alternative.
 	alt := got[strings.Index(got, "## Alternatives considered"):]
 	alt = alt[:strings.Index(alt, "## Open questions")]
 	if strings.Contains(alt, "model-check the two-writer") {
-		t.Errorf("a pursued avenue leaked into Alternatives considered:\n%s", alt)
+		t.Errorf("an underway inquiry leaked into Alternatives considered:\n%s", alt)
 	}
 }
 

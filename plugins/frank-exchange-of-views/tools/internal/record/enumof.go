@@ -67,11 +67,11 @@ func PetitionClassOf(word string) (recordpb.PetitionClass, bool) {
 	return enumOf[recordpb.PetitionClass](recordpb.PetitionClass(0).Descriptor(), word)
 }
 
-// AvenueStatusOf resolves an avenue's fate. `proposed` is a real state and not a failure
+// InquiryStatusOf resolves an inquiry's fate. `proposed` is a real state and not a failure
 // to choose one — it is the state the pre-schema shape could not express, which forced blue to
 // declare a fate before it had one.
-func AvenueStatusOf(word string) (recordpb.AvenueStatus, bool) {
-	return enumOf[recordpb.AvenueStatus](recordpb.AvenueStatus(0).Descriptor(), word)
+func InquiryStatusOf(word string) (recordpb.InquiryStatus, bool) {
+	return enumOf[recordpb.InquiryStatus](recordpb.InquiryStatus(0).Descriptor(), word)
 }
 
 // VerdictOf resolves red's epoch verdict. PASS is checked against the open board by exact match,

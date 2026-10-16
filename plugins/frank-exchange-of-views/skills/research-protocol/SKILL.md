@@ -23,7 +23,7 @@ Research that survives an adversary.
 ## The exchange is TOOL-MEDIATED
 
 Everything the two sides exchange — findings, closures, citations, proofs, edits,
-avenues, disputes, log entries, opinions — is an **event on the record**, written through a
+inquiries, disputes, log entries, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
 validated, and a fact recovered from a filename or a prose substring is one only pretending
@@ -65,7 +65,7 @@ headings its author chose — each names the reader's question it answers; no he
 and red audits whether the structure carries the argument, never whether a section of a given name
 exists) → risk matrix (graded likelihood × impact × complexity, including risk-accepted items
 with rationale) → **the three
-avenue sections, Research areas, Future research directions and Alternatives considered** (composed by the tool from the avenues on the record, one row per avenue under the heading its fate names; blue records each avenue and what became of it, and writes none of the three into the report) → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved) →
+inquiry sections, Research areas, Future research directions and Alternatives considered** (composed by the tool from the inquiries on the record, one row per inquiry under the heading its fate names; blue records each inquiry and what became of it, and writes none of the three into the report) → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved) →
 footnotes (with access dates; volatility noted for living sources).
 
 **The report's text ships in the order it is written.** Blue writes the TL;DR first, the Catechism
@@ -75,8 +75,8 @@ the order a reader gets. The tool's sections stand between blue's last section o
 open questions, and move no line of blue's text.
 
 The debate's own documents are beside it, one per audience: `docket.md` (the board in
-full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `avenues.md`
-(the avenues and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
+full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `inquiries.md`
+(the inquiries and the path each took), `evidence.md` (the computations), `run.md` (the log, record verification, cost), `CHANGELOG.md` (the claims blue
 retired and the asks a later certification superseded). Nothing is summarized away by the split — the union is the
 directory, indexed by `README.md`.
 

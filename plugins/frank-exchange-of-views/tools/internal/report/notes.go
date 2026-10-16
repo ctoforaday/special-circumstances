@@ -13,7 +13,7 @@ import "strings"
 // each document for references with no definition reported both, correctly.
 //
 // So text assembly composes is escaped where it is composed (Section.block, and the three places
-// outside the table that print a seat's words: the avenues document, the evidence document, and
+// outside the table that print a seat's words: the inquiries document, the evidence document, and
 // the notes the weave writes) — `\[^P5]`, which every markdown reader prints as the five
 // characters the seat typed — and the weave, which runs after, is then the one writer of an
 // unescaped `[^` in a tool-composed block. The report's own text is not escaped: a footnote under

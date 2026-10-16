@@ -97,10 +97,10 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, no
 {"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

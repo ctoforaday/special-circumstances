@@ -67,9 +67,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 			b.add("blue-respond", gradeMotion)
 		}, true},
-		{"no avenue review", BlockerAvenueReview, true, true, func(b *stage) {
-			b.add("blue-synthesize", &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("a line"),
-				Hypothesis: proto.String("h"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()})
+		{"no inquiry review", BlockerInquiryReview, true, true, func(b *stage) {
+			b.add("blue-synthesize", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("a question"),
+				Hypothesis: proto.String("h"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
 		}, true},
 		{"nothing holds", "", true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
@@ -263,7 +263,7 @@ func contradictingVerify(claim string) *recordpb.Verify {
 // PASS_PERMITTED NEVER STANDS OVER A BLOCKER ANOTHER SEAT MUST CLEAR (#1202). The plan said
 // `"pass_permitted":true,"parties":[]` over an unruled petition, an unanswered contradiction and a
 // docket motion on a gap that had since closed, and the gate refused the PASS the chair then tried.
-// The avenue review is the chair's own act, always due at the start of its sitting, so a plan that
+// The inquiry review is the chair's own act, always due at the start of its sitting, so a plan that
 // permits PASS over it is the plan saying "once you have done your own items".
 func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	for _, c := range []struct {
@@ -273,9 +273,9 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	}{
 		{"nothing blocks", func(b *stage) {}, true},
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }, false},
-		{"avenue with no review this epoch", func(b *stage) {
-			b.add("blue-respond", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-				Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")})
+		{"inquiry with no review this epoch", func(b *stage) {
+			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 		}, true},
 		{"unanswered contradiction", func(b *stage) { b.add(evLens, contradictingVerify("the claim")) }, false},
 		{"docket motion on a closed gap", func(b *stage) {
@@ -370,12 +370,12 @@ func TestAConvergedBoardAdmitsAFailWhileAnotherSeatHoldsThePass(t *testing.T) {
 	}
 	t.Run("converged, the chair's own item", func(t *testing.T) {
 		b := convergedBoard(t)
-		b.add("blue-respond", &recordpb.Avenue{AvenueId: proto.String("Q1"),
-			Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")})
+		b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 		run := b.seed()
 		_, err := Append(Identity{Run: run, SeatID: "red-chair"}, fail)
-		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "avenue review") {
-			t.Fatalf("FAIL over a converged board holding only the chair's avenue review = %v, want the convergence refusal naming the review", err)
+		if err == nil || !strings.Contains(err.Error(), "the board has converged") || !strings.Contains(err.Error(), "inquiry review") {
+			t.Fatalf("FAIL over a converged board holding only the chair's inquiry review = %v, want the convergence refusal naming the review", err)
 		}
 	})
 }

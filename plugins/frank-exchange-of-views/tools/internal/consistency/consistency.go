@@ -69,7 +69,7 @@ type groundTruth struct {
 	proofIDs      map[string]bool
 	citeEvents    int
 	verifyEvents  int
-	avenues       map[string]string // avenue id -> last status word
+	inquiries     map[string]string // inquiry id -> last status word
 	observations  int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
@@ -95,7 +95,7 @@ func walk(events []*record.Event) *groundTruth {
 		placedIDs:     map[string]bool{},
 		anchorEvIDs:   map[string]bool{},
 		proofIDs:      map[string]bool{},
-		avenues:       map[string]string{},
+		inquiries:     map[string]string{},
 	}
 	closes := closesSet()
 	// THE DOCKET RULING'S GAP RIDES ITS FILING, and this walk is single-pass over the events as
@@ -237,9 +237,8 @@ func walk(events []*record.Event) *groundTruth {
 				gt.findingLabels[id] = true
 				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
 				// it emits no anchor event and must not be required to have one. `--about-kind
-				// section|avenue|gap` (#742, shipped #787) is the anchor an ABSENCE gets — there
-				// is no sentence to mark — and before this the rule below reported every one of
-				// them as the crash window it was written to detect.
+				// section|inquiry|gap` is the anchor an ABSENCE gets — there is no sentence to
+				// mark — so the crash-window rule below does not apply to it.
 				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
 					gt.placedIDs[id] = true
 				}
@@ -265,9 +264,9 @@ func walk(events []*record.Event) *groundTruth {
 			if id := m.GetLabel(); id != "" && m.GetClaim() != "" {
 				gt.placedIDs[id] = true
 			}
-		case *recordpb.Avenue:
-			if id := m.GetAvenueId(); id != "" {
-				gt.avenues[id] = recordpb.Word(m.GetStatus())
+		case *recordpb.Inquiry:
+			if id := m.GetInquiryId(); id != "" {
+				gt.inquiries[id] = recordpb.Word(m.GetStatus())
 			}
 		}
 	}
@@ -501,13 +500,13 @@ func Check(run record.Run) ([]string, error) {
 			}
 		}
 	}
-	if len(gt.avenues) > 0 {
-		if inq, err := view.MarkdownFrom(rin, "avenues", ""); err != nil {
-			add("avenue-md", "render failed: %v", err)
+	if len(gt.inquiries) > 0 {
+		if inq, err := view.MarkdownFrom(rin, "inquiries", ""); err != nil {
+			add("inquiry-md", "render failed: %v", err)
 		} else {
-			for id := range gt.avenues {
+			for id := range gt.inquiries {
 				if !strings.Contains(string(inq), id) {
-					add("avenue-md", "avenue %s missing from avenues", id)
+					add("inquiry-md", "inquiry %s missing from inquiries", id)
 				}
 			}
 		}

@@ -48,7 +48,7 @@ var (
 	namedLens    = regexp.MustCompile(`^red-lens-r\d+-([a-z]+(?:-[a-z]+)*)$`)
 	roundedSeat  = regexp.MustCompile(`^(red-merge|red-chair|blue-respond|judge)-r\d+$`)
 	// currentID is an id already in the one shape, which a source written at this epoch carries.
-	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "proof", "gap", "avenue", "motion") + `$`)
+	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "proof", "gap", "inquiry", "motion") + `$`)
 	// hexID is an archived id whose eight hex are kept.
 	hexID = regexp.MustCompile(`^[fcp]-([0-9a-f]{8})$`)
 	// archivedToken is an anchor token as an archived record spells it, its tag and its id. A
@@ -76,25 +76,25 @@ var (
 	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by Mint.distinct_from
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
 		Finding.about_ref Observe.label Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
-		Proof.answers Proof.cites Avenue.avenue_id BlueEdit.answers BlueEdit.reopened Retire.anchors
+		Proof.answers Proof.cites Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Log.estopped_by Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		AvenueMotion.avenue_id MotionRule.motion_id MotionAppeal.motion_id Dispatch.gap_ids
+		InquiryMotion.inquiry_id MotionRule.motion_id MotionAppeal.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
 		ClassNew.distinguisher Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Observe.text Observe.observation Cite.text
-		Verify.text Proof.text Proof.drift Reproduce.note Avenue.line Avenue.hypothesis Avenue.method
-		Avenue.reason AvenueReview.reason BlueEdit.text Revision.text Retire.reason ManifestRow.row
+		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
+		Inquiry.reason InquiryReview.reason BlueEdit.text Revision.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on MotionRule.opinion
 		MotionAppeal.reason Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding Correction.why`)
-	dataFields = fieldSet(`Anchor.location Avenue.supersedes_status BaseIngest.text BlueEdit.edit_key
+	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key
 		Cite.location Cite.ocr_engine Cite.ocr_quote Cite.ocr_text_sha Cite.sha256 Cite.title Cite.url
 		ClassNew.slug Close.anchor_seat Close.carried_from Correction.corrects Correction.replacement
-		Dispatch.seat_id Finding.finding_key Finding.location Mint.class Mint.fix_basis Mint.fix_new
+		Dispatch.seat_id Finding.finding_key Finding.location Inquiry.supersedes_status Mint.class Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis
 		Proof.proof_key Proof.proof_sha Proof.script Register.agent_id Register.agent_type
 		Register.hook_version Register.repairs_sitting Register.run_via Register.tool_version
@@ -106,7 +106,7 @@ var (
 		SittingOpen.session_id SpotCheck.areas Verify.access_date Verify.claim Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
-		"Verify.label": "citation", "Proof.proof_id": "proof", "Avenue.avenue_id": "avenue", "Motion.motion_id": "motion"}
+		"Verify.label": "citation", "Proof.proof_id": "proof", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion"}
 )
 
 func fieldSet(names string) map[string]bool {

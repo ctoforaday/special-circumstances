@@ -332,24 +332,21 @@ func validateContractCases() []validateContract {
 		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "requires --reason"},
 		{"retire complete", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 
-		// An unknown status is UNREPRESENTABLE: AvenueStatus is an enum, so `shelved` cannot be built.
+		// An unknown status is UNREPRESENTABLE: InquiryStatus is an enum, so `shelved` cannot be built.
 		// What remains is the ABSENT case below, which the type cannot refuse.
-		{"an avenue with no status at all", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("l")}, "requires --as"},
-		{"an avenue with no id", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, "requires an id"},
-		{"a deferred avenue needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED), Line: proto.String("l")}, "requires --reason"},
-		// THE REFUSAL NAMES --reason, NOT --line. The payload key is `line`; the flag that fills it
-		// is --reason, because prose reaches every verb through one channel. This expected "--line"
-		// for its whole life — a flag on no surface — and a seat believed it, invented the flag,
-		// was refused again as unknown, and filed friction about an undocumented --line (measured
-		// 2026-08-21). The refusal derives the flag name now.
-		{"an avenue without --line", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED)}, "requires --reason"},
-		{"a declined avenue needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l")}, "requires --reason"},
-		{"an abandoned avenue needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("l")}, "requires --reason"},
-		{"a refuted avenue needs a reason, and is asked for what the approach found", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REFUTED), Line: proto.String("l")}, "a refuted avenue requires --reason — what the approach found"},
-		{"a concluded avenue is asked for what the approach found", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_CONCLUDED), Line: proto.String("l")}, "a concluded avenue requires --reason — what the approach found"},
-		{"a refuted avenue with a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_REFUTED), Line: proto.String("l"), Reason: proto.String("what it found")}, ""},
-		{"a PURSUED avenue does not need a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, ""},
-		{"a declined avenue with a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l"), Reason: proto.String("why")}, ""},
+		{"an inquiry with no status at all", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String("l")}, "requires --as"},
+		{"an inquiry with no id", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, "requires an id"},
+		{"a deferred inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED), Question: proto.String("l")}, "requires --reason"},
+		// THE REFUSAL NAMES --question. The payload key is `question` and the flag that fills it is
+		// --question; the refusal derives the flag name, so it can only name a flag a surface has.
+		{"an inquiry proposed without a question", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY)}, "requires --question"},
+		{"a declined inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l")}, "requires --reason"},
+		{"an abandoned inquiry needs a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED), Question: proto.String("l")}, "requires --reason"},
+		{"a refuted inquiry needs a reason, and is asked for what the approach found", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Question: proto.String("l")}, "a refuted inquiry requires --reason — what the approach found"},
+		{"a confirmed inquiry is asked for what the approach found", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED), Question: proto.String("l")}, "a confirmed inquiry requires --reason — what the approach found"},
+		{"a refuted inquiry with a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Question: proto.String("l"), Reason: proto.String("what it found")}, ""},
+		{"an underway inquiry does not need a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Question: proto.String("l")}, ""},
+		{"a declined inquiry with a reason", recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Question: proto.String("l"), Reason: proto.String("why")}, ""},
 
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
@@ -363,9 +360,9 @@ func validateContractCases() []validateContract {
 func TestValidateVerbContracts(t *testing.T) {
 	for _, tc := range validateContractCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			// An avenue is blue's to propose: the chair rules on them and files none.
+			// An inquiry is blue's to propose: the chair rules on them and files none.
 			seat := "red-chair"
-			if tc.typ == recordpb.EventType_EVENT_TYPE_AVENUE {
+			if tc.typ == recordpb.EventType_EVENT_TYPE_INQUIRY {
 				seat = "blue-respond"
 			}
 			err := validateRun(mustRun(t, newRun(t)), seat, tc.typ, tc.p)
@@ -937,7 +934,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 	// is a decision someone makes on purpose.
 	for _, w := range []string{
 		"reason", "run", "seat-id", "json", "help", "id", "as",
-		"quote", "new", "line", "hypothesis", "method", "problem", "fix", "check",
+		"quote", "new", "question", "hypothesis", "method", "problem", "fix", "check",
 		"superseded-by", "supersedes", "ids", "none", "cites", "access-date", "relief", "class",
 	} {
 		known[w] = true
@@ -1189,26 +1186,25 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 //
 // BoardState sorted a LOCAL COPY by (TS, SeatID, Seq) and published m.Events, which is
 // (Round, SeatID, Seq). So the reduction saw the corrected chronology and every consumer that
-// walks Board.Events — record.Avenues behind `show avenues`, report assembly, the
+// walks Board.Events — record.Inquiries behind `show inquiries`, report assembly, the
 // scorecards, the graph renderer — read events ordered by how SEAT NAMES SORT.
 //
-// FOUND 2026-08-22 BY A BLUE SEAT mid-run, with this reproduction: `zulu` acts first in time,
-// `alpha` acts second, and alphabetical order silently reverses them. The seat then caught the
-// defect biting its own sitting — its avenue moves replayed before the frontier
-// proposals they answered, so the projection reported every line unmoved.
+// The reproduction: `zulu` acts first in time, `alpha` acts second, and alphabetical order
+// silently reverses them. An inquiry's recorded fate would then replay before the proposal it
+// answers, and the projection would report the inquiry with no fate recorded.
 func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
-	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
+	// zulu proposes FIRST in wall-clock; alpha records its fate SECOND. Alphabetically alpha < zulu.
 	writeShard(t, runDir, []*Event{
-		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:avenue:#1", &recordpb.Avenue{
-			AvenueId: proto.String("Q1"),
-			Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
-			Line:     proto.String("opened"),
-			Reason:   proto.String("opened"),
+		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:inquiry:#1", &recordpb.Inquiry{
+			InquiryId: proto.String("Q1"),
+			Status:    recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
+			Question:  proto.String("opened"),
+			Reason:    proto.String("opened"),
 		}), "2026-08-22T10:00:00.000000000Z"),
-		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:avenue:#1", &recordpb.Avenue{
-			AvenueId:         proto.String("Q1"),
-			Status:           recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED.Enum(),
+		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:inquiry:#1", &recordpb.Inquiry{
+			InquiryId:        proto.String("Q1"),
+			Status:           recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED.Enum(),
 			SupersedesStatus: proto.String("proposed"),
 			Reason:           proto.String("died"),
 		}), "2026-08-22T11:00:00.000000000Z"),
@@ -1231,13 +1227,13 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 
 	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction
 	// was already correct, so only a consumer walking Board.Events could see the defect.
-	inq := AvenuesOf(b.Events, b.At)
+	inq := InquiriesOf(b.Events, b.At)
 	if len(inq) != 1 {
-		t.Fatalf("expected one avenue, got %d", len(inq))
+		t.Fatalf("expected one inquiry, got %d", len(inq))
 	}
 	if got := inq[0].Status; got != "abandoned" {
 		t.Errorf("Q1 status = %q, want abandoned — the later event must win. %q means the projection "+
-			"replayed alpha's move BEFORE zulu's proposal because alpha sorts first, which is the "+
-			"defect: a line reported as never moved when it was moved an hour later", got, got)
+			"replayed alpha's recorded fate BEFORE zulu's proposal because alpha sorts first, which is the "+
+			"defect: an inquiry reported with no fate recorded when its fate was recorded an hour later", got, got)
 	}
 }

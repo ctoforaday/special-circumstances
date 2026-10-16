@@ -187,10 +187,10 @@ func (m *nonceMapper) observe(recordsDir string) {
 // is a golden that differs on every run — the loud failure, not a silent one.
 var idRe = regexp.MustCompile(`\b[FCPGQM]-[0-9a-f]{8}\b`)
 
-var idKindNames = map[byte]string{'F': "FINDING", 'C': "CITATION", 'P': "PROOF", 'G': "GAP", 'Q': "AVENUE", 'M': "MOTION"}
+var idKindNames = map[byte]string{'F': "FINDING", 'C': "CITATION", 'P': "PROOF", 'G': "GAP", 'Q': "INQUIRY", 'M': "MOTION"}
 
 // placeholderRe matches what normalize writes, which is what a script writes to name an id.
-var placeholderRe = regexp.MustCompile(`\b(?:FINDING|CITATION|PROOF|GAP|AVENUE|MOTION)\d{3,}\b`)
+var placeholderRe = regexp.MustCompile(`\b(?:FINDING|CITATION|PROOF|GAP|INQUIRY|MOTION)\d{3,}\b`)
 
 // normalize replaces every id in s with its placeholder, ASSIGNING one to an id it has not seen.
 // The order strings reach it in is therefore the numbering: each command's stdout, then its

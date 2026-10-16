@@ -84,7 +84,7 @@ func fileGradeMotion(t *testing.T, runDir string) string {
 
 func proposeQ1(t *testing.T, runDir string) {
 	t.Helper()
-	must(t, runDir, "avenue", "propose", "--seat-id", "blue-respond", "--reason", "a seeded line")
+	must(t, runDir, "inquiry", "propose", "--seat-id", "blue-respond", "--question", "a seeded question")
 }
 
 func actRows() map[string]actRow {
@@ -121,13 +121,13 @@ func actRows() map[string]actRow {
 			act: func(v actVars, text string) []string {
 				return []string{"prove", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
 			}},
-		"blue avenue propose": {seat: "blue-respond", act: func(_ actVars, text string) []string {
-			return []string{"avenue", "propose", "--reason", text, "--hypothesis", "it would settle something", "--method", "a source class"}
+		"blue inquiry propose": {seat: "blue-respond", act: func(_ actVars, text string) []string {
+			return []string{"inquiry", "propose", "--question", text, "--hypothesis", "it would settle something", "--method", "a source class"}
 		}},
-		"blue avenue move": {seat: "blue-respond",
+		"blue inquiry record": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) actVars { proposeQ1(t, runDir); return nil },
 			act: func(_ actVars, text string) []string {
-				return []string{"avenue", "move", "--id", "Q1", "--as", "pursued", "--reason", text}
+				return []string{"inquiry", "record", "--id", "Q1", "--as", "underway", "--reason", text}
 			}},
 		"blue log":       logRow("blue-respond"),
 		"lens log":       logRow(lensSeat),
@@ -170,10 +170,10 @@ func actRows() map[string]actRow {
 		"chair spot-check": {seat: "red-chair", act: func(_ actVars, text string) []string {
 			return []string{"spot-check", "--none", "--reason", text}
 		}},
-		"chair avenue review": {seat: "red-chair", act: prose("avenue", "review")},
-		"bench declare":       {seat: "judge", act: prose("declare")},
-		"bench certify":       {seat: "judge", act: prose("certify")},
-		"bench halt":          {seat: "judge", act: prose("halt")},
+		"chair inquiry review": {seat: "red-chair", act: prose("inquiry", "review")},
+		"bench declare":        {seat: "judge", act: prose("declare")},
+		"bench certify":        {seat: "judge", act: prose("certify")},
+		"bench halt":           {seat: "judge", act: prose("halt")},
 		"bench outcome": {seat: "judge", act: func(_ actVars, text string) []string {
 			return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
 		}},
@@ -190,10 +190,10 @@ func actRows() map[string]actRow {
 			act: func(v actVars, text string) []string {
 				return []string{"motion", "petition", "rule", "--id", v["m"], "--as", "denied", "--reason", text}
 			}},
-		"motion avenue rule": {seat: "red-chair",
+		"motion inquiry rule": {seat: "red-chair",
 			setup: func(t *testing.T, runDir string) actVars { proposeQ1(t, runDir); return nil },
 			act: func(_ actVars, text string) []string {
-				return []string{"motion", "avenue", "rule", "--id", "Q1", "--as", "endorsed", "--reason", text}
+				return []string{"motion", "inquiry", "rule", "--id", "Q1", "--as", "endorsed", "--reason", text}
 			}},
 		"motion docket rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {

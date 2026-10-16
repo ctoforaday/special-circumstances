@@ -21,7 +21,7 @@ func TestEverySeatIDIsRefusedInTheReportsVoice(t *testing.T) {
 		if seatclass.Seats[id].CommonWord {
 			continue // guarded below, as prose that must stay clean
 		}
-		s := "The " + id + " concluded that the figure stands."
+		s := "The " + id + " confirmed that the figure stands."
 		if got := Refused(s); len(got) == 0 {
 			t.Errorf("a report may say %q and the voice gate does not refuse it — that seat id names who acted in the run", s)
 		}

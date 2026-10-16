@@ -10,7 +10,8 @@ import (
 
 // EventByKey reads the one event carrying key, with its record id. found=false is the honest
 // answer for a key no event carries; any other failure is an error, never folded into "absent".
-func EventByKey(db *sql.DB, key string) (ev *recordpb.Event, id int64, found bool, err error) {
+// db is the record's handle or a transaction on it.
+func EventByKey(db Querier, key string) (ev *recordpb.Event, id int64, found bool, err error) {
 	if err := db.QueryRow(`SELECT "id" FROM "events" WHERE "key" = ?`, key).Scan(&id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, 0, false, nil

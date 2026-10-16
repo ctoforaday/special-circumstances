@@ -25,7 +25,7 @@ func filingOf(subject string, path []string, c *cobra.Command) bool {
 	if len(path) >= 2 && path[0] == "motion" && path[1] == subject && seat.RecordType(c) == "motion" {
 		return true
 	}
-	return subject == "avenue" && seat.RecordType(c) == "avenue"
+	return subject == "inquiry" && seat.RecordType(c) == "inquiry"
 }
 
 func TestNoGavelHolderFilesItsOwnSubject(t *testing.T) {

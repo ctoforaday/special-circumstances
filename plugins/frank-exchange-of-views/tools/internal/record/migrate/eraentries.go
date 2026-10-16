@@ -5,7 +5,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -54,14 +53,14 @@ func eraEntries() Registry {
 		// and proof_sha is the tie. Carrying the bytes twice is the two-copies shape.
 		"proof": mapped("proof", ren{"reason": "text", "sha256": "proof_sha"},
 			drops{"output": "the output's bytes live in the copied proofs/ store under this proof's sha; a second inline copy is a fork waiting to disagree"}, nil),
-		// line-of-inquiry became Avenue wholesale — same lifecycle, same fields, one rename.
-		"line_of_inquiry": mapped("avenue", ren{"inquiry_id": "avenue_id"}, nil, nil),
+		// The shard era's inquiry: the same lifecycle and fields, its text the record's question.
+		"line_of_inquiry": inquiryEntry(ren{"line": "question"}),
 		// inquiry-support became inquiry-review, and the schema's own history says why the
 		// two fields die: the four-value `as` answered "does the report still carry this
-		// line", and presence stopped being a question when the lines became GENERATED onto
+		// inquiry", and presence stopped being a question when the inquiries became GENERATED onto
 		// the page (f516261a). The reason — the seat's actual reading — is the survivor.
-		"inquiry_support": mapped("avenue_review", nil, drops{
-			"inquiry_id": "inquiry-review is a per-round statement about the whole live set; the per-line id answered the presence question the schema retired (f516261a)",
+		"inquiry_support": mapped("inquiry_review", nil, drops{
+			"inquiry_id": "inquiry-review is a per-round statement about the whole live set; the per-inquiry id answered the presence question the schema retired (f516261a)",
 			"as":         "the closed set {supported, weakened, unsupported, absent} answered report-presence, which is generated now and cannot be cut — the schema deleted the flag rather than accept-and-discard it (f516261a)",
 		}, nil),
 		"motion":      {Translate: eraMotionEntry},
@@ -80,7 +79,7 @@ type (
 // refusal if the drop map is wrong), remap recorded value renames, then hold the result to
 // the same identity contract every kept word gets.
 func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entry {
-	return Entry{Translate: func(old OldEvent, _ record.Run) ([]proto.Message, error) {
+	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
 		out := OldEvent{ID: old.ID, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.Key,
 			Word: currentWord, Lists: old.Lists, Arms: old.Arms}
 		for col, v := range old.Fields {
@@ -117,12 +116,12 @@ func mapped(currentWord string, renames ren, dropped drops, valueMaps vals) Entr
 // reason side by side — and the schema made the subject a oneof so a grade motion carrying a
 // petition's field is unrepresentable. The era only ever filed grade motions; anything else
 // refuses by name rather than guessing an arm.
-func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
+func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 	// TWO ERAS SHARE THIS WORD. The SQLite era already decomposed the subject into oneof arm
 	// tables — that shape is the CURRENT one and translates by identity; only the flat shard
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
-		return (Registry{}).Translate(avenueArm(old), dst)
+		return (Registry{}).Translate(inquiryArm(old))
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
@@ -159,14 +158,14 @@ func eraMotionEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 }
 
 // eraMotionRuleEntry: the era's ruling was a WORD beside a subject; the schema keyed the
-// verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject is
-// today's `avenue` — the ruling on an avenue, whose motion_id is the avenue's own id, which is
+// verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject is the
+// current one — the ruling on an inquiry, whose motion_id is the inquiry's own id, which is
 // exactly what the era wrote there.
-func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
+func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		return (Registry{}).Translate(avenueArm(old), dst)
+		return (Registry{}).Translate(inquiryArm(old))
 	}
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)
@@ -191,41 +190,75 @@ func eraMotionRuleEntry(old OldEvent, dst record.Run) ([]proto.Message, error) {
 		}
 		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
 	case "inquiry":
-		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum()
-		num, err := enumNumberOf(recordpb.AvenueRuling(0).Descriptor(), ruling)
+		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum()
+		num, err := enumNumberOf(recordpb.InquiryRuling(0).Descriptor(), ruling)
 		if err != nil {
-			return nil, fmt.Errorf("motion_rule.ruling (inquiry->avenue): %w", err)
+			return nil, fmt.Errorf("motion_rule.ruling (inquiry): %w", err)
 		}
-		r.Ruling = &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling(num)}
+		r.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling(num)}
 	default:
 		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
 	}
 	return []proto.Message{r}, nil
 }
 
-// avenueArm carries the SQLite era's `direction` arm to `avenue`, the one word the concept has
-// now. A motion stored it as an arm TABLE (motion_direction → Arms) and a ruling as an enum COLUMN
-// (motion_rule.direction → Fields), so both are renamed; the values inside are unchanged, and the
-// subject's own `direction` value is carried by valueRenames. Identity refuses an arm the current
-// body does not declare, which is why this runs before it rather than being left to it.
-func avenueArm(old OldEvent) OldEvent {
-	if a, ok := old.Arms["direction"]; ok {
-		arms := map[string]map[string]any{}
-		for k, v := range old.Arms {
-			arms[k] = v
+// inquiryArms are the arm names an archive gave the inquiry's motion arm and ruling column.
+var inquiryArms = []string{"direction", "avenue"}
+
+// inquiryArm carries an archived inquiry arm to `inquiry`, the one word the concept has. A motion
+// stored it as an arm TABLE (motion_<arm> → Arms, keyed by the inquiry's id column) and a ruling as
+// an enum COLUMN (motion_rule.<arm> → Fields), so both are renamed, and the arm's id column with
+// them; the values inside are unchanged, and the subject's own value is carried by valueRenames.
+// Identity refuses an arm the current body does not declare, which is why this runs before it
+// rather than being left to it.
+func inquiryArm(old OldEvent) OldEvent {
+	for _, w := range inquiryArms {
+		if a, ok := old.Arms[w]; ok {
+			arms := map[string]map[string]any{}
+			for k, v := range old.Arms {
+				arms[k] = v
+			}
+			delete(arms, w)
+			arm := map[string]any{}
+			for col, v := range a {
+				if col == "avenue_id" {
+					col = "inquiry_id"
+				}
+				arm[col] = v
+			}
+			arms["inquiry"] = arm
+			old.Arms = arms
 		}
-		delete(arms, "direction")
-		arms["avenue"] = a
-		old.Arms = arms
-	}
-	if v, ok := old.Fields["direction"]; ok {
-		fields := map[string]any{}
-		for k, fv := range old.Fields {
-			fields[k] = fv
+		if v, ok := old.Fields[w]; ok {
+			fields := map[string]any{}
+			for k, fv := range old.Fields {
+				fields[k] = fv
+			}
+			delete(fields, w)
+			fields["inquiry"] = v
+			old.Fields = fields
 		}
-		delete(fields, "direction")
-		fields["avenue"] = v
-		old.Fields = fields
 	}
 	return old
+}
+
+// inquiryEntry carries an archived inquiry act under the current word with its columns renamed. A
+// PROPOSAL — the act with no supersedes_status — carries a question and no reason: the archive's
+// propose wrote its question into `reason` as well, so a proposal whose reason is its question
+// carries no reason forward. Every other act's reason is the seat's account of a fate, and is kept.
+func inquiryEntry(renames ren) Entry {
+	inner := mapped("inquiry", renames, nil, nil)
+	return Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
+		if ss, _ := old.Fields["supersedes_status"].(string); ss == "" {
+			if r, ok := old.Fields["reason"].(string); ok && r == old.Fields["line"] {
+				fields := map[string]any{}
+				for k, v := range old.Fields {
+					fields[k] = v
+				}
+				delete(fields, "reason")
+				old.Fields = fields
+			}
+		}
+		return inner.Translate(old)
+	}}
 }

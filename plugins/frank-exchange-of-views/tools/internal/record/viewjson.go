@@ -324,7 +324,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// stands (#1091). Once per board and not once per gap: replaying the mutations is the expensive
 	// part. A report that does not render is not an error — every quote gap reads `unrendered`, and
 	// the anomaly below says why.
-	report, renderErr := renderProjection(ReportProjectionAt(q))
+	report, renderErr := RenderAt(q)
 
 	verified := backingOf(Live(evs))
 	// THE CLOSURE IS THE GAP VIEW'S (the last standing act of each arm, by its events.id, with the
@@ -1336,7 +1336,7 @@ type FindingJSON struct {
 	Impact     any    `json:"impact"`
 	Location   string `json:"location"`
 	// About names what this finding is anchored to when its subject is NOT in the report — a
-	// section it is missing from, an avenue whose stated reason is being argued against,
+	// section it is missing from, an inquiry whose question is being argued against,
 	// or a gap. Empty means the finding anchors to `location`, a live sentence.
 	//
 	// A chair reading this list needs to know which: a finding with no location is not one whose

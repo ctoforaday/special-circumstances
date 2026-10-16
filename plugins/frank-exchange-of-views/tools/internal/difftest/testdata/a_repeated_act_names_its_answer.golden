@@ -166,10 +166,10 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 {"key":"blue-respond:position:#2","position":{"text":"the board is clean going in"},"seat_id":"blue-respond","ts":20,"type":"EVENT_TYPE_POSITION"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

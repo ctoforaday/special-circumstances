@@ -82,8 +82,7 @@ type ShapedValue struct {
 //
 // It exists because internal/record's id-namespace matrix carried its own hand-written copy of
 // every shape — `^A\d+$` and four siblings — which is the shape of defect that matrix exists to
-// prevent, one level up. Measured 2026-08-16: the avenue id moved A -> Q here and the
-// copy stayed, so the gate reported the MINTER as wrong against a pattern nobody had updated.
+// prevent, one level up.
 func (v *ShapedValue) Shape() *regexp.Regexp { return v.re }
 
 // Check resolves this flag's value against the record, or returns nil when the flag was not
@@ -171,11 +170,11 @@ func CitationAnchor() *ShapedValue {
 		hint: "a citation anchor is a `" + anchor.Token("C-…") + "` token in the report or the id inside one — paste either — while `F-` is a finding and `P-` is a computation, neither of which is a source; `show evidence` lists every citation by anchor"}
 }
 
-// AvenueID refuses anything that is not an avenue id. Its letter is Q, for the QUESTION the line
-// asks, which is what `--line` holds.
-func AvenueID() *ShapedValue {
-	return &ShapedValue{kind: "avenue-id", re: idShape("avenue"),
-		hint: "an avenue id is Q- and eight hex, and is ASSIGNED when you propose the avenue; `show avenues` lists every one with its fate"}
+// InquiryID refuses anything that is not an inquiry id. Its letter is Q, for the QUESTION the inquiry
+// asks, which is what `--question` holds.
+func InquiryID() *ShapedValue {
+	return &ShapedValue{kind: "inquiry-id", re: idShape("inquiry"),
+		hint: "an inquiry id is Q- and eight hex, and is ASSIGNED when you propose the inquiry; `show inquiries` lists every one with its fate"}
 }
 
 // MotionID refuses anything that is not a motion id.

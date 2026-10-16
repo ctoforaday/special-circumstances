@@ -1,10 +1,14 @@
 package migrate_test
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -186,6 +190,19 @@ func TestMigrateReordersTheBaseOnlyWhereEveryActReplays(t *testing.T) {
 			if m.ReportOrder != tc.want {
 				t.Errorf("the manifest says the report's order is %q, want %q", m.ReportOrder, tc.want)
 			}
+			// THE TRIAL LEAVES NOTHING. Where the reordered replay is not kept it is rolled back, and the
+			// record holds exactly the events the replay as written reports writing — one base, not two.
+			written := 0
+			for _, n := range m.Out {
+				written += n
+			}
+			var events, bases int
+			if err := openRO(t, to).QueryRow(`SELECT count(*), (SELECT count(*) FROM "base_ingest") FROM "events"`).Scan(&events, &bases); err != nil {
+				t.Fatal(err)
+			}
+			if events != written || (tc.base != "" && bases != 1) {
+				t.Errorf("the migrated record holds %d event(s) and %d base(s); the manifest reports writing %d", events, bases, written)
+			}
 			if tc.base == "" {
 				return
 			}
@@ -249,5 +266,53 @@ func TestAReorderedReplayThatRefusesAnActIsNotKept(t *testing.T) {
 	}
 	if got, err := reportproj.RenderFromRecord(runtest.Open(t, to)); err != nil || got != written {
 		t.Errorf("the record left for review does not hold the text as written (%v):\n%s", err, got)
+	}
+}
+
+// A TRIAL WHOSE BATCH FAILS FAILS THE MIGRATION. The failure is the batch's, not a refusal of the
+// reordering: replaying as written over it would publish a record the failed batch says nothing
+// about, so the migration returns the failure and publishes nothing.
+func TestAFailedTrialBatchFailsTheMigration(t *testing.T) {
+	from := sourceRun(t, movHead+movOwn+movCat+movOpen, [2]string{"7 divides it", "7 divides it, 13 times"})
+	to := recordtest.TmpRun(t)
+	savepoints := 0
+	t.Cleanup(func() { record.SavepointTestHook = nil })
+	record.SavepointTestHook = func(stmt string) error {
+		if strings.HasPrefix(stmt, "SAVEPOINT") {
+			// The fifth act lands after the report's base: the trial has a base to reorder, so a
+			// failure here is the case where replaying as written would otherwise be tried.
+			if savepoints++; savepoints == 5 {
+				return errors.New("disk I/O error")
+			}
+		}
+		return nil
+	}
+	m, err := migrate.Migrate(from, to, migrate.Entries(), migrate.Options{})
+	if !errors.Is(err, record.ErrBatchFailed) {
+		t.Fatalf("a migration whose trial batch failed answered %v (manifest %+v); want the batch's failure", err, m)
+	}
+	if m != nil {
+		t.Errorf("a migration whose trial batch failed returned a manifest, report order %q", m.ReportOrder)
+	}
+	if _, err := os.Stat(filepath.Join(to, "inputs", migrate.ManifestName)); !os.IsNotExist(err) {
+		t.Errorf("a migration whose trial batch failed published a manifest at --to (%v)", err)
+	}
+}
+
+// A migration hands back the clock it was given: every pass pins record.Now to its events, and
+// none of those stamps may outlive it. (That each pass also STARTS from the caller's clock is held
+// by replay's own restore; it shows only for a source whose first stamp does not parse, which no
+// fixture has.)
+func TestAMigrationRestoresTheClock(t *testing.T) {
+	from := sourceRun(t, movHead+movOwn+movCat+movOpen, [2]string{"7 divides it", "7 divides it, 13 times"})
+	fixed := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
+	was := record.Now
+	record.Now = func() time.Time { return fixed }
+	t.Cleanup(func() { record.Now = was })
+	if _, err := migrate.Migrate(from, recordtest.TmpRun(t), migrate.Entries(), migrate.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := record.Now(); !got.Equal(fixed) {
+		t.Errorf("after a migration record.Now answers %v, want the caller's %v — a pass left its pinned stamp behind", got, fixed)
 	}
 }

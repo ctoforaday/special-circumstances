@@ -675,7 +675,7 @@ func TestAKilledMigrationLeavesToAsItWas(t *testing.T) {
 			reg[k] = v
 		}
 		visits := map[int64]int{}
-		reg["friction"] = Entry{Translate: func(old OldEvent, dst record.Run) ([]proto.Message, error) {
+		reg["friction"] = Entry{Translate: func(old OldEvent) ([]proto.Message, error) {
 			// The first visit is the pass that learns the ids; the second is the pass that writes.
 			if visits[old.ID]++; visits[old.ID] == 2 {
 				if err := os.WriteFile(a.Marker, nil, 0o644); err != nil {
@@ -683,7 +683,7 @@ func TestAKilledMigrationLeavesToAsItWas(t *testing.T) {
 				}
 				time.Sleep(time.Hour)
 			}
-			return base.Translate(old, dst)
+			return base.Translate(old)
 		}}
 		_, err := Migrate(a.From, a.To, reg, Options{})
 		t.Fatalf("the migration was meant to block until killed, and returned %v", err)

@@ -230,13 +230,13 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 			// like non-compliance.
 			add("gap " + id + " was minted --check-kind computation and no proof answers it; prose cannot close it")
 		}
-		// THERE IS NO PER-LINE AVENUE DUTY HERE ANY MORE, and the deletion is a ruling rather
-		// than a dropped check. This arm read `UnsupportedAvenues` — the lines red had voted
-		// `unsupported` or `absent`. Presence is not a question: the lines reach the report on
-		// the worklist, generated from the record, so blue cannot cut them. Where blue's body
-		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
-		// reaches blue through the ordinary route with a grade and a required fix — with the PASS
-		// gate behind it when the gap is material by its class or grade. Restoring a second duty here would be the same fact told twice.
+		// THERE IS NO PER-INQUIRY DUTY HERE, and the absence is a ruling rather than a dropped
+		// check. Presence is not a question: the inquiries reach the report on the worklist,
+		// generated from the record, so blue cannot cut them. Where blue's body genuinely failed
+		// to deliver an inquiry's research, red MINTS A GAP, and an open gap already reaches blue
+		// through the ordinary route with a grade and a required fix — with the PASS gate behind
+		// it when the gap is material by its class or grade. A second duty here would be the same
+		// fact told twice.
 		// THE POSITION IS OWED BY THE SEAT SeatOwesPosition NAMES, and among blue seats that is the
 		// responding one: its sitting that found an engaged gap open owes the bench an argument.
 		// The state is PositionSittings' — the reading capture's record-parity audit fails a closed
@@ -342,7 +342,7 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	//
 	// IT IS SAID TO A SEAT WHOSE WORK ARRIVES AS ITEMS, AND TO NO OTHER. The frontier, a lane and
 	// the synthesizer — every blue seat but the responding one — are dispatched to write: the
-	// avenues, a draft, the report. No plan names them and nothing they owe is ever an item, so an
+	// inquiries, a draft, the report. No plan names them and nothing they owe is ever an item, so an
 	// empty list is what theirs always is, and "ending your turn now is the correct act" tells such
 	// a seat to stop before it has started. universe-m21's synthesizer quoted "no other projection
 	// holds work for you" as its only evidence about the record, and proposed five approaches the

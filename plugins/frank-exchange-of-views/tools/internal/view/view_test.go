@@ -531,7 +531,7 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 // NULL, so the "undefined" severity bucket cannot be reached from a record. Keeping the test would
 // mean seeding a mint the record rejects, which is not a test of the projection at all.
 
-func TestMarkdownDebateAndAvenue(t *testing.T) {
+func TestMarkdownDebateAndInquiry(t *testing.T) {
 	runDir := t.TempDir()
 	merge := "red-chair"
 	blue := "blue-respond"
@@ -556,17 +556,17 @@ func TestMarkdownDebateAndAvenue(t *testing.T) {
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, blue, blue+":position", &recordpb.Position{Text: proto.String("blue says otherwise")}),
 		recordtest.At(t, blue, blue+":revision", &recordpb.Revision{Text: proto.String("blue revised")}),
-		recordtest.At(t, blue, blue+":avenue:Q1", &recordpb.Avenue{
-			AvenueId: proto.String("Q1"),
-			Line:     proto.String("try the archive"),
-			Method:   proto.String("full-text search"),
-			Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
-			Reason:   proto.String("the archive is offline"),
+		recordtest.At(t, blue, blue+":inquiry:Q1", &recordpb.Inquiry{
+			InquiryId: proto.String("Q1"),
+			Question:  proto.String("try the archive"),
+			Method:    proto.String("full-text search"),
+			Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
+			Reason:    proto.String("the archive is offline"),
 		}),
-		recordtest.At(t, blue, blue+":avenue:Q2", &recordpb.Avenue{
-			AvenueId: proto.String("Q2"),
-			Line:     proto.String("read the source"),
-			Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
+		recordtest.At(t, blue, blue+":inquiry:Q2", &recordpb.Inquiry{
+			InquiryId: proto.String("Q2"),
+			Question:  proto.String("read the source"),
+			Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY),
 		}),
 	})
 	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the LEAD row needs both halves:
@@ -604,17 +604,17 @@ func TestMarkdownDebateAndAvenue(t *testing.T) {
 		}
 	}
 
-	avenue := md(t, runDir, "avenues")
-	pursuedAt := strings.Index(avenue, "## pursued (1)")
-	abandonedAt := strings.Index(avenue, "## abandoned (1)")
-	if pursuedAt < 0 || abandonedAt < 0 || pursuedAt > abandonedAt {
-		t.Errorf("avenues sections are wrong or out of order:\n%s", avenue)
+	inquiry := md(t, runDir, "inquiries")
+	underwayAt := strings.Index(inquiry, "## underway (1)")
+	abandonedAt := strings.Index(inquiry, "## abandoned (1)")
+	if underwayAt < 0 || abandonedAt < 0 || underwayAt > abandonedAt {
+		t.Errorf("inquiries sections are wrong or out of order:\n%s", inquiry)
 	}
-	if !strings.Contains(avenue, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-respond)") {
-		t.Errorf("an abandoned avenue row is wrong:\n%s", avenue)
+	if !strings.Contains(inquiry, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-respond)") {
+		t.Errorf("an abandoned inquiry row is wrong:\n%s", inquiry)
 	}
-	if strings.Contains(avenue, "## declined") {
-		t.Errorf("an empty status produced a heading:\n%s", avenue)
+	if strings.Contains(inquiry, "## declined") {
+		t.Errorf("an empty status produced a heading:\n%s", inquiry)
 	}
 
 	// THE CITATION-LEDGER ASSERTIONS ARE GONE WITH THEIR RENDERER. `citation-ledger` and

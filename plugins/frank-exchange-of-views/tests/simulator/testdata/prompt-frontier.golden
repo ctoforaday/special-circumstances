@@ -1,14 +1,13 @@
-prompt sha256: c0dbc41120124409e752ed57200b182be68b435467790fbd831402adc6cb8629
+prompt sha256: 7ebd17f3146be8d1683f55d10ca2e4d15d46ea7c1395d6d4dac089f6bc940776
 
 Research debate opening for topic: "the seat prompt contract".
-Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN AVENUE — the verb is under a group of its own in your role's help.
-ITS LINE IS THE QUESTION the avenue asks and the approach that would answer it, with no answer in it: the report prints the line as the question, and it stands as you write it.
-ITS HYPOTHESIS IS YOUR PREDICTION — what would be true if the avenue paid off — printed as a hypothesis beside what the research then finds.
-A result you expect goes in the hypothesis, never in the line.
-ONE avenue per hypothesis, and the tool assigns each an id.
-THEY ARE AVENUES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts.
-On the record it has an id, a fate, and an argument.
-The hypotheses opening a run are the ones that shape everything downstream and were until now the only ones nobody could contest.
+Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS AN INQUIRY — the verb is under a group of its own in your role's help.
+ITS QUESTION IS WHAT the inquiry asks and the approach that would answer it, with no answer in it: the report prints it as the question, and it stands as you write it.
+ITS HYPOTHESIS IS YOUR PREDICTION — what would be true if the inquiry paid off — printed as a hypothesis beside what the research then finds.
+A result you expect goes in the hypothesis, never in the question.
+ONE inquiry per hypothesis, and the tool assigns each an id.
+THEY ARE INQUIRIES, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts.
+On the record it has an id, a fate, and an argument, and the hypotheses opening a run are the ones that shape everything downstream.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.

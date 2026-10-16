@@ -493,7 +493,7 @@ func TestAnEmptyWorkListSaysSoRatherThanReturningNothing(t *testing.T) {
 }
 
 // THE SENTENCE IS NOT SAID TO A SEAT DISPATCHED TO WRITE. The frontier, a lane and the synthesizer
-// hold no item for the avenues, the draft or the report they were dispatched to write, so their
+// hold no item for the inquiries, the draft or the report they were dispatched to write, so their
 // list is empty before they have begun; "no other projection holds work for you … ending your turn
 // now is the correct act" there denies the dispatch. universe-m21's synthesizer read it, looked at
 // nothing else on the record, and proposed five approaches the record already held. Blue's

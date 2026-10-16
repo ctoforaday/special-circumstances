@@ -48,7 +48,7 @@ var notFields = map[string]string{
 	// LEGACY VOCABULARY — read only by the retired-type arms §II.6 deletes in PR3.
 	"as":       "the legacy landing key for a ruling; available.go:196 reads it beside `verdict` as a pre-collapse fallback. MotionRule.ruling replaces it",
 	"evidence": "the legacy `dispute` prose key, read only at view.go:519 and assemble.go:885 — both legacy arms. Motion.basis replaces it",
-	"ruling":   "the legacy petition-rule/avenue-rule key, read at view.go:567 and capture.go:983. MotionRule's per-subject ruling oneof replaces it",
+	"ruling":   "the legacy petition-rule/inquiry-rule key, read at view.go:567 and capture.go:983. MotionRule's per-subject ruling oneof replaces it",
 
 	"contests_ruling": "the legacy spelling of an appeal — blue pursuing against a ruling. MotionAppeal replaces it, and it was the one legacy field with no counterpart at all (compat.go:105)",
 	"petitioner":      "legacy petition vocabulary; the filer is the seat id on the ENVELOPE, not a payload field",

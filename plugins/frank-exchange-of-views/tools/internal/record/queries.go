@@ -284,6 +284,24 @@ func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err 
 	return ReportProjectionAt(db)
 }
 
+// RenderAt is the report as q holds it: the frozen base and its mutations, read from q and replayed
+// by the registered renderer. q is the run's handle, a read transaction, or a migration's batch
+// (Batch.Querier), whose own writes the render then includes. It is the ONE render over a querier;
+// RenderRun asks it of the run's handle.
+func RenderAt(q recordsql.Querier) (string, error) {
+	return renderProjection(ReportProjectionAt(q))
+}
+
+// RenderRun is RenderAt asked of run's record, opened for reading: a run that has recorded nothing
+// has no base, and says so.
+func RenderRun(run Run) (string, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", err
+	}
+	return RenderAt(db) // a nil handle is a record with nothing on it (noRecord)
+}
+
 // ReportProjectionAt is ReportProjection asked of q — a read transaction a projection holds, so
 // the report it renders is the one on the snapshot its other answers came off. A nil q is a run
 // with no record yet.

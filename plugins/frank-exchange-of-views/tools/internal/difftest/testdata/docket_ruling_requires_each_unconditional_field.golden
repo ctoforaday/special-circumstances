@@ -100,10 +100,10 @@ feov-record: motion docket rule: --as remanded requires --reopens-on, and never 
 {"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: --as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":12,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

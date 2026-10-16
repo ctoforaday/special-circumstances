@@ -14,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
@@ -33,8 +34,11 @@ type GapPlacement struct {
 // where they now stand. With gap anchors removed, every
 // rewritten old and new is the archived bytes, so the render's prose is the archived render's. It
 // rewrites nothing else: an exact-span edit or a placement that no longer places is refused.
+//
+// It reads the destination through q, the replay's batch (record.Batch.Querier): the batch holds the
+// record's one connection, so a render through the run would wait on it forever.
 type placer struct {
-	dst      record.Run
+	q        recordsql.Querier
 	anchored map[string]bool // ids the source stream anchors itself, as the migrated record spells them
 	placed   bool
 	census   GapPlacement
@@ -43,8 +47,8 @@ type placer struct {
 // newPlacer reads which ids the source stream anchors itself. The bodies step is asked about carry
 // migrated ids, so each is keyed on what migrated — the remap's table, filled by now — spells it:
 // keyed on the source's spelling, a run that anchored its own acts would gain a second Anchor each.
-func newPlacer(dst record.Run, evs []OldEvent, migrated map[string]string) *placer {
-	p := &placer{dst: dst, anchored: map[string]bool{}, census: GapPlacement{Shapes: map[string]int{}}}
+func newPlacer(q recordsql.Querier, evs []OldEvent, migrated map[string]string) *placer {
+	p := &placer{q: q, anchored: map[string]bool{}, census: GapPlacement{Shapes: map[string]int{}}}
 	for _, ev := range evs {
 		if id, _ := ev.Fields["id"].(string); ev.Word == "anchor" && id != "" {
 			p.anchored[cmp.Or(migrated[id], id)] = true
@@ -61,7 +65,7 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 		if correcting || b.GetLocation() == "" || p.anchored[b.GetGapId()] {
 			return nil, nil
 		}
-		text, err := reportproj.RenderFromRecord(p.dst)
+		text, err := record.RenderAt(p.q)
 		if err != nil {
 			return nil, nil // no base: the gap reads unrendered
 		}
@@ -99,7 +103,7 @@ func (p *placer) owed(shape, id, loc string, correcting bool) (proto.Message, er
 		return nil, nil
 	}
 	if correcting {
-		if text, err := reportproj.RenderFromRecord(p.dst); err != nil || strings.Contains(text, anchor.Token(id)) {
+		if text, err := record.RenderAt(p.q); err != nil || strings.Contains(text, anchor.Token(id)) {
 			return nil, nil
 		}
 	}
@@ -116,7 +120,7 @@ func (p *placer) places(id, loc string) error {
 	if id == "" || loc == "" {
 		return nil
 	}
-	text, err := reportproj.RenderFromRecord(p.dst)
+	text, err := record.RenderAt(p.q)
 	if err != nil {
 		return nil
 	}
@@ -135,7 +139,7 @@ func (p *placer) places(id, loc string) error {
 // places the gap with the sentence it was minted on — carry's rule — as it does for a gap anchor
 // inside the span.
 func (p *placer) edit(b *recordpb.BlueEdit) error {
-	text, err := reportproj.RenderFromRecord(p.dst)
+	text, err := record.RenderAt(p.q)
 	if err != nil {
 		return nil
 	}

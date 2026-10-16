@@ -187,11 +187,11 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 // MarkdownViews() is what a test iterates now. A renderer with no name in this table does not
 // compile in; a name here with no test is one the coverage walk reports.
 var markdownViews = map[string]func(in Input, scope string) ([]byte, error){
-	"changes": func(in Input, scope string) ([]byte, error) { return changesMD(in, scope) },
-	"ledger":  func(in Input, _ string) ([]byte, error) { return ledgerMD(in), nil },
-	"archive": func(in Input, _ string) ([]byte, error) { return archiveMD(in), nil },
-	"debate":  func(in Input, _ string) ([]byte, error) { return debateMD(in), nil },
-	"avenues": func(in Input, _ string) ([]byte, error) { return avenueMD(in), nil },
+	"changes":   func(in Input, scope string) ([]byte, error) { return changesMD(in, scope) },
+	"ledger":    func(in Input, _ string) ([]byte, error) { return ledgerMD(in), nil },
+	"archive":   func(in Input, _ string) ([]byte, error) { return archiveMD(in), nil },
+	"debate":    func(in Input, _ string) ([]byte, error) { return debateMD(in), nil },
+	"inquiries": func(in Input, _ string) ([]byte, error) { return inquiryMD(in), nil },
 }
 
 // MarkdownViews returns the markdown projection names, sorted. Exported so a test iterates the
@@ -695,7 +695,7 @@ func debateMD(in Input) []byte {
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag()))+"\n"+l.Markdown(t.GetOpinion()))
 					continue
 				}
-				// Otherwise only the PETITION subject: a grade or direction ruling answers a
+				// Otherwise only the PETITION subject: a grade or inquiry ruling answers a
 				// motion the motions view already renders with its ask beside it. A petition
 				// ruling is the bench acting on the run itself, and its opinion is the operative
 				// part.
@@ -728,94 +728,92 @@ func debateMD(in Input) []byte {
 	return []byte(strings.Join(debateParts, "\n") + "\n")
 }
 
-// avenueMD — the exploration space grouped by fate. Trailing newline (render.go parity).
-func avenueMD(in Input) []byte {
-	avenue := []string{"# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
-	body := AvenueBody(in.Events, in.At)
+// inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
+func inquiryMD(in Input) []byte {
+	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
+	body := InquiryBody(in.Events, in.At)
 	if body == "" {
-		avenue = append(avenue, "_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration",
+		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
-		return []byte(strings.Join(avenue, "\n"))
+		return []byte(strings.Join(inquiry, "\n"))
 	}
-	return []byte(strings.Join(avenue, "\n") + "\n" + body)
+	return []byte(strings.Join(inquiry, "\n") + "\n" + body)
 }
 
-// AvenueBody is the avenues projection WITHOUT its heading, or "" when the run recorded no
-// avenue — the ONE rendering behind both `show avenues` and the shipped
-// avenues.md (report.AssembleAll), so the view a seat reads and the document a human reads
-// cannot drift into two accounts of the same directions.
+// InquiryBody is the inquiries projection WITHOUT its heading, or "" when the run recorded no
+// inquiry — the ONE rendering behind both `show inquiries` and the shipped
+// inquiries.md (report.AssembleAll), so the view a seat reads and the document a human reads
+// cannot drift into two accounts of the same inquiries.
 //
-// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot avenue entries by
-// status. An avenue now has an id, a hypothesis, a status that MOVES with a stated reason,
-// and red's ruling — so the projection renders the DECISION: what was proposed, what became of it,
-// why, and what red said about it. That sequence is the evidence of choosing; a flat list by final
-// status records only the outcome — which is exactly what report.md now carries, and why the path
-// has to ship somewhere.
-func AvenueBody(evs []*record.Event, win record.WindowIndex) string {
-	avs := record.AvenuesOf(evs, win)
+// THE CHOOSING, NOT JUST THE PLAN. An inquiry has an id, a hypothesis, a fate recorded with a
+// stated reason, and red's ruling — so the projection renders the DECISION: what was proposed,
+// what became of it, why, and what red said about it. That sequence is the evidence of choosing; a
+// flat list by final status records only the outcome — which is exactly what report.md carries,
+// and why the path has to ship somewhere.
+func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
+	avs := record.InquiriesOf(evs, win)
 	if len(avs) == 0 {
 		return ""
 	}
-	// AvenuesOf folds the acts that stand; the wording a correction struck is listed under its
-	// line, marked — a corrected proposal must not read as one that was always worded this way.
-	struckWording := record.StruckAvenueTexts(evs)
-	var avenue []string
-	byStatus := map[string][]*record.Avenue{}
+	// InquiriesOf folds the acts that stand; the wording a correction struck is listed under its
+	// inquiry, marked — a corrected proposal must not read as one that was always worded this way.
+	struckWording := record.StruckInquiryTexts(evs)
+	var inquiry []string
+	byStatus := map[string][]*record.Inquiry{}
 	for _, a := range avs {
 		byStatus[a.Status] = append(byStatus[a.Status], a)
 	}
-	for _, status := range record.AvenueStatusNames() {
+	for _, status := range record.InquiryStatusNames() {
 		rows := byStatus[status]
 		if len(rows) == 0 {
 			continue
 		}
-		avenue = append(avenue, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
+		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
 		for _, a := range rows {
 			method := ""
 			if a.Method != "" {
 				method = fmt.Sprintf(" _(%s)_", a.Method)
 			}
-			// The one-line row keeps its shape — line, method, reason, seat — and the
+			// The one-line row keeps its shape — question, method, reason, seat — and the
 			// lifecycle adds to it rather than replacing it.
-			head := a.ID + " " + a.Line
+			head := a.ID + " " + a.Question
 			reason := ""
 			if a.Reason != "" {
 				reason = " — " + a.Reason
 			}
-			avenue = append(avenue, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
+			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
 			for _, s := range struckWording[a.ID] {
-				avenue = append(avenue, "  - "+record.StruckMarkdown(s.Text, &s.Struck))
+				inquiry = append(inquiry, "  - "+record.StruckMarkdown(s.Text, &s.Struck))
 			}
 			if a.Hypothesis != "" {
-				avenue = append(avenue, "  - hypothesis: "+a.Hypothesis)
+				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
 			}
-			// The history is what makes a move legible as a CHOICE rather than a state.
+			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
 			if len(a.History) > 1 {
-				avenue = append(avenue, "  - path: "+strings.Join(a.History, " -> "))
+				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
 			}
 			if a.Ruling != "" {
-				avenue = append(avenue, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
+				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
 			}
 		}
-		avenue = append(avenue, "")
+		inquiry = append(inquiry, "")
 	}
-	// The revisit duty, made visible: an avenue still open late in a run is one nobody has
-	// decided. The measured failure was not bad choosing, it was that nothing ever asked
-	// blue to choose again after epoch 0.
-	if stale := record.StaleAvenuesOf(evs, win); len(stale) > 0 {
+	// The revisit duty, made visible: an inquiry still open late in a run is one nobody has
+	// decided, and this asks blue to choose again.
+	if stale := record.StaleInquiriesOf(evs, win); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID
 		}
-		avenue = append(avenue, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
-			"_Unsettled and not moved this epoch: "+strings.Join(ids, ", ")+". Each owes a move or a",
-			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this epoch just",
-			"as a fate does; an avenue declared once and never revisited records an intention, not a",
-			"choice. An approach that ran is `concluded` or `refuted`; every fate but `proposed` and `pursued`",
+		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
+			"_Unsettled and not recorded this epoch: "+strings.Join(ids, ", ")+". Each owes a record or a",
+			"REAFFIRMATION — re-recording `underway` with what you learned settles it for this epoch just",
+			"as a fate does; an inquiry declared once and never revisited records an intention, not a",
+			"choice. An approach that ran is `confirmed` or `refuted`; every fate but `proposed` and `underway`",
 			"is settled and never appears here._", "")
 	}
-	return strings.Join(avenue, "\n") + "\n"
+	return strings.Join(inquiry, "\n") + "\n"
 }
 
 // ---- the telemetry wire shape ----

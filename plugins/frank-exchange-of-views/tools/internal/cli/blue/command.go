@@ -23,7 +23,7 @@ func Verbs() []*cobra.Command {
 		newCite(),
 		newProve(),
 		newRetire(),
-		newAvenue(),
+		newInquiry(),
 		newManifestRow(),
 		seat.Position("position-blue"),
 		seat.Closing("closing-blue"),

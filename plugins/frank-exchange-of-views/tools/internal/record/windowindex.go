@@ -106,7 +106,7 @@ func (x WindowIndex) LatestSittingOf(seat string) int64 {
 // brackets, its tool-call limits, the cast (HarnessSeat on the envelope): a chair that has just sat
 // opens a new epoch on the record, and its hook's own bookkeeping lands in it, but until something
 // is done in it the current one is still the last with work in it — which is what "stale since the
-// current epoch" has to mean for an avenue pursued in the previous one.
+// current epoch" has to mean for an inquiry pursued in the previous one.
 //
 // The last work act of a narrowed slice is not the record's, so a narrowed index panics here as it
 // does in LatestSittingOf.

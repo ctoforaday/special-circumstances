@@ -51,7 +51,7 @@ const (
 	FileDocket    = "docket.md"
 	FileDebate    = "debate.md"
 	FileJudgments = "judgments.md"
-	FileAvenues   = "avenues.md"
+	FileInquiries = "inquiries.md"
 	FileEvidence  = "evidence.md"
 	FileRun       = "run.md"
 	FileChangelog = "CHANGELOG.md"
@@ -59,7 +59,7 @@ const (
 )
 
 // docOrder is the reading order, and the link bar's order. Research first, process behind it.
-var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileAvenues, FileEvidence, FileRun, FileChangelog}
+var docOrder = []string{FileReport, FileDocket, FileDebate, FileJudgments, FileInquiries, FileEvidence, FileRun, FileChangelog}
 
 // Files is the document set's names, for the readers OUTSIDE this package — the capture
 // screens, the audits, the archive. They exist because a check that reads report.md alone now
@@ -113,11 +113,11 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 			composed[s.Heading] = body[s.File].add(block)
 		}
 	}
-	// avenues.md — THE DIRECTIONS, and the one home of each line's PATH. report.md files a line by
-	// its final fate and carries neither who moved it, the path it took nor the ruling beside it,
-	// because those are the debate. It is the SAME rendering `show avenues` prints
-	// (view.AvenueBody), whole, not a section of the table and not a second account.
-	inq := EscapeNotes(view.AvenueBody(evs, fam.At))
+	// inquiries.md — THE INQUIRIES, and the one home of each inquiry's PATH. report.md files an
+	// inquiry by its final fate and carries neither who recorded it, the path it took nor the ruling
+	// beside it, because those are the debate. It is the SAME rendering `show inquiries` prints
+	// (view.InquiryBody), whole, not a section of the table and not a second account.
+	inq := EscapeNotes(view.InquiryBody(evs, fam.At))
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
@@ -133,8 +133,8 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 			Blurb: "the transcript, epoch by epoch — red's audits, blue's answers, the closings, red's spot-checks, and the bench's terminal disposition", Body: body[FileDebate].String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: body[FileJudgments].String()},
-		{File: FileAvenues, Nav: "Avenues", Title: "avenues",
-			Blurb: "every avenue the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last moved it and red's ruling", Body: inq},
+		{File: FileInquiries, Nav: "Inquiries", Title: "inquiries",
+			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
