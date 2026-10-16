@@ -3,6 +3,8 @@ package runlive
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookfailures"
 )
@@ -36,31 +38,36 @@ import (
 // Inference says WHY InferRunDir found the directory it did, or none.
 //
 // A bare "" used to answer every one of these, and they are not the same: two of them are the
-// ordinary shape of a session (no run; a run already closed), one is a legitimate state that
-// simply has no single answer (two runs open at once), and two are FAULTS — a marker that cannot
-// be read, and a marker naming a run whose directory is not there. A caller that must tell a human
+// ordinary shape of a session (no run; no live run), and three are FAULTS — a marker that cannot be
+// read, a marker with more than one live run, and nowhere to look. A caller that must tell a human
 // about a fault cannot do it from a zero value it shares with the healthy cases.
 type Inference int
 
 const (
 	NoMarker    Inference = iota // no marker between here and the root: not in a run
-	Resolved                     // exactly one run open, and its directory exists
-	NoRunOpen                    // a marker, naming no open run
-	Ambiguous                    // more than one run open: nothing to infer, and nothing wrong
+	Resolved                     // exactly one live run
+	NoRunOpen                    // a marker, naming no live run (StateOf)
+	Ambiguous                    // more than one live run: no seat's run can be told — a fault
 	Unreadable                   // a marker that cannot be read or parsed — a fault
-	Stale                        // a marker naming one run whose directory does not exist — a fault
 	Unlocatable                  // no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory — a fault
 )
 
 // Fault reports whether the inference failed for a reason a human should hear about.
-func (i Inference) Fault() bool { return i == Unreadable || i == Stale || i == Unlocatable }
+//
+// TWO LIVE RUNS IS A FAULT. A hook's payload names no run, so with two live the hooks bracket no
+// sitting, count no call and inject no run for either one — every seat of both runs acts unbracketed
+// and uncapped. `setup` refuses a second live run, so this is reached only by a marker written
+// around it, and it is said rather than absorbed.
+func (i Inference) Fault() bool { return i == Unreadable || i == Ambiguous || i == Unlocatable }
 
 // Inferred is InferRunDir's answer: the directory, why, and where the marker was — the project a
-// fault belongs to, which is its scope on the failure record.
+// fault belongs to, which is its scope on the failure record. Live names the live runs when there
+// is more than one, for the fault's own words.
 type Inferred struct {
 	Dir       string
 	Why       Inference
 	MarkerDir string
+	Live      []string
 }
 
 // StageUnusable is the failure-record stage for a marker that is a fault (Inference.Fault). It is
@@ -68,7 +75,9 @@ type Inferred struct {
 // the subagent sitting hooks — and the stage names one fact about one file.
 const StageUnusable hookfailures.Stage = "run-dir-unusable"
 
-func InferRunDir(start string) Inferred {
+// agentID is the agent asking ("" for none) — StateOf's one exception, the agent that recorded its
+// run's outcome, is answered through it.
+func InferRunDir(start, agentID string) Inferred {
 	dir := start
 	if dir == "" {
 		if p := os.Getenv("CLAUDE_PROJECT_DIR"); p != "" {
@@ -94,24 +103,25 @@ func InferRunDir(start string) Inferred {
 			// regression read as correct behaviour. Five tests caught it; driving it by hand did
 			// not, and would not have.
 			runs, readable := readRunLive(dir)
-			switch {
-			case !readable:
+			if !readable {
 				return Inferred{Why: Unreadable, MarkerDir: dir}
-			case len(runs) == 0:
+			}
+			// ONLY LIVE ROWS COUNT. A row whose run ended or whose directory is gone is residue of a
+			// run nothing captured; letting it resolve attributed every later session in this project
+			// to a dead run, and letting it count made a live run beside it ambiguous.
+			var live []string
+			for _, m := range runs {
+				if StateOf(dir, m, agentID) == RowLive {
+					live = append(live, Resolve(dir, m.RunDir))
+				}
+			}
+			switch len(live) {
+			case 0:
 				return Inferred{Why: NoRunOpen, MarkerDir: dir}
-			case len(runs) > 1:
-				// With two runs live there is no single run to infer, and the marker's own rule for
-				// that is to say nothing rather than guess — which is also not a fault.
-				return Inferred{Why: Ambiguous, MarkerDir: dir}
+			case 1:
+				return Inferred{Dir: live[0], Why: Resolved, MarkerDir: dir}
 			}
-			resolved := runs[0].RunDir
-			if !filepath.IsAbs(resolved) {
-				resolved = filepath.Join(dir, resolved)
-			}
-			if st, err := os.Stat(resolved); err == nil && st.IsDir() {
-				return Inferred{Dir: resolved, Why: Resolved, MarkerDir: dir}
-			}
-			return Inferred{Why: Stale, MarkerDir: dir}
+			return Inferred{Why: Ambiguous, MarkerDir: dir, Live: live}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -129,8 +139,10 @@ func FaultDetail(i Inferred) string {
 	switch i.Why {
 	case Unreadable:
 		return "the live-run marker in " + i.MarkerDir + " cannot be read"
-	case Stale:
-		return "the live-run marker in " + i.MarkerDir + " names a run whose directory does not exist"
+	case Ambiguous:
+		return "the live-run marker in " + i.MarkerDir + " names " + strconv.Itoa(len(i.Live)) + " live runs (" +
+			strings.Join(i.Live, ", ") + "), so no seat's run can be told apart and none is used — close all but one " +
+			"with `feov-record capture <runDir> <transcript dir> --seat-id operator`, or run the others from a separate checkout"
 	case Unlocatable:
 		return "there is nowhere to look for a live-run marker (no cwd in the payload, no CLAUDE_PROJECT_DIR, and no working directory)"
 	}

@@ -3,11 +3,13 @@ package cli
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io"
 	"net"
 	"net/http"
@@ -129,9 +131,9 @@ func TestServeHelpMatchesTheTransport(t *testing.T) {
 // close it. Binding is now refused unless the run is live.
 func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	prev := runLiveMarker
-	runLiveMarker = filepath.Join(dir, "absent-run-live.json")
-	t.Cleanup(func() { runLiveMarker = prev })
+	prev := dashboardProject
+	dashboardProject = t.TempDir() // a project with no marker: this run has no row
+	t.Cleanup(func() { dashboardProject = prev })
 
 	err := serveDashboard(io.Discard, runtest.Open(t, dir), 0, func() string { return "<html></html>" })
 	if err == nil {
@@ -143,27 +145,63 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 	if !strings.Contains(err.Error(), "dashboard.html") {
 		t.Error("the refusal should point at the static snapshot as the way to read a finished run")
 	}
+
+	// ANOTHER RUN'S ROW IS NOT THIS RUN'S. The file alone used to be the test, so a sibling's row
+	// kept a finished run's server binding.
+	other := t.TempDir()
+	liveProjectAt(t, dashboardProject, other)
+	if err := serveDashboard(io.Discard, runtest.Open(t, dir), 0, func() string { return "<html></html>" }); err == nil ||
+		!strings.Contains(err.Error(), "not live") {
+		t.Errorf("a marker naming only another run let this one bind: %v", err)
+	}
 }
 
-// #270: the watchers must end on EITHER signal. The marker's only remover is `capture`, which is
+// liveProject makes a project whose live-run marker holds one row, for runDir, and returns the
+// project and its marker file.
+func liveProject(t *testing.T, runDir string) (proj, marker string) {
+	t.Helper()
+	proj = t.TempDir()
+	return proj, liveProjectAt(t, proj, runDir)
+}
+
+func liveProjectAt(t *testing.T, proj, runDir string) string {
+	t.Helper()
+	marker := filepath.Join(proj, ".claude", "run-live.json")
+	if err := os.MkdirAll(filepath.Dir(marker), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(map[string]any{"runs": []map[string]string{{"runDir": runDir}}})
+	if err := os.WriteFile(marker, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return marker
+}
+
+// #270: the watchers must end on ANY signal. The row's only remover is `capture`, which is
 // optional — so a killed run used to leave the served dashboard holding a socket, and `--watch`
 // regenerating a dead run, forever.
 func TestRunHasEndedTakesEitherSignal(t *testing.T) {
-	// A live run: marker present, no outcome on the record. Neither watcher may exit.
+	// A live run: its row present, no outcome on the record. Neither watcher may exit.
 	runDir := newRun(t)
-	marker := filepath.Join(recordtest.TmpRun(t), "run-live.json")
-	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if ended, why := runHasEnded(marker, runtest.Open(t, runDir)); ended {
+	proj, _ := liveProject(t, runDir)
+	if ended, why := runHasEnded(proj, runtest.Open(t, runDir)); ended {
 		t.Fatalf("a live run must not end the watch: %q", why)
 	}
 
-	// The clean end: capture removed the marker.
-	gone := filepath.Join(recordtest.TmpRun(t), "absent.json")
-	ended, why := runHasEnded(gone, runtest.Open(t, runDir))
-	if !ended || !strings.Contains(why, "marker gone") {
-		t.Errorf("an absent marker is the clean end: ended=%v why=%q", ended, why)
+	// The clean end: capture removed the row.
+	ended, why := runHasEnded(t.TempDir(), runtest.Open(t, runDir))
+	if !ended || !strings.Contains(why, "row is gone") {
+		t.Errorf("an absent row is the clean end: ended=%v why=%q", ended, why)
+	}
+
+	// The row is no longer live — here, its outcome mark — whatever the record could be read to say.
+	markedDir := newRun(t)
+	markedProj, _ := liveProject(t, markedDir)
+	if err := os.WriteFile(filepath.Join(markedDir, runlive.OutcomeMark), []byte(`{"agentId":""}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if ended, why := runHasEnded(markedProj, runtest.Open(t, markedDir)); !ended || !strings.Contains(why, "outcome is recorded") {
+		t.Errorf("a row that is no longer live ends the watch: ended=%v why=%q", ended, why)
 	}
 
 	// THE CASE THIS EXISTS FOR: the bench recorded the run's outcome and the marker is STILL
@@ -173,7 +211,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 			Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
 			Prose:   proto.String("the run ended without the question being answered"),
 		}))
-	ended, why = runHasEnded(marker, runtest.Open(t, runDir))
+	ended, why = runHasEnded(proj, runtest.Open(t, runDir))
 	if !ended {
 		t.Fatal("a run whose outcome is on the record has ended, whatever the filesystem says")
 	}
@@ -217,14 +255,11 @@ func (l *lockedBuffer) String() string {
 //racescope:covers internal/cli/dashboard_serve.go:serveDashboard
 func TestTheServedDashboardAnswersWhileWatchedAndClosesWhenTheRunEnds(t *testing.T) {
 	run := runtest.Open(t, newRun(t))
-	marker := filepath.Join(recordtest.TmpRun(t), "run-live.json")
-	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	prevMarker, prevHost, prevInterval := runLiveMarker, dashboardBindHost, dashboardWatchInterval
-	runLiveMarker, dashboardBindHost, dashboardWatchInterval = marker, "127.0.0.1", 2*time.Millisecond
+	proj, marker := liveProject(t, run.Dir())
+	prevProject, prevHost, prevInterval := dashboardProject, dashboardBindHost, dashboardWatchInterval
+	dashboardProject, dashboardBindHost, dashboardWatchInterval = proj, "127.0.0.1", 2*time.Millisecond
 	t.Cleanup(func() {
-		runLiveMarker, dashboardBindHost, dashboardWatchInterval = prevMarker, prevHost, prevInterval
+		dashboardProject, dashboardBindHost, dashboardWatchInterval = prevProject, prevHost, prevInterval
 	})
 	render := func() string {
 		return dashboard.RenderHTML(dashboard.BuildModel(run, "", dashboard.Config{}, float64(time.Now().UnixMilli())))

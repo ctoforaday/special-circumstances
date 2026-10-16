@@ -1219,6 +1219,11 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	cwd := t.TempDir()
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	// The other run is LIVE — its directory is there and holds no outcome mark — or capture would
+	// rightly prune it (TestCapturePrunesRowsThatAreNotLive).
+	if err := os.MkdirAll(filepath.Join(cwd, "research", "live-one"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	write(t, marker, `{"runs":[{"runDir":"research/live-one"},{"runDir":"research/the-one-being-captured"}]}`)
 
 	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
@@ -1245,6 +1250,41 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	write(t, marker, `{"runs":[]}`)
 	if got := closeRunLiveMarker(cwd, "research/x"); !strings.Contains(got, "names NO open run") {
 		t.Errorf("a marker present but naming nothing was reported as an ordinary miss: %q", got)
+	}
+}
+
+// CAPTURE PRUNES THE ROWS NO LONGER LIVE, AFTER CLOSING ITS OWN, AND NAMES THEM (#1255). A run whose
+// outcome is recorded or whose directory is gone is residue; a live run beside them is untouched, and
+// this run is reported closed, never pruned.
+func TestCapturePrunesRowsThatAreNotLive(t *testing.T) {
+	cwd := t.TempDir()
+	for _, d := range []string{"live", "ended", "this"} {
+		if err := os.MkdirAll(filepath.Join(cwd, "research", d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, d := range []string{"ended", "this"} {
+		if err := runlive.WriteOutcomeMark(filepath.Join(cwd, "research", d), "a-bench"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	write(t, marker, `{"runs":[{"runDir":"research/live"},{"runDir":"research/ended"},{"runDir":"research/gone"},{"runDir":"research/this"}]}`)
+
+	got := closeRunLiveMarker(cwd, "research/this")
+	for _, want := range []string{
+		"this run's entry removed", "1 other run still open",
+		"research/ended (its outcome is recorded)", "research/gone (its run directory is gone)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("capture must say %q: %q", want, got)
+		}
+	}
+	if strings.Contains(got, "research/this (") {
+		t.Errorf("this run was reported pruned rather than closed: %q", got)
+	}
+	if left := runlive.ReadRunLive(cwd); len(left) != 1 || left[0].RunDir != "research/live" {
+		t.Errorf("the marker holds %+v, want the live run alone", left)
 	}
 }
 

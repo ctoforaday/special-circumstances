@@ -1240,6 +1240,28 @@ func closeRunLiveMarker(cwd, runDir string) string {
 	}
 	before := len(runlive.ReadRunLive(cwd))
 	found, remaining := runlive.RemoveRunLiveEntry(cwd, runDir)
+	// AND EVERY OTHER ROW THAT IS NO LONGER LIVE — a run whose outcome is recorded or whose directory
+	// is gone — pruned AFTER this run's own row is taken, so this run is never reported as pruned
+	// rather than closed. Named, because a row removed in silence is a run nobody is told about.
+	pruned := runlive.PruneRunLive(cwd)
+	remaining -= len(pruned)
+	return closedLine(found, before, remaining, marker, runDir) + prunedLine(pruned)
+}
+
+// prunedLine names the rows capture pruned besides its own, or nothing when there were none.
+func prunedLine(pruned []runlive.Pruned) string {
+	if len(pruned) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(pruned))
+	for _, p := range pruned {
+		parts = append(parts, p.Row.RunDir+" ("+p.State.Why()+")")
+	}
+	return "; pruned " + plural(len(pruned), "the row", "the rows") + " no longer live: " + strings.Join(parts, ", ")
+}
+
+// closedLine says what happened to this run's own row.
+func closedLine(found bool, before, remaining int, marker, runDir string) string {
 	switch {
 	case !found && remaining > 0:
 		// The file is there and does not mention this run. Not an error and not a clean close:

@@ -46,7 +46,7 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	if agent == "" {
 		return nil
 	}
-	runDir := seatRunDir(in.Cwd, rec)
+	runDir := seatRunDir(in.Cwd, agent, rec)
 	if runDir == "" {
 		return nil
 	}

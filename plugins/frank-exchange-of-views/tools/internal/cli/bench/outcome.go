@@ -14,6 +14,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // outcome: the run's terminal verdict, recorded as a fact.
@@ -113,6 +115,13 @@ func newOutcome() *cobra.Command {
 		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
+		}
+		// THE RUN STOPS COUNTING AS LIVE HERE, for every agent but this one (runlive.StateOf). Written
+		// after the append, so a mark never stands for an outcome the record refused.
+		if err := runlive.WriteOutcomeMark(run.Dir(), seatenv.AgentID()); err != nil {
+			return nil, feov.Wrap(feov.Internal, err, "the outcome IS recorded (%s) — do not record it again; but %s could not be written (%v), "+
+				"so this project's live-run marker still counts the run as live until capture closes it",
+				verdict, runlive.OutcomeMark, err)
 		}
 		return outcomeResult{Verdict: verdict, Basis: basis}, nil
 	})

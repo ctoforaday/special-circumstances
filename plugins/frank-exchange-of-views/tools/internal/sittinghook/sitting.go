@@ -202,11 +202,11 @@ func handoff(stdin io.Reader, phase string, seat io.Writer, rec *hookfailures.Re
 	if in.AgentID == "" || in.AgentType == "" {
 		return nil
 	}
-	inferred := runlive.InferRunDir(in.Cwd)
+	inferred := runlive.InferRunDir(in.Cwd, in.AgentID)
 	if inferred.Why.Fault() {
 		// A marker that cannot be used is not "no run": it is a run whose seats' sittings are all
-		// being dropped. Only the two fault shapes are recorded — no marker, no open run and two
-		// runs open are the ordinary shapes of a session, and stay silent.
+		// being dropped — and with two live runs, both runs' sittings. Only the fault shapes are
+		// recorded; no marker and no live run are the ordinary shapes of a session, and stay silent.
 		rec.FailIn(runlive.StageUnusable, inferred.MarkerDir, unusableDetail(inferred))
 		return nil
 	}

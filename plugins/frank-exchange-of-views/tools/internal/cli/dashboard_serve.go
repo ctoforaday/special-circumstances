@@ -14,12 +14,12 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // serveDashboard hosts the dashboard over HTTPS as an EPHEMERAL, CAPABILITY-GATED, self-tearing
@@ -31,9 +31,10 @@ import (
 //   - HTTPS with an EPHEMERAL self-signed cert (generated here, never written to disk). It exists
 //     to encrypt the wire — the secret and the run's internals do not cross the LAN in cleartext —
 //     not to prove identity, so a browser will warn on the untrusted cert. That is expected.
-//   - SELF-TEARDOWN keyed to the .run-live marker: once the run ends (run-capture removes the
-//     marker) the socket closes on its own. A dashboard that outlives its run is an exposure with
-//     no owner. The server therefore REFUSES TO BIND when the marker is already absent: its
+//   - SELF-TEARDOWN keyed to the run's row in the .run-live marker: once the run ends (run-capture
+//     removes the row, or the outcome is recorded) the socket closes on its own. A dashboard that
+//     outlives its run is an exposure with no owner. The server therefore REFUSES TO BIND when the
+//     run has no live row: its
 //     lifetime is bounded by the run's at both ends, not just the tail. A finished run is reviewed
 //     through the written snapshot, which needs no listening socket.
 //
@@ -44,9 +45,9 @@ func serveDashboard(out io.Writer, run record.Run, port int, render func() strin
 	// with nothing to end it, which is precisely the exposure-with-no-owner the teardown exists to
 	// prevent (observed 2026-08-04: a server outlived its run and had to be killed by hand). A
 	// completed run is reviewed through the static snapshot, which needs no listening socket.
-	if _, err := os.Stat(runLiveMarker); err != nil {
-		return fmt.Errorf("--serve: this run is not live (no %s) — the served dashboard exists only for the duration of a run; for a finished run drop --serve and read the written %s",
-			runLiveMarker, filepath.Join(run.Dir(), "dashboard.html"))
+	if row, ok := runlive.RowOf(dashboardProject, run.Dir()); !ok || runlive.StateOf(dashboardProject, row, "") != runlive.RowLive {
+		return fmt.Errorf("--serve: this run is not live (no live row for it in %s) — the served dashboard exists only for the duration of a run; for a finished run drop --serve and read the written %s",
+			filepath.Join(dashboardProject, ".claude", "run-live.json"), filepath.Join(run.Dir(), "dashboard.html"))
 	}
 	secret, err := randToken()
 	if err != nil {
@@ -98,13 +99,14 @@ func dashboardHandler(secret string, render func() string) http.HandlerFunc {
 	}
 }
 
-// runLiveMarker is the file run-capture removes when a run ends. serveDashboard requires it to
-// exist before binding, so the server's lifetime is bounded by the run's by construction.
-var runLiveMarker = filepath.Join(".claude", "run-live.json")
+// dashboardProject is the project whose live-run marker holds this run's row — the working
+// directory, as for every operator verb. serveDashboard requires a live row before binding, so the
+// server's lifetime is bounded by the run's by construction.
+var dashboardProject = "."
 
 // dashboardBindHost is the address the served dashboard listens on: every interface, because the
 // operator reads it from another machine on the LAN. dashboardWatchInterval is how often the
-// teardown watcher asks whether the run has ended. Variables, as runLiveMarker is, so a test
+// teardown watcher asks whether the run has ended. Variables, as dashboardProject is, so a test
 // listens on loopback only and reaches the teardown without waiting out the interval.
 var (
 	dashboardBindHost      = "0.0.0.0"
@@ -124,7 +126,7 @@ func watchAndShutdown(srv *http.Server, run record.Run) {
 	tick := time.NewTicker(dashboardWatchInterval)
 	defer tick.Stop()
 	for range tick.C {
-		if ended, _ := runHasEnded(runLiveMarker, run); ended {
+		if ended, _ := runHasEnded(dashboardProject, run); ended {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			_ = srv.Shutdown(ctx)
 			cancel()
@@ -199,23 +201,29 @@ func selfSignedCert(ips []net.IP) (tls.Certificate, error) {
 
 // runHasEnded answers the ONE question both watchers ask, in one place: is this run over?
 //
-// Two signals, because either alone is a half-answer:
+// Three signals, because each alone is a part-answer:
 //
-//   - the run-live marker is gone — the clean end, written by `capture`
+//   - this run's row in the run-live marker is gone — the clean end, written by `capture`. The ROW,
+//     not the file: the file outlives this run while another run's row is in it.
 //   - the RECORD carries the bench's outcome — the truthful end, which holds even when nothing
-//     removed the marker, because `capture` is optional and a killed run never reaches it (#270)
+//     removed the row, because `capture` is optional and a killed run never reaches it (#270)
+//   - the row is no longer live by runlive.StateOf — the predicate every marker reader shares
 //
 // It returns WHY as well as whether, so a watcher can tell the operator that a run ended without
 // being captured rather than exiting silently — that gap is the thing worth knowing.
-func runHasEnded(marker string, run record.Run) (bool, string) {
-	if _, err := os.Stat(marker); err != nil {
-		return true, "run-live marker gone"
+func runHasEnded(projectDir string, run record.Run) (bool, string) {
+	row, ok := runlive.RowOf(projectDir, run.Dir())
+	if !ok {
+		return true, "this run's run-live marker row is gone"
 	}
 	// A record that cannot be read now is a run still being watched: the next tick asks again, and
-	// the marker's removal ends the watch whatever the record says. The error is folded here, at
-	// the one site that means "keep watching", and nowhere upstream.
+	// the row's removal ends the watch whatever the record says. The error is folded here, at the
+	// one site that means "keep watching", and nowhere upstream.
 	if v, err := record.TerminalVerdict(run); err == nil && v != "" {
-		return true, "the record shows this run ended (" + v + ") while the run-live marker is still present — capture has not run"
+		return true, "the record shows this run ended (" + v + ") while its run-live marker row is still present — capture has not run"
+	}
+	if s := runlive.StateOf(projectDir, row, ""); s != runlive.RowLive {
+		return true, "this run's run-live marker row is no longer live — " + s.Why()
 	}
 	return false, ""
 }
