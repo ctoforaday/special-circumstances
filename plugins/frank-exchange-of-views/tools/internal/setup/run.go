@@ -145,25 +145,30 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// ANOTHER OPEN RUN IS REPORTED, NOT REFUSED (#529).
+	// ONE LIVE RUN PER PROJECT (#1255). Rows that are no longer live are pruned and named first;
+	// another LIVE run refuses this one, before any run state exists.
 	//
-	// The marker is commitment-as-state and its only retraction is `capture`, which is optional:
-	// a run that is killed, throws, or is simply never captured leaves its row behind. That is
-	// still worth telling a human at the one moment one is present, and it is collected here so
-	// the summary can say it.
-	//
-	// It USED to refuse, for a reason its own comment gave: the stale marker was what
-	// runlive.InferRunDir handed to every verb invoked without --run. #526 removed that — setup
-	// bakes the run into <runDir>/.bin/feov-record, so a seat carries its run in its own
-	// environment and never has to ask — and ReadRunLiveMarker now answers "no single run" when
-	// more than one is open, so inference declines rather than guesses. With the misdirection
-	// gone, refusing only forced the operator to defeat the guard by hand, which is how an
-	// operator learns to reach for `rm` on the one file that says a run is open.
-	var alsoLive []runlive.RunLiveMarker
+	// The wrapper (#526) carries a seat's run into its own calls, but the HOOKS cannot use it: a
+	// hook's payload names no run, so they find one through this project's marker — and with two
+	// live runs they bracket no sitting, count no call and inject no run for either. Every seat of
+	// both runs then acts unbracketed and uncapped. Two runs at once need two checkouts, each with
+	// its own marker.
+	for _, p := range runlive.PruneRunLive(cfg.Cwd) {
+		fmt.Fprintf(stdout, "run-setup: pruned the live-run marker's row for %s (started %s) — %s\n", p.Row.RunDir, orUnknown(p.Row.Started), p.State.Why())
+	}
 	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
-		if !runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) {
-			alsoLive = append(alsoLive, m)
+		if runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) {
+			continue
 		}
+		fmt.Fprintln(stderr, "run-setup: ANOTHER RUN IS LIVE IN THIS PROJECT — refusing to create the run:")
+		fmt.Fprintf(stderr, "  live: %s (started %s)\n", m.RunDir, orUnknown(m.Started))
+		fmt.Fprintln(stderr, "  The hooks find a seat's run through this project's live-run marker, and with two live runs")
+		fmt.Fprintln(stderr, "  they bracket no sitting and count no call for either.")
+		fmt.Fprintln(stderr, "  remedies:")
+		fmt.Fprintf(stderr, "    - finish it: resume it to an outcome, or abandon it — then close it with\n")
+		fmt.Fprintf(stderr, "        feov-record capture %s <its transcript dir> --seat-id operator\n", m.RunDir)
+		fmt.Fprintln(stderr, "    - or run this one from a separate checkout (`git worktree add`), which has its own marker")
+		return 2
 	}
 
 	// Gate: pins validated before anything is built.
@@ -366,15 +371,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
 	// LOUD, AND ACTIONABLE PER RUN. A notice that only said "something else is open" would be
 	// the skimmable version of the refusal it replaces; each row names its own capture command.
-	for _, m := range alsoLive {
-		fmt.Fprintf(stdout, "  ALSO OPEN: %s (started %s) — its capture never ran, so nothing closed it.\n", m.RunDir, m.Started)
-		fmt.Fprintf(stdout, "    close it with:  feov-record capture %s <its transcript dir>\n", m.RunDir)
-	}
-	if len(alsoLive) > 0 {
-		fmt.Fprintln(stdout, "    Both runs proceed: each seat carries its own run in its wrapper, so neither can")
-		fmt.Fprintln(stdout, "    file work against the other. A verb invoked with NO run directory now resolves")
-		fmt.Fprintln(stdout, "    nothing rather than guessing between them.")
-	}
 	// THE binDir LINE IS AN INSTRUCTION, not a report, so it says what to do with the path.
 	// Handing the workflow the raw binary directory instead of this one is silent: the run
 	// works, and every seat is back to typing --run.

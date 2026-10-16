@@ -184,7 +184,7 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
-	inferred := runlive.InferRunDir(cwdOf(raw))
+	inferred := runlive.InferRunDir(cwdOf(raw), callerAgent(in))
 	noteInference(inferred, rec)
 	switch outcome, payload := hookgate.PreOutcome(in, inferred.Dir); outcome {
 	case hookgate.OutcomeRewrite:
@@ -228,7 +228,7 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 	if agentID == "" {
 		return false, nil
 	}
-	runDir := seatRunDir(cwd, rec)
+	runDir := seatRunDir(cwd, agentID, rec)
 	d, counted, err := sittingcap.Count(runDir, agentID)
 	if err != nil || !counted || !d.Over || hookgate.InvokesRegister(in) {
 		return false, err
@@ -249,8 +249,8 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 // seatRunDir is the run a seat's call belongs to: the marker its working directory finds, else the
 // run the engine put in the process environment. One resolution for every hook that attributes a
 // seat's call, so the turn limit and the failure log cannot disagree about which run it was in.
-func seatRunDir(cwd string, rec *hookfailures.Recorder) string {
-	inferred := runlive.InferRunDir(cwd)
+func seatRunDir(cwd, agentID string, rec *hookfailures.Recorder) string {
+	inferred := runlive.InferRunDir(cwd, agentID)
 	noteInference(inferred, rec)
 	for _, dir := range []string{inferred.Dir, os.Getenv(seatenv.Var), os.Getenv(seatenv.VarWrapper)} {
 		if dir != "" {
@@ -260,13 +260,22 @@ func seatRunDir(cwd string, rec *hookfailures.Recorder) string {
 	return ""
 }
 
+// callerAgent is the agent a call is made by: the payload's, else the one a headless seat carries in
+// its environment — the same identity enforceLimit counts against.
+func callerAgent(in hookgate.Input) string {
+	if in.AgentID != "" {
+		return in.AgentID
+	}
+	return seatenv.AgentID()
+}
+
 // noteInference records a marker that is a FAULT, and clears the entry when the marker is usable.
 //
 // hookgate.PreOutcome says nothing on an empty run directory, so an unusable marker meant the run
 // directory was simply never injected — and the seat then hit "no run directory" from a different
 // layer, which names the wrong cause. InferRunDir's own comment measures that class at ten of 55
-// tool-call errors in one run. The ordinary shapes — no marker, no open run, two runs open — stay
-// silent.
+// tool-call errors in one run. The ordinary shapes — no marker, no live run — stay silent; two live
+// runs is a fault, because neither run's seats get a run injected.
 func noteInference(i runlive.Inferred, rec *hookfailures.Recorder) {
 	switch {
 	case i.Why.Fault():

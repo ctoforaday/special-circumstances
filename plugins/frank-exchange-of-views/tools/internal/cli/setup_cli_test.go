@@ -184,8 +184,10 @@ func TestSetupCLIRecordsAndRefusesTheEpochLimit(t *testing.T) {
 		{"default", nil, record.DefaultParams.MaxEpochs},
 		{"five", []string{"--max-epochs", "5"}, 5},
 	} {
-		runDir := filepath.Join(cwd, "research", "epochs-"+c.dir)
-		r := runSetup(t, bin, cwd, append(append([]string{runDir}, base...), c.args...)...)
+		// A PROJECT PER RUN: setup refuses a second live run in one project.
+		proj := recordtest.TmpRun(t)
+		runDir := filepath.Join(proj, "research", "epochs-"+c.dir)
+		r := runSetup(t, bin, proj, append(append([]string{runDir}, base...), c.args...)...)
 		if r.code != 0 {
 			t.Fatalf("%s: exit %d: %s", c.dir, r.code, r.stderr)
 		}
