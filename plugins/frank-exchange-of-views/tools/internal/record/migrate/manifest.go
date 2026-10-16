@@ -64,6 +64,9 @@ type Manifest struct {
 	// Discarded names the shard-era sittings the era's own reader would have dropped
 	// (winner-per-seat), with the count of keys the winner never rewrote — the genuine loss.
 	Discarded []DiscardedSitting `json:"discarded_sittings,omitempty"`
+	// Warnings are what the publish could not guarantee — a directory whose sync failed. They arise
+	// after the manifest is written, so they are never part of it; the verb prints each.
+	Warnings []string `json:"-"`
 }
 
 // StatedFill is one value the migration supplied for a field its source predates.

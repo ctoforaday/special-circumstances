@@ -103,6 +103,14 @@ the root:  ` + RecordRootEnv + `=<path> <that path> ...
 // The `command not found` case is now called out by name, because that miss was silent: a seat
 // with no board and a seat with a clean board both produce a confident report.
 
+// RecordRootSet reports whether RecordRootEnv declares a separation: the variable, trimmed, is
+// non-empty. It reads nothing else and writes nothing — RecordsDir, under the same condition, adopts
+// the root — so a caller that must know whether a run it is about to create would be separated asks
+// this instead of resolving one.
+func RecordRootSet() bool {
+	return strings.TrimSpace(os.Getenv(RecordRootEnv)) != ""
+}
+
 // RecordsDir resolves where a run's events live, and REFUSES rather than guessing.
 //
 // Order matters and each step earns its place:
@@ -121,6 +129,7 @@ func RecordsDir(runDir string) (string, error) {
 		return "", err
 	}
 	env := strings.TrimSpace(os.Getenv(RecordRootEnv))
+	declared := RecordRootSet()
 
 	// A POINTER WITHOUT ITS MARKER IS A POINTER TO A RUN THAT NO LONGER EXISTS.
 	//
@@ -140,7 +149,7 @@ func RecordsDir(runDir string) (string, error) {
 	}
 
 	switch {
-	case hasPtr && env != "" && !samePath(env, ptr):
+	case hasPtr && declared && !samePath(env, ptr):
 		// Silently preferring either one writes half a run into each root.
 		return "", fmt.Errorf("%s is set to %s but run %s already keeps its record at %s — "+
 			"a run has ONE record root; unset %s to use the established one, or point it at that same path",
@@ -157,7 +166,7 @@ func RecordsDir(runDir string) (string, error) {
 				"re-declare the root with %s=<path> if it moved", abs, ptr, err, RecordRootEnv)
 		}
 		return ptr, nil
-	case env != "":
+	case declared:
 		return adoptRoot(abs, env)
 	}
 
