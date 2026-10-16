@@ -16,8 +16,8 @@ import (
 // record holds, so two seats minting at once cannot be handed one id. The columns an id is MINTED
 // into are UNIQUE — finding.id, mint.gap_id, motion.motion_id, and anchor.id for every placed act —
 // so a repeat there is a refused write. cite.label, proof.proof_id, verify.label and
-// avenue.avenue_id are not: a correction re-carries the id on its replacement row, and an avenue
-// writes one row per move.
+// inquiry.inquiry_id are not: a correction re-carries the id on its replacement row, and an inquiry
+// writes one row per recorded fate.
 func NewID(kind string) string {
 	var b [4]byte
 	if _, err := rand.Read(b[:]); err != nil {

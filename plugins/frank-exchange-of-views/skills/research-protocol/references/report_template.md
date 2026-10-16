@@ -71,23 +71,22 @@
 |---|---|---|---|---|
 | <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
-## Research areas                        <!-- [RECORD] avenues PROPOSED, PURSUED, CONCLUDED and REFUTED — a research topic
-                                              taken on, and what it yielded: `concluded` ran and its hypothesis held,
-                                              `refuted` ran and its hypothesis did not hold. Every avenue row is
+## Research areas                        <!-- [RECORD] the inquiries taken up, and what each yielded — a research topic
+                                              taken on, under the fate the record gives it. Every inquiry row is
                                               labelled: the question it asks, its hypothesis, its fate, and what was
                                               found — or, for an approach that did not run, why it stands there. -->
 
-## Future research directions            <!-- [RECORD] avenues DEFERRED — kept, not set aside: worth taking and not by THIS
-                                              run. --reason says what a later run should pick it up FOR. It reaches the
+## Future research directions            <!-- [RECORD] inquiries DEFERRED — kept, not set aside: worth taking and not by THIS
+                                              run. Its reason says what a later run should pick it up FOR. It reaches the
                                               report as a proposal a human selects, never an automatic seed. This is its
                                               OWN section because filing it under "Alternatives considered" said the
                                               opposite of its fate. -->
 
-## Alternatives considered               <!-- [RECORD] avenues DECLINED (weighed, never run) and ABANDONED (started, no answer) —
+## Alternatives considered               <!-- [RECORD] inquiries DECLINED (weighed, never run) and ABANDONED (started, no answer) —
                                               each with its reason (the counter), in the subject's terms. The fate is the
-                                              one its seat recorded, whatever path led to it. Who proposed a
-                                              line, the path its status took and red's ruling are the debate,
-                                              not the subject: they render in avenues.md and judgments.md. -->
+                                              one its seat recorded, whatever path led to it. Who proposed an
+                                              inquiry, the path its fate took and red's ruling are the debate,
+                                              not the subject: they render in inquiries.md and judgments.md. -->
 
 ## Open questions                        <!-- [BLUE] what the debate could not resolve; a question nobody could answer is a finding.
                                               The last section of the report's text. -->
@@ -120,14 +119,14 @@
 ## Motions                               <!-- [RECORD] every adjudicated exchange, joined on its id: the FILING (class, basis,
                                               relief sought) and its ruling, never the ruling alone. -->
 
-# avenues.md — each avenue and what became of it
+# inquiries.md — each inquiry and what became of it
 
-## (by fate)                             <!-- [RECORD] every avenue grouped by its current fate, each with its hypothesis,
-                                              the PATH its status took epoch by epoch, the seat that last moved it and red's
-                                              ruling; then the avenues still awaiting a decision. The same
-                                              rendering a seat reads through the tool. report.md carries only each avenue's
+## (by fate)                             <!-- [RECORD] every inquiry grouped by its current fate, each with its hypothesis,
+                                              the PATH its status took epoch by epoch, the seat that last recorded its fate and red's
+                                              ruling; then the inquiries still awaiting a decision. The same
+                                              rendering a seat reads through the tool. report.md carries only each inquiry's
                                               fate and reason; this is where how it got there lives. Omitted when the run
-                                              recorded no avenue. -->
+                                              recorded no inquiry. -->
 
 # evidence.md — the computations
 

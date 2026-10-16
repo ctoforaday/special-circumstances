@@ -15,7 +15,7 @@ import (
 // CAN ONE --id CARRY EVERY ID? (gblock: "I'm ok for a single id to support all of the ids. That's
 // good. We can prove no collision." — and "some IDs on one flag and others on another make no sense.")
 //
-// `--id` means a gap, a motion, an avenue and a proof digest depending on the verb, while `--anchor`
+// `--id` means a gap, a motion, an inquiry and a proof digest depending on the verb, while `--anchor`
 // and `--sha` carry more kinds under their own names (#1172). Consolidating them onto one flag that
 // resolves by SHAPE is sound only if the shapes decide a value unambiguously — so this is the
 // proof, and it is over the shapes the flag package declares rather than a second table written to
@@ -32,7 +32,7 @@ func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
 		"gap-id":          GapID,
 		"motion-id":       MotionID,
-		"avenue-id":       AvenueID,
+		"inquiry-id":      InquiryID,
 		"anchor":          AnchorID,
 		"citation-anchor": CitationAnchor,
 		"sha256":          SHA,
@@ -53,7 +53,7 @@ var minted = []struct {
 	{"citation", []string{"anchor", "citation-anchor"}},
 	{"proof", []string{"anchor"}},
 	{"gap", []string{"anchor", "gap-id"}},
-	{"avenue", []string{"avenue-id"}},
+	{"inquiry", []string{"inquiry-id"}},
 	{"motion", []string{"motion-id"}},
 }
 

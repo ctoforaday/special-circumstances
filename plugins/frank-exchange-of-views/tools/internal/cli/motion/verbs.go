@@ -18,7 +18,7 @@ import (
 
 // file: a seat asks for something, and the tool assigns the id everything else joins on.
 // fileSubjectSays is what filing each subject DOES, one sentence per subject that has a `file`.
-// `avenue` has none: proposing the line is the filing, and its subgroup's Short says so.
+// `inquiry` has none: proposing the inquiry is the filing, and its subgroup's Short says so.
 var fileSubjectSays = map[string]string{
 	"grade":    "It disputes a gap's grade. The chair rules it and the ruling stands: %s.",
 	"petition": "It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.",
@@ -230,22 +230,38 @@ func payloadKey(flag string) string {
 //
 // THEY DO NOT APPEAR ON THE OTHER SUBJECTS. A grade ruling offering `--principle` is the surface
 // lying about what it accepts, and the help IS the contract a seat reads.
+// ruleDetail is what a subject's ruling page says of that subject alone.
+var ruleDetail = map[string]string{
+	"inquiry": "\n\nAN INQUIRY HAS NO FILING: blue's proposal is the filing, so the id is the inquiry's own — the " +
+		"`Q-` id `show inquiries` lists with each inquiry's question and hypothesis, which are what you rule on, and its ruling, empty while you have not ruled it; a ruling on an inquiry is a motion ruling whose filing is the proposal itself. An id no inquiry on " +
+		"the record holds is refused. Rule on each inquiry blue " +
+		"proposed that you have not ruled — an unruled one is on your work list and holds your PASS: say whether it is " +
+		"worth this run's time — a judgment you argue in the reason: `endorsed` asks blue to take it up, `out_of_scope` and `too_thin` argue against it. The ruling is an argument beside the inquiry and changes no " +
+		"fate — the fate is what blue records with `inquiry record` (that page lists the fates), with your reason in front of it, " +
+		"whichever way you ruled; blue owes every open inquiry a fate each sitting. The first ruling on an " +
+		"inquiry is the one that stands, and a second is refused.",
+}
+
 func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	e := record.MotionVerdictEnum(subject)
+	what := record.Article(subject) + " " + subject + " motion"
+	if subject == "inquiry" {
+		what = "an inquiry blue proposed"
+	}
 	c := &cobra.Command{
 		Use:   "rule",
-		Short: "rule on " + record.Article(subject) + " " + subject + " motion (the " + ruler + " seat's)",
+		Short: "rule on " + what + " (the " + ruler + " seat's)",
 		// THE PAGE HAS TO SAY WHICH SUBJECT IT IS — `file` carries one for the same reason. `rule`
 		// differs from it in that it is not on every seat's surface at all, so the page a seat CAN
 		// open should also say which ones it cannot.
 		//
 		// Why `rule` is missing from the other surfaces is said to the seats that meet its absence
 		// — the subgroup's refusal in command.go — not to the gavel-holder, who never does.
-		Long: "rule on " + record.Article(subject) + " " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
+		Long: "rule on " + what + " — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
 			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two each convene a " +
 			"sitting of their own: a petition at the next chair sitting, before any party of that epoch " +
-			"sits; a docket after blue has sat on the gap.",
+			"sits; a docket after blue has sat on the gap." + ruleDetail[subject],
 		// Through Begin, as the filing is — see newFile.
 		RunE: seat.HandlerRunE(func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			run, err := s.Run()
@@ -294,12 +310,12 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a petition", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
-			case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
-				v, ok := enumOf[recordpb.AvenueRuling](recordpb.AvenueRuling(0).Descriptor(), word)
+			case recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY:
+				v, ok := enumOf[recordpb.InquiryRuling](recordpb.InquiryRuling(0).Descriptor(), word)
 				if !ok {
-					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on a direction", word)
+					return nil, feov.Errorf(feov.Validation, "--as %q is not a ruling on an inquiry", word)
 				}
-				body.Ruling = &recordpb.MotionRule_Avenue{Avenue: v}
+				body.Ruling = &recordpb.MotionRule_Inquiry{Inquiry: v}
 			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
 				d, ok := record.DispositionOf(word)
 				if !ok {
@@ -350,6 +366,9 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		}),
 	}
 	seat.Prose(c)
+	if subject == "inquiry" {
+		c.Flags().Lookup(flags.Reason).Usage = "your argument for the ruling: why the inquiry is, or is not, worth this run's time — blue reads it before it records the inquiry's fate"
+	}
 	c.Flags().Var(idShapeFor(subject, false), flags.ID, refHelp(subject))
 	// The ruling switch above refuses a word that is not a ruling, and "" is not one.
 	enumhelp.Flag(c, flags.As, e, "your ruling")
@@ -374,8 +393,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	return c
 }
 
-// refHelp names WHICH id the subject joins on. `direction` has no filing verb, so its id is the
-// avenue's; saying "the motion id" there would send a seat looking for an M-number that does not
+// refHelp names WHICH id the subject joins on. `inquiry` has no filing verb, so its id is the
+// inquiry's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs it and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
 // refHelp is the --id line, and it carries the REQUIRED marker because the flag is.
@@ -392,8 +411,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 // walks this tree now and markRequired is the one writer of that word, so a hand-written copy here
 // rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
-	if subject == "avenue" {
-		return "the AVENUE id: an avenue's filing is the proposal, so it joins on the avenue's own id, not a motion's"
+	if subject == "inquiry" {
+		return "the INQUIRY id: an inquiry's filing is the proposal, so it joins on the inquiry's own id, not a motion's"
 	}
 	return "the motion id"
 }
@@ -463,21 +482,19 @@ var ruleFlagHelp = map[string]string{
 // wrong-kind value is refused by its shape rather than by a lookup that reports "no such motion" for a
 // perfectly good gap id.
 //
-// THE AVENUE SUBJECT IS THE ASYMMETRY, and refHelp already states it: a direction's filing joins on
-// the avenue's own id, "not an M-number", so every avenue motion verb keys on Q. For the
+// THE INQUIRY SUBJECT IS THE ASYMMETRY, and refHelp already states it: an inquiry's filing joins on
+// the inquiry's own id, not a motion's, so every inquiry motion verb keys on Q. For the
 // other subjects the FILING names the thing being disputed — a gap — while the ruling names the
 // motion. Registering all of them as a plain string is what made the help print `string`
 // nine times and refuse nothing (internal/cli/idshape_test.go).
 //
-// SHAPE ONLY, NO EXISTENCE CHECK, and that is measured rather than assumed. These arms carried
-// `.WithCheck(record.GapExists)` and `.WithCheck(record.AvenueExists)` for one commit; deleting both
-// left the whole suite green and left every refusal BYTE-IDENTICAL, because the write already
-// resolves the reference — `requireGap` at the filing, `RequireSubjectMatches` at the ruling — and
-// the second is STRONGER than existence, being bound to the subject. A checker here would have been a
-// second implementation of a check that already refuses, in front of one that also knows more.
+// SHAPE ONLY, NO EXISTENCE CHECK: the write already resolves the reference — `requireGap` at the
+// filing, `RequireSubjectMatches` at the ruling — and the second is STRONGER than existence, being
+// bound to the subject. A checker here would be a second implementation of a check that already
+// refuses, in front of one that also knows more.
 func idShapeFor(subject string, filing bool) *flags.ShapedValue {
-	if subject == "avenue" {
-		return flags.AvenueID()
+	if subject == "inquiry" {
+		return flags.InquiryID()
 	}
 	if filing {
 		return flags.GapID()

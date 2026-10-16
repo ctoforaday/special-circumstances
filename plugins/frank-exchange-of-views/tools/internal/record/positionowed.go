@@ -13,7 +13,7 @@ import (
 // carrier: the bench and the chair hold the projection that renders it, and no other seat does. So
 // the seats that owe one are the two that argue before the bench every sitting they sit — the chair,
 // and blue's responding seat. A lane, the frontier and the synthesizer argue in what they write:
-// a draft, the avenues, the report.
+// a draft, the inquiries, the report.
 //
 // ONE PREDICATE, AND EVERY SURFACE THAT ENFORCES, LISTS, AUDITS OR RENDERS THE DUTY CALLS IT: the
 // verb refuses a seat it is false for, the work list blocks blue-respond on it, and capture's

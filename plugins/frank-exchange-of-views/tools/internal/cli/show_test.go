@@ -39,7 +39,7 @@ func TestShowPrintsExactlyTheSharedProjection(t *testing.T) {
 	// one's account, so the raw transcript is not a working seat's read (see seat.Inquest).
 	for _, c := range []struct{ group, seat, name string }{
 		{"inquest", "judge", "debate"},
-		{"show", "red-chair", "avenues"},
+		{"show", "red-chair", "inquiries"},
 	} {
 		name, group := c.name, c.group
 		t.Run(name, func(t *testing.T) {
@@ -222,8 +222,8 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 		}
 	}
 	// AND THE ONE THAT NOW ANSWERS, checked here so the two halves cannot drift apart.
-	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "avenues", "--json"); err != nil {
-		t.Errorf("show avenues --json was refused: %v", err)
+	if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "inquiries", "--json"); err != nil {
+		t.Errorf("show inquiries --json was refused: %v", err)
 	}
 }
 

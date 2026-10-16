@@ -45,10 +45,10 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"anchor":{"id":"FINDING002","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING002","seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

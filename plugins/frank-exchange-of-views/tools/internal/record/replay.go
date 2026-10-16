@@ -294,7 +294,7 @@ func DocketGapByMotion(evs []*Event) map[string]string {
 // zero are the same number.
 //
 // NOT A GENERAL RULE ABOUT SEPARATORS, then or now. Disposition really is `defect_accepted` on the
-// seat's surface, AvenueRuling really is `out_of_scope` (avenue.go checked it), and a test
+// seat's surface, InquiryRuling really is `out_of_scope` (inquiry.go checked it), and a test
 // treats the hyphenated forms as typos of them.
 //
 // "" for the unspecified zero, matching what `p.Str("severity")` returned when the key was absent,
@@ -403,33 +403,30 @@ func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 	return id, nil
 }
 
-// ExistingProposalByText gives `avenue propose` the same crash-retry idempotency mint has,
-// and it needs no key because the LINE IS THE IDENTITY of an avenue.
+// ExistingProposalByText gives `inquiry propose` the same crash-retry idempotency mint has,
+// and it needs no key because the QUESTION IS THE IDENTITY of an inquiry.
 //
-// MEASURED, and it cost a run's ledger: on universe-m12 a blue seat's propose script ran, wrote five
-// lines, and returned NO OUTPUT AT ALL to the seat. Seeing nothing, it ran the identical script
-// again — the only reasonable act — and five more ids were minted for five byte-identical
-// hypotheses. The run then held ten avenues for five questions, blue moved all ten to
-// pursued, and a lens filed a defect about the method count being redundant. Nothing refused any of
-// it, because the idempotency key is `<seat>:<verb>:#<ordinal>` and a repeat is BY DESIGN a new act.
+// Without it a propose script that ran, wrote its proposals and returned NO OUTPUT to the seat is
+// re-run by the seat, and every byte-identical proposal mints a second id: the idempotency key is
+// `<seat>:<verb>:#<ordinal>`, so a repeat is BY DESIGN a new act and nothing else refuses it.
 //
-// WHY BOTH FIELDS. `--reason` is required and `--hypothesis` is not, so the line alone would collapse
-// two proposals that share required prose and differ in the claim being tested. Both matching is the
-// retry; either differing is a new line.
+// WHY BOTH FIELDS. `--question` is required and `--hypothesis` is not, so the question alone would
+// collapse two proposals that share the question and differ in the claim being tested. Both
+// matching is the retry; either differing is a new inquiry.
 //
-// SCOPED TO THE SEAT, like mint's key. Two lanes converging on the same line independently is a
+// SCOPED TO THE SEAT, like mint's key. Two lanes converging on the same question independently is a
 // different question — a real duplicate in the ledger, but not a retry, and not one a seat can be
 // refused for without telling it what the other lane did.
-func ExistingProposalByText(run Run, seatID, line, hypothesis string) (string, error) {
-	if line == "" {
+func ExistingProposalByText(run Run, seatID, question, hypothesis string) (string, error) {
+	if question == "" {
 		return "", nil
 	}
 	var id string
 	if _, err := queryRow(run, []any{&id},
-		`SELECT a."avenue_id" FROM "avenue" a JOIN "events" e ON e."id" = a."event_id"
-		  WHERE e."seat_id" = ? AND a."line" = ? AND COALESCE(a."hypothesis", '') = ?
+		`SELECT a."inquiry_id" FROM "inquiry" a JOIN "events" e ON e."id" = a."event_id"
+		  WHERE e."seat_id" = ? AND a."question" = ? AND COALESCE(a."hypothesis", '') = ?
 		    AND a."status" = 'proposed'
-		  ORDER BY a."event_id" LIMIT 1`, seatID, line, hypothesis); err != nil {
+		  ORDER BY a."event_id" LIMIT 1`, seatID, question, hypothesis); err != nil {
 		return "", err
 	}
 	return id, nil

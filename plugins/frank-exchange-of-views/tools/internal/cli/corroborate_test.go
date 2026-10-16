@@ -95,12 +95,12 @@ func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 	}
 }
 
-// THE QUOTE IS THE REPORT'S SENTENCE UNDER EVERY OUTCOME, ON BOTH VERBS.
+// A CORROBORATION'S QUOTE IS THE REPORT'S SENTENCE UNDER EVERY OUTCOME.
 //
 // A source that contradicts a claim, or is silent on it, leaves a PASS blocker whose subject is
 // the quote, and the finding that clears it must quote the report: a quote of the SOURCE's words
-// would leave a blocker nothing can clear. Each verb under each outcome is refused, and the
-// refusals leave nothing on the record.
+// would leave a blocker nothing can clear. Each outcome is refused, and the refusals leave nothing
+// on the record. A verification takes no quote (TestVerifyRecordsTheSentenceItsAnchorMarks).
 func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 	const sourceWords = "91 is not a prime number. It is a composite number."
 	verifies := func(t *testing.T, runDir string) int {
@@ -123,39 +123,22 @@ func TestAQuoteTheReportDoesNotHoldIsRefusedUnderEveryOutcome(t *testing.T) {
 	for _, as := range outcomes {
 		t.Run(as, func(t *testing.T) {
 			runDir := corroborateRun(t)
-			// The citation `verify` adjudicates: a corroboration that backs a sentence places one.
-			if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
-				"--url", "https://example.org/placed", "--title", "T", "--quote", corroborated,
-				"--as", "supports", "--confidence", "high", "--reason", "read it at the leaf"); err != nil {
-				t.Fatal(err)
-			}
-			_, tok := anchoredLine(t, runDir)
-			anchor := strings.TrimSuffix(strings.TrimPrefix(tok, "<!--cite:"), "-->")
-			if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
-				t.Fatal(err)
-			}
 			before := verifies(t, runDir)
-			for _, verb := range [][]string{
-				{"corroborate", "--url", "https://example.org/says-otherwise", "--title", "T"},
-				{"verify", "--anchor", anchor},
-			} {
-				_, err := run(t, append(append(verb, "--run", runDir, "--seat-id", "red-lens-evidence"),
-					"--quote", sourceWords, "--as", as, "--confidence", "high", "--reason", "r")...)
-				if err == nil {
-					t.Fatalf("%s --as %s recorded a quote the report does not hold", verb[0], as)
+			corroborate := []string{"corroborate", "--url", "https://example.org/says-otherwise", "--title", "T", "--run", runDir, "--seat-id", "red-lens-evidence"}
+			_, err := run(t, append(append([]string{}, corroborate...), "--quote", sourceWords, "--as", as, "--confidence", "high", "--reason", "r")...)
+			if err == nil {
+				t.Fatalf("corroborate --as %s recorded a quote the report does not hold", as)
+			}
+			for _, want := range []string{"--quote", "REPORT's sentence", "contradicts", "says nothing about", "--reason", "show report"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("corroborate --as %s: the refusal does not say %q: %v", as, want, err)
 				}
-				for _, want := range []string{"--quote", "REPORT's sentence", "contradicts", "says nothing about", "--reason", "show report"} {
-					if !strings.Contains(err.Error(), want) {
-						t.Errorf("%s --as %s: the refusal does not say %q: %v", verb[0], as, want, err)
-					}
-				}
-				// Report text that occurs twice names no one sentence, and the refusal says how to
-				// make it name one.
-				_, err = run(t, append(append(verb, "--run", runDir, "--seat-id", "red-lens-evidence"),
-					"--quote", "finding", "--as", as, "--confidence", "high", "--reason", "r")...)
-				if err == nil || !strings.Contains(err.Error(), "more than once") {
-					t.Errorf("%s --as %s: a quote the report holds twice was not refused as occurring more than once: %v", verb[0], as, err)
-				}
+			}
+			// Report text that occurs twice names no one sentence, and the refusal says how to make
+			// it name one.
+			_, err = run(t, append(append([]string{}, corroborate...), "--quote", "finding", "--as", as, "--confidence", "high", "--reason", "r")...)
+			if err == nil || !strings.Contains(err.Error(), "more than once") {
+				t.Errorf("corroborate --as %s: a quote the report holds twice was not refused as occurring more than once: %v", as, err)
 			}
 			if got := verifies(t, runDir); got != before {
 				t.Errorf("the refusals left %d verification(s) on the record, want none", got-before)

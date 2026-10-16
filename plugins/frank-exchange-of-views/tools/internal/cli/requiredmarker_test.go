@@ -105,7 +105,7 @@ func requiredProbes() map[string]requiredProbe {
 			return actVars{"anchor": firstCiteEvent(t, runDir).GetLabel()}
 		},
 		args: func(v actVars) []string {
-			return []string{"verify", "--anchor", v["anchor"], "--quote", "§2 the finding prose lands in a quoted sentence.",
+			return []string{"verify", "--anchor", v["anchor"],
 				"--as", "supports", "--confidence", "high", "--reason", "r"}
 		}}
 	probes["lens corroborate"] = requiredProbe{seat: lensSeat,

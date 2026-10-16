@@ -145,7 +145,7 @@
   {
    "accepted": true,
    "envelope": {
-    "notes": "Sitting at head 222. Registered, asked the record who sits, read the full report and all eight avenues, recorded one avenue review, recorded the chair position, and asked again as the last act. No verdict recorded: pass_permitted is false (three open material gaps, C-a74028f3 reopened by edit 219 and unchecked, seven lenses ready). No gap docketed, no closings owed, no spot-check owed (stale_areas empty). No motions outstanding. Nothing cost a call, guess or act, so no log entry.",
+    "notes": "Sitting at head 222. Registered, asked the record who sits, read the full report and all eight inquiries, recorded one inquiry review, recorded the chair position, and asked again as the last act. No verdict recorded: pass_permitted is false (three open material gaps, C-a74028f3 reopened by edit 219 and unchecked, seven lenses ready). No gap docketed, no closings owed, no spot-check owed (stale_areas empty). No motions outstanding. Nothing cost a call, guess or act, so no log entry.",
     "plan": {
      "head": 222,
      "parties": [

@@ -46,23 +46,17 @@ type Gap struct {
 	//
 	// They are ARGUMENTS, not restatements. A closing that says "this gap should close because it
 	// should close" hands the bench a board it cannot weigh, and then scoring what it did with the
-	// weighing is scoring a coin flip — the same defect Avenue.RuledWhy exists for.
+	// weighing is scoring a coin flip — the same defect Inquiry.RuledWhy exists for.
 	RedClosing, BlueClosing string
 }
 
-// Avenue is a proposed avenue, and red's ruling on it if there is one.
-type Avenue struct {
-	Line, Hypothesis string
-	// Ruled, when set, is the fate red has already given it — which is what makes a
-	// move the seat's next act rather than a fresh proposal.
+// Inquiry is a proposed inquiry, and red's ruling on it if there is one.
+type Inquiry struct {
+	Question, Hypothesis string
+	// Ruled, when set, is the fate red has already given it — which is what makes
+	// recording a fate the seat's next act rather than a fresh proposal.
 	Ruled string
 	// RuledWhy is red's ARGUMENT for that fate, and a board is not honest without it.
-	//
-	// MEASURED 2026-08-16, by asking a seat instead of watching one. A blue seat on `docket` read
-	// `inquest motions` twice and `inquest debate` once and then reported: "the `ruling` field just says
-	// 'endorsed' or 'too-thin' or 'rejected', but there might be elaboration in a red seat's
-	// transcript that I can't see from here." It was RIGHT. Build wrote every ruling with
-	// "ruled <verdict> on the line as it was proposed" — a reason that restates the verdict.
 	//
 	// Boards ask a seat to ACCEPT a ruling or answer it, and each of those is a judgement
 	// about the ARGUMENT behind it. Handing a seat a verdict with no argument and then scoring
@@ -87,7 +81,7 @@ type Motion struct {
 	// Ruled, when set, is the verdict the ruler has already given — which is what makes an
 	// docket motion on the gap the seat's next move rather than a fresh grade motion.
 	Ruled string
-	// RuledWhy is the ruler's argument. See Avenue.RuledWhy for why a board without one is not a
+	// RuledWhy is the ruler's argument. See Inquiry.RuledWhy for why a board without one is not a
 	// board: a seat asked whether to answer a refusal it cannot read is being scored on a guess.
 	RuledWhy string
 }
@@ -108,10 +102,10 @@ type Board struct {
 	Name string
 	// Seat is who the board is FOR. A board is built for one seat's sitting; the others are
 	// present only as the authors of the state it inherits.
-	Seat    string
-	Report  string
-	Gaps    []Gap
-	Avenues []Avenue
+	Seat      string
+	Report    string
+	Gaps      []Gap
+	Inquiries []Inquiry
 	// Claims are cited claims already on the record, so a seat has something to re-cite, retire,
 	// or index rather than having to author one first.
 	Claims []string
@@ -232,7 +226,7 @@ The remaining cases are out of scope.
 			{Seat: "blue-respond", Verb: "manifest-row", Because: "The manifest is the receipt for a repair, one row per repaired gap, and the report NAMES a gap blue repaired that carries no row as a repair nobody audited including its author."},
 			{Seat: "blue-respond", Verb: "motion grade file", Because: "The universal gap is graded low/low/medium at HIGH complexity cost. Contesting that is the accounted channel; doing the expensive work anyway, or quietly not doing it, are the two unaccounted ones."},
 			{Seat: "blue-respond", Verb: "edit", Because: "The control. The document-kind gap is legitimately answered by repairing the prose, and a board where the ordinary move is never right would teach a seat to reach for machinery it does not need."},
-			{Seat: "blue-respond", Verb: "avenue propose", Because: "Answering the computation gaps opens a direction this report has not taken — whether the discrepancy is arithmetic or a measurement error is a question with a hypothesis, and an avenue may be proposed AT ANY POINT in the run, not only at the start. Measured over six runs: 83 of 86 avenues were declared in round 0 and not one was revisited, so a direction that occurs mid-repair is exactly the one the record has never held."},
+			{Seat: "blue-respond", Verb: "inquiry propose", Because: "Answering the computation gaps opens an inquiry this report has not taken — whether the discrepancy is arithmetic or a measurement error is a question with a hypothesis, and an inquiry may be proposed AT ANY POINT in the run, not only at the start. An inquiry that occurs mid-repair is one a later run needs on the record."},
 		},
 	}
 }
@@ -295,7 +289,7 @@ Each claim below rests on a cited source.
 	}
 }
 
-// docket: blue's gaps have been adjudicated and its lines ruled. This sitting is arguing, not
+// docket: blue's gaps have been adjudicated and its inquiries ruled. This sitting is arguing, not
 // repairing — the verbs are the ones a seat reaches for when it disagrees.
 func docket() Board {
 	return Board{
@@ -316,7 +310,7 @@ No production reversal has been attempted.
 
 Reversibility under load was not tested.
 `,
-		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second. I have ruled on the avenues as they stood; where I ruled too-thin, the fix is a named system and a stated bar, not a broader restatement.",
+		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second. I have ruled on the inquiries as they stood; where I ruled too-thin, the fix is a named system and a stated bar, not a broader restatement.",
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation-status-overclaim",
@@ -351,12 +345,12 @@ Reversibility under load was not tested.
 				"The likelihood axis grades the consequence landing, and nothing here has been run — so the " +
 				"grade stands until there is a measurement, not until there is a sentence in Limits.",
 		}},
-		Avenues: []Avenue{
-			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
-				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
+		Inquiries: []Inquiry{
+			{Question: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
+				RuledWhy: "this is the one inquiry here that PRODUCES a fact rather than an opinion about a fact. " +
 					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
 					"it narrows G2 rather than closing it."},
-			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
+			{Question: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
 				RuledWhy: "the hypothesis is that a standard form exists, and a survey that finds no standard " +
 					"form cannot distinguish `there is none` from `we looked in the wrong places`. Name the three " +
 					"systems and what specifically would count as documenting a reversal, and it stops being thin."},
@@ -364,7 +358,7 @@ Reversibility under load was not tested.
 		Expect: []Expectation{
 
 			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a docket motion is filed by any seat but the bench. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
-			{Seat: "blue-respond", Verb: "avenue move", Because: "Two avenues are ruled and neither has a fate. Every avenue at proposed or pursued owes a MOVE each epoch — an avenue declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 avenues land in round 0 and never change."},
+			{Seat: "blue-respond", Verb: "inquiry record", Because: "Two inquiries are ruled and neither has a fate. Every inquiry at proposed or underway owes its fate recorded each epoch — an inquiry declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead leaves the first one unanswered."},
 			{Seat: "blue-respond", Verb: "position", Because: "The epoch's narrative renders as the report's BLUE section from the record. An epoch with no position leaves the transcript with a hole where blue's account should be."},
 		},
 	}
@@ -426,8 +420,8 @@ Figures were read from the deployed configuration.
 					"a non-empty archive is a claim the board's own count contradicts.",
 			},
 		},
-		Avenues: []Avenue{
-			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
+		Inquiries: []Inquiry{
+			{Question: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here, and this board has an open gap the chair cannot close: the record says who sits — the lens that minted it, the blue seat answering — and the chair relays it. A chair that names parties from its own reading, or reaches for a `close` it no longer has, has reopened the self-assertion channel the verb closes."},
@@ -439,8 +433,8 @@ Figures were read from the deployed configuration.
 	}
 }
 
-// adjudicate: the chair's OTHER sitting. Blue has answered, contested a grade and proposed a
-// line; this board is about responding, not sweeping.
+// adjudicate: the chair's OTHER sitting. Blue has answered, contested a grade and proposed an
+// inquiry; this board is about responding, not sweeping.
 //
 // SPLIT OUT OF `audit`, and the coherence gate is what forced it: one board demanding eleven verbs
 // is a checklist, and a seat working through a checklist is not choosing. The split is the honest
@@ -491,8 +485,8 @@ Figures were read from the deployed configuration at the pinned revision.
 					"re-raise with no closing leaves the bench ruling on blue's account alone.",
 			},
 		},
-		Avenues: []Avenue{
-			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
+		Inquiries: []Inquiry{
+			{Question: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Motions: []Motion{{
 			Subject: "grade", Filer: "blue-respond", GapID: "G1",
@@ -501,8 +495,8 @@ Figures were read from the deployed configuration at the pinned revision.
 		}},
 		Expect: []Expectation{
 			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
-			{Seat: "red-chair", Verb: "motion avenue rule", Because: "Blue proposed an avenue and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled avenue as one nobody has sat on."},
-			{Seat: "red-chair", Verb: "avenue review", Because: "The report's own account of what this run investigated is part of the report, and it is the one part the lens's `verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any avenue is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that avenue."},
+			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed an inquiry and it is unruled; the projection blue reads shows an unruled inquiry as one nobody has sat on."},
+			{Seat: "red-chair", Verb: "inquiry review", Because: "The report's own account of what this run investigated is part of the report, and it is the one part the lens's `verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any inquiry is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that inquiry."},
 			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
 			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. A `docket-bound` board with no motion written down lets a gap reach the bench and get no ruling with nothing able to notice. The chair is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-chair", Verb: "dispatch", Because: "The chair's sitting BEGINS here: the record says who sits — the parties, their gaps, the head they audit — and the chair relays it. A chair that names parties from its own reading has reopened the self-assertion channel the verb closes."},

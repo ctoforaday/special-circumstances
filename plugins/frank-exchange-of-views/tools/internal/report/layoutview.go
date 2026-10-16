@@ -12,11 +12,9 @@ import (
 // THE ASSEMBLED LAYOUT: what the shipped set looks like, asked of the assembler.
 //
 // A seat reads the report's TEXT with `show report`, and the report a reader gets is that text
-// placed among sections the tool composes. Nothing showed a seat the second thing: universe-m20's
-// synthesizer wrote three avenue sections it could not see were the tool's, and red audited them
-// as the reader's text for five sittings. Layout assembles the set from the record as it stands
-// and slices what assembly made by the rows of `layout`, so the view cannot describe a report
-// other than the one that ships.
+// placed among sections the tool composes. A seat needs to see which sections the tool composes.
+// Layout assembles the set from the record as it stands and slices what assembly made by the rows
+// of `layout`, so the view cannot describe a report other than the one that ships.
 
 // LayoutSection is one row of the assembled layout, for the run it was asked of.
 type LayoutSection struct {

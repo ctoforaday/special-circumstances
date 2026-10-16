@@ -157,16 +157,15 @@ func sample(fd protoreflect.FieldDescriptor) protoreflect.Value {
 
 // A CONDITIONAL REQUIREMENT MARKED UNCONDITIONAL DOES NOT BECOME STRICTER — IT BECOMES WRONG.
 //
-// `Avenue.line` carried `required: true` while the message's own doc comment said, in as many
-// words, "a MOVE names the avenue and carries only the new status and its reason, which is why
-// `line` cannot be required unconditionally". The annotation contradicted the paragraph above it,
-// and it did two things at once: CheckRequired refused every move before the conditional check in
-// record.go could run, and the derived DDL put NOT NULL on the column so the row could not be
-// stored either. `blue avenue move` was unusable.
+// `Inquiry.question` is required on a PROPOSAL and not on a recorded fate, which names the inquiry
+// and carries only the new status and its reason. Marked `required: true` it would do two things
+// at once: CheckRequired would refuse every recorded fate before the conditional check in
+// record.go could run, and the derived DDL would put NOT NULL on the column so the row could not
+// be stored either. `blue inquiry record` would be unusable.
 //
 // # Why this test is shaped as a census rather than a case
 //
-// One case would pin `Avenue.line` and nothing else. What recurs is the CLASS: a requirement that
+// One case would pin `Inquiry.question` and nothing else. What recurs is the CLASS: a requirement that
 // depends on another field, written as if it depended on nothing. The `check` extension exists for
 // exactly those, and the split is what required.go always stated and could not enforce — "ONLY
 // UNCONDITIONAL REQUIREMENTS BELONG HERE" — because it was a list somewhere else.
@@ -179,7 +178,7 @@ func TestNoConditionallyRequiredFieldIsMarkedUnconditional(t *testing.T) {
 	// The fields a verb may legitimately omit, each with the verb that omits it. A field marked
 	// required that appears here is the contradiction this test exists to catch.
 	conditional := map[string]string{
-		"feov.record.v1.Avenue.line":        "a MOVE names an existing line and carries only its new status and reason",
+		"feov.record.v1.Inquiry.question":   "a recorded fate names an existing inquiry and carries only its new status and reason",
 		"feov.record.v1.Close.successor":    "only CLOSED_WITH_REGRESSION names one; the message-level check says so",
 		"feov.record.v1.Close.carried_from": "a carry restates an earlier closure; an ordinary close has none",
 		"feov.record.v1.SpotCheck.ids":      "the --none form samples nothing and says why",

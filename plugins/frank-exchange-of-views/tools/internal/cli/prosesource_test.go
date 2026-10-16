@@ -22,18 +22,13 @@ import (
 // skips both, and when the channel had file and stdin spellings (retired; flags.Prose says why)
 // those forms silently vanished into a field nobody set.
 //
-// # Both shapes this has taken
+// # Both shapes this invariant catches
 //
-//	avenue propose  registered the channel correctly and filled `line` from the raw flag,
-//	                         so --reason worked and the then-file spelling was refused for a missing
-//	                         field the seat had supplied.
-//	spot-check, outcome      registered --reason by hand, skipping seat.Prose entirely, so neither
-//	                         had the channel's other halves at all. `outcome --reason` is, by its
-//	                         own help, "the only evidence the determination ever had" on a judged
-//	                         deadlock.
-//
-// The first was found by a seat filing friction after three refusals. The second was found by
-// grepping for the first. Nothing found either one before that.
+//	a site that registers the channel correctly and fills a payload field from the raw flag, so the
+//	other spellings of the channel are refused for a missing field the seat had supplied;
+//	spot-check, outcome  register --reason by hand, skipping seat.Prose entirely, so neither has
+//	                     the channel's other halves at all. `outcome --reason` is, by its own help,
+//	                     "the only evidence the determination ever had" on a judged deadlock.
 func TestNoVerbReadsTheProseFlagDirectly(t *testing.T) {
 	// The resolver itself, and the one helper that hands it the flag names.
 	allowed := map[string]bool{

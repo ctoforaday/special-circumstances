@@ -15,7 +15,7 @@
 // tool's name (`for "feov-record count-claims"`).
 //
 // WHAT DOES NOT. The same word as a noun in a sentence (`a second regrade`, `this edit puts …`);
-// a longer path that only starts with it (`avenue review` in a refusal of `avenue`), which is a
+// a longer path that only starts with it (`inquiry review` in a refusal of `inquiry`), which is a
 // different act; and the word set in backquotes inside guidance, where the refusal says which act
 // answers it and that act is the same verb again (an anchor's claim "leaves by `edit` down to the
 // bare anchor"). The pointer at the command's own page — `<tool> <path> --help` — is the page's
@@ -190,7 +190,7 @@ func standsAsCommand(s, form string) bool {
 func endsInName(form string) bool { return strings.HasPrefix(form, Tool+" ") }
 
 // runsOn says the text after a name makes it ANOTHER command: more of a word (`feov-record
-// closing`) or a further word of a path (`feov-record avenue review`).
+// closing`) or a further word of a path (`feov-record inquiry review`).
 func runsOn(rest string) bool {
 	letter := func(b byte) bool { return wordByte(b) && b != '-' }
 	return len(rest) > 0 && (wordByte(rest[0]) || len(rest) > 1 && rest[0] == ' ' && letter(rest[1]))

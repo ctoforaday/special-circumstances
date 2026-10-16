@@ -58,10 +58,10 @@ func newFinding() *cobra.Command {
 		case strings.TrimSpace(location) == "" && !aboutSet:
 			return nil, feov.Errorf(feov.MissingField, "needs an anchor: --quote for text that IS in the report, "+
 				"or --about-kind/--about for something that is not.\n\n"+
-				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing avenue "+
+				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle — a missing inquiry "+
 				"pinned to a sentence the finding itself calls fine — lands a reader of the gap list "+
 				"on good prose. Anchor it to the section it "+
-				"is missing from, the avenue whose reason you are arguing against, or the gap it is about")
+				"is missing from, the inquiry whose reason you are arguing against, or the gap it is about")
 		case strings.TrimSpace(location) != "" && aboutSet:
 			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a finding has one subject, "+
 				"and the gap it becomes would inherit the ambiguity")
@@ -124,8 +124,8 @@ func newFinding() *cobra.Command {
 	// neither — so the marker states the condition, not the bare word.
 	flags.Text(c, flags.Quote, "REQUIRED unless --about-kind/--about name the subject — "+flags.DescQuote+". The finding anchor is placed there")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
-		"anchor this finding to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an avenue reaches no seat's work list; a gap anchors to an avenue the same way, and a material one is on blue's")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record")
+		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }

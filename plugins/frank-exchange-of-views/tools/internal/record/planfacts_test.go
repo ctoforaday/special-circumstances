@@ -151,27 +151,27 @@ func TestPlanFactsAnswerForTheRecordAsItStoodAtThePoint(t *testing.T) {
 	}
 }
 
-// EVERY STREAM ARM OF THE GATE'S LIST ANSWERS FOR THE STREAM IT IS HANDED. The avenue review is the
+// EVERY STREAM ARM OF THE GATE'S LIST ANSWERS FOR THE STREAM IT IS HANDED. The inquiry review is the
 // arm that reads an epoch: cut before the epoch that records the review, the prefix still owes one.
 func TestTheStreamArmsOfTheGateAnswerForAPrefix(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-		register("red-chair").add("blue-respond", &recordpb.Avenue{AvenueId: proto.String("A1"), Line: proto.String("a line of research"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum()}).
+		register("red-chair").add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("A1"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
 		register(evLens).mint(evLens, "G1", "high")
 	cut := len(b.evs)
-	b.register("red-chair").add("red-chair", &recordpb.AvenueReview{Reason: proto.String("read")})
+	b.register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")})
 	run := b.seed()
 	evs, win, err := eventsAt(recordOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
 	due := func(evs []*Event) bool {
-		return slices.ContainsFunc(eventBlockersOf(evs, win.IDs(evs), win), func(b Blocker) bool { return b.Kind == BlockerAvenueReview })
+		return slices.ContainsFunc(eventBlockersOf(evs, win.IDs(evs), win), func(b Blocker) bool { return b.Kind == BlockerInquiryReview })
 	}
 	if !due(evs[:cut]) {
-		t.Fatalf("the prefix before the review owes no avenue review — the arm read past the stream it was handed")
+		t.Fatalf("the prefix before the review owes no inquiry review — the arm read past the stream it was handed")
 	}
 	if due(evs) {
-		t.Fatalf("the whole record still owes an avenue review — the fixture's review does not answer it, so the prefix proved nothing")
+		t.Fatalf("the whole record still owes an inquiry review — the fixture's review does not answer it, so the prefix proved nothing")
 	}
 }
 

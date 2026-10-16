@@ -16,8 +16,7 @@
 //
 // A `describe` command was the other candidate and was rejected: it splits the answer from the
 // question and costs a round trip, and a seat that must run a second command to understand the
-// first will guess instead. That is not speculation — it is the measured failure this package
-// answers (a seat read `--view avenues`, guessed the verb, and invented one).
+// first will guess instead.
 //
 // # What it does
 //
@@ -42,23 +41,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// registry maps a command to the enum flags declared on it.
-//
-// KEYED BY POINTER, and the first draft keyed by CommandPath() and rendered nothing. Flags are
-// registered while the command is being CONSTRUCTED, before it is added to its parent, so
-// CommandPath() is the bare verb ("close") at write time and the full path ("feov-record merge
-// close") at render time. The two never met and the section silently did not appear — a lookup
-// that misses returning "no enums here" is indistinguishable from a command that has none, which
-// is the plausible zero this whole area keeps producing.
-//
-// The tree is rebuilt per invocation, so entries accumulate across a test binary's newRoot()
-// calls. Bounded by the number of commands times the number of roots built, which is small, and
-// the alternative (a path key) does not work at all.
-var (
-	mu       sync.Mutex
-	registry = map[*cobra.Command][]entry{}
-)
-
 type entry struct {
 	flag   string
 	values []record.EnumValue
@@ -78,7 +60,6 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 	// act") loses it, which the error-catalogue golden caught the moment it was tried.
 	v := enumflag.NewWithoutDefault(new(string), typeName(name, e.Values), record.Identifiers(e.Values), enumflag.EnumCaseSensitive)
 	c.Flags().Var(&speaking{Value: v, values: e.Values, why: e.Why}, name, usage)
-	register(c, name, e.Values)
 	_ = v.RegisterCompletion(c, name, record.CompletionHelp(e.Values))
 }
 
@@ -114,22 +95,9 @@ func typeName(flag string, values []record.EnumValue) string {
 	return flag + "-value"
 }
 
-func register(c *cobra.Command, flag string, values []record.EnumValue) {
-	mu.Lock()
-	defer mu.Unlock()
-	for _, e := range registry[c] {
-		if e.flag == flag {
-			return
-		}
-	}
-	registry[c] = append(registry[c], entry{flag: flag, values: values})
-}
-
 // Section renders the enumerated-values block for a command, or "" if it declares none.
 func Section(c *cobra.Command) string {
-	mu.Lock()
-	entries := append([]entry{}, registry[c]...)
-	mu.Unlock()
+	entries := declared(c)
 	if len(entries) == 0 {
 		return ""
 	}
@@ -202,13 +170,24 @@ func Install(root *cobra.Command) {
 	root.SetUsageTemplate(usageTemplate)
 }
 
+// declared reads the enum flags off the command's own flag set. The values live on the flag
+// itself, so nothing outside the tree holds a command: a side table keyed by *cobra.Command
+// pinned every tree a test binary built, and internal/cli's suite peaked at 5 GB resident.
+func declared(c *cobra.Command) []entry {
+	var out []entry
+	c.Flags().VisitAll(func(f *pflag.Flag) {
+		if s, ok := f.Value.(*speaking); ok {
+			out = append(out, entry{flag: f.Name, values: s.values})
+		}
+	})
+	return out
+}
+
 // Registered reports the flags documented for a command path — for the gate that asserts every
 // set-shaped flag in the tree has its values described somewhere a seat reads.
 func Registered(c *cobra.Command) map[string][]record.EnumValue {
-	mu.Lock()
-	defer mu.Unlock()
 	out := map[string][]record.EnumValue{}
-	for _, e := range registry[c] {
+	for _, e := range declared(c) {
 		out[e.flag] = e.values
 	}
 	return out

@@ -107,7 +107,11 @@ const (
 	// header declares.
 	Accept = "accept"
 
-	// An avenue's ABSTRACT: what would be true if it pays off. Distinct from
+	// An inquiry's QUESTION: what it asks, holding no predicted result. Its own flag, not the prose
+	// channel's --reason, because on the two acts of one inquiry --reason is the account of a fate.
+	Question = "question"
+
+	// An inquiry's ABSTRACT: what would be true if it pays off. Distinct from
 	// --problem (a defect) and --reason (the argument for an act) because it is a forward
 	// claim, and it is what makes a later abandonment checkable.
 	Hypothesis = "hypothesis"
@@ -122,7 +126,7 @@ const (
 	//
 	// As is the one word for "which value from a closed set describes what became of this" —
 	// a closure's class, a bench disposition, a verification's outcome, a ruling, a run's
-	// verdict, an avenue's fate. Every set is closed, and each verb documents its own
+	// verdict, an inquiry's fate. Every set is closed, and each verb documents its own
 	// through enumhelp.
 	As   = "as"
 	None = "none"
@@ -202,7 +206,7 @@ const (
 	At = "at"
 
 	// About names WHAT a finding is anchored to when the thing it names is not on the page — a
-	// section that is missing something, an avenue whose stated reason you are arguing
+	// section that is missing something, an inquiry whose stated reason you are arguing
 	// against, a gap already on the docket. AboutKind says which.
 	About     = "about"
 	AboutKind = "about-kind"
@@ -327,7 +331,7 @@ func All() []string {
 		As, None, Confidence, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
-		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
@@ -425,9 +429,9 @@ var payloadFlag = map[string]string{
 	// Every prose payload key funnels through the one --reason flag. The keys stay distinct in
 	// the event schema — a dispute stores `evidence`, an opinion `rationale`, a close `prose`
 	// — while the WORD a seat types is `reason`.
-	// `line` is an avenue's own statement and `row` a manifest receipt; both are the
-	// verb's prose, and both are typed as --reason like every other prose field.
-	"line":      Reason,
+	// `row` is a manifest receipt: the verb's prose, typed as --reason like every other prose
+	// field. An inquiry's `question` is typed as --question.
+	"question":  Question,
 	"row":       Reason,
 	"prose":     Reason,
 	"text":      Reason,
@@ -475,8 +479,9 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 	// contradiction: quote the text and NOTHING else. A section heading, a dash or a pipe
 	// prepended to it makes the match fail, and the match is what places the anchor.
 	//
-	// The last sentence names --reason, so a verb with no prose channel takes DescQuoteAlone: help
-	// that sends a seat to a flag the page does not list is a dead flag in the making.
+	// The last sentence names --reason, so a verb with no prose channel, or whose --reason the
+	// report prints, takes DescQuoteAlone: help that sends a seat to a flag the page does not list
+	// is a dead flag in the making, and a section name in printed prose is a seat's note in the report.
 	DescQuoteAlone = "the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing"
 	DescQuote      = DescQuoteAlone + ". Name the section in --reason, where prose belongs"
 	DescAccept     = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text"

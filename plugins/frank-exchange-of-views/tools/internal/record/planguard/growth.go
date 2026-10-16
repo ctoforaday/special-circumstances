@@ -57,11 +57,9 @@ var createTable = regexp.MustCompile(`(?i)CREATE\s+TABLE\s+"?([A-Za-z_][A-Za-z0-
 // to catch, one level up: the guard would have reported a clean board for exactly the run that
 // added an unguarded growing table.
 //
-// AND IT WAS ALREADY WRONG WHEN IT WAS WRITTEN, which is the part worth keeping. Measured against
-// this derivation, the descriptor walk missed `motion_direction`, `motion_grade` and
-// `motion_petition` — nested message tables that are not arms of the `body` oneof and so were
-// never visited. Three growing tables unguarded, on a guard whose whole claim was that it derived
-// its own scope.
+// A walk of the `body` oneof arms misses nested message tables such as `motion_inquiry`,
+// `motion_grade` and `motion_petition`, which are not arms of the oneof and so are never visited:
+// a guard whose whole claim is that it derives its own scope cannot rest on that walk.
 //
 // Subtraction inverts the failure. A NEW TABLE IS GUARDED BY DEFAULT and someone has to argue it
 // out, rather than being unguarded by default and needing someone to remember to argue it in. The

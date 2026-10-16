@@ -90,9 +90,9 @@ type Plan struct {
 	// ToFile is the part of Docket with no docket motion yet: what the verb files. Never relayed.
 	ToFile []string `json:"-"`
 	// PassPermitted: a report is ingested, nobody is dispatched, and every blocker left on the gate's
-	// list (PassBlockers) is the chair's own to clear this sitting — its avenue review, its
+	// list (PassBlockers) is the chair's own to clear this sitting — its inquiry review, its
 	// spot-check of the stale areas, its ruling on each unruled motion whose gavel is the chair's
-	// (grade, avenue). Its work list marks those blocking until they are done.
+	// (grade, inquiry). Its work list marks those blocking until they are done.
 	PassPermitted bool `json:"pass_permitted"`
 	// StaleAreas is every retired lens whose pin the head has moved past. The chair reads
 	// the changes since each pin against that area's duties and names the areas in its spot-check;
@@ -402,8 +402,8 @@ func foldPlan(params Params, r planReads) Plan {
 		plan.Parties = append(plan.Parties, Party{SeatID: s, GapIDs: parties[s], Occasions: occasions[s]})
 	}
 	// PASS_PERMITTED IS THE GATE'S OWN LIST, read through passBlockersOf: nobody is ready, and every
-	// blocker left is the chair's to clear in this sitting (its avenue review, its spot-check of
-	// the stale areas, its ruling on a grade or avenue motion). A blocker another seat must clear —
+	// blocker left is the chair's to clear in this sitting (its inquiry review, its spot-check of
+	// the stale areas, its ruling on a grade or inquiry motion). A blocker another seat must clear —
 	// an unruled petition, a contradiction no lens has raised, a docket motion on a gap that has
 	// since closed, a citation or proof unchecked since its sentence changed — holds it, and its
 	// reason is stated here, so the plan never says PASS where the gate refuses one the chair
@@ -507,7 +507,7 @@ func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error
 }
 
 // At is the facts as the record stood with its first `end` events written. Every fold is handed
-// that prefix, so nothing written after it — a later epoch's avenue review, a ruling, a sitting —
+// that prefix, so nothing written after it — a later epoch's inquiry review, a ruling, a sitting —
 // is in the answer.
 func (r PlanFactsReader) At(end int) PlanFacts {
 	evs, ids := r.evs[:end], r.ids[:end]

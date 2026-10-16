@@ -11,7 +11,7 @@ import (
 )
 
 // filingBy is the body that FILES a motion on the subject, as any writer reaches Append with it: a
-// motion — or, for the avenue, the proposal the chair then rules. A subject with no arm fails the
+// motion — or, for the inquiry, the proposal the chair then rules. A subject with no arm fails the
 // test that walks the enum, so a new subject is driven here on the day it is added.
 func filingBy(subj recordpb.MotionSubject) proto.Message {
 	m := &recordpb.Motion{MotionId: proto.String("M9"), Subject: recordtest.P(subj), Basis: proto.String("the ask")}
@@ -23,8 +23,8 @@ func filingBy(subj recordpb.MotionSubject) proto.Message {
 		m.Filing = &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}
 	case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 		m.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}
-	case recordpb.MotionSubject_MOTION_SUBJECT_AVENUE:
-		return &recordpb.Avenue{AvenueId: proto.String("Q9"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("another direction")}
+	case recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY:
+		return &recordpb.Inquiry{InquiryId: proto.String("Q9"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("another question")}
 	default:
 		return nil
 	}

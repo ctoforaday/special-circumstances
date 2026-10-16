@@ -17,10 +17,10 @@ import (
 
 // THE TOOL LOGS EVERY REFUSAL IT GIVES A SEAT, because the seats do not.
 //
-// universe-m13: `--key` on `avenue move`, `--acceptance-check` for `--check`, a mint past its
-// budget, a projection read with a flag it does not take — every seat classed its own refusals as
-// mistakes and the log stayed empty. The guess is the operator's signal: a flag a seat reached for
-// is one the surface taught it to expect.
+// A seat classes its own refusals as mistakes and logs none, so the tool logs every refusal: a
+// wrong flag name, a mint past its budget, a projection read with a flag it does not take.
+// The guess is the operator's signal: a flag a seat reached for is one the surface taught it to
+// expect.
 func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	refusals := func(t *testing.T, runDir string) []string {
 		t.Helper()
@@ -43,15 +43,15 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 	t.Run("a flag the verb does not take is logged, by name, never by value", func(t *testing.T) {
 		runDir := seatRun(t)
 		const value = "a distinctive reason no entry may carry"
-		if _, err := runAt(t, "avenue", "move", "--run", runDir, "--seat-id", "blue-respond",
-			"--id", "Q1", "--as", "pursued", "--reason", value, "--key", "AV1"); err == nil {
-			t.Fatal("--key on avenue move was accepted")
+		if _, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", "blue-respond",
+			"--id", "Q1", "--as", "underway", "--reason", value, "--key", "AV1"); err == nil {
+			t.Fatal("--key on inquiry record was accepted")
 		}
 		got := refusals(t, runDir)
 		if len(got) != 1 {
 			t.Fatalf("want one refusal entry, got %d: %q", len(got), got)
 		}
-		for _, want := range []string{"blue-respond |", "avenue move", "--key"} {
+		for _, want := range []string{"blue-respond |", "inquiry record", "--key"} {
 			if !strings.Contains(got[0], want) {
 				t.Errorf("the entry does not carry %q: %s", want, got[0])
 			}

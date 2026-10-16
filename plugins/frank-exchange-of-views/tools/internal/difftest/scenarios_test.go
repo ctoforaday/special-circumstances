@@ -233,7 +233,7 @@ func scenarios() []scenario {
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001", "--reason", "figures recomputed; check run: pass"),
 				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond", "--id", "GAP001",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
-				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--quote", "throughput doubled",
+				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
 					"--title", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge", "--occasion", "docket"),
 				// THE BENCH'S DISPOSITION IS TWO COMMANDS: red docksets the gap it cannot settle,
@@ -369,7 +369,7 @@ func scenarios() []scenario {
 			name: "full_round_integration", // oracle: the integration test
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
-				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--quote", "claim one",
+				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-evidence",
 					"--title", "https://example.invalid/a", "--trust", "high", "--access-date", "2026-07-18"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--quote", "A claim sits under S2.", "--reason", "citation does not support"),

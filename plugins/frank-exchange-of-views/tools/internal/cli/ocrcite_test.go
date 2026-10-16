@@ -213,7 +213,7 @@ func pagedCite(t *testing.T, runDir string) string {
 func lensVerify(t *testing.T, runDir, anchor string, args ...string) (string, error) {
 	t.Helper()
 	return run(t, append([]string{"verify", "--run", runDir, "--seat-id", lensSeat, "--anchor", anchor,
-		"--quote", ocrClaim, "--as", "supports", "--confidence", "high", "--reason", "the image reads I, not J"}, args...)...)
+		"--as", "supports", "--confidence", "high", "--reason", "the image reads I, not J"}, args...)...)
 }
 
 func firstVerify(t *testing.T, runDir string) *recordpb.Verify {
@@ -283,7 +283,7 @@ func TestVerifyUnreachableNeedsNoPage(t *testing.T) {
 	runDir, _ := ocrRun(t, threePages)
 	label := pagedCite(t, runDir)
 	if out, err := run(t, "verify", "--run", runDir, "--seat-id", lensSeat, "--anchor", label,
-		"--quote", ocrClaim, "--as", "unreachable", "--confidence", "high", "--reason", "the page would not render"); err != nil {
+		"--as", "unreachable", "--confidence", "high", "--reason", "the page would not render"); err != nil {
 		t.Fatalf("an unreachable verify with no page was refused: %v\n%s", err, out)
 	}
 	if v := firstVerify(t, runDir); v.Page != nil {

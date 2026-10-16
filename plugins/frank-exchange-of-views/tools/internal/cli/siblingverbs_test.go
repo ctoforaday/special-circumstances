@@ -12,20 +12,11 @@ import (
 
 // TWO VERBS THAT WRITE ONE EVENT TYPE ARE TWO CONTRACTS ON ONE ACT, AND EACH MUST NAME THE OTHER.
 //
-// #474 split four verbs whose required fields differed — `verify`/`corroborate`, `close`/`carry`,
-// and the two halves of `avenue` — so that cobra could require either half's fields. The
-// split is sound and the tree carries it. It did not reach the NEIGHBOURS' help, and that is where
-// a seat chooses.
-//
-// Measured by interview, 2026-08-19. A lens seat facing a claim with no citation went straight to
-// `finding` and never considered `corroborate`. Asked why, it identified the cause exactly: "The
-// tool's own help routed me: `verify`'s text says outright 'An UNEVIDENCED claim is a finding', and
-// `finding`'s says it is 'THE CHANNEL FOR ANY DEFECT IN THE TEXT... a claim resting on NO citation
-// and no proof'. That's correct routing for the question *does this text stand up*. I took it
-// without noticing it had quietly answered a different question than *is this true in the world*."
-// Both sentences were written before `corroborate` existed and were true when written. Nothing
-// failed: each verb's own help was accurate about itself, and the new verb sat in the tree unnamed
-// by either neighbour, which is what a seat reads before it chooses.
+// Sibling verbs that write one event type — `verify`/`corroborate`, `close`/`carry`, and the two
+// halves of `inquiry` — each require their own fields, so cobra can require either half's. The
+// pairs must reach the NEIGHBOURS' help, because a seat reads the neighbours' help before it
+// chooses: each verb's own help is accurate about itself, and a neighbour left unnamed by either
+// is never considered.
 //
 // The pairing is DERIVED, never listed here: a verb annotated `seat.Records(c, <type>)` writes an
 // event type it does not own, so any type written by more than one verb is a split. A list would be
@@ -92,7 +83,7 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 
 	// AND AN EXPLICIT ANNOTATION IS WHAT MARKS THE SPLIT, not a shared leaf name.
 	//
-	// The chair's `motion grade rule` and `motion avenue rule` both write a ruling and neither
+	// The chair's `motion grade rule` and `motion inquiry rule` both write a ruling and neither
 	// carries the split annotation: they are ONE contract applied to two subjects, parallel by
 	// design, and a seat picks between them by naming the subject it is ruling rather than by
 	// weighing two boundaries. Demanding they cross-reference would be this gate firing on the

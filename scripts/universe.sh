@@ -274,6 +274,9 @@ cmd_build() {
   else
     log "isolated universe at $WORKDIR"
   fi
+  # THE BUILD RECORDS THE COMMIT IT BUILT, and builds only a commit: a smoke is bound to what it ran.
+  [ -z "$(git -C "$REPO" status --porcelain)" ] || die "the checkout has uncommitted changes — a universe is built from a commit"
+  rm -f "$WORKDIR/built-from"
   log "source: $REPO (this checkout, at $(git -C "$REPO" rev-parse --short HEAD))"
 
   # A STAGED MANIFEST, BECAUSE THE REAL ONE PINS RELEASES. Adding $REPO directly looks right and
@@ -477,6 +480,7 @@ print(f"[universe] marketplace source resolves: {path}")
 PY
   cmd_doctor
   log "the marketplace source lives at $mkt — removing the universe means removing BOTH paths"
+  printf '%s %s\n' "$(git -C "$REPO" rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$WORKDIR/built-from"
 }
 
 cmd_doctor() {

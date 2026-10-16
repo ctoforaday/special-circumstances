@@ -45,10 +45,10 @@ feov-record: carry: --carried-from says gap GAP001 was closed in an earlier sitt
 {"key":"red-chair:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `carry` with --carried-from --id: --carried-from says gap GAP001 was closed in an earlier sitting, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through the lens's `close` with --verified-by/--verified-with/--verified-against","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

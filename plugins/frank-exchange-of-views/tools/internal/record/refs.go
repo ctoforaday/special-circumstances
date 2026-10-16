@@ -50,13 +50,13 @@ func GapExists(runDir, flag, id string) error {
 	return requireGap(db, id, flag)
 }
 
-// AvenueExists resolves an avenue.
-func AvenueExists(runDir, flag, id string) error {
+// InquiryExists resolves an inquiry.
+func InquiryExists(runDir, flag, id string) error {
 	db, err := recordOfDir(runDir)
 	if err != nil {
 		return err
 	}
-	return requireAvenue(db, id, flag)
+	return requireInquiry(db, id, flag)
 }
 
 // recordOfDir is the record of the run in runDir, for a flag's check: the handle, or a nil one for a
@@ -176,25 +176,25 @@ func requireCitation(q recordsql.Querier, label, flag, advice string) error {
 		flag, label, len(known), advice)
 }
 
-// requireAvenue refuses a move against an avenue nobody proposed.
+// requireInquiry refuses a fate recorded against an inquiry nobody proposed.
 //
-// `blue avenue --id` required only that an id be PRESENT. A move naming an unknown avenue wrote
-// a status change for an avenue that was never opened — and the avenues view
-// renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireAvenue(q recordsql.Querier, id, flag string) error {
+// An id that is merely PRESENT is not enough: a fate recorded on an unknown inquiry would write a
+// status change for an inquiry that was never opened, and the inquiries view would render it, so
+// the run would show an inquiry being abandoned that nothing ever proposed.
+func requireInquiry(q recordsql.Querier, id, flag string) error {
 	if id == "" {
 		return nil
 	}
-	// Avenues(b) keys every avenue on Avenue events carrying a non-empty avenue_id,
+	// InquiriesOf keys every inquiry on Inquiry events carrying a non-empty inquiry_id,
 	// so membership is one existence question.
-	found, err := recordHasAt(q, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
+	found, err := recordHasAt(q, `SELECT 1 FROM "inquiry" WHERE "inquiry_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
 	if found {
 		return nil
 	}
-	return fmt.Errorf("%s=%s names no avenue on the record — `show avenues` lists every one with its id and fate. Propose it first (`avenue propose --reason …`, which ASSIGNS the id); --id moves an avenue that already exists",
+	return fmt.Errorf("%s=%s names no inquiry on the record — `show inquiries` lists every one with its id and fate. Propose it first (`inquiry propose --question …`, which ASSIGNS the id); --id names an inquiry that already exists",
 		flag, id)
 }
 

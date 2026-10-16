@@ -10,12 +10,7 @@ import (
 
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
 //
-// It replaces three renderers that had to be written, and fixed, separately. #315 found the
-// petition FILING unrendered while the avenue RULING was found unrendered in the same sweep,
-// because nothing said they were one mechanism. And #320 had to render filings and rulings SIDE
-// BY SIDE rather than joined, because `petition-rule` carried no id and pairing two filings by
-// one seat in one epoch would have been a guess. A motion has an id, so an ask and its answer are
-// one row.
+// A motion has an id, so an ask and its answer are one row.
 //
 // It reads through record.Motions, the one read of the one motion vocabulary.
 func motions(fam record.Family) string {
@@ -29,7 +24,7 @@ func motions(fam record.Family) string {
 	for _, m := range ms {
 		rows = append(rows, motionRow(m, &unruled, struckRulings[m.ID]))
 	}
-	out := "Every contested question and how it was answered: grade motions, petitions, and rulings on proposed directions. One mechanism, one id — an ask and its answer are one row.\n\n" +
+	out := "Every contested question and how it was answered: grade motions, petitions, and rulings on proposed inquiries. One mechanism, one id — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
 	if unruled > 0 {
 		out += fmt.Sprintf("\n\n**%d motion(s) received no ruling.** A motion is answered before the debate moves on; a filing with no ruling means that sitting is missing, not that the ask was withdrawn.", unruled)
@@ -93,8 +88,8 @@ func motionHead(m *record.Motion) string {
 		return fmt.Sprintf("grade of %s (%s to %s)", m.Fields["gap_id"], m.Fields["dimension"], m.Fields["proposed"])
 	case "petition":
 		return "petition (" + m.Fields["class"] + ")"
-	case "avenue":
-		return "avenue " + m.Fields["avenue_id"]
+	case "inquiry":
+		return "inquiry " + m.Fields["inquiry_id"]
 	case "docket":
 		// THE SECOND SUBJECT THAT IS ABOUT A GAP, and the row is unreadable without it. Left to
 		// the default arm this renders as the bare word "docket" — the bench's disposition of a

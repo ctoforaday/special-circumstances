@@ -7,7 +7,6 @@ anchor_tool
 answers
 applied_verbatim
 as
-avenue_id
 basis
 binds
 by_class
@@ -52,10 +51,10 @@ id
 ids
 impact
 independent
+inquiry_id
 key
 label
 likelihood
-line
 lineage_mints
 location
 mapping_version
@@ -85,6 +84,7 @@ proof_key
 proof_sha
 proposed
 prose
+question
 ratio
 rationale
 realized_open

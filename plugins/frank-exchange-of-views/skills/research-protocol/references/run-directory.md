@@ -24,15 +24,15 @@ research/<date>_<slug>/
 ├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the transcript, epoch by epoch, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
-├── avenues.md         # each avenue's fate, the path it took and its ruling
+├── inquiries.md         # each inquiry's fate, the path it took and its ruling
 ├── evidence.md        # the computations, with script, output and sha256
 ├── run.md             # the log, the record's invariant check, and cost
 ├── CHANGELOG.md       # this report's own provenance: retired claims, superseded asks
 ├── report.html        # the same set with real tabs and cross-document links — one file, no server
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/revision
 ├── blue/
-│                      # (the opening hypotheses are AVENUES on the record, not a file — read
-│                      #  them as the `avenues` projection. A hypothesis in a file is one red
+│                      # (the opening hypotheses are INQUIRIES on the record, not a file — read
+│                      #  them as the `inquiries` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the opening ones shape the
 │                      #  whole run)
 │   ├── report.md      # written by the synthesizer at synthesis, then frozen into the record

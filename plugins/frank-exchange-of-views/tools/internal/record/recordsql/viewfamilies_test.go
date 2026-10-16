@@ -134,52 +134,52 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	}
 }
 
-func TestAvenueCarriesTheWholeLine(t *testing.T) {
+func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 	db := store(t)
-	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{
-		AvenueId: proto.String("Q1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
-		Line: proto.String("a direction")})); err != nil {
+	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
+		Question: proto.String("a question")})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{
-		AvenueId: proto.String("Q1"), Status: recordpb.AvenueStatus_AVENUE_STATUS_PURSUED.Enum(),
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_INQUIRY, &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(),
 		SupersedesStatus: proto.String("proposed")})); err != nil {
 		t.Fatal(err)
 	}
-	// Two direction rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
+	// Two inquiry rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
 	// not an invitation to read the older word.
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum(),
+		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
 		Opinion: proto.String("o"),
-		Ruling:  &recordpb.MotionRule_Avenue{Avenue: recordpb.AvenueRuling_AVENUE_RULING_ENDORSED}})); err != nil {
+		Ruling:  &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED}})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_AVENUE.Enum(),
+		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
 		Opinion: proto.String("reconsidered, no word")})); err != nil {
 		t.Fatal(err)
 	}
 
 	var line, status string
 	var ruling sql.NullString
-	if err := db.QueryRow(`SELECT "line", "status", "avenue_ruling" FROM "avenue_state" WHERE "avenue_id" = 'Q1'`).
+	if err := db.QueryRow(`SELECT "question", "status", "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = 'Q1'`).
 		Scan(&line, &status, &ruling); err != nil {
 		t.Fatal(err)
 	}
-	if line != "a direction" {
-		t.Errorf("line = %q, want the PROPOSAL's substance — a move must not blank it", line)
+	if line != "a question" {
+		t.Errorf("question = %q, want the PROPOSAL's substance — a recorded fate must not blank it", line)
 	}
-	if status != "pursued" {
-		t.Errorf("status = %q, want the latest move's", status)
+	if status != "underway" {
+		t.Errorf("status = %q, want the latest recorded fate's", status)
 	}
 	if ruling.Valid {
-		t.Errorf("avenue_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
+		t.Errorf("inquiry_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
 	}
 	var n int
-	if err := db.QueryRow(`SELECT count(*) FROM "avenue_state"`).Scan(&n); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM "inquiry_state"`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Errorf("avenue has %d rows for one line moved once, want 1", n)
+		t.Errorf("inquiry has %d rows for one inquiry whose fate was recorded once, want 1", n)
 	}
 }

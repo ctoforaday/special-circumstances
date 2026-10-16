@@ -13,17 +13,9 @@ import (
 // was no read verb (`motion` offers a subject's file and rule, no show) and
 // no projection carried one. The ask was on the record and unreadable.
 //
-// Measured, from a probed chair seat blocked by exactly this. It tried `motion show --id M1`,
-// read `motion --help` and concluded in its own words "there's a motion command but no show
-// subcommand", then searched six views, `--json`, `jq` and three help pages across ten-plus
-// calls. Then: "Since I don't know what direction blue proposed, let me reason about what's
-// likely." It guessed the SUBJECT wrong, recovered the right one from a dangling-reference error,
-// and ruled `rejected` on an argument it had never read — against blue's actual filing, which
-// said the defect was presentational and `certain` severity priced a rewrite as a data error.
-// The ruling asserts the precise proposition blue disputed.
-//
-// Nothing on the record marks that answer as written blind, and nothing could: a well-formed
-// ruling on an unread motion is indistinguishable from a considered one.
+// A well-formed ruling on an unread motion is indistinguishable from a considered one, and nothing
+// on the record marks it as written blind. So the view carries id, subject, grades and basis: the
+// ask is readable before it is ruled.
 //
 // BASIS IS THE LOAD-BEARING FIELD. The ruling exists to answer the ask, so a view that carried
 // id, subject and grades but not the argument would leave the seat exactly as blind while
@@ -111,7 +103,7 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 // motionsView is the motions read from the record. The exchange lives on the families declared
 // here; nothing else on the record decides a motion's state.
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
-	recordpb.EventType_EVENT_TYPE_AVENUE,
+	recordpb.EventType_EVENT_TYPE_INQUIRY,
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE)
 

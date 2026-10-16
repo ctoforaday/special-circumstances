@@ -17,7 +17,7 @@ import (
 // told it is finished by one surface and refused by another learns to trust neither — is real and
 // still holds. But a duty is derived only where omission already carries a mechanical consequence,
 // so it can name 4 of blue's verbs, 5 of merge's, 3 of bench's and 2 of lens's. Every act whose
-// omission is merely a QUALITY loss — an avenue never revisited, a repair with no manifest
+// omission is merely a QUALITY loss — an inquiry never revisited, a repair with no manifest
 // row, an archive never sampled, a citation nobody verified, a source blue never cited, a proof
 // nobody re-ran, a grade accepted and never moved — got no line. Those are exactly the acts the
 // probe boards bait and the measured runs skip.
@@ -57,18 +57,12 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 
 	switch role {
 	case "blue":
-		// A line proposed and never revisited records an intention rather than a choice.
-		// Measured over six runs: 83 of 86 avenues were declared in round 0 and not one was
-		// ever moved.
+		// An inquiry proposed and never revisited records an intention rather than a choice.
 		//
-		// THE PREDICATE IS StaleAvenues, NOT A SECOND COPY OF IT. This block used to inline
-		// `Status == "proposed" || Status == "pursued"`, which is what StaleAvenues also said,
-		// so the two drifted together and were wrong together: neither read the epoch, though
-		// both texts promised one. The `How` also named a status set that excluded `pursued`,
-		// which is where a followed line comes to REST — so a seat that did the right thing
-		// was told to abandon or defer it. Both are fixed at the single predicate now.
-		for _, a := range StaleAvenuesOf(evs, win) {
-			add(fmt.Sprintf("avenue %s is at %q and has not moved since epoch %d — an avenue declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
+		// THE PREDICATE IS StaleInquiries, NOT A SECOND COPY OF IT. A followed inquiry (underway)
+		// rests there, and the `How` never tells a seat to abandon or defer it.
+		for _, a := range StaleInquiriesOf(evs, win) {
+			add(fmt.Sprintf("inquiry %s is at %q and no fate has been recorded on it since epoch %d — an inquiry declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
 		}
 		// A repair with no receipt is one nobody audited, including its author. THE PREDICATE IS
 		// ManifestOwed, the one the report and the scorecard read: a gap blue was dispatched onto,
@@ -425,12 +419,20 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 // `blue cite` records the anchor id as `label` (c-<hex>, the token it splices into the report);
 // `lens verify` records the citation it checked as `anchor`. An INDEPENDENT verify carries no
 // anchor and deliberately discharges nothing: it is a check against a source blue never cited.
+//
+// A citation whose anchor left the report with a retired claim is owed nothing: `verify` refuses
+// it, having no sentence to read the source against, so offering it would offer a refused act.
 func citedClaimsWithoutVerify(evs []*Event) []string {
 	verified := map[string]bool{}
 	for i := range evs {
 		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
+		}
+		if r, isRetire := body.(*recordpb.Retire); isRetire {
+			for _, a := range r.GetAnchors() {
+				verified[a] = true
+			}
 		}
 		if v, isVerify := body.(*recordpb.Verify); isVerify {
 			// An INDEPENDENT verify carries no anchor and discharges nothing, and that stays a

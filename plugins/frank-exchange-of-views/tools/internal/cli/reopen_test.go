@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
@@ -82,8 +83,11 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out, err := run(t, "verify", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", anchor,
-		"--quote", "§2 an entirely different assertion now", "--as", "supports", "--confidence", "high", "--reason", "read again at the leaf"); err != nil {
+		"--as", "supports", "--confidence", "high", "--reason", "read again at the leaf"); err != nil {
 		t.Fatalf("verify: %v\n%s", err, out)
+	}
+	if got := lastBody(t, runDir, &recordpb.Verify{}).GetClaim(); got != "§2 an entirely different assertion now." {
+		t.Errorf("the re-verification's claim = %q, want the sentence as it now stands", got)
 	}
 	if got := evidence().Reopened; len(got) != 0 {
 		t.Errorf("reopened = %+v after a later sitting verified it, want none", got)

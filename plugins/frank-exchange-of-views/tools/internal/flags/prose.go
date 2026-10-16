@@ -2,7 +2,6 @@ package flags
 
 import (
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/spf13/cobra"
@@ -14,7 +13,7 @@ import (
 //
 // It used to be one argument arriving three ways — `--reason` inline, `--reason-file <path>`, and
 // `--reason-file -` from stdin — and held as loose flags that fact was true only for verbs that
-// remembered every spelling. Three did not: `avenue propose` filled its `line` from the raw
+// remembered every spelling. Three did not: `inquiry propose` filled its `question` from the raw
 // inline flag, so the file form was refused for a field the seat had supplied; `spot-check` and
 // `outcome` registered the inline flag by hand and shipped with no file form at all. A convention
 // that has to be remembered at fifty call sites is not a mechanism, so the channel became a value
@@ -45,27 +44,18 @@ type Prose struct {
 	read atomic.Bool
 }
 
-// registry maps a command to the prose channel it registered.
-//
-// Cobra's Annotations are string-valued, and the alternative — threading the struct through every
-// verb constructor — is the convention this type exists to replace. Guarded because the role trees
-// are built in parallel by the gates, which is how an unguarded map in the help cache became a
-// `concurrent map read and map write` in this package's sibling.
-var (
-	registryMu sync.RWMutex
-	registry   = map[*cobra.Command]*Prose{}
-)
-
 // Register attaches the channel to a command: the flag, its canonical wording, the quoting rule in
 // the verb's help, and the binding that makes this struct the thing the flag writes to.
 //
 // The prose channel is a free-text flag like any other, so it registers through TextVar, which is
 // what attaches the quoting rule.
+//
+// The channel IS the flag's value, so the command reaches it through its own flag set. A side
+// table keyed by *cobra.Command pinned every tree a test binary built — internal/cli's suite held
+// gigabytes of dead command trees at exit.
 func (p *Prose) Register(c *cobra.Command) {
-	TextVar(c, &p.inline, Reason, DescReason)
-	registryMu.Lock()
-	registry[c] = p
-	registryMu.Unlock()
+	c.Flags().Var(p, Reason, DescReason)
+	markText(c, Reason)
 }
 
 // RegisterRequired attaches the channel and makes it mandatory.
@@ -76,9 +66,12 @@ func (p *Prose) RegisterRequired(c *cobra.Command) {
 
 // ProseOf returns the channel a command registered, or nil if it registered none.
 func ProseOf(c *cobra.Command) *Prose {
-	registryMu.RLock()
-	defer registryMu.RUnlock()
-	return registry[c]
+	f := c.Flags().Lookup(Reason)
+	if f == nil {
+		return nil
+	}
+	p, _ := f.Value.(*Prose)
+	return p
 }
 
 // Read resolves the channel to one string.
@@ -100,5 +93,12 @@ func (p *Prose) Read() string {
 // --reason.
 func (p *Prose) WasRead() bool { return p.read.Load() }
 
-// String is the resolved representation.
-func (p *Prose) String() string { return p.Read() }
+// String is the resolved representation. It does NOT mark the channel read: pflag calls it when
+// the flag is registered and when help renders, and neither is a verb reading the seat's words.
+func (p *Prose) String() string { return strings.TrimRight(p.inline, "\n") }
+
+// Set and Type make the channel the flag's own value.
+func (p *Prose) Set(v string) error { p.inline = v; return nil }
+
+// Type is the argument placeholder help prints, the same as any string flag's.
+func (p *Prose) Type() string { return "string" }

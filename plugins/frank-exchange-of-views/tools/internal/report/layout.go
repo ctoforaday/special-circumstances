@@ -19,11 +19,10 @@ import (
 // of those verbs list (RefusedHeadings), and what the lists in blue's dispatch prompts are held
 // to. A section added to the report is added here and nowhere else.
 //
-// THE REPORT'S TEXT CARRIES NO SECTION THE TOOL COMPOSES. universe-m20's synthesizer wrote a
-// "## Alternatives considered" by hand; assembly composed its own from the avenues and left the
-// hand copy out in silence, with a proof, two gaps and thirteen findings anchored in it. The
-// write refuses that heading now, and each refusal carries its row's Path: how content does
-// reach the section, or that no act of the refused seat's does and who fills it.
+// THE REPORT'S TEXT CARRIES NO SECTION THE TOOL COMPOSES. Assembly composes
+// "## Alternatives considered" from the inquiries and would leave a hand-written copy out in
+// silence, so the write refuses that heading, and each refusal carries its row's Path: how content
+// does reach the section, or that no act of the refused seat's does and who fills it.
 //
 // ONE FIELD SAYS WHICH OF THE TOOL'S HEADINGS IS NOT REFUSED (SubjectHeading), and why. A heading
 // composed into report.md is refused because the report would carry two sections of one name. A
@@ -75,7 +74,7 @@ type Section struct {
 	embeds bool
 	// first, on the body, is the sections that open it when the text carries them, in order.
 	first []string
-	// fate, on an avenue section, is which avenue statuses it holds.
+	// fate, on an inquiry section, is which inquiry statuses it holds.
 	fate func(status string) bool
 	// compose renders the section's body; nil for one a later pass over the whole document writes.
 	compose func(a *assembly, s Section) string
@@ -141,11 +140,11 @@ var layout = []Section{
 		From:    "the open gaps on the board, one row for each: its problem, its grades and its required fix",
 		Path:    "No act of blue's adds a row. A lens's `mint` opens a gap and with it a row, and the lens's `close` takes the row out; blue's `edit` answering the gap is what the lens closes on. A risk the report itself argues for is prose in the section that makes the claim.",
 		compose: func(a *assembly, _ Section) string { return riskMatrix(a.bj) }},
-	// THREE DESCRIPTIVE AREAS, and every avenue lands in exactly one. See taken, deferred and
+	// THREE DESCRIPTIVE AREAS, and every inquiry lands in exactly one. See taken, deferred and
 	// setAside in assemble.go for why three and why setAside is a complement.
-	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, compose: avenues},
-	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: avenues},
-	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, compose: avenues},
+	{File: FileReport, Heading: "Research areas", Composer: Tool, fate: taken, compose: inquiries},
+	{File: FileReport, Heading: "Future research directions", Composer: Tool, fate: deferred, compose: inquiries},
+	{File: FileReport, Heading: "Alternatives considered", Composer: Tool, fate: setAside, compose: inquiries},
 	{File: FileReport, Heading: "Open questions", Composer: Blue,
 		From:    "the section of this name in the report's text, which closes it",
 		Path:    blueTextPath + " The write holds it last in the text, and a report with no section of this name ships without one.",
@@ -166,8 +165,8 @@ var layout = []Section{
 		From:    "the motions on the record, each with its ruling",
 		Path:    "A seat files one with `motion grade file`, `motion docket file` or `motion petition file`, and the seat that hears it answers with `motion grade rule`, `motion docket rule` or `motion petition rule`.",
 		compose: func(a *assembly, _ Section) string { return motions(a.fam) }},
-	// avenues.md is not a section of this table: it is the rendering `show avenues` prints
-	// (view.AvenueBody), whole, under headings that carry each fate's count.
+	// inquiries.md is not a section of this table: it is the rendering `show inquiries` prints
+	// (view.InquiryBody), whole, under headings that carry each fate's count.
 	{File: FileEvidence, Heading: evidenceHeading, Composer: Tool, SubjectHeading: true,
 		From: "the proofs on the record: each with its script, its output and red's re-run",
 		Path: "Blue's `prove` records a computation and a lens's `reproduce` its re-run."},
@@ -203,7 +202,7 @@ var layout = []Section{
 		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam.Events) }},
 }
 
-// The avenue sections' From and Path are written from each row's own fate, so the sentence a seat
+// The inquiry sections' From and Path are written from each row's own fate, so the sentence a seat
 // reads and the predicate the composer applies are one fact; and the body's Path names the
 // sections the write holds first from the row's own list.
 func init() {
@@ -216,16 +215,16 @@ func init() {
 			continue
 		}
 		fates := fatesOf(*s)
-		s.From = "the avenues on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate, and what was found or why it stands there, in their author's words"
-		s.Path = "Blue's `avenue propose` puts an approach on the record as `proposed`, and blue's `avenue move` gives it a fate with `--as`. An avenue that is " +
+		s.From = "the inquiries on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate, and what was found or why it stands there, in their author's words"
+		s.Path = "Blue's `inquiry propose` puts an approach on the record as `proposed`, and blue's `inquiry record` gives it a fate with `--as`. An inquiry that is " +
 			orList(ticked(fates)) + " is listed under this heading; the heading is not written into the report's text, and neither is a list of approaches under another one."
 	}
 }
 
-// fatesOf is the avenue statuses a section holds, in the record's order.
+// fatesOf is the inquiry statuses a section holds, in the record's order.
 func fatesOf(s Section) []string {
 	var out []string
-	for _, status := range record.Names(record.MustEnum("avenue", "status").Values) {
+	for _, status := range record.Names(record.MustEnum("inquiry", "status").Values) {
 		if s.fate(status) {
 			out = append(out, status)
 		}
@@ -249,8 +248,8 @@ func orList(words []string) string {
 	return strings.Join(words[:len(words)-1], ", ") + " or " + words[len(words)-1]
 }
 
-// AvenueSections says which fate lands under which heading, written from the avenue rows.
-var AvenueSections = func() string {
+// InquirySections says which fate lands under which heading, written from the inquiry rows.
+var InquirySections = func() string {
 	var parts []string
 	for _, s := range layout {
 		if s.fate == nil {
@@ -258,16 +257,16 @@ var AvenueSections = func() string {
 		}
 		verb := " each one "
 		if len(parts) == 0 {
-			verb = " holds each avenue that is "
+			verb = " holds each inquiry that is "
 		}
 		parts = append(parts, s.Heading+verb+orList(fatesOf(s)))
 	}
 	return strings.Join(parts[:len(parts)-1], ", ") + ", and " + parts[len(parts)-1]
 }()
 
-// AvenueSectionsRule says whose those sections are, on the pages of the acts that write an avenue.
+// InquirySectionsRule says whose those sections are, on the pages of the acts that write an inquiry.
 // A seat told only that its words are "printed in the report under" them writes the section too.
-var AvenueSectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the avenues on the record: " + AvenueSections +
+var InquirySectionsRule = "THE TOOL COMPOSES THOSE SECTIONS, WHOLE, from the inquiries on the record: " + InquirySections +
 	". They are not the report's text to write: a report that carries one of those headings is refused, and a list of approaches and their fates kept by hand anywhere in it is a second account that nothing checks against the record."
 
 // AssembledNote is what the page that prints the report's text says about what ships, and the

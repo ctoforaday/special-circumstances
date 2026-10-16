@@ -16,7 +16,7 @@ import (
 
 // ONE ADJUDICATION MECHANISM, WITH AN ID (#344).
 //
-// A direction, a governance petition, a grade dispute and a docket question are ONE propose→rule
+// An inquiry, a governance petition, a grade dispute and a docket question are ONE propose→rule
 // exchange. A motion has an ID: the ask and its answer join on it, once, and one renderer serves
 // every subject.
 //
@@ -31,7 +31,7 @@ import (
 // express "required only when --on=grade", so a flag-discerned subject would put three divergent
 // contracts into hand-written RunE validation — a flag combination policed by prose, which is
 // the shape this suite exists to remove.
-var MotionSubjects = []string{"grade", "petition", "avenue", "docket"}
+var MotionSubjects = []string{"grade", "petition", "inquiry", "docket"}
 
 // MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
 // flag is `--as` on every one of them, which is the point: §I of the plan names
@@ -42,7 +42,7 @@ var MotionVerdicts = map[string][]EnumValue{
 	// subject's ruling enum, in declaration order.
 	"grade":    evsOf(recordpb.GradeRuling(0).Descriptor()),
 	"petition": evsOf(recordpb.PetitionRuling(0).Descriptor()),
-	"avenue":   evsOf(recordpb.AvenueRuling(0).Descriptor()),
+	"inquiry":  evsOf(recordpb.InquiryRuling(0).Descriptor()),
 	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
 	// the same words `lens close` uses, which is what "one vocabulary, whichever verb closed it"
 	// means. Copying the words here would be the second list that drifts, and an August draft of
@@ -169,9 +169,7 @@ func motionIDOf(e *Event) (string, bool) {
 }
 
 // motionSubjectWord renders a subject as the word this tool's surfaces use, which is the schema's
-// own word for every subject. It bridged one disagreement for as long as the schema said
-// `direction` and the surface said `avenue` for what blue proposes; the concept has one name now,
-// avenue, so nothing is bridged and the surface word is the schema's.
+// own word for every subject.
 func motionSubjectWord(s recordpb.MotionSubject) string {
 	return enumWord(s)
 }
@@ -256,7 +254,7 @@ func MotionsOf(evs []*Event, win WindowIndex) []*Motion { return motionsAt(evs, 
 //
 // A MOTION'S ANSWER IS ITS FIRST RULING THAT STANDS — the rule the write enforces
 // (requireUnanswered) and motion_answers states in SQL.
-// TestEveryMotionReaderStatesTheRulingThatStands holds this walk, AvenuesOf and the view to one
+// TestEveryMotionReaderStatesTheRulingThatStands holds this walk, InquiriesOf and the view to one
 // answer; recordsql's TestMotionAnswersStatesFirstWinsOnce holds the view to first-wins on the two
 // rulings only a raw insert produces.
 //
@@ -270,7 +268,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 	byID := map[string]*Motion{}
 	var order []string
 
-	// Avenue PROPOSALS, indexed by their id — the filing half of every direction motion. Gathered
+	// Inquiry PROPOSALS, indexed by their id — the filing half of every inquiry motion. Gathered
 	// in the same pass and read only when a ruling arrives, because a proposal nobody ruled on is
 	// not a motion (see the motion-rule arm).
 	type proposal struct {
@@ -287,22 +285,22 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 	// catches that — "judge-petition/motion-rule prose absent from report", on 25 of 60 seeds
 	// when a ruling could replay first.
 	//
-	// THE PROPOSALS GET A PASS OF THEIR OWN, for the same reason: blue proposes the avenue and the
+	// THE PROPOSALS GET A PASS OF THEIR OWN, for the same reason: blue proposes the inquiry and the
 	// chair rules it. Gathered inside the pass that reads the rulings, this map is read before it
-	// is filled, and a direction motion comes out with no filer, no epoch and no ask — rendering as
+	// is filled, and an inquiry motion comes out with no filer, no epoch and no ask — rendering as
 	// an answer to a question nobody asked.
 	for _, e := range evs {
-		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
-		// A MOVE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
-		// `supersedes_status` marks the event as a move, so a proposal does not carry the field at
+		av, ok := recordpb.BodyAs[*recordpb.Inquiry](e)
+		// A RECORDED FATE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
+		// `supersedes_status` marks the event as a recorded fate, so a proposal does not carry the field at
 		// all — `GetSupersedesStatus() == ""` would fold a field somebody set to the empty string
 		// back into the proposal set, which is the read this migration exists to remove.
 		if !ok || av.SupersedesStatus != nil {
 			continue
 		}
-		if a := av.GetAvenueId(); a != "" {
+		if a := av.GetInquiryId(); a != "" {
 			w := win.Of(e)
-			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetLine(), epoch: w.Epoch, sitting: w.Sitting}
+			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetQuestion(), epoch: w.Epoch, sitting: w.Sitting}
 		}
 	}
 
@@ -337,8 +335,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
 			// over five payload keys that used to stand in for that guarantee is gone. The KEYS
 			// stay as they were — report/motions.go and motionview.go read `gap_id`, `dimension`,
-			// `proposed`, `class` and `avenue_id` by name, and `avenue_id` in particular is the
-			// surface spelling of what the schema calls `avenue_id`.
+			// `proposed`, `class` and `inquiry_id` by name.
 			//
 			// Each is set only when PRESENT. The old read skipped an empty string; an absent enum
 			// would otherwise render as its UNSPECIFIED spelling and put a word on the report where
@@ -359,9 +356,9 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				if fil.Petition.Class != nil {
 					m.Fields["class"] = enumWord(fil.Petition.GetClass())
 				}
-			case *recordpb.Motion_Avenue:
-				if fil.Avenue.AvenueId != nil {
-					m.Fields["avenue_id"] = fil.Avenue.GetAvenueId()
+			case *recordpb.Motion_Inquiry:
+				if fil.Inquiry.InquiryId != nil {
+					m.Fields["inquiry_id"] = fil.Inquiry.GetInquiryId()
 				}
 			case *recordpb.Motion_Docket:
 				if fil.Docket.GapId != nil {
@@ -381,24 +378,24 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			if id == "" {
 				continue
 			}
-			// PASS 1 only CREATES. A direction motion has no filing event of its own, so its
+			// PASS 1 only CREATES. An inquiry motion has no filing event of its own, so its
 			// ruling is also its creation; every other subject is created by its `motion` event,
 			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
 			if _, ok := byID[id]; !ok {
-				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
+				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
 				}
-				// A DIRECTION MOTION IS CREATED BY ITS RULING, and that is not a special case
-				// bolted on — it is the only shape that does not invent identity. `direction` has
-				// no `file` verb because the PROPOSAL is the filing (`blue avenue`), so the id it
-				// joins on is the avenue's own A-id: minted, refusable, already on the record.
+				// AN INQUIRY MOTION IS CREATED BY ITS RULING, and that is not a special case
+				// bolted on — it is the only shape that does not invent identity. `inquiry` has
+				// no `file` verb because the PROPOSAL is the filing (`blue inquiry propose`), so the
+				// id it joins on is the inquiry's own Q-id: minted, refusable, already on the record.
 				//
 				// The rejected alternative was minting an M-id at propose time. It would have
-				// filed a motion for every line blue ever floated — ~60 a run in the fuzz against
+				// filed a motion for every inquiry blue ever proposed — ~60 a run in the fuzz against
 				// 45 rulings — so the report's "N motions received no ruling" would have been
-				// dominated by lines nobody was ever going to rule on, and the one signal that
+				// dominated by inquiries nobody was ever going to rule on, and the one signal that
 				// message exists to carry (a sitting that did not happen) would have drowned in it.
-				m := &Motion{ID: id, Subject: "avenue", Fields: map[string]string{"avenue_id": id}}
+				m := &Motion{ID: id, Subject: "inquiry", Fields: map[string]string{"inquiry_id": id}}
 				if p, ok := proposals[id]; ok {
 					m.Filer, m.Epoch, m.Sitting, m.Basis = p.filer, p.epoch, p.sitting, p.basis
 				}
@@ -413,7 +410,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 	// acts.
 	//
 	// THE ANSWER KNOWS ONLY THE ASK'S ID. A `motion-rule` carries `motion_id` and nothing else that
-	// identifies what it is about — no gap id, no avenue id — so this lookup IS the attribution.
+	// identifies what it is about — no gap id, no inquiry id — so this lookup IS the attribution.
 	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
 	// the empty string and report a board with no rulings on it.
 	ruled := map[*Motion]bool{}
@@ -469,9 +466,9 @@ func rowOf(q rowQuerier, dest []any, query string, args ...any) (found bool, err
 // accepted at write time and dropped at replay, where nobody sees it go.
 //
 // It takes the SUBJECT because the subjects do not share a filing verb. `grade` and `petition` are
-// filed by `motion <subject> file` and join on the M-id it mints; `direction` has no file verb —
-// the proposal is the filing — so it joins on the LINE's own id, and the thing that must exist
-// is the avenue, not a motion event. Passing the subject keeps that difference in one place
+// filed by `motion <subject> file` and join on the M-id it mints; `inquiry` has no file verb —
+// the proposal is the filing — so it joins on the inquiry's own id, and the thing that must exist
+// is the inquiry, not a motion event. Passing the subject keeps that difference in one place
 // instead of pushing it into each RunE.
 //
 // IT RETURNS THE SUBJECT THE MOTION WAS FILED UNDER, read by the same lookup that proves it exists,
@@ -490,10 +487,10 @@ func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject
 	if id == "" {
 		return "", fmt.Errorf("--id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
-	// A direction has no filing event — the proposal is the filing — so an id that resolves to an
-	// avenue IS an avenue motion by construction.
-	if subject == recordpb.MotionSubject_MOTION_SUBJECT_AVENUE {
-		if err := requireAvenueRef(q, id); err != nil {
+	// An inquiry has no filing event — the proposal is the filing — so an id that resolves to an
+	// inquiry IS an inquiry motion by construction.
+	if subject == recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+		if err := requireInquiryRef(q, id); err != nil {
 			return "", err
 		}
 		return motionSubjectWord(subject), nil
@@ -575,13 +572,13 @@ func requireUnanswered(q rowQuerier, body proto.Message) error {
 
 // RequireUnruledMotion refuses a SECOND ruling on a motion already answered.
 //
-// MEASURED BY PROBING: a petition ruled `accepted` by the chair was then ruled `denied` by the
-// bench, both accepted, and the report showed ONE of them with no sign the other existed. A
-// direction ruled `endorsed` was re-ruled `out-of-scope` the same way. Replay keeps whichever the
-// ordering happens to favour, so the answer a reader sees is decided by shard interleaving.
+// Replay keeps whichever of two rulings the ordering happens to favour, so without this refusal
+// the answer a reader sees is decided by shard interleaving: a petition ruled `accepted` and then
+// `denied`, or an inquiry ruled `endorsed` and then `out-of-scope`, shows ONE of them with no sign
+// the other existed.
 //
-// Two writers disagreeing about one fate is the defect the avenue code already guards against by
-// giving moves a single writer; a ruling had no such guard.
+// Two writers disagreeing about one fate is the defect the inquiry code guards against by giving
+// fate records a single writer; this refusal gives a ruling the same guard.
 //
 // THE SEAT THIS REFUSES IS THE RULER, repeating its own ruling — one seat holds each gavel: answer
 // is the tail for the motion's subject, the act that answers a wrong ruling (supersede.go), ""

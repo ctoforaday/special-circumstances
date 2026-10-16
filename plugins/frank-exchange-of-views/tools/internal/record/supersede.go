@@ -59,8 +59,8 @@ const (
 // records (RefusesARepeat), and for the numbered types whose answer a seat would otherwise guess.
 //
 // NO ROW IS A STATEMENT TOO, and three are deliberate. The chair holds no act that answers its own
-// ruling on an AVENUE: a docket motion names a gap, an avenue is not one, and no verb files a
-// motion on an avenue — so that refusal ends without a tail. An anchor, a finding and a mint are
+// ruling on an INQUIRY: a docket motion names a gap, an inquiry is not one, and no verb files a
+// motion on an inquiry — so that refusal ends without a tail. An anchor, a finding and a mint are
 // keyed on an id the tool mints per act, so a second with the same key is a retried write and
 // nothing else. No verb records an observe.
 //
@@ -74,8 +74,8 @@ const (
 // gap is open — reaches that seat through its prompt and the `motion` pages, since the record
 // refuses it neither.
 var superseders = map[supersederKey]superseder{
-	{typ: recordpb.EventType_EVENT_TYPE_AVENUE}:                             {act: "a move of the avenue"},
-	{typ: recordpb.EventType_EVENT_TYPE_AVENUE_REVIEW}:                      {act: "a new review of the avenues", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}:                            {act: "a new record of the inquiry's fate"},
+	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW}:                     {act: "a new review of the inquiries", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}:                            {act: "a new certification", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CITE}:                               {act: "a new citation", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:                              {act: "a docket motion on the gap"},
@@ -279,7 +279,7 @@ func keyField(body proto.Message) protoreflect.Name {
 // fallback is the field name itself, which would name --gap-id — a flag no verb has.)
 //
 // AN ENUM ARM OF A ONEOF IS TYPED --as. A ruling's word lands on MotionRule.grade, .petition or
-// .direction — one arm per subject — and every one of them is set through --as; named by its field,
+// .inquiry — one arm per subject — and every one of them is set through --as; named by its field,
 // a refusal would send the seat to --petition, which no verb has.
 func flagOf(fd protoreflect.FieldDescriptor) string {
 	if o, _ := proto.GetExtension(fd.Options(), recordpb.E_Sql).(*recordpb.Sql); o.GetFlag() != "" {

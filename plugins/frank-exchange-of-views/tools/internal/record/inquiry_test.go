@@ -21,12 +21,8 @@ import (
 // that the tool returned success and nothing persisted. The events had persisted perfectly:
 // CurrentRound was 2, and the only round-2 event on that board was `judge` calling `register`.
 //
-// RETARGETED, NOT INHERITED. This arrived aimed at `UnvotedAvenuesAt`, the per-line support vote
-// — a mechanism retired here in favour of ONE `avenue-review` per round (see
-// TestTheAvenueReviewOffersNoRetiredFlags). The carrier changed and the defect did not: the
-// replacement asks the same "was this done in the board's HIGHEST round" question through the same
-// CurrentRound, so the rewrite inherited the bug main had already measured and fixed. Retargeting
-// is the point — deleting it with its old carrier would have dropped a guard over a live defect.
+// The inquiry review asks "was this done in the board's HIGHEST round" through CurrentRound, so a
+// later seat's register must not stale it.
 func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	dir := newRun(t)
 	// The chair sits first so the acts below land in epoch 1 — the round this fixture's path names.
@@ -34,16 +30,16 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 		t.Fatal(err)
 	}
 	blue := Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}
-	if _, err := Append(blue, &recordpb.Avenue{
-		AvenueId: proto.String("Q1"),
-		Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
-		Line:     proto.String("a direction"),
+	if _, err := Append(blue, &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"),
+		Status:    recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
+		Question:  proto.String("a question"),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	merge := Identity{Run: mustRun(t, dir), SeatID: "red-chair"}
-	if _, err := Append(merge, &recordpb.AvenueReview{
-		Reason: proto.String("read the lines against the report as it now stands"),
+	if _, err := Append(merge, &recordpb.InquiryReview{
+		Reason: proto.String("read the inquiries against the report as it now stands"),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +48,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if AvenueReviewDueOf(b.Events, b.At) {
+	if InquiryReviewDueOf(b.Events, b.At) {
 		t.Fatal("the round-1 review does not satisfy the round-1 duty")
 	}
 
@@ -67,7 +63,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if got := b.At.CurrentEpoch(b.Events); got != 1 {
 		t.Fatalf("a bare register advanced CurrentEpoch to %d — a seat that has written nothing must not move the board's idea of now", got)
 	}
-	if AvenueReviewDueOf(b.Events, b.At) {
+	if InquiryReviewDueOf(b.Events, b.At) {
 		t.Error("a bare register from judge made the round-1 merge's review stale.\n\n" +
 			"The chair can never satisfy this — it acts at its own round and the gate has moved past it — " +
 			"so the round's duty is refused forever while the verb keeps reporting success.")
@@ -79,10 +75,10 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}, &recordpb.Avenue{
-		AvenueId: proto.String("Q2"),
-		Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
-		Line:     proto.String("another"),
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}, &recordpb.Inquiry{
+		InquiryId: proto.String("Q2"),
+		Status:    recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(),
+		Question:  proto.String("another"),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +89,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if got := b.At.CurrentEpoch(b.Events); got != 2 {
 		t.Fatalf("real work in epoch 2 did not advance CurrentEpoch: got %d", got)
 	}
-	if !AvenueReviewDueOf(b.Events, b.At) {
+	if !InquiryReviewDueOf(b.Events, b.At) {
 		t.Error("round 2 owes its own review and the round-1 one answered for it — the round check is gone, not fixed")
 	}
 }

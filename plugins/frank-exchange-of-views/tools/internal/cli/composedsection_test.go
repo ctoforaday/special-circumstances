@@ -24,11 +24,10 @@ import (
 // A SECTION THE TOOL COMPOSES IS REFUSED AT THE WRITE, through the real verbs, AND THE REFUSAL
 // SAYS HOW CONTENT REACHES IT.
 //
-// universe-m20: blue's report carried a "## Alternatives considered" section. Assembly composes
-// that section from the avenues, so blue's never shipped — and nothing said so while a proof, two
-// gaps and thirteen findings were anchored in it and lenses audited it for five sittings. The
-// author reads the refusal at ingest and at edit, the two acts that put text in the report; each
-// names the heading, what assembly composes the section from, and the way in.
+// Assembly composes the "## Alternatives considered" section from the inquiries, so a section of
+// that name in blue's report never ships. The author reads the refusal at ingest and at edit, the
+// two acts that put text in the report; each names the heading, what assembly composes the
+// section from, and the way in.
 
 const composedSection = "## Alternatives considered\n\n- A probable-prime test was weighed and rejected.\n"
 
@@ -45,8 +44,8 @@ func refusesTheSection(t *testing.T, out string, err error, want ...string) {
 	}
 }
 
-var avenueWay = []string{`"## Alternatives considered"`, "report.md", "the avenues on the record that are declined or abandoned",
-	"`avenue propose`", "`avenue move`", "`declined` or `abandoned`"}
+var inquiryWay = []string{`"## Alternatives considered"`, "report.md", "the inquiries on the record that are declined or abandoned",
+	"`inquiry propose`", "`inquiry record`", "`declined` or `abandoned`"}
 
 func TestIngestRefusesASectionTheToolComposes(t *testing.T) {
 	runDir := newRun(t)
@@ -61,7 +60,7 @@ func TestIngestRefusesASectionTheToolComposes(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BASE_INGEST); n != 0 {
 		t.Errorf("the refused ingest recorded %d base(s)", n)
 	}
@@ -93,11 +92,11 @@ func TestEditRefusesASectionTheToolComposes(t *testing.T) {
 	// The heading whole, in --new.
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1",
 		"--quote", "91 is 7 x 13.", "--new", "91 is 7 x 13.\n\n"+strings.TrimSpace(composedSection), "--reason", "list what was weighed")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 	// And a heading the edit COMPLETES: no part of it is in --new, so only the planned document shows it.
 	out, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E2",
 		"--quote", "Other approaches", "--new", "Alternatives considered", "--reason", "name the section for what it lists")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("the refused edits recorded %d edit(s)", n)
 	}
@@ -120,7 +119,7 @@ func TestEveryActTheLayoutNamesIsACommand(t *testing.T) {
 	}
 	ticked := regexp.MustCompile("`([a-z][a-z -]*)`")
 	fates := map[string]bool{}
-	for _, f := range record.AvenueStatusNames() {
+	for _, f := range record.InquiryStatusNames() {
 		fates[f] = true
 	}
 	acts := 0
@@ -164,7 +163,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		at += i
 	}
 	for _, want := range []string{"composed by: tool, from the open gaps on the board", "how content reaches it: No act of blue's adds a row",
-		"composed by: blue, from the section of this name in the report's text, which closes it", "`avenue move`",
+		"composed by: blue, from the section of this name in the report's text, which closes it", "`inquiry record`",
 		// A section the report does not have ships nothing, and this is where a seat reads that.
 		"a report with no section of this name ships without one.",
 		// The order the write holds is on the entries of the sections it places.
@@ -177,9 +176,9 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 
 	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Appendix: the divisions\n\n91 / 7 = 13.\n")
 	registerBlue(t, runDir)
-	if out, err := run(t, "avenue", "propose", "--run", runDir, "--seat-id", blueSeat, "--reason", "whether trial division to 9 settles it",
+	if out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", blueSeat, "--question", "whether trial division to 9 settles it",
 		"--method", "trial division", "--hypothesis", "a factor below 10 exists"); err != nil {
-		t.Fatalf("avenue propose: %v\n%s", err, out)
+		t.Fatalf("inquiry propose: %v\n%s", err, out)
 	}
 	out, err = run(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)
 	if err != nil {
@@ -208,7 +207,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 		}
 	}
 	if s := by["Research areas"]; !s.Ships || !strings.Contains(s.Text, "whether trial division to 9 settles it") || s.Composer != report.Tool {
-		t.Errorf("Research areas does not carry the avenue just proposed: %+v", s)
+		t.Errorf("Research areas does not carry the inquiry just proposed: %+v", s)
 	}
 	if s := by["The report's own sections"]; !s.Ships || !slices.Equal(s.AuthoredHeadings, []string{"TL;DR", "Appendix: the divisions"}) || !strings.HasPrefix(s.Text, "## TL;DR\n") || !strings.HasSuffix(s.Text, "91 / 7 = 13.") {
 		t.Errorf("the body does not carry the report's own section under its author's heading: %+v", s)
@@ -279,7 +278,7 @@ func TestM20sIngestIsRefusedLiveAndItsArchiveShipsWhole(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize")
-	refusesTheSection(t, out, err, avenueWay...)
+	refusesTheSection(t, out, err, inquiryWay...)
 
 	// MIGRATED: the record holds the heading, and everything under it ships.
 	blue, err := reportproj.RenderFromRecord(dst)

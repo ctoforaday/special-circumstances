@@ -257,12 +257,10 @@ var EnumFields = map[string][]EnumField{
 		Key: "type", Flag: flags.Type, Values: evsOf(recordpb.LogType(0).Descriptor()),
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
-	// `finding`, and the ABOUT is the anchor a quote could not provide. Measured: a missing
-	// avenue pinned to a sentence the finding called fine, and a missing risk matrix pinned to
-	// a section opening, because a live quote was the only target the verb accepted.
+	// `finding`, and the ABOUT is the anchor a quote could not provide.
 	"finding": {{
 		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
-		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an avenue id either names an avenue this run proposed or it does not",
+		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an inquiry id either names an inquiry this run proposed or it does not",
 	}},
 	// `cite`, and the READING is the half a citation could not previously state. A citation says
 	// a source backs a sentence; it never said whether anyone had read the source. That gap was
@@ -272,19 +270,16 @@ var EnumFields = map[string][]EnumField{
 		Key: "source_text_read", Flag: flags.SourceText, Optional: true, Values: evsOf(recordpb.SourceTextRead(0).Descriptor()),
 		Why: "a claim about what a source SAYS rests on having read it; without this the report cannot distinguish a source read at the leaf from one known only through the summary of the party whose case depends on it",
 	}},
-	// `avenue`, the schema's word. It was "avenue" — an event type the schema does not
-	// declare — so this whole set was advertised against a body that does not exist, and nothing
-	// noticed because the key was only ever looked up by the same stale name.
-	"avenue": {{
-		Key: "status", Flag: flags.As, Values: AvenueStatuses,
-		Why: "the avenues projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
+	// `inquiry`, the event type whose body holds the status set.
+	"inquiry": {{
+		Key: "status", Flag: flags.As, Values: InquiryStatuses,
+		Why: "the inquiries projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	// `avenue-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
-	// Its predecessor `avenue review` carried a four-value `--as` (supported / weakened /
-	// unsupported / absent) answering "does the report still carry this line". Presence is not a
-	// question — the lines are generated onto the page from the record, so blue cannot cut them —
-	// and the surviving question, whether the body delivered the research, is an ORDINARY GAP with
-	// the grade vocabulary it already has. The review carries prose and nothing else.
+	// `inquiry_review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
+	// Presence in the report is not a question — the inquiries are generated onto the page from
+	// the record, so blue cannot cut them — and the question that remains, whether the body
+	// delivered the research, is an ORDINARY GAP with the grade vocabulary it already has. The
+	// review carries prose and nothing else.
 	// THE MOTION SETS ARE NOT HERE (#344): they are keyed on (subject, key), which this map cannot
 	// express, and live in record/motion.go.
 	"close": {{
@@ -327,7 +322,7 @@ var EnumFields = map[string][]EnumField{
 		Why: "THE NEGATIVE HALF IS THE POINT. A citation that does NOT hold is recorded here — `refutes`, `absent`, `unreachable` — and not left as prose, because the audit that catches a report shipping a refuted citation reads this field and nothing else. This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
 	}, {
 		Key: "confidence", Flag: flags.Confidence, Values: evsOf(recordpb.Confidence(0).Descriptor()),
-		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --outcome: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nIt is NOT a property of the source and NOT a support scale — how well the source backs the claim is --outcome, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail",
+		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION IS. It is orthogonal to --as: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nIt is NOT a property of the source and NOT a support scale — how well the source backs the claim is --as, and this axis is not a positive-only one. Low confidence is a call for more evidence, so blue digs further; it is not an automatic fail",
 	}},
 }
 

@@ -108,14 +108,10 @@ func newMint() *cobra.Command {
 		// A location a reader cannot find is not a location. It is refused now, by the same
 		// rule the lens has always been held to.
 		//
-		// AN OMISSION STILL HAS A PLACE, AND IT IS NO LONGER A BORROWED SENTENCE. This used to
-		// read "for a gap about something MISSING, quote the sentence where it SHOULD be;
-		// that is how a lens finding anchors an omission" — and it was true when it was
-		// written. `lens finding` stopped anchoring that way (#742): an absence names the
-		// section it is missing from, the avenue whose reason it argues against, or the gap
-		// it is about, and the record CHECKS the reference. Leaving the instruction here
-		// would have made a seat spell one act two ways across the two verbs of one act, and
-		// the gap minted from such a finding would re-acquire the handle the finding shed.
+		// AN OMISSION HAS A PLACE, AND IT IS NOT A BORROWED SENTENCE: an absence names the
+		// section it is missing from, the inquiry whose question it argues against, or the gap
+		// it is about, and the record CHECKS the reference. The two verbs of one act spell it
+		// one way, so the gap minted from such a finding carries the same handle the finding does.
 		about, aboutRefP, aerr := record.ResolveAbout(run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
 		if aerr != nil {
 			return nil, aerr
@@ -267,8 +263,8 @@ func newMint() *cobra.Command {
 	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap")
 	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an avenue, or a gap already on the board; use instead of --quote")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record")
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified", bluedoc.MaxProposalGrowth))
