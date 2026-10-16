@@ -86,9 +86,9 @@ func newOutcome() *cobra.Command {
 		// THE CROSS-CHECK IS ASKED OF THE RECORD THE OUTCOME LANDS ON. The chair's PASS, a halt or a
 		// lens's mint can commit in parallel, and an outcome checked against the record before it
 		// carries a verdict the record it joins does not derive (#1252).
-		if _, err := record.Append(s.Identity(), body, func(l *record.Landing) error {
+		if _, err := record.Append(s.Identity(), body, record.Check(func(l *record.Landing) error {
 			return crossCheck(l, verdict, body)
-		}); err != nil {
+		})); err != nil {
 			return nil, err
 		}
 		// THE RUN STOPS COUNTING AS LIVE HERE, for every agent but this one (runlive.StateOf). Written

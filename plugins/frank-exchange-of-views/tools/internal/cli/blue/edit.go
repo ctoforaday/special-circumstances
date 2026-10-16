@@ -125,7 +125,7 @@ func newEdit() *cobra.Command {
 			report, old, applied string
 			exact                bool
 		}
-		_, err = record.Append(s.Identity(), body, func(l *record.Landing) error {
+		_, err = record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error {
 			peek, err := l.Report()
 			if err != nil {
 				return err
@@ -229,7 +229,7 @@ func newEdit() *cobra.Command {
 				}
 			}
 			return nil
-		})
+		}))
 		if errors.Is(err, errBunched) {
 			return nil, bunchedRefusal(run, bunched.report, bunched.old, bunched.applied, bunched.exact)
 		}

@@ -94,7 +94,7 @@ func (b *Batch) Append(id Identity, body proto.Message) (*Event, error) {
 	if err := b.savepoint("SAVEPOINT " + actSavepoint); err != nil {
 		return nil, err
 	}
-	ev, err := appendAct(id, body, func() (*sql.Tx, error) { return b.tx, nil }, nil)
+	ev, err := appendAct(id, body, func() (*sql.Tx, error) { return b.tx, nil }, nil, nil)
 	if err != nil {
 		if ferr := b.savepoint("ROLLBACK TO " + actSavepoint); ferr != nil {
 			return ev, ferr
