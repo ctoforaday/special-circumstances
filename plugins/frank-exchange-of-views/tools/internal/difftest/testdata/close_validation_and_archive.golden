@@ -75,10 +75,10 @@ ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open 
 {"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"refetched; the source now resolves and supports the claim"},"key":"red-lens-evidence:close:#1:GAP001","seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

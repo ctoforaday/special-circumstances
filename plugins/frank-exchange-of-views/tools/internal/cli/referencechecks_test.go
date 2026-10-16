@@ -19,24 +19,10 @@ import (
 // exists to audit. Where the tool can CHECK a value it must, or the record fills with references
 // that resolve to nothing and every reader downstream treats them as real.
 //
-// # What the 2026-08-13 sweep found
+// # What is checked
 //
-// Most references were checked properly — `--found-by` against the findings, `--supersedes` and
-// `--successor` against the board, `--ids` against the archive, `--fix-old` against the report,
-// `--class` against the registry. Four were not:
-//
-//	merge mint --quote   took PROSE. Three gaps were minted naming report sections that do not
-//	                        exist, two of them `--existence verified` — a seat claiming it had
-//	                        checked a defect at the leaf, at a place the tool never confirmed was
-//	                        there (#359). `lens finding --location` has always been refused on a
-//	                        mis-quote; the chair's was held to no rule at all.
-//	blue prove --cites      named the METHOD citation a computation applies, and was written
-//	                        straight into the payload. A proof could cite a citation that does not
-//	                        exist and the report would render the provenance.
-//	blue avenue --id        required an id to be PRESENT, not to name anything. A move against an
-//	                        unknown avenue renders as a direction being abandoned that nothing
-//	                        proposed.
-//	lens verify --anchor    (fixed 0.60.0, listed for the shape) — the citation being adjudicated.
+// Each reference flag is checked against what it names: the board, the findings, the citations,
+// the inquiries, the archive, the report, the class registry.
 //
 // # Why a TABLE and a behavioural test, rather than a list of individual tests
 //
@@ -88,7 +74,7 @@ var referenceChecks = []struct {
 		extra: []string{"--reason", "checked"}},
 	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
-	{verb: []string{"avenue", "move"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
+	{verb: []string{"inquiry", "record"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
 	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
@@ -100,13 +86,13 @@ var referenceChecks = []struct {
 	// them; nothing about a shape-only flag does.
 	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
-	// THE AVENUE SUBJECT KEYS ON Q, NOT M — a direction has no filing verb (the proposal is the
-	// filing), so the ruling names the LINE and is checked against the lines on
+	// THE INQUIRY SUBJECT KEYS ON Q, NOT M — an inquiry has no filing verb (the proposal is the
+	// filing), so the ruling names the INQUIRY and is checked against the inquiries on
 	// the record. `rule` sits only on the chair's tree, which is why seatHolding resolves the whole
 	// path: asked for "motion" alone it answered "lens", and the fixture ran a verb that seat cannot
-	// name. The refusal comes from the body and names the LINE, which is the right word for an id the
-	// subject keys on Q.
-	{verb: []string{"motion", "avenue", "rule"}, flag: "--id", against: "the avenues on the record", bogus: "Q9",
+	// name. The refusal comes from the body and names the INQUIRY, which is the right word for an id
+	// the subject keys on Q.
+	{verb: []string{"motion", "inquiry", "rule"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "endorsed", "--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.

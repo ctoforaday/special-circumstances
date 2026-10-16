@@ -68,7 +68,7 @@ func TestEveryStringFieldIsInOneList(t *testing.T) {
 			t.Errorf("%s is marked (prose) in record.proto and is not in the seat-argument list", name)
 		}
 		switch strings.SplitN(name, ".", 2)[0] {
-		case "GradeMotion", "DocketMotion", "AvenueMotion", "DocketRuling":
+		case "GradeMotion", "DocketMotion", "InquiryMotion", "DocketRuling":
 			motionArms++
 		}
 	})
@@ -177,7 +177,7 @@ func TestIdRemapChangesOnlyIdAndArgumentFields(t *testing.T) {
 	t.Run("unit", func(t *testing.T) {
 		r := newRemap("source")
 		for _, b := range []proto.Message{
-			&recordpb.Avenue{AvenueId: proto.String("Q1")}, &recordpb.Avenue{AvenueId: proto.String("Q2")},
+			&recordpb.Inquiry{InquiryId: proto.String("Q1")}, &recordpb.Inquiry{InquiryId: proto.String("Q2")},
 			&recordpb.Mint{GapId: proto.String("G2")},
 		} {
 			r.apply(b, "")

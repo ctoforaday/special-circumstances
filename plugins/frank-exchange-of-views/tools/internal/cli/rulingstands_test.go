@@ -16,7 +16,7 @@ import (
 // A RULING STANDS, AND NO SEAT APPEALS ONE.
 //
 // A seat that disagrees with a ruling says so in an act its surface holds: a docket motion on the
-// gap, which the bench rules; a new grade motion while the gap is open; a move of the avenue. This
+// gap, which the bench rules; a new grade motion while the gap is open; a fate recorded for the inquiry. This
 // file holds the surface, the refusal and the write path to that, for every role's tree rather than
 // for the subjects that exist today — so a subject added later cannot grow the verb back.
 
@@ -52,7 +52,7 @@ func TestNoSurfaceHoldsAnAppeal(t *testing.T) {
 		if seat.RecordType(c) == recordpb.Word(recordpb.EventType_EVENT_TYPE_MOTION_APPEAL) {
 			t.Errorf("%s records a %s: no command writes one", at, seat.RecordType(c))
 		}
-		// A SUBJECT WITH NO VERB FOR THIS ROLE IS NOT ON ITS SURFACE. An avenue motion has a ruling
+		// A SUBJECT WITH NO VERB FOR THIS ROLE IS NOT ON ITS SURFACE. An inquiry motion has a ruling
 		// and nothing else, so only its ruler's tree holds the group; mounted bare on the others it
 		// is a page that offers no act.
 		if len(path) == 2 && path[0] == "motion" {
@@ -77,7 +77,7 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 			m := fileGradeMotion(t, runDir)
 			must(t, runDir, "motion", "grade", "rule", "--seat-id", "red-chair", "--id", m, "--as", "rejected", "--reason", "the evidence does not reach it")
 			proposeQ1(t, runDir)
-			must(t, runDir, "motion", "avenue", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
+			must(t, runDir, "motion", "inquiry", "rule", "--seat-id", "red-chair", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question")
 			d := drive{t: t, run: runDir}
 
 			// The grade subject is on every surface, so the refusal is the subject's own: it names
@@ -90,21 +90,21 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 			if !strings.Contains(grade, "has no `appeal` verb — "+holds) {
 				t.Errorf("the refusal of a grade appeal does not say what a grade motion holds for %s:\n%s", seatID, grade)
 			}
-			// The avenue subject is on the ruler's surface alone.
-			avenue := d.refused("an appeal of the avenue ruling", seatID, "motion", "avenue", "appeal", "--id", "Q1", "--reason", "it is this question")
-			want := "the chair's `motion avenue`"
+			// The inquiry subject is on the ruler's surface alone.
+			inquiry := d.refused("an appeal of the inquiry ruling", seatID, "motion", "inquiry", "appeal", "--id", "Q1", "--reason", "it is this question")
+			want := "the chair's `motion inquiry`"
 			if seatID == "red-chair" {
-				want = "an avenue motion has no `appeal` verb — it has rule"
+				want = "an inquiry motion has no `appeal` verb — it has rule"
 			}
-			if !strings.Contains(avenue, want) {
-				t.Errorf("the refusal of an avenue appeal by %s does not say %q:\n%s", seatID, want, avenue)
+			if !strings.Contains(inquiry, want) {
+				t.Errorf("the refusal of an inquiry appeal by %s does not say %q:\n%s", seatID, want, inquiry)
 			}
 			if n := len(eventsOfWord(t, runDir, "motion_appeal")); n != 0 {
 				t.Fatalf("the record holds %d appeal(s) after refused invocations", n)
 			}
 
 			// WHAT THE SEAT DOES INSTEAD IS ON ITS SURFACE AND ADMITTED: the gap goes before the
-			// bench, and blue says what it does with the avenue in a move. The bench rules docket
+			// bench, and blue says what it does with the inquiry by recording a fate. The bench rules docket
 			// motions and files none: what it holds against a grade ruling is a new grade motion.
 			if seatID == "judge" {
 				d.gradeMotion("a new grade motion on another axis, by the bench", seatID, "impact", true)
@@ -112,8 +112,8 @@ func TestAnAppealIsRefusedWithWhatTheSeatHolds(t *testing.T) {
 				d.docketMotion("a docket motion on the gap whose grade ruling the seat disagrees with", seatID)
 			}
 			if seatID == "blue-respond" {
-				d.admitted("a move of the avenue against its ruling", seatID, "avenue", "move", "--id", "Q1", "--as", "pursued",
-					"--reason", "the ruling reads the question too narrowly, and this line answers it")
+				d.admitted("a fate recorded against its ruling", seatID, "inquiry", "record", "--id", "Q1", "--as", "underway",
+					"--reason", "the ruling reads the question too narrowly, and this fate answers it")
 			}
 		})
 	}

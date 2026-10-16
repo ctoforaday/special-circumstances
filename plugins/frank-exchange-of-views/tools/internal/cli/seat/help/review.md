@@ -1,9 +1,9 @@
 ## menu
 
-your one read, each sitting the report has moved, of its account of its avenues — required before a PASS
+your one read, each sitting the report has moved, of its account of its inquiries — required before a PASS
 
 ## detail
 
-Where the report has moved, read it ONCE and record what it says at the avenues the record claims this run investigated. Where it has not, your earlier read is the one this owes.
+You need not work out whether it is owed: your work list marks this owed when it is — in the first sitting you hold once the report exists, and in each later one where the report has moved since your last read. Read the report ONCE — `show report` reads it — and record, in one reason covering every inquiry, what it says at the inquiries the record claims this run investigated: `show inquiries` lists them, and the report accounts for them in the entries of its Research areas, Future research directions and Alternatives considered sections and in its own sections that carry the research those rows claim. Where the report has not moved, nothing is owed: your earlier read stands.
 
-Presence is not the question — the avenues are generated from the record. The question is whether the BODY delivered the research; a shortfall is a defect you found, weighed before your verdict like any other — not a vote.
+Presence is not the question — the inquiries are generated from the record. The question is whether the BODY — the report's own sections — delivered the research; a shortfall — thin treatment, a hypothesis left unanswered, a method never run — is a defect you found: say it in the reason, and weigh it before your verdict like any other — not a vote. Your `verdict`'s PASS is refused while the review this epoch owes is missing. A review is accepted whenever you file it, owed or not, and a new one from you replaces your earlier one as the read that counts; both stay on the record. Refused: an empty reason — silence cannot clear this duty.

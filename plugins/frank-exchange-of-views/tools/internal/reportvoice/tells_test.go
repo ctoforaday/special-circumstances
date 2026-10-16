@@ -34,7 +34,7 @@ func TestTheRunNarrationSpellingsAreLookedFor(t *testing.T) {
 	for sample, class := range map[string]Class{
 		"what this debate adds is convergent verification":        ProcessVoice,
 		"could not from this run's position survey other sources": ProcessVoice,
-		"not pursued this sitting":                                ProcessVoice,
+		"not underway this sitting":                               ProcessVoice,
 		"the debate settled it":                                   ProcessVoice,
 		"computed independently by more than one research lane":   LaneAttribution,
 		"two research lanes agree on the count":                   LaneAttribution,
@@ -109,7 +109,7 @@ func TestRefusedTellsAreUnambiguous(t *testing.T) {
 		"the red team missed it",
 		"blue side conceded",
 		"raised in epoch 3",
-		"not pursued in sitting 2",
+		"not underway in sitting 2",
 		"two research lanes agree",
 		"corrected here",
 		"the checking program prints it",

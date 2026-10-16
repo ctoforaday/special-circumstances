@@ -243,7 +243,7 @@ func dialecticRefsResolve(f record.Family) Check {
 // does NOT — only a GRADE or a DOCKET motion is about a gap, and its id lives one level down on
 // `Motion.grade.gap_id` / `Motion.docket.gap_id`. A RULING is not read here at all: it carries
 // only the ask's id, so the gap it settles is reachable solely through the filing this function
-// already checks. A petition or a direction motion is a dialectic act with no gap, which is why
+// already checks. A petition or an inquiry motion is a dialectic act with no gap, which is why
 // ok=true with an empty id is a real answer here and not a miss: the caller skips an empty id
 // exactly as it did when the payload had no such key.
 func dialecticGapID(e *record.Event) (string, bool) {

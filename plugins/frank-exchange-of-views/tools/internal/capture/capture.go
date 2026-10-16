@@ -1341,7 +1341,7 @@ type ruling struct {
 // was unharvestable by construction rather than by omission: the one verb whose entire purpose
 // is to state a holding could not reach the place holdings are promoted from.
 //
-// DELIBERATELY NOT HARVESTED: `motion-rule` on a grade or a direction. Those are rulings, and a
+// DELIBERATELY NOT HARVESTED: `motion-rule` on a grade or an inquiry. Those are rulings, and a
 // grade holding ("disclosure does not lower likelihood") reads like a rule — but the harvest
 // template's `question:` would have to be the motion's ask, which lives on the separate `motion`
 // event, and promoting a ruling without the ask it answered is how a holding loses its scope.
@@ -1386,7 +1386,7 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 			})
 		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			// Only the DOCKET and PETITION subjects reach the precedent harvest: a grade or
-			// direction ruling answers a motion the motions view renders with its ask beside it.
+			// inquiry ruling answers a motion the motions view renders with its ask beside it.
 			//
 			// THE SUBJECT IS THE ONEOF, not a string compare. Each subject's ruling carries its
 			// verdict on its own arm, so reading the arm IS the subject test — a grade ruling

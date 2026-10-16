@@ -25,7 +25,7 @@ func TestAFailedCallBecomesTheSeatsFailureEntry(t *testing.T) {
 		{"a Read at a guessed path", "Read", `{"file_path":"/run/references/catechism_template.md"}`,
 			"File does not exist. Note: your current working directory is /src.",
 			[]string{"`Read` failed on `/run/references/catechism_template.md`", "File does not exist."}},
-		{"the record tool's own refusal is its entry, not this", "Bash", `{"command":"feov-record avenue move --key AV1"}`,
+		{"the record tool's own refusal is its entry, not this", "Bash", `{"command":"feov-record inquiry record --key AV1"}`,
 			"Exit code 2\nfeov-record: unknown flag: --key", nil},
 		{"another tool's JSON failure is a failure", "Bash", `{"command":"some-tool --json"}`,
 			"Exit code 2\n{\"ok\":false}",

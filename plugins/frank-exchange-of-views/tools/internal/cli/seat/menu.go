@@ -17,15 +17,13 @@ import (
 //
 // # Why the refusal is the teaching channel at all
 //
-// MEASURED across nine probe sittings: seats do not learn this tool from `--help`. Every one of
-// them read it once or twice in twenty to forty tool calls. They learn it from REFUSALS — a seat
-// that guesses `blue avenue` is told the verb does not exist, and that is the moment it
-// finds out what it has.
+// Seats do not learn this tool from `--help`: they read it once or twice in twenty to forty tool
+// calls. They learn it from REFUSALS — a seat that guesses a verb is told so, and that is the
+// moment it finds out what it has.
 //
-// So the refusal was the primary channel and the LOSSY one. `blue --help` gives every verb with
-// what it does and its flags; the refusal gave fourteen bare names. A seat learns WHAT EXISTS and
-// never WHAT IT IS FOR, which is precisely the measured behaviour: seats use the verbs they can
-// name, in the ways they already assumed.
+// So the refusal is the primary channel and must not be the lossy one. `blue --help` gives every
+// verb with what it does and its flags; a refusal of bare names teaches WHAT EXISTS and never
+// WHAT IT IS FOR, and seats use the verbs they can name, in the ways they already assumed.
 //
 // # Why the diagnosis comes first
 //
@@ -193,7 +191,7 @@ func usageOf(c *cobra.Command, fs ...*pflag.Flag) string {
 //
 // `said` COMPLETES `--<flag> …`. Every Value this tree declares refuses with a predicate that names
 // what it was handed and what it takes — `"huge" is not a grade — use one of: …`, `takes one of
-// section|avenue|gap and was given nothing` — so the flag is written here once, from the parser's
+// section|inquiry|gap and was given nothing` — so the flag is written here once, from the parser's
 // field, and the parser's own wrapper (`invalid argument "x" for "--flag" flag: `) is not printed
 // in front of a sentence that already says both. A Value of the standard library's refuses in the
 // library's words (`strconv.ParseInt: parsing "abc": invalid syntax`); for those `said` is "" and

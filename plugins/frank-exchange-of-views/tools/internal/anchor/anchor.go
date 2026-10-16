@@ -67,7 +67,7 @@ var kinds = []kind{
 // otherIDs are the kinds of id the record mints that no anchor stands for. They take the one id
 // shape and a letter no anchor kind holds, so no id of one kind reads as an id of another.
 var otherIDs = []kind{
-	{name: "avenue", prefix: "Q-"},
+	{name: "inquiry", prefix: "Q-"},
 	{name: "motion", prefix: "M-"},
 }
 
@@ -111,10 +111,18 @@ func rowOf(id string) *kind {
 func Token(id string) string { return tokenOpen + rowOf(id).tag + ":" + id + tokenClose }
 
 // IDPattern is the one id matcher: a regular expression, unanchored and with no capture group,
-// matching an id of any of the named kinds — of any anchor kind when none is named.
+// matching an id of any of the named kinds — of any anchor kind when none is named. A name neither
+// table holds is the caller's defect, as it is for ID: it panics, naming the name, rather than
+// build a pattern that silently matches no id of that kind.
 func IDPattern(names ...string) string {
+	all := append(append([]kind{}, kinds...), otherIDs...)
+	for _, n := range names {
+		if !slices.ContainsFunc(all, func(k kind) bool { return k.name == n }) {
+			panic("anchor: no id kind " + n)
+		}
+	}
 	var alt []string
-	for _, k := range append(kinds, otherIDs...) {
+	for _, k := range all {
 		if slices.Contains(names, k.name) || len(names) == 0 && k.tag != "" {
 			alt = append(alt, regexp.QuoteMeta(k.prefix))
 		}

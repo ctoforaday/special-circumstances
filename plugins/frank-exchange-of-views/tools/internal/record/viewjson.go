@@ -1336,7 +1336,7 @@ type FindingJSON struct {
 	Impact     any    `json:"impact"`
 	Location   string `json:"location"`
 	// About names what this finding is anchored to when its subject is NOT in the report — a
-	// section it is missing from, an avenue whose stated reason is being argued against,
+	// section it is missing from, an inquiry whose question is being argued against,
 	// or a gap. Empty means the finding anchors to `location`, a live sentence.
 	//
 	// A chair reading this list needs to know which: a finding with no location is not one whose

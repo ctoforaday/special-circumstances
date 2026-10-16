@@ -64,8 +64,8 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Avenue{AvenueId: proto.String("Q1"),
-		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
+	if _, err := Append(blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
+		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(blue, &recordpb.BlueEdit{Answers: proto.String("G2"),
@@ -133,12 +133,12 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("the stranded refusal = %v, want the stranded pair named", err)
 	}
 
-	// requireAvenue: the proposed line resolves, an unknown one is refused.
-	if err := requireAvenue(recordOf(t, run), "Q1", "--id"); err != nil {
-		t.Errorf("requireAvenue(Q1) = %v", err)
+	// requireInquiry: the proposed inquiry resolves, an unknown one is refused.
+	if err := requireInquiry(recordOf(t, run), "Q1", "--id"); err != nil {
+		t.Errorf("requireInquiry(Q1) = %v", err)
 	}
-	if err := requireAvenue(recordOf(t, run), "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no avenue") {
-		t.Errorf("requireAvenue on an unknown id = %v, want the refusal", err)
+	if err := requireInquiry(recordOf(t, run), "Q9", "--id"); err == nil || !strings.Contains(err.Error(), "names no inquiry") {
+		t.Errorf("requireInquiry on an unknown id = %v, want the refusal", err)
 	}
 
 	// Estoppel: the byte-exact pair, the proof join, the edit's old span.

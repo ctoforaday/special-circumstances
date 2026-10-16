@@ -36,14 +36,14 @@ const (
 	BlockerLensReady     BlockerKind = "lens_ready"
 	BlockerStaleArea     BlockerKind = "stale_area"
 	BlockerUnruledMotion BlockerKind = "unruled_motion"
-	BlockerAvenueReview  BlockerKind = "avenue_review"
+	BlockerInquiryReview BlockerKind = "inquiry_review"
 )
 
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
 type Blocker struct {
 	Kind BlockerKind
 	// Subject is what holds it: a gap id, a claim, a lens seat, a motion id — "" for the kinds that
-	// are about the run as a whole (no_report, avenue_review).
+	// are about the run as a whole (no_report, inquiry_review).
 	Subject string
 	// Owner is the seat whose act clears it — the gap's minter, the lens that read the
 	// contradicting source, the ready lens, the motion's gavel-holder, the chair for its own
@@ -83,7 +83,7 @@ type blockerKind struct {
 	// on them. It is true for a kind that meets BOTH conditions: the stream alone answers it, so it
 	// can be asked of the record as it stood at a past sitting's end; and no act of the chair's own
 	// sitting moves it other than a motion it files or rules, after which it asks for its plan
-	// again. The gap kinds and the lens kinds read SQL as it stands now. The avenue review is the
+	// again. The gap kinds and the lens kinds read SQL as it stands now. The inquiry review is the
 	// chair's own act of the sitting that relays the plan: due when it asks, recorded before it
 	// ends, so a faithful relay would depart on it at every sitting.
 	relayHeld bool
@@ -293,16 +293,16 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: motion (%s) filed and never ruled — %s", b.Subject, b.Detail, planHold(b, "PASS is not permitted while it stands"))
 		},
 	},
-	// THE AVENUES ARE READ ONCE, EVERY EPOCH. One statement per epoch, not one per line: presence is
-	// not the question, because the lines are generated onto the page from the record. What the
+	// THE INQUIRIES ARE READ ONCE, EVERY EPOCH. One statement per epoch, not one per inquiry: presence is
+	// not the question, because the inquiries are generated onto the page from the record. What the
 	// read owes is a judgement on whether the BODY delivered them, and where it did not, a gap. The
 	// report is regenerated each epoch, so a review recorded before this epoch's edits answers a
 	// question about a document that no longer exists.
 	{
-		kind:  BlockerAvenueReview,
-		gloss: "no avenue review this epoch",
+		kind:  BlockerInquiryReview,
+		gloss: "no inquiry review this epoch",
 		item: func(Blocker) string {
-			return "the report's account of its own research has not been read this epoch — PASS is refused until one `avenue review` says what the read found"
+			return "the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry review` says what the read found"
 		},
 		// THE SHORTFALL IS A DEFECT THE CHAIR FOUND, and the chair mints nothing: this refusal told
 		// it to "MINT A GAP" and to "issue `--as FAIL`" otherwise, and the chair reads it alone. It
@@ -310,17 +310,17 @@ var blockerKinds = []blockerKind{
 		// is refused too (requireFailIsNotConvergent). Where a shortfall stops the chair, it weighs it
 		// like any defect it finds; the stopping judgment in its constitution says where that goes.
 		refusal: func([]Blocker) string {
-			return "this epoch has no avenue review. " +
+			return "this epoch has no inquiry review. " +
 				"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
-				"`show avenues`, and answer in one act: `avenue review --reason \"<what the report " +
-				"says at those avenues>\"`. Where an avenue's research is thin, missing or unsupported by the text, " +
+				"`show inquiries`, and answer in one act: `inquiry review --reason \"<what the report " +
+				"says at those inquiries>\"`. Where an inquiry's research is thin, missing or unsupported by the text, " +
 				"that shortfall is a defect you found, weighed before your verdict like any other; this " +
 				"event only records that the read happened, because an absent review reads exactly like a sound " +
 				"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
 				"of the report; record the review before a PASS"
 		},
 		why: func(b Blocker) string {
-			return "this epoch has no avenue review — " + planHold(b, "PASS is not permitted until one is recorded")
+			return "this epoch has no inquiry review — " + planHold(b, "PASS is not permitted until one is recorded")
 		},
 	},
 }
@@ -413,7 +413,7 @@ func kindRank(k BlockerKind) int {
 
 // eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
 // contradiction no finding raises, a citation or proof unchecked since its sentence changed, no
-// ingested report, an unruled motion, an avenue review not yet recorded this epoch. ids is evs's
+// ingested report, an unruled motion, an inquiry review not yet recorded this epoch. ids is evs's
 // places, aligned with it.
 //
 // IT ANSWERS FOR THE STREAM IT IS HANDED. Asked of a prefix of the record, it says what held a PASS
@@ -440,8 +440,8 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 		out = append(out, Blocker{Kind: BlockerNoReport})
 	}
 	out = append(out, unruledMotionBlockers(evs, ids, win)...)
-	if AvenueReviewDueOf(evs, win) {
-		out = append(out, Blocker{Kind: BlockerAvenueReview, Owner: chairSeat})
+	if InquiryReviewDueOf(evs, win) {
+		out = append(out, Blocker{Kind: BlockerInquiryReview, Owner: chairSeat})
 	}
 	return out
 }

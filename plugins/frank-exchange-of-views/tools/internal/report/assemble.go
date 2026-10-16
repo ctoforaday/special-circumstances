@@ -11,7 +11,7 @@
 //     it never writes them. A missing one is never filled in: it ships nothing (layout.go).
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
-//     matrix (the board), the three research areas (avenue events by fate), the red
+//     matrix (the board), the three research areas (inquiry events by fate), the red
 //     findings (the board's gaps), and the debate transcript (position/closing/motion/
 //     motion-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
@@ -595,10 +595,10 @@ func truncateRunes(s string, n int) string {
 
 // THE LIFECYCLE OF A RESEARCH TOPIC, in the three descriptive areas a reader gets:
 //
-//	Research areas               the approaches the research RAN: `pursued` (running), `concluded`
+//	Research areas               the approaches the research RAN: `underway` (running), `confirmed`
 //	                             (ran, the hypothesis held) and `refuted` (ran, the hypothesis was
 //	                             refuted) — a refutation is an answer, and it stands beside the
-//	                             confirmations. AND `proposed`: a line put forward and not yet
+//	                             confirmations. AND `proposed`: an inquiry put forward and not yet
 //	                             resolved is research this run has taken on, and its row carries
 //	                             the undecided state so the heading does not have to lie about it.
 //	Future research directions   `deferred` — "worth taking, and not by THIS run". KEPT, not set
@@ -607,98 +607,95 @@ func truncateRunes(s string, n int) string {
 //	Alternatives considered      `declined` (weighed, never run) and `abandoned` (started, and no
 //	                             answer came).
 //
-// # It rendered TWO, and the missing ones made the report say something false
+// # Every fate has a section
 //
-// Taking the set-aside lines as the complement of `pursued` puts `deferred` AND `proposed` under
-// "Alternatives considered" — wrong in a way no reader can detect, since only the `[deferred]`
-// tag on the row contradicts the heading above it. Narrowing the pair instead makes them vanish
-// from the report entirely, which is the failure the status enum's own Why warns about ("it
-// silently vanishes from the section that exists to show the roads not taken").
+// Taking the set-aside inquiries as the complement of `underway` would put `deferred` AND
+// `proposed` under "Alternatives considered" — wrong in a way no reader can detect, since only the
+// `[deferred]` tag on the row contradicts the heading above it. Narrowing the pair instead makes
+// them vanish from the report entirely, which is the failure the status enum's own Why warns about
+// ("it silently vanishes from the section that exists to show the roads not taken").
 //
-// # `proposed` is a research area, and both alternatives were worse
+// # `proposed` is a research area
 //
-// A first cut excluded `proposed` from every section, arguing a heading announces a fate and an
-// undecided line has none. TestFuzzDebate failed six seeds with `avenue prose absent from report`,
-// and that invariant wins: a seat's recorded reasoning must reach the reader. A second cut gave it
-// a fourth section. Three is the decision — a line blue put forward IS an area this run is
-// researching, and red's per-epoch support verdict is what stops it sitting there undecided,
-// rather than a heading that describes the omission.
+// Excluding `proposed` from every section would argue that a heading announces a fate and an
+// undecided inquiry has none; but the fuzz invariant `prose absent from report` holds, and a
+// seat's recorded reasoning must reach the reader. A fourth section is no answer either. Three is
+// the decision — an inquiry blue put forward IS an area this run is researching, and red's
+// per-epoch inquiry review is what stops it sitting there undecided, rather than a heading that
+// describes the omission.
 //
 // setAside stays a COMPLEMENT so a status no predicate names cannot silently match nothing. The
 // fate `refuted` is NOT set aside: it is named in ran, with the other approaches that ran.
 //
-// The sentence a seat reads is written from these three predicates: AvenueSections, in layout.go.
+// The sentence a seat reads is written from these three predicates: InquirySections, in layout.go.
 func taken(status string) bool { return ran(status) || status == "proposed" }
 
 // ran is the fates of an approach that RAN: its reason is what it FOUND, where the reason of any
 // other is WHY it stands where it does.
 func ran(status string) bool {
-	return status == "pursued" || status == "concluded" || status == "refuted"
+	return status == "underway" || status == "confirmed" || status == "refuted"
 }
 func deferred(status string) bool { return status == "deferred" }
 
 func setAside(status string) bool { return !taken(status) && !deferred(status) }
 
-// avenues renders the avenue LIFECYCLE under the given heading — replayed state, one row per
-// avenue, not one row per event. Reading raw events double-listed every avenue that MOVED: a
-// line pursued at r0 and abandoned at r2 rendered under both headings at once, as an expansion
-// and as an alternative to itself.
+// inquiries renders the inquiry LIFECYCLE under the given heading — replayed state, one row per
+// inquiry, not one row per event. Reading raw events would double-list every inquiry whose fate
+// changed: one underway at r0 and abandoned at r2 would render under both headings at once, as an
+// expansion and as an alternative to itself.
 //
-// A ROW SAYS FOUR THINGS, EACH UNDER ITS OWN LABEL: the question the avenue asks, the hypothesis
-// that was tested, the fate, and what was found. The row was `- **line** _(method)_ [fate] —
-// reason`, with the hypothesis recorded and never printed. A line that carried a predicted result
-// then stood in bold beside a finding that contradicted it, and read as a claim of the report's:
-// four shipped reports (universe-m7, m12, m19, m22) hold such a row. Labelled, the question is a
-// question and the hypothesis is a hypothesis whatever became of it.
+// A ROW SAYS FOUR THINGS, EACH UNDER ITS OWN LABEL: the question the inquiry asks, the hypothesis
+// that was tested, the fate, and what was found. Labelled, the question is a question and the
+// hypothesis is a hypothesis whatever became of it; an unlabelled bold text carrying a predicted
+// result beside a finding that contradicts it would read as a claim of the report's.
 //
-// A ROW IS IN THE SUBJECT'S TERMS — and says nothing about who or how. It used
-// to append the id of the seat that last moved the line, the epoch-by-epoch status history, red's
-// ruling with its opinion, and a sentence that blue had moved against that ruling. All four are
-// the DEBATE, not the subject, and all four are reconstructable from the ledger, so none of them is
-// report text: avenues.md (view.AvenueBody) ships the seat, path and ruling, and
-// judgments.md the ruling's opinion with the other motions. The fate word
-// itself stays, because it is subject content: `refuted` means the approach ran and its hypothesis did not hold. What a reader of the report
-// needs is which lines the research followed, which it kept for later, and which it weighed and
-// set down, each with the reason in its own words.
-func avenues(a *assembly, s Section) string {
+// A ROW IS IN THE SUBJECT'S TERMS — and says nothing about who or how. The id of the seat that
+// recorded the fate, the epoch-by-epoch status history, red's ruling with its opinion, and whether
+// blue recorded a fate against that ruling are the DEBATE, not the subject, and all are
+// reconstructable from the ledger, so none of them is report text: inquiries.md
+// (view.InquiryBody) ships the seat, path and ruling, and judgments.md the ruling's opinion with
+// the other motions. The fate word itself stays, because it is subject content: `refuted` means
+// the approach ran and its hypothesis did not hold. What a reader of the report needs is which
+// inquiries the research followed, which it kept for later, and which it weighed and set down,
+// each with the reason in its own words.
+func inquiries(a *assembly, s Section) string {
 	fam, want := a.fam, s.fate
 	var rows []string
-	for _, a := range record.AvenuesOf(fam.Events, fam.At) {
+	for _, a := range record.InquiriesOf(fam.Events, fam.At) {
 		if !want(a.Status) {
 			continue
 		}
-		row := "- **Question:** " + inItem(a.Line, "  ")
+		row := "- **Question:** " + inItem(a.Question, "  ")
 		if a.Method != "" {
 			row += fmt.Sprintf(" _(%s)_", a.Method)
 		}
 		if a.Hypothesis != "" {
 			row += "\n  - **Hypothesis:** " + inItem(a.Hypothesis, "    ")
 		}
-		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. A line
+		// THE FATE IS THE WORD THE SEAT RECORDED, AND NOTHING IS READ INTO THE PATH TO IT. An inquiry
 		// abandoned straight from `proposed` was started and gave no answer by the fate's own meaning,
-		// exactly as one concluded or refuted straight from `proposed` ran; a missing `pursued` step is
-		// a move the seat did not record, which is the debate's fact and renders in avenues.md.
+		// exactly as one confirmed or refuted straight from `proposed` ran; a missing `underway` step is
+		// a fate the seat did not record, which is the debate's fact and renders in inquiries.md.
 		row += "\n  - **Fate:** " + a.Status + "."
-		// A PROPOSAL'S REASON IS ITS LINE: `avenue propose` writes the one text to both fields, so
-		// until the avenue is moved there is nothing found, and the question is not printed twice.
-		if a.Reason != "" && a.Reason != a.Line {
+		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
+		if a.Reason != "" {
 			label := "Why"
 			if ran(a.Status) {
 				label = "Found"
 			}
 			row += fmt.Sprintf(" **%s:** %s", label, inItem(a.Reason, "    "))
 		}
-		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
-		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`
-		// verdict on each line — a vocabulary that made PRESENCE the question. Presence is not a
-		// question: the lines reach the report on the WORKLIST generated from this projection, so
-		// blue cannot cut them, and what remains (did blue's body deliver the research) is an
-		// ORDINARY GAP that renders under The board with an id, a grade and a PASS gate.
-		// record.Avenue's own header states the same decision from the projection's side.
+		// THERE IS NO PER-INQUIRY SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
+		// FEATURE. A per-epoch `supported`/`weakened`/`unsupported`/`absent` verdict on each
+		// inquiry would make PRESENCE the question. Presence is not a question: the inquiries reach
+		// the report on the WORKLIST generated from this projection, so blue cannot cut them, and
+		// what remains (did blue's body deliver the research) is an ORDINARY GAP that renders under
+		// The board with an id, a grade and a PASS gate. record.Inquiry's own header states the
+		// same decision from the projection's side.
 		//
-		// What replaced it is ONE per-epoch `AvenueReview`, read by record.AvenueReviewDue.
-		// Whether the report should carry a line saying that read happened — and where — is a
-		// composition decision, not a conversion, so nothing is invented here.
+		// The one per-epoch read is `InquiryReview`, read by record.InquiryReviewDue. Whether the
+		// report should carry a line saying that read happened — and where — is a composition
+		// decision, not a conversion, so nothing is invented here.
 		rows = append(rows, row)
 	}
 	body := "_(none on the record)_"

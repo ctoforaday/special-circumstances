@@ -132,7 +132,7 @@ type Found struct {
 }
 
 // String is how every advising verb names a match to a seat — blue's edits, cites, proofs and
-// avenues, and red's mints and corroborations. One formatter, so a seat hearing the same advice
+// inquiries, and red's mints and corroborations. One formatter, so a seat hearing the same advice
 // from two verbs hears it in the same words.
 func (f Found) String() string {
 	return fmt.Sprintf("%q reads as %s — %s", f.Match, f.Class, f.Redirect)

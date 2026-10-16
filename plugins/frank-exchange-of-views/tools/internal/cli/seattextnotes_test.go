@@ -27,8 +27,8 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		"--script", script, "--reason", "an empty body parses to nothing, which the class [^\\s] never matches"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "avenue", "propose", "--run", runDir, "--seat-id", "blue-respond",
-		"--reason", "whether a tokenizer built on [^,]+ splits an empty field", "--hypothesis", "it does not"); err != nil {
+	if _, err := runAt(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
+		"--question", "whether a tokenizer built on [^,]+ splits an empty field", "--hypothesis", "it does not"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence", "--quote", sentence,
@@ -63,7 +63,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		t.Errorf("the run document does not carry the log entry's words escaped:\n%s", r)
 	}
 	// THE THREE WRITERS OUTSIDE THE TABLE: the note the weave defines, which carries blue's words
-	// after the tool's label; the evidence document's heading for the same proof; and the avenues
+	// after the tool's label; the evidence document's heading for the same proof; and the inquiries
 	// document.
 	if rep := body[report.FileReport]; !strings.Contains(rep, `which the class \[^\s] never matches`) {
 		t.Errorf("the proof note's definition carries blue's words as a second reference:\n%s", rep)
@@ -71,8 +71,8 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 	if ev := body[report.FileEvidence]; !strings.Contains(ev, `\[^\s]`) || strings.Contains(strings.ReplaceAll(ev, `\[^`, ""), "[^\\s]") {
 		t.Errorf("the evidence document carries the proof's note unescaped:\n%.600s", ev)
 	}
-	if av := body[report.FileAvenues]; !strings.Contains(av, `built on \[^,]+ splits`) {
-		t.Errorf("the avenues document carries the avenue's words unescaped:\n%s", av)
+	if av := body[report.FileInquiries]; !strings.Contains(av, `built on \[^,]+ splits`) {
+		t.Errorf("the inquiries document carries the inquiry's words unescaped:\n%s", av)
 	}
 	if a := capture.FootnoteIntegrity(runtest.Open(t, set)); a.Verdict != "PASS" {
 		t.Errorf("the set a finding and a log entry were printed into fails the footnote audit: %s", a.Detail)

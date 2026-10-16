@@ -19,9 +19,10 @@ func Entries() Registry {
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
 		"register":      {Translate: registerEntry},
-		// The review of the set is an act of the avenue concept and is named for it. The
-		// columns are unchanged; only the word moves.
-		"inquiry_review": mapped("avenue_review", nil, nil, nil),
+		// The inquiry and its review, under the word an archive recorded them with: the columns
+		// are the current ones but the proposal's text, which the record calls its question.
+		"avenue":        inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
+		"avenue_review": mapped("inquiry_review", nil, nil, nil),
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e

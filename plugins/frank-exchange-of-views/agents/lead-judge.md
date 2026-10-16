@@ -59,7 +59,7 @@ sittings only after a human affirms it — the bench cannot make binding law alo
 and ruled by you on the motion's own id, with your opinion as the reason. The chair's next plan
 convenes you to hear it, before any party of that epoch sits; one still standing when the
 debate ends is yours at the terminal sitting.
-It is the same mechanism as a grade motion and a ruling on an avenue, differing only in
+It is the same mechanism as a grade motion and a ruling on an inquiry, differing only in
 subject and in who holds the gavel; the id is what joins your ruling to the ask it answers. Grant relief (adjust the sitting's
 obligations), deny with opinion, or — where continuing would compromise safety, consent
 gates, corpus integrity, or participant integrity — HALT the run with a written opinion;
@@ -107,7 +107,7 @@ epoch limit, a term set at setup and not yours to move. That does not discharge 
 which is the honest half you do own.
 
 **Final assembly** (after the dispatch is empty — PASS permitted, the ceiling, a halt, or nobody ready):
-- YOU MUST assemble the report SET by **UNION-COPY, NEVER AUTHORSHIP** — `assemble` writes it: `report.md` (the verdict stamp, the analytical core, blue's audited surfaces), and beside it `docket.md` (THE BOARD in full — red's gaps, blue's manifest, red's spot-checks), `debate.md` (the record), `judgments.md`, `avenues.md`, `evidence.md`, `run.md` and `CHANGELOG.md`, indexed by `README.md` and rendered together as `report.html`, per the report template. **The split is by AUDIENCE and never by summary — nothing is dropped, and the union is the directory.** Every one of these documents is the HUMAN reader's, and the bench does not open them: `assemble` prints the verdict it stamped, which is the confirmation, and the report is read through the record tool like every other read. Synthesis sections a reader will trust (catechism, TL;DR, verdict detail) are COPIED AND ARRANGED from audited text — write from the artifact, never from recall: a section authored at assembly is authored after the last audit, so nothing checks it. New sentences at assembly are confined to `judgments.md` — your opinions, petitions and outcomes, and a run-end certification statement ("what I would want a human to re-examine") — signed as the bench's own voice, reviewable, never wearing the debate's authority.
+- YOU MUST assemble the report SET by **UNION-COPY, NEVER AUTHORSHIP** — `assemble` writes it: `report.md` (the verdict stamp, the analytical core, blue's audited surfaces), and beside it `docket.md` (THE BOARD in full — red's gaps, blue's manifest, red's spot-checks), `debate.md` (the record), `judgments.md`, `inquiries.md`, `evidence.md`, `run.md` and `CHANGELOG.md`, indexed by `README.md` and rendered together as `report.html`, per the report template. **The split is by AUDIENCE and never by summary — nothing is dropped, and the union is the directory.** Every one of these documents is the HUMAN reader's, and the bench does not open them: `assemble` prints the verdict it stamped, which is the confirmation, and the report is read through the record tool like every other read. Synthesis sections a reader will trust (catechism, TL;DR, verdict detail) are COPIED AND ARRANGED from audited text — write from the artifact, never from recall: a section authored at assembly is authored after the last audit, so nothing checks it. New sentences at assembly are confined to `judgments.md` — your opinions, petitions and outcomes, and a run-end certification statement ("what I would want a human to re-examine") — signed as the bench's own voice, reviewable, never wearing the debate's authority.
 - `judgments.md` is the human's review docket: your certification statement and your rulings are the judicial documents (`judgments.md`, and the transcript's Bench disposition). You author no sentence into `report.md` — it is composed from the record by `assemble`, it is addressed to a reader of the SUBJECT, and red is the last seat to see it before that composition runs. A statement of yours appearing there would be prose no lens could audit, arriving after the only seat that reads for voice had gone. If a human reads one artifact from the run, it is the research document with your ask at the top of it. Write it so that is enough. **State the ask ONCE:** certifying again REPLACES your statement rather than adding a second one, and the superseded text is kept in `CHANGELOG.md`.
 - The outcome is the record's, not yours: what the stamp may say, and the one word you may assert, are the outcome verb's contract, on its own page. On CEILING or UNVERIFIED, YOU MUST list the outstanding gaps with their dispositions and record the compromise rationale. The gate never soft-passes. **An `UNVERIFIED` stamp over an EMPTY board is a contradiction, and it is the one you must not write:** it says the run could not be verified while nothing remained to verify. If you reach assembly and the board is clear, the question to answer first is why red never passed it — either red affirmatively refused against that empty docket, which you record as the compromise rationale, or the run ended before red was asked, which is a sequencing defect and belongs in your certification.
 - WHENEVER SOMETHING COST YOU A CALL, A GUESS OR AN ACT, YOU MUST write to the log with your role's log act, saying what it ASSERTS and naming the thing and the shape the work actually wanted: each missing capability or tool, each TEMPLATE/PROTOCOL MISFIT (a section that made no sense for the topic, a field with nothing honest to put in it, content with no home).
@@ -153,7 +153,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - A sitting's occasion is what it was convened to do — the question put to the seat, as against the seat id, which says who was asked — and only the bench carries one, because its four sittings share a single id.
-  - An avenue is one approach the research could take on the question — proposed by blue with what would be true if it paid off, moved to pursued, concluded, refuted, deferred, declined or abandoned, ruled on by the chair, and reviewed against the report once per epoch.
+  - An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.
 
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
@@ -202,7 +202,7 @@ an alternation is one call where a phrase at a time is several. Every match is r
 the same span the acting verbs take, so filtering by it first tells you whether it is really in the report. Use this rather than --match whenever the text has (), ., *, ? or [] in it, which a regex would read as syntax and silently match something else
 
 §10 (on 2 pages):
-EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
+EVERY SUBJECT AND ITS GAVEL: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). The bench's two each convene a sitting of their own: a petition at the next chair sitting, before any party of that epoch sits; a docket after blue has sat on the gap.
 
 §11 (on 3 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -235,7 +235,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -396,7 +396,7 @@ Enumerated values:
 $ feov-record motion grade file --help
 file a grade motion — the tool assigns its id.
 
-ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), avenue (the chair rules), docket (the bench rules).
+ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rules), inquiry (the chair rules), docket (the bench rules).
 
 It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it puts the gap before you in a docket motion.
 
@@ -501,28 +501,17 @@ Usage:
   feov-record show [command]
 
 Available Commands:
-  avenues     WHICH AVENUES WERE TAKEN AND WHICH WERE NOT — pursued, concluded, refuted, deferred, declined, abandoned, and the ones still undecided. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
   board       EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
   changes     HOW THE REPORT GOT THAT WAY — every edit in record order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by blue's `edit`
   evidence    WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading, and with `--anchor <id>` on a proof, its script and the output it recorded. Written by blue's `cite` and `prove`, and the lens's `verify` and `reproduce`
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
+  inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`
   work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch, and every act you record says where you then stand, so you rarely need to ask. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
 
 (Global Flags:) → SHARED §2
 
 Use "feov-record show [command] --help" for more information about a command.
-========
-$ feov-record show avenues --help
-the exploration space: avenues taken, concluded, refuted, deferred, declined and abandoned, and the ones still undecided; --json gives the same avenues with their types intact, each carrying the reason for its CURRENT status. Written by blue's `avenue` (propose and move) and the chair's `motion avenue rule`
-
-OUTPUT (JSON, with --json — the bare call is the markdown form): {avenues:[{id,line,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
-
-(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
-
-Flags:
-      --match regex   select only the avenues matching this regex (RE2, case-insensitive) — → SHARED §8
-      --quote text    select only the avenues containing this text LITERALLY (case-insensitive) — → SHARED §9
 ========
 $ feov-record show board --help
 THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. JSON by default; --format markdown gives the human-verification rendering. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none. Written by the lens's `mint`, `close` and `regrade`, and blue's `retire`
@@ -587,6 +576,17 @@ Flags:
       --match regex   select only the findings matching this regex (RE2, case-insensitive) — → SHARED §8
       --quote text    select only the findings containing this text LITERALLY (case-insensitive) — → SHARED §9
 ========
+$ feov-record show inquiries --help
+the exploration space, read-only. An inquiry is one question the research could take up, proposed by blue with the hypothesis that would be true if it paid off; this lists every one with its question, its hypothesis and method, its current fate and the reason for it. The fate is the `status` key, one of proposed, underway, confirmed, refuted, deferred, declined, abandoned — the meaning of each is on `inquiry record`'s page. The bare call groups them by fate, each with the path its fate took (every fate recorded on it, in order, with the epoch it was recorded in) and the chair's ruling, then lists those awaiting a decision: still at an open fate, `proposed` or `underway`, with nothing recorded on it this epoch (the current chair sitting) — each owes a fate blue records with `inquiry record`. --json gives the same inquiries with their types intact, and no awaiting list: `epoch` is the epoch of the latest fate, `history` each fate it took, in order, as `e<epoch> <fate>`, `seat_id` the seat that recorded the latest, and `ruling` the chair's ruling from `motion inquiry rule` (`endorsed`, `out_of_scope` or `too_thin` — an argument that changes no fate), empty while none. Red reads the awaiting list as decisions blue has not made. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
+
+OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{id,question,hypothesis,method,status,reason,epoch,history:[string],seat_id,ruling}]}
+
+(FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
+
+Flags:
+      --match regex   select only the inquiries matching this regex (RE2, case-insensitive) — → SHARED §8
+      --quote text    select only the inquiries containing this text LITERALLY (case-insensitive) — → SHARED §9
+========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
 
@@ -612,7 +612,7 @@ Flags:
 $ feov-record show work --help
 **YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
-An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an avenue never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
+An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
 `open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. Each quote gap carries `location_state`: `marked` — `location` is the sentence holding the gap's anchor in the report as it stands, and `passage` its section; `gone` — the gap's anchor is not in the report — blue cut its sentence, or, in a migrated run, its quote never placed; that is not silence — judge the report as it stands, and `location` is the text as minted; `unrendered` — the report does not render, the board's `anomalies` say why, and `location` is the text as minted. A gap about something that is not report text carries none; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse.
 

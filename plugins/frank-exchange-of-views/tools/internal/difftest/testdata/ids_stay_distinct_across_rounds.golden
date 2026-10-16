@@ -105,10 +105,10 @@ motion MOTION001 ruled rejected
 {"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"MOTION001","opinion":"the consequence stands","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_MOTION_RULE"}
 
 ═══ RENDERS ═══
--- avenues
-# Avenues — RENDERED PROJECTION (source of truth: the record, records/record.db)
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No avenues recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
