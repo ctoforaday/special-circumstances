@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -35,6 +36,14 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	to, err := destination(toDir)
 	if err != nil {
 		return nil, err
+	}
+	// --to INSIDE --from IS REFUSED. The channel copy walks the source while the build grows beside
+	// --to, so a build inside the source is a directory the walk copies into itself until a path
+	// is too long — and the source is modified while it runs.
+	if from, err := filepath.Abs(filepath.Clean(fromDir)); err == nil {
+		if rel, err := filepath.Rel(from, to); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("--to %s is inside --from %s — a migration never writes into the run it reads", to, from)
+		}
 	}
 	b, err := newBuild(to)
 	if err != nil {
@@ -93,19 +102,20 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 	// tells the operator to delete — and not a copy of the source record somewhere else nobody is
 	// told about (a system temp directory did that). Removed before the publish, so the published
 	// run holds exactly the file set the migration writes.
-	release := func() {}
-	defer func() { release() }()
+	// A release that fails is an error, never ignored: a scratch copy left in the build would be
+	// synced and published as part of the run.
+	release := func() error { return nil }
+	defer func() { _ = release() }()
 	if _, serr := os.Stat(filepath.Join(fromDir, "records", dbSiblings[0])); serr == nil {
 		scratch := filepath.Join(toDir, ".migrate-src")
-		release = func() { os.RemoveAll(scratch) }
+		release = func() error { return os.RemoveAll(scratch) }
 		sq, err := OpenSQLite(filepath.Join(fromDir, "records"), scratch)
 		if err != nil {
 			return nil, err
 		}
 		src = sq
-		release = func() {
-			sq.Close()
-			os.RemoveAll(scratch)
+		release = func() error {
+			return errors.Join(sq.Close(), os.RemoveAll(scratch))
 		}
 	} else {
 		js, err := OpenJSONL(filepath.Join(fromDir, "records"))
@@ -148,8 +158,11 @@ func (b *build) fill(fromDir string, reg Registry, opt Options) (*Manifest, erro
 	}
 	// The source is released before the publish, not at return: nothing of it may be open or on
 	// disk when the run is synced and moved.
-	release()
-	release = func() {}
+	if err := release(); err != nil {
+		release = func() error { return nil }
+		return nil, fmt.Errorf("removing the source's scratch copy from the run before it is published: %w", err)
+	}
+	release = func() error { return nil }
 	m := NewManifest(fromDir, src.Files(), unclassified, res)
 	m.Discarded = discarded
 	m.SeatTurns = carried

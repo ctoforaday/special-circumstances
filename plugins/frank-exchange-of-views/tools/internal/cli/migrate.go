@@ -44,7 +44,7 @@ func newMigrate() *cobra.Command {
 			"Its directory entries are synced where the filesystem allows — best effort: a directory that could not be " +
 			"synced is a warning on stderr, and on Windows none are. A leftover .<name>.migrating-<random> directory beside " +
 			"--to is what an interrupted migration left behind; nothing reads it and nothing removes it, and it is safe to " +
-			"delete by hand.\n\n" +
+			"delete by hand when no migration is running.\n\n" +
 			"--to must be absent, or an empty plain directory — not a link, a junction or a mount point — in a parent you " +
 			"can write, with a base name short enough to take the .migrating-<random> suffix. A separated record root (" +
 			record.RecordRootEnv + " set) is refused. An existing empty --to is REPLACED, not filled: its mode, owner and " +

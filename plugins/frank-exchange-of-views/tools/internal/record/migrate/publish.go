@@ -22,7 +22,7 @@ import (
 // synced, and one rename publishes it: an interrupted migration leaves --to as it was, and the
 // partial work sits in a `.<base>.migrating-<random>` sibling that nothing reads. Nothing removes a
 // leftover sibling automatically either — that would delete directories by name, an operator's
-// included — so the help names it and says it is safe to delete by hand.
+// included — so the help names it and says it is safe to delete by hand when no migration is running.
 //
 // The three seams below are the publish's only effects on the filesystem beyond the build itself,
 // and are variables so a test can record their order and make each one fail.

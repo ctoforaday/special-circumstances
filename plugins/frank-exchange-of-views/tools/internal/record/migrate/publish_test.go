@@ -159,6 +159,12 @@ func TestThePublishSyncsEveryFileBeforeTheRename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
+	// SEALED: every handle was closed before the publish, so the record carries no write-ahead log.
+	for _, name := range []string{"record.db-wal", "record.db-shm"} {
+		if _, err := os.Stat(filepath.Join(to, "records", name)); err == nil {
+			t.Errorf("the published record has %s — a handle was still open when it was published", name)
+		}
+	}
 	renames := slices.IndexFunc(*calls, func(c seamCall) bool { return c.op == "rename" })
 	if renames < 0 {
 		t.Fatal("no rename was recorded")
@@ -733,5 +739,19 @@ func TestAKilledMigrationLeavesToAsItWas(t *testing.T) {
 	}
 	if after := builds(t, to); !slices.Equal(after, first) {
 		t.Errorf("the killed migration's build was touched — nothing reaps one: before %v, after %v", first, after)
+	}
+}
+
+// A --to inside --from is refused before anything is written: the channel copy would walk into the
+// build it is writing, and the source would be modified while it runs.
+func TestAToInsideFromIsRefused(t *testing.T) {
+	src := tinySource(t, false)
+	before := listingString(t, src)
+	_, err := Migrate(src, filepath.Join(src, "migrated"), Entries(), Options{})
+	if err == nil || !strings.Contains(err.Error(), "inside --from") {
+		t.Fatalf("Migrate = %v, want a refusal naming --from", err)
+	}
+	if after := listingString(t, src); after != before {
+		t.Errorf("the source changed:\nbefore %s\nafter  %s", before, after)
 	}
 }
