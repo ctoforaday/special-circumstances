@@ -81,7 +81,7 @@ internal/record/migrate/
   publish_unix.go       [NEW]     //go:build unix: renameDir as rename(2) with EINTR retry; directory fsync; same-device check
   publish_windows.go    [NEW]     renameDir as RemoveDirectory then os.Rename; no directory fsync
   publish_test.go       [NEW]
-  sqlitesource.go       [MODIFY]  the source's scratch copy lives outside the stage
+  migrate.go also refuses a --to inside --from (found in review, #1386)
 internal/record/recordroot_test.go [MODIFY]  RecordRootSet agrees with RecordsDir
 internal/cli/migrate.go [MODIFY]  help sentence, --to flag text, warnings printed to stderr
 internal/cli/migrate_test.go [NEW]  the verb's warning printer writes each warning to stderr, with and without --json
@@ -136,12 +136,15 @@ internal/difftest/testdata/manual_runs_every_help_page_live.golden [REGENERATE]
    user makes `rename(2)` fail EPERM after the build, the stage kept. Everything `Migrate` writes today goes to `stage` instead of `--to`:
    channels, the registry translation, `record.NewRun`, the replay (including `replayInOrder`'s
    close-delete-rebuild at `order.go:62`), seat turns, the manifest.
-2. **The source's scratch copy leaves the destination.** Today `scratch :=
+2. **The source's scratch copy is gone before the publish.** Today `scratch :=
    filepath.Join(toDir, ".migrate-src")` (`migrate.go:41`), opened by a plain `sql.Open` outside
-   the cache (`sqlitesource.go:65`) and removed by a `defer` after return. It moves to
-   `os.MkdirTemp("", "feov-migrate-src-")`, and the source is closed and the scratch removed
-   explicitly BEFORE the publish step, not in a defer. The published run must hold exactly the file
-   set today's `Migrate` leaves (M4).
+   the cache (`sqlitesource.go:65`) and removed by a `defer` after return — after the publish, under
+   staging. It stays inside the build, and the source is closed and the scratch removed BEFORE the
+   publish step; a removal that fails is an error, so the copy is never synced or published. The
+   published run must hold exactly the file set today's `Migrate` leaves (M4). (Amended in
+   implementation, #1386: the plan first moved the copy to `os.MkdirTemp`, and verification found
+   a killed migration then left a copy of the source record in the system temp directory, named
+   nowhere. Inside the build, a killed migration leaves exactly the directory the help names.)
 3. **Sync the tree, then publish.** In order, on success and on the refusal path (which today
    publishes its manifest into `--to` and returns the error, and still does):
    1. `recordsql.CloseUnder(stage)` — every handle under the stage closed, so SQLite has written
@@ -374,5 +377,7 @@ git grep -nE 'RecordsDir\(' -- plugins/frank-exchange-of-views/tools
    mount point needs privilege) — stated residue, by ruling. On the Windows leg, a junction at
    `--to` (made with `mklink /J`, skipped if that is unavailable) is refused and its target
    untouched.
-8. Notes carried: the source's scratch copy now lands in `os.TempDir`, which on a tmpfs `/tmp` is
-    RAM; archives are megabytes, so this is a comment at `sqlitesource.go`, not a mechanism.
+8. The source's scratch copy, inside the build, is gone before the publish: a test with a SQLite
+   source (the shard-era archive the sync-order test uses has no copy) asserts it is neither synced
+   nor present at the rename nor in the published run, and the copy of a killed migration is inside
+   the build it left. A `--to` inside `--from` is refused and the source is unchanged.
