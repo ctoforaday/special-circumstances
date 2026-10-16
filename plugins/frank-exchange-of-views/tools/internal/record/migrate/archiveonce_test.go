@@ -64,8 +64,10 @@ func MigratedArchive(t *testing.T, name string) (*Manifest, string) {
 		}
 		e.dir = dir
 		e.manifest, e.err = Migrate(src, dir, Entries(), Options{})
-		// Migrate leaves the destination's handle in the record layer's cache, keyed by path. A
-		// copy taken under it is not the record, and the handle would outlive the store.
+		// Migrate closes every handle under the directory it built before it publishes it, so the
+		// record layer's cache holds nothing for the destination and this finds nothing open. It is
+		// kept because a copy taken under an open handle is not the record, and a handle left in
+		// the cache would outlive the store.
 		if cerr := recordsql.CloseUnder(dir); cerr != nil && e.err == nil {
 			e.err = cerr
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
@@ -36,7 +37,20 @@ func newMigrate() *cobra.Command {
 			"THE REPORT'S TEXT IS BROUGHT INTO THE ORDER IT SHIPS IN (" + report.TextOrder + "), where that moves whole sections and " +
 			"nothing else: the base is reordered and every act replayed over it, and the result is kept when no act is refused and " +
 			"the acts give the same text section for section. Otherwise the record is replayed as written and its text keeps its " +
-			"author's order. The manifest's report_order says which: " + strings.Join([]string{migrate.OrderNoReport, migrate.OrderInOrder, migrate.OrderReordered, migrate.OrderAsWritten}, ", ") + ".",
+			"author's order. The manifest's report_order says which: " + strings.Join([]string{migrate.OrderNoReport, migrate.OrderInOrder, migrate.OrderReordered, migrate.OrderAsWritten}, ", ") + ".\n\n" +
+			"THE RUN IS BUILT BESIDE --to AND MOVED INTO PLACE WHEN IT IS COMPLETE. It is built in a directory named " +
+			".<name>.migrating-<random> next to --to, its files are synced, and it is then moved onto --to, so an " +
+			"interrupted migration leaves --to as it was (on Windows, a --to that was an empty directory may be absent). " +
+			"Its directory entries are synced where the filesystem allows — best effort: a directory that could not be " +
+			"synced is a warning on stderr, and on Windows none are. A leftover .<name>.migrating-<random> directory beside " +
+			"--to is what an interrupted migration left behind; nothing reads it and nothing removes it, and it is safe to " +
+			"delete by hand when no migration is running.\n\n" +
+			"--to must be absent, or an empty plain directory — not a link, a junction or a mount point — in a parent you " +
+			"can write, with a base name short enough to take the .migrating-<random> suffix. A separated record root (" +
+			record.RecordRootEnv + " set) is refused. An existing empty --to is REPLACED, not filled: its mode, owner and " +
+			"attributes become the new directory's. On Unix a shell sitting in it is left in the old directory until it " +
+			"changes directory; on Windows a directory in use cannot be removed, so the move fails after the build and the " +
+			"built run is kept beside --to.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -49,20 +63,30 @@ func newMigrate() *cobra.Command {
 				accept[w] = true
 			}
 			m, err := migrate.Migrate(from, to, migrate.Entries(), migrate.Options{AcceptLoss: accept})
-			jsonMode, _ := cmd.Flags().GetBool(flags.JSON)
-			if jsonMode && m != nil {
-				_ = json.NewEncoder(cmd.OutOrStdout()).Encode(m)
-			} else if m != nil {
-				printManifest(cmd, m)
+			if m != nil {
+				reportMigration(cmd, m)
 			}
 			return err
 		},
 	}
 	c.Flags().StringVar(&from, flags.MigrateFrom, "", "the old run directory (its records/record.db file set is read from a copy)")
-	c.Flags().StringVar(&to, flags.MigrateTo, "", "the fresh run directory to write — refused if it already holds anything")
+	c.Flags().StringVar(&to, flags.MigrateTo, "", "the run directory to publish — absent, or an empty plain directory (not a link, junction or mount point) in a writable parent; an empty one is replaced")
 	c.Flags().StringSliceVar(&acceptLoss, flags.AcceptLoss, nil,
 		"accept a registry-documented loss for exactly this word (repeatable); the acceptance lands in the manifest")
 	return c
+}
+
+// reportMigration writes the manifest to stdout — as JSON under --json, as text otherwise — and each
+// of the publish's warnings to stderr in both modes, since the manifest on disk cannot carry them.
+func reportMigration(cmd *cobra.Command, m *migrate.Manifest) {
+	if jsonMode, _ := cmd.Flags().GetBool(flags.JSON); jsonMode {
+		_ = json.NewEncoder(cmd.OutOrStdout()).Encode(m)
+	} else {
+		printManifest(cmd, m)
+	}
+	for _, w := range m.Warnings {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+	}
 }
 
 func printManifest(cmd *cobra.Command, m *migrate.Manifest) {

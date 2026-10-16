@@ -73,11 +73,16 @@ func main() {
 		}
 	}
 
+	tmpNote, releaseTmp := useMemoryTmp()
+	fmt.Println("temp directory for the gates: " + tmpNote)
 	var results []result
 	for _, g := range subsumeGoldenLegs(selected) {
 		results = append(results, runGate(root, g, *base))
 	}
-	os.Exit(report(results))
+	// os.Exit runs no deferred call, and a directory left in tmpfs is RAM until reboot.
+	code := report(results)
+	releaseTmp()
+	os.Exit(code)
 }
 
 // subsumeGoldenLegs tells the golden gate which of its go legs THIS run already executes.
