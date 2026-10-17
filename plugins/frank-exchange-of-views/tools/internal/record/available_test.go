@@ -28,7 +28,6 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		// What a blue-respond sitting owes for a gap it found open, discharged, so nothing blocks.
 		recordtest.Event(t, "blue-respond", seatLog("nothing in the way")),
-		recordtest.Event(t, "blue-respond", &recordpb.Revision{}),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: proto.String("what the bench is asked to weigh")}),
 	})
 	s := SittingOf(b.Events, b.At.IDs(b.Events), b.At, workStatesOfFamilyT(b), "blue", "blue-respond")
@@ -150,7 +149,6 @@ func gradeMotionFiled(t *testing.T, id, gap string) *Event {
 	t.Helper()
 	return recordtest.Event(t, "blue-respond", &recordpb.Motion{
 		MotionId: proto.String(id),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
 	})
 }
@@ -159,7 +157,6 @@ func gradeMotionRuled(t *testing.T, id string, ruling recordpb.GradeRuling) *Eve
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 		MotionId: proto.String(id),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("ruled"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: ruling},
 	})
@@ -296,23 +293,6 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 		admitted(t, run, id, secondKey)
 	})
 
-	// A CORRECTION IS NOT A SECOND RULING. The chair rules and restates its opinion in its sitting
-	// (a correction cannot change the verdict); the motion carries the replacement, in the place
-	// the ruling was first made, and the one regrade that follows discharges it.
-	t.Run("an accepted ruling corrected in its sitting", func(t *testing.T) {
-		dir, run, id := start(t, regradeLens)
-		recordtest.Seed(t, dir, gradeMotionFiled(t, "M1", "G1"))
-		chair := sit(t, run, "red-chair")
-		rule := func(opinion string) *recordpb.MotionRule {
-			r := gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule()
-			r.Opinion = proto.String(opinion)
-			return r
-		}
-		k := mustAppend(t, chair, rule("ruled")).GetKey()
-		mustReplay(t, correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
-			rule("the grade moves, and here is why"))
-		admitted(t, run, id, firstKey)
-	})
 }
 
 // THE OWED REGRADE NAMES THE AXIS AND THE GRADE THE RULING ACCEPTED, as fields on the gap's work
@@ -324,7 +304,6 @@ func TestTheOwedRegradeNamesTheAcceptedAxisAndGrade(t *testing.T) {
 	filed := func(id string, d recordpb.GradeDimension, g recordpb.Grade) *Event {
 		return recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String(id),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"), Dimension: recordtest.P(d), Proposed: recordtest.P(g)}},
 		})
 	}
@@ -501,7 +480,6 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 	file := func(motionID, gapID string) *Event {
 		return recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String(motionID),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:    proto.String("red cannot settle " + gapID),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
 		})
@@ -519,11 +497,10 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 			file("M1", "G-carried"),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 				Opinion:  proto.String("not this round"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
-					ReopensOn:   proto.String("blue reporting what the stated direction found"),
+					Direction:   proto.String("blue reporting what the stated direction found"),
 					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 				}},
 			}),
@@ -558,7 +535,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	gaps := []WorkGapState{
 		{ID: "CARRIED", Open: true, Material: true, Remanded: true, remand: remandOwed, route: routeRemandOwed,
-			DocketReopensOn: "blue reporting what the stated direction found"},
+			DocketDirection: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}
 	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair")

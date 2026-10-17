@@ -190,35 +190,6 @@ func TestABatchRefusesAnActAddressedToAnotherRun(t *testing.T) {
 	}
 }
 
-// THE CORRECTION GUARDS ARE THE ACT'S, NOT Append's: through a batch, a correcting identity writes
-// one replacement and refuses a second, as through Append.
-func TestABatchHoldsACorrectionToOneReplacement(t *testing.T) {
-	run := corrRun(t)
-	blue := sit(t, run, "blue-respond")
-	migrating(t)
-	b := mustBegin(t, run)
-	k, err := b.Append(blue, seatLog("first, wrong"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	fix := correcting(blue, recordpb.EventType_EVENT_TYPE_LOG, k.GetKey(), "typo")
-	rep, err := b.Append(fix, seatLog("first, right"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := k.GetKey() + "~1"; rep.GetKey() != want {
-		t.Errorf("the replacement is keyed %q, want %q", rep.GetKey(), want)
-	}
-	_, err = b.Append(fix, seatLog("a second replacement"))
-	mustRefuse(t, err, "this identity already wrote its correction of "+k.GetKey())
-	if err := b.Commit(); err != nil {
-		t.Fatal(err)
-	}
-	if got := countRowsIn(t, run, "correction"); got != 1 {
-		t.Errorf("the record holds %d correction(s), want 1", got)
-	}
-}
-
 // A WRITE THAT NAMES NO RUN IS REFUSED BY NAME, before any handle is opened — the text a seat
 // invoked outside a dispatch reads.
 func TestAnAppendWithNoRunSaysSo(t *testing.T) {

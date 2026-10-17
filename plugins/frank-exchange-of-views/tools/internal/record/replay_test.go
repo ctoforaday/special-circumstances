@@ -402,7 +402,6 @@ func docketRunDir(t *testing.T) string {
 	}
 	if _, err := Append(redID, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("red cannot settle this and puts it to the bench"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(id)}},
 	}); err != nil {
@@ -431,7 +430,6 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	complete := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion:  proto.String("the ruling's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
@@ -475,7 +473,6 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	t.Run("a docket filing missing the gap", func(t *testing.T) {
 		err := validateRun(mustRun(t, docketRunDir(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String("M2"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:    proto.String("put it to the bench"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{}},
 		})
@@ -814,7 +811,6 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 	for _, typ := range []recordpb.EventType{
 		recordpb.EventType_EVENT_TYPE_POSITION,
 		recordpb.EventType_EVENT_TYPE_VERDICT,
-		recordpb.EventType_EVENT_TYPE_REVISION,
 		recordpb.EventType_EVENT_TYPE_SPOT_CHECK,
 	} {
 		if !singleton[typ] {
@@ -1063,7 +1059,6 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	full := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion:  proto.String("the repair holds at the leaf"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
@@ -1132,7 +1127,6 @@ func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
 	file := func(dim recordpb.GradeDimension, proposed recordpb.Grade) error {
 		return validateRun(mustRun(t, runDir), "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String("M1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 			Basis:    proto.String("the grade overstates it"),
 			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 				GapId: proto.String("G1"), Dimension: &dim, Proposed: &proposed,

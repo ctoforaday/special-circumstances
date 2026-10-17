@@ -70,7 +70,7 @@ func (b *stage) bracket(seat, agent string) *stage {
 // THE LOADER CARRIES THE STORED SITTING, AND EVERY READER OF "THIS SEAT'S SITTINGS" READS IT (#1206).
 //
 // The write path stores which sitting each act belongs to (sittingOf): a hook bracket opens one, a
-// register under the bracketed agent joins it, a repair joins the seat's latest. The Go readers kept
+// register under the bracketed agent joins it. The Go readers kept
 // their own count of registers, so they saw no bracket-only sitting, read a bracket and its paired
 // register as two, and cut a sitting at its own register. On universe-m15 that was 77 of 317 rows.
 //
@@ -81,8 +81,8 @@ func (b *stage) bracket(seat, agent string) *stage {
 //   - a lens sitting the hook opened with no register;
 //   - another seat's act between the chair's bracket and the chair's paired register (the new epoch);
 //   - a lens bracket and its paired register (one sitting), and a second register in that sitting;
-//   - a correction in the lens's latest sitting (Live moves the replacement into its target's place);
-//   - a blue sitting and a sitting-record repair of it (the repair and its acts are that sitting's).
+//   - two logs and a mint in the lens's latest sitting;
+//   - a blue sitting and a later act of the seat's in it.
 func TestTheLoadedWindowIsTheStoredSitting(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest()
 	b.add(evLens, seatLog("before any sitting"))
@@ -101,20 +101,16 @@ func TestTheLoadedWindowIsTheStoredSitting(t *testing.T) {
 	lensPaired := b.lastKey()
 	b.add(evLens, &recordpb.Register{AgentId: proto.String("lens-b")}) // registers twice in one sitting
 	lensTwice := b.lastKey()
-	b.add(evLens, seatLog("struck"))
-	struck := b.lastKey()
+	b.add(evLens, seatLog("first"))
+	firstLog := b.lastKey()
 	b.mint(evLens, "G2", "low")
-	b.add(evLens, seatLog("struck, corrected"))
-	replacement := b.lastKey()
-	b.add(evLens, &recordpb.Correction{Corrects: proto.String(struck), Replacement: proto.String(replacement), Why: proto.String("w")})
-	correction := b.lastKey()
+	b.add(evLens, seatLog("second"))
+	secondLog := b.lastKey()
 	b.add("blue-respond", &recordpb.Register{AgentId: proto.String("blue-a")})
 	blueOpened := b.lastKey()
 	b.edit("G1", "was", "is")
-	b.add("blue-respond", &recordpb.Register{AgentId: proto.String("blue-b"), RepairsSitting: proto.String(blueOpened)})
-	repair := b.lastKey()
 	b.edit("G2", "old", "new")
-	afterRepair := b.lastKey()
+	later := b.lastKey()
 	run := b.seed()
 
 	m, err := MergedEvents(run)
@@ -181,8 +177,7 @@ func TestTheLoadedWindowIsTheStoredSitting(t *testing.T) {
 	edge("the chair's register joins its bracket's sitting", chairPaired, "red-chair", registerRow, 2, 2, false)
 	edge("a register under the bracketed agent joins the bracket's sitting", lensPaired, evLens, registerRow, 2, 2, false)
 	edge("a second register in one sitting opens nothing", lensTwice, evLens, registerRow, 2, 2, false)
-	edge("a repair register is in the sitting it repairs", repair, "blue-respond", registerRow, 2, 1, false)
-	edge("an act after a repair is the repaired sitting's", afterRepair, "blue-respond", recordpb.EventType_EVENT_TYPE_BLUE_EDIT, 2, 1, false)
+	edge("a seat's later act is in its sitting", later, "blue-respond", recordpb.EventType_EVENT_TYPE_BLUE_EDIT, 2, 1, false)
 
 	// 3. The dispatch ledger opens exactly the record's sittings.
 	_, registers := dispatchLedger(m.Events, m.At.IDs(m.Events), m.At)
@@ -195,8 +190,8 @@ func TestTheLoadedWindowIsTheStoredSitting(t *testing.T) {
 	// 4. "This sitting" is the seat's acts in its latest stored sitting, and nothing else.
 	for seat, keys := range map[string][]string{
 		"red-chair":    {chairPaired},
-		evLens:         {lensPaired, lensTwice, replacement, b.keyOfMint("G2"), correction},
-		"blue-respond": {blueOpened, b.keyOfEdit("G1"), repair, afterRepair},
+		evLens:         {lensPaired, lensTwice, firstLog, b.keyOfMint("G2"), secondLog},
+		"blue-respond": {blueOpened, b.keyOfEdit("G1"), later},
 	} {
 		var got []string
 		for _, e := range thisSitting(m.Events, m.At, seat) {
@@ -297,39 +292,6 @@ func TestExchangesAreTheSameWhenEverySittingIsBracketed(t *testing.T) {
 				t.Errorf("G1 = %+v, want 2 exchanges, 1 stalled, no impasse — the counts the register-only shape reads", g)
 			}
 		})
-	}
-}
-
-// A REPAIR OF A BRACKETED SITTING IS PART OF THAT SITTING (#1206).
-//
-// The repair names the register that joined the bracket's sitting, and the write path stores the
-// repair in that sitting. The closer adds the repair's span to the sitting it is stored in: keyed on
-// the register the repair names, it would find no sitting opened there, and the position filed
-// under the repair would count for nothing — the sitting read as short of what it holds.
-func TestARepairOfABracketedSittingIsPartOfIt(t *testing.T) {
-	const seat = "blue-respond"
-	b := newStage(t).cast(evLens, "red-chair", seat).ingest().
-		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
-		register("red-chair").dispatch(2, seat, "G1").bracket(seat, "blue-a")
-	b.add(seat, &recordpb.Register{AgentId: proto.String("blue-a")})
-	reg := b.lastKey()
-	b.stop("blue-a")
-	state := func() PositionState {
-		m := loadedT(t, b.evs...)
-		for _, p := range PositionSittings(m.Events, m.At, AfterTheRun) {
-			if p.Seat == seat {
-				return p.State
-			}
-		}
-		t.Fatal("blue-respond's dispatched sitting has no row")
-		return ""
-	}
-	if got := state(); got != PositionMissing {
-		t.Fatalf("the sitting closed without a position reads %q, want it missing", got)
-	}
-	b.repairs(seat, "blue-b", reg).position(seat).stop("blue-b")
-	if got := state(); got != PositionFiled {
-		t.Errorf("a position filed under a register naming the bracketed sitting reads %q, want it that sitting's", got)
 	}
 }
 

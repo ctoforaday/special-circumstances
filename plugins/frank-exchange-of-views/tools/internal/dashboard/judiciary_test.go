@@ -32,7 +32,6 @@ func docketFiled(t *testing.T, motion, gap string) *recordpb.Event {
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.Motion{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("impasse"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
 	})
@@ -42,13 +41,12 @@ func docketRuled(t *testing.T, motion string, d recordpb.Disposition, principle,
 	t.Helper()
 	r := &recordpb.DocketRuling{Disposition: recordtest.P(d), Principle: proto.String(principle), Tension: proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"), Settled: proto.String("whether the gap stands")}
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
-		r.ReopensOn = proto.String("the stated direction reporting back")
+		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String(opinion),
 		Ruling:   &recordpb.MotionRule_Docket{Docket: r},
 	})
@@ -58,7 +56,6 @@ func gradeFiled(t *testing.T, motion, gap string) *recordpb.Event {
 	t.Helper()
 	return recordtest.Event(t, "blue-respond", &recordpb.Motion{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("over-graded"),
 		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
 	})
@@ -68,7 +65,6 @@ func gradeRuled(t *testing.T, motion string, r recordpb.GradeRuling) *recordpb.E
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("heard"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: r},
 	})
@@ -182,7 +178,7 @@ func TestJudgeSittingsAreTheStoredSittings(t *testing.T) {
 }
 
 // EVERY BENCH SITTING IS A JUDGE SITTING, whatever it was convened to do: a petition hearing and
-// the assembly sit as surely as a docket ruling. A register that repairs a sitting opens none.
+// the assembly sit as surely as a docket ruling.
 func TestEveryBenchSittingIsCounted(t *testing.T) {
 	bench := func(agent string, o recordpb.Occasion) *recordpb.Event {
 		return recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String(agent), Occasion: o.Enum()})
@@ -191,14 +187,12 @@ func TestEveryBenchSittingIsCounted(t *testing.T) {
 	recordtest.Seed(t, dir,
 		registered(t, "red-chair", "C1"),
 		bench("J1", recordpb.Occasion_OCCASION_DOCKET),
-		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J1b"),
-			Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum(), RepairsSitting: proto.String("judge:register:#1")}),
 		bench("J2", recordpb.Occasion_OCCASION_PETITION),
 		bench("J3", recordpb.Occasion_OCCASION_TERMINAL),
 		bench("J4", recordpb.Occasion_OCCASION_ASSEMBLE),
 	)
 	if n := BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0).Judiciary.JudgeSittings; n != 4 {
-		t.Errorf("JudgeSittings = %d, want 4 (docket, petition, terminal, assemble; the repair opens none)", n)
+		t.Errorf("JudgeSittings = %d, want 4 (docket, petition, terminal, assemble)", n)
 	}
 }
 

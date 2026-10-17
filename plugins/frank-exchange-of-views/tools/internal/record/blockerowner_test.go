@@ -178,7 +178,7 @@ func TestEveryBenchRuledSubjectHasASitting(t *testing.T) {
 }
 
 func petitionRuling(id string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(), Opinion: proto.String("o"),
+	return &recordpb.MotionRule{MotionId: proto.String(id), Opinion: proto.String("o"),
 		Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}}
 }
 

@@ -19,9 +19,9 @@ import (
 // asserts on. Fed a column no epoch-7 row can carry, the earlier form of this test measured the
 // translation against data migrate will never see.
 //
-// A ROW THAT DOES CARRY IT IS REFUSED, and that arm is what makes the step more than a comment: a
-// silent drop reads identically whether the source was an honest archive or a record claiming a
-// field its epoch could not hold. It is not an epoch-7 row — that is the point of refusing it.
+// A ROW THAT CARRIES ONE — a source at epoch 8 to 26 could — is written without it, as a register
+// that opens a sitting of its own: the record holds no repair, every act filed under the register is
+// kept, and they sit in its sitting rather than the one it repaired.
 func TestAnArchivedRegisterOpensASitting(t *testing.T) {
 	entry, ok := migrate.Entries()["register"]
 	if !ok {
@@ -43,21 +43,19 @@ func TestAnArchivedRegisterOpensASitting(t *testing.T) {
 	if !isRegister || len(bodies) != 1 {
 		t.Fatalf("a register translated to %d bodies, the first %T", len(bodies), bodies[0])
 	}
-	if r.RepairsSitting != nil {
-		t.Errorf("an archived register claims to repair %q — every one of them opens a sitting of its own", r.GetRepairsSitting())
-	}
 	if r.GetToolVersion() != "e6b33cf+dirty" || r.GetAgentId() != "agent_blue_respond_sitting_record" ||
 		r.GetRunVia() != "injected" || r.GetAgentType() != "frank-exchange-of-views:blue-researcher" {
 		t.Errorf("translated register = %v, want every archived column kept word for word", r)
 	}
 
-	forged := archived
-	forged.Fields = map[string]any{"agent_id": "a", "repairs_sitting": "blue-respond:register:#3"}
-	switch _, err := entry.Translate(forged); {
-	case err == nil:
-		t.Error("a row carrying a column its epoch could not hold was translated rather than refused")
-	case !strings.Contains(err.Error(), "repairs_sitting") || !strings.Contains(err.Error(), "blue-respond:register:#1"):
-		t.Errorf("the refusal must name the field it found and the row it found it on: %v", err)
+	repairing := archived
+	repairing.Fields = map[string]any{"agent_id": "a", "repairs_sitting": "blue-respond:register:#3"}
+	bodies, err = entry.Translate(repairing)
+	if err != nil {
+		t.Fatalf("a register naming the sitting it repaired was refused: %v", err)
+	}
+	if r, ok := bodies[0].(*recordpb.Register); !ok || r.GetAgentId() != "a" {
+		t.Errorf("a repairing register translated to %v, want the register kept, the repair dropped", bodies)
 	}
 }
 
@@ -84,9 +82,6 @@ func TestIs91PrimeBsReprompt(t *testing.T) {
 		r, ok := recordpb.BodyAs[*recordpb.Register](e)
 		if !ok {
 			continue
-		}
-		if r.RepairsSitting != nil {
-			t.Errorf("an archived register claims a repair: %v", e)
 		}
 		if strings.HasSuffix(r.GetAgentId(), "_sitting_record") {
 			reprompts++

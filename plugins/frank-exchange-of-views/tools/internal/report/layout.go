@@ -197,8 +197,8 @@ var layout = []Section{
 		Path:    "Blue's `retire`, which records the claim as it stood and why it went.",
 		compose: func(a *assembly, _ Section) string { return withdrawnClaims(a.fam) }},
 	{File: FileChangelog, Heading: "Superseded bench statements", Composer: Tool,
-		From:    "the bench's statements that a later one replaced or the bench struck",
-		Path:    "The bench's `certify`: its last standing statement is the one the debate carries, and each earlier one is listed here.",
+		From:    "the bench's statements that a later one replaced",
+		Path:    "The bench's `certify`: its last statement is the one the debate carries, and each earlier one is listed here.",
 		compose: func(a *assembly, _ Section) string { return supersededAsks(a.fam.Events) }},
 }
 

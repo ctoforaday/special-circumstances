@@ -132,12 +132,6 @@ type Identity struct {
 	// struct literal that skipped the constructor.
 	Run    Run
 	SeatID string
-
-	// Correct, when set, makes this identity's write of Correct.Type the replacement of the act
-	// Correct.Key names, written with its Correction (see Correct). MIGRATE ALONE SETS IT, replaying
-	// a correction an archived record holds: Append refuses it outside a migration, and no seat's
-	// identity carries one (cli/seat Context.Identity).
-	Correct *Correct
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -324,8 +318,7 @@ func envelope(ev *Event, ts, seatID string, key string) {
 // SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. One chair sits many times
 // (plans/roundless.md §III.A.1), so a key of `red-chair:position` would make a position once per
 // RUN. The ordinal below is the count of this seat's stored sittings (the `sittings` view), the
-// rank events_w exposes as "sitting", taken inside the writing transaction; a repair opens no
-// sitting, so its acts carry the ordinal of the sitting it repairs. The duty itself is asked of the
+// rank events_w exposes as "sitting", taken inside the writing transaction. The duty itself is asked of the
 // ATTRIBUTED sitting, in requireOncePerSitting (oncepersitting.go), which is what makes the
 // refusal's "this sitting" true.
 //
@@ -336,7 +329,6 @@ func envelope(ev *Event, ts, seatID string, key string) {
 // re-dispatched seat gets `#2`.
 var singleton = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_POSITION:   true,
-	recordpb.EventType_EVENT_TYPE_REVISION:   true,
 	recordpb.EventType_EVENT_TYPE_VERDICT:    true,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: true,
 }
@@ -629,40 +621,6 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	if err != nil {
 		return nil, err
 	}
-	// AN APPEAL IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. No seat appeals a ruling: a ruling stands
-	// as made, and a seat that disagrees with one answers it with another act — a docket motion on
-	// the gap, which the bench rules. An archived record that holds an appeal is replayed with it.
-	if typ == recordpb.EventType_EVENT_TYPE_MOTION_APPEAL && !Migrating {
-		return nil, feov.Errorf(feov.Validation,
-			"an appeal is written by migrate from an archived record, never by a seat — a ruling stands as made, and a seat that disagrees with one answers it with another act")
-	}
-	// A CORRECTION IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. An archived record holds the ones its
-	// seats made, and migrate replays each as the pair it was written as; a live record gains none —
-	// an act stands as filed, and what answers a wrong one is another act (supersede.go). The one
-	// body of the corrected type written through the identity is the replacement.
-	if c := id.Correct; c != nil && typ == c.Type {
-		if !Migrating {
-			return nil, feov.Errorf(feov.Validation,
-				"a correction is written by migrate together with the act it replaces, never by a seat — an act stands as filed, and a wrong one is answered by a new act")
-		}
-		if c.written {
-			return nil, feov.Errorf(feov.Validation,
-				"this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
-				c.Key, recordpb.Word(typ))
-		}
-		// Set before the transaction is asked for, so a replacement that then fails to land still
-		// spends the identity: the act it would have been is the one the identity names, landed or
-		// not, and a second body through it is refused either way.
-		if len(guards) > 0 {
-			return nil, feov.Errorf(feov.Internal, "a correction is migrate's replay of an archived act, and no verb's guard is asked of it — this write passed %d", len(guards))
-		}
-		c.written = true
-		tx, err := begin()
-		if err != nil {
-			return nil, err
-		}
-		return appendCorrected(id, tx, ev, typ, body)
-	}
 	tx, err := begin()
 	if err != nil {
 		return nil, err
@@ -797,19 +755,10 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 // schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
 // than assumed: see the filing/ruling arms below.
 //
-// TARGET IS THE ACT A REPLAYED CORRECTION REPLACES, nil for every ordinary write. A guard that
-// refuses because "this has already happened" must pass when what already happened IS the act
-// being replaced — a closure's correction names a closed gap by definition. validate is the
-// ordinary write's form; validateAgainst is migrate's replay of a correction.
-//
 // W IS THE WRITING TRANSACTION AND THE RUN'S FILES (writeView), and every question below is asked of
 // it: a check another seat's commit could falsify is a check of the record the event lands on only
 // when it is asked under the write lock the insert holds.
 func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Message) error {
-	return validateAgainst(w, seatID, typ, body, nil)
-}
-
-func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body proto.Message, target *correctionTarget) error {
 	q := w.q
 	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
 	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
@@ -850,15 +799,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
 		if b.GetMotionId() != "" {
-			if err := requireSubjectMatches(q, b.GetSubject(), b.GetMotionId()); err != nil {
-				return err
-			}
-		}
-	case *recordpb.MotionAppeal:
-		// MIGRATE'S REPLAY ONLY (Append). An archived appeal is held to what makes it a record: it
-		// names a motion some filing created.
-		if b.GetMotionId() != "" {
-			if _, err := requireMotionSubjectRef(q, b.GetSubject(), b.GetMotionId()); err != nil {
+			if err := requireSubjectMatches(q, b.Subject(), b.GetMotionId()); err != nil {
 				return err
 			}
 		}
@@ -867,11 +808,6 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		return err
 	}
 	switch b := body.(type) {
-	case *recordpb.Correction:
-		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
-		// transaction as the replacement it names; one without the other is a strike with nothing
-		// in its place, or a replacement nothing marks as one.
-		return fmt.Errorf("a correction is written by migrate together with the act it replaces, never on its own")
 	case *recordpb.Anchor:
 		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
 		// deriveKey, so a retry writes one event rather than a second marker.
@@ -1055,7 +991,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
-		if b.CarriedFrom == nil && !closedByTarget(q, b.GetGapId(), target) {
+		if b.CarriedFrom == nil {
 			if err := requireOpenGap(q, b.GetGapId(), "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
@@ -1125,7 +1061,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 	// RECORDABLE"). The siblings were never swept. They are swept here.
 	//
 	// `spot-check` is deliberately NOT in this arm. Its bare form is a documented decision with
-	// a test pinning it, and its --none --reason exists for the same distinction this makes.
+	// a test pinning it, and its --reason says why it named nothing.
 	case *recordpb.Log:
 		if b.GetText() == "" {
 			return fmt.Errorf("a log entry requires --reason. Every entry asserts a problem, and an entry with no sentence is silence with an event attached — say what you hit")
@@ -1157,10 +1093,6 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
 		}
-	case *recordpb.Revision:
-		if b.GetText() == "" {
-			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "revision")
-		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
 		// insertNumbered's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
@@ -1176,35 +1108,18 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 			return err
 		}
 	case *recordpb.Motion:
-		if b.Subject == nil || b.GetBasis() == "" {
-			return fmt.Errorf("a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
-		}
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
-			return fmt.Errorf("%q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED || b.GetBasis() == "" {
+			return fmt.Errorf("a motion requires a filing — its subject, one of %s — and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)", strings.Join(MotionSubjects, " | "))
 		}
 		// THE FILER DOES NOT RULE THE SUBJECT (rulerfiles.go) — asked of every writer, because the
 		// verb's absence from the ruler's surface refuses only a seat that types it.
-		if err := requireFilerHoldsNoGavel(seatID, b.GetSubject(), false); err != nil {
+		if err := requireFilerHoldsNoGavel(seatID, b.Subject(), false); err != nil {
 			return err
-		}
-		// THE FILING MUST BE THE SUBJECT'S OWN. This is the structural successor to the
-		// MotionFields loop, which checked that a value belonged to its (subject, key) pair. It
-		// cannot be that any more — `dimension` lives on GradeMotion and `class` on
-		// PetitionMotion, so a grade motion carrying a petition's class is unrepresentable — but
-		// the SUBJECT and the FILING are still two carriers of one fact, and record.proto says
-		// they are "checked against the oneof case at the write". This is that check.
-		//
-		// Only a filing that is PRESENT is checked: a motion whose oneof is unset refuses nothing
-		// it refused before, and inventing a refusal here would be a new gate wearing a
-		// migration's clothes.
-		if b.GetFiling() != nil && filingSubject(b) != b.GetSubject() {
-			return fmt.Errorf("a %s motion carries a %s filing — the subject and the filing are one fact written twice, and a reader that switches on the subject would ask this motion for fields it does not have",
-				recordpb.Word(b.GetSubject()), recordpb.Word(filingSubject(b)))
 		}
 		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
 		// at replay; one against a gap already disposed of asks for a different disposition than
 		// the one that has been made.
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
 			if err := requireGap(q, b.GetGrade().GetGapId(), "--id"); err != nil {
 				return err
 			}
@@ -1241,7 +1156,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// NO requireOpenGap: the retired verb did not demand one, and a bench ruling on a gap red
 		// has already closed is a real act (the consistency oracle has a fixture for exactly that
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
@@ -1257,7 +1172,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// answer and not an omission — the `friction --none` shape, for the same measured reason:
 		// an empty channel that cannot assert its own emptiness goes unclosed.
 		//
-		// THE SCHEMA CARRIES THIS TOO, as three (check) options on DocketRuling, and the two are not
+		// THE SCHEMA CARRIES THIS TOO, as four (check) options on DocketRuling, and the two are not
 		// a restatement: the tool refuses in words a bench can act on, and the database refuses
 		// independently of the tool, because a CHECK's `why` does not currently reach the seat —
 		// its violation arrives as raw driver text. Close that and this guard becomes redundant.
@@ -1265,16 +1180,20 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// It moved here with the verb. The other three subjects rule with a word and a reason and
 		// have no reopening to answer for, so the check is on the arm rather than the event.
 		//
-		// A REMAND ANSWERS IT WITH --reopens-on, ALWAYS. The remand's one more exchange owes the
-		// direction the ruling states, and the dispatch hands blue and the minting lens its
-		// reopens_on; --final says nothing would reopen a gap the remand never closed. Asked first,
-		// so a remand stating neither, or stating --final, is told what a remand owes rather than
-		// offered --final. A blank direction is no direction.
+		// A REMAND ANSWERS WITH --direction, ALWAYS, AND WITH NOTHING ELSE. The remand's one more
+		// exchange owes the research the ruling states, and the dispatch hands blue and the minting
+		// lens its direction; --reopens-on and --final say what would reopen a gap the remand never
+		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
+		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
+		// no exchange.
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
-			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && (strings.TrimSpace(d.Docket.GetReopensOn()) == "" || d.Docket.Final != nil) {
-				return fmt.Errorf("--as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing")
-			}
-			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
+			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
+				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
+					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
+				}
+			} else if d.Docket.Direction != nil {
+				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and --as %s closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing", recordpb.Word(d.Docket.GetDisposition()))
+			} else if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
 				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
@@ -1300,9 +1219,9 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// The set offered back is MotionVerdicts[subject], the table the ruler's help renders
 		// (MotionVerdictEnum), which evsOf generates from the subject's ruling enum — so the
 		// refusal and the help offer one list.
-		if w := rulingWord(b); w == "" || rulingSubject(b) != b.GetSubject() {
+		if w := rulingWord(b); w == "" {
 			return fmt.Errorf("%q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
-				w, recordpb.Word(b.GetSubject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.GetSubject())]), " | "))
+				w, recordpb.Word(b.Subject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.Subject())]), " | "))
 		}
 	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
 	//
@@ -1477,9 +1396,8 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
 		//
-		// A correction re-states an outcome already recorded, and a migration replays one, so
-		// neither is held to the bench's motions.
-		if target == nil && !Migrating {
+		// A migration replays an outcome already recorded, so it is not held to the bench's motions.
+		if !Migrating {
 			if err := requireBenchMotionsRuled(q); err != nil {
 				return err
 			}
@@ -1542,37 +1460,6 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		}
 	}
 	return nil
-}
-
-// filingSubject is the subject a Motion's filing BELONGS to, read off the oneof case rather than
-// off the `subject` field it is checked against.
-func filingSubject(m *recordpb.Motion) recordpb.MotionSubject {
-	switch m.GetFiling().(type) {
-	case *recordpb.Motion_Grade:
-		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
-	case *recordpb.Motion_Petition:
-		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	case *recordpb.Motion_Inquiry:
-		return recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY
-	case *recordpb.Motion_Docket:
-		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
-	}
-	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
-}
-
-// rulingSubject is filingSubject for the ruling side.
-func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
-	switch r.GetRuling().(type) {
-	case *recordpb.MotionRule_Grade:
-		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
-	case *recordpb.MotionRule_Petition:
-		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	case *recordpb.MotionRule_Inquiry:
-		return recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY
-	case *recordpb.MotionRule_Docket:
-		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
-	}
-	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
 
 // rulingWord is the ruling as a seat spells it, and "" when nothing was ruled. It is the one

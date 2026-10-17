@@ -97,10 +97,9 @@ func BoardCounts(run Run) (open, closed int, err error) {
 //
 // A read that fails is the caller's error, never "": the two former copies of this query folded
 // it, and a caller that means "keep watching" on a record it cannot read folds it at its own
-// site, with the reason written there. It is never re-asked of a query that ignores corrections.
+// site, with the reason written there.
 //
-// THE LATEST OUTCOME THAT STANDS, in its place: a corrected outcome is answered by its replacement,
-// ordered where the corrected act stood.
+// THE LATEST OUTCOME, by events.id.
 func RecordedOutcome(run Run) (string, error) {
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
@@ -113,8 +112,7 @@ func RecordedOutcome(run Run) (string, error) {
 func recordedOutcomeAt(q recordsql.Querier) (string, error) {
 	var v string
 	if _, err := queryRowAt(q, []any{&v},
-		`SELECT o."verdict" FROM "outcome" o JOIN "live_event" l ON l."event_id" = o."event_id"
-		  ORDER BY l."pos" DESC LIMIT 1`); err != nil {
+		`SELECT o."verdict" FROM "outcome" o ORDER BY o."event_id" DESC LIMIT 1`); err != nil {
 		return "", err
 	}
 	return v, nil
@@ -164,16 +162,8 @@ func eventsOfAt(q recordsql.Querier, types ...recordpb.EventType) ([]*Event, Win
 		return nil, WindowIndex{}, nil
 	}
 	words := make([]string, len(types))
-	correctable := false
 	for i, t := range types {
 		words[i] = recordpb.Word(t)
-		correctable = correctable || recordpb.Tier(t) != recordpb.CorrectionTier_CORRECTION_TIER_NONE
-	}
-	// A NARROWED READ KEEPS ITS CORRECTIONS. Live and Listing strike an act by the Correction that
-	// names it; a stream narrowed to positions alone would carry the struck position and not the
-	// event that strikes it, and every reader of it would show a corrected act as an ordinary one.
-	if correctable {
-		words = append(words, recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION))
 	}
 	evs, ws, err := recordsql.EventsOfTypes(q, words...)
 	if err != nil {

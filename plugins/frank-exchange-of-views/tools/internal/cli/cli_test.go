@@ -1168,9 +1168,9 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
-	// turn and asserts the refusal names it. --reopens-on is NOT unconditional (--final answers the
-	// same question the other way), so it is supplied separately for the complete call and is
-	// not a subtest of its own (#502).
+	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
+	// --reopens-on and --final are a closing ruling's), so it is supplied separately for every call
+	// and is not a subtest of its own (#502).
 	//
 	// --tension, --review-flag and --settled are required by PRESENCE (#1234): an omitted one is
 	// refused, and an empty one is an answer — TestBenchDocketRuleTakesAnHonestBlank holds that half.
@@ -1188,11 +1188,11 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	}
 	for missing := range full {
 		t.Run("missing --"+missing, func(t *testing.T) {
-			// --final answers the reopens-on question, so the refusal reached is the omitted field's
-			// own. Without it the record refuses on reopens-on first, and only a refusal that
-			// carried the verb's whole help page could still name the omitted flag.
+			// The remand's --direction is stated, so the refusal reached is the omitted field's own.
+			// Without it the record refuses on the direction first, and only a refusal that carried
+			// the verb's whole help page could still name the omitted flag.
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-				"--reason", "the rationale", "--final"}
+				"--reason", "the rationale", "--direction", "a reproduction on a clean tree"}
 			for k, v := range full {
 				if k != missing {
 					args = append(args, "--"+k, v)
@@ -1225,7 +1225,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		for k, v := range full {
 			args = append(args, "--"+k, v)
 		}
-		args = append(args, "--reopens-on", "a reproduction on a clean tree")
+		args = append(args, "--direction", "a reproduction on a clean tree")
 		if _, err := runAt(t, args...); err == nil {
 			t.Fatal("a ruling with no reasoning was accepted — a verdict the losing party cannot answer")
 		} else if !strings.Contains(err.Error(), "reason") {
@@ -1234,7 +1234,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	})
 
 	args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-		"--reason", "the rationale", "--reopens-on", "a reproduction on a clean tree"}
+		"--reason", "the rationale", "--direction", "a reproduction on a clean tree"}
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
@@ -1256,8 +1256,8 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 // blank --settled (gblock, 2026-10-04).
 //
 // An empty tension or review flag cannot be told from a bench that skipped the question; a remand
-// sends the gap back for one more exchange owing the direction its --reopens-on states, and
-// --final says nothing would reopen a gap the remand is reopening. A ruling may bar no
+// sends the gap back for one more exchange owing the direction its --direction states, and
+// --reopens-on and --final say what would reopen a gap the remand never closed. A ruling may bar no
 // proposition, so --settled "" stays an answer — and the verb writes it present, not absent
 // (#1234): omission and the blank are kept apart.
 func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(t *testing.T) {
@@ -1265,12 +1265,12 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		"--tension":     "correctness against economy",
 		"--review-flag": "none: the reproduction the remand asks for settles it",
 		"--settled":     "",
-		"--reopens-on":  "a reproduction on the shipped binary",
+		"--direction":   "a reproduction on the shipped binary",
 	}
 	rule := func(t *testing.T, runDir, m string, set map[string]string, final bool) error {
 		args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
 			"--id", m, "--as", "remanded", "--principle", "correctness first", "--reason", "the rationale"}
-		for _, f := range []string{"--tension", "--review-flag", "--settled", "--reopens-on"} {
+		for _, f := range []string{"--tension", "--review-flag", "--settled", "--direction", "--reopens-on"} {
 			if v, ok := set[f]; ok {
 				args = append(args, f, v)
 			}
@@ -1312,11 +1312,12 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		{"whitespace --tension", "requires --tension to say something", with("--tension", "  \t "), false},
 		{"blank --review-flag", "requires --review-flag to say something", with("--review-flag", ""), false},
 		{"whitespace --review-flag", "requires --review-flag to say something", with("--review-flag", "\n "), false},
-		{"remand with --final", "--as remanded requires --reopens-on", omitting("--reopens-on"), true},
-		{"remand with a direction and --final", "--as remanded requires --reopens-on, and never --final", stated, true},
-		{"remand with neither", "--as remanded requires --reopens-on", omitting("--reopens-on"), false},
-		{"remand with a blank direction", "--as remanded requires --reopens-on", with("--reopens-on", ""), false},
-		{"remand with a whitespace direction", "--as remanded requires --reopens-on", with("--reopens-on", " \t"), false},
+		{"remand with --final", "--as remanded requires --direction", omitting("--direction"), true},
+		{"remand with a direction and --final", "--as remanded requires --direction, and never --reopens-on or --final", stated, true},
+		{"remand with a direction and --reopens-on", "--as remanded requires --direction, and never --reopens-on or --final", with("--reopens-on", "new evidence"), false},
+		{"remand with neither", "--as remanded requires --direction", omitting("--direction"), false},
+		{"remand with a blank direction", "--as remanded requires --direction", with("--direction", ""), false},
+		{"remand with a whitespace direction", "--as remanded requires --direction", with("--direction", " \t"), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir, m := docket(t)
@@ -1338,8 +1339,8 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		if d.Settled == nil || *d.Settled != "" {
 			t.Errorf("settled = %v, want present and empty — the blank the bench passed", d.Settled)
 		}
-		if d.GetReopensOn() != stated["--reopens-on"] {
-			t.Errorf("reopens_on = %q, want the direction the bench stated", d.GetReopensOn())
+		if d.GetDirection() != stated["--direction"] || d.ReopensOn != nil {
+			t.Errorf("direction = %q, reopens_on = %v; want the direction the bench stated and no reopen condition", d.GetDirection(), d.ReopensOn)
 		}
 	})
 }
@@ -1357,7 +1358,7 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	for _, omit := range []string{"principle", "tension", "review-flag", "settled"} {
 		t.Run("omitted --"+omit, func(t *testing.T) {
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-				"--id", m, "--as", "remanded", "--reopens-on", "a reproduction on the shipped binary", "--reason", "the rationale"}
+				"--id", m, "--as", "remanded", "--direction", "a reproduction on the shipped binary", "--reason", "the rationale"}
 			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "r", "settled": "s"} {
 				if k != omit {
 					args = append(args, "--"+k, v)
@@ -1751,7 +1752,7 @@ func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-		"--none", "--reason", "archive empty at round start; floor not applicable")
+		"--reason", "archive empty at round start; floor not applicable")
 	if err != nil {
 		t.Fatalf("an empty archive must be recordable: %v", err)
 	}
@@ -1760,8 +1761,8 @@ func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 	keys := setFields(ev)
-	if !keys["none"] || !keys["reason"] {
-		t.Errorf("the event must carry both the empty marker and its reason; got %v", keys)
+	if !keys["reason"] || keys["ids"] {
+		t.Errorf("the event must carry its reason and name no closure; got %v", keys)
 	}
 }
 
@@ -1774,21 +1775,9 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 	// COBRA REFUSES IT AT PARSE now, because the collapse to one prose channel made --reason
 	// unconditionally required: what a sample found and why there was nothing to sample were
 	// always the same field, and only the branch that wrote it differed.
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--none"); err == nil ||
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair"); err == nil ||
 		!strings.Contains(err.Error(), "reason") {
-		t.Fatalf("--none with no reason must be refused, got %v", err)
-	}
-}
-
-func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-		"--none", "--reason", "x", "--ids", "G1"); err == nil || !strings.Contains(err.Error(), "none") {
-		t.Fatalf("claiming both nothing-to-sample and a sample must be refused, got %v", err)
+		t.Fatalf("a spot-check with no reason must be refused, got %v", err)
 	}
 }
 
@@ -1810,10 +1799,9 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	// message cannot tell "sampled nothing" from "field unset". The distinction is real and it
 	// lives in the PROJECTION, which renders `ids` as `[]` — a reader distinguishes "checked
 	// nothing" from "did not check" by seeing the empty array.
-	// The BARE form (no --ids, no --none) still records the duty and its reason. Whether it also
-	// carried an empty `ids` array was the old assertion; a repeated field has no presence, so
-	// that distinction moved to `none` — see TestSpotCheckIdsAreAlwaysAnArray, which pins all
-	// three states.
+	// The BARE form (no --ids) still records the duty and its reason. A repeated field has no
+	// presence, so "sampled nothing" is this event with its reason — see
+	// TestSpotCheckIdsAreAlwaysAnArray, which pins all three states.
 	sc := lastBody(t, runDir, &recordpb.SpotCheck{})
 	if len(sc.GetIds()) != 0 {
 		t.Errorf("the bare form sampled %v", sc.GetIds())

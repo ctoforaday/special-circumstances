@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // ONE SECTION FOR EVERY ADJUDICATED EXCHANGE, joined on the motion id (#344).
@@ -20,9 +19,8 @@ func motions(fam record.Family) string {
 	}
 	var rows []string
 	unruled := 0
-	struckRulings := struckRulingsOf(fam)
 	for _, m := range ms {
-		rows = append(rows, motionRow(m, &unruled, struckRulings[m.ID]))
+		rows = append(rows, motionRow(m, &unruled))
 	}
 	out := "Every contested question and how it was answered: grade motions, petitions, and rulings on proposed inquiries. One mechanism, one id — an ask and its answer are one row.\n\n" +
 		strings.Join(rows, "\n")
@@ -32,24 +30,7 @@ func motions(fam record.Family) string {
 	return out
 }
 
-// struckRulingsOf are the rulings a seat corrected in the sitting that wrote them, per motion, each
-// rendered struck with who struck it and why. record.Motions answers with the act that stands;
-// these are the acts it replaced, which a reader must still see — struck, never hidden.
-func struckRulingsOf(fam record.Family) map[string][]string {
-	rulings := map[string][]string{}
-	for _, l := range fam.Listing() {
-		if l.Struck == nil {
-			continue
-		}
-		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](l.Event); ok {
-			rulings[r.GetMotionId()] = append(rulings[r.GetMotionId()],
-				"\n  - "+l.Markdown(fmt.Sprintf("ruled by %s — %s", l.GetSeatId(), r.GetOpinion())))
-		}
-	}
-	return rulings
-}
-
-func motionRow(m *record.Motion, unruled *int, struckRulings []string) string {
+func motionRow(m *record.Motion, unruled *int) string {
 	var b strings.Builder
 	filer := m.Filer
 	if filer == "" {
@@ -62,9 +43,6 @@ func motionRow(m *record.Motion, unruled *int, struckRulings []string) string {
 	if m.Relief != "" {
 		// The OPERATIVE half of a granted ruling, distinct from the reasoning (#330).
 		fmt.Fprintf(&b, "\n  - relief sought: %s", m.Relief)
-	}
-	for _, s := range struckRulings {
-		b.WriteString(s)
 	}
 	if m.Ruled() {
 		fmt.Fprintf(&b, "\n  - **ruled %s** by %s #%d", m.Ruling, m.RulingBy, m.RulingSitting)

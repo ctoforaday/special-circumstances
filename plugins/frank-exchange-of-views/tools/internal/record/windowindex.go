@@ -9,7 +9,7 @@ import (
 
 // WindowIndex is where each loaded event sits on the record, as the loader read it: its row id, the
 // sitting the write path stored it in, and that sitting's owner and ranks (recordsql.Window). It
-// is keyed by the event itself, so a fold that reorders or filters the slice — Live, Listing —
+// is keyed by the event itself, so a fold that reorders or filters the slice
 // still finds each event's window.
 //
 // THE STORED SITTING IS THE ONE DEFINITION. Which events open a sitting, and which sitting an act

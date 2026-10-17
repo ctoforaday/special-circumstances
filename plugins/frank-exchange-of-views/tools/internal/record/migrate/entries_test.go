@@ -53,14 +53,85 @@ func TestOpinionBecomesTheDocketPair(t *testing.T) {
 	if d.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED {
 		t.Errorf("disposition: %v", d.GetDisposition())
 	}
-	if d.GetPrinciple() != "correctness outranks economy" || d.GetReopensOn() != "blue reports the reproduction" {
-		t.Errorf("ruling fields did not carry: %+v", d)
+	if d.GetPrinciple() != "correctness outranks economy" || d.GetDirection() != "blue reports the reproduction" || d.ReopensOn != nil {
+		t.Errorf("ruling fields did not carry, or a remand's direction stayed a reopen condition: %+v", d)
 	}
 	if rule.GetOpinion() != "the computation is unproved" {
 		t.Errorf("the old rationale is the ruling's prose (MotionRule.opinion): %q", rule.GetOpinion())
 	}
 	if d.GetFinal() {
-		t.Errorf("final=0 must stay absent/false — reopens_on is the answer this ruling gave")
+		t.Errorf("final=0 must stay absent/false — the direction is the answer this remand gave")
+	}
+}
+
+// A SPOT-CHECK MIGRATES WITHOUT ITS EMPTINESS CLAIM. `none` was the seat's word that the archive was
+// empty, which the board answers; the ids, the areas and the reason carry as written.
+func TestASpotCheckMigratesWithoutItsEmptinessClaim(t *testing.T) {
+	for _, none := range []int64{0, 1} {
+		old := migrate.OldEvent{ID: 5, SeatID: "red-chair", TS: ts1, Word: "spot_check",
+			Fields: map[string]any{"none": none, "reason": "the archive was empty"},
+			Lists:  map[string][]string{"areas": {"red-lens-logic"}}}
+		bodies, err := migrate.Entries().Translate(old)
+		if err != nil {
+			t.Fatalf("none=%d: %v", none, err)
+		}
+		sc, ok := bodies[0].(*recordpb.SpotCheck)
+		if !ok || sc.GetReason() != "the archive was empty" || len(sc.GetAreas()) != 1 {
+			t.Errorf("none=%d: the spot-check did not carry its reason and areas: %v", none, bodies)
+		}
+	}
+}
+
+// A REMAND'S REOPENS_ON IS ITS DIRECTION (#1253). A source states a remand's research direction in
+// the one column it has for what follows a ruling, `reopens_on`; the migrated ruling carries it as
+// the direction, and a ruling that closes the gap keeps it as what would reopen it. Both eras that
+// write a docket ruling are held to it: an opinion, and a motion_rule with a docket arm.
+func TestARemandsReopensOnMigratesAsItsDirection(t *testing.T) {
+	ruling := func(disposition string) map[string]any {
+		return map[string]any{"disposition": disposition, "principle": "p", "tension": "t",
+			"review_flag": "r", "settled": "s", "reopens_on": "the stated text"}
+	}
+	for _, c := range []struct {
+		name, disposition, wantDirection, wantReopensOn string
+	}{
+		{"a remand", "remanded", "the stated text", ""},
+		{"a ruling that closes the gap", "not_a_defect", "", "the stated text"},
+	} {
+		for _, era := range []struct {
+			name string
+			old  migrate.OldEvent
+			word string
+		}{
+			{"opinion", migrate.OldEvent{ID: 7, SeatID: "judge", TS: ts1, Word: "opinion",
+				Fields: func() map[string]any {
+					f := ruling(c.disposition)
+					f["gap_id"] = "G1"
+					f["rationale"] = "why"
+					return f
+				}()}, "opinion"},
+			{"motion_rule", migrate.OldEvent{ID: 8, SeatID: "judge", TS: ts1, Word: "motion_rule",
+				Fields: map[string]any{"motion_id": "M1", "opinion": "why"},
+				Arms:   map[string]map[string]any{"docket": ruling(c.disposition)}}, "motion_rule"},
+		} {
+			t.Run(c.name+"/"+era.name, func(t *testing.T) {
+				bodies, err := migrate.Entries().Translate(era.old)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var d *recordpb.DocketRuling
+				for _, b := range bodies {
+					if r, ok := b.(*recordpb.MotionRule); ok {
+						d = r.GetDocket()
+					}
+				}
+				if d == nil {
+					t.Fatalf("no docket ruling among %v", bodies)
+				}
+				if d.GetDirection() != c.wantDirection || d.GetReopensOn() != c.wantReopensOn {
+					t.Errorf("direction %q, reopens_on %q; want %q, %q", d.GetDirection(), d.GetReopensOn(), c.wantDirection, c.wantReopensOn)
+				}
+			})
+		}
 	}
 }
 
@@ -98,7 +169,7 @@ func TestFrictionEstoppelBecomesToolSourced(t *testing.T) {
 
 // Identity translation handles the full decomposition: scalar fields, a oneof ARM table,
 // and the `_case` discriminator — which is DERIVED, so it is skipped only where the oneof
-// exists to derive it from.
+// exists to derive it from. The motion's entry drops the stored subject, which the arm states.
 func TestIdentityRebuildsAOneofArm(t *testing.T) {
 	old := migrate.OldEvent{
 		ID: 9, SeatID: "red-merge-r1", Round: 1, TS: ts1, Word: "motion",
@@ -110,13 +181,13 @@ func TestIdentityRebuildsAOneofArm(t *testing.T) {
 		},
 		Arms: map[string]map[string]any{"docket": {"gap_id": "R1-1"}},
 	}
-	bodies, err := (migrate.Registry{}).Translate(old)
+	bodies, err := migrate.Entries().Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := bodies[0].(*recordpb.Motion)
-	if m.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
-		t.Errorf("subject word did not convert: %v", m.GetSubject())
+	if m.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+		t.Errorf("subject word did not convert: %v", m.Subject())
 	}
 	if m.GetDocket().GetGapId() != "R1-1" {
 		t.Errorf("the arm table did not rebuild the oneof: %+v", m)

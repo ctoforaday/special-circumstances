@@ -15,20 +15,13 @@ import (
 //
 // They were ONE query, then two, and the two drifted. The duty was enforced only by a singleton
 // act's key colliding, so both halves of #1002's ruling came off one number: which act this IS (an
-// identifier) and which sitting it belongs to (an attribution, and a repair is the sitting it
-// repairs). A sitting-record repair moved the identifier and not the attribution, so inside a
-// repair the ordinal advanced and nothing refused a second act. Measured through the CLI: two
-// positions on one sitting, both attributed to `blue-respond #2`, and neither refused — invisible
-// on the report, the changes view and the motion board, which render them under one heading.
+// identifier) and which sitting it belongs to (an attribution). Splitting them gave each its own
+// count of what opens a sitting, and the counts could disagree. Both now read `sitting_id`, stamped
+// once at the write (#1151), so the duty asks an equality and the key asks a rank over the same
+// rows. The refusal's own words ("has already recorded a %s this sitting") are true of that
+// reading because the record says so rather than because two queries happened to agree.
 //
-// Splitting them gave each its own count of what opens a sitting, and the counts disagreed: the
-// key's excluded a repair register and the events_w window did not. Both now read `sitting_id`,
-// stamped once at the write (#1151), so the duty asks an equality and the key asks a rank over the
-// same rows. The refusal's own words ("has already recorded a %s this sitting") are true of that
-// reading, and a repair's acts belong to the sitting it repairs because the record says so rather
-// than because two queries happened to agree.
-//
-// THE ACTS THIS COVERS ARE THE `singleton` SET — position, revision, verdict and spot_check —
+// THE ACTS THIS COVERS ARE THE `singleton` SET — position, verdict and spot_check —
 // enumerated by TestTheOncePerSittingActsAreRefusedASecondTimeInOneSitting, which fails when a type
 // joins that map without a row.
 

@@ -128,8 +128,7 @@ const (
 	// a closure's class, a bench disposition, a verification's outcome, a ruling, a run's
 	// verdict, an inquiry's fate. Every set is closed, and each verb documents its own
 	// through enumhelp.
-	As   = "as"
-	None = "none"
+	As = "as"
 
 	// ExpectError says a proof's subject IS a failing command, so `blue prove` records the
 	// environment error rather than refusing it. Without it, an error signature in a proof's
@@ -259,8 +258,11 @@ const (
 	ReopensOn = "reopens-on"
 	// Final is ReopensOn's assertable empty case, on the `friction --none` pattern: "nothing
 	// would reopen this" is a positive answer to the question, not a skipped field.
-	Final  = "final"
-	Relief = "relief"
+	Final = "final"
+	// Direction is a remand's: the research its one more exchange owes. A remand closes nothing,
+	// so it answers neither ReopensOn nor Final.
+	Direction = "direction"
+	Relief    = "relief"
 
 	// Blue's process record.
 	Method     = "method"
@@ -328,14 +330,14 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, None, Confidence, Occasion,
+		As, Confidence, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
-		Settled, ReopensOn, Final,
+		Settled, ReopensOn, Final, Direction,
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, LensAreaReason, BinDir, RunID, ScriptPath, AllowSubstitution,
 		Card, Watch, Now, Serve,

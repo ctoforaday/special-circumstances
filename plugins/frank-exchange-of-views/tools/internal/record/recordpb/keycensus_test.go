@@ -61,6 +61,8 @@ var notFields = map[string]string{
 	"deadlocked": "one half of a two-boolean enum for HOW a non-pass run ended; every reader took the pair apart in a first-match switch. Outcome.ended replaces both",
 	"exhausted":  "the other half of that pair; Outcome.ended replaces both",
 	"fix_old":    "held the same span as Mint.location, checked by a second matcher — a gap's location and the span its proposal replaces were never two facts",
+	"subject":    "the subject of a motion, a ruling or an appeal, beside the arm that states it; Motion.Subject and MotionRule.Subject read the arm, and the record holds no appeal",
+	"none":       "SpotCheck's claim that the archive was empty; the board's count answers it, and SpotCheck.reason says why a spot-check named nothing",
 	"notes":      "SpotCheck's prose when a sample WAS taken, beside `reason` for when none was; one channel split by which branch wrote it. SpotCheck.reason replaces both",
 	"reference":  "a free-text third spelling of a source on the one verb that reads one red found itself. Verify.url + Verify.title replace it, as Cite already named sources",
 	"claim":      "on a CITE it re-quoted the sentence `location` already held to place the anchor. Verify.claim is a different field and still exists",

@@ -73,22 +73,8 @@ func SeatOpeningSitting(e *Event) (string, bool) {
 	return seat, seat != ""
 }
 
-// OpensASitting reports whether e is a register that opens a sitting of its own.
+// OpensASitting reports whether e is a register: every register opens a sitting of its own, unless
+// it joins the one its agent's bracket opened (record.SeatOpeningSitting).
 func OpensASitting(e *Event) bool {
-	if e.GetType() != EventType_EVENT_TYPE_REGISTER {
-		return false
-	}
-	_, repairs := SittingRepairedBy(e)
-	return !repairs
-}
-
-// SittingRepairedBy is the key of the sitting e's register names as the one it repairs, and whether
-// it names one. A body that does not decode names none — which is the degradation rule above, read
-// from the one side that can observe it.
-func SittingRepairedBy(e *Event) (string, bool) {
-	b, ok := BodyAs[*Register](e)
-	if !ok || b.RepairsSitting == nil {
-		return "", false
-	}
-	return b.GetRepairsSitting(), true
+	return e.GetType() == EventType_EVENT_TYPE_REGISTER
 }
