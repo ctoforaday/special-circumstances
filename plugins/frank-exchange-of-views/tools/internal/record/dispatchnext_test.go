@@ -167,3 +167,29 @@ func TestDispatchNextRecordsThePlanOfTheRecordItLandsOn(t *testing.T) {
 		t.Fatalf("the rows recorded while the lens closed G1 are %q, and the plan the record gives is %q — the plan was folded on a record its rows did not land on", written, want)
 	}
 }
+
+// THE IMPASSE DOCKET IS FILED AT THE FINAL SITTING TOO. A seat's motion filed there is refused
+// (HeardInTime), and the docket `dispatch next` files for a gap at impasse is not a seat's motion: it
+// is recorded, nobody is dispatched, and the plan lists it as the bench's to rule, which is what
+// convenes the terminal bench at the exit.
+func TestTheFinalSittingStillDocketsAGapAtImpasse(t *testing.T) {
+	run := atImpasse(t)
+	writeRunConfig(t, run.dir, `{"maxEpochs":5}`)
+	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil {
+		t.Fatalf("dispatch next at the final sitting with G1 at impasse: %v", err)
+	}
+	if !plan.FinalSitting || !plan.EpochLimitReached || len(plan.Parties) != 0 || !slices.Equal(plan.Docket, []string{"G1"}) {
+		t.Fatalf("plan = %+v, want the final sitting, nobody dispatched, and G1 docketed", plan)
+	}
+	if motions, _ := recorded(t, run, "G1"); motions != 1 {
+		t.Fatalf("the final sitting recorded %d docket motion(s) on G1, want 1", motions)
+	}
+	benchOwned := false
+	for _, b := range plan.Blockers {
+		benchOwned = benchOwned || (b.Kind == BlockerUnruledMotion && b.Owner == "judge")
+	}
+	if !benchOwned {
+		t.Errorf("the plan lists no motion for the bench to rule, so no terminal sitting convenes: %+v", plan.Blockers)
+	}
+}

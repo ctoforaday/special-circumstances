@@ -143,9 +143,10 @@ func TestTheEpochLimitOutcomeSurvivesTheBenchRulingAtTheExit(t *testing.T) {
 	}
 }
 
-// A MOTION FILED AT THE RUN'S FINAL SITTING IS REFUSED, EVERY SUBJECT, AND NOTHING IS RECORDED. No
-// seat is dispatched after the sitting that opens the last epoch, so the chair rules no grade motion
-// and the bench is convened for no docket or petition before the exit. The plan says the sitting is
+// A MOTION FILED AT THE RUN'S FINAL SITTING IS REFUSED, AND NOTHING IS RECORDED, for each subject no
+// seat hears in time to change how the run ends. No seat is dispatched after the sitting that opens
+// the last epoch, so the chair rules no grade motion, and a docket motion the terminal bench rules
+// ends the run CEILING however it is ruled. A petition is the exception and has its own test below. The plan says the sitting is
 // final whoever the board readies (record's TestAPassPermittedAtTheLastEpochIsNotTheEpochLimit holds
 // it where a PASS is permitted, which was m25's last sitting).
 func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
@@ -154,7 +155,6 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 		args        []string
 	}{
 		{"a docket motion", "red-chair", []string{"motion", "docket", "file", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}},
-		{"a petition", "red-chair", []string{"motion", "petition", "file", "--class", "integrity", "--relief", "strike it", "--reason", "the finding quotes a source nobody fetched"}},
 		{"a grade motion", "blue-respond", []string{"motion", "grade", "file", "--id", limitGap, "--dimension", "severity", "--proposed", "low", "--reason", "the defect changes no reader decision"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -170,7 +170,7 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 			if err == nil {
 				t.Fatalf("%s filed at the final sitting was recorded: %s", tc.name, out)
 			}
-			for _, want := range []string{"is not heard in time", "epoch 4, the last under the run's epoch limit of 4", "Nothing was recorded", "records the verdict the board permits"} {
+			for _, want := range []string{"is not heard in time", "epoch 4, the last under the run's epoch limit of 4", "Nothing was recorded", "records the verdict the board permits", "or a FAIL", "goes in a position", "a petition, which the bench hears at the exit"} {
 				if !strings.Contains(out+err.Error(), want) {
 					t.Errorf("the refusal does not say %q: %v\n%s", want, err, out)
 				}
@@ -187,6 +187,60 @@ func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
 				t.Fatalf("the plan at epoch 4 of 5 = %+v, want epoch 4 and not the final sitting", plan)
 			}
 			asSeat(t, runDir, tc.filer, tc.args...)
+		})
+	}
+}
+
+// A PETITION FILED AT THE RUN'S FINAL SITTING IS RECORDED AND HEARD AT THE EXIT. It is the channel for
+// an objection that the run must not go on, and the terminal bench hears a petition standing there and
+// may halt the run on it: refusing it would leave the last chair sitting no way to put such an
+// objection before anyone. Until it is ruled it holds the PASS; denied, the run ends CEILING for its
+// term; with a halt, HALTED.
+func TestAPetitionFiledAtTheFinalSittingIsHeardAtTheExit(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		ruling func(t *testing.T, runDir, motionID string)
+		want   string
+	}{
+		{"denied", denyPetition, "CEILING"},
+		{"denied, and the bench halts", func(t *testing.T, runDir, motionID string) {
+			denyPetition(t, runDir, motionID)
+			asSeat(t, runDir, "judge", "halt", "--reason", "continuing would compromise the consent gate")
+		}, "HALTED"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := newRun(t)
+			stageRetiredLens(t, runDir, false)
+			setEpochLimit(t, runDir, 4)
+			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); !plan.FinalSitting || !plan.PassPermitted {
+				t.Fatalf("the plan at epoch 4 of 4 = %+v, want the final sitting with a PASS permitted", plan)
+			}
+			out := asSeat(t, runDir, "red-chair", "motion", "petition", "file", "--class", "integrity",
+				"--relief", "stop the run", "--reason", "the report rests on a source fetched without consent", "--json")
+			var env struct {
+				Result struct {
+					MotionID string `json:"motion_id"`
+				} `json:"result"`
+			}
+			if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.MotionID == "" {
+				t.Fatalf("the petition filed at the final sitting printed no motion id (%v): %s", err, out)
+			}
+			plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
+			benchOwned := false
+			for _, b := range plan.Blockers {
+				benchOwned = benchOwned || (b.Kind == record.BlockerUnruledMotion && b.Subject == env.Result.MotionID && b.Owner == "judge")
+			}
+			if plan.PassPermitted || len(plan.Parties) != 0 || !benchOwned {
+				t.Fatalf("the plan after the petition = %+v, want the PASS held, nobody dispatched, and the petition the bench's to rule at the exit", plan)
+			}
+
+			asSeat(t, runDir, "judge", "register", "--occasion", "terminal")
+			tc.ruling(t, runDir, env.Result.MotionID)
+			asSeat(t, runDir, "judge", "register", "--occasion", "assemble")
+			asSeat(t, runDir, "judge", "outcome", "--as", tc.want, "--reason", "the petition was heard at the exit")
+			if verdict, basis, why := outcomeOf(t, runDir); verdict != tc.want || basis != record.VerdictDerived {
+				t.Errorf("the outcome on the record = (%q, %q, %q), want %s derived from the record", verdict, basis, why, tc.want)
+			}
 		})
 	}
 }

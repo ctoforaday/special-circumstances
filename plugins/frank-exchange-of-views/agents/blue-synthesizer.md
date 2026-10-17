@@ -212,8 +212,6 @@ ONE EVENT, DIFFERENT CONTRACTS: grade (the chair rules), petition (the bench rul
 §10 (on 3 pages):
 Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
-A filing at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
-
 §11 (on 4 pages):
 THIS PROJECTION IS ALREADY THE JSON: --json is accepted and, on success, byte-for-byte the same. On an ERROR it prints a JSON envelope on stdout — one object whose keys are verb, role, ok, code, error, with `ok` false — so a pipeline must check `ok` before reading keys.
 
@@ -520,6 +518,8 @@ It puts a GAP before the bench — the channel for a gap the filing seat cannot 
 
 (Every seat but the one that rule…) → SHARED §10
 
+A docket motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
+
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
@@ -534,6 +534,8 @@ file a grade motion — the tool assigns its id.
 It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that.
 
 (Every seat but the one that rule…) → SHARED §10
+
+A grade motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
@@ -558,6 +560,8 @@ file a petition motion — the tool assigns its id.
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
 (Every seat but the one that rule…) → SHARED §10
+
+Filed at the run's final sitting — the sitting whose plan says `final_sitting` — a petition is heard by the bench at the exit, which may halt the run on it; until it is ruled it holds the PASS.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 

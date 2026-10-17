@@ -109,9 +109,10 @@ type Plan struct {
 	// Epoch is the epoch the record has reached: the chair sittings opened so far, this one included.
 	Epoch int `json:"epoch" min:"0" desc:"the epoch the record has reached: the chair sittings opened so far, this one included"`
 	// FinalSitting: this chair sitting opens the run's last epoch (isFinalEpoch), whoever the board
-	// readies. No seat is dispatched after it, so no motion filed in it is heard in time to change how
-	// the run ends, and `motion … file` refuses one there (HeardInTime).
-	FinalSitting bool `json:"final_sitting" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and no motion filed now is heard in time to change how the run ends"`
+	// readies. No seat is dispatched after it, so of the motions filed in it only a petition is heard
+	// in time to change how the run ends — by the bench at the exit — and `motion … file` refuses the
+	// others there (HeardInTime).
+	FinalSitting bool `json:"final_sitting" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
 	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
 	// is not at the limit: it ends as any empty plan does.
@@ -460,30 +461,47 @@ func isFinalEpoch(params Params, epoch int) bool {
 	return params.MaxEpochs > 0 && epoch >= params.MaxEpochs
 }
 
-// HeardInTime is the guard of a seat's motion filing: at the run's final sitting it is refused and
-// nothing is written. The chair rules no motion after that sitting and the bench is convened for none
-// before the exit, so a motion filed there holds the PASS until the run ends, and one whose gavel is
-// the bench's ends the run CEILING however the terminal bench rules it (epochLimitHeldTheBench).
-// Asked under the write lock, as every verb's check is. The docket the dispatch files at impasse is
-// not a seat's motion and passes no such guard: it is the terminal bench's to rule.
-var HeardInTime = Check(func(l *Landing) error {
-	epochs, err := epochsAt(l.w.q)
-	if err != nil || len(epochs) == 0 {
-		return err
-	}
-	params, err := l.w.files.params()
-	if err != nil {
-		return err
-	}
-	epoch := epochs[len(epochs)-1]
-	if !isFinalEpoch(params, epoch) {
-		return nil
-	}
-	return feov.Errorf(feov.Conflict, "a motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and no seat is dispatched after this sitting. "+
-		"Until the run ends the motion holds the PASS, and one the bench rules ends the run at CEILING however the bench rules it at the exit. Nothing was recorded. "+
-		"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one — or none, and the run's outcome is derived from the record as it stands. "+
-		"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit", epoch, params.MaxEpochs)
-})
+// HeardAtTheExit reports whether a motion of subj filed at the run's final sitting still reaches a
+// seat that can change how the run ends. A petition does: the terminal bench hears a petition standing
+// at the exit, and it may halt the run there — a petition is the channel for an objection that the run
+// must not go on, and the last sitting is no exception. A docket motion does not: the terminal bench
+// rules it, and the run ends CEILING however it rules (epochLimitHeldTheBench). A grade motion does
+// not: the chair rules it, and the chair does not sit again.
+func HeardAtTheExit(subj recordpb.MotionSubject) bool {
+	return subj == recordpb.MotionSubject_MOTION_SUBJECT_PETITION
+}
+
+// HeardInTime is the guard of a seat's motion filing: at the run's final sitting a motion of a subject
+// not HeardAtTheExit is refused and nothing is written. The chair rules no motion after that sitting
+// and the bench is convened for none before the exit, so such a motion holds the PASS until the run
+// ends, and a docket motion ends the run CEILING however the terminal bench rules it
+// (epochLimitHeldTheBench). Asked under the write lock, as every verb's check is. The docket the
+// dispatch files at impasse is not a seat's motion and passes no such guard: it is the terminal
+// bench's to rule.
+func HeardInTime(subj recordpb.MotionSubject) Guard {
+	return Check(func(l *Landing) error {
+		if HeardAtTheExit(subj) {
+			return nil
+		}
+		epochs, err := epochsAt(l.w.q)
+		if err != nil || len(epochs) == 0 {
+			return err
+		}
+		params, err := l.w.files.params()
+		if err != nil {
+			return err
+		}
+		epoch := epochs[len(epochs)-1]
+		if !isFinalEpoch(params, epoch) {
+			return nil
+		}
+		word := recordpb.Word(subj)
+		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and no seat is dispatched after this sitting. "+
+			"Recorded, it would hold the PASS until the run ends, and no ruling on it could change how the run ends. Nothing was recorded. "+
+			"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one, or a FAIL — or none, and the run's outcome is derived from the record as it stands. "+
+			"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit; an objection that the run must not go on is a petition, which the bench hears at the exit", word, epoch, params.MaxEpochs)
+	})
+}
 
 // PlanFacts is what the record holds, at one point of its stream, of the plan fields no dispatch
 // row carries. Capture asks for it at the end of each chair sitting that relayed a plan and holds
