@@ -144,3 +144,47 @@ func blueEditOf(t *testing.T, answers, old, new string) *Event {
 	return recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{
 		Answers: proto.String(answers), Old: proto.String(old), New: proto.String(new)})
 }
+
+// A GAP ANCHORED ON AN INQUIRY IS ANSWERED BY A FATE ON THAT INQUIRY. No edit can answer a gap that
+// names no report text, so the list names the act that does: a fate blue records on the inquiry the
+// gap is anchored on, while engaged on it. A fate on another inquiry answers nothing, and a sitting
+// that recorded none is reported as missing the inquiry record — never as missing an edit.
+func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
+	const lens = "red-lens-dark-side"
+	gaps := []WorkGapState{{ID: "G1", Open: true, AboutKind: "inquiry", AboutRef: "Q-1"}}
+	scenario := func(fatedOn string) []*Event {
+		evs := []*Event{
+			recordtest.Event(t, "frontier", &recordpb.Inquiry{InquiryId: proto.String("Q-1"), Question: proto.String("q"),
+				Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED)}),
+			mintsGap(t, lens, "G1"), dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"),
+		}
+		if fatedOn != "" {
+			evs = append(evs, recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: proto.String(fatedOn),
+				Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED), Reason: proto.String("out of reach this run")}))
+		}
+		return append(evs, agentStops(t, "blue-a"))
+	}
+	for _, tc := range []struct {
+		name, fatedOn, want string
+		absent              []string
+	}{
+		{"blue recorded the inquiry's fate", "Q-1", "has been ANSWERED by an inquiry record — blue recorded the fate `deferred` on Q-1",
+			[]string{"NO edit answers it", "NO inquiry record answers it"}},
+		{"blue recorded another inquiry's fate", "Q-2", "NO inquiry record answers it — it is anchored on Q-1",
+			[]string{"NO edit answers it", "has been ANSWERED"}},
+		{"blue recorded no fate", "", "NO inquiry record answers it — it is anchored on Q-1",
+			[]string{"NO edit answers it", "has been ANSWERED"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := strings.Join(blueAnswersT(t, scenario(tc.fatedOn), gaps, lens), "\n")
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("want %q; got:\n%s", tc.want, got)
+			}
+			for _, no := range tc.absent {
+				if strings.Contains(got, no) {
+					t.Errorf("another arm fired too (%q):\n%s", no, got)
+				}
+			}
+		})
+	}
+}
