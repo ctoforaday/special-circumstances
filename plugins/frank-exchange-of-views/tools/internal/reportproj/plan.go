@@ -58,6 +58,8 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // Then, and only when the quote ENDS in punctuation the trim dropped, the quote AS WRITTEN is tried:
 // it must occur byte-for-byte exactly once, carry its anchors unchanged, and change the report. If
 // it does, exact is true and the caller records it — replay reads the field and never re-decides.
+// A quote of anchors and punctuation alone gives the ordinary locate nothing to match, and is taken
+// as written from the first, under the same conditions.
 //
 // A trimmed result that still doubles a terminator is RETURNED, not refused: that judgement is the
 // caller's (blue refuses it; mint does not ask). Only a no-op is an error here, because a no-op is
@@ -75,6 +77,11 @@ func PlanSplice(report, old, new string) (next, applied string, exact bool, err 
 		}
 	}()
 	start, end, err := bluedoc.LocateUniqueReplacing(report, old)
+	// A QUOTE OF ANCHORS AND PUNCTUATION ALONE leaves the ordinary locate nothing to match — it skips
+	// the anchor layer and trims trailing punctuation — so it is located byte for byte.
+	if ls, le, _, ok := bluedoc.LocateLiteral(report, old); err != nil && ok && anchortext.Visible(old) == "" {
+		start, end, err, exact = ls, le, nil, true
+	}
 	if err != nil {
 		return "", "", false, err
 	}
@@ -91,7 +98,7 @@ func PlanSplice(report, old, new string) (next, applied string, exact bool, err 
 	}
 	next = ApplySplice(report, start, end, applied)
 	if next != report && DoubledTerminator(report, next) == "" {
-		return next, applied, false, nil
+		return next, applied, exact, nil
 	}
 	if endsInTrimmedPunct(old) {
 		if ls, le, _, ok := bluedoc.LocateLiteral(report, old); ok {
@@ -105,7 +112,7 @@ func PlanSplice(report, old, new string) (next, applied string, exact bool, err 
 	if next == report {
 		return "", "", false, &NoChangeError{TrailingOnly: stripTail(old) == stripTail(new)}
 	}
-	return next, applied, false, nil
+	return next, applied, exact, nil
 }
 
 // headingAnchors is every anchor id on a heading line of s.

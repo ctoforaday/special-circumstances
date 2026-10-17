@@ -332,7 +332,7 @@ The tool matches your span across the invisible anchor layer and REFUSES a repla
 
 YOUR QUOTE DECIDES WHICH ANCHORS THE EDIT TOUCHES. An anchor your quote does not carry is outside the span and stays exactly where it stands. That covers the commonest place for one — the anchors at the END of a sentence, before its terminator: quote the sentence without them, write the replacement without them, and they stand after your new text, before the terminator, untouched. Leave the closing punctuation off that replacement — the terminator already stands after the anchors — because a replacement that ends its own sentence there is refused: it would leave them on that sentence, whichever sentence held the claim each marks. Typing one of them into the replacement without quoting it is refused, and the refusal names it.
 
-An anchor your quote carries, or one in the middle of the quoted text, is INSIDE the span and must be copied verbatim into the replacement, where its claim now stands. That is how an anchor at a sentence's end MOVES — onto an earlier sentence of a longer replacement, say: quote the sentence as `show report` prints it, anchors included, and write each one where it goes. Quoting one anchor of a run takes every anchor before it in that run into the span with it.
+An anchor your quote carries, at its start or its end, or one in the middle of the quoted text, is INSIDE the span and must be copied verbatim into the replacement, where its claim now stands. That is how an anchor at a sentence's end MOVES — onto an earlier sentence of a longer replacement, say: quote the sentence as `show report` prints it, anchors included, and write each one where it goes. Quoting one anchor of a run takes every anchor between it and your quoted text into the span with it.
 
 A RUN AT A SENTENCE'S END DOES NOT SAY WHICH PART OF THE SENTENCE EACH ANCHOR MARKS. When your replacement holds more sentences than the text it replaces, write each anchor your quote carries after the sentence that now holds its claim. A replacement that carries two or more anchors from the end of that text to the end of its own last sentence is refused, and the refusal prints what the record says each one marks beside your sentences, numbered. Where every one of them does belong on the last sentence, make the change in two edits: reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word.
 
@@ -686,7 +686,7 @@ OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
+      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it) (default "json")
       --match regex     → SHARED §12
       --quote text      → SHARED §13
 ========
@@ -699,8 +699,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {edits:[{seat
 
 Flags:
       --id gap-id     scope this projection to one gap — red's required_fix beside the edits answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
-      --match regex   select only the edits matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the edits containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the edits of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §14
+      --quote text    select only the edits of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §15
 ========
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor — the id the lens's `reproduce --anchor` takes — with its script's sha256 and red's checks of it, and red's verified claims with their confidence.
@@ -749,8 +749,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --match regex   select only the inquiries matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the inquiries containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the inquiries of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §14
+      --quote text    select only the inquiries of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §15
 ========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.
