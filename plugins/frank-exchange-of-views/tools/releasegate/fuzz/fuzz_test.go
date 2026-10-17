@@ -2413,8 +2413,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
 				return
 			}
+			// SOME PROOFS BACK THE SENTENCE THE EDIT DRIVE REWRITES, as some citations do: anchored
+			// only in the sentence no edit touches, no judged proof is ever reopened, and the
+			// routing of a reopened proof to its owner (reopenedOwnerOf) is unreached.
 			pv := r.do("prove", seatID).
 				set("--quote", "§ fuzz sentence").
+				on(25, "--quote", "across the whole sampled corpus").
 				set("--script", name).
 				set("--reason", "fuzz: computing rather than arguing").
 				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2)))
@@ -2841,17 +2845,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// holds both ends: an anchor a later sitting clears, and one a lens sat for and left,
 				// which holds the PASS and ends the run naming it. A citation is verified at its
 				// anchor — read, or found `unreachable`, which clears nothing; a proof is re-run by
-				// the sha256 its row carries. The evidence lens alone drives it, as the seat whose
-				// work list holds the item: seven lenses each re-running a proof per sitting put
-				// the longest runs at the sweep's ten-minute limit.
+				// the sha256 its row carries. The anchor's owner alone drives it, as the seat whose
+				// work list holds the item — the evidence lens a citation, the run's proof owner a
+				// proof: seven lenses each re-running a proof per sitting put the longest runs at
+				// the sweep's ten-minute limit.
 				//
-				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The lens is readied once
-				// per reopening, so an item its one sitting leaves holds the PASS for the rest of the
-				// run, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
+				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The owner is readied once
+				// per head move, so an item its sitting leaves holds the PASS until the report moves
+				// again, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
 				// A CONTRADICTION THIS LENS LEFT OPEN IN AN EARLIER SITTING IS ANSWERED NOW, by its id.
 				r.answerContradictions(seatID)
-				if seatID == "red-lens-evidence" {
-					owed, results := r.reopened(), []string{"supports", "unreachable"}
+				if seatID == "red-lens-evidence" || seatID == r.proofOwner {
+					var owed []record.ProofRef
+					for _, it := range r.reopened() {
+						if it.Sha != "" && seatID == r.proofOwner || it.Sha == "" && seatID == "red-lens-evidence" {
+							owed = append(owed, it)
+						}
+					}
+					results := []string{"supports", "unreachable"}
 					if r.forceVerified {
 						results = results[:1]
 					} else if len(owed) > 0 {
@@ -2866,6 +2877,15 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").run()
 						}
+					}
+				}
+				// THE PROOF OWNER JUDGES ONE PROOF IT IS OFFERED, ON A COIN — so a judged proof can be
+				// reopened by a later edit of its sentence, and so a run still ends with proofs it was
+				// offered and left, which hold it from retiring while they stand.
+				if seatID == r.proofOwner && r.coin(35) {
+					if offered, err := proofItemsOn(r.run(), seatID); err == nil && len(offered) > 0 {
+						r.do("reproduce", seatID).set("--anchor", pick(r.rng, offered)).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+							set("--reason", "fuzz: read the script against the sentence it backs").run()
 					}
 				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
@@ -4182,9 +4202,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
 		// the contradiction worth catching.
 		//
-		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. The evidence lens is readied once
-		// per reopening; one it sat for and left holds the PASS over a board with every gap
-		// closed, and the run ends UNVERIFIED naming it — the outcome the rule exists to give.
+		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. Its owner is readied once per head
+		// move; one it sat for and left holds the PASS over a board with every gap closed, and the
+		// run ends UNVERIFIED naming it — the outcome the rule exists to give.
 		reopenedStands := slices.ContainsFunc(plan.Blockers, func(b record.PlanBlocker) bool { return b.Kind == record.BlockerReopened })
 		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 && !reopenedStands {
 			benchClosed := 0
