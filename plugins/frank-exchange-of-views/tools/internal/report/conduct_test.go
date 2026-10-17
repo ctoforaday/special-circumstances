@@ -88,6 +88,11 @@ func TestSeatsWithNoMeasurementAreReportedAsNotMeasured(t *testing.T) {
 	if !strings.Contains(got, "NOT MEASURED") {
 		t.Errorf("a seat whose serving model nobody observed vanished from the table:\n%s", got)
 	}
+	// AND IT SAYS WHICH SEAT AND WHY. A count alone is a silent partial: the reader cannot tell a seat
+	// whose trajectory the search missed from one that never had an agent id.
+	if !strings.Contains(got, "- `blue-lane-2`: the event that opened this seat's sitting carries no agent id") {
+		t.Errorf("the unmeasured seat is not named with its reason:\n%s", got)
+	}
 	if strings.Contains(got, "SUBSTITUTED") {
 		t.Errorf("an unmeasured seat was reported as a substitution — the three states must stay apart:\n%s", got)
 	}

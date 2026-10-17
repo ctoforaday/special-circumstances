@@ -68,36 +68,34 @@ func TestAHalfWrittenFinalLineDoesNotLoseTheMeasurement(t *testing.T) {
 	}
 }
 
-// THE ID GOES INTO A GLOB, so what would widen that glob is refused before it gets there. An id
-// carrying a wildcard or a separator would make the search answer about SOME OTHER SEAT, which is
-// worse than measuring nothing.
-func TestAnIDThatWouldWidenTheGlobIsRefused(t *testing.T) {
-	for _, bad := range []string{"*", "a*", "a?c", "a[bc]", "../../etc", `..\..\etc`, ""} {
-		if _, err := Locate(bad); err == nil {
-			t.Errorf("Locate(%q) must refuse", bad)
-		}
-	}
-}
-
-// AND NOTHING ELSE IS REFUSED, which is the other half and the easier one to get wrong.
-//
-// The first version of this check required lowercase hex, because every id measured so far is
-// 17 lowercase hex characters. It would have passed every real id today and refused every one of
-// them, silently and permanently, the day the harness changed the format — a narrow matcher whose
-// miss reads exactly like a seat that has no trajectory. An id of an unexpected shape gets
-// SEARCHED FOR and honestly not found.
-func TestAnUnexpectedButHarmlessIDIsSearchedForRatherThanRefused(t *testing.T) {
+// THE ID IS COMPARED WITH A FILE'S NAME, NEVER EXPANDED, so an id carrying a wildcard or a
+// separator finds nothing beside the files it would match as a pattern — answering about SOME
+// OTHER SEAT is worse than measuring nothing. And an id of an unexpected shape is SEARCHED FOR and
+// honestly not found, never refused for its shape: a matcher narrowed to the ids measured so far
+// would refuse every one of them, silently, the day the harness changed the format.
+func TestAnIDMatchesOnlyAFileOfExactlyThatName(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", root)
-	for _, odd := range []string{"agent_01H9XKQ7", "AAAA1111", "abc", "a-b-c", "17-chars-of-other"} {
-		_, err := Locate(odd)
+	dir := filepath.Join(root, "projects", "proj", "sess", "subagents", "workflows", "wf_1")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "agent-abc.jsonl"), []byte(declared+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"*", "a*", "a?c", "[a]bc", "../wf_1/agent-abc", "wf_1/agent-abc", `..\..\etc`,
+		"agent_01H9XKQ7", "AAAA1111", "a-b-c", "17-chars-of-other"} {
+		p, err := Locate(id)
 		if err == nil {
-			t.Errorf("Locate(%q): nothing is there, so it must say so", odd)
+			t.Errorf("Locate(%q) = %q; only agent-abc.jsonl exists, and only the id abc names it", id, p)
 			continue
 		}
 		if !strings.Contains(err.Error(), "NOT MEASURED") {
-			t.Errorf("Locate(%q) must report a MISS, not a rejected shape: %v", odd, err)
+			t.Errorf("Locate(%q) must report a MISS: %v", id, err)
 		}
+	}
+	if _, err := Locate(""); err == nil {
+		t.Error("an empty id names no trajectory")
 	}
 }
 
@@ -174,5 +172,34 @@ func TestObserveReadsTheOneTrajectoryTheIDNames(t *testing.T) {
 	}
 	if filepath.Base(o.Path) != "agent-a8b246fd3eed5bf64.jsonl" {
 		t.Errorf("Path must name what was read, got %s", o.Path)
+	}
+}
+
+// THE CLIENT WRITES A SEAT'S TRANSCRIPT UNDER ITS SESSION'S `subagents/` DIRECTORY, AT WHATEVER
+// DEPTH ITS DISPATCHER CHOSE: a plain subagent directly in it, a Workflow seat two levels down in
+// `workflows/wf_<id>/`. Every seat of a research run is a Workflow seat, and the search that knew
+// only the first layout and one level below it found none of them — so the seat assembling the
+// report, whose turns are not yet on the record, printed NOT MEASURED in every run.md.
+func TestLocateFindsATranscriptAtEitherLayout(t *testing.T) {
+	for name, rel := range map[string]string{
+		"plain subagent": filepath.Join("subagents"),
+		"workflow seat":  filepath.Join("subagents", "workflows", "wf_df2a329c-37c"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("CLAUDE_CONFIG_DIR", root)
+			dir := filepath.Join(root, "projects", "proj", "sess", rel)
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			want := filepath.Join(dir, "agent-aeddcab47039ae33c.jsonl")
+			if err := os.WriteFile(want, []byte(declared+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			got, err := Locate("aeddcab47039ae33c")
+			if err != nil || got != want {
+				t.Fatalf("Locate = %q, %v; want %q", got, err, want)
+			}
+		})
 	}
 }
