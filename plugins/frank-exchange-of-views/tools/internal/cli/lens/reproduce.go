@@ -90,67 +90,117 @@ func newReproduce() *cobra.Command {
 			Note:      proto.String(note),
 		}
 		res := reproduceResult{Anchor: p.Label, SHA: p.SHA}
-		// ONE MATCHING RE-RUN STANDS FOR EVERY PROOF ON THE SCRIPT. Where the script has already
-		// reproduced, this act judges its own sentence on that re-run and runs nothing: the bytes
-		// are the same bytes whichever sentence they back.
-		if p.Reproduced() {
-			body.Rerun = recordpb.Rerun_RERUN_NOT_RUN.Enum()
-			res.Rerun, res.Reproduced, res.By = recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN), true, p.Rerun.SeatID
+		// A SCRIPT IS RE-RUN ONCE, AND THAT RE-RUN STANDS FOR EVERY PROOF ON IT WHATEVER IT SHOWED
+		// (gblock, 2026-10-17: "Why keep reproducing it when it wasn't modified?"). The script is
+		// addressed by its sha256 and never changes, so a second run of the same bytes measures the
+		// environment, not the proof — and a re-run that differed or called the tool was re-run on
+		// every `reproduce`. Where the script has a re-run, this act judges its own sentence on that
+		// re-run and runs nothing; only a changed script, a new sha, is a new re-run.
+		var o rerunOutcome
+		if p.Rerun != nil {
+			o = rerunOutcome{rerun: p.Rerun.Rerun, recorded: p.Rerun.Recorded, got: p.Rerun.Observed, by: p.Rerun.SeatID}
 		} else {
 			rr, err := proof.Reproduce(run.Dir(), p.SHA)
 			if err != nil {
 				return nil, err
 			}
-			res.Reproduced, res.Got, res.Recorded, res.ToolCalls = rr.Matches, rr.Got, rr.Want, rr.ToolCalls
+			o = rerunOutcome{rerun: recordpb.Rerun_RERUN_DIFFERS, recorded: rr.Want, got: rr.Got, toolCalls: rr.ToolCalls}
 			switch {
 			case len(rr.ToolCalls) > 0:
 				// A SCRIPT THAT CALLS THE TOOL CANNOT RUN IN A CHECKER'S HANDS, and nothing it printed is
 				// a result: the tool refused every call, and the script may have turned the refusal
 				// into an ordinary-looking number.
-				body.Rerun = recordpb.Rerun_RERUN_CALLS_THE_TOOL.Enum()
-				if snd == recordpb.Soundness_SOUNDNESS_SOUND {
-					return nil, feov.Errorf(feov.Conflict, "proof %s's script calls feov-record (%s), and the tool refuses every call made while a checker runs a script — so the re-run checked nothing, and `--as sound` is not recorded. "+
-						"Nothing is recorded. A script no checker can run establishes nothing a checker can check: that is `--as unsound`, with a reason that says the script reads the debate's tool rather than computing its claim", p.Label, rr.ToolCalls[0])
-				}
-				body.ObservedOutput = proto.String(truncateOutput(rr.Got))
+				o.rerun = recordpb.Rerun_RERUN_CALLS_THE_TOOL
 			case rr.Matches:
-				body.Rerun = recordpb.Rerun_RERUN_REPRODUCED.Enum()
-			default:
-				// A SOUND VERDICT OVER A RE-RUN THAT DID NOT REPRODUCE IS REFUSED, where the proof is
-				// recorded `reproducible`. The verdict and its reason are typed before the run, so on a
-				// failed run both are a judgement of output the seat has not seen: on universe-m20 a
-				// stored script that could not run for any red seat took five `sound` verdicts, two of
-				// them with a note saying the output matched. Refused, the seat reads what the script
-				// printed and calls again with what the run did.
-				//
-				// ONLY `reproducible`. A proof graded `observed` or `not_portable` is recorded as one
-				// whose output moves, and a re-run that differs is that proof behaving as recorded.
-				if snd == recordpb.Soundness_SOUNDNESS_SOUND && p.Basis == proof.Reproducible {
-					return nil, feov.Errorf(feov.Conflict, "the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, run now, did not print the recorded output.\n"+
-						"  recorded: %s\n  now:      %s\n"+
-						"Nothing is recorded. Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "+
-						"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
-						p.Label, proof.Reproducible, strings.TrimSpace(truncateOutput(rr.Want)), strings.TrimSpace(truncateOutput(rr.Got)))
-				}
-				body.Rerun = recordpb.Rerun_RERUN_DIFFERS.Enum()
+				o.rerun = recordpb.Rerun_RERUN_REPRODUCED
+			}
+		}
+		if err := o.refuseSound(p, snd); err != nil {
+			return nil, err
+		}
+		res.Reproduced, res.Got, res.Recorded, res.ToolCalls = o.rerun == recordpb.Rerun_RERUN_REPRODUCED, o.got, o.recorded, o.toolCalls
+		if o.by != "" {
+			body.Rerun = recordpb.Rerun_RERUN_NOT_RUN.Enum()
+			res.By, res.Standing = o.by, recordpb.Word(o.rerun)
+		} else {
+			body.Rerun = o.rerun.Enum()
+			switch o.rerun {
+			case recordpb.Rerun_RERUN_CALLS_THE_TOOL:
+				body.ObservedOutput = proto.String(truncateOutput(o.got))
+			case recordpb.Rerun_RERUN_DIFFERS:
 				// Only on a MISMATCH, and truncated: the recorded output already lives in the
 				// proof artifact, and copying it wholesale into the event would put a second
 				// copy of the same bytes on the record. What the reader needs is what CHANGED.
-				body.RecordedOutput = proto.String(truncateOutput(rr.Want))
-				body.ObservedOutput = proto.String(truncateOutput(rr.Got))
+				body.RecordedOutput = proto.String(truncateOutput(o.recorded))
+				body.ObservedOutput = proto.String(truncateOutput(o.got))
 			}
-			res.Rerun = recordpb.Word(body.GetRerun())
 		}
+		res.Rerun = recordpb.Word(body.GetRerun())
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return res, nil
 	}))
-	c.Flags().Var(flags.ProofAnchor().WithCheck(record.ProofExists), flags.Anchor, "the id of the proof whose sentence you judge, from the report's `"+anchor.Token("P-…")+"` token — `show evidence` lists every proof by it. The tool re-runs that proof's script unless the script has already reproduced")
+	c.Flags().Var(flags.ProofAnchor().WithCheck(record.ProofExists), flags.Anchor, "the id of the proof whose sentence you judge, from the report's `"+anchor.Token("P-…")+"` token — `show evidence` lists every proof by it. The tool re-runs that proof's script unless the script already has a re-run, which stands whatever it showed")
 	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), "having READ the script: does it actually establish the sentence at --anchor?")
 	seat.Require(c, flags.Anchor, flags.As)
 	// The handler refuses a verdict with no reading behind it; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
+}
+
+// rerunOutcome is what a script's re-run showed — this act's own, or the standing one it judges on,
+// where by names the seat whose re-run that is.
+type rerunOutcome struct {
+	rerun         recordpb.Rerun
+	recorded, got string
+	toolCalls     []string
+	by            string
+}
+
+// refuseSound is the one check of a `sound` verdict against what the re-run showed, whoever ran it:
+// a script that calls the tool is never sound, and a `reproducible` proof whose re-run did not
+// reproduce is not sound either.
+func (o rerunOutcome) refuseSound(p record.Proof, snd recordpb.Soundness) error {
+	if snd != recordpb.Soundness_SOUNDNESS_SOUND {
+		return nil
+	}
+	// The run this verdict stands on, in the words of the refusal.
+	ran := "run now"
+	if o.by != "" {
+		ran = "as " + o.by + " re-ran it — the re-run that stands for the script, so nothing was re-run now —"
+	}
+	switch o.rerun {
+	case recordpb.Rerun_RERUN_CALLS_THE_TOOL:
+		calls := "calls feov-record"
+		if len(o.toolCalls) > 0 {
+			calls += " (" + o.toolCalls[0] + ")"
+		}
+		return feov.Errorf(feov.Conflict, "proof %s's script, %s, %s, and the tool refuses every call made while a checker runs a script — so the re-run checked nothing, and `--as sound` is not recorded. "+
+			"Nothing is recorded. A script no checker can run establishes nothing a checker can check: that is `--as unsound`, with a reason that says the script reads the debate's tool rather than computing its claim", p.Label, ran, calls)
+	case recordpb.Rerun_RERUN_DIFFERS:
+		// A SOUND VERDICT OVER A RE-RUN THAT DID NOT REPRODUCE IS REFUSED, where the proof is
+		// recorded `reproducible`. The verdict and its reason are typed before the run, so on a
+		// failed run both are a judgement of output the seat has not seen: on universe-m20 a
+		// stored script that could not run for any red seat took five `sound` verdicts, two of
+		// them with a note saying the output matched. Refused, the seat reads what the script
+		// printed and calls again with what the run did.
+		//
+		// ONLY `reproducible`. A proof graded `observed` or `not_portable` is recorded as one
+		// whose output moves, and a re-run that differs is that proof behaving as recorded.
+		if p.Basis != proof.Reproducible {
+			return nil
+		}
+		read := "Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "
+		if o.by != "" {
+			read = "Read what that re-run printed, above, then call again with what the run did. "
+		}
+		return feov.Errorf(feov.Conflict, "the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, %s, did not print the recorded output.\n"+
+			"  recorded: %s\n  re-run:   %s\n"+
+			"Nothing is recorded. "+read+
+			"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
+			p.Label, proof.Reproducible, ran, strings.TrimSpace(truncateOutput(o.recorded)), strings.TrimSpace(truncateOutput(o.got)))
+	}
+	return nil
 }
 
 // truncateOutput keeps a mismatch legible without copying a whole run's output onto the record.
@@ -166,7 +216,7 @@ type reproduceResult struct {
 	Anchor string `json:"anchor"`
 	SHA    string `json:"sha256"`
 	// Rerun is what this act did with the script, in the record's word: reproduced | differs |
-	// calls_the_tool, or not_run where the script had already reproduced and this act judged its
+	// calls_the_tool, or not_run where the script already had a re-run and this act judged its
 	// sentence on that re-run.
 	Rerun string `json:"rerun"`
 	// Reproduced is whether the script's standing re-run printed the recorded output — the record's
@@ -178,8 +228,10 @@ type reproduceResult struct {
 	Reproduced bool   `json:"reproduced"`
 	Got        string `json:"got"`
 	Recorded   string `json:"recorded"`
-	// By is the seat whose re-run this judgement stands on, where this act ran nothing.
-	By string `json:"rerun_by,omitempty"`
+	// By is the seat whose re-run this judgement stands on, and Standing what that re-run showed
+	// (reproduced | differs | calls_the_tool), where this act ran nothing.
+	By       string `json:"rerun_by,omitempty"`
+	Standing string `json:"standing_rerun,omitempty"`
 	// ToolCalls is every feov-record call the script made under the re-run, each refused.
 	ToolCalls []string `json:"tool_calls,omitempty"`
 }
@@ -191,7 +243,12 @@ func (r reproduceResult) Human() string {
 	}
 	switch r.Rerun {
 	case recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN):
-		return "proof " + r.Anchor + ": its script " + short + " has already REPRODUCED (re-run by " + r.By + "), and that re-run stands for every proof on it — nothing was re-run. Your verdict on this sentence is recorded"
+		showed := map[string]string{
+			recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED):     "REPRODUCED",
+			recordpb.Word(recordpb.Rerun_RERUN_DIFFERS):        "did NOT reproduce",
+			recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL): "CALLED THE TOOL, so it checked nothing",
+		}[r.Standing]
+		return "proof " + r.Anchor + ": its script " + short + " was already re-run by " + r.By + ", and " + showed + " — that re-run stands for every proof on the script whatever it showed, so nothing was re-run. Your verdict on this sentence is recorded"
 	case recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL):
 		return "proof " + r.Anchor + " CANNOT BE CHECKED: its script called feov-record (" + strings.Join(r.ToolCalls, "; ") + "), which refuses every call made while a checker runs a script, so nothing it printed is a result.\n  now: " + r.Got +
 			"\n  Recorded as calls_the_tool, with your verdict: the script reads the debate's tool rather than computing its claim"

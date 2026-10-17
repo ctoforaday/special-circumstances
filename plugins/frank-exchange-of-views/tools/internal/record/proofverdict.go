@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -10,9 +11,10 @@ import (
 // A PROOF'S VERDICT HAS TWO OWNERS (gblock, 2026-10-12): "the anchor is about the quote, the proof
 // is about the proof itself".
 //
-//   - REPRODUCED belongs to the SCRIPT. One matching re-run marks every anchor on that script
-//     reproduced: the bytes that ran are the same bytes whichever sentence they back. The script's
-//     standing re-run is the latest `reproduce` of its sha that ran it.
+//   - THE RE-RUN belongs to the SCRIPT. The script's standing re-run is the latest `reproduce` of
+//     its sha that ran it, and it stands for every anchor on that script whatever it showed: the
+//     bytes that ran are the same bytes whichever sentence they back, and a sha names bytes that
+//     never change, so `reproduce` runs a script once and a changed script is a new proof.
 //   - SOUND belongs to the ANCHOR: does the script and its result support what THAT sentence says.
 //     It is read off the anchor's standing checks (anchorchecks.go), so a standing `unsound` from
 //     one lens stays visible beside another lens's `sound` until the anchor is answered — by its own
@@ -77,18 +79,30 @@ func validateReproduce(q recordsql.Querier, b *recordpb.Reproduce) error {
 	case recordpb.Rerun_RERUN_UNSPECIFIED:
 		return fmt.Errorf("reproduce of %s records nothing about its script: a reproduce says whether it re-ran the script and what that printed, or that it judged the sentence on the script's standing re-run", b.GetProofId())
 	case recordpb.Rerun_RERUN_NOT_RUN:
-		var ran int
-		if _, err := queryRowAt(q, []any{&ran}, `SELECT COUNT(*) FROM "reproduce" WHERE "proof_sha" = ? AND "rerun" != ?`,
-			sha, recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN)); err != nil {
+		// A JUDGEMENT THAT RAN NOTHING STANDS ON THE SCRIPT'S RE-RUN, whatever that re-run showed,
+		// and is checked against what it showed.
+		var standing sql.NullString
+		ran, err := queryRowAt(q, []any{&standing}, `SELECT "rerun" FROM "reproduce" WHERE "proof_sha" = ? AND "rerun" != ? ORDER BY "event_id" DESC LIMIT 1`,
+			sha, recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN))
+		if err != nil {
 			return err
 		}
-		if ran == 0 {
+		if !ran {
 			return fmt.Errorf("reproduce of %s judged its sentence without running its script, and nothing on the record ever ran that script — a judgement stands on a re-run, so this one re-runs it", b.GetProofId())
 		}
-	case recordpb.Rerun_RERUN_CALLS_THE_TOOL:
-		if b.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND {
-			return fmt.Errorf("proof %s's script calls feov-record, which refuses every call made inside a re-run, so no checker can run it to its output — that is `--as unsound`, never sound", b.GetProofId())
+		if standing.String == recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL) {
+			return refuseSoundOverTheTool(b)
 		}
+	case recordpb.Rerun_RERUN_CALLS_THE_TOOL:
+		return refuseSoundOverTheTool(b)
+	}
+	return nil
+}
+
+// refuseSoundOverTheTool refuses a `sound` verdict on a script whose re-run called the tool.
+func refuseSoundOverTheTool(b *recordpb.Reproduce) error {
+	if b.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND {
+		return fmt.Errorf("proof %s's script calls feov-record, which refuses every call made inside a re-run, so no checker can run it to its output — that is `--as unsound`, never sound", b.GetProofId())
 	}
 	return nil
 }

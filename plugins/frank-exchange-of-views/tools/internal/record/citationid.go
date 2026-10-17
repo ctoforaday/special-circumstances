@@ -298,11 +298,6 @@ type Proof struct {
 	Judgements []ProofJudgement
 }
 
-// Reproduced is whether the script's standing re-run printed the recorded output.
-func (p Proof) Reproduced() bool {
-	return p.Rerun != nil && p.Rerun.Rerun == recordpb.Rerun_RERUN_REPRODUCED
-}
-
 // ProofRerun is one `reproduce` that RAN a proof's script. The result is COMPUTED by the tool, not
 // claimed by the seat — which is the whole reason re-running beats re-reading.
 type ProofRerun struct {

@@ -212,7 +212,7 @@ var blockerKinds = []blockerKind{
 		item: func(b Blocker) string {
 			act := "reading it as it now stands against its source"
 			if b.Detail != "" {
-				act = "judging whether its script establishes the sentence as it now stands (`reproduce --anchor " + b.Subject + "`, which re-runs nothing once the script has reproduced)"
+				act = "judging whether its script establishes the sentence as it now stands (`reproduce --anchor " + b.Subject + "`, which re-runs nothing once the script has a re-run)"
 			}
 			return fmt.Sprintf("%s — PASS is refused until a lens checks it from a sitting opened after the edit, by %s. %s",
 				reopenedFact(b), act, reopenedOwed)

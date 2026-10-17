@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
+	"google.golang.org/protobuf/proto"
 )
 
 // A RE-RUN THAT DID NOT REPRODUCE IS UNMISTAKABLE, AND TAKES NO `sound` VERDICT.
@@ -100,11 +101,17 @@ func TestASoundVerdictOnAnObservedProofIsRecorded(t *testing.T) {
 // THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12).
 //
 // One script backs two sentences. The first lens's re-run reproduces it for both; the second
-// sentence is still owed a judgement, its work item says the script has reproduced, and the lens
-// that judges it runs nothing. Each sentence keeps its own verdict: the second lens's `unsound` on
-// one does not move the first lens's `sound` on the other, and neither overwrites the other.
+// sentence is still owed a judgement, its work item — on the computation lens's list alone, the
+// lens that owns proofs in this cast — says the script was re-run and reproduced, and the judgement runs
+// nothing. Each sentence keeps its own verdict: the second lens's `unsound` on one does not move
+// the first lens's `sound` on the other, and neither overwrites the other.
 func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T) {
 	runDir := newRun(t)
+	cast, lanes := record.CastFor(nil, 1)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
+		t.Fatalf("cast: %v", err)
+	}
 	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
 	counter := filepath.Join(runDir, "runs.txt")
 	// The script counts its own executions in a file beside the run, so the test can see whether
@@ -128,27 +135,30 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 	}
 	runsBefore, _ := os.ReadFile(counter)
 
-	// The second sentence is owed, and its item says the script has reproduced.
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
-		t.Fatal(err)
-	}
-	work, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-lens-evidence")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "proof " + anchors[1] + "'s script has REPRODUCED, and nobody has judged whether it establishes THIS sentence"; !strings.Contains(work, want) {
-		t.Errorf("the work list does not offer the second sentence's judgement:\n%s", work)
-	}
-	if strings.Contains(work, "proof "+anchors[0]) {
-		t.Errorf("the work list still offers the judged sentence:\n%s", work)
+	// The second sentence is owed, on the owner's list alone, and its item says the script has reproduced.
+	for _, lens := range []string{"red-lens-computation", "red-lens-evidence", "red-lens-logic"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", lens); err != nil {
+			t.Fatal(err)
+		}
+		work, err := run(t, "show", "work", "--run", runDir, "--seat-id", lens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "proof " + anchors[1] + "'s script was re-run and REPRODUCED, and nobody has judged whether it establishes THIS sentence"
+		if owner := lens == "red-lens-computation"; strings.Contains(work, want) != owner {
+			t.Errorf("%s's work list offers the second sentence's judgement = %v, want %v:\n%s", lens, !owner, owner, work)
+		}
+		if strings.Contains(work, "proof "+anchors[0]) {
+			t.Errorf("%s's work list still offers the judged sentence:\n%s", lens, work)
+		}
 	}
 
-	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", anchors[1], "--as", "unsound",
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", anchors[1], "--as", "unsound",
 		"--reason", "trial division says nothing about the ordinal of a prime", "--json")
 	if err != nil {
 		t.Fatalf("the second sentence's judgement: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, `"rerun":"not_run"`) || !strings.Contains(out, `"reproduced":true`) || !strings.Contains(out, `"rerun_by":"red-lens-logic"`) {
+	if !strings.Contains(out, `"rerun":"not_run"`) || !strings.Contains(out, `"reproduced":true`) || !strings.Contains(out, `"rerun_by":"red-lens-logic"`) || !strings.Contains(out, `"standing_rerun":"reproduced"`) {
 		t.Errorf("the judgement of a sentence on a reproduced script does not say it ran nothing on that re-run:\n%s", out)
 	}
 	if runsAfter, _ := os.ReadFile(counter); string(runsAfter) != string(runsBefore) {
@@ -226,4 +236,135 @@ func evidenceJSON(t *testing.T, runDir string) record.EvidenceJSON {
 		t.Fatal(err)
 	}
 	return ev
+}
+
+// A SCRIPT IS RE-RUN ONCE, WHATEVER ITS RE-RUN SHOWED (gblock, 2026-10-17: "Why keep reproducing it
+// when it wasn't modified?"). A script is addressed by its sha and never changes, so a re-run that
+// did not reproduce stands for the script exactly as one that did: a later judgement runs nothing,
+// says what the standing re-run showed and whose it is, and a `sound` over it is refused on the
+// same ground as over a fresh failed run.
+func TestAReRunThatDidNotReproduceStandsForItsScript(t *testing.T) {
+	runDir := newRun(t)
+	cast, lanes := record.CastFor(nil, 1)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
+		t.Fatalf("cast: %v", err)
+	}
+	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
+	marker := filepath.Join(runDir, "marker.txt")
+	if err := os.WriteFile(marker, []byte("no divisors in 2..6\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The script counts its own executions in a file beside the run, so the test sees whether a
+	// later judgement ran it.
+	s := script(t, runDir, "seven.js", "const fs=require('fs');fs.appendFileSync('runs.txt','x');console.log(fs.readFileSync('marker.txt','utf8').trim());")
+	var anchors []string
+	for _, q := range []string{"Seven has no divisor between two and six.", "Seven is the fourth prime."} {
+		if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", q, "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "reproducible") {
+			t.Fatalf("prove did not record the script as reproducible: %v\n%s", err, out)
+		}
+		anchors = append(anchors, lastBody(t, runDir, &recordpb.Proof{}).GetProofId())
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	reproduce := func(lens, anchor, as string) (string, error) {
+		return run(t, "reproduce", "--run", runDir, "--seat-id", lens, "--anchor", anchor, "--as", as,
+			"--reason", "trial division over 2..6, and the run did not print the recorded output", "--json")
+	}
+	if out, err := reproduce("red-lens-logic", anchors[0], "unsound"); err != nil || !strings.Contains(out, `"rerun":"differs"`) {
+		t.Fatalf("the first re-run: %v\n%s", err, out)
+	}
+	counter := filepath.Join(runDir, "runs.txt")
+	runsBefore, _ := os.ReadFile(counter)
+
+	// The second sentence is owed, and the owner's work list names the act that re-runs nothing.
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-computation"); err != nil {
+		t.Fatal(err)
+	}
+	work, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-lens-computation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "proof " + anchors[1] + "'s script was re-run and did not reproduce (differs)"; !strings.Contains(work, want) || !strings.Contains(work, "without re-running it") {
+		t.Errorf("the owner's work list does not offer the sentence's judgement on the standing re-run:\n%s", work)
+	}
+
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REPRODUCE)
+	out, err := reproduce("red-lens-computation", anchors[1], "sound")
+	if err == nil {
+		t.Fatalf("a `sound` verdict was recorded over the standing re-run that did not reproduce:\n%s", out)
+	}
+	msg := err.Error() + "\n" + out
+	for _, want := range []string{"did NOT reproduce", "`--as sound` is not recorded", "as red-lens-logic re-ran it", "nothing was re-run now", "recorded: no divisors in 2..6", "Nothing is recorded"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal over the standing re-run does not say %q:\n%s", want, msg)
+		}
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REPRODUCE); n != before {
+		t.Errorf("the refused judgement recorded %d event(s)", n-before)
+	}
+
+	out, err = reproduce("red-lens-computation", anchors[1], "unsound")
+	if err != nil {
+		t.Fatalf("an `unsound` verdict over the standing re-run: %v\n%s", err, out)
+	}
+	for _, want := range []string{`"rerun":"not_run"`, `"standing_rerun":"differs"`, `"rerun_by":"red-lens-logic"`, `"reproduced":false`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the judgement on the standing re-run does not carry %s:\n%s", want, out)
+		}
+	}
+	if ev := lastBody(t, runDir, &recordpb.Reproduce{}); ev.GetRerun() != recordpb.Rerun_RERUN_NOT_RUN {
+		t.Errorf("the record holds rerun=%s, want not_run", ev.GetRerun())
+	}
+	if runsAfter, _ := os.ReadFile(counter); string(runsAfter) != string(runsBefore) {
+		t.Errorf("a judgement re-ran a script that already had a re-run (%d runs before, %d after)", len(runsBefore), len(runsAfter))
+	}
+	for _, p := range evidenceJSON(t, runDir).Proofs {
+		if p.Rerun != "differs" || p.Soundness != record.SoundnessUnsound || p.Verified {
+			t.Errorf("the evidence row reads %+v, want the standing re-run differs, unsound, not verified", p)
+		}
+	}
+}
+
+// A SCRIPT THAT CALLED THE TOOL STANDS AS ONE, and the write refuses a `sound` judgement that
+// stands on that re-run — from the verb, and from any writer that reaches the record without it.
+func TestASoundJudgementOnAScriptThatCalledTheToolIsRefusedWithoutReRunning(t *testing.T) {
+	runDir := newRun(t)
+	seat := proveSeat(t, runDir, "# H\n\nThe board holds no open gap.\n")
+	s := script(t, runDir, "board.js", `const fs=require("fs");
+fs.appendFileSync("runs.txt","x");
+if (process.env.`+seatenv.VarProofRerun+`) fs.appendFileSync(process.env.`+seatenv.VarProofRerun+`, "feov-record show board --json\n");
+console.log("0");`)
+	if out, err := run(t, "prove", "--run", runDir, "--seat-id", seat, "--quote", "The board holds no open gap.", "--script", s, "--reason", "r"); err != nil || !strings.Contains(out, "not_portable") {
+		t.Fatalf("prove did not grade a script that calls the tool not_portable: %v\n%s", err, out)
+	}
+	p := lastBody(t, runDir, &recordpb.Proof{})
+	if out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-logic", "--anchor", p.GetProofId(), "--as", "unsound",
+		"--reason", "it reads the board through the tool"); err != nil {
+		t.Fatalf("the first re-run: %v\n%s", err, out)
+	}
+	counter := filepath.Join(runDir, "runs.txt")
+	runsBefore, _ := os.ReadFile(counter)
+
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", p.GetProofId(), "--as", "sound", "--reason", "it reads the board")
+	if err == nil || !strings.Contains(err.Error()+out, "calls feov-record") || !strings.Contains(err.Error()+out, "as red-lens-logic re-ran it") {
+		t.Fatalf("a sound verdict over a standing re-run that called the tool: %v\n%s", err, out)
+	}
+	out, err = run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", p.GetProofId(), "--as", "unsound",
+		"--reason", "it reads the board through the tool rather than computing anything", "--json")
+	if err != nil || !strings.Contains(out, `"rerun":"not_run"`) || !strings.Contains(out, `"standing_rerun":"calls_the_tool"`) {
+		t.Fatalf("an unsound verdict over the standing re-run: %v\n%s", err, out)
+	}
+	if runsAfter, _ := os.ReadFile(counter); string(runsAfter) != string(runsBefore) {
+		t.Errorf("a judgement re-ran a script that already had a re-run (%d runs before, %d after)", len(runsBefore), len(runsAfter))
+	}
+
+	_, err = record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-lens-computation"}, &recordpb.Reproduce{
+		ProofId: proto.String(p.GetProofId()), ProofSha: proto.String(p.GetProofSha()),
+		Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Rerun: recordpb.Rerun_RERUN_NOT_RUN.Enum(), Note: proto.String("n"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "never sound") {
+		t.Errorf("the write took a `sound` judgement standing on a re-run that called the tool: %v", err)
+	}
 }

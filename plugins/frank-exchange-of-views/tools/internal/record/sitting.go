@@ -302,8 +302,8 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	// lists it.
 	//
 	// Nothing else blocks a lens. The acts a lens genuinely has open to it — verifying a citation
-	// nobody checked, corroborating one blue never cited, re-running a proof nobody re-ran — come
-	// from availableOf and land on this same list carrying Blocks:false: available work, none of
+	// nobody checked, corroborating one blue never cited, and, for the lens that owns proofs (proofOwnerOf), re-running a
+	// proof nobody re-ran — come from availableOf and land on this same list carrying Blocks:false: available work, none of
 	// it owed.
 	case "lens":
 		for _, b := range passBlockersOf(evs, ids, win, blockerGapsOfStates(gaps), freshMaterialOfStates(gaps)) {
