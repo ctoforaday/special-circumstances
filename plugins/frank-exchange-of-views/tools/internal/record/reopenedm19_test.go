@@ -141,7 +141,7 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 			t.Errorf("show evidence --anchor %s: reopened = %+v (%v), want edit %d, last check %d", r.anchor, at.Reopened, err, r.edit, r.lastCheck)
 		}
 	}
-	if !strings.Contains(chair, "(`reproduce --anchor "+m19Reopened[2].anchor+"`, which re-runs nothing once the script has reproduced)") {
+	if !strings.Contains(chair, "(`reproduce --anchor "+m19Reopened[2].anchor+"`, which re-runs nothing once the script has a re-run)") {
 		t.Errorf("the proof's item does not carry the anchor its judgement takes:\n%s", chair)
 	}
 	var rows []reopened
