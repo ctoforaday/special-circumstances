@@ -122,21 +122,24 @@ func TestTheReportPageSaysWhichSelectorsCombine(t *testing.T) {
 }
 
 // THE EVIDENCE PAGE SAYS WHERE A PROOF'S VERDICT LIVES. Two chair sittings rebuilt
-// `{reproduced, sound}` from the proof ROW, read null on every proof, and recorded verified proofs
-// as unverified while `counts.proofs_unverified` on the same output said 0.
+// `{reproduced, sound}` from the proof ROW of a nested `verified` object, read null on every proof,
+// and recorded verified proofs as unverified while `counts.proofs_unverified` on the same output
+// said 0. The verdict is flat on the row now, in its two halves.
 func TestTheEvidencePageSaysWhereAProofsVerdictLives(t *testing.T) {
 	page := seat.HelpText(cmdAt(NewRootFor("red-chair"), []string{"show", "evidence"}))
 	for _, says := range []string{
-		"A PROOF'S VERDICT IS THE OBJECT AT `verified`, NOT FIELDS OF ITS ROW",
-		"`.proofs[].verified.reproduced`", "`.proofs[].verified.sound`",
-		"`counts.proofs_unverified` is how many proofs carry no verdict",
+		"A PROOF'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES", "`rerun` is the SCRIPT's", "`soundness` is THIS ANCHOR's sentence",
+		"`verified` is true when the script reproduced AND this sentence is judged sound",
+		"`counts.proofs_unverified` is how many proofs are not verified",
+		"`--about-kind contradiction --about <id>`",
 	} {
 		if !strings.Contains(page, says) {
 			t.Errorf("show evidence's page does not say %q", says)
 		}
 	}
 	// AND THE PATHS IT NAMES ARE THE SHAPE'S, read off the field tree the same page generates.
-	for _, shape := range []string{"proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,verified:{reproduced,sound,note,", "counts:{sources,proofs,proofs_unverified,"} {
+	for _, shape := range []string{"proofs:[{anchor,sha256,basis,cites,drift,seat_id,epoch,rerun,soundness,verified,checks:[{rerun,soundness,standing,",
+		"unanswered_contradictions:[{id,claim,reader,anchor}]", "counts:{sources,proofs,proofs_unverified,"} {
 		if !strings.Contains(page, shape) {
 			t.Errorf("the page names a path its own field tree does not hold (%q)", shape)
 		}

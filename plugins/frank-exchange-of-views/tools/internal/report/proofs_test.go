@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
@@ -104,21 +105,58 @@ func TestAProofWithNoReasonIsNamedByItsStoredScript(t *testing.T) {
 	}
 }
 
-// EVERY RE-RUN NAMES RED, never the lens's seat and sitting: on each of the two axes' four cells.
+// EVERY RE-RUN AND EVERY JUDGEMENT NAMES RED, never the lens's seat and sitting: on each cell of the
+// two axes — the script's re-run and this sentence's verdict.
 func TestEveryReRunOfAProofIsAttributedToRed(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "abc123def4567890"
 	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
-	for _, cell := range []struct{ reproduced, sound bool }{{true, true}, {true, false}, {false, true}, {false, false}} {
-		v := &record.ProofVerification{SeatID: "red-lens-evidence", Sitting: 5, Reproduced: cell.reproduced, Sound: cell.sound}
-		proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "nine.py", Reason: "trial division",
-			Verified: v}}
-		ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
-		if strings.Contains(ev, "red-lens-evidence") || strings.Contains(ev, "#5") {
-			t.Errorf("reproduced=%v sound=%v: a re-run is attributed to a seat:\n%s", cell.reproduced, cell.sound, ev)
+	for _, rerun := range []recordpb.Rerun{recordpb.Rerun_RERUN_REPRODUCED, recordpb.Rerun_RERUN_DIFFERS, recordpb.Rerun_RERUN_CALLS_THE_TOOL} {
+		for _, sound := range []bool{true, false} {
+			soundness := record.SoundnessUnsound
+			if sound {
+				soundness = record.SoundnessSound
+			}
+			proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "nine.py", Reason: "trial division",
+				Rerun:      &record.ProofRerun{SeatID: "red-lens-evidence", Sitting: 5, Rerun: rerun},
+				Soundness:  soundness,
+				Judgements: []record.ProofJudgement{{SeatID: "red-lens-evidence", Sound: sound, Note: "read it"}}}}
+			ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+			if strings.Contains(ev, "red-lens-evidence") || strings.Contains(ev, "#5") {
+				t.Errorf("%s, sound=%v: a re-run is attributed to a seat:\n%s", rerun, sound, ev)
+			}
+			if !strings.Contains(ev, "**re-run by red") || !strings.Contains(ev, "**judged by red") {
+				t.Errorf("%s, sound=%v: the re-run and the judgement do not name red:\n%s", rerun, sound, ev)
+			}
 		}
-		if !strings.Contains(ev, "**audited by red") {
-			t.Errorf("reproduced=%v sound=%v: the re-runs do not name red:\n%s", cell.reproduced, cell.sound, ev)
+	}
+}
+
+// THE TWO HALVES ARE TWO LINES. A proof whose script reproduced and whose sentence nobody judged
+// says both, and one that nobody re-ran says that — the absence of an audit is information.
+func TestAProofSaysWhatOfItWasCheckedAndWhatWasNot(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
+	for _, c := range []struct {
+		name string
+		p    record.Proof
+		want []string
+	}{
+		{"nothing checked", record.Proof{Soundness: record.SoundnessNotJudged}, []string{"**not re-run**", "**not judged**"}},
+		{"reproduced, sentence not judged", record.Proof{Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_REPRODUCED}, Soundness: record.SoundnessNotJudged},
+			[]string{"it REPRODUCES", "**not judged**"}},
+		{"reproduced, sentence edited after its judgement", record.Proof{Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_REPRODUCED}, Soundness: record.SoundnessReopened},
+			[]string{"it REPRODUCES", "**not judged since the sentence changed**"}},
+		{"the script calls the tool", record.Proof{Rerun: &record.ProofRerun{Rerun: recordpb.Rerun_RERUN_CALLS_THE_TOOL}, Soundness: record.SoundnessUnsound},
+			[]string{"IT CANNOT BE CHECKED", "IT DOES NOT PROVE THIS SENTENCE"}},
+	} {
+		c.p.Label, c.p.SHA, c.p.Basis, c.p.Script, c.p.Reason = "P-deadbeef", sha, "reproducible", "nine.py", "trial division"
+		ev := evidenceDoc(runtest.Open(t, runDir), []record.Proof{c.p}, map[string]bool{"P-deadbeef": true})
+		for _, w := range c.want {
+			if !strings.Contains(ev, w) {
+				t.Errorf("%s: the evidence document does not say %q:\n%s", c.name, w, ev)
+			}
 		}
 	}
 }

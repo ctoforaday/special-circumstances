@@ -149,10 +149,10 @@ func actRows() map[string]actRow {
 				}
 				must(t, runDir, "prove", "--seat-id", "blue-respond", "--quote", "a quoted sentence",
 					"--script", s, "--reason", "the computation a lens re-runs", "--expect-error")
-				return actVars{"sha": lastBody(t, runDir, &recordpb.Proof{}).GetProofSha()}
+				return actVars{"proof": lastBody(t, runDir, &recordpb.Proof{}).GetProofId()}
 			},
 			act: func(v actVars, text string) []string {
-				return []string{"reproduce", "--id", v["sha"], "--as", "sound", "--reason", text}
+				return []string{"reproduce", "--anchor", v["proof"], "--as", "sound", "--reason", text}
 			}},
 		"lens close": {seat: lensSeat, act: func(_ actVars, text string) []string {
 			return []string{"close", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",

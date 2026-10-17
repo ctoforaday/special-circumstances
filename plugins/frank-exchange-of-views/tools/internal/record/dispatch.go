@@ -34,7 +34,7 @@ type Party struct {
 // gavel is the bench's still stands at the exit.
 type PlanBlocker struct {
 	Kind    BlockerKind `json:"kind"`
-	Subject string      `json:"subject"`
+	Subject string      `json:"subject" desc:"the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds"`
 	Owner   string      `json:"owner"`
 }
 
@@ -386,11 +386,11 @@ func foldPlan(params Params, r planReads) Plan {
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(openings[b.Owner], b.since); sat {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q, and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Subject))
+				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b)))
 				continue
 			}
 			engage(b.Owner, "")
-			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q and no finding raises it — ready, to raise it", b.Owner, b.Subject))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and no finding raises it — ready, to raise it", b.Owner, b.Detail, contradictionFact(b)))
 		}
 	}
 	// ONE SITTING FOR EVERY REOPENED ANCHOR, ONCE PER REOPENING. "Sat" is a sitting the lens opened

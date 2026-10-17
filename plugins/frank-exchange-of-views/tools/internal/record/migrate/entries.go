@@ -30,6 +30,11 @@ func Entries() Registry {
 		// and the change is the sitting's edits, each with its reason; nothing reads a revision's
 		// text. The manifest counts each in events_in and none in events_out.
 		"revision": {Translate: revisionEntry},
+		// A REPRODUCE BEFORE EPOCH 28 RE-RAN A SCRIPT AND JUDGED IT, keyed by the script's sha. Its
+		// re-run is the script's; its soundness is carried to every anchor on that script when it was
+		// written — the fan-out is the replay's, because it reads the proofs replayed before it
+		// (reproduceAnchors in replay.go).
+		"reproduce": {Translate: reproduceEntry},
 		// AN APPEAL HAS NO TRANSLATION. A ruling stands as made, and the record holds no act that
 		// presses one; no archived run holds an appeal, so a record that does is a new fact for its
 		// operator to accept by word, not a shape to guess.
@@ -196,6 +201,45 @@ func remandDirection(r *recordpb.DocketRuling) {
 
 // revisionEntry translates a revision to no event, whatever its era's columns.
 func revisionEntry(OldEvent) ([]proto.Message, error) { return nil, nil }
+
+// reproduceEntry: `reproduced`, a bool, becomes `rerun` — the act re-ran the script, and it
+// reproduced or it differed. A record written at epoch 28 or later states `rerun` and `anchor`
+// itself, and passes by name. `reason` is the shard era's spelling of `note`.
+func reproduceEntry(old OldEvent) ([]proto.Message, error) {
+	out := OldEvent{ID: old.ID, SeatID: old.SeatID, Round: old.Round, TS: old.TS, Key: old.Key,
+		Word: "reproduce", Lists: old.Lists, Arms: old.Arms, Fields: map[string]any{}}
+	for col, v := range old.Fields {
+		switch col {
+		case "reason":
+			out.Fields["note"] = v
+		case "reproduced":
+			var ok bool
+			switch b := v.(type) {
+			case int64:
+				ok = b == 1
+				if b != 0 && b != 1 {
+					return nil, fmt.Errorf("reproduce.reproduced holds %v, not a 0/1 bool", v)
+				}
+			case bool:
+				ok = b
+			default:
+				return nil, fmt.Errorf("reproduce.reproduced holds %v (%T), not a 0/1 bool", v, v)
+			}
+			r := recordpb.Rerun_RERUN_DIFFERS
+			if ok {
+				r = recordpb.Rerun_RERUN_REPRODUCED
+			}
+			out.Fields["rerun"] = recordpb.Word(r)
+		default:
+			out.Fields[col] = v
+		}
+	}
+	body, err := identityBody(out)
+	if err != nil {
+		return nil, err
+	}
+	return []proto.Message{body}, nil
+}
 
 // frictionNoneEntry: the explicit empty form carried "none" as an entry. The type that said so is
 // retired and clean is derived from a bracketed sitting that filed nothing, so the row translates

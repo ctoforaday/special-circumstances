@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE INVISIBLE PROOF LAYER, MADE VISIBLE — the way weaveCitations does it for sources, and it
@@ -128,33 +129,46 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		b.WriteString("\n")
 		fmt.Fprintf(&b, "- **script**: `%s` (sha256 `%s`)\n", storedScript(p), shortSHA(p.SHA))
 		fmt.Fprintf(&b, "- **exit**: %d\n", p.Exit)
-		// RED'S INDEPENDENT RE-RUN (#343). The strongest audit the engine has is worth the
-		// reader knowing about, and its absence is worth knowing about too: a proof nobody
+		// RED'S INDEPENDENT AUDIT (#343), IN ITS TWO HALVES. The strongest audit the engine has is
+		// worth the reader knowing about, and its absence is worth knowing about too: a proof nobody
 		// re-ran and a proof that reproduced used to render identically.
-		if v := p.Verified; v != nil {
-			// TWO AXES. Reproducing measures determinism; soundness is red's judgement from
-			// reading the script. The dangerous cell is reproduces-but-unsound: it re-runs
-			// clean and establishes nothing, which is what a proof looks like at its most
-			// credible and least useful.
-			switch {
-			case v.Reproduced && v.Sound:
-				b.WriteString("- **audited by red**: it REPRODUCES, and red read the script and accepts that it establishes the claim")
-			case v.Reproduced && !v.Sound:
-				b.WriteString("- **audited by red — REPRODUCES BUT DOES NOT PROVE THE CLAIM.** The script re-runs to the same output, and red read it and found it does not establish what it is anchored to. Re-running measures determinism, not validity")
-			case !v.Reproduced && v.Sound:
-				b.WriteString("- **audited by red**: the method is sound but it DID NOT REPRODUCE — the script no longer produces the recorded output")
-			default:
-				b.WriteString("- **audited by red — it neither reproduces NOR establishes the claim**")
+		//
+		// The RE-RUN belongs to the script, and every proof on the same script shares it; the
+		// JUDGEMENT belongs to this proof's sentence. The dangerous cell is reproduces-but-unsound: it
+		// re-runs clean and establishes nothing, which is what a proof looks like at its most
+		// credible and least useful.
+		switch r := p.Rerun; {
+		case r == nil:
+			b.WriteString("- **not re-run** — nobody re-ran this script; the computation stands on blue's execution alone\n")
+		case r.Rerun == recordpb.Rerun_RERUN_REPRODUCED:
+			b.WriteString("- **re-run by red**: it REPRODUCES — the stored script, run again, printed the recorded output byte for byte\n")
+		case r.Rerun == recordpb.Rerun_RERUN_CALLS_THE_TOOL:
+			b.WriteString("- **re-run by red — IT CANNOT BE CHECKED.** The script calls the debate's own tool, which refuses every call made inside a re-run, so no reader can run it to its recorded output\n")
+		default:
+			b.WriteString("- **re-run by red**: it DID NOT REPRODUCE — the stored script no longer produces the recorded output\n")
+			if r.Recorded != "" || r.Observed != "" {
+				fmt.Fprintf(&b, "  - recorded: `%s`\n  - on re-run: `%s`\n", oneLine(r.Recorded), oneLine(r.Observed))
 			}
-			if v.Note != "" {
-				fmt.Fprintf(&b, " — %s", v.Note)
+		}
+		var notes []string
+		for _, j := range p.Judgements {
+			if j.Note != "" && (p.Soundness != record.SoundnessUnsound || !j.Sound) {
+				notes = append(notes, j.Note)
 			}
-			b.WriteString("\n")
-			if !v.Reproduced && (v.Recorded != "" || v.Observed != "") {
-				fmt.Fprintf(&b, "  - recorded: `%s`\n  - on re-run: `%s`\n", oneLine(v.Recorded), oneLine(v.Observed))
-			}
-		} else {
-			b.WriteString("- **not independently audited** — nobody re-ran this script or read it; the computation stands on blue's execution alone\n")
+		}
+		note := ""
+		if len(notes) > 0 {
+			note = " — " + strings.Join(notes, " / ")
+		}
+		switch p.Soundness {
+		case record.SoundnessSound:
+			b.WriteString("- **judged by red**: red read the script and accepts that it establishes this sentence" + note + "\n")
+		case record.SoundnessUnsound:
+			b.WriteString("- **judged by red — IT DOES NOT PROVE THIS SENTENCE.** Red read the script and found it does not establish what this sentence says. Re-running measures determinism, not validity" + note + "\n")
+		case record.SoundnessReopened:
+			b.WriteString("- **not judged since the sentence changed** — red's verdict was of an earlier wording of this sentence\n")
+		default:
+			b.WriteString("- **not judged** — nobody has read this script against this sentence\n")
 		}
 		if p.Cites != "" {
 			// The METHOD is cited and the INSTANCE is computed: naming the citation here is

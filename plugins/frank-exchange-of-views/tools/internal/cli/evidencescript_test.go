@@ -52,15 +52,15 @@ func TestAProofReadAtItsAnchorCarriesItsScriptAndRecordedOutput(t *testing.T) {
 		t.Errorf("the unscoped evidence table carries a script; it is a lookup table, and the script is read at one anchor:\n%s", table)
 	}
 
-	// THE WORK ITEM THAT SENDS A LENS TO THE PROOF SAYS WHERE ITS SCRIPT IS READ, before it hands
-	// over the id the re-run takes.
+	// THE WORK ITEM THAT SENDS A LENS TO THE PROOF SAYS WHERE ITS SCRIPT IS READ, before it names
+	// the act that re-runs it and records the verdict.
 	work, err := run(t, "show", "--run", runDir, "--seat-id", "red-lens-evidence", "work")
 	if err != nil {
 		t.Fatalf("show work: %v", err)
 	}
-	read, rerun := strings.Index(work, "show evidence --anchor "+anchor), strings.Index(work, "--id "+sha)
+	read, rerun := strings.Index(work, "show evidence --anchor "+anchor), strings.Index(work, "reproduce --anchor "+anchor)
 	if read < 0 || rerun < 0 || read > rerun {
-		t.Errorf("the lens's work item for an un-re-run proof must name the read at its anchor BEFORE the re-run's id (read at %d, re-run at %d):\n%s", read, rerun, work)
+		t.Errorf("the lens's work item for an un-re-run proof must name the read at its anchor BEFORE the act that re-runs it (read at %d, re-run at %d):\n%s", read, rerun, work)
 	}
 
 	// BOTH PARTIES READ IT: the lens that judges the script, and blue, who wrote it and answers for it.

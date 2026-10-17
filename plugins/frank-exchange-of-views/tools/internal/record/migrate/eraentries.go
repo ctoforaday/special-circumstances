@@ -36,11 +36,10 @@ func eraEntries() Registry {
 		// The finding's two names are one: its id. The remap gives the archived label the finding's id.
 		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
 			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
-		"position":  mapped("position", ren{"reason": "text"}, nil, nil),
-		"closing":   mapped("closing", ren{"reason": "text"}, nil, nil),
-		"reproduce": mapped("reproduce", ren{"reason": "note"}, nil, nil),
-		"certify":   mapped("certify", ren{"reason": "statement"}, nil, nil),
-		"regrade":   mapped("regrade", ren{"reason": "basis"}, nil, nil),
+		"position": mapped("position", ren{"reason": "text"}, nil, nil),
+		"closing":  mapped("closing", ren{"reason": "text"}, nil, nil),
+		"certify":  mapped("certify", ren{"reason": "statement"}, nil, nil),
+		"regrade":  mapped("regrade", ren{"reason": "basis"}, nil, nil),
 		// `ended` restated a fact the verdict carries (ceiling) or a judgement the record now
 		// makes per gap (deadlock); the field is reserved and the word is dropped on replay.
 		"outcome": mapped("outcome", ren{"reason": "prose"},

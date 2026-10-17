@@ -35,7 +35,7 @@ func idShapes() map[string]func() *ShapedValue {
 		"inquiry-id":      InquiryID,
 		"anchor":          AnchorID,
 		"citation-anchor": CitationAnchor,
-		"sha256":          SHA,
+		"proof-anchor":    ProofAnchor,
 	}
 }
 
@@ -51,7 +51,7 @@ var minted = []struct {
 }{
 	{"finding", []string{"anchor"}},
 	{"citation", []string{"anchor", "citation-anchor"}},
-	{"proof", []string{"anchor"}},
+	{"proof", []string{"anchor", "proof-anchor"}},
 	{"gap", []string{"anchor", "gap-id"}},
 	{"inquiry", []string{"inquiry-id"}},
 	{"motion", []string{"motion-id"}},
@@ -92,15 +92,14 @@ func TestOneIDFlagCanResolveEveryIDByShape(t *testing.T) {
 			}
 		}
 	}
-	// A digest is the one id that is not minted, and no id shape takes one.
+	// A digest is not an id, and no id shape takes one: `reproduce` names a proof by its anchor.
 	sum := sha256.Sum256([]byte("a stored proof run"))
 	digest := hex.EncodeToString(sum[:])
 	for name, mk := range shapes {
-		if got, want := accepts(mk, digest), name == "sha256"; got != want {
-			t.Errorf("a proof digest on a %s flag: accepted=%v, want %v", name, got, want)
+		if accepts(mk, digest) {
+			t.Errorf("a proof digest on a %s flag was accepted — the sha is the tool's to derive from the anchor", name)
 		}
 	}
-	used["sha256"] = true
 	// EVERY DECLARED SHAPE ACCEPTS SOMETHING THE TOOL MINTS. A shape that describes nothing cannot
 	// collide with anything and would pass the matrix above entirely on refusals.
 	for name := range shapes {
@@ -166,8 +165,8 @@ func TestASpecialisationNarrowsAndIsNotMutual(t *testing.T) {
 				"exactly what a single --id is meant to remove", m.shapes[1], wideOnly)
 		}
 	}
-	if narrowed != 2 {
-		t.Errorf("%d specialisations, want 2 (citation-anchor and gap-id, each narrowing anchor)", narrowed)
+	if narrowed != 3 {
+		t.Errorf("%d specialisations, want 3 (citation-anchor, proof-anchor and gap-id, each narrowing anchor)", narrowed)
 	}
 }
 

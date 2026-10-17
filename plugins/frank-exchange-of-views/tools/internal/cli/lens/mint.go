@@ -114,7 +114,7 @@ func newMint() *cobra.Command {
 		// section it is missing from, the inquiry whose question it argues against, or the gap
 		// it is about, and the record CHECKS the reference. The two verbs of one act spell it
 		// one way, so the gap minted from such a finding carries the same handle the finding does.
-		about, aboutRefP, aerr := record.ResolveAbout(run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
+		about, aboutRefP, aerr := record.ResolveAbout(run, record.MustEnum("mint", "about_kind"), seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
 		if aerr != nil {
 			return nil, aerr
 		}

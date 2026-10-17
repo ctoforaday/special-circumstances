@@ -122,7 +122,7 @@ func TestShowEvidenceHelpSaysWhatAReopenedRowMeans(t *testing.T) {
 	for _, want := range []string{
 		"A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked",
 		"`edit` and `last_check` are event ids",
-		"from a sitting opened after `edit` removes the row",
+		"from a sitting opened after `edit`, removes the row",
 		"`--as unreachable` does not",
 	} {
 		if !strings.Contains(h, want) {

@@ -1,10 +1,12 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -92,6 +94,30 @@ func CitationExists(advice string) func(runDir, flag, label string) error {
 		}
 		return requireCitation(db, label, flag, advice)
 	}
+}
+
+// ProofExists resolves a proof anchor: `reproduce --anchor` names the proof whose sentence it judges.
+func ProofExists(runDir, flag, id string) error {
+	db, err := recordOfDir(runDir)
+	if err != nil {
+		return err
+	}
+	_, err = requireProofAnchor(db, id, flag)
+	return err
+}
+
+// requireProofAnchor is the proof at an anchor, by its script's sha — the one fact a check of that
+// anchor derives from it. A proof anchor no Proof carries is refused by name.
+func requireProofAnchor(q recordsql.Querier, id, flag string) (sha string, err error) {
+	var s sql.NullString
+	found, err := queryRowAt(q, []any{&s}, `SELECT "proof_sha" FROM "proof" WHERE "proof_id" = ? ORDER BY "event_id" LIMIT 1`, id)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", fmt.Errorf("%s names %s, which no proof on this record carries — it takes the id inside a `%s` token in the report; `show evidence` lists every proof by its anchor", flag, id, anchor.Token("P-…"))
+	}
+	return s.String, nil
 }
 
 // ProveCitesAdvice is what a proof naming no citation is told, by the flag check and by validate's

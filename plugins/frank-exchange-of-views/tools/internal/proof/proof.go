@@ -35,6 +35,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // Timeout bounds one execution. A proof settles a question; anything needing longer is a
@@ -164,8 +166,17 @@ func Run(runDir, scriptPath string) (*Result, error) {
 	// artifact this run ships can be checked by anybody else — which is the only question the
 	// basis is asked. A proof that already moved is left as Observed: it has declared itself a
 	// measurement, and re-running it from a second path cannot make it more so.
+	//
+	// A SCRIPT THAT CALLS THE TOOL is graded here too, whatever its basis: the store run is the
+	// checker's, the tool refuses every call made in it, and a proof no checker can run is the
+	// one thing NotPortable says.
+	stored, sexit, calls, serr := executeStored(runDir, res)
+	if serr == nil && len(calls) > 0 {
+		res.Basis = NotPortable
+		res.Drift = fmt.Sprintf("calls feov-record (%s), which refuses every call made while a checker runs the script, so no one else can run it to this output", calls[0])
+		return res, nil
+	}
 	if res.Basis == Reproducible {
-		stored, sexit, serr := executeStored(runDir, res)
 		switch {
 		case serr != nil:
 			res.Basis = NotPortable
@@ -188,13 +199,43 @@ func StoredScript(sha, script string) string {
 
 // executeStored runs the copy in `proofs/<sha>/`, which is the only copy that outlives the run
 // directory's working files and the only one a later audit can reach.
-func executeStored(runDir string, r *Result) (string, int, error) {
+func executeStored(runDir string, r *Result) (string, int, []string, error) {
 	stored := filepath.Join(runDir, StoredScript(r.SHA, r.Script))
 	argv, err := interpreterFor(stored)
 	if err != nil {
-		return "", 0, err
+		return "", 0, nil, err
 	}
-	return execute(runDir, argv, stored)
+	return executeChecked(runDir, argv, stored)
+}
+
+// executeChecked is execute as a CHECKER runs it: the script's environment names a fresh marker
+// file under seatenv.VarProofRerun, feov-record refuses every call made under it and appends the
+// call there, and the calls come back beside the output. A script that called the tool cannot run
+// in a checker's hands, whatever it then did with the refusal — a `jq` over the refusal turns it
+// into an ordinary-looking number.
+func executeChecked(runDir string, argv []string, script string) (string, int, []string, error) {
+	marker, err := os.CreateTemp("", "feov-proof-rerun-*")
+	if err != nil {
+		return "", 0, nil, fmt.Errorf("could not stage the re-run's tool-call marker: %w", err)
+	}
+	path := marker.Name()
+	marker.Close()
+	defer os.Remove(path)
+	out, code, err := executeIn(runDir, argv, script, append(os.Environ(), seatenv.VarProofRerun+"="+path))
+	if err != nil {
+		return "", 0, nil, err
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return "", 0, nil, fmt.Errorf("could not read the re-run's tool-call marker: %w", err)
+	}
+	var calls []string
+	for _, line := range strings.Split(string(body), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			calls = append(calls, line)
+		}
+	}
+	return out, code, calls, nil
 }
 
 // execute runs one pass with the run directory as the working directory.
@@ -203,11 +244,17 @@ func executeStored(runDir string, r *Result) (string, int, error) {
 // report: disproving a claim is worth exactly as much as proving one, and turning it into a
 // tool error would leave the engine able to record only confirmations.
 func execute(runDir string, argv []string, script string) (string, int, error) {
+	return executeIn(runDir, argv, script, nil)
+}
+
+// executeIn is execute under env, or under this process's environment when env is nil.
+func executeIn(runDir string, argv []string, script string, env []string) (string, int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 	args := append(append([]string{}, argv[1:]...), script)
 	cmd := exec.CommandContext(ctx, argv[0], args...)
 	cmd.Dir = runDir
+	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		return "", 0, fmt.Errorf("%s did not finish inside %s — a proof settles a question; anything longer is a project and belongs in prose with its cost stated", filepath.Base(script), Timeout)
@@ -345,34 +392,41 @@ func short(sha string) string {
 	return sha
 }
 
+// Rerun is one re-run of a recorded proof's stored script.
+type Rerun struct {
+	// Matches is whether it printed the recorded output byte for byte. Never true where the script
+	// called the tool.
+	Matches bool
+	// Got is what it printed; Want is what blue's run recorded.
+	Got, Want string
+	// ToolCalls is every feov-record call the script made, each one refused (seatenv.VarProofRerun).
+	// A script that made any cannot run in a checker's hands, and nothing it printed is a result.
+	ToolCalls []string
+}
+
 // Reproduce re-runs a recorded proof and reports whether it still says the same thing.
 //
 // THIS IS RED'S AUDIT, and it is strictly stronger than any citation check: a cited source is
 // re-read and believed; a proof is re-executed and compared. It is also the direct answer to
 // the smoke's R2-2, where blue could only assert that a test had happened.
-func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
+//
+// IT RUNS AS A CHECKER (executeChecked), so a script that calls the tool is reported as one, never
+// as a match.
+func Reproduce(runDir, sha string) (Rerun, error) {
 	dir := filepath.Join(runDir, "proofs", sha)
 	// The recorded output is the ARTIFACT, read as bytes. What the proof CLAIMED — its exit, its
 	// drift, the script it ran — is on the record, where a reader can refuse it; this function
 	// needs only the bytes to compare against.
 	recorded, err := os.ReadFile(filepath.Join(dir, "output"))
 	if err != nil {
-		// THE REFUSAL NAMES THE REFERENCE, NOT THE FILESYSTEM. Every other unknown-reference
-		// refusal in this tool says what the id was and what it means that nothing carries it —
-		// "no gap R9-99 on the board", "--id names motion M99, which no filing created". This one
-		// wrapped the raw os error, so a seat that mistyped a sha was handed a path under the
-		// record root and an `open … no such file or directory`: a filesystem problem to chase,
-		// on a run whose record directory is deliberately not where the seat can look.
-		//
-		// A refusal that describes the tool's plumbing instead of the seat's mistake is the same
-		// misdirection as a refusal naming a flag that does not exist. The seat believes it.
-		return false, "", "", fmt.Errorf("no recorded proof %s in this run — --id takes the sha256 "+
-			"of a proof blue's `prove` recorded, and the evidence projection lists every one under `proofs`", sha)
+		// THE REFUSAL NAMES THE REFERENCE, NOT THE FILESYSTEM. A seat that names a proof the store
+		// does not hold is handed what the reference was and what it means that nothing carries
+		// it, never a path under the record root it cannot look at.
+		return Rerun{}, fmt.Errorf("no recorded proof %s in this run's proof store — `show evidence` lists every proof by its anchor", short(sha))
 	}
-	rec := Result{Output: string(recorded)}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return false, "", "", err
+		return Rerun{}, err
 	}
 	script := ""
 	for _, e := range entries {
@@ -381,15 +435,15 @@ func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 		}
 	}
 	if script == "" {
-		return false, "", "", fmt.Errorf("%s has no stored script, so it cannot be re-run — which is the one thing a proof is for", sha)
+		return Rerun{}, fmt.Errorf("%s has no stored script, so it cannot be re-run — which is the one thing a proof is for", short(sha))
 	}
 	argv, err := interpreterFor(script)
 	if err != nil {
-		return false, "", "", err
+		return Rerun{}, err
 	}
-	out, _, err := execute(runDir, argv, script)
+	out, _, calls, err := executeChecked(runDir, argv, script)
 	if err != nil {
-		return false, "", "", err
+		return Rerun{}, err
 	}
-	return out == rec.Output, out, rec.Output, nil
+	return Rerun{Matches: len(calls) == 0 && out == string(recorded), Got: out, Want: string(recorded), ToolCalls: calls}, nil
 }

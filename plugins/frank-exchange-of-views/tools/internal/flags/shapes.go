@@ -45,9 +45,6 @@ func idShape(kinds ...string) *regexp.Regexp {
 	return regexp.MustCompile(`^` + anchor.IDPattern(kinds...) + `$`)
 }
 
-// shaShape is a sha256 in hex, the handle `blue prove` prints and `lens reproduce --id` takes.
-var shaShape = regexp.MustCompile(`^[0-9a-f]{64}$`)
-
 // Checker resolves a flag's value against the record. It is what a shaped flag carries so the
 // EXISTENCE half travels with the declaration instead of being remembered separately.
 //
@@ -98,8 +95,8 @@ func (v *ShapedValue) Check(runDir, flag string) error {
 // Checked reports whether an existence check is ATTACHED, which is not the same question as
 // whether this type can carry one. Every ShapedValue has the Check method, so a test asking for the
 // METHOD measures "is shaped" and reports a shape-only flag as an unproven reference check —
-// `reproduce --id` takes a sha256 with nothing to resolve it against, and five such flags were
-// reported that way the first time --id was shaped everywhere. The parse half is proven separately
+// a flag shaped as a sha256, with nothing to resolve it against, was one of five reported that way
+// the first time --id was shaped everywhere. The parse half is proven separately
 // (internal/cli/idshape_test.go, internal/flags/idnamespace_test.go) and the two must stay separable.
 func (v *ShapedValue) Checked() bool { return v != nil && v.check != nil }
 
@@ -183,10 +180,11 @@ func MotionID() *ShapedValue {
 		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
-// SHA refuses anything that is not a 64-character hex digest.
-func SHA() *ShapedValue {
-	return &ShapedValue{kind: "sha256", re: shaShape,
-		hint: "a proof's sha256 is 64 hex characters; `show evidence` lists every proof with its anchor, its sha and whether anyone has re-run it"}
+// ProofAnchor refuses an anchor of the wrong CLASS: `lens reproduce --anchor` judges one proof's
+// sentence, and a citation's, finding's or gap's id cannot name one.
+func ProofAnchor() *ShapedValue {
+	return &ShapedValue{kind: "proof-anchor", re: idShape("proof"), unwrapsAnchor: true,
+		hint: "a proof anchor is a `" + anchor.Token("P-…") + "` token in the report or the id inside one — paste either — while `C-` is a citation, `F-` a finding and `G-` a gap; `show evidence` lists every proof by anchor"}
 }
 
 // DateValue refuses a date that is not YYYY-MM-DD, and one that is not a real day.

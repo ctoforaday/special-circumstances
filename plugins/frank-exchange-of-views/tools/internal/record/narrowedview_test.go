@@ -68,7 +68,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
 		recordtest.Event(t, "blue-respond", &recordpb.Proof{ProofId: str("P-00000001"), ProofSha: str("abc"), ProofBasis: str("basis")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofSha: str("abc"), Reproduced: proto.Bool(true),
+		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Reproduce{ProofId: str("P-00000001"), ProofSha: str("abc"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
 			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: str("ran")}),
 		// An edit that reopened the anchor and the proof (its text leaves G3's location where it is),
 		// and a retire that takes the proof out of the report, so it owes no re-run.
@@ -216,7 +216,7 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 	if err := json.Unmarshal(b, &ej); err != nil {
 		t.Fatal(err)
 	}
-	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0] != "claim B" {
+	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0].Claim != "claim B" {
 		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding at it", ej.UnansweredContradictions)
 	}
 	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 6, LastCheck: 5}) {

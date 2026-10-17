@@ -92,7 +92,7 @@ var superseders = map[supersederKey]superseder{
 	{typ: recordpb.EventType_EVENT_TYPE_POSITION}:                              {act: "a new position", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_PROOF}:                                 {act: "a new proof", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_REGRADE}:                               {act: "a new regrade", own: true, while: "while the gap is open"},
-	{typ: recordpb.EventType_EVENT_TYPE_REPRODUCE}:                             {act: "a new re-run of the proof, whose reason says which earlier re-run it replaces", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_REPRODUCE}:                             {act: "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_SPOT_CHECK}:                            {act: "a new spot-check", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_VERDICT}: {whole: "the verdict of your next sitting (a sitting holds one, and this sitting's stands); " +
 		"after a PASS no chair sitting follows and nothing answers it"},

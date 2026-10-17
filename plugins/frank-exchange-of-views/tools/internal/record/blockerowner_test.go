@@ -96,7 +96,7 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 		}, want{benchSeat, true, []string{occasionDocket}, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready"}},
 		{"a contradiction readies the lens that read it", func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green"))
-		}, want{evLens, true, nil, nil, evLens + ` read a source contradicting "the sky is green" and no finding raises it — ready, to raise it`}},
+		}, want{evLens, true, nil, nil, evLens + ` read a source contradicting "the sky is green" (contradiction `}},
 		{"a contradiction its lens has sat since is not readied again", func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green")).dispatch(2, evLens).register(evLens)
 		}, want{evLens, false, nil, nil, evLens + " has sat since it read a source contradicting"}},

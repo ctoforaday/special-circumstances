@@ -32,6 +32,7 @@ var facets = map[string]protoreflect.ExtensionType{
 	"closes":        E_Closes,
 	"mass":          E_Mass,
 	"seat_may_file": E_SeatMayFile,
+	"gap_may_name":  E_GapMayName,
 }
 
 // numericFacets are the facets whose values are numbers rather than flags. The schema generator

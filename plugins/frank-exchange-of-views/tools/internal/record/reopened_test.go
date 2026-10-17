@@ -31,8 +31,8 @@ func (b *stage) proof(id, sha string) *stage {
 	return b.add("blue-respond", &recordpb.Proof{ProofId: proto.String(id), ProofSha: proto.String(sha)})
 }
 
-func (b *stage) reproduce(seat, sha string, reproduced bool, s recordpb.Soundness) *stage {
-	return b.add(seat, &recordpb.Reproduce{ProofSha: proto.String(sha), Reproduced: proto.Bool(reproduced), Soundness: s.Enum()})
+func (b *stage) reproduce(seat, anchor, sha string, rerun recordpb.Rerun, s recordpb.Soundness) *stage {
+	return b.add(seat, &recordpb.Reproduce{ProofId: proto.String(anchor), ProofSha: proto.String(sha), Rerun: rerun.Enum(), Soundness: s.Enum(), Note: proto.String("read")})
 }
 
 // reopen is a blue edit whose sentence change touched these anchors.
@@ -208,8 +208,8 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 		}
 	}
 
-	// A re-run clears whatever it found: the script ran and a lens judged it. The zero soundness is
-	// the one cell with no disposition to state, because the record holds no such re-run.
+	// A judgement clears whatever it found: a lens judged the sentence as it stands. The zero
+	// soundness is the one cell with no disposition to state, because the record holds no such act.
 	ss := recordpb.Soundness(0).Descriptor().Values()
 	soundness := map[recordpb.Soundness]bool{
 		recordpb.Soundness_SOUNDNESS_SOUND:   true,
@@ -217,8 +217,8 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 	}
 	for i := 0; i < ss.Len(); i++ {
 		s := recordpb.Soundness(ss.Get(i).Number())
-		for _, reproduced := range []bool{true, false} {
-			body := &recordpb.Reproduce{ProofSha: proto.String("s1"), Reproduced: proto.Bool(reproduced), Soundness: s.Enum()}
+		for _, rerun := range []recordpb.Rerun{recordpb.Rerun_RERUN_REPRODUCED, recordpb.Rerun_RERUN_DIFFERS, recordpb.Rerun_RERUN_NOT_RUN} {
+			body := &recordpb.Reproduce{ProofId: proto.String("P-1"), ProofSha: proto.String("s1"), Rerun: rerun.Enum(), Soundness: s.Enum(), Note: proto.String("read")}
 			if s == recordpb.Soundness_SOUNDNESS_UNSPECIFIED {
 				run := reopenedBoard(t).proof("P-1", "s1").seed()
 				if _, err := Append(Identity{Run: run, SeatID: evLens}, body); err == nil {
@@ -231,33 +231,37 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 				t.Errorf("soundness %s has no clearing disposition — say whether a later sitting's re-run carrying it clears a reopened proof", s)
 				continue
 			}
-			b := reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "s1", true, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
-			b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "s1", reproduced, s)
+			b := reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
+			b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "P-1", "s1", rerun, s)
 			if cleared := len(reopenedRows(t, b)) == 0; cleared != want {
-				t.Errorf("a later sitting's re-run (reproduced %v, %s) clears = %v, want %v", reproduced, s, cleared, want)
+				t.Errorf("a later sitting's judgement (rerun %s, %s) clears = %v, want %v", rerun, s, cleared, want)
 			}
 		}
 	}
 }
 
-// F10: a proof and its re-run join on the script's sha, so one later re-run clears every reopened
-// proof sharing it — the accepted residue, pinned so a change to the join is a decision.
-func TestARerunClearsEveryProofSharingItsScript(t *testing.T) {
+// A JUDGEMENT IS OF ONE SENTENCE. Two proofs on one script, both reopened: a later sitting's
+// judgement of one anchor clears that anchor and leaves the other owed — the other sentence was not
+// read (gblock, 2026-10-12: sound belongs to the anchor). The second judgement runs nothing: the
+// script has reproduced.
+func TestAJudgementClearsOnlyTheAnchorItNames(t *testing.T) {
 	sound := recordpb.Soundness_SOUNDNESS_SOUND
-	b := reopenedBoard(t).proof("P-1", "s1").proof("P-2", "s1").reproduce(evLens, "s1", true, sound).reopen("P-1", "P-2")
+	b := reopenedBoard(t).proof("P-1", "s1").proof("P-2", "s1").
+		reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, sound).reproduce(evLens, "P-2", "s1", recordpb.Rerun_RERUN_NOT_RUN, sound).
+		reopen("P-1", "P-2")
 	if got := reopenedRows(t, b); len(got) != 2 {
-		t.Fatalf("fixture: rows before the re-run = %+v, want P-1 and P-2", got)
+		t.Fatalf("fixture: rows before the judgement = %+v, want P-1 and P-2", got)
 	}
-	b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "s1", true, sound)
-	if got := reopenedRows(t, b); len(got) != 0 {
-		t.Errorf("rows after a later sitting re-ran the shared script = %+v, want none", got)
+	b.dispatch(b.at(), evLens).register(evLens).reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_NOT_RUN, sound)
+	if got := reopenedRows(t, b); len(got) != 1 || got[0].anchor != "P-2" {
+		t.Errorf("rows after a later sitting judged P-1 = %+v, want P-2 alone", got)
 	}
 }
 
 // A RETIRED ANCHOR LEFT THE REPORT, AND OWES NOTHING — read through `show evidence`, whose narrowed
 // read holds a retire only because the view declares the family.
 func TestARetiredAnchorOwesNothing(t *testing.T) {
-	b := reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "s1", true, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
+	b := reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "P-1", "s1", recordpb.Rerun_RERUN_REPRODUCED, recordpb.Soundness_SOUNDNESS_SOUND).reopen("P-1")
 	if rows := reopenedRows(t, b); len(rows) != 1 {
 		t.Fatalf("fixture: rows before the retire = %+v, want P-1", rows)
 	}

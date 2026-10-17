@@ -60,80 +60,95 @@ func newReproduce() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		sha := seat.Str(cmd, flags.ID)
-		if sha == "" {
-			// THE WAY THROUGH, NAMED. This message used to say the sha was "listed in the report
-			// beside the sentence it backs". It is not: the report carries an opaque
-			// `<!--proof:p-…-->` anchor, and the sha lives on the record. A seat reading the
-			// document had the token this verb does not take and no path to the one it does.
-			return nil, feov.Errorf(feov.MissingField, "requires --id: the sha256 of the proof to re-run. Reading the report and holding a `%s` anchor, resolve it with `show evidence` — every proof is listed there with its anchor, its sha256, and whether anyone has re-run it yet, and `show evidence --anchor <that id>` prints its script", anchor.Token("P-…"))
-		}
-		ok, got, want, err := proof.Reproduce(run.Dir(), sha)
+		// THE SEAT NAMES THE ANCHOR; THE TOOL DERIVES THE SHA. A verdict on soundness is about one
+		// sentence, and the anchor is that sentence's name — the token the seat is holding while it
+		// reads. The script's sha is a fact of the proof the anchor names, so asking the seat for it
+		// asked it to look up what the record already joins.
+		p, err := record.ProofAt(run, strings.TrimSpace(seat.Str(cmd, flags.Anchor)))
 		if err != nil {
 			return nil, err
 		}
 		soundness := seat.Str(cmd, flags.As)
 		if soundness == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once and say whether it computes what it is anchored to; nothing is recorded by this call")
+			return nil, feov.Errorf(feov.MissingField, "requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. This call records your verdict on the sentence at --anchor, so read the script FIRST — `show evidence --anchor %s` prints it — then call this once and say whether it computes what THAT sentence says; nothing is recorded by this call", p.Label)
 		}
 		snd, known := record.SoundnessOf(soundness)
 		if !known {
 			return nil, feov.Errorf(feov.Validation, "%q is not a soundness this record can carry", soundness)
 		}
-		// A SOUND VERDICT OVER A RE-RUN THAT DID NOT REPRODUCE IS REFUSED, where the proof is recorded
-		// `reproducible`. The verdict and its reason are typed before the run, so on a failed run
-		// both are a judgement of output the seat has not seen: on universe-m20 a stored script
-		// that could not run for any red seat took five `sound` verdicts, two of them with a note
-		// saying the output matched. Refused, the seat reads what the script printed and calls
-		// again with what the run did.
-		//
-		// ONLY `reproducible`. A proof graded `observed` or `not_portable` is recorded as one whose
-		// output moves, and a re-run that differs is that proof behaving as recorded.
-		if !ok && snd == recordpb.Soundness_SOUNDNESS_SOUND {
-			proofs, err := record.RecordedProofs(run)
-			if err != nil {
-				return nil, err
-			}
-			for _, p := range proofs {
-				if p.SHA == sha && p.Basis == proof.Reproducible {
-					return nil, feov.Errorf(feov.Conflict, "the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, run now, did not print the recorded output.\n"+
-						"  recorded: %s\n  now:      %s\n"+
-						"Nothing is recorded. Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "+
-						"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
-						sha[:12], proof.Reproducible, strings.TrimSpace(truncateOutput(want)), strings.TrimSpace(truncateOutput(got)))
-				}
-			}
-		}
-		body := &recordpb.Reproduce{
-			ProofSha:   proto.String(sha),
-			Reproduced: proto.Bool(ok),
-			Soundness:  &snd,
-		}
-		if !ok {
-			// Only on a MISMATCH, and truncated: the recorded output already lives in the
-			// proof artifact, and copying it wholesale into the event would put a second
-			// copy of the same bytes on the record. What the reader needs is what CHANGED.
-			body.RecordedOutput = proto.String(truncateOutput(want))
-			body.ObservedOutput = proto.String(truncateOutput(got))
-		}
 		note, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
-		body.Note = proto.String(note)
 		if note == "" {
-			return nil, feov.Errorf(feov.MissingField, "requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace — this call re-runs the proof and records your verdict in one act, so read the script FIRST — `show evidence --anchor <the proof's anchor id>` prints it — then call this once with the verdict and what the reading showed; nothing is recorded by this call")
+			return nil, feov.Errorf(feov.MissingField, "requires --reason: say what the script ACTUALLY COMPUTES, in your words, and whether that is what the sentence at %s says. A soundness verdict with no reading behind it is the assertion this verb exists to replace — read the script FIRST (`show evidence --anchor %s` prints it), then call this once with the verdict and what the reading showed; nothing is recorded by this call", p.Label, p.Label)
+		}
+		body := &recordpb.Reproduce{
+			ProofId:   proto.String(p.Label),
+			ProofSha:  proto.String(p.SHA),
+			Soundness: &snd,
+			Note:      proto.String(note),
+		}
+		res := reproduceResult{Anchor: p.Label, SHA: p.SHA}
+		// ONE MATCHING RE-RUN STANDS FOR EVERY PROOF ON THE SCRIPT. Where the script has already
+		// reproduced, this act judges its own sentence on that re-run and runs nothing: the bytes
+		// are the same bytes whichever sentence they back.
+		if p.Reproduced() {
+			body.Rerun = recordpb.Rerun_RERUN_NOT_RUN.Enum()
+			res.Rerun, res.Reproduced, res.By = recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN), true, p.Rerun.SeatID
+		} else {
+			rr, err := proof.Reproduce(run.Dir(), p.SHA)
+			if err != nil {
+				return nil, err
+			}
+			res.Reproduced, res.Got, res.Recorded, res.ToolCalls = rr.Matches, rr.Got, rr.Want, rr.ToolCalls
+			switch {
+			case len(rr.ToolCalls) > 0:
+				// A SCRIPT THAT CALLS THE TOOL CANNOT RUN IN A CHECKER'S HANDS, and nothing it printed is
+				// a result: the tool refused every call, and the script may have turned the refusal
+				// into an ordinary-looking number.
+				body.Rerun = recordpb.Rerun_RERUN_CALLS_THE_TOOL.Enum()
+				if snd == recordpb.Soundness_SOUNDNESS_SOUND {
+					return nil, feov.Errorf(feov.Conflict, "proof %s's script calls feov-record (%s), and the tool refuses every call made while a checker runs a script — so the re-run checked nothing, and `--as sound` is not recorded. "+
+						"Nothing is recorded. A script no checker can run establishes nothing a checker can check: that is `--as unsound`, with a reason that says the script reads the debate's tool rather than computing its claim", p.Label, rr.ToolCalls[0])
+				}
+				body.ObservedOutput = proto.String(truncateOutput(rr.Got))
+			case rr.Matches:
+				body.Rerun = recordpb.Rerun_RERUN_REPRODUCED.Enum()
+			default:
+				// A SOUND VERDICT OVER A RE-RUN THAT DID NOT REPRODUCE IS REFUSED, where the proof is
+				// recorded `reproducible`. The verdict and its reason are typed before the run, so on a
+				// failed run both are a judgement of output the seat has not seen: on universe-m20 a
+				// stored script that could not run for any red seat took five `sound` verdicts, two of
+				// them with a note saying the output matched. Refused, the seat reads what the script
+				// printed and calls again with what the run did.
+				//
+				// ONLY `reproducible`. A proof graded `observed` or `not_portable` is recorded as one
+				// whose output moves, and a re-run that differs is that proof behaving as recorded.
+				if snd == recordpb.Soundness_SOUNDNESS_SOUND && p.Basis == proof.Reproducible {
+					return nil, feov.Errorf(feov.Conflict, "the re-run did NOT reproduce, so `--as sound` is not recorded. Proof %s is recorded `%s`, and its stored script, run now, did not print the recorded output.\n"+
+						"  recorded: %s\n  now:      %s\n"+
+						"Nothing is recorded. Your verdict and reason were written before this output existed: read what the script printed, then call again with what the run did. "+
+						"A script the seat auditing it cannot run to its recorded output establishes nothing that seat can check — that is `--as unsound`, with a reason that says how the run went",
+						p.Label, proof.Reproducible, strings.TrimSpace(truncateOutput(rr.Want)), strings.TrimSpace(truncateOutput(rr.Got)))
+				}
+				body.Rerun = recordpb.Rerun_RERUN_DIFFERS.Enum()
+				// Only on a MISMATCH, and truncated: the recorded output already lives in the
+				// proof artifact, and copying it wholesale into the event would put a second
+				// copy of the same bytes on the record. What the reader needs is what CHANGED.
+				body.RecordedOutput = proto.String(truncateOutput(rr.Want))
+				body.ObservedOutput = proto.String(truncateOutput(rr.Got))
+			}
+			res.Rerun = recordpb.Word(body.GetRerun())
 		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return reproduceResult{SHA: sha, Reproduced: ok, Got: got, Recorded: want}, nil
+		return res, nil
 	}))
-	// A SHA, SHAPED. Registered as a plain string the page printed `string` and a gap id typed here was
-	// refused by the proof lookup rather than by its shape — the refusal named no kind.
-	c.Flags().Var(flags.SHA(), flags.ID, "the sha256 of the recorded proof to re-run")
-	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), "having READ the script: does it actually establish the claim it is anchored to?")
-	seat.Require(c, flags.ID, flags.As)
+	c.Flags().Var(flags.ProofAnchor().WithCheck(record.ProofExists), flags.Anchor, "the id of the proof whose sentence you judge, from the report's `"+anchor.Token("P-…")+"` token — `show evidence` lists every proof by it. The tool re-runs that proof's script unless the script has already reproduced")
+	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), "having READ the script: does it actually establish the sentence at --anchor?")
+	seat.Require(c, flags.Anchor, flags.As)
 	// The handler refuses a verdict with no reading behind it; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }
@@ -148,23 +163,41 @@ func truncateOutput(s string) string {
 }
 
 type reproduceResult struct {
-	SHA string `json:"sha256"`
-	// Reproduced is whether the re-run printed the recorded output — the record's own word for it
-	// (Reproduce.reproduced, and `reproduced` on the proof's row in `show evidence`), on every
-	// result, true or false. It was `matches`: a lens on universe-m20 filtered the envelope for
-	// `ok`, `reproduced` and `sound`, read `ok: true` beside the nulls of two keys nothing
-	// carried, and took a failed re-run for a recorded success. The word a seat reaches for is the
-	// field now, the help page says where it sits, and a `sound` verdict over a failed re-run of a
-	// reproducible proof never reaches an `ok: true` at all.
+	Anchor string `json:"anchor"`
+	SHA    string `json:"sha256"`
+	// Rerun is what this act did with the script, in the record's word: reproduced | differs |
+	// calls_the_tool, or not_run where the script had already reproduced and this act judged its
+	// sentence on that re-run.
+	Rerun string `json:"rerun"`
+	// Reproduced is whether the script's standing re-run printed the recorded output — the record's
+	// own word for it, on every result, true or false. It was `matches`: a lens on universe-m20
+	// filtered the envelope for `ok`, `reproduced` and `sound`, read `ok: true` beside the nulls of
+	// two keys nothing carried, and took a failed re-run for a recorded success. The word a seat
+	// reaches for is the field, and a `sound` verdict over a failed re-run of a reproducible proof
+	// never reaches an `ok: true` at all.
 	Reproduced bool   `json:"reproduced"`
 	Got        string `json:"got"`
 	Recorded   string `json:"recorded"`
+	// By is the seat whose re-run this judgement stands on, where this act ran nothing.
+	By string `json:"rerun_by,omitempty"`
+	// ToolCalls is every feov-record call the script made under the re-run, each refused.
+	ToolCalls []string `json:"tool_calls,omitempty"`
 }
 
 func (r reproduceResult) Human() string {
-	if r.Reproduced {
-		return "proof " + r.SHA[:12] + " REPRODUCES — re-running it gives the recorded output byte for byte"
+	short := r.SHA
+	if len(short) > 12 {
+		short = short[:12]
 	}
-	return "proof " + r.SHA[:12] + " DOES NOT REPRODUCE.\n  recorded: " + r.Recorded + "\n  now:      " + r.Got +
+	switch r.Rerun {
+	case recordpb.Word(recordpb.Rerun_RERUN_NOT_RUN):
+		return "proof " + r.Anchor + ": its script " + short + " has already REPRODUCED (re-run by " + r.By + "), and that re-run stands for every proof on it — nothing was re-run. Your verdict on this sentence is recorded"
+	case recordpb.Word(recordpb.Rerun_RERUN_CALLS_THE_TOOL):
+		return "proof " + r.Anchor + " CANNOT BE CHECKED: its script called feov-record (" + strings.Join(r.ToolCalls, "; ") + "), which refuses every call made while a checker runs a script, so nothing it printed is a result.\n  now: " + r.Got +
+			"\n  Recorded as calls_the_tool, with your verdict: the script reads the debate's tool rather than computing its claim"
+	case recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED):
+		return "proof " + r.Anchor + " (script " + short + ") REPRODUCES — re-running it gives the recorded output byte for byte, for every proof on that script. Your verdict on this sentence is recorded"
+	}
+	return "proof " + r.Anchor + " (script " + short + ") DOES NOT REPRODUCE.\n  recorded: " + r.Recorded + "\n  now:      " + r.Got +
 		"\n  Either the computation depends on something that moved, or the recorded output is not what the script produces. Both are findings; neither is recorded for you."
 }

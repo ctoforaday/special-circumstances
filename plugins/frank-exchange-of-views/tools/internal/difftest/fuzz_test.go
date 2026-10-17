@@ -231,7 +231,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 			"--reason", "contested, and not red's to close"}},
 	}
 	// A RECORDED PROOF, for a sequence with a reproduce in it — and only for one, so the sequences
-	// that name none start from the board they always did. Its sha is read off the record.
+	// that name none start from the board they always did. Its anchor is read off the record.
 	vars := map[string]string{}
 	if namesVar(cmds, "{PROOF}") {
 		if err := os.WriteFile(filepath.Join(runDir, "fuzz-proof.js"), []byte("console.log('fuzz proof');\n"), 0o644); err != nil {
@@ -253,7 +253,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 	setupEvents := len(setup)
 	for _, ev := range setup {
 		if p, ok := ev["proof"].(map[string]any); ok {
-			vars["{PROOF}"], _ = p["proof_sha"].(string)
+			vars["{PROOF}"], _ = p["proof_id"].(string)
 		}
 	}
 	res := replayResult{setup: setupEvents}
@@ -464,7 +464,7 @@ var tourArms = []fuzzArm{
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
 		func(t string) []string { return []string{"--question", t, "--hypothesis", "it would settle something"} }, nil),
 	tourArm("lens reproduce", []string{"red-lens-evidence"}, []string{"reproduce"},
-		func(t string) []string { return []string{"--id", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
+		func(t string) []string { return []string{"--anchor", "{PROOF}", "--as", "sound", "--reason", t} }, nil),
 	tourArm("bench declare", []string{"judge"}, []string{"declare"}, reasonOnly, nil),
 	tourArm("bench certify", []string{"judge"}, []string{"certify"}, reasonOnly, nil),
 	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},

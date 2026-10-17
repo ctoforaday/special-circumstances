@@ -1325,7 +1325,23 @@ func (r *runner) someCitation() string {
 }
 
 // reopened returns every citation and proof the record holds as reopened and unchecked — each
-// anchor, and for a proof the sha256 its re-run takes.
+// anchor, and for a proof its script's sha256, which marks it a proof.
+// answerContradictions raises a finding, by its id, for every contradiction this lens owes: the
+// rows of show evidence's unanswered_contradictions whose reader it is.
+func (r *runner) answerContradictions(seatID string) {
+	b, ok := r.board()
+	if !ok {
+		return
+	}
+	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+		if c.Reader != seatID {
+			continue
+		}
+		_, _ = r.exec("finding", "--seat-id", seatID, "--about-kind", "contradiction", "--about", c.ID,
+			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise")
+	}
+}
+
 func (r *runner) reopened() []record.ProofRef {
 	b, ok := r.board()
 	if !ok {
@@ -2673,6 +2689,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The lens is readied once
 				// per reopening, so an item its one sitting leaves holds the PASS for the rest of the
 				// run, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
+				// A CONTRADICTION THIS LENS LEFT OPEN IN AN EARLIER SITTING IS ANSWERED NOW, by its id.
+				r.answerContradictions(seatID)
 				if seatID == "red-lens-evidence" {
 					owed, results := r.reopened(), []string{"supports", "unreachable"}
 					if r.forceVerified {
@@ -2682,8 +2700,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					}
 					for _, it := range owed {
 						if it.Sha != "" {
-							r.do("reproduce", seatID).set("--id", it.Sha).set("--as", pick(r.rng, []string{"sound", "unsound"})).
-								set("--reason", "fuzz: read the script as the sentence now stands and re-ran it").run()
+							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+								set("--reason", "fuzz: read the script against the sentence as it now stands").run()
 						} else {
 							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
@@ -2752,10 +2770,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// the finding itself, because that would mean inventing its three grades. Driving the remedy here is
 				// what makes both the gate and the act that clears it real in the sweep; without
 				// it every run with a negative reading would wedge at the verdict.
+				//
+				// BOTH ANSWERS, AND SOMETIMES LATER. A finding quoting the claim answers it while the
+				// report holds the sentence; one naming the contradiction by its id answers it either
+				// way. Left on a coin to the lens's next sitting (answerContradictions), the answer
+				// often follows a blue sitting that edited the cited sentence away — the case a quote
+				// can no longer reach and the id still does.
 				if outcome == "refutes" || outcome == "absent" {
-					_, _ = r.exec("finding", "--seat-id", seatID,
-						"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
-						"--quote", read, "--reason", "fuzz: the source says otherwise")
+					switch {
+					case r.coin(40):
+						_, _ = r.exec("finding", "--seat-id", seatID,
+							"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+							"--quote", read, "--reason", "fuzz: the source says otherwise")
+					case r.forceVerified || r.coin(50):
+						r.answerContradictions(seatID)
+					}
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				//
@@ -5315,21 +5344,21 @@ func (r *runner) reproveOpenProofs(seatID string) {
 	if err != nil {
 		return
 	}
-	proofFor := map[string]string{} // gap -> sha
+	proofFor := map[string]string{} // gap -> the anchor of the proof that answers it
 	for _, e := range b.Events {
-		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() != "" && p.GetProofSha() != "" {
-			proofFor[p.GetAnswers()] = p.GetProofSha()
+		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() != "" && p.GetProofId() != "" {
+			proofFor[p.GetAnswers()] = p.GetProofId()
 		}
 	}
 	for _, id := range r.openGaps() {
 		if d := r.scenarioOf(id); d != dirProve && d != dirProveDrifts {
 			continue
 		}
-		sha := proofFor[id]
-		if sha == "" {
+		at := proofFor[id]
+		if at == "" {
 			continue // blue has not answered it yet; red has nothing to re-run
 		}
-		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--id", sha, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
+		out, err := r.exec("--json", "reproduce", "--seat-id", seatID, "--anchor", at, "--as", pick(r.rng, []string{"sound", "unsound"}), "--reason", "fuzz: read the script and re-ran it")
 		if err != nil {
 			continue
 		}

@@ -63,9 +63,9 @@ func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 	}
 }
 
-// A PROOF CARRIES BOTH IDS. The seat reads `p-…` in the report; `lens reproduce --id` takes the
-// sha256. The gap between those two is what made the verb unreachable from the document.
-func TestEvidence_ProofCarriesAnchorAndTheShaReproduceTakes(t *testing.T) {
+// A PROOF CARRIES BOTH IDS: the anchor the seat reads in the report and `reproduce --anchor` takes,
+// and the script's sha256 every proof on that script shares.
+func TestEvidence_ProofCarriesItsAnchorAndItsScriptsSha(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{
 		ProofId: proto.String("p-deadbeef"), ProofSha: proto.String("f00d"),
 		ProofBasis: proto.String("reproducible"), Script: proto.String("proofs/trial.py"),
@@ -80,10 +80,10 @@ func TestEvidence_ProofCarriesAnchorAndTheShaReproduceTakes(t *testing.T) {
 	}
 	p := got.Proofs[0]
 	if p.Anchor != "p-deadbeef" || p.Sha256 != "f00d" {
-		t.Errorf("anchor/sha = %q/%q — a seat holding the anchor cannot reach `reproduce --id`", p.Anchor, p.Sha256)
+		t.Errorf("anchor/sha = %q/%q", p.Anchor, p.Sha256)
 	}
-	if p.Verified != nil {
-		t.Errorf("Verified = %+v, want nil — nobody re-ran it", p.Verified)
+	if p.Rerun != RerunNone || p.Soundness != SoundnessNotJudged || p.Verified || len(p.Checks) != 0 {
+		t.Errorf("an unchecked proof reads rerun=%q soundness=%q verified=%v checks=%d, want not_rerun, not_judged, false, 0", p.Rerun, p.Soundness, p.Verified, len(p.Checks))
 	}
 	if got.Counts.ProofsUnverified != 1 {
 		t.Errorf("ProofsUnverified = %d, want 1", got.Counts.ProofsUnverified)
@@ -92,7 +92,7 @@ func TestEvidence_ProofCarriesAnchorAndTheShaReproduceTakes(t *testing.T) {
 
 // UNVERIFIED IS A STATED FIELD, NOT AN OMISSION — and it must survive the JSON, because a reader
 // that cannot tell "nobody re-ran it" from "it reproduced" rates an unaudited proof as an audited
-// one. `omitempty` on that field would erase exactly the distinction.
+// one. `omitempty` on any of the three would erase exactly the distinction.
 func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{
 		ProofId: proto.String("p-1"), ProofSha: proto.String("s1"),
@@ -101,36 +101,90 @@ func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(out), `"verified":null`) {
-		t.Errorf("the JSON omits the verified field on an un-re-run proof:\n%s\n\nAn absent field reads as a clean proof; that is the plausible zero this view exists to remove", out)
+	for _, want := range []string{`"rerun":"not_rerun"`, `"soundness":"not_judged"`, `"verified":false`, `"checks":[]`} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("the JSON of an un-re-run proof lacks %s:\n%s\n\nAn absent field reads as a clean proof; that is the plausible zero this view exists to remove", want, out)
+		}
 	}
 }
 
-// THE ONE JOIN THE RECORD SUPPORTS. `reproduce` carries proof_sha, so red's re-run attaches to
-// the proof it checked — and the two axes stay apart, because a script that prints its conclusion
-// reproduces forever.
-func TestEvidence_ReproduceJoinsItsProofAndKeepsTheAxesApart(t *testing.T) {
+// THE TWO AXES STAY APART, on the row, flat: a script that prints its conclusion reproduces
+// forever, so a re-run that matched and a judgement of `unsound` read as exactly that.
+func TestEvidence_ReproduceJoinsItsAnchorAndKeepsTheAxesApart(t *testing.T) {
 	b := evidenceBoard(
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("p-1"), ProofSha: proto.String("s1")}),
 		evidenceEvent(t, 2, "lens-r2", &recordpb.Reproduce{
-			ProofSha: proto.String("s1"), Reproduced: proto.Bool(true),
+			ProofId: proto.String("p-1"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
 			Soundness: recordtest.P(recordpb.Soundness_SOUNDNESS_UNSOUND),
 			Note:      proto.String("it prints its conclusion"),
 		}),
 	)
 	got := evidenceJSONT(t, b)
-	v := got.Proofs[0].Verified
-	if v == nil {
-		t.Fatal("Verified = nil — the proof_sha join did not happen")
+	p := got.Proofs[0]
+	if p.Rerun != "reproduced" {
+		t.Errorf("Rerun = %q, want reproduced (the tool computed it)", p.Rerun)
 	}
-	if !v.Reproduced {
-		t.Error("Reproduced = false, want true (the tool computed it)")
+	if p.Soundness != SoundnessUnsound || p.Verified {
+		t.Errorf("soundness=%q verified=%v on a `--as unsound` judgement — the mechanical half was allowed to stand in for the judgement", p.Soundness, p.Verified)
 	}
-	if v.Sound {
-		t.Error("Sound = true on a `--as unsound` re-run — the mechanical half was allowed to stand in for the judgement")
+	if len(p.Checks) != 1 || !p.Checks[0].Standing || p.Checks[0].Note != "it prints its conclusion" {
+		t.Errorf("Checks = %+v, want the one standing judgement with its note", p.Checks)
 	}
-	if got.Counts.ProofsUnverified != 0 {
-		t.Errorf("ProofsUnverified = %d, want 0", got.Counts.ProofsUnverified)
+	if got.Counts.ProofsUnverified != 1 {
+		t.Errorf("ProofsUnverified = %d, want 1 — an unsound proof is not verified", got.Counts.ProofsUnverified)
+	}
+}
+
+// THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12). Two
+// proofs on one script: one re-run reproduces the script for both, and each sentence carries its
+// own judgement. A later `sound` on one anchor, from another lens, does not overwrite an `unsound`
+// on the other — keyed by sha it did, in 11 of 15 archived runs with proofs.
+func TestEvidence_AScriptsReRunIsSharedAndEachSentenceKeepsItsOwnVerdict(t *testing.T) {
+	b := evidenceBoard(
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1")}),
+		evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("P-00000002"), ProofSha: proto.String("s1")}),
+		evidenceEvent(t, 2, "red-lens-logic", &recordpb.Reproduce{
+			ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(),
+			Soundness: recordtest.P(recordpb.Soundness_SOUNDNESS_UNSOUND), Note: proto.String("computes the other leg"),
+		}),
+		evidenceEvent(t, 2, "red-lens-evidence", &recordpb.Reproduce{
+			ProofId: proto.String("P-00000002"), ProofSha: proto.String("s1"), Rerun: recordpb.Rerun_RERUN_NOT_RUN.Enum(),
+			Soundness: recordtest.P(recordpb.Soundness_SOUNDNESS_SOUND), Note: proto.String("computes this leg"),
+		}),
+	)
+	got := evidenceJSONT(t, b)
+	p1, p2 := got.Proofs[0], got.Proofs[1]
+	if p1.Rerun != "reproduced" || p2.Rerun != "reproduced" {
+		t.Errorf("rerun = %q/%q, want reproduced on both: one re-run stands for every proof on the script", p1.Rerun, p2.Rerun)
+	}
+	if p1.Soundness != SoundnessUnsound || p1.Verified {
+		t.Errorf("P-00000001 reads %q verified=%v, want unsound — another anchor's sound verdict overwrote it", p1.Soundness, p1.Verified)
+	}
+	if p2.Soundness != SoundnessSound || !p2.Verified {
+		t.Errorf("P-00000002 reads %q verified=%v, want sound and verified", p2.Soundness, p2.Verified)
+	}
+}
+
+// A STANDING UNSOUND STAYS VISIBLE: another seat's later `sound` on the same anchor does not answer
+// it, the seat's own later verdict does, and an edit of the sentence reopens it.
+func TestEvidence_AStandingUnsoundIsAnsweredOnlyByItsSeatOrAnEdit(t *testing.T) {
+	proof := evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1")})
+	judge := func(seat string, snd recordpb.Soundness) *Event {
+		return evidenceEvent(t, 2, seat, &recordpb.Reproduce{ProofId: proto.String("P-00000001"), ProofSha: proto.String("s1"),
+			Rerun: recordpb.Rerun_RERUN_REPRODUCED.Enum(), Soundness: recordtest.P(snd), Note: proto.String("read")})
+	}
+	unsound := judge("red-lens-logic", recordpb.Soundness_SOUNDNESS_UNSOUND)
+	for _, c := range []struct {
+		name string
+		evs  []*Event
+		want string
+	}{
+		{"another seat's sound", []*Event{proof, unsound, judge("red-lens-evidence", recordpb.Soundness_SOUNDNESS_SOUND)}, SoundnessUnsound},
+		{"its own seat's sound", []*Event{proof, unsound, judge("red-lens-logic", recordpb.Soundness_SOUNDNESS_SOUND)}, SoundnessSound},
+	} {
+		if got := evidenceJSONT(t, evidenceBoard(c.evs...)).Proofs[0].Soundness; got != c.want {
+			t.Errorf("%s after an unsound: soundness = %q, want %q", c.name, got, c.want)
+		}
 	}
 }
 
