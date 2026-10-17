@@ -58,9 +58,13 @@ import (
 // to make "nobody looked" impossible, not to re-execute the run.
 const proofRerunSample = 3
 
+// recordedProof is one distinct SCRIPT on the record, keyed by its sha. Several proofs can share
+// one: `prove` of a script already proved records a new proof anchor over the same sha, and a
+// re-run of the script answers for every proof that holds it. proofs counts them.
 type recordedProof struct {
 	sha, basis, script string
 	rerunBySeat        bool
+	proofs             int
 }
 
 // recordedProofs lists the run's proofs from the RECORD, not from the proofs/ directory.
@@ -78,7 +82,7 @@ func recordedProofs(evs []*record.Event) []recordedProof {
 			}
 		}
 	}
-	seen := map[string]bool{}
+	at := map[string]int{} // sha → its row of out
 	var out []recordedProof
 	for i := range evs {
 		body, ok := recordpb.Body(evs[i])
@@ -86,13 +90,17 @@ func recordedProofs(evs []*record.Event) []recordedProof {
 			continue
 		}
 		p, is := body.(*recordpb.Proof)
-		if !is || p.GetProofSha() == "" || seen[p.GetProofSha()] {
+		if !is || p.GetProofSha() == "" {
 			continue
 		}
-		seen[p.GetProofSha()] = true
+		if k, seen := at[p.GetProofSha()]; seen {
+			out[k].proofs++
+			continue
+		}
+		at[p.GetProofSha()] = len(out)
 		out = append(out, recordedProof{
 			sha: p.GetProofSha(), basis: p.GetProofBasis(), script: p.GetScript(),
-			rerunBySeat: rerun[p.GetProofSha()],
+			rerunBySeat: rerun[p.GetProofSha()], proofs: 1,
 		})
 	}
 	// THE SAMPLE IS DETERMINISTIC AND IT PREFERS THE UNAUDITED. Proofs no seat re-ran come first
@@ -155,9 +163,18 @@ func ProofRerunAudit(run record.Run, sample int) Audit {
 	// HOW MANY WERE ACTUALLY RE-RUN IS PART OF THE ANSWER, always. "every sampled proof
 	// reproduced" over a sample of zero is the plausible zero this whole audit tier exists to
 	// stop printing.
-	detail := fmt.Sprintf("re-ran %d of %d recorded proof(s)", ran, len(proofs))
+	// SCRIPTS, NOT PROOFS, ARE WHAT IS RE-RUN, and the count names both: smoke 07d's record held 9
+	// proofs over 6 scripts, and "3 of 6 recorded proof(s)" undercounted the record by a third.
+	covered, total := 0, 0
+	for i, p := range proofs {
+		total += p.proofs
+		if i < sample {
+			covered += p.proofs
+		}
+	}
+	detail := fmt.Sprintf("re-ran %d of %d distinct proof script(s), behind %d of the %d recorded proof(s)", ran, len(proofs), covered, total)
 	if unaudited := countUnaudited(proofs); unaudited > 0 {
-		detail += fmt.Sprintf("; %d had never been re-run by any seat", unaudited)
+		detail += fmt.Sprintf("; %d script(s) had never been re-run by any seat", unaudited)
 	}
 	if len(notes) > 0 {
 		detail += "; " + strings.Join(notes, "; ")
