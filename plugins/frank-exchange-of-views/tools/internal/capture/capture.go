@@ -55,18 +55,6 @@ type Audit struct {
 
 // ---- small JS-coercion helpers (mirror the mjs number/string handling) ----
 
-// numOf returns a numeric value as float64; ok=false for a non-number (JS `typeof x==='number'`).
-func numOf(v any) (float64, bool) {
-	switch x := v.(type) {
-	case json.Number:
-		f, err := x.Float64()
-		return f, err == nil
-	case float64:
-		return x, true
-	}
-	return 0, false
-}
-
 func strOf(v any) string {
 	if s, ok := v.(string); ok {
 		return s
