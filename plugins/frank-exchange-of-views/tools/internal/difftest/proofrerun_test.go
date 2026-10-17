@@ -15,8 +15,8 @@ import (
 // On a smoke run a blue proof's script called the tool as blue. In every lens's re-run the call was
 // refused for a seat mismatch, the script piped the refusal through `jq` into a 0, the output
 // matched, and the proof was recorded as reproducing byte for byte while its check never ran. Here
-// the script calls the binary as blue and prints only whether the call SUCCEEDED as a number — the
-// shape that turns any refusal into an ordinary-looking result. Under a checker's run the binary
+// the script calls the binary as blue and prints the same 0 whether the call succeeded or was
+// refused — the shape that turns any refusal into an ordinary-looking result. Under a checker's run the binary
 // refuses every call and writes it to the marker the run names, so `prove` grades the script
 // `not_portable` and the lens's `reproduce` records `calls_the_tool`, whatever the script printed.
 func TestAProofThatCallsTheToolIsNeverRecordedAsReproducing(t *testing.T) {
@@ -24,9 +24,22 @@ func TestAProofThatCallsTheToolIsNeverRecordedAsReproducing(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
 	prepareRun(t, bin, runDir, m, nil)
-	script := filepath.Join(runDir, "reads-the-board.sh")
-	body := "#!/bin/sh\n" + bin + " --run " + runDir + " --seat-id blue-respond show board --json >/dev/null 2>&1; echo 0\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	// THE SCRIPT STARTS THE BINARY WITHOUT A SHELL. A shell script spliced the binary's path into
+	// its text, and on Windows that path is `C:\\…\\feov-record.exe`: the shell read each backslash
+	// as an escape, the call never started, its error went to /dev/null with the refusal, and the
+	// script printed its 0 for a reason that had nothing to do with the tool. The paths travel as
+	// JSON strings here, and a call that cannot start says so in the output rather than as a 0.
+	script := filepath.Join(runDir, "reads-the-board.js")
+	quote := func(s string) string { b, _ := json.Marshal(s); return string(b) }
+	body := `const { execFileSync } = require("child_process");
+try {
+  execFileSync(` + quote(bin) + `, ["--run", ` + quote(runDir) + `, "--seat-id", "blue-respond", "show", "board", "--json"], { stdio: "ignore" });
+} catch (e) {
+  if (typeof e.status !== "number") { console.log("the tool did not start: " + e.code); process.exit(0); }
+}
+console.log("0");
+`
+	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	do := func(verb string, args ...string) invocation {
@@ -35,7 +48,13 @@ func TestAProofThatCallsTheToolIsNeverRecordedAsReproducing(t *testing.T) {
 	}
 	prove := do("prove", "--seat-id", "blue-respond", "--quote", "A claim sits under S2.", "--script", script, "--reason", "reads the board", "--json")
 	if prove.code != 0 || !strings.Contains(prove.stdout, "not_portable") || !strings.Contains(prove.stdout, "calls feov-record") {
-		t.Fatalf("prove of a script that calls the tool: exit %d, want not_portable naming the call\nstdout: %s\nstderr: %s", prove.code, prove.stdout, prove.stderr)
+		printed, _ := filepath.Glob(filepath.Join(runDir, "proofs", "*", "output"))
+		var out []string
+		for _, f := range printed {
+			b, _ := os.ReadFile(f)
+			out = append(out, strings.TrimSpace(string(b)))
+		}
+		t.Fatalf("prove of a script that calls the tool: exit %d, want not_portable naming the call\nstdout: %s\nstderr: %s\nthe script printed: %q", prove.code, prove.stdout, prove.stderr, out)
 	}
 	var ev struct {
 		Proofs []struct {
