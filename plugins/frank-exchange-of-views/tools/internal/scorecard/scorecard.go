@@ -134,10 +134,10 @@ func ReadResults(run record.Run) []map[string]any {
 // where the bench closed anything — against a row that states `target 100`. A ratio nothing can
 // satisfy measures the record's shape, not the run's work.
 //
-// THE PREDICATE IS THE CLOSING BODY, NOT ClosedByBench. That flag follows the LAST closing event,
-// so a gap blue closed WITH a full anchor triple that the bench later ruled on carries
-// ClosedByBench=true — and excluding on it would delete a genuinely anchored closure from both
-// counts, which is the same unmeasurable-by-construction defect one ordering over. `Closure` is
+// THE PREDICATE IS THE CLOSING BODY, NOT A CLOSER FLAG. A gap blue closed WITH a full anchor
+// triple that the bench later ruled on carries the bench's word (BenchClosedLast=true) — and
+// excluding on that would delete a genuinely anchored closure from both counts, which is the same
+// unmeasurable-by-construction defect one ordering over. `Closure` is
 // the `close` body and `BenchClosure` the bench's; a gap holding only the latter was disposed of,
 // never repaired.
 //

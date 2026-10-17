@@ -90,3 +90,44 @@ func TestDoubledTerminatorReadsAcrossAnAnchorRun(t *testing.T) {
 		t.Errorf("DoubledTerminator = %q on an edit that leaves one terminator", got)
 	}
 }
+
+// ONLY THE SEAMS ARE READ, and a run there doubles only when both sides carry a terminator or the
+// same closing quote. Each row is the report a splice leaves, read against the one it replaced.
+func TestDoubledTerminatorReadsOnlyTheSeam(t *testing.T) {
+	for _, c := range []struct{ name, before, after, want string }{
+		// universe-m24 ev246: the replacement's own `",` is prose, in a report with no run that long.
+		{"a run inside the replacement", `A web search for "x" returned nine pages. Next.`, `For the query "x", nine pages come up. Next.`, ""},
+		// The same, with the replacement sharing the text up to the quote: the seam is not the quote.
+		{"a comma after a quote the edit kept", `He said "no" today. Next.`, `He said "no", today. Next.`, ""},
+		// universe-m24 ev238: a quoted phrase ending the sentence before the report's period.
+		{"a closing quote then the report's period", `Pages came up. Next.`, `Pages came up for "x". Next.`, ""},
+		{"a terminator beside the report's", "It works. Next.", "It works!. Next.", "!."},
+		{"the same closing quote on both sides", `He said "hello". Next.`, `He said "goodbye"". Next.`, `"".`},
+		{"the same single quote on both sides", "He said 'hello'. Next.", "He said 'goodbye''. Next.", "''."},
+		// research/2026-09-02_quadratic-formula: a doubled terminator made a tripled one.
+		{"a doubled run made longer", `The count is 27."." Next.`, `The count is 28."."." Next.`, `."."."`},
+		{"a deletion joining two marks", "A, B. C.", "A,. C.", ",."},
+		// A sentence added to the one the quote names: the replacement starts with the quote and the
+		// report's `. `, so where before and after stop agreeing is past the report's own period.
+		{"a sentence added before the report's period", "It works. Next.", "It works. Does it scale?. Next.", "?."},
+		{"a sentence added before the report's period, past its anchor",
+			"It works<!--fx:F-11111111-->. Next.", "It works. Really!<!--fx:F-11111111-->. Next.", "!."},
+		{"a mark added after the report's", "It works. Next.", "It works.! Next.", ".!"},
+		{"a replacement that starts with a mark, beside the report's", "It works. Next.", "It works.! Later.", ".!"},
+		// The guard judges a change: a report it is handed unchanged holds no seam, whatever it holds.
+		{"no change, over a report that holds a doubled run", "It works!. Next.", "It works!. Next.", ""},
+		{"a paragraph repeated beside itself", "One. Two.\n\nNext.", "One. Two.\n\nOne. Two.\n\nNext.", ""},
+		// An edit that moves two anchors between its sentences: before and after part inside a token.
+		{"a terminator beside the report's, past anchors the edit moved",
+			"It is prime<!--fx:F-11111111-->. It is odd<!--fx:F-22222222-->. Next.",
+			"It is prime<!--fx:F-22222222-->. It is odd!<!--fx:F-11111111-->. Next.", "!."},
+		// A run as long elsewhere in the report does not license this one.
+		{"a terminator beside the report's, in a report with longer runs", `He asked "why?". It works. Next.`, `He asked "why?". It works!. Next.`, "!."},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := DoubledTerminator(c.before, c.after); got != c.want {
+				t.Errorf("DoubledTerminator = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
