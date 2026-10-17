@@ -123,8 +123,8 @@
 # inquiries.md — each inquiry and what became of it
 
 ## (by fate)                             <!-- [RECORD] every inquiry grouped by its current fate, each with its hypothesis,
-                                              the PATH its status took epoch by epoch with each fate's method, the
-                                              seat that last recorded its fate and red's ruling; then the inquiries
+                                              its latest fate's reason and method, the PATH its status took epoch
+                                              by epoch, the seat that last recorded its fate and red's ruling; then the inquiries
                                               still awaiting a decision. The same rendering a seat reads through the
                                               tool. report.md carries only each inquiry's latest fate, method and
                                               reason; this is where how it got there lives. Omitted when the run

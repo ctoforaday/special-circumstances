@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"math"
+	"regexp"
 	"strings"
 	"testing"
 	"unicode/utf16"
@@ -567,6 +568,13 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Status:           recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
 			Reason:           proto.String("the archive is offline"),
 		}),
+		recordtest.At(t, blue, blue+":inquiry:Q1:abandoned:2", &recordpb.Inquiry{
+			InquiryId:        proto.String("Q1"),
+			SupersedesStatus: proto.String("2"),
+			Method:           proto.String("catalogue search"),
+			Status:           recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
+			Reason:           proto.String("the archive is offline"),
+		}),
 		recordtest.At(t, blue, blue+":inquiry:Q2", &recordpb.Inquiry{
 			InquiryId: proto.String("Q2"),
 			Question:  proto.String("read the source"),
@@ -617,9 +625,17 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	if !strings.Contains(inquiry, "- **Q1 try the archive** — the archive is offline (blue-respond)") {
 		t.Errorf("an abandoned inquiry row is wrong:\n%s", inquiry)
 	}
-	// THE METHOD IS A FATE'S, SO IT RIDES ON THE PATH beside the fate it was recorded with.
-	if !strings.Contains(inquiry, " proposed -> e") || !strings.Contains(inquiry, " abandoned _(method: full-text search)_") {
-		t.Errorf("the path does not carry the method its abandoned fate recorded:\n%s", inquiry)
+	// THE METHOD PRINTS ONCE, THE LATEST, AS THE REASON DOES; THE PATH IS THE FATES ALONE. The first
+	// abandoned record's method was superseded by the second, and a path that printed it would ship
+	// what blue re-recorded away.
+	if !strings.Contains(inquiry, "  - method: catalogue search\n") || strings.Count(inquiry, "catalogue search") != 1 {
+		t.Errorf("the latest method does not print once on its row:\n%s", inquiry)
+	}
+	if strings.Contains(inquiry, "full-text search") {
+		t.Errorf("a superseded method still prints:\n%s", inquiry)
+	}
+	if !regexp.MustCompile(`  - path: e\d+ proposed -> e\d+ abandoned -> e\d+ abandoned\n`).MatchString(inquiry) {
+		t.Errorf("the path is not the fates alone:\n%s", inquiry)
 	}
 	if strings.Contains(inquiry, "## declined") {
 		t.Errorf("an empty status produced a heading:\n%s", inquiry)

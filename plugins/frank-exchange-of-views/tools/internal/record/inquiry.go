@@ -42,13 +42,13 @@ type Inquiry struct {
 	// what a deferred or declined one leaves a later run to do, what an abandoned one tried. A
 	// proposal holds none — it is written before any research, and a method printed beside the
 	// question from then reads as what was consulted, with nothing to check it against.
-	Method string
-	Epoch  int    // the epoch the current status was set in
-	Path   []Step // every fate it took, in order, the proposal first
+	Method  string
+	Epoch   int      // the epoch the current status was set in
+	History []string // every fate it took, in order, the proposal first: "e0 proposed", "e2 abandoned" …
 	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "started, and no
 	// answer came" by the enum's own meaning, and `confirmed` and `refuted` are approaches that ran
 	// and answered; a seat reaches any of them straight from `proposed`, so the absence of an `underway`
-	// step says how many fates the seat recorded and nothing about whether the inquiry was taken. Path
+	// step says how many fates the seat recorded and nothing about whether the inquiry was taken. History
 	// holds the path.
 	SeatID string // who last recorded its fate — attribution the one-line row carries
 	// Ruling, RulingWhy and RuledEpoch are the inquiry's FIRST ruling that stands, all three from
@@ -62,24 +62,6 @@ type Inquiry struct {
 	// deliver the research — is an ordinary GAP, minted and closed like any other, and the
 	// per-epoch statement that the read HAPPENED is InquiryReviewDueOf's business, not this
 	// struct's.
-}
-
-// Step is one fate an inquiry took: the epoch it was recorded in, the fate, and the method that
-// record stated. inquiries.md prints the path with each step's method; `show inquiries --json`
-// gives the epoch and fate of each as `history`.
-type Step struct {
-	Epoch  int
-	Status string
-	Method string
-}
-
-// History is the path as `e<epoch> <fate>`, one string per step.
-func (a *Inquiry) History() []string {
-	out := make([]string, 0, len(a.Path))
-	for _, s := range a.Path {
-		out = append(out, fmt.Sprintf("e%d %s", s.Epoch, s.Status))
-	}
-	return out
 }
 
 // InquiriesOf folds the events into one Inquiry per id, in proposal order, for the run-shaped
@@ -135,7 +117,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())
 			a.Reason, a.Method, a.Epoch, a.SeatID = t.GetReason(), t.GetMethod(), w.Epoch, e.GetSeatId()
-			a.Path = append(a.Path, Step{Epoch: w.Epoch, Status: a.Status, Method: a.Method})
+			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 		case *recordpb.MotionRule:
 			// A ruling on an inquiry joins on the inquiry's own id, so `motion inquiry rule`
 			// writes a motion-rule whose motion_id IS a Q-number. This arm is how red's ruling
@@ -312,7 +294,7 @@ func InquiriesJSONOf(evs []*Event, win WindowIndex) InquiriesJSON {
 	for _, a := range InquiriesOf(evs, win) {
 		out.Inquiries = append(out.Inquiries, InquiryJSON{
 			ID: a.ID, Question: a.Question, Hypothesis: a.Hypothesis, Method: a.Method,
-			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History(),
+			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
 			SeatID: a.SeatID, Ruling: a.Ruling,
 		})
 	}
