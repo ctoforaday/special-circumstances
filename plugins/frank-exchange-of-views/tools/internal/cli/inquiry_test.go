@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -255,6 +256,7 @@ func TestTheMethodIsTheLatestFatesAccount(t *testing.T) {
 		{"underway", "trial division by 2, 3 and 5", "trial division by 2, 3 and 5"},
 		{"confirmed", "trial division by every prime up to 9", "trial division by every prime up to 9"},
 		{"confirmed", "", ""},
+		{"confirmed", "trial division by 2, 3, 5 and 7", "trial division by 2, 3, 5 and 7"},
 	} {
 		args := []string{"inquiry", "record", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", step.as, "--reason", "7 divides 91"}
 		if step.method != "" {
@@ -271,9 +273,18 @@ func TestTheMethodIsTheLatestFatesAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"underway _(method: trial division by 2, 3 and 5)_", "confirmed _(method: trial division by every prime up to 9)_ -> e1 confirmed"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("the path does not carry each fate's method %q:\n%s", want, out)
+	// The bare view prints the latest method once, as it does the reason, and the path the fates
+	// alone: a superseded method is one blue re-recorded away, and printing it on the path ships
+	// what the record corrected.
+	if n := strings.Count(out, "trial division by 2, 3, 5 and 7"); n != 1 {
+		t.Errorf("the latest method prints %d times, want once:\n%s", n, out)
+	}
+	for _, gone := range []string{"trial division by 2, 3 and 5", "trial division by every prime up to 9"} {
+		if strings.Contains(out, gone) {
+			t.Errorf("a superseded method %q still prints:\n%s", gone, out)
 		}
+	}
+	if !regexp.MustCompile(`path: e\d+ proposed -> e\d+ underway -> e\d+ confirmed -> e\d+ confirmed -> e\d+ confirmed\n`).MatchString(out) {
+		t.Errorf("the path is not the fates alone:\n%s", out)
 	}
 }
