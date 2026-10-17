@@ -162,11 +162,10 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, key := range citedClaimsWithoutVerify(evs) {
 			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
 		}
-		// THE ITEM CARRIES THE ID THE VERB TAKES, which it did not. This named the proof by its
-		// `p-…` anchor while `reproduce --id` takes the sha256 and refuses the anchor by shape — so a
-		// seat holding the item had to go and translate it. Measured on universe-m11: three lenses
-		// spent 22 proof-file reads and 14 filesystem hunts between them doing exactly that, for 12
-		// re-runs. The record carries both ids on the same event; only one was passed on.
+		// THE ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
+		// takes and the seat reads in the report. When the verb took the script's sha256 and the
+		// item named the anchor, three lenses on universe-m11 spent 22 proof-file reads and 14
+		// filesystem hunts translating one into the other, for 12 re-runs.
 		for _, o := range proofChecksOwed(evs, win) {
 			//
 			// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by

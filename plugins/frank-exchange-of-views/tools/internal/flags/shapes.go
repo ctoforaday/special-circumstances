@@ -95,8 +95,8 @@ func (v *ShapedValue) Check(runDir, flag string) error {
 // Checked reports whether an existence check is ATTACHED, which is not the same question as
 // whether this type can carry one. Every ShapedValue has the Check method, so a test asking for the
 // METHOD measures "is shaped" and reports a shape-only flag as an unproven reference check —
-// `reproduce --id` takes a sha256 with nothing to resolve it against, and five such flags were
-// reported that way the first time --id was shaped everywhere. The parse half is proven separately
+// a flag shaped as a sha256, with nothing to resolve it against, was one of five reported that way
+// the first time --id was shaped everywhere. The parse half is proven separately
 // (internal/cli/idshape_test.go, internal/flags/idnamespace_test.go) and the two must stay separable.
 func (v *ShapedValue) Checked() bool { return v != nil && v.check != nil }
 
