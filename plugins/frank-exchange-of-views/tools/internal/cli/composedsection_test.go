@@ -177,7 +177,7 @@ func TestShowReportAssembledIsTheSetAssemblyShips(t *testing.T) {
 	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Appendix: the divisions\n\n91 / 7 = 13.\n")
 	registerBlue(t, runDir)
 	if out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", blueSeat, "--question", "whether trial division to 9 settles it",
-		"--method", "trial division", "--hypothesis", "a factor below 10 exists"); err != nil {
+		"--hypothesis", "a factor below 10 exists"); err != nil {
 		t.Fatalf("inquiry propose: %v\n%s", err, out)
 	}
 	out, err = run(t, "show", "report", "--assembled", "--json", "--run", runDir, "--seat-id", blueSeat)

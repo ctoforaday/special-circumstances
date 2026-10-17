@@ -558,9 +558,14 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		recordtest.At(t, blue, blue+":inquiry:Q1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"),
 			Question:  proto.String("try the archive"),
-			Method:    proto.String("full-text search"),
-			Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
-			Reason:    proto.String("the archive is offline"),
+			Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
+		}),
+		recordtest.At(t, blue, blue+":inquiry:Q1:abandoned", &recordpb.Inquiry{
+			InquiryId:        proto.String("Q1"),
+			SupersedesStatus: proto.String("1"),
+			Method:           proto.String("full-text search"),
+			Status:           recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
+			Reason:           proto.String("the archive is offline"),
 		}),
 		recordtest.At(t, blue, blue+":inquiry:Q2", &recordpb.Inquiry{
 			InquiryId: proto.String("Q2"),
@@ -609,8 +614,12 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	if underwayAt < 0 || abandonedAt < 0 || underwayAt > abandonedAt {
 		t.Errorf("inquiries sections are wrong or out of order:\n%s", inquiry)
 	}
-	if !strings.Contains(inquiry, "- **Q1 try the archive** _(full-text search)_ — the archive is offline (blue-respond)") {
+	if !strings.Contains(inquiry, "- **Q1 try the archive** — the archive is offline (blue-respond)") {
 		t.Errorf("an abandoned inquiry row is wrong:\n%s", inquiry)
+	}
+	// THE METHOD IS A FATE'S, SO IT RIDES ON THE PATH beside the fate it was recorded with.
+	if !strings.Contains(inquiry, " proposed -> e") || !strings.Contains(inquiry, " abandoned _(method: full-text search)_") {
+		t.Errorf("the path does not carry the method its abandoned fate recorded:\n%s", inquiry)
 	}
 	if strings.Contains(inquiry, "## declined") {
 		t.Errorf("an empty status produced a heading:\n%s", inquiry)

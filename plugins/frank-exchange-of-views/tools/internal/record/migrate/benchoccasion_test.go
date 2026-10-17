@@ -57,7 +57,7 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 }
 
 // AN ARCHIVED RUN STORES NO PLAN, AND ITS ROWS NO REMAND EXCHANGE. Every archive predates the stored
-// plan (epoch 30): migrate reconstructs none — today's fold over the record's prefix is not what the
+// plan (epoch 31): migrate reconstructs none — today's fold over the record's prefix is not what the
 // binary that ran it printed — so the relay audit on a migrated run reports that it compared nothing.
 // The census reads every archive and fails on a stored plan or on an archive set holding no dispatch
 // row, because the translation would then be tested by nothing.

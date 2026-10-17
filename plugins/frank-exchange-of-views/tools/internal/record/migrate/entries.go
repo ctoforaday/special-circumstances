@@ -35,7 +35,7 @@ func Entries() Registry {
 		// written — the fan-out is the replay's, because it reads the proofs replayed before it
 		// (reproduceAnchors in replay.go).
 		"reproduce": {Translate: reproduceEntry},
-		// A DISPATCH ROW BEFORE EPOCH 30 NAMED THE GAPS WHOSE REMAND EXCHANGE IT READIED. The record
+		// A DISPATCH ROW BEFORE EPOCH 31 NAMED THE GAPS WHOSE REMAND EXCHANGE IT READIED. The record
 		// stores the plan the row was written from, whose remand_owed names them with the direction,
 		// and keeps no copy on the row; an archived row's list is not carried, and its plan was never
 		// stored, so the gaps are read off the remand rulings the record replays.

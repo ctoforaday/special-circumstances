@@ -1361,9 +1361,15 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if b.GetInquiryId() == "" {
 			return fmt.Errorf("an inquiry requires an id — the tool assigns one on a proposal and --id names it when its fate is recorded; an inquiry with no identity has no lifecycle and cannot be ruled on or revisited")
 		}
-		// A RECORD of a fate (--id) carries only the new status and its reason; the substance lives
-		// on the proposal it names, so requiring the question here would make recording a fate
-		// impossible.
+		// A PROPOSAL HOLDS NO METHOD. A method is the account of a fate — what was done, or what a
+		// later run should do — and one written at proposal is written before any research, printed
+		// on the row as if it were what the research did, with nothing that can check or change it.
+		if b.SupersedesStatus == nil && b.GetMethod() != "" {
+			return fmt.Errorf("a proposal holds no method — the method is the account of a fate: give it with `inquiry record` when you record what became of this inquiry")
+		}
+		// A RECORD of a fate (--id) carries only the new status, its reason and its method; the
+		// substance lives on the proposal it names, so requiring the question here would make
+		// recording a fate impossible.
 		if b.GetSupersedesStatus() == "" && b.GetQuestion() == "" {
 			// THE FLAG NAME IS DERIVED, NOT SPELLED: the refusal names the flag that fills the
 			// payload key, so it can only point a seat at a flag the verb registers. A refusal naming

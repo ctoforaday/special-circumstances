@@ -766,24 +766,28 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
 		for _, a := range rows {
-			method := ""
-			if a.Method != "" {
-				method = fmt.Sprintf(" _(%s)_", a.Method)
-			}
-			// The one-line row keeps its shape — question, method, reason, seat — and the
-			// lifecycle adds to it rather than replacing it.
+			// The one-line row keeps its shape — question, reason, seat — and the lifecycle adds to
+			// it rather than replacing it. The method is a fate's, so it rides on the path.
 			head := a.ID + " " + a.Question
 			reason := ""
 			if a.Reason != "" {
 				reason = " — " + a.Reason
 			}
-			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s%s (%s)", head, method, reason, a.SeatID))
+			inquiry = append(inquiry, fmt.Sprintf("- **%s**%s (%s)", head, reason, a.SeatID))
 			if a.Hypothesis != "" {
 				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
 			}
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
-			if len(a.History) > 1 {
-				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
+			if len(a.Path) > 1 {
+				steps := make([]string, 0, len(a.Path))
+				for _, st := range a.Path {
+					step := fmt.Sprintf("e%d %s", st.Epoch, st.Status)
+					if st.Method != "" {
+						step += fmt.Sprintf(" _(method: %s)_", st.Method)
+					}
+					steps = append(steps, step)
+				}
+				inquiry = append(inquiry, "  - path: "+strings.Join(steps, " -> "))
 			}
 			if a.Ruling != "" {
 				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
