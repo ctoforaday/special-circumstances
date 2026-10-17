@@ -600,9 +600,7 @@ CREATE TABLE "regrade" (
 
 CREATE TABLE "spot_check" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "none" INTEGER,
-  "reason" TEXT,
-  CHECK ("none" IS NULL OR "none" IN (0, 1))
+  "reason" TEXT
 ) STRICT;
 
 CREATE TABLE "spot_check_ids" (

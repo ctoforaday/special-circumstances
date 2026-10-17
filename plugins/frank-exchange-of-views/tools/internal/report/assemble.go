@@ -988,11 +988,11 @@ func correctnessManifest(fam record.Family) string {
 // re-read, and what that found.
 //
 // The closure index is the report's claim that a gap was dealt with. A reader deciding how much to
-// trust it is shown which sittings re-read it; a spot-check claiming an empty archive the board
-// contradicts is shown as that. A defect the chair found in a stale area is stated in that area's
-// spot-check, with no verdict recorded, so its prose is printed whatever the spot-check names.
+// trust it is shown which sittings re-read it. A defect the chair found in a stale area is stated
+// in that area's spot-check, with no verdict recorded, so its prose is printed whatever the
+// spot-check names.
 func spotChecks(fam record.Family) string {
-	checks, falseEmpty := record.SpotCheckAudit(fam)
+	checks := record.SpotChecks(fam)
 	if len(checks) == 0 {
 		return ""
 	}
@@ -1001,9 +1001,6 @@ func spotChecks(fam record.Family) string {
 	b.WriteString("Red re-reading before a PASS what it would otherwise take on trust: the stale areas, each a retired lens's area the report has moved past since it sat, and its own closure record, which is only as good as the last time anyone looked. These are the sittings that looked, and what each found.\n\n")
 	for _, sc := range checks {
 		b.WriteString("- " + sc.Describe() + "\n")
-	}
-	for _, sc := range falseEmpty {
-		fmt.Fprintf(&b, "- **#%d (%s) claimed there was nothing to sample, and the board shows %d archived closure(s) at the start of epoch %d.** The claim does not survive the record.\n", sc.Sitting, sc.SeatID, sc.Archived, sc.Epoch)
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

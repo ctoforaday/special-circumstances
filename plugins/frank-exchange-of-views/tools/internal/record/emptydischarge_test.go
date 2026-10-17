@@ -84,7 +84,7 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 }
 
 // spot-check is DELIBERATELY not in this class: its bare form is a documented decision with its
-// own test, and its --none --reason exists for the same distinction. Pinned so a later sweep of
+// own test, and its --reason says why it named nothing. Pinned so a later sweep of
 // this class does not "fix" it by mistake.
 func TestSpotCheckBareStaysAccepted(t *testing.T) {
 	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {

@@ -250,7 +250,7 @@ func answerDrives() []answerDrive {
 		{name: "position, blue-respond", row: rowPosition, helps: []string{"blue position"},
 			drive: oncePerSitting(rowPosition, "blue-respond", "position")},
 		{name: "spot-check", row: rowSpotCheck, helps: []string{"chair spot-check"},
-			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check", "--none")},
+			drive: oncePerSitting(rowSpotCheck, "red-chair", "spot-check")},
 		{name: "verdict", row: rowVerdict, helps: []string{"chair verdict"}, drive: func(d drive) {
 			d.admitted("a FAIL", "red-chair", "verdict", "--as", "FAIL")
 			d.endsWithRow(d.refused("a second verdict in the sitting", "red-chair", "verdict", "--as", "FAIL"), rowVerdict)

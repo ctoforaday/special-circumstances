@@ -1125,7 +1125,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 	// RECORDABLE"). The siblings were never swept. They are swept here.
 	//
 	// `spot-check` is deliberately NOT in this arm. Its bare form is a documented decision with
-	// a test pinning it, and its --none --reason exists for the same distinction this makes.
+	// a test pinning it, and its --reason says why it named nothing.
 	case *recordpb.Log:
 		if b.GetText() == "" {
 			return fmt.Errorf("a log entry requires --reason. Every entry asserts a problem, and an entry with no sentence is silence with an event attached — say what you hit")

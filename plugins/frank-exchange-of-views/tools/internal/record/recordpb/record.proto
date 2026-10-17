@@ -923,14 +923,17 @@ message Regrade {
   }, (prose) = true];
 }
 
-// SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
-// THE SEAT: a `none` claim the board contradicts is rendered as the contradiction it is.
+// SpotCheck re-reads archived closures and names the stale areas read before a PASS. THE ARCHIVE'S
+// SIZE IS COMPUTED FROM THE BOARD, NOT TAKEN FROM THE SEAT: a spot-check names what it re-read, and
+// the board says how much there was to read.
 message SpotCheck {
   repeated string ids = 1;
-  optional bool none = 3;
+  // 3 held `none`, a seat's claim that the archive was empty. The board answers that, and nothing
+  // asked the seat to say it. Reserved: a stored spot-check carries the bytes.
+  reserved 3;
+  reserved "none";
 
-  // ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
-  // nothing to sample — the same field, split by which branch wrote it.
+  // ONE PROSE CHANNEL: what the spot-check found, or why it named nothing.
   optional string reason = 4 [(prose) = true];
 
   // The lens seats whose area the chair read the changes against this sitting — the plan's

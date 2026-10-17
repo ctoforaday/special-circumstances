@@ -2098,7 +2098,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
 		// drive that filed one every sitting would never put that in front of the oracle.
 		//
-		// An emptiness claim is made only when the board agrees.
+		// A spot-check names no closure only when the board holds none.
 		if stale := r.staleAreas(); len(stale) > 0 || r.coin(50) {
 			sc := r.do("spot-check", seatID)
 			if len(stale) > 0 {
@@ -2108,8 +2108,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
 					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
 			} else {
-				sc.bare("--none").
-					set("--reason", "fuzz: the archive was empty at round start").run()
+				sc.set("--reason", "fuzz: the archive was empty at round start").run()
 			}
 		}
 		// RED RULES EVERY UNRULED INQUIRY, and the ruling follows the question it was proposed

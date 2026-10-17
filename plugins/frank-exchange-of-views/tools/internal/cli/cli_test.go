@@ -1710,7 +1710,7 @@ func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-		"--none", "--reason", "archive empty at round start; floor not applicable")
+		"--reason", "archive empty at round start; floor not applicable")
 	if err != nil {
 		t.Fatalf("an empty archive must be recordable: %v", err)
 	}
@@ -1719,8 +1719,8 @@ func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
 	keys := setFields(ev)
-	if !keys["none"] || !keys["reason"] {
-		t.Errorf("the event must carry both the empty marker and its reason; got %v", keys)
+	if !keys["reason"] || keys["ids"] {
+		t.Errorf("the event must carry its reason and name no closure; got %v", keys)
 	}
 }
 
@@ -1733,21 +1733,9 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 	// COBRA REFUSES IT AT PARSE now, because the collapse to one prose channel made --reason
 	// unconditionally required: what a sample found and why there was nothing to sample were
 	// always the same field, and only the branch that wrote it differed.
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--none"); err == nil ||
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair"); err == nil ||
 		!strings.Contains(err.Error(), "reason") {
-		t.Fatalf("--none with no reason must be refused, got %v", err)
-	}
-}
-
-func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := runAt(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-		"--none", "--reason", "x", "--ids", "G1"); err == nil || !strings.Contains(err.Error(), "none") {
-		t.Fatalf("claiming both nothing-to-sample and a sample must be refused, got %v", err)
+		t.Fatalf("a spot-check with no reason must be refused, got %v", err)
 	}
 }
 
@@ -1769,10 +1757,9 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	// message cannot tell "sampled nothing" from "field unset". The distinction is real and it
 	// lives in the PROJECTION, which renders `ids` as `[]` — a reader distinguishes "checked
 	// nothing" from "did not check" by seeing the empty array.
-	// The BARE form (no --ids, no --none) still records the duty and its reason. Whether it also
-	// carried an empty `ids` array was the old assertion; a repeated field has no presence, so
-	// that distinction moved to `none` — see TestSpotCheckIdsAreAlwaysAnArray, which pins all
-	// three states.
+	// The BARE form (no --ids) still records the duty and its reason. A repeated field has no
+	// presence, so "sampled nothing" is this event with its reason — see
+	// TestSpotCheckIdsAreAlwaysAnArray, which pins all three states.
 	sc := lastBody(t, runDir, &recordpb.SpotCheck{})
 	if len(sc.GetIds()) != 0 {
 		t.Errorf("the bare form sampled %v", sc.GetIds())

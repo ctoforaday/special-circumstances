@@ -23,6 +23,9 @@ func Entries() Registry {
 		// are the current ones but the proposal's text, which the record calls its question.
 		"avenue":        inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
 		"avenue_review": mapped("inquiry_review", nil, nil, nil),
+		// A spot-check's `none` was the seat's claim that the archive was empty; the board answers
+		// that, so the spot-check carries its ids, areas and reason and nothing else.
+		"spot_check": mapped("spot_check", nil, drops{"none": "whether the archive was empty is the board's count, replayed at read time; the seat's claim of it is not stored"}, nil),
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e

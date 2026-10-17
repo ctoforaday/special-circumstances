@@ -3717,14 +3717,13 @@ func (x *Regrade) GetBasis() string {
 	return ""
 }
 
-// SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
-// THE SEAT: a `none` claim the board contradicts is rendered as the contradiction it is.
+// SpotCheck re-reads archived closures and names the stale areas read before a PASS. THE ARCHIVE'S
+// SIZE IS COMPUTED FROM THE BOARD, NOT TAKEN FROM THE SEAT: a spot-check names what it re-read, and
+// the board says how much there was to read.
 type SpotCheck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Ids   []string               `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
-	None  *bool                  `protobuf:"varint,3,opt,name=none,proto3,oneof" json:"none,omitempty"`
-	// ONE PROSE CHANNEL. `notes` held what the spot-check found and `reason` held why there was
-	// nothing to sample — the same field, split by which branch wrote it.
+	// ONE PROSE CHANNEL: what the spot-check found, or why it named nothing.
 	Reason *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	// The lens seats whose area the chair read the changes against this sitting — the plan's
 	// stale_areas, each a retired lens whose pin the report head has moved past. A PASS is
@@ -3770,13 +3769,6 @@ func (x *SpotCheck) GetIds() []string {
 		return x.Ids
 	}
 	return nil
-}
-
-func (x *SpotCheck) GetNone() bool {
-	if x != nil && x.None != nil {
-		return *x.None
-	}
-	return false
 }
 
 func (x *SpotCheck) GetReason() string {
@@ -7466,14 +7458,12 @@ const file_record_proto_rawDesc = "" +
 	"\v_likelihoodB\t\n" +
 	"\a_impactB\x12\n" +
 	"\x10_complexity_costB\b\n" +
-	"\x06_basis\"\x90\x01\n" +
+	"\x06_basis\"z\n" +
 	"\tSpotCheck\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\tR\x03ids\x12\x17\n" +
-	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12!\n" +
-	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x01R\x06reason\x88\x01\x01\x12\x14\n" +
-	"\x05areas\x18\x05 \x03(\tR\x05areasB\a\n" +
-	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\x89\x05\n" +
+	"\x03ids\x18\x01 \x03(\tR\x03ids\x12!\n" +
+	"\x06reason\x18\x04 \x01(\tB\x04\xc0\xb5\x18\x01H\x00R\x06reason\x88\x01\x01\x12\x14\n" +
+	"\x05areas\x18\x05 \x03(\tR\x05areasB\t\n" +
+	"\a_reasonJ\x04\b\x03\x10\x04J\x04\b\x02\x10\x03R\x04noneR\x05notes\"\x89\x05\n" +
 	"\aFinding\x12\x84\x01\n" +
 	"\x02id\x18\v \x01(\tBo\x82\xb5\x18k\b\x01\x1aethe tool mints it; a finding with none can never be credited in a gap's found_by and its work is lost(\x01H\x00R\x02id\x88\x01\x01\x12$\n" +
 	"\vfinding_key\x18\x02 \x01(\tH\x01R\n" +

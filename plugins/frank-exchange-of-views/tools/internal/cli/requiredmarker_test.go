@@ -67,15 +67,13 @@ var oneOfAnother = map[string]string{
 	"reopens-on": "final",
 	"final":      "reopens-on",
 	"direction":  "final",
-	"ids":        "none",
-	"none":       "ids",
 }
 
 // verbsWithAOneOf are the verbs on which oneOfAnother applies — --reason is ordinary everywhere
 // but `mint`, where it stands in for --problem. A pair exempts a flag only where its partner is
 // registered: `motion docket rule` has --final/--reopens-on and no --problem, so its --reason is
 // held to the marker like any other.
-var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true, "spot-check": true}
+var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true}
 
 func requiredProbes() map[string]requiredProbe {
 	probes := map[string]requiredProbe{}

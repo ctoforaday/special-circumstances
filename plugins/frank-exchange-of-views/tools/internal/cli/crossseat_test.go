@@ -155,12 +155,12 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 }
 
 // Red reported that spot-check "cannot record an honestly-empty round". It always could:
-// --none with --reason is exactly that path. The claim was unverified self-report, which
+// a spot-check naming nothing, with --reason, is exactly that path. The claim was unverified self-report, which
 // is the friction-channel defect Gray Area exists to catch — so the refutation gets a test.
 func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-		"--none", "--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
+		"--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
 	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
@@ -170,10 +170,9 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 		t.Error("the empty spot-check lost its reason, which is the only thing distinguishing it from a skipped duty")
 	}
 
-	// And the duty cannot be discharged by asserting emptiness with no reason.
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-		"--none"); err == nil {
-		t.Error("--none without --reason was accepted; an unexplained empty round is indistinguishable from a skipped one")
+	// And the duty cannot be discharged by naming nothing with no reason.
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair"); err == nil {
+		t.Error("a spot-check with no --reason was accepted; an unexplained empty round is indistinguishable from a skipped one")
 	}
 }
 

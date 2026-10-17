@@ -64,6 +64,24 @@ func TestOpinionBecomesTheDocketPair(t *testing.T) {
 	}
 }
 
+// A SPOT-CHECK MIGRATES WITHOUT ITS EMPTINESS CLAIM. `none` was the seat's word that the archive was
+// empty, which the board answers; the ids, the areas and the reason carry as written.
+func TestASpotCheckMigratesWithoutItsEmptinessClaim(t *testing.T) {
+	for _, none := range []int64{0, 1} {
+		old := migrate.OldEvent{ID: 5, SeatID: "red-chair", TS: ts1, Word: "spot_check",
+			Fields: map[string]any{"none": none, "reason": "the archive was empty"},
+			Lists:  map[string][]string{"areas": {"red-lens-logic"}}}
+		bodies, err := migrate.Entries().Translate(old)
+		if err != nil {
+			t.Fatalf("none=%d: %v", none, err)
+		}
+		sc, ok := bodies[0].(*recordpb.SpotCheck)
+		if !ok || sc.GetReason() != "the archive was empty" || len(sc.GetAreas()) != 1 {
+			t.Errorf("none=%d: the spot-check did not carry its reason and areas: %v", none, bodies)
+		}
+	}
+}
+
 // A REMAND'S REOPENS_ON IS ITS DIRECTION (#1253). A source states a remand's research direction in
 // the one column it has for what follows a ruling, `reopens_on`; the migrated ruling carries it as
 // the direction, and a ruling that closes the gap keeps it as what would reopen it. Both eras that

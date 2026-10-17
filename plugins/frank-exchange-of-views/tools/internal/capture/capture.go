@@ -240,7 +240,7 @@ func TelemetryAudit(run record.Run, redEpochs int) Audit {
 // it looking alive: the only place in the system where those files still existed was the test
 // that proved the audit could read them.
 //
-// The numbers it was reaching for live where they cannot be authored: record.SpotCheckAudit
+// The numbers it was reaching for live where they cannot be authored: record.ArchiveOf
 // computes the archive's size at epoch start by replay, and AttestationAudit reconciles each
 // anchored closure against real tool calls. Both read the board. A self-report has no place on
 // either side of that comparison.

@@ -128,8 +128,7 @@ const (
 	// a closure's class, a bench disposition, a verification's outcome, a ruling, a run's
 	// verdict, an inquiry's fate. Every set is closed, and each verb documents its own
 	// through enumhelp.
-	As   = "as"
-	None = "none"
+	As = "as"
 
 	// ExpectError says a proof's subject IS a failing command, so `blue prove` records the
 	// environment error rather than refusing it. Without it, an error signature in a proof's
@@ -331,7 +330,7 @@ func All() []string {
 		Reason,
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
-		As, None, Confidence, Occasion,
+		As, Confidence, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
 		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,

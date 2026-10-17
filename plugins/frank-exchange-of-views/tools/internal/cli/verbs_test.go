@@ -297,7 +297,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	// The distinction is real and it did not disappear; it is carried by two other facts the
 	// record does hold. NOT CHECKED is the ABSENCE OF THE EVENT — a seat that never ran the verb
 	// has no spot_check at all, and the sitting gate reads exactly that. CHECKED NOTHING is the
-	// event with `none` set, which is a bool with presence and says so explicitly.
+	// event naming no closure, with the reason that says why; the board says how much it held.
 	//
 	// So the states are asserted where they live rather than through a key that cannot carry them.
 	t.Run("the three states are distinguishable", func(t *testing.T) {
@@ -306,17 +306,12 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK); n != 0 {
 			t.Fatalf("%d spot-checks before any were run", n)
 		}
-		// 2. Checked nothing, explicitly: --none, with the reason that distinguishes it from a
-		// skipped duty.
+		// 2. Checked nothing: the event, with the reason that distinguishes it from a skipped duty.
 		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-			"--none", "--reason", "the archive was empty at round start"); err != nil {
+			"--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-		if !ev.GetNone() {
-			t.Error("the explicit empty form did not set `none` — without it, checked-nothing and " +
-				"sampled-nothing-in-particular are the same event")
-		}
 		if ev.GetReason() == "" {
 			t.Error("the explicit empty form lost its reason, which is the only thing distinguishing " +
 				"it from a duty nobody discharged")

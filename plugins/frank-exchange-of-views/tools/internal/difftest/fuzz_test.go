@@ -393,7 +393,7 @@ var fuzzArms = []fuzzArm{
 	{name: "chair spot-check", weight: 1, seats: []string{"red-chair"}, verb: []string{"spot-check"},
 		flags: func(rng *rand.Rand) []string {
 			if rng.Intn(2) == 0 {
-				return []string{"--none", "--reason", "nothing archived yet"}
+				return []string{"--reason", "nothing archived yet"}
 			}
 			return []string{"--ids", "GAP001,GAP002", "--reason", "re-read both closures"}
 		}},
@@ -450,7 +450,7 @@ var tourArms = []fuzzArm{
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
 	tourArm("chair inquiry review", []string{"red-chair"}, []string{"inquiry", "review"}, reasonOnly, nil),
-	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--none", "--reason", t} }, nil),
+	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--reason", t} }, nil),
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
 	tourArm("chair motion grade rule", []string{"red-chair"}, []string{"motion", "grade", "rule"},

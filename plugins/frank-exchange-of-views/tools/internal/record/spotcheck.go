@@ -32,13 +32,11 @@ type SpotCheck struct {
 	Areas []string
 	// Sampled are the archived closures the chair says it re-verified.
 	Sampled []string
-	// Prose is what the spot-check found — a defect in a stale area is stated here — or why there
-	// was nothing to sample.
+	// Prose is what the spot-check found — a defect in a stale area is stated here — or why it
+	// named nothing.
 	Prose string
-	// None is a claim that there was nothing to sample.
-	None bool
-	// Archived is the board's count of closures available at the START of this epoch — what the
-	// claim is read against.
+	// Archived is the board's count of closures available at the START of this epoch — what there
+	// was to sample.
 	Archived int
 }
 
@@ -114,20 +112,17 @@ func SpotCheckOf(e *Event, at WindowIndex, a Archive) (SpotCheck, bool) {
 		return SpotCheck{}, false
 	}
 	w := at.Of(e)
-	// An absent `none` is false here, and a recorded `none: false` is a seat NOT claiming an empty
-	// archive — the same answer.
 	return SpotCheck{
 		Epoch: w.Epoch, Sitting: w.Sitting, SeatID: e.GetSeatId(),
-		Areas: body.GetAreas(), Sampled: body.GetIds(), Prose: body.GetReason(), None: body.GetNone(),
+		Areas: body.GetAreas(), Sampled: body.GetIds(), Prose: body.GetReason(),
 		Archived: a.Before(w.Epoch),
 	}, true
 }
 
-// SpotCheckAudit joins each standing spot-check to the board: the spot-checks in order, and those
-// whose emptiness claim the board contradicts.
-func SpotCheckAudit(f Family) (checks []SpotCheck, falseEmpty []SpotCheck) {
+// SpotChecks is each standing spot-check, in order, joined to the board's archive.
+func SpotChecks(f Family) (checks []SpotCheck) {
 	if len(f.Gaps) == 0 && len(f.Events) == 0 {
-		return nil, nil
+		return nil
 	}
 	// THE STORED EPOCH, because the number goes on a recorded ACT (the spot-check the chair filed),
 	// and the record holds which of the chair's sittings each act is in.
@@ -138,12 +133,8 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, falseEmpty []SpotCheck) {
 			continue
 		}
 		checks = append(checks, sc)
-		// THE CLAIM THE BOARD CAN CONTRADICT. "There was nothing to sample" is checkable.
-		if sc.None && sc.Archived > 0 {
-			falseEmpty = append(falseEmpty, sc)
-		}
 	}
-	return checks, falseEmpty
+	return checks
 }
 
 // Describe renders one spot-check as a reader-facing line: what it names, then its prose. It is the
@@ -158,10 +149,7 @@ func (s SpotCheck) Describe() string {
 	if len(s.Areas) > 0 {
 		named = append(named, "read stale area(s) "+strings.Join(s.Areas, ", "))
 	}
-	switch {
-	case s.None:
-		named = append(named, "**nothing to sample**")
-	case len(s.Sampled) > 0:
+	if len(s.Sampled) > 0 {
 		named = append(named, fmt.Sprintf("re-verified %s of %d archived closure(s)", strings.Join(s.Sampled, ", "), s.Archived))
 	}
 	if len(named) == 0 {
