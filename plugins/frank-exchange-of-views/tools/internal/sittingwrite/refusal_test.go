@@ -15,8 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A CALL THE HOOK DENIED, OR ONE THAT FAILED, IS LOGGED AS THE SEAT'S — under the seat the agent registered as,
-// as the tool's entry — and an agent that never registered is no seat, so nothing is written.
+// A CALL THE HOOK DENIED, OR ONE THAT FAILED, IS LOGGED AS THE SEAT'S — under the seat the record binds the
+// agent to, as the tool's entry — and an agent the record binds to no seat is no seat, so nothing is written.
 func TestAHookRefusalIsLoggedUnderTheRefusedSeat(t *testing.T) {
 	runDir := newRun(t)
 	registerAs(t, runDir, "agent-1", "red-lens-adversary")

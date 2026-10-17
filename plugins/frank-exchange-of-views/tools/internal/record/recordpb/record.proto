@@ -1897,12 +1897,14 @@ message Register {
   // hook at all — and `run_via` already says which of those two it was.
   optional string hook_version = 7;
 
-  // THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
+  // THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, AS THE SEAT STATES IT.
   //
-  // register is every seat's stated first action, which makes it the one moment the mapping is
-  // knowable: the hook supplies the agent id — the only payload field that discriminates one
-  // seat from another — and the seat supplies which seat it is. Recording their join is what
-  // turns self-asserted identity into a fact later calls can be held to.
+  // register is every seat's stated first action: the hook supplies the agent id — the only
+  // payload field that discriminates one seat from another — and the seat supplies which seat it
+  // is. Recording their join is what turns self-asserted identity into a fact later calls can be
+  // held to. The latest register naming an agent decides its seat; an agent no register names is
+  // bound by its latest hook bracket where that bracket names a seat (SittingOpen.seat_id) — the
+  // record's agent_binding view states the rule.
   //
   // A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat id
   // recovered by parsing the seat's own command — a fact read back out of prose, whose miss is
@@ -2007,8 +2009,9 @@ message SittingOpen {
   // agent_id IS THE ONLY THING THIS END CAN NAME. SubagentStart carries the harness handle and
   // the agent configuration and NOTHING workflow-supplied (#290, measured 2026-08-23) — the
   // dispatcher's own seat id does not reach it, and no probe sentinel appears in the payload. So
-  // the seat is resolved LATER, by joining this handle to the register event that names it, which
-  // is the same join record.SeatOfAgent already does.
+  // the writer resolves the seat from the configuration where it seats exactly one (seat_id
+  // below); where it seats several, the seat is the one the agent's register names — the record's
+  // agent_binding view joins this handle to that register.
   //
   // That is why the envelope's seat_id on this event is the hook's own origin and not a seat: an
   // id invented here to look seat-shaped would be a guess written into a permanent record.
@@ -2145,6 +2148,12 @@ message Dispatch {
   // that copy to this one, and the bench's sitting for each is the one whose register states the
   // same occasion. Required on a bench row and refused on any other seat's, at the write.
   repeated Occasion occasions = 4;
+  // remand_owed is the gaps whose remand exchange this row readies: the one more exchange the
+  // bench's remand grants a gap at impasse, between its minting lens and blue. The workflow tells
+  // blue the remand's duty and its research direction off the plan's copy, so the row records which
+  // gaps it was told them for and capture holds that copy to this one. Each is among the row's
+  // gap_ids, and only blue's row and a lens's carry any — refused otherwise, at the write.
+  repeated string remand_owed = 5;
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

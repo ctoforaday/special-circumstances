@@ -125,8 +125,8 @@ END;
 // # Identity is a JOIN, not a copy
 //
 // A row is keyed by the HARNESS AGENT ID, and that is all the identity it carries. Which seat
-// that agent registered as is already on the record — `register` writes the agent -> seat binding
-// as a validated field, which is the one moment it is knowable (see record.SeatOfAgent). Copying
+// that agent sat as is already on the record — its register, or where the configuration seats
+// exactly one seat the hook's bracket, binds it, and the agent_binding view states which. Copying
 // a seat id in here would be a second statement of a fact the record already holds, free to
 // disagree with it.
 //

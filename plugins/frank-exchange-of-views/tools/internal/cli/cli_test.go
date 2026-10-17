@@ -105,7 +105,7 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	// verb's stdout — no os.Stdout swap, no pipe. Errors are returned (SilenceErrors), so
 	// stderr carries nothing the tests read.
 	// THE TREE IS THE SEAT'S, resolved the way the binary resolves it: the flag if one is given,
-	// otherwise the seat this agent registered as.
+	// otherwise the seat the record binds this agent to.
 	//
 	// A HARNESS THAT ONLY READ THE FLAG WOULD MEASURE THE WRONG SURFACE. Production's newRoot
 	// calls dispatchedSeat, which falls back to the binding on the record — so a registered seat

@@ -229,8 +229,12 @@ func emptyOnlyWithOf(fs []record.PlanField) (string, []prop, error) {
 	default:
 		return "", nil, fmt.Errorf("record.Plan states %d emptyonlywith rules, and the schema states one", len(rules))
 	}
-	rule := "[" + object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"enum", "[true]"})})}) +
-		", " + object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"minItems", "1"})})}) + "]"
+	// EACH BRANCH'S PROPERTY STATES ITS TYPE beside the keyword that needs one. A branch's property is
+	// a new data location, so the plan's `type` does not reach it, and the harness's strict-types
+	// compile (ajv's strictTypes) warns at launch on a `minItems` with no `type: "array"`. The enum
+	// states its type for the same reading.
+	rule := "[" + object(prop{"required", words([]string{flag})}, prop{"properties", object(prop{flag, object(prop{"type", js("boolean")}, prop{"enum", "[true]"})})}) +
+		", " + object(prop{"required", words([]string{list})}, prop{"properties", object(prop{list, object(prop{"type", js("array")}, prop{"minItems", "1"})})}) + "]"
 	return rule, rules, nil
 }
 

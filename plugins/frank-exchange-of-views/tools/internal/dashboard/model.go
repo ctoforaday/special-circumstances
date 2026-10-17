@@ -186,17 +186,20 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// both mean the tiles have nothing truthful to show. It is a dashboard — the loud version of
 	// the diagnosis belongs to the tool.
 	var fam record.Family
+	var bindings map[string]record.SeatBinding
 	haveRecord := false
 	if _, statErr := os.Stat(run.Records()); statErr == nil {
 		if f, err := record.FamilyOf(run); err == nil {
-			fam, haveRecord = f, true
+			// agentId → (seat, epoch, sitting), off the record's seat_of_agent view: the agent's
+			// binding — its latest register, else its latest bracket where that names a seat — and the
+			// two windows the record stores that act in. The transcript head says only which CLASS of
+			// seat, which is seatclass's job. A binding read that fails is the family's failure:
+			// labels that silently lost their seats would be the misleading board this arm forbids.
+			if b, err := record.SeatBindings(run); err == nil {
+				fam, bindings, haveRecord = f, b, true
+			}
 		}
 	}
-	// agentId → (seat, epoch, sitting), off the register events. The label used to be the seat
-	// class plus an epoch PARSED OUT OF THE TRANSCRIPT HEAD; the record already holds the binding
-	// as a field on `register` and counts both windows off the stream, so the head no longer says
-	// which sitting this is — only which CLASS of seat, which is seatclass's job and stays so.
-	bindings := cost.SeatBindingsOf(fam.Events, fam.At)
 
 	// Lifecycle by agentId; class by transcript-head classification; identity (which seat, which
 	// sitting) from the record; times from the file.
@@ -556,7 +559,8 @@ func buildSteps(seats []Seat) []Step {
 		maxEpoch = 1
 	}
 	// A step is one EPOCH — one dispatch cycle of the chair — so a seat belongs to step r when the
-	// record put its register in epoch r. Under the dispatch loop a seat's r-th sitting and epoch r
+	// act that binds its agent (its latest register, else its seat-naming bracket) sits in epoch r.
+	// Under the dispatch loop a seat's r-th sitting and epoch r
 	// were the same number; under dispatch a lens may sit in epoch 5 for the third time, and the
 	// segment it lights up is the fifth. epoch 0 means "any", for the bookends outside the cycle.
 	seen := func(seat string, epoch int) bool {

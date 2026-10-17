@@ -516,11 +516,22 @@ type PlanFacts struct {
 	// MaxEpochs is the run's epoch limit, a term of the run.
 	MaxEpochs int
 	exchanges map[string]*GapExchanges
+	// directions is each remanded gap's research direction at the point: the direction of its latest
+	// remand written at or before it, in events.id order — the gap view's docket_direction, which
+	// the plan's remand_owed quotes, asked of the record as it stood there.
+	directions map[string]string
 }
 
 // ExchangesOn is the gap's entry as a plan computed at the point relays it (exchangeCountOf).
 func (f PlanFacts) ExchangesOn(gapID string) ExchangeCount {
 	return exchangeCountOf(gapID, f.exchanges[gapID])
+}
+
+// RemandDirection is the research direction the gap's latest remand states at the point, and false
+// where no remand on the gap was written by then.
+func (f PlanFacts) RemandDirection(gapID string) (string, bool) {
+	d, ok := f.directions[gapID]
+	return d, ok
 }
 
 // PlanFactsReader answers PlanFacts at any point of one record's stream.
@@ -530,13 +541,14 @@ type PlanFactsReader struct {
 	win      WindowIndex
 	params   Params
 	closedAt map[string]int64
+	remands  map[string][]remandRow
 }
 
-// PlanFactsOf reads what PlanFacts needs beyond the stream: the run's terms, and where each closed
-// gap FIRST closed — the events.id of the earliest standing closing act of either arm, read from
-// closure_act itself. EARLIEST here, where the gap view states the LAST: the question is from which
-// point of the stream the gap reads closed, and a later carry or ruling restates a closure the gap
-// already had.
+// PlanFactsOf reads what PlanFacts needs beyond the stream: the run's terms, where each closed gap
+// FIRST closed — the events.id of the earliest standing closing act of either arm, read from
+// closure_act itself — and every remand with its direction, off the "remand" view. EARLIEST here,
+// where the gap view states the LAST: the question is from which point of the stream the gap reads
+// closed, and a later carry or ruling restates a closure the gap already had.
 func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error) {
 	r := PlanFactsReader{evs: evs, ids: win.IDs(evs), win: win, closedAt: map[string]int64{}}
 	var err error
@@ -546,6 +558,10 @@ func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error
 	err = readSnapshot(run, func(q recordsql.Querier) error {
 		if noRecord(q) {
 			return nil
+		}
+		var err error
+		if r.remands, err = remandRulingsOf(q); err != nil {
+			return err
 		}
 		rows, err := q.Query(`SELECT c."gap_id", MIN(c."event_id") FROM "closure_act" c GROUP BY c."gap_id"`)
 		if err != nil {
@@ -571,14 +587,22 @@ func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error
 func (r PlanFactsReader) At(end int) PlanFacts {
 	evs, ids := r.evs[:end], r.ids[:end]
 	f := PlanFacts{
-		Blockers:  RelayBlockersOf(evs, r.win),
-		MaxEpochs: r.params.MaxEpochs,
-		exchanges: exchangeFold(evs, ids, r.win, WhileRunning),
+		Blockers:   RelayBlockersOf(evs, r.win),
+		MaxEpochs:  r.params.MaxEpochs,
+		exchanges:  exchangeFold(evs, ids, r.win, WhileRunning),
+		directions: map[string]string{},
 	}
 	if end == 0 {
 		return f
 	}
 	at := ids[end-1]
+	for g, rows := range r.remands {
+		for _, rr := range rows { // in events.id order: the last written by the point stands
+			if rr.eventID <= at {
+				f.directions[g] = rr.direction
+			}
+		}
+	}
 	_, openings := dispatchLedger(evs, ids, r.win)
 	for _, m := range motionsAt(evs, ids, r.win) {
 		if m == nil || m.Ruled() || m.GapID == "" || m.Subject != "docket" {
@@ -650,6 +674,9 @@ type dispatchRow struct {
 	gaps    []string
 	// occasions is what a bench row convened the bench for; empty on every other seat's row.
 	occasions []recordpb.Occasion
+	// remandOwed is the gaps whose remand exchange the row readies; empty but on blue's row and a
+	// lens's.
+	remandOwed []string
 }
 
 // dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
@@ -675,7 +702,7 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 			openings[seat] = append(openings[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
-			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions()})
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions(), remandOwed: b.GetRemandOwed()})
 		}
 	}
 	return ds, openings
@@ -910,6 +937,9 @@ type PartyRow struct {
 	// Occasions is what the row convened the bench for, in the enum's words; empty for every other
 	// seat. Capture holds the relayed plan's `occasions` to it, and the bench's registers of each.
 	Occasions []string
+	// RemandOwed is the gaps whose remand exchange the row readies. Capture holds the relayed plan's
+	// `remand_owed` gaps to the group's rows.
+	RemandOwed []string
 }
 
 // DispatchGroups is the record's dispatches, grouped as DispatchGroup says, in stream order.
@@ -944,7 +974,8 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 			last[d.seat] = d
 		}
 		for p, d := range last {
-			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions)}
+			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions),
+				RemandOwed: append([]string{}, d.remandOwed...)}
 			if r, ok := benchRowSitting(openings[p], on, d); ok {
 				g.Sat[p] = int(r)
 			}
@@ -1062,7 +1093,9 @@ func dispatchStands(evs []*Event, win WindowIndex, plan Plan) bool {
 		}
 	}
 	// The occasions are part of the decision: the bench convened for a petition as well as its
-	// docket is a new decision, on the same gaps.
+	// docket is a new decision, on the same gaps. remand_owed is not in the key, and need not be: a
+	// gap's remand exchange becomes owed only by a bench ruling, and the bench opens a sitting to
+	// rule, which ends the standing decision above before any key is compared.
 	key := func(seat string, pin int64, gaps, occasions []string) string {
 		gs := append([]string{}, gaps...)
 		sort.Strings(gs)
@@ -1193,6 +1226,32 @@ func requireDispatchOccasions(b *recordpb.Dispatch) error {
 	return nil
 }
 
+// requireDispatchRemand refuses a dispatch row whose remand_owed disagrees with the row, at the
+// write. A remand's one more exchange is between the gap's minting lens and blue, so only blue's
+// row and a lens's carry one, and each gap it names is one the row engages the seat on. Which lens
+// minted the gap is not asked here: the row is checked against itself, and DispatchNext writes the
+// field from the plan that engaged the minter (TestTheRemandOwedIsRecordedOnTheRowsTheRemandReadies).
+func requireDispatchRemand(b *recordpb.Dispatch) error {
+	owed := b.GetRemandOwed()
+	if len(owed) == 0 {
+		return nil
+	}
+	if seat := b.GetSeatId(); seat != blueRespondSeat && seatclass.RoleOfSeat(seat) != "lens" {
+		return fmt.Errorf("%q is owed no remand exchange; a remand's one more exchange is between the gap's minting lens and %s", seat, blueRespondSeat)
+	}
+	seen := map[string]bool{}
+	for _, g := range owed {
+		if !slices.Contains(b.GetGapIds(), g) {
+			return fmt.Errorf("the row is owed a remand exchange on %s and engages its seat on [%s] — a remand exchange is on a gap the row engages", g, strings.Join(b.GetGapIds(), ", "))
+		}
+		if seen[g] {
+			return fmt.Errorf("the row names %s's remand exchange twice", g)
+		}
+		seen[g] = true
+	}
+	return nil
+}
+
 // wordsOf spells occasions in the enum's words.
 func wordsOf(occ []recordpb.Occasion) []string {
 	out := make([]string, 0, len(occ))
@@ -1265,7 +1324,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	    g."material", COALESCE(g."class_material", ''),
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    COALESCE(g."unruled_docket_filed", 0),
-	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), ''),
+	    COALESCE(g."unruled_docket_motion", ''),
 	    COALESCE(g."docket_direction", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {

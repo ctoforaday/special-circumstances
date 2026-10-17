@@ -198,9 +198,9 @@ func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 // motionAnswer is one motion's answer as a reader states it.
 type motionAnswer struct{ ruling, by string }
 
-// inquiryReadersAgree holds InquiriesOf to motion_answers on every inquiry: the ruling, and the
-// argument and epoch of the ruling event the view names. It returns each inquiry as InquiriesOf
-// reads it.
+// inquiryReadersAgree holds InquiriesOf to motion_answers on every inquiry — the ruling, and the
+// argument and epoch of the ruling event the view names — and inquiry_state to both: its ruling
+// columns are motion_answers' row. It returns each inquiry as InquiriesOf reads it.
 func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 	t.Helper()
 	all, err := MergedEvents(run)
@@ -228,6 +228,13 @@ func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 		got := [3]any{a.Ruling, a.RulingWhy, a.RuledEpoch}
 		if want := [3]any{ruling.String, why.String, int(epoch.Int64)}; got != want {
 			t.Errorf("inquiry %s: InquiriesOf reads (ruling, why, epoch) %v and motion_answers reads %v", a.ID, got, want)
+		}
+		var stateRuling sql.NullString
+		if err := db.QueryRow(`SELECT "inquiry_ruling" FROM "inquiry_state" WHERE "inquiry_id" = ?`, a.ID).Scan(&stateRuling); err != nil {
+			t.Fatalf("inquiry %s: inquiry_state: %v", a.ID, err)
+		}
+		if stateRuling.String != a.Ruling {
+			t.Errorf("inquiry %s: inquiry_state reads ruling %q and InquiriesOf reads %q", a.ID, stateRuling.String, a.Ruling)
 		}
 	}
 	return out
