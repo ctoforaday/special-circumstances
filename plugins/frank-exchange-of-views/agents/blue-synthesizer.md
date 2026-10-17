@@ -369,7 +369,7 @@ Flags:
       --reason string    → SHARED §8
 ========
 $ feov-record fetch --help
-fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling.
+fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — search and quote THAT file, not the raw bytes, and you need no PDF or HTML tooling.
 
 A PDF WITH NO TEXT LAYER (a scan) is read by the LOCAL OCR ENGINE compiled into this binary and named in the summary as ocr_derived text. A ruled table is reconstructed into |-separated rows; one the engine cannot reconstruct falls back to plain text WITH the reason stated. A document over the render disk budget is refused rather than partly read. OCR text can misread: citing it at the leaf takes blue's `cite --ocr-quote` with the span from the reading, and the tool records the PDF page it sits on.
 

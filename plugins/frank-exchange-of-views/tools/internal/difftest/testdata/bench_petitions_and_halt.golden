@@ -8,14 +8,14 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 1 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 2 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 
 $ motion petition file --run {RUN} --seat-id red-chair --class safety --reason the design erodes a consent gate --relief halt and escalate
 exit 0
 stdout:
 motion MOTION001 filed (petition)
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 3 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · motion MOTION001 (petition, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
@@ -30,20 +30,20 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · motion MOTION001 (petition, ruled by the bench seat) is unruled and the gavel is yours — the run cannot end in a verdict while it stands
 
 $ motion petition rule --run {RUN} --seat-id judge --id MOTION001 --as granted --binds both --reason the relief binds the coming seats
 exit 0
 stdout:
 motion MOTION001 ruled granted
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 $ halt --run {RUN} --seat-id judge --reason continuing would compromise the consent gate
 exit 0
 stdout:
 JUDICIAL HALT recorded — capture relays this verbatim
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
