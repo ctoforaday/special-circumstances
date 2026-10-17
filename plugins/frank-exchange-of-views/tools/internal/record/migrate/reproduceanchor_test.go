@@ -43,6 +43,13 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 					proofsOn[sha]++
 				case "reproduce":
 					sha, _ := old.Fields["proof_sha"].(string)
+					// A reproduce written at epoch 28 or later names its anchor and passes as written.
+					if id, _ := old.Fields["proof_id"].(string); id != "" {
+						rerun, _ := old.Fields["rerun"].(string)
+						snd, _ := old.Fields["soundness"].(string)
+						want = append(want, carried{sha, rerun, snd})
+						continue
+					}
 					rerun := recordpb.Word(recordpb.Rerun_RERUN_DIFFERS)
 					if v := old.Fields["reproduced"]; v == int64(1) || v == true {
 						rerun = recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED)
