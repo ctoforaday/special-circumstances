@@ -215,7 +215,7 @@ func init() {
 			continue
 		}
 		fates := fatesOf(*s)
-		s.From = "the inquiries on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate, and what was found or why it stands there, in their author's words"
+		s.From = "the inquiries on the record that are " + orList(fates) + ", one row for each, labelled: the question it asks, its hypothesis, its fate with the method it states, and what was found or why it stands there, in their author's words"
 		s.Path = "Blue's `inquiry propose` puts an approach on the record as `proposed`, and blue's `inquiry record` gives it a fate with `--as`. An inquiry that is " +
 			orList(ticked(fates)) + " is listed under this heading; the heading is not written into the report's text, and neither is a list of approaches under another one."
 	}

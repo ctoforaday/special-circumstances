@@ -1,10 +1,15 @@
 package cli
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // THE UNIT IS THE CHOICE, NOT THE ENTRY. These pin the inquiry's lifecycle: proposed with a
@@ -208,5 +213,67 @@ func TestAProposedQuestionIsTrimmedOfItsTrailingNewline(t *testing.T) {
 	a, _ := recordpb.BodyAs[*recordpb.Inquiry](ev)
 	if got := a.GetQuestion(); got != "whether 91 is prime" {
 		t.Errorf("question = %q, want it without the trailing newline", got)
+	}
+}
+
+// THE METHOD IS THE FATE'S ACCOUNT, NOT THE PROPOSAL'S. propose takes no --method, and the write
+// refuses a proposal carrying one, so nothing written before the research can print as what the
+// research did. `inquiry record` carries it, and the latest record's is the one the inquiry holds —
+// a record that gives none holds none, which is how a wrong method is corrected and how one that no
+// longer applies goes.
+func TestTheMethodIsTheLatestFatesAccount(t *testing.T) {
+	runDir := newRun(t)
+	registerChairOnce(t, runDir)
+	seat := inquirySeat(t, runDir)
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "whether 91 is prime", "--method", "trial division"); err == nil {
+		t.Fatal("propose took --method; a proposal is written before any research and holds no method")
+	}
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "whether 91 is prime", "--hypothesis", "a factor below 10 exists"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: seat}, &recordpb.Inquiry{
+		InquiryId: proto.String(record.NewID("inquiry")), Question: proto.String("another question"),
+		Method: proto.String("trial division"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()})
+	if err == nil || !strings.Contains(err.Error(), "a proposal holds no method") {
+		t.Fatalf("the write took a proposal carrying a method: %v", err)
+	}
+	method := func() (string, []string) {
+		t.Helper()
+		out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries", "--json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got record.InquiriesJSON
+		if err := json.Unmarshal([]byte(out), &got); err != nil || len(got.Inquiries) != 1 {
+			t.Fatalf("show inquiries --json: %v\n%s", err, out)
+		}
+		return got.Inquiries[0].Method, got.Inquiries[0].History
+	}
+	for _, step := range []struct{ as, method, want string }{
+		{"underway", "trial division by 2, 3 and 5", "trial division by 2, 3 and 5"},
+		{"confirmed", "trial division by every prime up to 9", "trial division by every prime up to 9"},
+		{"confirmed", "", ""},
+	} {
+		args := []string{"inquiry", "record", "--run", runDir, "--seat-id", seat, "--id", "Q1", "--as", step.as, "--reason", "7 divides 91"}
+		if step.method != "" {
+			args = append(args, "--method", step.method)
+		}
+		if out, err := runAt(t, args...); err != nil {
+			t.Fatalf("record %s: %v\n%s", step.as, err, out)
+		}
+		if got, history := method(); got != step.want {
+			t.Errorf("after recording %s with method %q the inquiry holds %q (path %v); the latest fate's method is the inquiry's", step.as, step.method, got, history)
+		}
+	}
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seat, "inquiries")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"underway _(method: trial division by 2, 3 and 5)_", "confirmed _(method: trial division by every prime up to 9)_ -> e1 confirmed"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the path does not carry each fate's method %q:\n%s", want, out)
+		}
 	}
 }

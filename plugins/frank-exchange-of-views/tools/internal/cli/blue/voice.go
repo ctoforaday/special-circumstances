@@ -9,7 +9,7 @@ import (
 // spanVoiceTells runs the PRESENCE advisory over the short spans a verb is about to record, and
 // renders each hit the one way every advising verb renders it (reportvoice.Found.String).
 //
-// EVERY SPAN-SIZED WRITER — `blue edit`'s --new, an inquiry's question, a fate's reason, an inquiry's
+// EVERY SPAN-SIZED WRITER — `blue edit`'s --new, an inquiry's question, a fate's reason and
 // method, a proof's note, a citation's title. Each of these reaches report.md: edit through the
 // diff-stack, the inquiry fields through `inquiries()`, which composes Research areas,
 // Future research directions and Alternatives considered, and the proof note and source title

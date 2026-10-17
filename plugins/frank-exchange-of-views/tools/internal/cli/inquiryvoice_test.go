@@ -36,15 +36,20 @@ func TestProposeAdvisesOnAVoicedQuestion(t *testing.T) {
 	}
 }
 
-// The method is composed into the same report.md row, as _(method)_, so it is advised too.
-func TestProposeAdvisesOnTheMethod(t *testing.T) {
+// The method is a fate's, composed into the same report.md row on the fate's line, so recording it
+// is advised too.
+func TestRecordAdvisesOnTheMethod(t *testing.T) {
 	runDir := newRun(t)
+	registerChairOnce(t, runDir)
 	seat := inquirySeat(t, runDir)
-	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
-		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
-		"--method", "as the debate required")
+	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
+		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
+		"--id", "Q1", "--as", "confirmed", "--reason", "7 divides 91", "--method", "as the debate required")
 	if err != nil {
-		t.Fatalf("propose: %v\n%s", err, out)
+		t.Fatalf("record: %v\n%s", err, out)
 	}
 	if !strings.Contains(out, "process-voice") {
 		t.Errorf("a voiced --method reaches report.md and was not advised:\n%s", out)
@@ -95,8 +100,7 @@ func TestACleanInquiryCarriesNoNote(t *testing.T) {
 	registerChairOnce(t, runDir)
 	seat := inquirySeat(t, runDir)
 	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", seat,
-		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10",
-		"--method", "exhaustive search")
+		"--question", "trial division up to floor(sqrt(91))", "--hypothesis", "91 has a factor below 10")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +108,7 @@ func TestACleanInquiryCarriesNoNote(t *testing.T) {
 		t.Errorf("a clean proposal carries an advisory:\n%s", out)
 	}
 	out, err = runAt(t, "inquiry", "record", "--run", runDir, "--seat-id", seat,
-		"--id", "Q1", "--as", "underway", "--reason", "7 divides 91, so the inquiry paid off")
+		"--id", "Q1", "--as", "underway", "--reason", "7 divides 91, so the inquiry paid off", "--method", "exhaustive search")
 	if err != nil {
 		t.Fatal(err)
 	}

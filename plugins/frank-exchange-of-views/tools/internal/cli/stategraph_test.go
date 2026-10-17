@@ -593,11 +593,11 @@ func inquiryProbe() entityProbe {
 				return map[string]string{}
 			}
 			return map[string]string{
-				"question": q.Question, "hypothesis": q.Hypothesis, "reason": q.Reason,
+				"question": q.Question, "hypothesis": q.Hypothesis, "reason": q.Reason, "method": q.Method,
 				"ruling": q.Ruling, "ruling_why": q.RulingWhy,
 				// APPEND-ONLY, and listed in `accumulates`: History holds an entry per recorded
 				// fate, so a re-recorded fate keeps every earlier one beside it.
-				"history": strings.Join(q.History, " | "),
+				"history": strings.Join(q.History(), " | "),
 			}
 		},
 		accumulates: []string{"history"},
