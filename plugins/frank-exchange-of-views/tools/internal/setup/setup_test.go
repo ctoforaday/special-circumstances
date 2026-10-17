@@ -49,7 +49,7 @@ func TestBuildSkeletonWritesNoFile(t *testing.T) {
 	if len(files) > 0 {
 		t.Errorf("setup wrote %v — a placeholder reads as the artifact it stands in for; leave the path empty for its writer", files)
 	}
-	for _, d := range []string{"blue/candidates", "red", "trajectories", "inputs"} {
+	for _, d := range []string{"blue/candidates", "red", "trajectories", "inputs", "scratch"} {
 		if !exists(filepath.Join(dir, filepath.FromSlash(d))) {
 			t.Errorf("%s was not created", d)
 		}

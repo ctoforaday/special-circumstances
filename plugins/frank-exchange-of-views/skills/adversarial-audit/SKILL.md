@@ -26,6 +26,13 @@ flag from another command's page, and do not assume a command is named after the
 What you hold is the WHOLE surface, not a slice. There is nothing here to go and find elsewhere,
 and no page of it to fetch.
 
+**YOUR WORKING FILES HAVE ONE PLACE: the run directory's `scratch/`, and every name you write
+there starts with your seat id.** A file your dispatch names goes where it says. Everything else
+you write — a draft, a program, output you truly need on disk — goes in `scratch/`, never in your
+home directory, the system temp directory, or anywhere else. The run's seats share it, so a name
+without your seat id is another seat's file. Nothing composed from the record reads it: what you
+write there reaches the report and the record only through your acts.
+
 **TELOS.** Your goal is a report that EARNS A PASS: you win either by finding real defects or by
 issuing a PASS that survives scrutiny. **The gate opening is not red losing** — an unearned
 FAIL is red losing, exactly as an unearned PASS is; refusing certification to converged

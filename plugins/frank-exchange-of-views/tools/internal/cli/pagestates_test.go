@@ -1,12 +1,16 @@
 package cli
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 )
 
 // A PAGE STATES WHAT ITS FLAGS DO THERE, AND THE CALL AGREES. Each test below is a guess a seat
@@ -146,27 +150,44 @@ func TestTheEvidencePageSaysWhereAProofsVerdictLives(t *testing.T) {
 	}
 }
 
-// A PROOF'S SCRIPT IS READ WHERE IT LIES. The page said "path under the run directory", blue's
-// contract says drafts stay out of it, and blue wrote two scripts into the run to satisfy the page.
-func TestProveTakesAScriptOutsideTheRunDirectory(t *testing.T) {
+// A PROOF'S SCRIPT IS DRAFTED IN THE RUN'S scratch/ AND KEPT IN ITS PROOF STORE. The page names
+// the relative path a seat passes for a draft there, and the stored copy is the proof: the draft can
+// go and the proof still reads. An absolute path is still read where it lies.
+func TestProveTakesAScriptFromTheRunsScratch(t *testing.T) {
 	runDir := actFixture(t)
-	pad := filepath.Join(t.TempDir(), "blue-respond-remainder.sh")
-	if err := os.WriteFile(pad, []byte("echo 0\n"), 0o644); err != nil {
+	body := []byte("echo 0\n")
+	if err := os.MkdirAll(filepath.Join(runDir, "scratch"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if rel, err := filepath.Rel(runDir, pad); err == nil && !strings.HasPrefix(rel, "..") {
-		t.Fatalf("the fixture's script %s is inside the run directory %s", pad, runDir)
+	if err := os.WriteFile(filepath.Join(runDir, "scratch", "blue-respond-remainder.sh"), body, 0o644); err != nil {
+		t.Fatal(err)
 	}
 	out, err := runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
-		"--quote", "the parser accepts an empty body in this line.", "--script", pad, "--reason", "an empty body parses to nothing")
+		"--quote", "the parser accepts an empty body in this line.", "--script", "./scratch/blue-respond-remainder.sh", "--reason", "an empty body parses to nothing")
+	if err != nil || !strings.Contains(out, "recorded") {
+		t.Fatalf("a script drafted in the run's scratch/ was not proved (%v): %s", err, out)
+	}
+	if err := os.RemoveAll(filepath.Join(runDir, "scratch")); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	stored, err := os.ReadFile(filepath.Join(runDir, proof.StoredScript(hex.EncodeToString(sum[:]), "remainder.sh")))
+	if err != nil || !bytes.Equal(stored, body) {
+		t.Fatalf("with scratch/ gone, the proof store does not hold the script's bytes (%v): %q", err, stored)
+	}
+
+	pad := filepath.Join(t.TempDir(), "blue-respond-elsewhere.sh")
+	if err := os.WriteFile(pad, []byte("echo 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runAt(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+		"--quote", "the parser accepts an empty body in this line.", "--script", pad, "--reason", "an empty body parses to one")
 	if err != nil || !strings.Contains(out, "recorded") {
 		t.Fatalf("a script at an absolute path outside the run directory was not proved (%v): %s", err, out)
 	}
+
 	u := cmdAt(NewRootFor("blue-respond"), []string{"prove"}).Flags().Lookup("script").Usage
-	if strings.Contains(u, "under the run directory") {
-		t.Errorf("prove --script says the script lives under the run directory, and one outside it was just proved:\n%s", u)
-	}
-	for _, says := range []string{"An ABSOLUTE path is read where it lies", "a relative path is read from the run directory", "nothing of yours is written into the run directory"} {
+	for _, says := range []string{"A relative path is read from the run directory", "drafted in the run's scratch/ is passed as scratch/", "an absolute path is read where it lies", "the proof does not depend on the draft"} {
 		if !strings.Contains(u, says) {
 			t.Errorf("prove --script does not say %q:\n%s", says, u)
 		}

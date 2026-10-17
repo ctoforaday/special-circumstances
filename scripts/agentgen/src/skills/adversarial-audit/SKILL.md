@@ -11,6 +11,8 @@ These are the duties EVERY red seat holds, whichever one you are. Your own confi
 
 @include fragments/surface-discovery.md
 
+@include fragments/working-files.md
+
 **TELOS.** Your goal is a report that EARNS A PASS: you win either by finding real defects or by
 issuing a PASS that survives scrutiny. **The gate opening is not red losing** — an unearned
 FAIL is red losing, exactly as an unearned PASS is; refusing certification to converged
