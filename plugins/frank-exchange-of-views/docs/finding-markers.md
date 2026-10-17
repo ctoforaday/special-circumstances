@@ -58,8 +58,9 @@ Anchors of every kind in the kinds table live the same way. The tool places an a
 its quote — the quote's one occurrence within one paragraph, or the act is refused. Every edit carries
 it; the tool puts back one whose sentence an edit keeps word for word; an edit that drops or types one
 is refused. **Retire is the one exit.** A claim whose sentence is edited away leaves its anchors BARE
-(no prose before them in their segment); `blue retire` names the bare anchors that exit with the
-retired claim — computed by the verb, validated present-and-bare at the write — and replay removes them
+(no prose before them in their segment) or carried onto the prose that replaced it; `blue retire` names
+the anchors that stood on the claim in that edit and exit with it — the bare ones computed by the verb,
+one on surviving prose when the seat names it, each validated at the write — and replay removes them
 at that event. The question "did this leave legitimately?" is never asked of the anchor: it leaves only
 on a retire event that carries the claim and its reason. No kind is held back: a gap whose anchor left
 reads `gone` on the board, with its minted text, and its lens judges the report as it stands.
@@ -85,7 +86,7 @@ Red-gated at every step, as the lifecycle already is:
 2. Blue **fixes** the content (edits the marked sentence; it cannot touch the marker).
 3. Red **approves** — reads the doc, compares against the snapshot, confirms the fix is real: not moved
    to a dead corner, no offending content left behind, not a fake fix. (This is red's gap closure.)
-4. Blue **withdraws** the content by editing it down to its bare anchors and retiring the claim, which
+4. Blue **withdraws** the content by editing it out and retiring the claim, which
    takes them out; red **verifies**. Red's assent is the gap's closure, and the gap reads its own
    anchor: where that anchor left with a cut, the gap reads `gone` and red judges the report as it
    stands.
