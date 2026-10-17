@@ -171,19 +171,19 @@ func TestAMixedOneofRefusesTwoArmsAtOnce(t *testing.T) {
 
 	// One scalar arm alone is legal — the anti-vacuity half. Without it a constraint that refused
 	// EVERYTHING would satisfy the assertion below.
-	if _, err := db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","subject","opinion","grade")
-	  VALUES (1,'M1','grade','because','accepted')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","grade")
+	  VALUES (1,'M1','because','accepted')`); err != nil {
 		t.Fatalf("a single scalar arm must be accepted: %v", err)
 	}
 	// The message arm alone is legal too, and it is the arm this change added.
-	if _, err := db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","subject","opinion","ruling_case")
-	  VALUES (2,'M2','docket','because','docket')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","ruling_case")
+	  VALUES (2,'M2','because','docket')`); err != nil {
 		t.Fatalf("the message arm alone must be accepted: %v", err)
 	}
 
 	// A scalar arm AND the message arm's discriminator, which is two arms of one oneof.
-	_, err = db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","subject","opinion","grade","ruling_case")
-	  VALUES (3,'M3','grade','because','accepted','docket')`)
+	_, err = db.Exec(`INSERT INTO "motion_rule" ("event_id","motion_id","opinion","grade","ruling_case")
+	  VALUES (3,'M3','because','accepted','docket')`)
 	if err == nil {
 		t.Fatal("a motion_rule row set BOTH a grade ruling and a docket ruling was accepted — " +
 			"the oneof's exclusivity check covers the scalar arms only, so the message arm is outside it")

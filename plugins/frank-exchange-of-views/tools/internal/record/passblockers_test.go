@@ -17,7 +17,7 @@ import (
 // ready and every blocker is the chair's own. A kind added to blockerKinds with no row here fails
 // the coverage check below.
 func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
-	gradeMotion := &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+	gradeMotion := &recordpb.Motion{MotionId: proto.String("M1"),
 		Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}
 	rows := []struct {
@@ -248,8 +248,7 @@ func passRefusalOver(t *testing.T, run Run, kinds ...BlockerKind) error {
 }
 
 func petitionMotion(id string) *recordpb.Motion {
-	return &recordpb.Motion{MotionId: proto.String(id),
-		Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(), Basis: proto.String("b"), Relief: proto.String("r"),
+	return &recordpb.Motion{MotionId: proto.String(id), Basis: proto.String("b"), Relief: proto.String("r"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordpb.PetitionClass_PETITION_CLASS_INTEGRITY.Enum()}}}
 }
 
@@ -400,8 +399,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "M1") || !strings.Contains(err.Error(), "M1 (petition, ruled by the bench seat)") {
 			t.Fatalf("outcome over an unruled petition = %v, want a refusal naming M1 and its gavel", err)
 		}
-		if _, err := Append(judge, &recordpb.MotionRule{MotionId: proto.String("M1"),
-			Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(), Opinion: proto.String("no hazard shown"),
+		if _, err := Append(judge, &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("no hazard shown"),
 			Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}}); err != nil {
 			t.Fatal(err)
 		}
@@ -412,7 +410,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 	t.Run("a motion the chair rules does not hold it", func(t *testing.T) {
 		b := board(t)
 		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
 		run := b.register("judge").seed()
@@ -425,7 +423,7 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		b.add("blue-respond", petitionMotion("M1"))
 		b.docketMotion("red-chair", "M2", "G1")
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
 		run := b.register("judge").seed()

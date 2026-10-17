@@ -40,9 +40,6 @@ func TestTheOraclesEpochCountsTheChairsStoredSittings(t *testing.T) {
 		chairBracket(t, "C2"), // epoch 2: the hook opened it and the chair never registered
 		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 		chairRegisters(t, "C3"), // epoch 3: a register the hook never bracketed (a resume)
-		// still epoch 3: a repair of the chair's sitting joins it
-		recordtest.At(t, "red-chair", "red-chair:register:C4", &recordpb.Register{AgentId: proto.String("C4"),
-			RepairsSitting: proto.String("red-chair:register:C3")}),
 		redClose(t, "red-chair", "G2", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)

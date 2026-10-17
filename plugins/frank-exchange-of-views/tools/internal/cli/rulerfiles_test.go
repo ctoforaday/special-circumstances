@@ -75,7 +75,7 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 	petition := []string{"motion", "petition", "file", "--class", "safety", "--relief", "halt", "--reason", "a consent gate is missing"}
 	docketRule := func(m string) []string {
 		return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
-			"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", "one more exchange"}
+			"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", "one more exchange"}
 	}
 
 	for _, tc := range []struct {

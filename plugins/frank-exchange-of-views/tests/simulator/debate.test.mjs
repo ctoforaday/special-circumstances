@@ -363,7 +363,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   // THE POSITION, THE CLOSINGS AND THE SPOT-CHECK ARE UNCONDITIONAL DUTIES, so the constitution is
   // their one carrier and the prompt, which every chair sitting receives unchanged, restates none.
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
-  assert.ok(/owes a closing argument of ~120 words/.test(chairMd) && /its assertable empty form only when the archive was empty when you sat/.test(chairMd) && /YOUR POSITION ARGUES TO THE BENCH/.test(chairMd), 'the chair constitution lost the position, the closings or the spot-check')
+  assert.ok(/owes a closing argument of ~120 words/.test(chairMd) && /name in it every stale area the plan lists, and any archived closure you re-read/.test(chairMd) && /YOUR POSITION ARGUES TO THE BENCH/.test(chairMd), 'the chair constitution lost the position, the closings or the spot-check')
   assert.ok(!/CLOSING ARGUMENTS/.test(p) && !/YOUR POSITION ARGUES TO THE BENCH/.test(p) && !/A CLOSURE IS A CLAIM/.test(p), 'the chair prompt restates a duty its constitution carries')
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')

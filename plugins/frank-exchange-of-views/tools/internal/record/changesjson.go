@@ -59,17 +59,13 @@ type EditJSON struct {
 // A QUERY, NOT A FOLD. This read used to load every event in the record through MergedEvents and walk
 // them looking for one body type, which made the cost of asking about the edits scale with the size of
 // the whole record — and pulled in the per-row clock derivation on the way. The view states the same
-// three rules where every reader can see them: the clock comes from events_w, the act that STANDS
-// after a correction comes from live_event, and the character delta is computed in SQL.
-//
-// ORDERED BY "pos", NOT BY EVENT ID, because that is what Live does: a corrected edit is replaced by
-// its successor at the STRUCK act's position, so a repair does not reorder the log. LiveKeys pins the
-// two orders against each other.
+// rules where every reader can see them: the clock comes from events_w, and the character delta is
+// computed in SQL. Ordered by event id, the order the edits were made in.
 func ChangesJSONOfDB(db *sql.DB) (ChangesJSON, error) {
 	out := ChangesJSON{Edits: []EditJSON{}}
 	rows, err := db.Query(`SELECT "seat_id", "sitting", "epoch", "answers", "old", "new",
 	    "delta", "reason", "applied_verbatim", "accepted"
-	  FROM "change" ORDER BY "pos", "event_id"`)
+	  FROM "change" ORDER BY "event_id"`)
 	if err != nil {
 		return out, fmt.Errorf("asking the change view: %w", err)
 	}

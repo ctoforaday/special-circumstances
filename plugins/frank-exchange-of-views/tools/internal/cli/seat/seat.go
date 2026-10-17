@@ -226,8 +226,6 @@ func (c Context) Identity() record.Identity {
 	// The zero Run when this context was REFUSED. Append asserts Valid() and refuses rather
 	// than writing, so a caller that skipped Run() still cannot record into an unresolved run —
 	// which is what the old `RunDir: ""` did, into the working directory.
-	// NO CORRECTION RIDES ON IT: a seat's act stands as filed, and record.Identity.Correct is
-	// migrate's alone.
 	return record.Identity{Run: c.handle(), SeatID: c.SeatID}
 }
 

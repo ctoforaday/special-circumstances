@@ -393,7 +393,7 @@ func (s SittingJSON) Blocked() bool {
 // `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
 // discharged when it was not, depending on which side of the comparison drifted.
 func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
-	for _, e := range Live(evs) {
+	for _, e := range evs {
 		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
@@ -453,7 +453,7 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 	if seatID != blueRespondSeat {
 		return nil
 	}
-	live := Live(evs)
+	live := evs
 	s, sat := sittingOfBlueRespond(live, win, seatID)
 	if d, owed := owedSitting(live, win, seatID); owed {
 		s, sat = engagementOf(live, d, int64(len(live))), true
@@ -477,7 +477,7 @@ func engagedOf(evs []*Event, win WindowIndex, seatID string) *EngagedJSON {
 func thisSitting(evs []*Event, win WindowIndex, seatID string) []*Event {
 	latest := win.LatestSittingOf(seatID)
 	var out []*Event
-	for _, e := range Live(evs) {
+	for _, e := range evs {
 		if e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
 			out = append(out, e)
 		}

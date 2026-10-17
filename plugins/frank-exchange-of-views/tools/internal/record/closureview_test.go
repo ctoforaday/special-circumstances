@@ -58,11 +58,11 @@ func docketRuling(motion string, word recordpb.Disposition) *recordpb.MotionRule
 	d := &recordpb.DocketRuling{Disposition: recordtest.P(word),
 		Principle: proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"), Settled: proto.String("st")}
 	if word == recordpb.Disposition_DISPOSITION_REMANDED {
-		d.ReopensOn = proto.String("new evidence")
+		d.Direction = proto.String("new evidence")
 	} else {
 		d.Final = proto.Bool(true)
 	}
-	return &recordpb.MotionRule{MotionId: proto.String(motion), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+	return &recordpb.MotionRule{MotionId: proto.String(motion),
 		Opinion: proto.String("because"), Ruling: &recordpb.MotionRule_Docket{Docket: d}}
 }
 
@@ -318,16 +318,14 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	docket := func(motionID, gapID string, rule *recordpb.DocketRuling) {
 		t.Helper()
 		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:   proto.String("red cannot settle " + gapID),
-			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+			Basis:  proto.String("red cannot settle " + gapID),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
 		// it — lands in epoch 2, which is what "ruled by the bench in round 2" now means.
 		if _, _, err := RegisterSeat(red, "", ""); err != nil {
 			t.Fatal(err)
 		}
 		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("ra"),
 			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})
 	}
@@ -339,7 +337,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	docket("M2", "G2", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
-		Settled: proto.String("st"), ReopensOn: proto.String("new evidence")})
+		Settled: proto.String("st"), Direction: proto.String("new evidence")})
 
 	// The count split: one verify (red's read), one cite (blue's authoring).
 	app(red, &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String("c"),

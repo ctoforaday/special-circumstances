@@ -344,20 +344,14 @@ func (o owedRegrade) accepted() string {
 // sitting is still the seat's latest. Nothing stands in for it this sitting: the first regrade
 // stands, and the duplicate-key refusal names the next sitting's regrade as the act that answers
 // it (supersede.go). The item appears at the seat's next sitting, which is the first that can
-// record the regrade. A struck regrade an archived record holds and its replacement are one gap in
-// one sitting, so reading the raw stream gives the same answer for both.
+// record the regrade.
 //
-// POSITIONS IN evs ARE SOUND UNDER AN ARCHIVED RECORD'S CORRECTIONS. evs is one read of the whole
-// record in id order. A ruling or a regrade was struck only before another seat acted, and the
-// ruler and the minter
-// are different seats, so no regrade falls between a ruling and its replacement and no pre-ruling
-// regrade is corrected after the ruling. The reader is the work list's whole-record snapshot
-// (WorkOfSeat), so win knows every seat's latest sitting.
+// evs is one read of the whole record in id order. The reader is the work list's whole-record
+// snapshot (WorkOfSeat), so win knows every seat's latest sitting.
 //
 // THE JOIN IS motionsAt, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
-// RULING, and motion.go's projection is the one that pairs them, reads a corrected ruling as its
-// replacement, and says WHICH ruling a motion carries and WHERE it sits — the first that stands,
-// in the place it was first made. This function asks it for the verdict and the place together,
+// RULING, and motion.go's projection is the one that pairs them and says WHICH ruling a motion
+// carries and WHERE it sits — the first, in the place it was made. This function asks it for the verdict and the place together,
 // so the regrade is weighed against the ruling whose verdict is read.
 func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []owedRegrade {
 	latest := win.LatestSittingOf(seatID)
@@ -536,7 +530,7 @@ func proofsWithoutReproduce(evs []*Event) []ProofRef {
 // readies for it — blue, and the gap's minting lens — carrying the research direction the ruling
 // states, so the bench's words reach the two seats that owe them.
 func remandOwedItem(g WorkGapState, blue bool) string {
-	dir := g.DocketReopensOn
+	dir := g.DocketDirection
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench"
 	if blue {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + dir + next
@@ -550,7 +544,7 @@ func remandedGapForChair(g WorkGapState) string {
 	const head = "gap "
 	switch g.route {
 	case routeRemandOwed:
-		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketReopensOn
+		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketDirection
 	case routeRedocket:
 		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again"
 	case routeAtLimit:

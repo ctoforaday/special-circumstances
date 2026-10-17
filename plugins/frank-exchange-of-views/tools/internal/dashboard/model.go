@@ -433,7 +433,6 @@ func buildJudiciary(fam record.Family) Judiciary {
 			j.JudgeSittings++
 		}
 	}
-	// MotionsOf reads the acts that stand, so a ruling struck in its sitting is not counted.
 	for _, m := range record.MotionsOf(fam.Events, fam.At) {
 		switch m.Subject {
 		case "docket":

@@ -3,6 +3,7 @@ package hookcmd
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -35,7 +36,7 @@ func TestAFailedCallBecomesTheSeatsFailureEntry(t *testing.T) {
 			[]string{"`Bash` failed on `some-tool --json`"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := failureEntry(tc.tool, json.RawMessage(tc.input), tc.err)
+			got, ok := failureEntry("", tc.tool, json.RawMessage(tc.input), tc.err)
 			if tc.want == nil {
 				if ok {
 					t.Fatalf("an already-logged refusal was logged again: %q", got)
@@ -67,7 +68,7 @@ func TestAChainedCallsFailureIsNotGivenToItsFirstCommand(t *testing.T) {
 	command := `R=` + run + `; "$R/.bin/feov-record" --seat-id judge register --occasion docket --run "$R"; echo "---LAW"; ls -la "$R/inputs/law/" 2>&1`
 	input, _ := json.Marshal(map[string]string{"command": command})
 	last := "ls: cannot access '" + run + "/inputs/law/': No such file or directory"
-	got, ok := failureEntry("Bash", input, "Exit code 2\nregistered judge\n2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):\n---LAW\n"+last)
+	got, ok := failureEntry("", "Bash", input, "Exit code 2\nregistered judge\n2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):\n---LAW\n"+last)
 	if !ok {
 		t.Fatal("the failed chain produced no entry")
 	}
@@ -122,5 +123,41 @@ func TestTheFailureHookLogsOnlyASeatsOwnFailures(t *testing.T) {
 	fire(with(map[string]any{})) // the main session: no agent id
 	if len(logged) != 1 || !strings.HasPrefix(logged[0], "a1 | `Read` failed on `/x`") {
 		t.Fatalf("want exactly the seat's one real failure, got %q", logged)
+	}
+	// The run the hook attributes the failure to is the run its entry writes as `.`.
+	fire(with(map[string]any{"agent_id": "a1", "tool_input": map[string]string{"file_path": runDir + "/blue/report.md"}}))
+	if len(logged) != 2 || !strings.HasPrefix(logged[1], "a1 | `Read` failed on `./blue/report.md`") {
+		t.Errorf("the run's own path was logged as the seat typed it, not from the run directory: %q", logged)
+	}
+	// On Windows the run arrives as `C:\…\run` and a seat may type it with forward slashes.
+	fire(with(map[string]any{"agent_id": "a1", "tool_input": map[string]string{"file_path": filepath.ToSlash(runDir) + "/blue/report.md"}}))
+	if len(logged) != 3 || !strings.HasPrefix(logged[2], "a1 | `Read` failed on `./blue/report.md`") {
+		t.Errorf("the run's own path, typed with forward slashes, was logged as the seat typed it: %q", logged)
+	}
+}
+
+// THE RUN DIRECTORY IS WRITTEN `.`, REPRODUCED FROM A RUN. universe-m25's run.md shipped seven failure
+// entries quoting the seats' commands with the operator's home directory in them (red-lens-logic's
+// `cd <run> && ./.bin/feov-record …`, red-lens-evidence's `FR=<run>; R="$FR/.bin/feov-record …"`).
+func TestAFailureEntryNamesTheRunsPathsFromTheRun(t *testing.T) {
+	const run = "/home/operator/.claude/scratch/universe-m25/src/research/2026-10-16_is-91-prime"
+	for _, tc := range []struct{ name, tool, input, err, want string }{
+		{"a cd into the run", "Bash", `{"command":"cd ` + run + ` && ./.bin/feov-record show board"}`, "Exit code 1\nboom",
+			"`Bash` failed on `cd . && ./.bin/feov-record show board`: boom"},
+		{"the run in a variable", "Bash", `{"command":"FR=` + run + `; R=\"$FR/.bin/feov-record\"; $R show work"}`, "Exit code 1\nboom",
+			"`Bash` failed on `FR=.; R=\"$FR/.bin/feov-record\"; $R show work`: boom"},
+		{"a path in the output", "Bash", `{"command":"ls ` + run + `/inputs/law/"}`, "Exit code 2\nls: cannot access '" + run + "/inputs/law/': No such file or directory",
+			"`Bash` failed on `ls ./inputs/law/`: ls: cannot access './inputs/law/': No such file or directory"},
+		{"a sibling run keeps its path", "Bash", `{"command":"ls ` + run + `-b2/inputs"}`, "Exit code 2\nnope",
+			"`Bash` failed on `ls " + run + "-b2/inputs`: nope"},
+		{"a path outside the run keeps its path", "Read", `{"file_path":"/home/operator/.claude/scratch/universe-m25/config/x.jsonl"}`, "File too large",
+			"`Read` failed on `/home/operator/.claude/scratch/universe-m25/config/x.jsonl`: File too large"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := failureEntry(run, tc.tool, json.RawMessage(tc.input), tc.err)
+			if !ok || got != tc.want {
+				t.Errorf("entry = %q\nwant    %q", got, tc.want)
+			}
+		})
 	}
 }

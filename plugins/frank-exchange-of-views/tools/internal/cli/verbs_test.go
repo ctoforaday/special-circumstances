@@ -129,7 +129,7 @@ func TestVerbPayloads(t *testing.T) {
 			// `petition` PetitionRuling, `inquiry` InquiryRuling. That separation is what
 			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
 			// the old key could never match. The ruler's argument is `opinion`.
-			want: map[string]string{"motion_id": "M1", "subject": "grade", "grade": "rejected",
+			want: map[string]string{"motion_id": "M1", "grade": "rejected",
 				"opinion": "the evidence does not reach it"},
 			says: "motion M1 ruled rejected",
 		},
@@ -139,7 +139,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
 			want: map[string]string{"gap_id": "G1", "dimension": "severity",
-				"proposed": "low", "basis": "§4 says otherwise", "subject": "grade"},
+				"proposed": "low", "basis": "§4 says otherwise"},
 			says: "filed (grade)",
 		},
 		{
@@ -175,8 +175,7 @@ func TestVerbPayloads(t *testing.T) {
 			path: []string{"motion", "petition", "rule"}, seatID: "judge",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-			want: map[string]string{"motion_id": "M2", "subject": "petition",
-				// `opinion` is the ruler's argument — the one prose channel MotionRule carries.
+			want: map[string]string{"motion_id": "M2", // `opinion` is the ruler's argument — the one prose channel MotionRule carries.
 				"petition": "granted", "opinion": "the written opinion"},
 			says: "motion M2 ruled granted",
 		},
@@ -298,7 +297,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	// The distinction is real and it did not disappear; it is carried by two other facts the
 	// record does hold. NOT CHECKED is the ABSENCE OF THE EVENT — a seat that never ran the verb
 	// has no spot_check at all, and the sitting gate reads exactly that. CHECKED NOTHING is the
-	// event with `none` set, which is a bool with presence and says so explicitly.
+	// event naming no closure, with the reason that says why; the board says how much it held.
 	//
 	// So the states are asserted where they live rather than through a key that cannot carry them.
 	t.Run("the three states are distinguishable", func(t *testing.T) {
@@ -307,17 +306,12 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK); n != 0 {
 			t.Fatalf("%d spot-checks before any were run", n)
 		}
-		// 2. Checked nothing, explicitly: --none, with the reason that distinguishes it from a
-		// skipped duty.
+		// 2. Checked nothing: the event, with the reason that distinguishes it from a skipped duty.
 		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
-			"--none", "--reason", "the archive was empty at round start"); err != nil {
+			"--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
 		ev := lastBody(t, runDir, &recordpb.SpotCheck{})
-		if !ev.GetNone() {
-			t.Error("the explicit empty form did not set `none` — without it, checked-nothing and " +
-				"sampled-nothing-in-particular are the same event")
-		}
 		if ev.GetReason() == "" {
 			t.Error("the explicit empty form lost its reason, which is the only thing distinguishing " +
 				"it from a duty nobody discharged")

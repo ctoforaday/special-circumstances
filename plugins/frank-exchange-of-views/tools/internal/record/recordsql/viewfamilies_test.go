@@ -103,15 +103,15 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	db := store(t)
 	mintRow(t, db, 0, "G1", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-		MotionId: proto.String("M-1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}})); err != nil {
+		MotionId: proto.String("M-1"),
+		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}})); err != nil {
 		t.Fatal(err)
 	}
 	// TWO rulings — the state the write guard refuses, seeded by raw insert.
 	for i, r := range []recordpb.GradeRuling{recordpb.GradeRuling_GRADE_RULING_REJECTED, recordpb.GradeRuling_GRADE_RULING_ACCEPTED} {
 		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-			MotionId: proto.String("M-1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
-			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}})
+			MotionId: proto.String("M-1"),
+			Opinion:  proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}})
 		ev.SeatId = proto.String("judge") // one bench, ruling twice — the second must not overturn the first
 		if _, err := Insert(db, ev); err != nil {
 			t.Fatal(err)
@@ -146,17 +146,17 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 		SupersedesStatus: proto.String("proposed")})); err != nil {
 		t.Fatal(err)
 	}
-	// Two inquiry rulings; the LATEST wins, and its unset arm is red ruling NOTHING —
-	// not an invitation to read the older word.
+	// Two inquiry rulings; the LATEST wins — not the older word.
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
-		Opinion: proto.String("o"),
-		Ruling:  &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED}})); err != nil {
+		MotionId: proto.String("Q1"),
+		Opinion:  proto.String("o"),
+		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED}})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("Q1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum(),
-		Opinion: proto.String("reconsidered, no word")})); err != nil {
+		MotionId: proto.String("Q1"),
+		Opinion:  proto.String("reconsidered"),
+		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}})); err != nil {
 		t.Fatal(err)
 	}
 
@@ -172,8 +172,8 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 	if status != "underway" {
 		t.Errorf("status = %q, want the latest recorded fate's", status)
 	}
-	if ruling.Valid {
-		t.Errorf("inquiry_ruling = %q, want NULL — the latest ruling carried no word, and that is the answer", ruling.String)
+	if want := recordpb.Word(recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE); ruling.String != want {
+		t.Errorf("inquiry_ruling = %q, want the latest ruling's %q", ruling.String, want)
 	}
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM "inquiry_state"`).Scan(&n); err != nil {

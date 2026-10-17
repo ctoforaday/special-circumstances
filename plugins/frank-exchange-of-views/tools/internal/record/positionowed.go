@@ -110,7 +110,7 @@ type PositionSitting struct {
 // fails unresolved.
 func PositionSittings(evs []*Event, win WindowIndex, when ReadWhen) []PositionSitting {
 	var out []PositionSitting
-	live := Live(evs)
+	live := evs
 	if SeatOwesPosition(blueRespondSeat) {
 		for k, s := range BlueSittings(evs, win, when) {
 			out = append(out, PositionSitting{Seat: blueRespondSeat, Ordinal: k + 1, Blue: &s, opened: s.opened,

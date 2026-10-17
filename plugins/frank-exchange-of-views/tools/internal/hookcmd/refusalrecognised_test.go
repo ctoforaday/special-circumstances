@@ -39,7 +39,7 @@ func TestTheHookRecognisesTheRecordToolsOwnRefusal(t *testing.T) {
 			// The harness names the tool as the seat invoked it; a test binary is named otherwise.
 			seen = strings.Replace(seen, root.Name()+": ", "feov-record: ", 1)
 			input, _ := json.Marshal(map[string]string{"command": "feov-record " + strings.Join(argv, " ")})
-			if entry, logs := hookcmd.FailureEntry("Bash", input, "Exit code 2\n"+seen); logs {
+			if entry, logs := hookcmd.FailureEntry("", "Bash", input, "Exit code 2\n"+seen); logs {
 				t.Errorf("the record tool's own refusal is logged a second time, as a failure: %s\n\nthe tool wrote:\n%.300s", entry, seen)
 			}
 		})

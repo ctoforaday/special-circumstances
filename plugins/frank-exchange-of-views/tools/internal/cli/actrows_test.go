@@ -168,7 +168,7 @@ func actRows() map[string]actRow {
 				return []string{"carry", "--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", text}
 			}},
 		"chair spot-check": {seat: "red-chair", act: func(_ actVars, text string) []string {
-			return []string{"spot-check", "--none", "--reason", text}
+			return []string{"spot-check", "--reason", text}
 		}},
 		"chair inquiry review": {seat: "red-chair", act: prose("inquiry", "review")},
 		"bench declare":        {seat: "judge", act: prose("declare")},
@@ -202,7 +202,7 @@ func actRows() map[string]actRow {
 			act: func(v actVars, text string) []string {
 				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",
 					"--principle", "thoroughness over speed", "--tension", "cost against certainty",
-					"--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", text}
+					"--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
 			}},
 	}
 }

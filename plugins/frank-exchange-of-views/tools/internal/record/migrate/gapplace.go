@@ -58,11 +58,11 @@ func newPlacer(q recordsql.Querier, evs []OldEvent, migrated map[string]string) 
 }
 
 // step rewrites body for the report as the destination now renders it and returns the Anchor to
-// append after it, or nil. A correction's replacement re-carries what its act placed and adds none.
-func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error) {
+// append after it, or nil.
+func (p *placer) step(body proto.Message) (proto.Message, error) {
 	switch b := body.(type) {
 	case *recordpb.Mint:
-		if correcting || b.GetLocation() == "" || p.anchored[b.GetGapId()] {
+		if b.GetLocation() == "" || p.anchored[b.GetGapId()] {
 			return nil, nil
 		}
 		text, err := record.RenderAt(p.q)
@@ -81,13 +81,13 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 			return nil, p.edit(b)
 		}
 	case *recordpb.Cite:
-		return p.owed("cite", b.GetLabel(), b.GetLocation(), correcting)
+		return p.owed("cite", b.GetLabel(), b.GetLocation())
 	case *recordpb.Proof:
-		return p.owed("proof", b.GetProofId(), b.GetLocation(), correcting)
+		return p.owed("proof", b.GetProofId(), b.GetLocation())
 	case *recordpb.Anchor:
 		return nil, p.places(b.GetId(), b.GetLocation())
 	case *recordpb.Verify:
-		return p.owed("verify", b.GetLabel(), b.GetClaim(), correcting)
+		return p.owed("verify", b.GetLabel(), b.GetClaim())
 	}
 	return nil, nil
 }
@@ -95,17 +95,11 @@ func (p *placer) step(body proto.Message, correcting bool) (proto.Message, error
 // owed is the Anchor an archived citation, proof or corroboration placed by being recorded: the
 // report read its marker off the event itself, so the Anchor appended right after it holds the same
 // place in the stream and replay inserts it where it always did. An act that named no id or no
-// quote placed nothing, and a correction's replacement placed nothing while its act's marker stood.
-// Any other act carrying an id already placed — the replacement of an act whose marker a retire
-// took out among them — owes a second Anchor, which the record refuses.
-func (p *placer) owed(shape, id, loc string, correcting bool) (proto.Message, error) {
+// quote placed nothing. Any other act carrying an id already placed owes a second Anchor, which the
+// record refuses.
+func (p *placer) owed(shape, id, loc string) (proto.Message, error) {
 	if id == "" || loc == "" || p.anchored[id] {
 		return nil, nil
-	}
-	if correcting {
-		if text, err := record.RenderAt(p.q); err != nil || strings.Contains(text, anchor.Token(id)) {
-			return nil, nil
-		}
 	}
 	if err := p.places(id, loc); err != nil {
 		return nil, err
