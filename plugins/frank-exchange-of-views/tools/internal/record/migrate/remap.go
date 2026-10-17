@@ -78,26 +78,26 @@ var (
 		Finding.about_ref Observe.label Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
 		Proof.answers Proof.cites Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Log.estopped_by Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		InquiryMotion.inquiry_id MotionRule.motion_id MotionAppeal.motion_id Dispatch.gap_ids
+		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
 		ClassNew.distinguisher Close.prose Close.anchor_tool Close.anchor_target Closing.text
 		Regrade.basis SpotCheck.reason Finding.text Observe.text Observe.observation Cite.text
 		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
-		Inquiry.reason InquiryReview.reason BlueEdit.text Revision.text Retire.reason ManifestRow.row
+		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion
-		MotionAppeal.reason Outcome.prose Outcome.verdict_why Position.text Halt.opinion
-		Certify.statement Declare.holding Correction.why`)
+		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
+		Certify.statement Declare.holding`)
 	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key
 		Cite.location Cite.ocr_engine Cite.ocr_quote Cite.ocr_text_sha Cite.sha256 Cite.title Cite.url
-		ClassNew.slug Close.anchor_seat Close.carried_from Correction.corrects Correction.replacement
+		ClassNew.slug Close.anchor_seat Close.carried_from
 		Dispatch.seat_id Finding.finding_key Finding.location Inquiry.supersedes_status Mint.class Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis
 		Proof.proof_key Proof.proof_sha Proof.script Register.agent_id Register.agent_type
-		Register.hook_version Register.repairs_sitting Register.run_via Register.tool_version
+		Register.hook_version Register.run_via Register.tool_version
 		Reproduce.observed_output Reproduce.proof_sha Reproduce.recorded_output Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
 		SittingClose.agent_transcript_path SittingClose.agent_type SittingClose.prompt_id

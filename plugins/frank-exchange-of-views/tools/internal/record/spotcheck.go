@@ -127,7 +127,7 @@ func SpotChecks(f Family) (checks []SpotCheck) {
 	// THE STORED EPOCH, because the number goes on a recorded ACT (the spot-check the chair filed),
 	// and the record holds which of the chair's sittings each act is in.
 	a := ArchiveOf(f.Gaps)
-	for _, e := range f.Live() {
+	for _, e := range f.Events {
 		sc, ok := SpotCheckOf(e, f.At, a)
 		if !ok {
 			continue

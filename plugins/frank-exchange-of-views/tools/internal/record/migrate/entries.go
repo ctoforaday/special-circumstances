@@ -26,6 +26,14 @@ func Entries() Registry {
 		// A spot-check's `none` was the seat's claim that the archive was empty; the board answers
 		// that, so the spot-check carries its ids, areas and reason and nothing else.
 		"spot_check": mapped("spot_check", nil, drops{"none": "whether the archive was empty is the board's count, replayed at read time; the seat's claim of it is not stored"}, nil),
+		// A REVISION TRANSLATES TO NO EVENT. It was a blue sitting's prose account of its change,
+		// and the change is the sitting's edits, each with its reason; nothing reads a revision's
+		// text. The manifest counts each in events_in and none in events_out.
+		"revision": {Translate: revisionEntry},
+		// AN APPEAL HAS NO TRANSLATION. A ruling stands as made, and the record holds no act that
+		// presses one; no archived run holds an appeal, so a record that does is a new fact for its
+		// operator to accept by word, not a shape to guess.
+		"motion_appeal": {Loss: "the record holds no appeal: a ruling stands as made, and a seat that disagrees with one answers it with a docket motion on the gap. The appeal's reason is not carried"},
 	}
 	for w, e := range eraEntries() {
 		reg[w] = e
@@ -149,19 +157,20 @@ func citeEntry(old OldEvent) ([]proto.Message, error) {
 	return []proto.Message{c}, nil
 }
 
-// registerEntry: a register is kept word for word and opens a sitting of its own. An epoch-7
-// register table holds event_id, tool_version, hook_version, agent_id, run_via and agent_type, so
-// no archived register can say it repairs a sitting; inferring a repair from the stream would put a
-// claim on the record no seat made and no writer checked.
-//
-// A ROW THAT CARRIES THE COLUMN IS REFUSED, NOT REWRITTEN. Dropping the value silently is the move
-// that reads identically whether the source was an honest epoch-7 run or a record claiming a field
-// its epoch could not hold — and a translation that cannot fail on any real row is a comment. The
-// refusal names what it found, which is how this repository turns away data by its content.
+// registerEntry: a register is kept word for word and opens a sitting of its own. A source at epoch
+// 8 to 26 may hold a register naming the sitting it repaired (`repairs_sitting`); the record holds
+// no repair, so the register is written without it and opens a sitting of its own, as every
+// register does. Every act filed under it is kept, in that sitting rather than the one it repaired
+// — the residue the plan states (plans/v2/10 §II, item 8). No archived run holds one.
 func registerEntry(old OldEvent) ([]proto.Message, error) {
-	if v, ok := old.Fields["repairs_sitting"]; ok {
-		return nil, fmt.Errorf("register %s carries repairs_sitting (%v), which no run before epoch 8 could record — "+
-			"this row did not come from the epoch this step reads, and translating it would put a repair on the record no writer checked", old.Key, v)
+	if _, ok := old.Fields["repairs_sitting"]; ok {
+		fields := map[string]any{}
+		for k, v := range old.Fields {
+			if k != "repairs_sitting" {
+				fields[k] = v
+			}
+		}
+		old.Fields = fields
 	}
 	body, err := identityBody(old)
 	if err != nil {
@@ -184,6 +193,9 @@ func remandDirection(r *recordpb.DocketRuling) {
 	}
 	r.Direction, r.ReopensOn = r.ReopensOn, nil
 }
+
+// revisionEntry translates a revision to no event, whatever its era's columns.
+func revisionEntry(OldEvent) ([]proto.Message, error) { return nil, nil }
 
 // frictionNoneEntry: the explicit empty form carried "none" as an entry. The type that said so is
 // retired and clean is derived from a bracketed sitting that filed nothing, so the row translates

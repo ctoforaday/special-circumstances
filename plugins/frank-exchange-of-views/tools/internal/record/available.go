@@ -344,20 +344,14 @@ func (o owedRegrade) accepted() string {
 // sitting is still the seat's latest. Nothing stands in for it this sitting: the first regrade
 // stands, and the duplicate-key refusal names the next sitting's regrade as the act that answers
 // it (supersede.go). The item appears at the seat's next sitting, which is the first that can
-// record the regrade. A struck regrade an archived record holds and its replacement are one gap in
-// one sitting, so reading the raw stream gives the same answer for both.
+// record the regrade.
 //
-// POSITIONS IN evs ARE SOUND UNDER AN ARCHIVED RECORD'S CORRECTIONS. evs is one read of the whole
-// record in id order. A ruling or a regrade was struck only before another seat acted, and the
-// ruler and the minter
-// are different seats, so no regrade falls between a ruling and its replacement and no pre-ruling
-// regrade is corrected after the ruling. The reader is the work list's whole-record snapshot
-// (WorkOfSeat), so win knows every seat's latest sitting.
+// evs is one read of the whole record in id order. The reader is the work list's whole-record
+// snapshot (WorkOfSeat), so win knows every seat's latest sitting.
 //
 // THE JOIN IS motionsAt, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
-// RULING, and motion.go's projection is the one that pairs them, reads a corrected ruling as its
-// replacement, and says WHICH ruling a motion carries and WHERE it sits — the first that stands,
-// in the place it was first made. This function asks it for the verdict and the place together,
+// RULING, and motion.go's projection is the one that pairs them and says WHICH ruling a motion
+// carries and WHERE it sits — the first, in the place it was made. This function asks it for the verdict and the place together,
 // so the regrade is weighed against the ruling whose verdict is read.
 func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []owedRegrade {
 	latest := win.LatestSittingOf(seatID)

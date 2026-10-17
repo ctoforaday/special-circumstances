@@ -33,9 +33,8 @@ func registersUnder(t *testing.T, seat, agent, n string) *record.Event {
 // THE M15 SHAPE, AND EVERY SURFACE THAT PRINTS AN EPOCH OR A SITTING NUMBER (#1206).
 //
 // The write path stores which sitting each act is in (events.sitting_id): a hook bracket opens one,
-// a register under the agent it bracketed joins it, and a repair joins the sitting it repairs.
-// Counting registers over the events misses the first, counts the second twice and gives the third
-// a sitting of its own — on universe-m15, 77 of 317 rows, and judgments.md printed `filed by
+// and a register under the agent it bracketed joins it. Counting registers over the events misses
+// the first and counts the second twice — on universe-m15, 77 of 317 rows, and judgments.md printed `filed by
 // red-lens-voice #2` for a motion the record holds in that seat's FIFTH sitting.
 //
 // The fixture is that run's shapes in miniature:
@@ -44,12 +43,11 @@ func registersUnder(t *testing.T, seat, agent, n string) *record.Event {
 //     a finding and a log — its THIRD stored sitting, and its second by any count of registers;
 //   - red-chair: a bracketed sitting its register joins (epoch 1), then a bracket-only sitting
 //     (epoch 2), so every act after it is in epoch 2 and a count of chair registers says 1;
-//   - blue-respond: a sitting, then a sitting-record repair whose acts are the repaired sitting's.
+//   - blue-respond: one sitting.
 //
 // Each expectation below is the stored number, written out, so a surface that recounts fails here by
 // name rather than agreeing with an index it was handed.
 func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
-	blueOpened := "blue-respond:register:#1"
 	evs := []*record.Event{
 		bracket(t, "red-lens-voice", "V1"), // voice sitting 1, epoch 0: bracket only
 		bracket(t, "red-chair", "C1"),      // epoch 1
@@ -73,14 +71,11 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		recordtest.At(t, "blue-respond", "blue-respond:position:#1", &recordpb.Position{Text: proto.String("G1 is answered")}),
 		recordtest.At(t, "blue-respond", "blue-respond:inquiry:#1", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("survey the literature")}),
-		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:B1", &recordpb.SittingClose{AgentId: proto.String("B1")}),
-		// The repair: a sitting of the seat's own, whose acts are the sitting it repairs.
-		recordtest.At(t, "blue-respond", "blue-respond:register:#2", &recordpb.Register{AgentId: proto.String("B2"), RepairsSitting: proto.String(blueOpened)}),
 		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e2", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		recordtest.At(t, "blue-respond", "blue-respond:manifest_row:m1", &recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("recomputed the figure")}),
 		recordtest.At(t, "blue-respond", "blue-respond:retire:r1", &recordpb.Retire{Claim: proto.String("the old figure"),
 			Reason: proto.String("superseded"), RemovalBasis: proto.String(record.RemovalAsserted)}),
-		recordtest.At(t, "blue-respond", "blue-respond:revision:#1", &recordpb.Revision{Text: proto.String("recomputed the figure")}),
+		recordtest.At(t, record.HarnessSeat, "harness:sitting_close:B1", &recordpb.SittingClose{AgentId: proto.String("B1")}),
 	}
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, evs...)
@@ -177,29 +172,19 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		absent("correctness manifest", manifest, "#2")
 	})
 
-	// THE CHANGELOG HOLDS NO REVISION PROSE. The record above holds a revision — a migrated archive
-	// holds them, and nothing else writes one — and the document a human is handed lists what left
-	// the report and nothing a seat narrated about its sitting.
+	// THE CHANGELOG lists what left the report.
 	t.Run("the changelog document", func(t *testing.T) {
 		docs, err := AssembleAll(run)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var body, blurb string
+		var body string
 		for _, d := range docs {
 			if d.File == FileChangelog {
-				body, blurb = d.Body, d.Blurb
+				body = d.Body
 			}
 		}
 		contains("CHANGELOG.md", body, "the old figure")
-		for _, gone := range []string{"Report revision history", "recomputed the figure", "### Epoch"} {
-			if strings.Contains(body, gone) {
-				t.Errorf("CHANGELOG.md prints %q — a revision's prose:\n%s", gone, body)
-			}
-		}
-		if strings.Contains(strings.ToLower(blurb), "revision") {
-			t.Errorf("the changelog's blurb promises revisions: %q", blurb)
-		}
 	})
 
 	t.Run("the fact box", func(t *testing.T) {
@@ -216,8 +201,6 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 			"C2": {SeatID: "red-chair", Epoch: 2, Sitting: 2},
 			"V3": {SeatID: "red-lens-voice", Epoch: 2, Sitting: 3},
 			"B1": {SeatID: "blue-respond", Epoch: 2, Sitting: 1},
-			// The repair agent is labelled with the sitting it completes.
-			"B2": {SeatID: "blue-respond", Epoch: 2, Sitting: 1},
 		} {
 			if got := b[agent]; got != want {
 				t.Errorf("%s binds to %+v, want %+v", agent, got, want)

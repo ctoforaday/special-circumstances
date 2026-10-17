@@ -8,15 +8,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// A READ THAT FAILS IS AN ERROR, NOT A DIFFERENT ANSWER. RecordedOutcome reads the outcome that
-// STANDS through live_event; when that read fails — locked, busy, a malformed view — the caller
-// sees the error. It does not get a verdict read by a second query over every outcome row, struck
-// ones included, on a record the open has already held to this binary's schema
-// (recordsql.requireDeclaredSchema), so the only way to reach it is a real error.
+// A READ THAT FAILS IS AN ERROR, NOT A DIFFERENT ANSWER. RecordedOutcome reads the latest outcome;
+// when that read fails — locked, busy, a malformed table — the caller sees the error, on a record the
+// open has already held to this binary's schema (recordsql.requireDeclaredSchema), so the only way
+// to reach it is a real error.
 //
-// The failure is made by dropping the view through the run's cached handle: every later read
+// The failure is made by dropping the table through the run's cached handle: every later read
 // goes through the same handle and fails the same way a busy database would.
-func TestAFailedLiveReadIsAnErrorNotAnUncorrectedAnswer(t *testing.T) {
+func TestAFailedOutcomeReadIsAnErrorNotAnAnswer(t *testing.T) {
 	run := corrRun(t)
 	judge := sit(t, run, "judge")
 	mustAppend(t, judge, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended")})
@@ -30,17 +29,16 @@ func TestAFailedLiveReadIsAnErrorNotAnUncorrectedAnswer(t *testing.T) {
 	if err != nil || db == nil {
 		t.Fatalf("open the run's handle: (%v, %v)", db, err)
 	}
-	if _, err := db.Exec(`DROP VIEW "live_event"`); err != nil {
+	if _, err := db.Exec(`DROP TABLE "outcome"`); err != nil {
 		t.Fatal(err)
 	}
 
-	// RecordedOutcome returns the read it cannot make as the error, with no verdict beside it. What
-	// it must NOT do is answer the question from a second query over every outcome row, struck
-	// ones included — and what TerminalVerdict must not do is take that error for "not ended".
+	// RecordedOutcome returns the read it cannot make as the error, with no verdict beside it, and
+	// TerminalVerdict must not take that error for "not ended".
 	if v, err := RecordedOutcome(run); err == nil || v != "" {
-		t.Errorf("RecordedOutcome over a failing live read = (%q, %v), want the error and no verdict — a verdict here was read around the failure", v, err)
+		t.Errorf("RecordedOutcome over a failing outcome read = (%q, %v), want the error and no verdict — a verdict here was read around the failure", v, err)
 	}
 	if v, err := TerminalVerdict(run); err == nil || v != "" {
-		t.Errorf("TerminalVerdict over a failing live read = (%q, %v), want the error — \"\" here reads as a run in flight", v, err)
+		t.Errorf("TerminalVerdict over a failing outcome read = (%q, %v), want the error — \"\" here reads as a run in flight", v, err)
 	}
 }

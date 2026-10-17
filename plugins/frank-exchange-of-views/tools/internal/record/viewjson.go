@@ -372,19 +372,18 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// the anomaly below says why.
 	report, renderErr := RenderAt(q)
 
-	verified := backingOf(Live(evs))
-	// THE CLOSURE IS THE GAP VIEW'S (the last standing act of each arm, by its events.id, with the
-	// body looked up in evs); THE REGRADE HISTORY IS A LISTING (every regrade, a struck one marked
-	// `struck`), because read raw a corrected regrade lists as two ordinary regrades.
+	verified := backingOf(evs)
+	// THE CLOSURE IS THE GAP VIEW'S (the last act of each arm, by its events.id, with the body
+	// looked up in evs); the regrade history is every regrade, in record order.
 	byID := eventsByID(evs, win)
-	regrades := map[string][]Listed{}
+	regrades := map[string][]*Event{}
 	var findings []*Event
-	for _, l := range Listing(evs) {
-		switch m := mustBody(l.Event).(type) {
+	for _, e := range evs {
+		switch m := mustBody(e).(type) {
 		case *recordpb.Regrade:
-			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], l)
+			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], e)
 		case *recordpb.Finding:
-			findings = append(findings, l.Event)
+			findings = append(findings, e)
 		}
 	}
 
@@ -467,14 +466,11 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			}
 			gj.Closure = m
 		}
-		for _, l := range regrades[id] {
-			m, err := bodyMap(mustBody(l.Event))
+		for _, e := range regrades[id] {
+			m, err := bodyMap(mustBody(e))
 			if err != nil {
 				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the regrade was DROPPED from this projection, not rendered empty", id, err))
 				continue
-			}
-			if l.Struck != nil {
-				m["struck"] = map[string]any{"replacement": l.Struck.Replacement, "by": l.Struck.By, "why": l.Struck.Why}
 			}
 			gj.Regrades = append(gj.Regrades, m)
 		}
@@ -1536,10 +1532,6 @@ type LogEntryJSON struct {
 	Type   string `json:"type"`
 	Source string `json:"source"`
 	Text   string `json:"text"`
-	// Struck is set on an entry its seat corrected in the sitting that wrote it: the act that
-	// replaced it, who struck it and why. The entry is listed, marked — never hidden — and is not
-	// counted, because the replacement listed after it is the entry that stands.
-	Struck *Struck `json:"struck,omitempty"`
 }
 
 // LogJSONOf projects the record's log events — from the record, never the markdown. Events, not a
@@ -1547,8 +1539,7 @@ type LogEntryJSON struct {
 func LogJSONOf(evs []*Event, win WindowIndex) LogJSON {
 	out := LogJSON{Log: []LogEntryJSON{}}
 	spoke, sat := map[string]bool{}, map[string]bool{}
-	for _, l := range Listing(evs) {
-		e := l.Event
+	for _, e := range evs {
 		// TYPE IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
 		// choice made in the conversion: the list carries every type and the reader narrows.
 		// Reported, not changed — filtering here would move Counts.Total.
@@ -1558,11 +1549,7 @@ func LogJSONOf(evs []*Event, win WindowIndex) LogJSON {
 				Type:   recordpb.Word(f.GetType()),
 				Source: recordpb.Word(f.GetSource()),
 				Text:   f.GetText(),
-				Struck: l.Struck,
 			})
-			if l.Struck != nil {
-				continue
-			}
 			// EVERY ENTRY ASSERTS A PROBLEM NOW. The type that asserted cleanliness is retired, so
 			// there is no entry left that a total should exclude.
 			out.Counts.Total++
@@ -1574,8 +1561,8 @@ func LogJSONOf(evs []*Event, win WindowIndex) LogJSON {
 	// the same statement the retired entry made, at no cost to the seat. Which events opened a
 	// sitting is the stored answer: a hook's bracket opens one, and a register that joined it opens
 	// none of its own.
-	for _, l := range Listing(evs) {
-		if seat, opens := win.Opens(l.Event); opens && !spoke[seat] {
+	for _, e := range evs {
+		if seat, opens := win.Opens(e); opens && !spoke[seat] {
 			sat[seat] = true
 		}
 	}
@@ -1609,7 +1596,7 @@ type DebateJSON struct {
 
 // DebateEpochJSON mirrors one `## Epoch N` block of render.go. EVERY LIST IS ALWAYS PRESENT, possibly
 // empty: the help documents each as an array, a consumer iterates it, and a null throws. The
-// closings and `struck` were null or absent on a quiet epoch, and a judge on universe-m13 who
+// closings were null or absent on a quiet epoch, and a judge on universe-m13 who
 // believed the help — `.red_closings | map(.gap_id)` — was told it could not iterate over null.
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
@@ -1628,19 +1615,6 @@ type DebateEpochJSON struct {
 	// what it names and what it found. A defect the chair finds in a stale area is stated there,
 	// with no verdict recorded.
 	SpotChecks []string `json:"spot_checks"`
-	// Struck is every act of this epoch's transcript that its seat corrected in the sitting that
-	// wrote it — listed with what it said, who struck it and why. The arrays above hold the acts
-	// that stand; this is where the struck ones remain visible.
-	Struck []DebateStruckJSON `json:"struck"`
-}
-
-// DebateStruckJSON is one struck transcript act: its type and seat, the text it carried, and the
-// correction that struck it.
-type DebateStruckJSON struct {
-	Type   string `json:"type"`
-	SeatID string `json:"seat_id"`
-	Text   string `json:"text"`
-	Struck
 }
 
 type DebateClosingJSON struct {
@@ -1671,32 +1645,10 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 	out := DebateJSON{Epochs: []DebateEpochJSON{}}
 
 	epochOrder := append([]int{}, epochs...)
-	// THE ARRAYS HOLD THE ACTS THAT STAND; the struck ones are gathered into the epoch's `struck`
-	// list, with who struck them and why — the ONE Listing order, so no act is shown twice.
 	byEpoch := map[int][]*Event{}
-	struckIn := map[int][]DebateStruckJSON{}
-	for _, l := range Listing(evs) {
-		w := win.Of(l.Event)
-		if l.Struck == nil {
-			byEpoch[w.Epoch] = append(byEpoch[w.Epoch], l.Event)
-			continue
-		}
-		text := ""
-		switch b := mustBody(l.Event).(type) {
-		case *recordpb.Position:
-			text = b.GetText()
-		case *recordpb.Closing:
-			text = b.GetText()
-		case *recordpb.MotionRule:
-			text = b.GetOpinion()
-		case *recordpb.SpotCheck:
-			sc, _ := SpotCheckOf(l.Event, win, archive)
-			text = sc.Describe()
-		default:
-			continue
-		}
-		struckIn[w.Epoch] = append(struckIn[w.Epoch], DebateStruckJSON{
-			Type: recordpb.Word(l.GetType()), SeatID: l.GetSeatId(), Text: text, Struck: *l.Struck})
+	for _, e := range evs {
+		w := win.Of(e)
+		byEpoch[w.Epoch] = append(byEpoch[w.Epoch], e)
 	}
 	sort.Ints(epochOrder)
 
@@ -1714,8 +1666,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			return s
 		}
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
-			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, Struck: []DebateStruckJSON{}}
-		rj.Struck = append(rj.Struck, struckIn[r]...)
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}}
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())
@@ -1832,7 +1783,7 @@ type GapEdit struct {
 func reopeningEditsAt(q recordsql.Querier) (map[string][]GapEdit, error) {
 	out := map[string][]GapEdit{}
 	rows, err := q.Query(`SELECT r."value", c."epoch", COALESCE(c."seat_id", ''), c."old", c."new"
-	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."pos", c."event_id"`)
+	  FROM "change" c JOIN "blue_edit_reopened" r ON r."event_id" = c."event_id" ORDER BY c."event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking which edits changed a gap's sentence: %w", err)
 	}

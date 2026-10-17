@@ -4134,11 +4134,6 @@ var verbsWithEvents = []string{
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
 	"cast", "dispatch",
-	// A correction an archived record holds: migrate replays it beside the act it replaced, and no
-	// verb records one.
-	"correction",
-	// An appeal an archived record holds: migrate replays it, and no verb records one.
-	"motion_appeal",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -4170,20 +4165,6 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
-	// NO COMMAND WRITES A CORRECTION. The type stays declared so `migrate` can replay the
-	// corrections an archived record holds, and migrate is its one writer (record.Append refuses
-	// one outside a migration); migrate's own tests drive it. Phase 4 of #1298 removes the type
-	// and this exemption with it.
-	"correction": true,
-	// NO COMMAND WRITES AN APPEAL. A ruling stands, and a seat that disagrees with one files a
-	// docket motion. The type stays declared so `migrate` can replay an appeal an archived record
-	// holds, and migrate is its one writer (record.Append refuses one outside a migration);
-	// record's motion-guard tests drive that replay. Phase 4 of #1298 removes the type and this
-	// exemption with it.
-	"motion_appeal": true,
-	// NO COMMAND WRITES A REVISION. The type stays declared so `migrate` can carry the revisions
-	// an archived record holds, and migrate is its one writer; migrate's own tests drive it.
-	"revision": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -4330,7 +4311,6 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
-	"revision":    "written by migrate alone, for the revisions an archived record holds — no command records one and no document renders its prose: the changelog lists what left the report",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
 	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
@@ -4861,7 +4841,7 @@ func TestFuzzDebate(t *testing.T) {
 		if quotesRefused == 0 {
 			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
 		}
-		// THE REPEATED-ACT GATE. No verb takes a correction: a seat that got an act wrong meets the
+		// THE REPEATED-ACT GATE. A seat that got an act wrong meets the
 		// refusal of its second, and that refusal names the act that answers the first. A drive
 		// that stopped repeating an act would leave those refusals unreached behind a green sweep.
 		if repeatsRefused == 0 {
@@ -5117,7 +5097,7 @@ func someProof(run record.Run) (anchor, sha string) {
 	if err != nil {
 		return "", ""
 	}
-	for _, e := range record.Live(b.Events) {
+	for _, e := range b.Events {
 		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetProofId() != "" && p.GetProofSha() != "" {
 			return p.GetProofId(), p.GetProofSha()
 		}

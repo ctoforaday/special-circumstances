@@ -47,11 +47,8 @@ func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
 // Three readings of "a docket stands unruled", and three keys for the bench's sitting, are told
 // apart, so a regression in each fails its own arm:
 //
-//   - a count of ruling ROWS against a count of dockets: a ruling corrected in its sitting is a
-//     second `motion_rule` row for one live act, so dockets=2 rulings=2 took M2 as ruled and readied
-//     the minting lens and blue while the bench was never dispatched (#1201) — "corrected";
-//   - a count of LIVE rulings against a count of dockets: two live rulings on one motion cover an
-//     unruled sibling — "ruled twice" (the record write refuses the second ruling, #1205, so the arm
+//   - a count of rulings against a count of dockets: two rulings on one motion cover an unruled
+//     sibling (#1201) — "ruled twice" (the record write refuses the second ruling, #1205, so the arm
 //     holds that refusal and that the refused attempt leaves the sibling standing unruled);
 //   - the bench's sitting keyed on the newest FILING rather than the newest UNRULED filing: a
 //     motion blue files into the bench's open sitting and the bench rules there is newer than the
@@ -65,7 +62,7 @@ func docketBoard(t *testing.T, run Run) (Plan, map[string][]string) {
 //     for M1 read as a sitting for M2 too, and nobody was engaged (#1201) — every arm that readies
 //     the bench after it sat.
 //
-// "left as written" is the control for the first, and "sat for both" the control for the key: the
+// "left as written" is the control for the count, and "sat for both" the control for the key: the
 // bench dispatched twice with M1 standing has sat for it, under any key. Blue and the lens are
 // engaged in no arm: the gap is the bench's while a docket stands.
 func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *testing.T) {
@@ -75,26 +72,17 @@ func TestADocketStandsUnruledPerMotionAndReadiesTheBenchOncePerDocketing(t *test
 		judge   []string                    // the gaps the bench is engaged on
 		reason  string                      // the plan's line for G1
 	}
-	ruleM1 := func(t *testing.T, judge Identity, correct bool) {
-		k := mustAppend(t, judge, docketRule("M1", "typo")).GetKey()
-		if correct {
-			if _, err := replayed(correcting(judge, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "typo"), docketRule("M1", "fixed")); err != nil {
-				t.Fatalf("correcting the docket ruling refused: %v", err)
-			}
-		}
+	ruleM1 := func(t *testing.T, judge Identity) {
+		mustAppend(t, judge, docketRule("M1", "the ruling"))
 	}
 	fileM2 := func(t *testing.T, run Run) { mustAppend(t, sit(t, run, "blue-respond"), docketMotion("M2", "G1")) }
 	for _, tc := range []arm{
-		{"corrected", func(t *testing.T, run Run) {
-			ruleM1(t, sit(t, run, "judge"), true)
-			fileM2(t, run)
-		}, []string{"G1"}, benchReady},
 		{"left as written", func(t *testing.T, run Run) {
-			ruleM1(t, sit(t, run, "judge"), false)
+			ruleM1(t, sit(t, run, "judge"))
 			fileM2(t, run)
 		}, []string{"G1"}, benchReady},
 		{"another seat dispatched after the filing", func(t *testing.T, run Run) {
-			ruleM1(t, sit(t, run, "judge"), false)
+			ruleM1(t, sit(t, run, "judge"))
 			fileM2(t, run)
 			mustAppend(t, sit(t, run, "red-chair"), &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"}})
 			sit(t, run, "judge")

@@ -47,51 +47,6 @@ func roleLeaves(visit func(role string, path []string, c *cobra.Command)) {
 	}
 }
 
-// No leaf of any seat's tree registers a correction flag, so a verb added later cannot regain one;
-// and every recording verb, run with one, is refused by the parser as a flag it does not have.
-func TestNoCommandRegistersACorrectionFlag(t *testing.T) {
-	var seen int
-	roleLeaves(func(role string, path []string, c *cobra.Command) {
-		seen++
-		for _, name := range []string{"corrects", "correction-why"} {
-			if c.Flags().Lookup(name) != nil || c.InheritedFlags().Lookup(name) != nil {
-				t.Errorf("%s %s registers --%s: no verb takes a correction — an act stands as filed", role, strings.Join(path, " "), name)
-			}
-		}
-	})
-	if seen < 100 {
-		t.Fatalf("the walk visited %d commands; it has stopped seeing the surface", seen)
-	}
-
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	rows := actRows()
-	names := make([]string, 0, len(rows))
-	for n := range rows {
-		names = append(names, n)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		row := rows[name]
-		t.Run(name, func(t *testing.T) {
-			runDir := actFixture(t)
-			var vars actVars
-			if row.setup != nil {
-				vars = row.setup(t, runDir)
-			}
-			for _, flag := range [][]string{{"--corrects", "blue-respond:log:#1"}, {"--correction-why", "a word was lost"}} {
-				args := append(row.act(vars, "the act as filed"), flag...)
-				_, err := runAt(t, append(args, "--run", runDir, "--seat-id", row.seat)...)
-				if err == nil || !strings.Contains(err.Error(), "unknown flag: "+flag[0]) {
-					t.Fatalf("%s %s: want the parser's refusal of an unknown flag, got %v", name, flag[0], err)
-				}
-			}
-			if n := len(eventsOfWord(t, runDir, "correction")); n != 0 {
-				t.Fatalf("the record holds %d correction(s) after refused invocations", n)
-			}
-		})
-	}
-}
-
 // eventsOfWord is the run's events of one type.
 func eventsOfWord(t *testing.T, runDir, word string) []*record.Event {
 	t.Helper()
@@ -569,38 +524,6 @@ func TestEveryHelpAnswerIsAdmitted(t *testing.T) {
 		if !seen[page] {
 			t.Errorf("a drive names the page %q, and no such page states an answer", page)
 		}
-	}
-}
-
-// A seat's invocation writes no correction: the one path that does is migrate's replay, and Append
-// refuses an identity that carries one outside a migration.
-func TestNoSeatIdentityCarriesACorrection(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	runDir := actFixture(t)
-	must(t, runDir, "log", "--seat-id", "blue-respond", "--type", "defect", "--reason", "a lost word")
-	run, err := record.OpenRun(runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	logs := eventsOfWord(t, runDir, "log")
-	id := record.Identity{Run: run, SeatID: "blue-respond",
-		Correct: &record.Correct{Type: recordpb.EventType_EVENT_TYPE_LOG, Key: logs[len(logs)-1].GetKey(), Why: "a word was lost"}}
-	body := &recordpb.Log{Text: strPtr("the word restored"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
-	if _, err := record.Append(id, body); err == nil || !strings.Contains(err.Error(), "written by migrate") {
-		t.Fatalf("Append admitted a correction outside a migration: %v", err)
-	}
-	if n := len(eventsOfWord(t, runDir, "correction")); n != 0 {
-		t.Fatalf("the record holds %d correction(s)", n)
-	}
-	// Migrate's replay still writes the pair.
-	record.Migrating = true
-	_, err = record.Append(id, body)
-	record.Migrating = false
-	if err != nil {
-		t.Fatalf("a migration's replay of a correction was refused: %v", err)
-	}
-	if n := len(eventsOfWord(t, runDir, "correction")); n != 1 {
-		t.Fatalf("the replay wrote %d correction(s), want one", n)
 	}
 }
 

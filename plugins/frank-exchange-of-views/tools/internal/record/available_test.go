@@ -28,7 +28,6 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		// What a blue-respond sitting owes for a gap it found open, discharged, so nothing blocks.
 		recordtest.Event(t, "blue-respond", seatLog("nothing in the way")),
-		recordtest.Event(t, "blue-respond", &recordpb.Revision{}),
 		recordtest.Event(t, "blue-respond", &recordpb.Position{Text: proto.String("what the bench is asked to weigh")}),
 	})
 	s := SittingOf(b.Events, b.At.IDs(b.Events), b.At, workStatesOfFamilyT(b), "blue", "blue-respond")
@@ -294,23 +293,6 @@ func TestARegradeOnTheListIsOneTheWritePathAdmits(t *testing.T) {
 		admitted(t, run, id, secondKey)
 	})
 
-	// A CORRECTION IS NOT A SECOND RULING. The chair rules and restates its opinion in its sitting
-	// (a correction cannot change the verdict); the motion carries the replacement, in the place
-	// the ruling was first made, and the one regrade that follows discharges it.
-	t.Run("an accepted ruling corrected in its sitting", func(t *testing.T) {
-		dir, run, id := start(t, regradeLens)
-		recordtest.Seed(t, dir, gradeMotionFiled(t, "M1", "G1"))
-		chair := sit(t, run, "red-chair")
-		rule := func(opinion string) *recordpb.MotionRule {
-			r := gradeMotionRuled(t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule()
-			r.Opinion = proto.String(opinion)
-			return r
-		}
-		k := mustAppend(t, chair, rule("ruled")).GetKey()
-		mustReplay(t, correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
-			rule("the grade moves, and here is why"))
-		admitted(t, run, id, firstKey)
-	})
 }
 
 // THE OWED REGRADE NAMES THE AXIS AND THE GRADE THE RULING ACCEPTED, as fields on the gap's work

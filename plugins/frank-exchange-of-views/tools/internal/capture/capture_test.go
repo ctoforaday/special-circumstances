@@ -280,19 +280,16 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 // Record-parity is per blue sitting: one that owed an answer carries a position, and one that found
 // its gap closed owes none.
 //
-// A POSITION IS THE WHOLE OF WHAT IT HOLDS A SITTING TO. A sitting that filed its position and no
-// revision is complete, and a revision — the type a migrated archive still holds — stands in for
-// nothing: a sitting that filed one and no position is short, and the audit names the position and
-// nothing else.
+// A POSITION IS THE WHOLE OF WHAT IT HOLDS A SITTING TO: a sitting that filed none is short, and the
+// audit names the position and nothing else.
 func TestRecordParityAudit(t *testing.T) {
 	position := &recordpb.Position{Text: proto.String("G1 is repaired")}
-	revision := &recordpb.Revision{Text: proto.String("the G1 edit")}
 
 	a := RecordParityAudit(blueSittingRun(t, false, true, position))
 	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "1 owed an answer and each carries its position") {
 		t.Errorf("a sitting that answered with a position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
-	for name, acts := range map[string][]proto.Message{"a revision and no position": {revision}, "nothing": nil} {
+	for name, acts := range map[string][]proto.Message{"a log and no position": {&recordpb.Log{Text: proto.String("the G1 edit"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}}, "nothing": nil} {
 		a = RecordParityAudit(blueSittingRun(t, false, true, acts...))
 		if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "engaged on G1 still open when it sat, filed no position") {
 			t.Errorf("a sitting that owed G1 and filed %s: want a FAIL naming the position, got %s (%s)", name, a.Verdict, a.Detail)
@@ -387,53 +384,6 @@ func TestCaptureClosesTheLastSittingALiveReaderCannot(t *testing.T) {
 	a := RecordParityAudit(run)
 	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 2, engaged on G4 still open when it sat, filed no position") {
 		t.Errorf("capture holds the last sitting to its missing position: want FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
-	}
-}
-
-// A REGISTER THAT NAMES A REPAIRED SITTING PASSES PARITY FOR IT (#1002, ruling 2). No command writes
-// one; the record can hold one, and its readers answer for it. Blue's agent sat on G1, edited, and
-// returned with no position, and its stop closed the sitting. A second agent, under a register
-// naming that sitting, files the position and returns. Parity holds the sitting to what it and its
-// repair filed. The same acts after a register that repairs nothing land in a sitting of their own,
-// and the dispatched sitting fails — which is what the field is for.
-func TestARepairFiledAfterTheSittingsStopPassesParity(t *testing.T) {
-	seed := func(t *testing.T, repair *recordpb.Register) record.Run {
-		n := 0
-		at := func(seat, key string, body proto.Message) *record.Event {
-			n++
-			if key == "" {
-				key = fmt.Sprintf("%s:%d", seat, n)
-			}
-			return recordtest.At(t, seat, key, body)
-		}
-		stop := func(agent string) *record.Event {
-			return at(record.HarnessSeat, "", &recordpb.SittingClose{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:blue-researcher")})
-		}
-		dir := t.TempDir()
-		recordtest.Seed(t, dir,
-			at("red-chair", "", &recordpb.Register{}),
-			at("red-chair", "", &recordpb.Position{Text: proto.String("what the bench is asked to hold")}),
-			at("red-lens-logic", "", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
-				RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
-				CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-				Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
-			at("red-chair", "", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
-			at("blue-respond", "blue-respond:register:#1", &recordpb.Register{AgentId: proto.String("blue-a")}),
-			at("blue-respond", "", &recordpb.BlueEdit{Answers: proto.String("G1"), Old: proto.String("a"), New: proto.String("b")}),
-			stop("blue-a"),
-			at("blue-respond", "blue-respond:register:#2", repair),
-			at("blue-respond", "", &recordpb.Position{Text: proto.String("G1 is repaired")}),
-			stop("blue-b"),
-		)
-		return runtest.Open(t, dir)
-	}
-	repaired := seed(t, &recordpb.Register{AgentId: proto.String("blue-b"), RepairsSitting: proto.String("blue-respond:register:#1")})
-	if a := RecordParityAudit(repaired); a.Verdict != "PASS" {
-		t.Errorf("a sitting whose repair filed its position: want PASS, got %s (%s)", a.Verdict, a.Detail)
-	}
-	plain := seed(t, &recordpb.Register{AgentId: proto.String("blue-b")})
-	if a := RecordParityAudit(plain); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "blue sitting 1, engaged on G1 still open when it sat, filed no position") {
-		t.Errorf("the same acts after a register that repairs nothing are a sitting of their own: want FAIL, got %s (%s)", a.Verdict, a.Detail)
 	}
 }
 
@@ -1035,8 +985,8 @@ func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
 // failure if the error folded into it. TerminalVerdict makes two reads — the bench's recorded
 // outcome, and the record's own derivation when the bench is silent — and each is failed in turn,
 // because the fold was removed from the first and left on the second, where a busy record under
-// the halt read convicted exactly as before. The failure is made by dropping the view or table
-// through the run's cached handle, the same way every later read of that run would then fail.
+// the halt read convicted exactly as before. The failure is made by dropping a table through the
+// run's cached handle, the same way every later read of that run would then fail.
 func TestLivenessReportsAnUnreadableRecordRatherThanConvicting(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
@@ -1045,7 +995,7 @@ func TestLivenessReportsAnUnreadableRecordRatherThanConvicting(t *testing.T) {
 		drop    string // what the failing read asks for
 		object  string // its name, which the SKIP must carry
 	}{
-		{"the recorded outcome", true, `DROP VIEW "live_event"`, "live_event"},
+		{"the recorded outcome", true, `DROP TABLE "outcome"`, "outcome"},
 		{"the derived verdict", false, `DROP TABLE "halt"`, "halt"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

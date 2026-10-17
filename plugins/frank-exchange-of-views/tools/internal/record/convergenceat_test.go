@@ -96,13 +96,12 @@ func TestTheConvergenceFractionIsTheRuns(t *testing.T) {
 }
 
 // THE GATE READS THE BOARD AS IT STANDS. A gap is seeded in every state it can hold when a FAIL is
-// written — never regraded, regraded, closed, minted fresh in the FAIL's epoch, and regraded with the
-// regrade corrected — and at each FAIL the write path's convergence over the record just before it
+// written — never regraded, regraded, closed, minted fresh in the FAIL's epoch, and regraded twice —
+// and at each FAIL the write path's convergence over the record just before it
 // is compared field by field with the board worked out by hand. The run's fraction is 0.5, which is
 // what makes FAIL #4 converged (mass 21 against a peak of 46); at setup's default it would not be.
 //
-// A CORRECTED ACT IS READ AS ITS REPLACEMENT: K's regrade is corrected before FAIL #2, so FAIL #2
-// reads the replacement.
+// THE LATER ACT IS READ: K is regraded twice before FAIL #2, so FAIL #2 reads the second regrade.
 func TestTheGateJudgesTheBoardAsItStandsAtEachFail(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		// Epoch 1: eight gaps, then FAIL #1 over all of them.
@@ -112,31 +111,25 @@ func TestTheGateJudgesTheBoardAsItStandsAtEachFail(t *testing.T) {
 		add(evLens, gradedMint("C", gMed, gMed, gMed)).    // regraded down after FAIL #2, up after FAIL #4
 		add(evLens, gradedMint("D", gHigh, gHigh, gHigh)). // closed before FAIL #2
 		add(evLens, gradedMint("E", gHigh, gHigh, gHigh)). // closed after FAIL #2
-		add(evLens, gradedMint("R", gLow, gLow, gLow)).    // regraded before FAIL #2, the regrade corrected after it
-		add(evLens, gradedMint("S", gLow, gLow, gLow)).    // closed before FAIL #2, the close corrected after it
-		add(evLens, gradedMint("K", gLow, gLow, gLow)).    // regraded and the regrade corrected, both before FAIL #2
+		add(evLens, gradedMint("R", gLow, gLow, gLow)).    // regraded before FAIL #2, regraded again after it
+		add(evLens, gradedMint("S", gLow, gLow, gLow)).    // closed before FAIL #2, closed again after it
+		add(evLens, gradedMint("K", gLow, gLow, gLow)).    // regraded twice, both before FAIL #2
 		add("red-chair", failVerdict()).
 		// Epoch 2.
 		register("red-chair").
 		add(evLens, gradedRegrade("B", gHigh, gHigh, gHigh)).
 		add(evLens, repairClose("D")).
 		add(evLens, gradedRegrade("R", gLow, gHigh, gHigh))
-	regradeR := b.lastKey()
 	b.add(evLens, repairClose("S"))
-	closeS := b.lastKey()
 	b.add(evLens, gradedRegrade("K", gLow, gMed, gMed))
-	regradeK := b.lastKey()
-	b.add(evLens, gradedRegrade("K", gLow, gHigh, gMed))
-	b.add(evLens, &recordpb.Correction{Corrects: proto.String(regradeK), Replacement: proto.String(b.lastKey()), Why: proto.String("impact misread")}).
+	b.add(evLens, gradedRegrade("K", gLow, gHigh, gMed)).
 		add("red-chair", failVerdict()).
 		add(evLens, gradedRegrade("C", gLow, gLow, gLow)).
 		add(evLens, repairClose("E")).
 		add(evLens, gradedRegrade("R", gLow, gMed, gMed))
-	b.add(evLens, &recordpb.Correction{Corrects: proto.String(regradeR), Replacement: proto.String(b.lastKey()), Why: proto.String("overstated")})
 	reworded := repairClose("S")
 	reworded.Prose = proto.String("fixed, as the source now reads")
-	b.add(evLens, reworded)
-	b.add(evLens, &recordpb.Correction{Corrects: proto.String(closeS), Replacement: proto.String(b.lastKey()), Why: proto.String("reworded")}).
+	b.add(evLens, reworded).
 		// Epoch 3: F is fresh and material before FAIL #3; G is minted after it in the same epoch.
 		register("red-chair").
 		add(evLens, gradedMint("F", gMed, gMed, gMed)).

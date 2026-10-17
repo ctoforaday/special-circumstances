@@ -555,7 +555,6 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	})
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, blue, blue+":position", &recordpb.Position{Text: proto.String("blue says otherwise")}),
-		recordtest.At(t, blue, blue+":revision", &recordpb.Revision{Text: proto.String("blue revised")}),
 		recordtest.At(t, blue, blue+":inquiry:Q1", &recordpb.Inquiry{
 			InquiryId: proto.String("Q1"),
 			Question:  proto.String("try the archive"),

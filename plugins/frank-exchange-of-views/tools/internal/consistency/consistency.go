@@ -114,12 +114,11 @@ func walk(events []*record.Event) *groundTruth {
 	}
 
 	// THE WALK'S OWN COUNT OF THE CHAIR'S SITTINGS, advanced before any continue. A chair sitting
-	// opens at the hook's bracket naming red-chair or at a chair register that repairs no sitting,
-	// and a bracket or register under an agent the hook already bracketed for the chair joins that
+	// opens at the hook's bracket naming red-chair or at a chair register, and a bracket or register under an agent the hook already bracketed for the chair joins that
 	// sitting rather than opening another — the write path's rule, counted here from the events
 	// rather than read from the sitting it stored.
 	//
-	// READ OFF THE RAW FIELDS — the type, register.repairs_sitting, sitting_open.seat_id, and each
+	// READ OFF THE RAW FIELDS — the type, sitting_open.seat_id, and each
 	// body's agent_id — never through the write path's own predicates (recordpb.SeatOpeningSitting,
 	// AgentOpening). An oracle that calls the writer's predicate agrees with it by construction, so a
 	// defect there would pass parity on every record.
@@ -131,7 +130,7 @@ func walk(events []*record.Event) *groundTruth {
 		switch e.GetType() {
 		case recordpb.EventType_EVENT_TYPE_REGISTER:
 			reg, _ := body.(*recordpb.Register)
-			chairOpens = e.GetSeatId() == "red-chair" && (reg == nil || reg.RepairsSitting == nil)
+			chairOpens = e.GetSeatId() == "red-chair"
 			agent = reg.GetAgentId()
 		case recordpb.EventType_EVENT_TYPE_SITTING_OPEN:
 			open, _ := body.(*recordpb.SittingOpen)
@@ -307,47 +306,11 @@ func Check(run record.Run) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("consistency: reading the record: %w", err)
 	}
-	// THE GROUND TRUTH IS THE ACTS THAT STAND. An act its seat corrected in the sitting is not the
-	// record's answer — its replacement is, in its place — so the walk folds Live. That makes the
-	// walk lean on the same overlay the readers do, which is why the section below holds that
-	// overlay to the SQL views, an independent statement of the same fact.
-	gt := walk(record.Live(m.Events))
+	gt := walk(m.Events)
 
 	var v []string
 	add := func(rule, format string, args ...any) {
 		v = append(v, rule+": "+fmt.Sprintf(format, args...))
-	}
-
-	// ---- struck vs live (plans/same-sitting-correction.md S7) ----
-	// Two homes state which acts a correction struck and where each standing act stands: the SQL
-	// views every winner query reads (`struck`, `live_event`) and the Go overlay every fold and
-	// listing reads (StruckIndex, Live). They must agree act for act, in order.
-	if sk, err := record.StruckKeys(run); err != nil {
-		add("struck-vs-live", "the struck view could not be read: %v", err)
-	} else {
-		if goKeys := record.StruckIndexOf(m.Events).Keys(); !sameSet(sk, goKeys) {
-			add("struck-vs-live", "the struck view names %v and the Go overlay strikes %v", sk, goKeys)
-		}
-		lk, err := record.LiveKeys(run)
-		if err != nil {
-			add("struck-vs-live", "live_event could not be read: %v", err)
-		} else {
-			live := record.Live(m.Events)
-			goOrder := make([]string, len(live))
-			for i, e := range live {
-				goOrder[i] = e.GetKey()
-			}
-			if len(lk) != len(goOrder) {
-				add("struck-vs-live", "live_event holds %d acts and Live holds %d", len(lk), len(goOrder))
-			} else {
-				for i := range lk {
-					if lk[i] != goOrder[i] {
-						add("struck-vs-live", "act %d stands as %q in live_event and as %q in Live", i, lk[i], goOrder[i])
-						break
-					}
-				}
-			}
-		}
 	}
 
 	// A DOCKET RULING THE WALK COULD NOT PAIR settles no gap here and would settle none on the

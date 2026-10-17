@@ -178,7 +178,7 @@ func TestJudgeSittingsAreTheStoredSittings(t *testing.T) {
 }
 
 // EVERY BENCH SITTING IS A JUDGE SITTING, whatever it was convened to do: a petition hearing and
-// the assembly sit as surely as a docket ruling. A register that repairs a sitting opens none.
+// the assembly sit as surely as a docket ruling.
 func TestEveryBenchSittingIsCounted(t *testing.T) {
 	bench := func(agent string, o recordpb.Occasion) *recordpb.Event {
 		return recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String(agent), Occasion: o.Enum()})
@@ -187,14 +187,12 @@ func TestEveryBenchSittingIsCounted(t *testing.T) {
 	recordtest.Seed(t, dir,
 		registered(t, "red-chair", "C1"),
 		bench("J1", recordpb.Occasion_OCCASION_DOCKET),
-		recordtest.Event(t, "judge", &recordpb.Register{AgentId: proto.String("J1b"),
-			Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum(), RepairsSitting: proto.String("judge:register:#1")}),
 		bench("J2", recordpb.Occasion_OCCASION_PETITION),
 		bench("J3", recordpb.Occasion_OCCASION_TERMINAL),
 		bench("J4", recordpb.Occasion_OCCASION_ASSEMBLE),
 	)
 	if n := BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0).Judiciary.JudgeSittings; n != 4 {
-		t.Errorf("JudgeSittings = %d, want 4 (docket, petition, terminal, assemble; the repair opens none)", n)
+		t.Errorf("JudgeSittings = %d, want 4 (docket, petition, terminal, assemble)", n)
 	}
 }
 

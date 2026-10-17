@@ -143,20 +143,43 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	} else if wrote {
 		res.Out["cast"]++
 	}
-	// A CORRECTION IS REPLAYED AS THE PAIR IT WAS WRITTEN AS (plans/same-sitting-correction.md,
-	// S10). On the source record the replacement sits immediately before its Correction — one
-	// transaction wrote both — and the write path refuses either alone: a replacement re-driven as
-	// an ordinary act lands on its target's key, and a Correction appended on its own is refused.
-	// So the replacement is re-driven AS A CORRECTION of its target's MIGRATED key, which writes
-	// both, and the source Correction is then passed over. Who and when are re-checked against the
-	// replayed record in the original order, which is the order they held in.
-	correctionWord := recordpb.Word(recordpb.EventType_EVENT_TYPE_CORRECTION)
-	fixes := map[string]OldEvent{} // source replacement key -> the correction that names it
+	// A CORRECTION CHAIN IS WRITTEN ONCE, AS ITS HEAD, IN ITS ROOT'S PLACE. A source at epoch 26 or
+	// earlier may hold a seat's same-sitting correction: a Correction naming the act it struck and
+	// the replacement that took its place, the replacement written right beside it. The record holds
+	// no correction, and every act stands as filed; the act the seat meant is the chain's HEAD, so
+	// it is written where the chain began — at the root's place, under the root's stamp — as the
+	// ordinary act it is, and every later link and every Correction is passed over. The root's place
+	// is the one every reader of the source gave the chain (its standing order), so no act that
+	// depends on it changes sides. A chain whose head translates to no event writes nothing.
+	const correctionWord = "correction" // the word a source spells a Correction with
+	corrects := map[string]string{}     // source key of a corrected act -> the key of its replacement
+	replaces := map[string]bool{}       // source keys that replaced another act
+	byKey := map[string]OldEvent{}
 	for _, old := range evs {
+		if old.Key != "" {
+			byKey[old.Key] = old
+		}
 		if old.Word == correctionWord {
-			if r, _ := old.Fields["replacement"].(string); r != "" {
-				fixes[r] = old
+			c, _ := old.Fields["corrects"].(string)
+			r, _ := old.Fields["replacement"].(string)
+			if c != "" && r != "" {
+				corrects[c], replaces[r] = r, true
 			}
+		}
+	}
+	// chainOf is the chain a root begins: its links in order, root first, and its head.
+	chainOf := func(root string) (links []string, head OldEvent, ok bool) {
+		for k := root; ; {
+			links = append(links, k)
+			next, corrected := corrects[k]
+			if !corrected {
+				head, ok = byKey[k]
+				return links, head, ok
+			}
+			if len(links) > len(corrects) {
+				return links, OldEvent{}, false
+			}
+			k = next
 		}
 	}
 	// THE ID TABLE IS FILLED BEFORE ANYTHING IS WRITTEN. A seat's prose names ids minted after it —
@@ -170,7 +193,6 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		}
 	}
 	place := newPlacer(batch.Querier(), evs, rm.ids)
-	newKey := map[string]string{} // source key -> the key the migrated event carries
 	// THE EVENTS.ID A DISPATCH PINS IS TRANSLATED AS AN ID IS. The cast written first, an anchor
 	// placed after an act and a source event that writes nothing each move every later row, so a
 	// pin carried as written names whatever the migrated record holds at that number. A pin names
@@ -178,24 +200,31 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	// pin is the id of the event that source head was written as.
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
-	paired := map[int64]bool{} // source corrections already written beside their replacement
 	for _, old := range evs {
 		res.In[old.Word]++
-		if old.Word == correctionWord {
-			if !paired[old.ID] {
-				// LOUD, NOT DROPPED: a correction whose replacement did not land would leave a
-				// replacement nothing marks as one, or a strike with nothing in its place.
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
-					Err: fmt.Sprintf("this correction names replacement %v, which did not land as a correction on the migrated record — it is absent from the source or was itself refused", old.Fields["replacement"])})
-			}
+		// A Correction, and a replacement, are written with the chain's root.
+		if old.Word == correctionWord || replaces[old.Key] {
 			continue
+		}
+		// src is what this place writes: the act itself, or the head of the chain it begins.
+		src, links, chained := old, []string{old.Key}, false
+		if _, corrected := corrects[old.Key]; corrected && old.Key != "" {
+			var head OldEvent
+			var ok bool
+			links, head, ok = chainOf(old.Key)
+			if !ok {
+				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+					Err: fmt.Sprintf("this act begins a correction chain (%s) whose head the source does not hold — the chain's last replacement is absent, so nothing says which act stands", strings.Join(links, " -> "))})
+				continue
+			}
+			src, chained = head, true
 		}
 		seatID, err := rm.seat(old.SeatID)
 		if err != nil {
 			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
-		bodies, err := reg.Translate(old)
+		bodies, err := reg.Translate(src)
 		if err != nil {
 			var loss LossError
 			if as(err, &loss) && opt.AcceptLoss[loss.Word] {
@@ -213,21 +242,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 		}
 		record.Now = func() time.Time { return ts }
 		id := record.Identity{Run: dst, SeatID: seatID}
-		fix, isReplacement := fixes[old.Key]
-		if isReplacement && old.Key != "" {
-			corrects, _ := fix.Fields["corrects"].(string)
-			target, ok := newKey[corrects]
-			if !ok || len(bodies) != 1 {
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
-					Err: fmt.Sprintf("this act replaced %s by a same-sitting correction, and that act did not land on the migrated record", corrects)})
-				continue
+		// refused words a refusal of an act written for a chain as the chain's.
+		refused := func(err error) string {
+			if chained {
+				return fmt.Sprintf("the correction chain %s is written as its head at the root's place, and the write refuses it there: %v", strings.Join(links, " -> "), err)
 			}
-			typ, err := recordpb.SetBody(&recordpb.Event{}, bodies[0])
-			if err != nil {
-				return nil, err
-			}
-			why, _ := fix.Fields["why"].(string)
-			id.Correct = &record.Correct{Type: typ, Key: target, Why: rm.respell("Correction.why", why)}
+			return err.Error()
 		}
 		for _, body := range bodies {
 			// NO EPOCH IS CARRIED. The archived row's epoch was recovered from its seat id by regex
@@ -235,7 +255,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// replayed (events_w."epoch"), which is the same fact from the record rather than from
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
-			rm.apply(body, old.Fields["label"])
+			rm.apply(body, src.Fields["label"])
 			if b, ok := body.(*recordpb.BaseIngest); ok {
 				res.base = b.GetText()
 				if inOrder {
@@ -271,20 +291,24 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 						Value: recordpb.Word(v), Why: byGradeFillWhy})
 				}
 			}
-			anchorAfter, err := place.step(body, id.Correct != nil)
+			anchorAfter, err := place.step(body)
 			if err != nil {
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
 			ev, err := batch.Append(id, body)
 			if err != nil {
-				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
 				continue
 			}
 			res.Out[wordOf(ev)]++
 			if _, seen := newID[old.ID]; !seen {
 				if err := batch.Querier().QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&wrote); err != nil {
 					return nil, fmt.Errorf("reading the id of the event written from source event %d: %w", old.ID, err)
+				}
+				// Every link of a chain is the one act written here.
+				for _, k := range links[1:] {
+					newID[byKey[k].ID] = wrote
 				}
 				newID[old.ID] = wrote
 			}
@@ -295,13 +319,6 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
 				}
-			}
-			if _, seen := newKey[old.Key]; old.Key != "" && !seen {
-				newKey[old.Key] = ev.GetKey()
-			}
-			if id.Correct != nil {
-				paired[fix.ID] = true
-				res.Out[correctionWord]++
 			}
 		}
 	}

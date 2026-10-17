@@ -27,15 +27,15 @@ import (
 // of. So a gap reaches the bench at most twice through the dispatch, and the run cannot cycle
 // between the bench and the debate.
 
-// remandRow is one row of the "remand" view: a standing remand ruling on a gap.
+// remandRow is one row of the "remand" view: a remand ruling on a gap.
 type remandRow struct {
 	eventID, sitting int64
 	direction        string
 }
 
-// remandRulingsOf reads the "remand" view, by gap, in the order the rulings stand (pos).
+// remandRulingsOf reads the "remand" view, by gap, in record order.
 func remandRulingsOf(db recordsql.Querier) (map[string][]remandRow, error) {
-	rows, err := db.Query(`SELECT "gap_id", "event_id", "sitting_id", COALESCE("direction", '') FROM "remand" ORDER BY "pos"`)
+	rows, err := db.Query(`SELECT "gap_id", "event_id", "sitting_id", COALESCE("direction", '') FROM "remand" ORDER BY "event_id"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for the bench's remands: %w", err)
 	}

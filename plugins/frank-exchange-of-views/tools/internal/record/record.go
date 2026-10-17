@@ -132,12 +132,6 @@ type Identity struct {
 	// struct literal that skipped the constructor.
 	Run    Run
 	SeatID string
-
-	// Correct, when set, makes this identity's write of Correct.Type the replacement of the act
-	// Correct.Key names, written with its Correction (see Correct). MIGRATE ALONE SETS IT, replaying
-	// a correction an archived record holds: Append refuses it outside a migration, and no seat's
-	// identity carries one (cli/seat Context.Identity).
-	Correct *Correct
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -324,8 +318,7 @@ func envelope(ev *Event, ts, seatID string, key string) {
 // SINGLETON MEANS ONCE PER SITTING, AND THE DUTY IS NOT THE KEY. One chair sits many times
 // (plans/roundless.md §III.A.1), so a key of `red-chair:position` would make a position once per
 // RUN. The ordinal below is the count of this seat's stored sittings (the `sittings` view), the
-// rank events_w exposes as "sitting", taken inside the writing transaction; a repair opens no
-// sitting, so its acts carry the ordinal of the sitting it repairs. The duty itself is asked of the
+// rank events_w exposes as "sitting", taken inside the writing transaction. The duty itself is asked of the
 // ATTRIBUTED sitting, in requireOncePerSitting (oncepersitting.go), which is what makes the
 // refusal's "this sitting" true.
 //
@@ -336,7 +329,6 @@ func envelope(ev *Event, ts, seatID string, key string) {
 // re-dispatched seat gets `#2`.
 var singleton = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_POSITION:   true,
-	recordpb.EventType_EVENT_TYPE_REVISION:   true,
 	recordpb.EventType_EVENT_TYPE_VERDICT:    true,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: true,
 }
@@ -629,40 +621,6 @@ func appendAct(id Identity, body proto.Message, begin func() (*sql.Tx, error), g
 	if err != nil {
 		return nil, err
 	}
-	// AN APPEAL IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. No seat appeals a ruling: a ruling stands
-	// as made, and a seat that disagrees with one answers it with another act — a docket motion on
-	// the gap, which the bench rules. An archived record that holds an appeal is replayed with it.
-	if typ == recordpb.EventType_EVENT_TYPE_MOTION_APPEAL && !Migrating {
-		return nil, feov.Errorf(feov.Validation,
-			"an appeal is written by migrate from an archived record, never by a seat — a ruling stands as made, and a seat that disagrees with one answers it with another act")
-	}
-	// A CORRECTION IS WRITTEN BY MIGRATE AND BY NOTHING ELSE. An archived record holds the ones its
-	// seats made, and migrate replays each as the pair it was written as; a live record gains none —
-	// an act stands as filed, and what answers a wrong one is another act (supersede.go). The one
-	// body of the corrected type written through the identity is the replacement.
-	if c := id.Correct; c != nil && typ == c.Type {
-		if !Migrating {
-			return nil, feov.Errorf(feov.Validation,
-				"a correction is written by migrate together with the act it replaces, never by a seat — an act stands as filed, and a wrong one is answered by a new act")
-		}
-		if c.written {
-			return nil, feov.Errorf(feov.Validation,
-				"this identity already wrote its correction of %s — a second %s through it would be an act with no key to name it by",
-				c.Key, recordpb.Word(typ))
-		}
-		// Set before the transaction is asked for, so a replacement that then fails to land still
-		// spends the identity: the act it would have been is the one the identity names, landed or
-		// not, and a second body through it is refused either way.
-		if len(guards) > 0 {
-			return nil, feov.Errorf(feov.Internal, "a correction is migrate's replay of an archived act, and no verb's guard is asked of it — this write passed %d", len(guards))
-		}
-		c.written = true
-		tx, err := begin()
-		if err != nil {
-			return nil, err
-		}
-		return appendCorrected(id, tx, ev, typ, body)
-	}
 	tx, err := begin()
 	if err != nil {
 		return nil, err
@@ -797,19 +755,10 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 // schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
 // than assumed: see the filing/ruling arms below.
 //
-// TARGET IS THE ACT A REPLAYED CORRECTION REPLACES, nil for every ordinary write. A guard that
-// refuses because "this has already happened" must pass when what already happened IS the act
-// being replaced — a closure's correction names a closed gap by definition. validate is the
-// ordinary write's form; validateAgainst is migrate's replay of a correction.
-//
 // W IS THE WRITING TRANSACTION AND THE RUN'S FILES (writeView), and every question below is asked of
 // it: a check another seat's commit could falsify is a check of the record the event lands on only
 // when it is asked under the write lock the insert holds.
 func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Message) error {
-	return validateAgainst(w, seatID, typ, body, nil)
-}
-
-func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body proto.Message, target *correctionTarget) error {
 	q := w.q
 	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
 	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
@@ -854,24 +803,11 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 				return err
 			}
 		}
-	case *recordpb.MotionAppeal:
-		// MIGRATE'S REPLAY ONLY (Append). An archived appeal is held to what makes it a record: it
-		// names a motion some filing created.
-		if b.GetMotionId() != "" {
-			if _, err := requireMotionSubjectRef(q, b.GetSubject(), b.GetMotionId()); err != nil {
-				return err
-			}
-		}
 	}
 	if err := recordpb.CheckRequired(body); err != nil {
 		return err
 	}
 	switch b := body.(type) {
-	case *recordpb.Correction:
-		// A CORRECTION IS NEVER APPENDED ON ITS OWN. It is written by appendCorrected in the same
-		// transaction as the replacement it names; one without the other is a strike with nothing
-		// in its place, or a replacement nothing marks as one.
-		return fmt.Errorf("a correction is written by migrate together with the act it replaces, never on its own")
 	case *recordpb.Anchor:
 		// An Anchor places one marker, of any kind, at its quote's end. It keys on `id` via
 		// deriveKey, so a retry writes one event rather than a second marker.
@@ -1055,7 +991,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
-		if b.CarriedFrom == nil && !closedByTarget(q, b.GetGapId(), target) {
+		if b.CarriedFrom == nil {
 			if err := requireOpenGap(q, b.GetGapId(), "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
@@ -1156,10 +1092,6 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 	case *recordpb.Position:
 		if b.GetText() == "" {
 			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position")
-		}
-	case *recordpb.Revision:
-		if b.GetText() == "" {
-			return fmt.Errorf("requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "revision")
 		}
 	case *recordpb.Regrade:
 		// regradesAfforded (available.go) lists a regrade only where these three admit it and
@@ -1464,9 +1396,8 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// where a run ended UNVERIFIED — before the record reached a terminal state — nothing
 		// else records why; DeriveVerdict says so itself.
 		//
-		// A correction re-states an outcome already recorded, and a migration replays one, so
-		// neither is held to the bench's motions.
-		if target == nil && !Migrating {
+		// A migration replays an outcome already recorded, so it is not held to the bench's motions.
+		if !Migrating {
 			if err := requireBenchMotionsRuled(q); err != nil {
 				return err
 			}

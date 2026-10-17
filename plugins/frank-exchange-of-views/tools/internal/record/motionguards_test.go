@@ -17,8 +17,7 @@ import (
 // record.Append — the path a fixture, migrate, the fuzz or a future harness takes — so a guard
 // that lives only in a verb fails here. After every row, admitted or refused, the Go fold and
 // the SQL view must name the same answer. Both read the ruling that stands;
-// TestEveryMotionReaderStatesTheRulingThatStands holds them to it beside a correction, a remand and
-// archived appeals.
+// TestEveryMotionReaderStatesTheRulingThatStands holds them to it beside a remand.
 func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	gradeRule := func(r recordpb.GradeRuling) *recordpb.MotionRule {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"),
@@ -27,9 +26,6 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	inquiryRule := func(r recordpb.InquiryRuling) *recordpb.MotionRule {
 		return &recordpb.MotionRule{MotionId: proto.String("Q1"),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
-	}
-	appeal := func(id, reason string) *recordpb.MotionAppeal {
-		return &recordpb.MotionAppeal{MotionId: proto.String(id), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Reason: proto.String(reason)}
 	}
 	finalDocketRule := func() *recordpb.MotionRule {
 		r := docketRule("M2", "the bench rules again")
@@ -84,19 +80,6 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 			motion: "Q1", ruling: "out_of_scope",
 		},
 		{
-			name: "a correction of the ruling in its sitting is admitted",
-			act: func(t *testing.T, run Run) error {
-				chair := sit(t, run, "red-chair")
-				k := mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED)).GetKey()
-				// A correction restates the seat's own wording; the ruling it corrects stands.
-				fixed := gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED)
-				fixed.Opinion = proto.String("the grade stands, and here is why")
-				_, err := replayed(correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"), fixed)
-				return err
-			},
-			motion: "M1", ruling: "rejected",
-		},
-		{
 			name: "a ruling under another subject is refused",
 			act: func(t *testing.T, run Run) error {
 				_, err := Append(sit(t, run, "judge"), &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("o"),
@@ -104,34 +87,6 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 				return err
 			},
 			wants:  []string{"motion M1 was filed as a grade motion and you are ruling it as a petition", "the chair's `motion grade rule`"},
-			motion: "M1",
-		},
-		{
-			name: "an appeal is refused outside a migration",
-			act: func(t *testing.T, run Run) error {
-				mustAppend(t, sit(t, run, "red-chair"), gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED))
-				_, err := Append(sit(t, run, "blue-respond"), appeal("M1", "the ruling reads past the argument"))
-				return err
-			},
-			wants:  []string{"an appeal is written by migrate from an archived record, never by a seat", "a ruling stands as made"},
-			motion: "M1", ruling: "rejected",
-		},
-		{
-			name: "an archived appeal is replayed, and moves no answer",
-			act: func(t *testing.T, run Run) error {
-				mustAppend(t, sit(t, run, "red-chair"), gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED))
-				_, err := replayed(sit(t, run, "blue-respond"), appeal("M1", "the ruling reads past the argument"))
-				return err
-			},
-			motion: "M1", ruling: "rejected",
-		},
-		{
-			name: "an archived appeal naming no motion is refused on replay",
-			act: func(t *testing.T, run Run) error {
-				_, err := replayed(sit(t, run, "blue-respond"), appeal("M9", "pressed at nothing"))
-				return err
-			},
-			wants:  []string{"--id names motion M9, which no filing created"},
 			motion: "M1",
 		},
 		{
@@ -192,8 +147,7 @@ func motionGuardRun(t *testing.T) Run {
 }
 
 // motionReadersAgree holds the Go fold and the SQL view to one answer per motion — the ruling and
-// who ruled — and returns the answer each ruled motion carries. A view row with no ruler is an
-// archived appeal of a motion nobody ruled, which is no answer in either reader.
+// who ruled — and returns the answer each ruled motion carries.
 func motionReadersAgree(t *testing.T, run Run) map[string]motionAnswer {
 	t.Helper()
 	fold := map[string]motionAnswer{}
@@ -279,18 +233,11 @@ func inquiryReadersAgree(t *testing.T, run Run) map[string]*Inquiry {
 	return out
 }
 
-// EVERY READER OF A MOTION'S ANSWER STATES THE RULING THAT STANDS, after the legal acts — a ruling
-// corrected in its sitting, an inquiry ruling, a docket remand — went through Append. A correction
-// is not a second answer: the replacement stands in the original's place. A motion holds one
-// ruling: the write refuses a second, migrate's replay included, so no record holds two.
-//
-// AN ARCHIVED APPEAL IS NOT AN ANSWER. No seat writes one and no reader reads one; the rows seeded
-// here stand in for what a migrated record can hold, and they move no motion's answer — an
-// appealed motion nobody ruled reads as unruled.
+// EVERY READER OF A MOTION'S ANSWER STATES THE RULING THAT STANDS, after the legal acts — a grade
+// ruling, an inquiry ruling, a docket remand — went through Append. A motion holds one ruling: the
+// write refuses a second, migrate's replay included, so no record holds two.
 func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	run := motionGuardRun(t)
-	grade := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE)
-	inquiry := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY)
 	gradeRule := func(r recordpb.GradeRuling, opinion string) *recordpb.MotionRule {
 		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
@@ -298,9 +245,6 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	inquiryRule := func(id string, r recordpb.InquiryRuling, opinion string) *recordpb.MotionRule {
 		return &recordpb.MotionRule{MotionId: proto.String(id),
 			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
-	}
-	appeal := func(id string, subject *recordpb.MotionSubject, reason string) *recordpb.MotionAppeal {
-		return &recordpb.MotionAppeal{MotionId: proto.String(id), Subject: subject, Reason: proto.String(reason)}
 	}
 
 	// A second grade motion and a second inquiry, both left unruled by the write.
@@ -312,62 +256,19 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 
 	// The legal acts, through Append.
 	chair := sit(t, run, "red-chair")
-	k := mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "o")).GetKey()
-	if _, err := replayed(correcting(chair, recordpb.EventType_EVENT_TYPE_MOTION_RULE, k, "an unreasoned opinion"),
-		gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why")); err != nil {
-		t.Fatal(err)
-	}
+	mustAppend(t, chair, gradeRule(recordpb.GradeRuling_GRADE_RULING_REJECTED, "the grade stands, and here is why"))
 	mustAppend(t, chair, inquiryRule("Q1", recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE, "the ruling's argument"))
-	mustReplay(t, sit(t, run, "blue-respond"), appeal("M1", grade, "the ruling reads past the argument"))
 	mustAppend(t, sit(t, run, "judge"), docketRule("M2", "the bench remands"))
 	motionReadersAgree(t, run)
 	inquiryReadersAgree(t, run)
-
-	// The archived appeals, and a ruling after one.
-	recordtest.Seed(t, run.dir,
-		recordtest.Event(t, evLens, appeal("M1", grade, "a second appeal")),
-		recordtest.Event(t, "blue-respond", appeal("M4", grade, "an appeal of nothing")),
-		recordtest.Event(t, "blue-respond", appeal("Q2", inquiry, "an appeal before any ruling")),
-		recordtest.Event(t, "red-chair", inquiryRule("Q2", recordpb.InquiryRuling_INQUIRY_RULING_TOO_THIN, "ruled after its appeal")),
-	)
-
-	// Each edge is on the record: standing rulings and archived appeals per motion, and Q2's
-	// appeal ahead of its ruling.
-	db, err := openRunForRead(run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	standing := func(table, id string) (n int, first int64) {
-		t.Helper()
-		var min sql.NullInt64
-		if err := db.QueryRow(`SELECT count(*), MIN(l."pos") FROM "`+table+`" x JOIN "live_event" l ON l."event_id" = x."event_id"
-		  WHERE x."motion_id" = ?`, id).Scan(&n, &min); err != nil {
-			t.Fatal(err)
-		}
-		return n, min.Int64
-	}
-	for _, want := range []struct {
-		id               string
-		rulings, appeals int
-	}{{"M1", 1, 2}, {"M4", 0, 1}, {"Q1", 1, 0}, {"Q2", 1, 1}, {"M2", 1, 0}} {
-		r, _ := standing("motion_rule", want.id)
-		a, _ := standing("motion_appeal", want.id)
-		if r != want.rulings || a != want.appeals {
-			t.Fatalf("motion %s holds %d standing rulings and %d standing appeals; the fixture seeds %d and %d",
-				want.id, r, a, want.rulings, want.appeals)
-		}
-	}
-	_, ruledAt := standing("motion_rule", "Q2")
-	if _, appealedAt := standing("motion_appeal", "Q2"); appealedAt >= ruledAt {
-		t.Fatalf("inquiry Q2's appeal (pos %d) does not precede its ruling (pos %d)", appealedAt, ruledAt)
-	}
+	mustAppend(t, chair, inquiryRule("Q2", recordpb.InquiryRuling_INQUIRY_RULING_TOO_THIN, "too thin to pursue"))
 
 	motions := motionReadersAgree(t, run)
 	if got, want := motions["M1"], (motionAnswer{ruling: "rejected", by: "red-chair"}); got != want {
 		t.Errorf("motion M1 reads %+v; the ruling that stands is %+v", got, want)
 	}
 	if got, ok := motions["M4"]; ok {
-		t.Errorf("motion M4 reads %+v; an archived appeal is no answer, and nobody ruled it", got)
+		t.Errorf("motion M4 reads %+v; nobody ruled it", got)
 	}
 	if got := motions["M2"].ruling; got != "remanded" {
 		t.Errorf("docket motion M2 reads ruled %q, want the bench's remand", got)
@@ -377,7 +278,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 		t.Errorf("inquiry Q1 reads %+v; its ruling is out_of_scope, with that ruling's argument", a)
 	}
 	if a := inquiries["Q2"]; a == nil || a.Ruling != "too_thin" {
-		t.Errorf("inquiry Q2 reads %+v; its ruling is too_thin, whatever appeal the archive holds beside it", a)
+		t.Errorf("inquiry Q2 reads %+v; its ruling is too_thin", a)
 	}
 }
 

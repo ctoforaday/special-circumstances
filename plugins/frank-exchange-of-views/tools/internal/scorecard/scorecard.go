@@ -15,7 +15,7 @@
 // BYTE-IDENTITY NOTES:
 //   - `+(x).toFixed(2)` (epoch to 2 decimals, then Number→string dropping trailing zeros) is
 //     jsToFixed2Num.
-//   - The OBJECT-valued rows (inquiries byStatus, corrections) render via JSON.stringify in
+//   - The OBJECT-valued rows (inquiries byStatus) render via JSON.stringify in
 //     INSERTION order; Go maps sort, so they are built as literal JSON strings (objJSON)
 //     preserving first-seen order — never marshaled from a map.
 package scorecard
@@ -224,7 +224,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	manifestedGaps := map[string]bool{}
 	var owing record.ManifestOwing
 	if fam != nil {
-		for _, e := range fam.Live() {
+		for _, e := range fam.Events {
 			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
 			// falls back to when no denominator exists, so an event of this type whose body did
 			// not decode must still be counted — a short count would read as a low one, which is
@@ -287,7 +287,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		// asserts a problem, so the share below is 1.0 whenever anything was filed at all — what
 		// it now reports is the SPREAD across defect, request and friction.
 		byType := map[string]int{}
-		for _, e := range fam.Live() {
+		for _, e := range fam.Events {
 			if l, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
 				byType[recordpb.Word(l.GetType())]++
 			}
@@ -520,43 +520,10 @@ var Cards = []string{"red", "blue", "bench"}
 func Compute(run record.Run, results []map[string]any, fam *record.Family, when record.ReadWhen) map[string][]Row {
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  append(blueRows(run, results, telemetry, fam, when), correctionsRow(fam, "blue")),
-		"red":   append(redRows(run, results, telemetry, fam), correctionsRow(fam, "chair", "lens")),
-		"bench": append(benchRows(fam), correctionsRow(fam, "bench")),
+		"blue":  blueRows(run, results, telemetry, fam, when),
+		"red":   redRows(run, results, telemetry, fam),
+		"bench": benchRows(fam),
 	}
-}
-
-// correctionsRow counts each seat's same-sitting corrections, for the seats of this card's parties
-// (plans/same-sitting-correction.md F9). The owner ruled correction chains UNCAPPED, so this count
-// is the only brake on a seat that corrects instead of getting it right — which is why it sits on
-// every card, and why it is a count per SEAT rather than one total a single seat could hide in.
-//
-// A record that could not be read is "not measured", never 0: a zero is the claim that no seat on
-// this card corrected anything, and an unread record supports no claim. A readable record with no
-// correction answers {} — measured, and none.
-func correctionsRow(fam *record.Family, parties ...string) Row {
-	r := Row{Clause: "Same-sitting corrections", Metric: "corrections", Cls: "measure",
-		Joint: "correction events per seat on this card; chains are uncapped by ruling, so this count is the only brake"}
-	if fam == nil {
-		r.Note = "the record could not be read — not measured"
-		return r
-	}
-	on := map[string]bool{}
-	for _, p := range parties {
-		on[p] = true
-	}
-	per := map[string]int{}
-	for _, e := range fam.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION && on[record.PartyOf(e)] {
-			per[e.GetSeatId()]++
-		}
-	}
-	b, _ := json.Marshal(per) // map keys marshal sorted, so the value is deterministic
-	r.Value = objJSON(b)
-	if len(per) == 0 {
-		r.Note = "no seat on this card corrected an act"
-	}
-	return r
 }
 
 // RowJSON is one scorecard row as a machine reads it. The rendered card is prose for a human to

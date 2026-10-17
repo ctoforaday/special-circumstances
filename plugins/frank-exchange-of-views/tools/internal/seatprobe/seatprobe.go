@@ -201,21 +201,13 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		return nil, err
 	}
 	c := &Choices{SeatID: seatID, Role: seatclass.RoleOfSeat(seatID), Used: map[string]int{}}
-	// THE LOG IS READ FROM THE ACTS THAT STAND. A log entry the seat corrected in its sitting
-	// would otherwise be listed twice, the struck wording beside the one it meant.
-	live := map[*record.Event]bool{}
-	for _, e := range record.Live(m.Events) {
-		live[e] = true
-	}
 	for _, e := range m.Events {
 		if e.GetSeatId() != seatID {
 			continue
 		}
-		// A CORRECTION IS NOT A VERB. The seat re-ran the corrected act's own verb, and that
-		// invocation is counted under it by its replacement event; counting the correction too
-		// would report a verb no surface offers, and hand substituteFor a name no seat can type.
-		// An Anchor places the marker of the act before it, whose own event names the verb.
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_CORRECTION || e.GetType() == recordpb.EventType_EVENT_TYPE_ANCHOR {
+		// AN ANCHOR IS NOT A VERB: it places the marker of the act before it, whose own event names
+		// the verb.
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_ANCHOR {
 			continue
 		}
 		verb, ok := verbOfEvent[e.GetType()]
@@ -237,7 +229,7 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		// filed nothing, so what lands here is exactly the exceptions, distinguished by type.
 		// `text` is the field the schema gives the seat's own sentence; `reason` was the payload
 		// key that carried it.
-		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok && live[e] {
+		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
 			c.Log = append(c.Log, f.GetText())
 		}
 	}

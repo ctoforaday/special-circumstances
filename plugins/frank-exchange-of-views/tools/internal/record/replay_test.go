@@ -811,7 +811,6 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 	for _, typ := range []recordpb.EventType{
 		recordpb.EventType_EVENT_TYPE_POSITION,
 		recordpb.EventType_EVENT_TYPE_VERDICT,
-		recordpb.EventType_EVENT_TYPE_REVISION,
 		recordpb.EventType_EVENT_TYPE_SPOT_CHECK,
 	} {
 		if !singleton[typ] {

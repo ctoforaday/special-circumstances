@@ -162,9 +162,6 @@ func TestTheValueLookupsRefuseAnUndeclaredNumber(t *testing.T) {
 	if _, _, err := recordpb.Number(nil, "mass"); err == nil {
 		t.Error("Number answered for no value")
 	}
-	if _, _, err := recordpb.EnumFacet(nil, "correct"); err == nil {
-		t.Error("EnumFacet answered for no value")
-	}
 	if _, err := recordpb.RulerOf(nil); err == nil {
 		t.Error("RulerOf answered for no value")
 	}

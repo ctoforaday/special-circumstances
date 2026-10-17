@@ -32,12 +32,6 @@ func listsItem(s SittingJSON, sub string) bool {
 	return false
 }
 
-// repairs writes a register that names key as the sitting it repairs. NO COMMAND WRITES ONE: the
-// stored field stays readable, so the readers that bound a sitting by it keep a fixture.
-func (b *stage) repairs(seat, agent, key string) *stage {
-	return b.add(seat, &recordpb.Register{AgentId: proto.String(agent), RepairsSitting: proto.String(key)})
-}
-
 func (b *stage) position(seat string) *stage {
 	return b.add(seat, &recordpb.Position{Text: proto.String("the position")})
 }
@@ -179,45 +173,6 @@ func TestWhatABlueSittingOwesIsWhatItFoundOpenWhetherOrNotItHasEnded(t *testing.
 				t.Errorf("the work list's reading of the sitting = %q (found %v), want it owing a position = %v", p.State, sitting, c.owes)
 			}
 		})
-	}
-}
-
-// A REPAIR DOES NOT RE-OPEN WHAT THE SITTING IT REPAIRS ALREADY DID (#1026). thisSitting is
-// a reader that ATTRIBUTES — it answers "did this sitting file its log", not "has this turn" — so
-// its window is the sitting the record stored the acts in, from its OPENING (a hook's bracket or a
-// register), never a repair's own register. Starting it at the seat's latest register of any kind
-// would tell the seat that the log channel is open for a sitting that has already filed there, and
-// the work list would name something the sitting has done. No command writes such a register; the
-// record can hold one, and this reader answers for it.
-//
-// WHAT THE SITTING STILL OWES IS STILL OWED, which is the half that must not move with it: a window
-// that swallowed the missing position would report the sitting complete.
-func TestARepairDoesNotReopenTheDutiesTheSittingDischarged(t *testing.T) {
-	sat := func(t *testing.T) (*stage, string) {
-		b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
-			register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "medium").
-			register("red-chair").dispatch(2, "blue-respond", "G1").registerAs("blue-respond", "blue-a")
-		opened := b.lastKey()
-		return b.logEntry("blue-respond").stop("blue-a"), opened
-	}
-
-	b, opened := sat(t)
-	s := sittingOfRunT(t, b.repairs("blue-respond", "blue-b", opened).seed(), "blue", "blue-respond")
-	if listsItem(s, "the log is open") {
-		t.Error("inside the repair the work list asks for a log the sitting it repairs already filed")
-	}
-	if !hasItem(s, "this sitting's position is missing") {
-		t.Error("inside the repair the work list does not name the position the repaired sitting still owes")
-	}
-
-	// THE CONTROL: a plain register is a real second sitting, and every per-sitting duty is owed
-	// again — for a sitting that DID something. An empty second sitting is offered no log (#1089), so the
-	// act here is what makes this a control on the repair window rather than on that rule.
-	again, _ := sat(t)
-	second := again.register("blue-respond").
-		add("blue-respond", &recordpb.Position{Text: proto.String("this sitting took a position")}).seed()
-	if !listsItem(sittingOfRunT(t, second, "blue", "blue-respond"), "the log is open") {
-		t.Error("a genuine second sitting acted, filed no log, and the work list does not say so")
 	}
 }
 

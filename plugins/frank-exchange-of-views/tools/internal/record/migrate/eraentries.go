@@ -37,7 +37,6 @@ func eraEntries() Registry {
 		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
 			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
 		"position":  mapped("position", ren{"reason": "text"}, nil, nil),
-		"revision":  mapped("revision", ren{"reason": "text"}, nil, nil),
 		"closing":   mapped("closing", ren{"reason": "text"}, nil, nil),
 		"reproduce": mapped("reproduce", ren{"reason": "note"}, nil, nil),
 		"certify":   mapped("certify", ren{"reason": "statement"}, nil, nil),
