@@ -617,3 +617,71 @@ func TestRetireTakesTheAnchorsOfEachSentenceItsCutTook(t *testing.T) {
 		}
 	})
 }
+
+// WHOLE SENTENCES OF A CUT LEAVE TOGETHER, AND A QUOTE ACROSS TWO OF THEM IS A FRAGMENT. Three
+// sentences, one finding each, cut down to their anchors in one edit: a retire quoting the last two
+// as one claim takes both of their anchors and leaves the first's; a quote that runs from inside one
+// sentence into the next is part of what the edit cut and no whole sentence of it, so it is refused
+// naming the anchors still bare, with nothing recorded.
+func TestRetireTakesARunOfWholeSentencesOfItsCut(t *testing.T) {
+	const s1, s2, s3 = "Alpha holds for every input", "Beta holds by the same argument", "Gamma holds in the limit"
+	setup := func(t *testing.T) (runDir string, f1, f2, f3 string) {
+		t.Helper()
+		runDir = newRun(t)
+		writeReport(t, runDir, "# Findings\n\n"+s1+". "+s2+". "+s3+". Plain prose here.\n")
+		registerBlue(t, runDir)
+		registerLensOnce(t, runDir)
+		find := func(key, quote string) string {
+			t.Helper()
+			if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
+				"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
+				t.Fatalf("finding %s: %v", key, err)
+			}
+			return lastBody(t, runDir, &recordpb.Finding{}).GetId()
+		}
+		f1, f2, f3 = find("F1", s1+"."), find("F2", s2+"."), find("F3", s3+".")
+		rep := readReport(t, runDir)
+		i, j := strings.Index(rep, s1), strings.Index(rep, "Plain prose")
+		if i < 0 || j < 0 {
+			t.Fatalf("the report lost its sentences:\n%s", rep)
+		}
+		cut := strings.TrimRight(rep[i:j], " ")
+		var toks string
+		for _, id := range anchor.IDs(cut) {
+			toks += anchor.Token(id)
+		}
+		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+			"--quote", cut, "--new", toks, "--reason", "the three claims leave"); err != nil {
+			t.Fatalf("edit the three sentences down to their anchors: %v", err)
+		}
+		return runDir, f1, f2, f3
+	}
+
+	t.Run("two sentences leave as one claim", func(t *testing.T) {
+		runDir, f1, f2, f3 := setup(t)
+		ev := retireClaim(t, runDir, s2+". "+s3+".")
+		if got := ev.GetAnchors(); len(got) != 2 || !slices.Contains(got, f2) || !slices.Contains(got, f3) {
+			t.Errorf("retiring the last two sentences named %v, want %s and %s", got, f2, f3)
+		}
+		if rep := readReport(t, runDir); !strings.Contains(rep, anchor.Token(f1)) || strings.Contains(rep, f2) || strings.Contains(rep, f3) {
+			t.Errorf("the retire did not take exactly the two sentences' anchors out:\n%s", rep)
+		}
+	})
+
+	t.Run("a quote across two sentences is a fragment", func(t *testing.T) {
+		runDir, f1, f2, f3 := setup(t)
+		before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE)
+		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--quote", "every input. Beta holds", "--reason", "unsupported")
+		if err == nil || !strings.Contains(err.Error(), "fragment") {
+			t.Fatalf("a quote across two sentences of the cut = %v, want it refused as a fragment", err)
+		}
+		for _, id := range []string{f1, f2, f3} {
+			if !strings.Contains(err.Error(), id) {
+				t.Errorf("the refusal does not name the bare anchor %s: %v", id, err)
+			}
+		}
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != before {
+			t.Errorf("a refused retire recorded %d retire(s)", n-before)
+		}
+	})
+}
