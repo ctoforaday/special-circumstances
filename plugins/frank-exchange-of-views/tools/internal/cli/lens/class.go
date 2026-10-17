@@ -52,7 +52,7 @@ func newClass() *cobra.Command {
 // because the coining recorded them, so a coined row prints what it has and a staged row prints no
 // blank standing in for what was never staged.
 func newClassList() *cobra.Command {
-	return seat.New("list", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	return seat.NewRead("list", classListResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

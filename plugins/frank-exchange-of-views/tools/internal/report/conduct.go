@@ -44,6 +44,7 @@ func conduct(run record.Run, fam record.Family) string {
 		unmeasured   int
 		total        int
 	}
+	var why []string // one line per unmeasured seat: which, and the reason nothing answered
 	classes := map[string]*tally{}
 	var order []string
 	for _, s := range seats {
@@ -62,6 +63,7 @@ func conduct(run record.Run, fam record.Family) string {
 		t.total++
 		if !s.Measured() {
 			t.unmeasured++
+			why = append(why, "- `"+s.SeatID+"`: "+s.NotMeasured)
 			continue
 		}
 		t.byServed[s.Served]++
@@ -95,6 +97,11 @@ func conduct(run record.Run, fam record.Family) string {
 			// bytes unless one of them says so.
 			fmt.Fprintf(&b, "| %s | _NOT MEASURED — nothing observed what replied_ | %d of %d |\n", class, t.unmeasured, t.total)
 		}
+	}
+	if len(why) > 0 {
+		// THE REASON, SEAT BY SEAT. A count of unmeasured seats is a partial that reads as a
+		// finding; what the reader acts on is which seat and why nothing answered it.
+		b.WriteString("\n**NOT MEASURED**, and why:\n\n" + strings.Join(why, "\n") + "\n")
 	}
 	if substituted {
 		b.WriteString("\n**A substitution changes the adversary's strength, which is a fact about this report's " +

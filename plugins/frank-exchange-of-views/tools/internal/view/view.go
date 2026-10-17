@@ -767,7 +767,8 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 		inquiry = append(inquiry, fmt.Sprintf("## %s (%d)", status, len(rows)), "")
 		for _, a := range rows {
 			// The one-line row keeps its shape — question, reason, seat — and the lifecycle adds to
-			// it rather than replacing it. The method is a fate's, so it rides on the path.
+			// it rather than replacing it. The method is the latest fate's account, as the reason is,
+			// so it prints once: a superseded method is one blue recorded the fate again to correct.
 			head := a.ID + " " + a.Question
 			reason := ""
 			if a.Reason != "" {
@@ -777,17 +778,12 @@ func InquiryBody(evs []*record.Event, win record.WindowIndex) string {
 			if a.Hypothesis != "" {
 				inquiry = append(inquiry, "  - hypothesis: "+a.Hypothesis)
 			}
+			if a.Method != "" {
+				inquiry = append(inquiry, "  - method: "+a.Method)
+			}
 			// The history is what makes a recorded fate legible as a CHOICE rather than a state.
-			if len(a.Path) > 1 {
-				steps := make([]string, 0, len(a.Path))
-				for _, st := range a.Path {
-					step := fmt.Sprintf("e%d %s", st.Epoch, st.Status)
-					if st.Method != "" {
-						step += fmt.Sprintf(" _(method: %s)_", st.Method)
-					}
-					steps = append(steps, step)
-				}
-				inquiry = append(inquiry, "  - path: "+strings.Join(steps, " -> "))
+			if len(a.History) > 1 {
+				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
 			}
 			if a.Ruling != "" {
 				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
