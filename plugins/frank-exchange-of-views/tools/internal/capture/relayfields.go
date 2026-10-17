@@ -25,8 +25,6 @@ const (
 	relayCompared relayClass = "compared"
 	// relayBackstopped: not compared by field; a named gate stands on the branch the engine takes.
 	relayBackstopped relayClass = "backstopped"
-	// relayResidue: the engine acts on it and nothing holds it. The reason states the open case.
-	relayResidue relayClass = "residue"
 	// relayNotActedOn: the engine takes no branch on it.
 	relayNotActedOn relayClass = "not acted on"
 )
@@ -56,8 +54,8 @@ var relayedPlanFields = map[string]relayField{
 	"Plan.Blockers[].Subject":     {relayCompared, "with its kind"},
 	"Plan.Blockers[].Owner":       {relayCompared, "with its kind"},
 	"Plan.EpochLimitReached":      {relayBackstopped, "the engine stops on it before its valve reads the plan. Relayed true with parties, nobody is dispatched and every party of that dispatch FAILs as never having sat; with none, the bench's `outcome` derives CEILING from the record and refuses one it cannot derive. The departure names the parties, never this field"},
-	"Plan.RemandOwed[].GapID":     {relayResidue, "names the gaps blue is told a remand's duty on; no dispatch row records it"},
-	"Plan.RemandOwed[].Direction": {relayResidue, "the research direction blue is handed; no dispatch row records it"},
+	"Plan.RemandOwed[].GapID":     {relayCompared, "each paired relay, against the remand_owed its dispatch rows recorded. On a plan with no parties nobody sits, and it reaches the terminal and assembly prompts' rulings only"},
+	"Plan.RemandOwed[].Direction": {relayCompared, "every relayed plan, against the direction of the gap's latest remand at the chair sitting's end (record.PlanFacts.RemandDirection)"},
 	"Plan.Why":                    {relayNotActedOn, "prose: it reaches the account of an UNVERIFIED end and the workflow's return value"},
 	"Plan.StaleAreas[].SeatID":    {relayNotActedOn, "type-checked by the engine and never read after"},
 	"Plan.StaleAreas[].Pin":       {relayNotActedOn, "type-checked by the engine and never read after"},

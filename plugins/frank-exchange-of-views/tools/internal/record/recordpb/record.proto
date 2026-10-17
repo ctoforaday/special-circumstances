@@ -2144,6 +2144,12 @@ message Dispatch {
   // that copy to this one, and the bench's sitting for each is the one whose register states the
   // same occasion. Required on a bench row and refused on any other seat's, at the write.
   repeated Occasion occasions = 4;
+  // remand_owed is the gaps whose remand exchange this row readies: the one more exchange the
+  // bench's remand grants a gap at impasse, between its minting lens and blue. The workflow tells
+  // blue the remand's duty and its research direction off the plan's copy, so the row records which
+  // gaps it was told them for and capture holds that copy to this one. Each is among the row's
+  // gap_ids, and only blue's row and a lens's carry any — refused otherwise, at the write.
+  repeated string remand_owed = 5;
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

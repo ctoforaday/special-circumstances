@@ -90,10 +90,10 @@ var planVariants = map[string]planVariant{
 	"Plan.StaleAreas[].Pin": {"", func(p map[string]any, i int) {
 		p["stale_areas"] = []any{map[string]any{"seat_id": "red-lens-voice", "pin": i}}
 	}},
-	"Plan.RemandOwed[].GapID": {"", func(p map[string]any, i int) {
+	"Plan.RemandOwed[].GapID": {"remand_owed", func(p map[string]any, i int) {
 		p["remand_owed"] = []any{map[string]any{"gap_id": fmt.Sprintf("R%d", i), "direction": "d"}}
 	}},
-	"Plan.RemandOwed[].Direction": {"", func(p map[string]any, i int) {
+	"Plan.RemandOwed[].Direction": {"remand_owed", func(p map[string]any, i int) {
 		p["remand_owed"] = []any{map[string]any{"gap_id": "R", "direction": fmt.Sprintf("d%d", i)}}
 	}},
 }

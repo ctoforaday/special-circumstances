@@ -190,7 +190,7 @@ func TestFaithfulRelayFieldsPass(t *testing.T) {
 	lens := map[string]any{"findings": []any{}}
 	js := journalOf(t, chairResult(2, lensesRows...), lens, chairResult(2, blueRows...), chairResult(2))
 	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) matched their dispatch rows and the record at the end of each chair sitting on head, parties[].seat_id, parties[].gap_ids, parties[].occasions, docket, exchanges[].gap_id, exchanges[].count, exchanges[].unresolved, pass_permitted, ceiling, max_epochs, blockers[].kind, blockers[].subject, blockers[].owner (blockers of kind contradiction, reopened, no_report, unruled_motion)") {
+	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) matched their dispatch rows and the record at the end of each chair sitting on head, parties[].seat_id, parties[].gap_ids, parties[].occasions, docket, remand_owed[].gap_id, remand_owed[].direction, exchanges[].gap_id, exchanges[].count, exchanges[].unresolved, pass_permitted, ceiling, max_epochs, blockers[].kind, blockers[].subject, blockers[].owner (blockers of kind contradiction, reopened, no_report, unruled_motion)") {
 		t.Fatalf("a faithful relay = %s: %s", a.Verdict, a.Detail)
 	}
 }

@@ -579,8 +579,9 @@ const BLUE_ENVELOPE = {
 // The chair's envelope RELAYS the record (plans/roundless.md §III.B.1): `plan` is the JSON `dispatch next`
 // printed, verbatim — the verb computed it from the board and recorded it; the chair could drop, add or
 // alter any field of it on the way, which is why capture's dispatch-parity audit holds every field this
-// script branches on to the record — the parties and the head to the dispatch rows, the docket, the
-// exchange counts and the blockers to the record as it stood when the chair's sitting ended — and why
+// script branches on to the record — the parties, the head and the remand_owed gaps to the dispatch
+// rows, the docket, the remand directions, the exchange counts and the blockers to the record as it
+// stood when the chair's sitting ended — and why
 // requirePlan below type-checks every field read. The
 // verdict is what the chair RECORDED this sitting, if it recorded one. Nothing else the old envelope carried
 // (gaps, closures, dispute responses, citation counts) is here: the record holds them and every seat reads
@@ -945,8 +946,8 @@ if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — a
 //
 // THE SAME MEANS THE SAME ON EVERY FIELD CAPTURE HOLDS TO THE RECORD, AND ON NO OTHER. The valve
 // stops a run, so it reads only what a chair cannot alter unseen: the head, the parties, the docket,
-// the exchange counts, pass_permitted, ceiling, and the blockers of KEYED_BLOCKER_KINDS — each of
-// which capture's dispatch-parity audit compares at every relayed plan. `why` is prose nothing can
+// the remand_owed entries, the exchange counts, pass_permitted, ceiling, and the blockers of
+// KEYED_BLOCKER_KINDS — each of which capture's dispatch-parity audit compares at every relayed plan. `why` is prose nothing can
 // recompute, so it is not read: a chair paraphrasing it would keep a stuck run spending, and one
 // copying a stale one would stop a moving run.
 //
@@ -966,6 +967,7 @@ const planKey = (p) => JSON.stringify({
   head: p.head,
   parties: p.parties.map((x) => ({ seat_id: String(x.seat_id), gap_ids: sortedStrings(x.gap_ids), occasions: sortedStrings(x.occasions) })).sort((a, b) => (a.seat_id < b.seat_id ? -1 : a.seat_id > b.seat_id ? 1 : 0)),
   docket: sortedStrings(p.docket),
+  remand_owed: p.remand_owed.map((o) => `${o.gap_id}|${o.direction}`).sort(),
   exchanges: p.exchanges.map((x) => `${x.gap_id}|${x.count}|${x.unresolved}`).sort(),
   blockers: p.blockers.filter((b) => KEYED_BLOCKER_KINDS.includes(b.kind)).map((b) => `${b.kind}|${b.subject}|${b.owner}`).sort(),
   pass_permitted: !!p.pass_permitted,
@@ -1007,7 +1009,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
 // on its inquiries, and the review of the inquiries, are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${reliefFor('red')}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises, the evidence lens for a citation or proof unchecked since its sentence changed. Relay the plan object it prints, copied whole, VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so anything you drop, add or alter — a blocker, a pass_permitted or a ceiling included — fails capture's dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded, or the run is at its epoch limit.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises, the evidence lens for a citation or proof unchecked since its sentence changed. Relay the plan object it prints, copied whole, VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so anything you drop, add or alter — a blocker, a remand_owed, a pass_permitted or a ceiling included — fails capture's dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded, or the run is at its epoch limit.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak. Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 AT final_sitting NOBODY SITS AFTER YOU: decide on the board as it is, and argue to the bench in your position.
 VOTE EVERY INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every inquiry against that pass, the way anyone checks a document against a list — not once per inquiry, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S INQUIRIES: a ruling is an ARGUMENT, not a command — it needs a reason, and blue decides what becomes of the inquiry with that reason in front of it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.
