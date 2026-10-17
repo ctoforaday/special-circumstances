@@ -85,7 +85,7 @@ export const exchanges = (parties, n = 0) => [...new Set(parties.flatMap((p) => 
 // does not state its blockers relays a plan the schema accepts and the engine routes as before. A
 // plan with no party and no PASS states its own.
 const heldBy = (parties) => parties.flatMap((p) => (p.gap_ids.length ? p.gap_ids.map((g) => ({ kind: 'material_gap', subject: g, owner: p.seat_id })) : [{ kind: 'lens_ready', subject: p.seat_id, owner: p.seat_id }]))
-export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
+export const plan = (parties = [], over = {}) => ({ head: 2, parties, docket: [], remand_owed: [], exchanges: exchanges(parties), pass_permitted: false, ceiling: false, max_epochs: 0, epoch: 1, final_sitting: false, epoch_limit_reached: false, why: [], stale_areas: [], blockers: over.pass_permitted ? [] : heldBy(parties), ...over })
 export const passPlan = (over = {}) => plan([], { pass_permitted: true, ...over })
 export const ceilingPlan = (over = {}) => plan([], { ceiling: true, why: ['G-00000001: at impasse, ruled remanded — at its limit'], blockers: [{ kind: 'material_gap', subject: 'G-00000001', owner: 'red-lens-evidence' }], ...over })
 export const chairEnv = (over = {}) => ({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000001')]), ...over })

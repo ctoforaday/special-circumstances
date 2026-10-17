@@ -241,7 +241,7 @@ func TestDispatchNextProsePrintsTheRelayTheMachineFormPrints(t *testing.T) {
 		if len(parties) != wantParties {
 			t.Errorf("the relay names %d parties, want %d: %s", len(parties), wantParties, a)
 		}
-		for _, f := range []string{"head", "docket", "remand_owed", "exchanges", "pass_permitted", "stale_areas", "ceiling", "max_epochs", "epoch_limit_reached", "blockers", "why"} {
+		for _, f := range []string{"head", "docket", "remand_owed", "exchanges", "pass_permitted", "stale_areas", "ceiling", "max_epochs", "epoch", "final_sitting", "epoch_limit_reached", "blockers", "why"} {
 			if _, ok := relay.(map[string]any)[f]; !ok {
 				t.Errorf("the relay carries no %q — the workflow refuses a plan without it: %s", f, a)
 			}

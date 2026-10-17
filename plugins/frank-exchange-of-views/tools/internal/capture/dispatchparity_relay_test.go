@@ -88,7 +88,7 @@ func chairResult(head int64, parties ...row) map[string]any {
 	}
 	return map[string]any{
 		"plan": map[string]any{"head": head, "parties": ps, "docket": []any{}, "remand_owed": []any{}, "exchanges": xs, "pass_permitted": false, "ceiling": false,
-			"max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}},
+			"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}},
 	}
 }
 
