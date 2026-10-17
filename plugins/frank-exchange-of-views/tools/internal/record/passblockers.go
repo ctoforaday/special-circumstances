@@ -109,6 +109,10 @@ func ownerOr(b Blocker, fallback string) string {
 // contradictionReader is who raises a contradiction when the record names no reader.
 const contradictionReader = "a lens"
 
+// contradictionCitationAnswer is what else answers a contradiction whose reading checked a
+// citation (unansweredContradictions), stated by the work item and the PASS refusal alike.
+const contradictionCitationAnswer = "A contradiction raised by reading a citation is answered as well by a retire of that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it — the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing"
+
 // contradictionFact is a contradiction's name on every surface: the word and its id, which is the
 // `--about` value that answers it. A bare decimal would read as a count.
 func contradictionFact(b Blocker) string { return "contradiction " + b.Subject }
@@ -173,9 +177,9 @@ var blockerKinds = []blockerKind{
 	},
 	{
 		kind:  BlockerContradiction,
-		gloss: "a contradicting source no finding raises",
+		gloss: "a contradicting source nothing has answered",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and no finding raises it — PASS is refused until one does; %s raises it with `finding --about-kind contradiction --about %s`, which answers it whether or not the sentence still stands", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject)
+			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, which answers it whether or not the sentence still stands. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionCitationAnswer)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
@@ -186,13 +190,13 @@ var blockerKinds = []blockerKind{
 				}
 				named = append(named, fmt.Sprintf("%s: %q (read by %s)", contradictionFact(b), b.Detail, b.Owner))
 			}
-			return fmt.Sprintf("red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
-				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has; a finding whose `--quote` contains the claim answers it as well, while the report still holds the sentence. "+
+			return fmt.Sprintf("red read a source that CONTRADICTS or does not support %d claim(s), and nothing has answered them:\n  %s\n"+
+				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has; a finding whose `--quote` contains the claim answers it as well, while the report still holds the sentence. "+contradictionCitationAnswer+". "+
 				"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("%s: a source %s read contradicts or does not support %q and no finding raises it — %s", contradictionFact(b), ownerOr(b, contradictionReader), b.Detail, planHold(b, "PASS is not permitted until one does"))
+			return fmt.Sprintf("%s: a source %s read contradicts or does not support %q and it is unanswered — %s", contradictionFact(b), ownerOr(b, contradictionReader), b.Detail, planHold(b, "PASS is not permitted until it is answered"))
 		},
 	},
 	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the evidence
@@ -419,7 +423,7 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	// ids IS evs's events.id, aligned with it — the place dispatchLedger and benchOccasionSittings read
 	// sittings by, and the one a stored sitting is named by — so a blocker's `since` and the
 	// sitting it is compared with are places in one sequence.
-	for _, c := range unansweredContradictions(evs, ids) {
+	for _, c := range unansweredContradictions(evs, win) {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since})
 	}
 	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE EVIDENCE LENS IS IN THE CAST. A blocker whose

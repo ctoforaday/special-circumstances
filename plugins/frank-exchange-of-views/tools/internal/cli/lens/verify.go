@@ -414,8 +414,8 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 	// placement check, for every outcome, against the report the act and its Anchor land on; a
 	// refusal records nothing. Where the source backs the claim, the quote is where the citation's
 	// marker stands. Where the source contradicts the claim or is silent on it, the quote is the
-	// subject of a PASS blocker that a finding quoting that sentence clears
-	// (record.unansweredContradictionsBy), and a finding's quote is held to the report by this same
+	// subject of a PASS blocker that a finding quoting that sentence answers
+	// (record.unansweredContradictions), and a finding's quote is held to the report by this same
 	// placement — so a quote the report does not hold would be a blocker no seat can clear. A
 	// verification places nothing and its claim needs no check: the tool read it from the report
 	// (citedSentence), so it is handed no quote to hold.

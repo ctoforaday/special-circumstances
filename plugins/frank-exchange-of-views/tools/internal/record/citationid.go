@@ -453,8 +453,10 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // THE MATCH IS ANY LENS'S. A stricter join (same seat) would refuse a contradiction one lens found
 // and another raised, which is the collaboration the lens roles exist for.
 //
-// A reading that names a citation carries its anchor, so the anchor's checks (anchorChecksOf) are
-// the reader for anything a later rule asks of the sentence that reading was of.
+// A reading that names a citation carries its anchor, and the anchor's standing answers it too —
+// a retire, or a backing check after an edit (unansweredContradictions). That answer is the
+// citation's state, not an act naming the contradiction, so it is not this fold's: a finding may
+// still raise a contradiction its citation's standing answers.
 func contradictionsOf(evs []*Event, ids []int64) []contradiction {
 	var out []*contradiction
 	open := map[string]*contradiction{} // claim -> its open contradiction
@@ -528,13 +530,37 @@ func requireOpenContradiction(q recordsql.Querier, ref string) error {
 	return fmt.Errorf("--about %s names no contradiction on this record (%d open) — a contradiction's id is the `id` `show evidence` lists under unanswered_contradictions", ref, open)
 }
 
-// unansweredContradictions is contradictionsOf less the answered ones.
-func unansweredContradictions(evs []*Event, ids []int64) []contradiction {
+// unansweredContradictions is contradictionsOf less the ones answered: by a finding, or by the
+// standing of the citation the reading checked (gblock, 2026-10-16). win supplies each event's
+// events.id and sitting.
+//
+// THE CITATION'S STANDING ANSWERS IT in two cases, both read off the anchor ledger:
+//
+//   - blue RETIRES the anchor: the sentence left the report with its claim, and there is nothing
+//     left for a finding to raise;
+//   - the anchor HOLDS (anchorStanding.holds): a check that backs the sentence stands, and no
+//     check that does not. The reading itself has stopped standing — an edit changed the sentence
+//     after its sitting opened, or its own seat read the sentence again — and what the record now
+//     says of the sentence is that it is backed.
+//
+// ANOTHER LENS'S BACKING CHECK DOES NOT ANSWER A READING THAT STANDS. It is a disagreement over
+// the same sentence, and another seat's verdict never replaces a lens's own (anchorchecks.go): the
+// contradiction stays the reader's to raise. Blue cannot dissolve it by rewording either: the
+// reworded sentence is reopened, owed a check, and only a check that backs it answers the
+// contradiction.
+//
+// A corroboration's reading checked no citation (its anchor is ""), so only a finding answers it.
+func unansweredContradictions(evs []*Event, win WindowIndex) []contradiction {
+	ledger := anchorChecksOf(evs, win)
 	var out []contradiction
-	for _, c := range contradictionsOf(evs, ids) {
-		if c.answeredBy == "" {
-			out = append(out, c)
+	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
+		if c.answeredBy != "" {
+			continue
 		}
+		if s := ledger.at(c.anchor); s != nil && (s.retired || s.holds()) {
+			continue
+		}
+		out = append(out, c)
 	}
 	return out
 }

@@ -97,6 +97,20 @@ func (s *anchorStanding) standing() []anchorCheck {
 	return out
 }
 
+// holds reports whether the record says this anchor's sentence stands up: a check of it stands, and
+// every one that stands holds. It is a proof's `sound` and the answer to a contradiction of a
+// citation (unansweredContradictions) — one reading, so a lens's standing `refutes` keeps a
+// citation's contradiction open exactly as its standing `unsound` keeps a proof unsound.
+func (s *anchorStanding) holds() bool {
+	standing := s.standing()
+	for _, c := range standing {
+		if !c.holds {
+			return false
+		}
+	}
+	return len(standing) > 0
+}
+
 // reopened reports whether an edit changed this anchor's sentence after it was checked and no
 // check has stood since: the anchor is owed a check from a sitting opened after the edit. An
 // anchor nobody ever checked is not reopened: it is the work item that offers its first check.

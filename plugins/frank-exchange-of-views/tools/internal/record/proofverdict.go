@@ -136,14 +136,10 @@ func proofVerdictOf(s *anchorStanding, reruns map[string]*scriptRerun) proofVerd
 	}
 	v.judgements = s.standing()
 	switch {
-	case len(v.judgements) > 0:
+	case s.holds():
 		v.soundness = SoundnessSound
-		for _, c := range v.judgements {
-			if !c.holds {
-				v.soundness = SoundnessUnsound
-				break
-			}
-		}
+	case len(v.judgements) > 0:
+		v.soundness = SoundnessUnsound
 	case s.reopened():
 		v.soundness = SoundnessReopened
 	}

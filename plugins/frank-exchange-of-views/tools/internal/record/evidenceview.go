@@ -247,7 +247,8 @@ type EvidenceJSON struct {
 	// only where it is (passBlockersOf).
 	Reopened []EvidenceReopenedJSON `json:"reopened"`
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
-	// not support the report, and no finding was ever raised about it.
+	// not support the report, and nothing has answered it: no finding raised it, and the citation
+	// it was read against is neither retired nor backed (unansweredContradictions).
 	//
 	// STATED HERE BECAUSE THIS IS WHERE RED LOOKS. The duty is enforced at the chair's PASS gate,
 	// which is the right place to REFUSE — but a duty that only surfaces when someone else is
@@ -275,7 +276,7 @@ type EvidenceJSON struct {
 	} `json:"counts"`
 }
 
-// EvidenceContradictionJSON is one contradiction no finding has answered. ID is its id — the
+// EvidenceContradictionJSON is one contradiction nothing has answered. ID is its id — the
 // events.id of the reading that opened it, the value `--about` takes; Claim is the sentence the
 // reading was of; Reader is the seat whose reading last joined it, which owes the finding; Anchor
 // is the citation that reading checked, "" for a corroboration.
@@ -302,7 +303,7 @@ func EvidenceJSONOf(evs []*Event, win WindowIndex) EvidenceJSON {
 		Independent: []EvidenceVerificationJSON{},
 	}
 	out.UnansweredContradictions = []EvidenceContradictionJSON{}
-	for _, c := range unansweredContradictions(evs, win.IDs(evs)) {
+	for _, c := range unansweredContradictions(evs, win) {
 		out.UnansweredContradictions = append(out.UnansweredContradictions, EvidenceContradictionJSON{ID: c.idWord(), Claim: c.claim, Reader: c.reader, Anchor: c.anchor})
 	}
 	out.Reopened = []EvidenceReopenedJSON{}
