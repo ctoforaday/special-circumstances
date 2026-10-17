@@ -54,7 +54,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("new evidence")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Proof{Answers: proto.String("G3"),
+	if _, err := Append(blue, &recordpb.Proof{Answers: proto.String("G3"), ProofSha: proto.String("sha-7"),
 		Text: proto.String("7 is prime"), Script: proto.String("factor 7"), Exit: proto.Int32(0)}); err != nil {
 		t.Fatal(err)
 	}

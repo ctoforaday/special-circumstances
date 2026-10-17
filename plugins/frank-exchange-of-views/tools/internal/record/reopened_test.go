@@ -371,7 +371,7 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 	}
 	b := board()
 	edit := b.at()
-	if plan := planOf(t, board().register("red-chair")); !lensReady(plan) || !strings.Contains(whyOf(plan), "it does not retire while it owes reopened C-1") {
+	if plan := planOf(t, board().register("red-chair")); !lensReady(plan) || !strings.Contains(whyOf(plan), "it owes reopened C-1") {
 		t.Fatalf("the plan after the edit does not ready the lens for it: parties %+v, why %q", plan.Parties, plan.Why)
 	}
 	next := b.register("red-chair").sit(edit, evLens).logEntry(evLens).seed()

@@ -50,7 +50,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 		t.Fatalf("append cite: %v", err)
 	}
 	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Proof{
-		ProofId: proto.String(proofID), Location: proto.String("The estimate is stable across the range"),
+		ProofId: proto.String(proofID), ProofSha: proto.String("sha-" + proofID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
 		t.Fatalf("append proof: %v", err)
 	}

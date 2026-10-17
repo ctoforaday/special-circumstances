@@ -103,7 +103,7 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 		// A reopened anchor's owner owes its check, so it is not retired, and the edit moved the head.
 		{"a reopened citation readies the evidence lens", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
-		}, want{evLens, true, nil, nil, evLens + ": head 10 moved past its last sitting's pin 2 — audits the report (2 sitting(s) in a row with no fresh material mint; it does not retire while it owes reopened C-1)"}},
+		}, want{evLens, true, nil, nil, evLens + ": head 10 moved past its last sitting's pin 2 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes reopened C-1)"}},
 		{"a reopened citation its lens has sat since is not readied again", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)

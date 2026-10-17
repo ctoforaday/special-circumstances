@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -102,9 +104,10 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 				if !slices.ContainsFunc(f.owes, func(o string) bool { return strings.HasPrefix(o, c.owes) }) || !strings.Contains(f.why, "it does not retire while it owes "+c.owes) {
 					t.Errorf("the reason does not name the debt %q: owes %q, why %q", c.owes, f.owes, f.why)
 				}
-				// THE BOUND: once it has sat at the moved head it is not ready again until the head moves.
-				if f := foldOf(t, board(t, true), c.lens); f.ready || f.retired() {
-					t.Errorf("a lens that owes and has sat at the head is not ready until the head moves, and still not retired: %+v", f)
+				// THE BOUND: once it has sat at the moved head it is not ready again until the head moves,
+				// and the reason still says what keeps it from retiring.
+				if f := foldOf(t, board(t, true), c.lens); f.ready || f.retired() || !strings.Contains(f.why, "it does not retire while it owes "+c.owes) {
+					t.Errorf("a lens that owes and has sat at the head is not ready until the head moves, still not retired, and says what it owes: %+v", f)
 				}
 			})
 		}
@@ -181,7 +184,7 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 				// The edit moved the head, so every lens is ready to audit it; owing the anchor's check
 				// is the owner's reason alone.
 				readied := slices.ContainsFunc(plan.Why, func(w string) bool {
-					return strings.HasPrefix(w, l+": head ") && strings.Contains(w, "it does not retire while it owes reopened "+c.anchor)
+					return strings.HasPrefix(w, l+": head ") && strings.Contains(w, "it owes reopened "+c.anchor)
 				})
 				if readied != (l == c.owner) || (l == c.owner && !ready) {
 					t.Errorf("%s readied for the reopened anchor = %v (party %v), want %v: %q", l, readied, ready, l == c.owner, plan.Why)
@@ -200,5 +203,32 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 				t.Errorf("%s's work list, opened after edit %d, does not block on %s", c.owner, edit, c.anchor)
 			}
 		})
+	}
+}
+
+// A DEBT BELOW THE BARREN LIMIT IS NOT WHAT HOLDS THE LENS. A lens that minted a gap still open and
+// has sat once since is ready because the head moved; its reason says it retires at the limit only
+// owing nothing, and names the debt, rather than claiming the debt is what keeps it from retiring.
+func TestALensBelowItsLimitSaysWhenItRetires(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
+	b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
+	b.sit(2, evLens)
+	b.ingest()
+	f := foldOf(t, b.register("red-chair").seed(), evLens)
+	if !f.ready || f.barren >= retiresAfter {
+		t.Fatalf("fixture: want a ready lens below its barren limit: %+v", f)
+	}
+	if want := "it retires at 3 owing nothing, and it owes open gap G1"; !strings.Contains(f.why, want) || strings.Contains(f.why, "does not retire while") {
+		t.Errorf("why = %q, want it to say %q", f.why, want)
+	}
+}
+
+// A PROOF NAMES ITS SCRIPT. A proof with no sha could never be re-run or judged, so the lens that
+// owns proofs would owe a check no act can record: the write refuses it.
+func TestAProofWithNoScriptIsRefused(t *testing.T) {
+	runDir := newRun(t)
+	_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Proof{ProofId: proto.String("P-00000001"), Script: proto.String("s.py")})
+	if err == nil || !strings.Contains(err.Error(), "names no script") {
+		t.Fatalf("a proof with no sha was not refused: %v", err)
 	}
 }

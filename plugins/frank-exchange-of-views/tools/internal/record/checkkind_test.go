@@ -148,8 +148,9 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// discharged nothing and the debt could not move. `answers` is the whole join this test is
 	// about: a proof that names no gap is a script that ran for no stated reason.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Proof{
-		Answers: proto.String("G1"),
-		Script:  proto.String("s.py"),
+		Answers:  proto.String("G1"),
+		ProofSha: proto.String("sha-s"),
+		Script:   proto.String("s.py"),
 	}); err != nil {
 		t.Fatal(err)
 	}

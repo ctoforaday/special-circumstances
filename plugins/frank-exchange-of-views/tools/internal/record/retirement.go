@@ -59,6 +59,19 @@ type lensFold struct {
 // retired is a lens whose last retiresAfter sittings minted no fresh material and that owes nothing.
 func (f lensFold) retired() bool { return f.barren >= retiresAfter && len(f.owes) == 0 }
 
+// retiresWhy is the fold's clause on an unretired lens's retirement, in the terms that hold it: a
+// lens past its barren limit is unretired only by what it owes, and the clause names each item; one
+// below it retires at the limit, provided it then owes nothing.
+func (f lensFold) retiresWhy() string {
+	switch {
+	case f.barren >= retiresAfter:
+		return "it does not retire while it owes " + strings.Join(f.owes, ", ")
+	case len(f.owes) > 0:
+		return fmt.Sprintf("it retires at %d owing nothing, and it owes %s", retiresAfter, strings.Join(f.owes, ", "))
+	}
+	return fmt.Sprintf("it retires at %d", retiresAfter)
+}
+
 // lensOwesOf is what each lens owes, by seat: every item its work list names as its own to clear,
 // each named — an open gap it minted (gaps is the open gaps), a blocker on the stream whose owner it
 // is (events is eventBlockersOf: a contradiction it read, an anchor reopened since its check), and,
@@ -152,10 +165,10 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			f.why = fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", seat, f.pin, f.barren)
 		case f.sittings == 0:
 			f.ready, f.why = true, fmt.Sprintf("%s: never sat — audits the report at head %d", seat, head)
-		case head > f.pin && len(f.owes) > 0:
-			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; it does not retire while it owes %s)", seat, head, f.pin, f.barren, strings.Join(f.owes, ", "))
 		case head > f.pin:
-			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; it retires at %d)", seat, head, f.pin, f.barren, retiresAfter)
+			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", seat, head, f.pin, f.barren, f.retiresWhy())
+		case f.barren >= retiresAfter:
+			f.why = fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves; %s", seat, f.pin, f.retiresWhy())
 		default:
 			f.why = fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves", seat, f.pin)
 		}

@@ -238,6 +238,8 @@ type runner struct {
 	maxEpochs int
 
 	registered map[string]bool
+	// lensSittings is each lens's sittings this run, by seat: the cost the retirement rule bounds.
+	lensSittings map[string]int
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
 	// next write — kept here so the driver can name a prior epoch to --carried-from without reading
@@ -1126,6 +1128,12 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	done := make(chan struct{})
 	r.registering[seatID] = done
 	r.registered[seatID] = true
+	if strings.HasPrefix(seatID, "red-lens-") {
+		if r.lensSittings == nil {
+			r.lensSittings = map[string]int{}
+		}
+		r.lensSittings[seatID]++
+	}
 	if seatID == "red-chair" {
 		r.chairRegisters++
 	}
@@ -3065,6 +3073,8 @@ type outcome struct {
 	// epochLimit is the debate ending at the run's epoch limit — the last plan's
 	// epoch_limit_reached, as debate.js returns it — which is CEILING by the run's term.
 	epochLimit bool
+	// lensSittings is the runner's.
+	lensSittings map[string]int
 
 	// #256 citation axis: the fetch -> cache -> cite -> anchor chain leaves TWO artifacts a
 	// `cite` event alone does not prove — a cached source file and an INVISIBLE anchor spliced
@@ -4271,6 +4281,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = r.reopenedOwnerErr
 	}
 	res.repeatsRefused = r.repeatsRefused
+	res.lensSittings = r.lensSittings
 	res.budgetRefused = r.budgetRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
@@ -4993,7 +5004,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept)
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -6392,4 +6403,20 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 		}
 	}
 	return ""
+}
+
+// sumSittings and maxSittings are the RUNSTAT line's lens-sitting cost: the run's total, and the
+// most any one lens sat.
+func sumSittings(m map[string]int) (n int) {
+	for _, v := range m {
+		n += v
+	}
+	return n
+}
+
+func maxSittings(m map[string]int) (n int) {
+	for _, v := range m {
+		n = max(n, v)
+	}
+	return n
 }
