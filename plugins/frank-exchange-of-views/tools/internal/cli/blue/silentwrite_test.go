@@ -24,7 +24,7 @@ func TestAnEditThatWouldDoubleATerminatorIsRefused(t *testing.T) {
 	report := `The count  is 27."` + "\n"
 	_, _, _, err := validateEdit(report, `The count is 27."`, `The count is 28."`)
 	if err == nil {
-		t.Fatal("an edit that would leave a punctuation run the document did not have was accepted — " +
+		t.Fatal("an edit that would leave a terminator beside another was accepted — " +
 			"this is the shape that turned a doubled terminator into a tripled one, at exit 0")
 	}
 	// A REFUSAL THAT DOES NOT EXPLAIN SENDS THE SEAT IN A CIRCLE: the same text, refused again.

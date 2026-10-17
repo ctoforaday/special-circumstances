@@ -1,6 +1,7 @@
 package reportproj
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -140,8 +141,7 @@ func stripTail(s string) string {
 // It reads ONLY THE SEAMS the edit makes — where the changed text meets the text it left alone —
 // because a terminator can land beside another only there. Punctuation inside the replacement is
 // the author's prose: universe-m24's blue edit `For the query "is 91 a prime number", nine web
-// pages come up` carries a `",` in a report holding no run that long, and is a rewording. The
-// seams are where before and after stop agreeing, read from each end.
+// pages come up` carries a `",` in a report holding no run that long, and is a rewording.
 //
 // A run at a seam doubles when BOTH sides of it carry a terminator (`!` against the report's `.`,
 // `91:` against it) or both carry the same closing quote (`"goodbye"` against the report's `".`).
@@ -149,51 +149,57 @@ func stripTail(s string) string {
 // `Nine web pages come up for the query "is 91 a prime number"` before the report's period leaves
 // `".`, which is ordinary English.
 //
-// It reads the SHAPE OF THE SEAM rather than the document's longest run, so ordinary prose cannot
-// trip it — a document may legitimately gain a "?!" or an ellipsis — and a run the document holds
-// elsewhere cannot license it: in a report whose quoted phrase ends a sentence in `".`, a `!` landing
-// beside a period is the same artifact as in one that quotes nothing. Anchors between two marks are
-// not content between them, so the runs are read with every anchor out.
+// It reads the SHAPE OF THE SEAM rather than the document's longest run, so prose inside the
+// replacement cannot trip it — a replacement may carry a "?!" or an ellipsis — and a run the document
+// holds elsewhere cannot license it: in a report whose quoted phrase ends a sentence in `".`, a `!`
+// landing beside a period is the same artifact as in one that quotes nothing. A mark added beside
+// the report's own (`?` kept, `!` written after it) has the shape of the doubling and is refused.
+// Anchors between two marks are not content between them, so both texts are read with every anchor
+// out before they are compared.
 func DoubledTerminator(before, after string) string {
+	before, after = claimcount.StripAnchors(before), claimcount.StripAnchors(after)
 	if before == after {
 		return ""
 	}
 	punct := func(b byte) bool { return strings.ContainsRune(anchortext.TrailingPunct, rune(b)) }
-	// The changed span of after: [lo, hi), widened to whole anchor tokens so the parts strip cleanly.
-	lo := 0
-	for lo < len(before) && lo < len(after) && before[lo] == after[lo] {
-		lo++
-	}
-	hi := len(after)
-	for k := len(before); hi > lo && k > lo && before[k-1] == after[hi-1]; k-- {
-		hi--
-	}
-	anchor.Each(after, func(start, end int, _ string) {
-		if start < lo && lo < end {
-			lo = start
-		}
-		if start < hi && hi < end {
-			hi = end
-		}
-	})
-	left, mid := claimcount.StripAnchors(after[:lo]), claimcount.StripAnchors(after[lo:hi])
-	text := left + mid + claimcount.StripAnchors(after[hi:])
 	doubles := func(a, b string) bool {
 		terminates := func(s string) bool {
 			return strings.ContainsFunc(s, func(r rune) bool { return r != '"' && r != '\'' })
 		}
 		return terminates(a) && terminates(b) || strings.ContainsRune(a, '"') && strings.ContainsRune(b, '"') || strings.ContainsRune(a, '\'') && strings.ContainsRune(b, '\'')
 	}
-	for _, at := range []int{len(left), len(left) + len(mid)} {
+	// seam is the run across after[at], when it doubles.
+	seam := func(at int) string {
 		i, j := at, at
-		for i > 0 && punct(text[i-1]) {
+		for i > 0 && punct(after[i-1]) {
 			i--
 		}
-		for j < len(text) && punct(text[j]) {
+		for j < len(after) && punct(after[j]) {
 			j++
 		}
-		if doubles(text[i:at], text[at:j]) {
-			return text[i:j]
+		if doubles(after[i:at], after[at:j]) {
+			return after[i:j]
+		}
+		return ""
+	}
+	// Where before and after stop agreeing, read from each end. When the two agreements overlap, the
+	// edit is an insertion or a deletion that more than one place could have made — `It works` to
+	// `It works. Does it scale?` before the report's `. Next.` reads as text inserted after the report's
+	// `. ` as well as before it — and each of those places is a seam it may have made.
+	pre, suf, short := 0, 0, min(len(before), len(after))
+	for pre < short && before[pre] == after[pre] {
+		pre++
+	}
+	for suf < short && before[len(before)-1-suf] == after[len(after)-1-suf] {
+		suf++
+	}
+	if pre+suf < short {
+		return cmp.Or(seam(pre), seam(len(after)-suf))
+	}
+	grow := max(len(after)-len(before), 0)
+	for lo := short - suf; lo <= pre; lo++ {
+		if run := cmp.Or(seam(lo), seam(lo+grow)); run != "" {
+			return run
 		}
 	}
 	return ""

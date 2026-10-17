@@ -107,6 +107,12 @@ func TestDoubledTerminatorReadsOnlyTheSeam(t *testing.T) {
 		// research/2026-09-02_quadratic-formula: a doubled terminator made a tripled one.
 		{"a doubled run made longer", `The count is 27."." Next.`, `The count is 28."."." Next.`, `."."."`},
 		{"a deletion joining two marks", "A, B. C.", "A,. C.", ",."},
+		// A sentence added to the one the quote names: the replacement starts with the quote and the
+		// report's `. `, so where before and after stop agreeing is past the report's own period.
+		{"a sentence added before the report's period", "It works. Next.", "It works. Does it scale?. Next.", "?."},
+		{"a sentence added before the report's period, past its anchor",
+			"It works<!--fx:F-11111111-->. Next.", "It works. Really!<!--fx:F-11111111-->. Next.", "!."},
+		{"a paragraph repeated beside itself", "One. Two.\n\nNext.", "One. Two.\n\nOne. Two.\n\nNext.", ""},
 		// An edit that moves two anchors between its sentences: before and after part inside a token.
 		{"a terminator beside the report's, past anchors the edit moved",
 			"It is prime<!--fx:F-11111111-->. It is odd<!--fx:F-22222222-->. Next.",
