@@ -146,7 +146,8 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 		SupersedesStatus: proto.String("proposed")})); err != nil {
 		t.Fatal(err)
 	}
-	// Two inquiry rulings; the LATEST wins — not the older word.
+	// Two inquiry rulings, inserted past the write that refuses the second: the FIRST stands, as
+	// motion_answers states it for every motion — the later word does not overturn it.
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
 		Opinion:  proto.String("o"),
@@ -172,8 +173,8 @@ func TestInquiryCarriesTheWholeQuestion(t *testing.T) {
 	if status != "underway" {
 		t.Errorf("status = %q, want the latest recorded fate's", status)
 	}
-	if want := recordpb.Word(recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE); ruling.String != want {
-		t.Errorf("inquiry_ruling = %q, want the latest ruling's %q", ruling.String, want)
+	if want := recordpb.Word(recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED); ruling.String != want {
+		t.Errorf("inquiry_ruling = %q, want the first ruling's %q — motion_answers' rule", ruling.String, want)
 	}
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM "inquiry_state"`).Scan(&n); err != nil {

@@ -10,8 +10,9 @@ import (
 )
 
 // inquiryRulingFold is the fold InquiryRuling replaced, kept HERE as the parity oracle: the
-// query and the fold read the same record, and this test refuses to let them disagree. A record
-// the fold cannot read fails the test: "" is the fold's answer for an inquiry red has not ruled.
+// query and the fold read the same record, and this test refuses to let them disagree. It states
+// the write's rule, FIRST-WINS: the first ruling on the inquiry is its answer. A record the fold
+// cannot read fails the test: "" is the fold's answer for an inquiry red has not ruled.
 func inquiryRulingFold(t *testing.T, run Run, inquiryID string) string {
 	t.Helper()
 	b, err := FamilyOf(run)
@@ -24,10 +25,10 @@ func inquiryRulingFold(t *testing.T, run Run, inquiryID string) string {
 		if !ok || mr.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY || mr.GetMotionId() != inquiryID {
 			continue
 		}
-		ruling = ""
 		if d, isInquiry := mr.GetRuling().(*recordpb.MotionRule_Inquiry); isInquiry {
 			ruling = recordpb.Word(d.Inquiry)
 		}
+		break
 	}
 	return ruling
 }

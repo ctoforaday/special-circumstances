@@ -454,7 +454,12 @@ SELECT
   -- rather than beside the other derived ones.
   (gb."open"
      AND gb."unruled_docket_filed" IS NULL
-     AND EXISTS(SELECT 1 FROM "remand" r WHERE r."gap_id" = gb."gap_id"))             AS "remanded"
+     AND EXISTS(SELECT 1 FROM "remand" r WHERE r."gap_id" = gb."gap_id"))             AS "remanded",
+  -- THE MOTION ID OF THAT FILING, which the dispatch plan's reason names. Read off the inner
+  -- select's unruled_docket_filed for the reason remanded is: the filing and its id cannot then
+  -- name two motions.
+  (SELECT mo."motion_id" FROM "motion" mo
+    WHERE mo."event_id" = gb."unruled_docket_filed")                                AS "unruled_docket_motion"
 FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -524,9 +529,11 @@ SELECT
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
-  -- bench and to key the bench's sitting on the filing, and remanded (outer select) reads it
-  -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
-  -- MotionsOf over motion_answers; folding the two is #1228.
+  -- bench and to key the bench's sitting on the filing; remanded and unruled_docket_motion (outer
+  -- select) read it, as the "nothing pending" arm and as the motion's id. The PASS gate asks the
+  -- same per-motion question of the events (motionsAt), and
+  -- TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled (record's
+  -- narrowedview_test.go) holds the two level.
   --
   -- ASKED PER MOTION, NEVER AS A COUNT. A count of ruling rows against a count of dockets reads
   -- two rulings on one motion as covering an unruled sibling (#1201).
@@ -694,11 +701,12 @@ LEFT JOIN "motion_rule" fr ON fr."event_id" =
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id";
 
--- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
--- how red last ruled the inquiry. The proposal row carries the
--- substance; the LATEST inquiry event carries the status; the LATEST ruling on the inquiry —
--- the one whose arm is the inquiry ruling, which is what makes it an inquiry ruling — carries
--- red's answer.
+-- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and how red
+-- ruled it. The proposal row carries the substance; the LATEST inquiry event carries the status;
+-- red's answer is motion_answers' row for the inquiry's id — the FIRST ruling, the one rule every
+-- reader of a motion's answer states, because the write refuses a second (RequireUnruledMotion).
+-- InquiriesOf is the Go reader of the same answer, and inquiryReadersAgree (record's
+-- motionguards_test.go) holds the two level.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -707,9 +715,9 @@ SELECT
   fp."question"                        AS "question",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  lr."inquiry"                         AS "inquiry_ruling",
-  lre."seat_id"                        AS "ruled_by",
-  lre."id"                          AS "ruled_seq"
+  a."inquiry"                          AS "inquiry_ruling",
+  a."ruled_by"                         AS "ruled_by",
+  a."ruled_seq"                        AS "ruled_seq"
 FROM (SELECT a0."inquiry_id" AS "inquiry_id", MIN(a0."event_id") AS "pid"
         FROM "inquiry" a0
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
@@ -719,10 +727,7 @@ JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "inquiry" ls ON ls."event_id" =
   (SELECT MAX(x."event_id") FROM "inquiry" x WHERE x."inquiry_id" = p."inquiry_id")
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
-LEFT JOIN "motion_rule" lr ON lr."event_id" =
-  (SELECT MAX(y."event_id") FROM "motion_rule" y
-     WHERE y."motion_id" = p."inquiry_id" AND y."inquiry" IS NOT NULL)
-LEFT JOIN "events" lre ON lre."id" = lr."event_id";
+LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
 -- report is base + this stream replayed, so the SELECTION of which events mutate the text — and

@@ -1265,7 +1265,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	    g."material", COALESCE(g."class_material", ''),
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    COALESCE(g."unruled_docket_filed", 0),
-	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), ''),
+	    COALESCE(g."unruled_docket_motion", ''),
 	    COALESCE(g."docket_direction", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
