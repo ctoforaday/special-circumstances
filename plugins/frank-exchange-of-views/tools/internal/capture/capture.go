@@ -1143,10 +1143,14 @@ func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) A
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no models, so there is no configured tier to check the served one against"}
 	}
 	// THE EPOCH COMES FROM THE RECORD, per transcript: the agent id in the file name joins to the
-	// register that named the seat, and the register's window says which chair sitting it sat
-	// in. Without it every sitting of a seat folds into epoch 0 and DedupTierFindings reports one
-	// finding for what may be several.
-	bindings, _ := cost.SeatBindings(run)
+	// act that bound it to its seat (record.SeatBindings), and that act's window says which chair
+	// sitting it sat in. Without it every sitting of a seat folds into epoch 0 and DedupTierFindings
+	// reports one finding for what may be several — so a record that cannot be read is a FAIL, not
+	// a table of epoch-0 rows.
+	bindings, err := record.SeatBindings(run)
+	if err != nil {
+		return Audit{Check: "model-tier", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
+	}
 	var rows []cost.Row
 	for _, f := range agentFiles {
 		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
@@ -1691,8 +1695,8 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 // line capture prints about it.
 //
 // IDENTITY IS NOT COPIED IN HERE. A row carries the harness agent id and nothing else; which seat
-// that agent registered as is already a validated field on the run's `register` event, so the
-// views join to it rather than this function restating it. The agent id comes off the transcript
+// that agent is bound to is already on the record — its latest register, else a bracket that names
+// a seat — so the views join to seat_of_agent rather than this function restating it. The agent id comes off the transcript
 // LINE rather than the filename for the same reason — see seatturn.Parse.
 func ingestSeatTurns(run record.Run, transcriptDir string, agentFiles []string) string {
 	seats, rows, failed := 0, 0, 0

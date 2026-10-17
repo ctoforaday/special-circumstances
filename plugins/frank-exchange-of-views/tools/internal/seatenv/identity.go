@@ -52,11 +52,11 @@ const (
 	// variable that HAS a writer: the PreToolUse hook reads agent_id off the payload and exports
 	// it beside FEOV_RUN.
 	//
-	// It is deliberately NOT a seat id. Nothing upstream of `register` knows which agent holds
-	// which seat — the dispatcher does not learn the id (Workflow's agent() returns a result, not
-	// a handle), and recovering one from the command string would be a fact read back out of
-	// prose. So the hook exports the fact it HAS, register writes the mapping as a field on the
-	// record, and every later call resolves the seat from that. This is why SeatVar still has no
+	// It is deliberately NOT a seat id. The dispatcher does not learn the agent id (Workflow's
+	// agent() returns a result, not a handle), and recovering one from the command string would be
+	// a fact read back out of prose. So the hook exports the fact it HAS, the record binds the agent
+	// to a seat — by its register, or by a hook bracket whose configuration seats exactly one seat —
+	// and every later call resolves the seat from that. This is why SeatVar still has no
 	// writer and is not going to get one.
 	AgentVar = "FEOV_AGENT_ID"
 
@@ -66,8 +66,10 @@ const (
 	// state it, misstate it, or leave it out.
 	//
 	// IT NAMES A ROLE, NOT A SEAT, and that is the whole of what it can do. Measured 2026-08-23
-	// (#290): four types cover thirteen seats, so nothing upstream of `register` can bind one —
-	// `lead-judge` alone covers judge-rN, judge-petition-*, judge-terminal and assemble. What it
+	// (#290): four types cover thirteen seats — `lead-judge` alone covers judge-rN,
+	// judge-petition-*, judge-terminal and assemble — so this variable binds no seat: the record
+	// binds one at `register`, or at the hook's bracket where the configuration seats exactly one.
+	// What it
 	// CAN do is refuse a seat id from the wrong family, which is the half of identity the roster
 	// gate cannot reach: the roster bounds the SHAPE of an id, never the MEMBERSHIP of the agent
 	// claiming it.
@@ -104,14 +106,15 @@ type Seat struct {
 // under the wrong seat is credited to the wrong party, and every found_by, estoppel and parity
 // check reads it.
 func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) {
-	// THE BOUND SEAT IS THE ONE THIS AGENT REGISTERED AS, read from the record. It replaces
+	// THE BOUND SEAT IS THE ONE THE RECORD BINDS THIS AGENT TO — its latest register, else its latest
+	// bracket where that names a seat — read from the record. It replaces
 	// os.Getenv(SeatVar), which was never anything: FEOV_SEAT had readers and no writer, so the
 	// "injected wins" branch below could not fire in any real run, and every seat was in fact
 	// running on the flag it typed. The disagreement refusal existed and guarded nothing.
 	//
 	// A LOOKUP FAILURE IS NOT AN UNBOUND AGENT. bound distinguishes them and the error is
 	// returned rather than folded into "", because a record nobody can read would otherwise
-	// present as a seat that never registered — and the remedy for those two is opposite.
+	// present as an agent nothing binds — and the remedy for those two is opposite.
 	var env string
 	if bound != nil {
 		b, err := bound()
@@ -122,10 +125,11 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 	}
 	if env != "" && flagSeatID != "" && env != flagSeatID {
 		return Seat{}, feov.Errorf(feov.Conflict,
-			"--seat-id %q disagrees with the seat this agent registered as (%q). "+
-				"Your identity is bound at `register` and read back from the record; you do not retype it. "+
-				"If the flag is a typo, drop it — omitting --seat-id is correct and always right once you "+
-				"have registered. If you believe the bound value is wrong, record it in the log, as a defect, "+
+			"--seat-id %q disagrees with the seat the record binds this agent to (%q). "+
+				"Your identity is bound on the record — by your `register`, or by the harness where your "+
+				"configuration seats exactly one seat — and read back from it; you do not retype it. "+
+				"If the flag is a typo, drop it — omitting --seat-id is correct and always right once the "+
+				"record binds you. If you believe the bound value is wrong, record it in the log, as a defect, "+
 				"rather than working around it",
 			flagSeatID, env)
 	}
@@ -143,8 +147,9 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 	// always the only path.
 	// THE EPOCH IS NOT RESOLVED HERE, or anywhere a seat can reach. It used to be read out of the
 	// id by a regex and returned beside it; the id no longer carries one, and the epoch is
-	// derived by the record at each read (events_w."epoch"). A seat's identity is its id, bound at
-	// register and read back — nothing else.
+	// derived by the record at each read (events_w."epoch"). A seat's identity is its id, bound by
+	// the record (the agent's latest register, or a bracket that names its seat) and read back —
+	// nothing else.
 	return Seat{ID: id}, nil
 }
 
@@ -152,8 +157,8 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 // parsed — the CLI builds its command tree from the seat's role, and cobra resolves the command
 // path before it parses any flag.
 //
-// The RECORD is the real channel: the hook injects an agent handle, `register` binds it, and bound
-// resolves the pair. The os.Args scan is for the bootstrap call and for a human or test driving the
+// The RECORD is the real channel: the hook injects an agent handle, the record binds it to a seat
+// (a bracket that names one, or the agent's `register`), and bound resolves the pair. The os.Args scan is for the bootstrap call and for a human or test driving the
 // binary by hand with --seat-id; it is a bounded read of two spellings and is not a second flag
 // parser. Anything it cannot find yields "", and "" builds the NO-SEAT tree: the operator's verbs
 // are reached by saying so — `--seat-id operator` — not by saying nothing. The refusal names both

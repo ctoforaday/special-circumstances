@@ -17,8 +17,9 @@ func registered(t *testing.T, seat, agent string) *recordpb.Event {
 }
 
 // A SEAT'S IDENTITY IS THE RECORD'S, NOT THE TRANSCRIPT HEAD'S. The journal names an agent; the
-// register event that agent wrote names the seat, and the record counts which sitting of that
-// seat it was and which epoch it sat in. The label is `seat #sitting`. An agent the record never
+// record binds it to a seat — by its latest register, or by its hook bracket where that names one —
+// and holds which sitting of that seat it was and which epoch it sat in. The label is
+// `seat #sitting`. An agent the record never
 // bound keeps the bare class from its prompt head, with no number to invent.
 func TestSeatsAreLabelledFromTheRecordsRegisters(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
@@ -78,5 +79,32 @@ func TestSeatsAreLabelledFromTheRecordsRegisters(t *testing.T) {
 	}
 	if got[0] != 2 || got[1] != 1 || got[2] != 2 {
 		t.Errorf("cost agents by epoch = %v, want {0:2 1:1 2:2}: %+v", got, m.CostRows)
+	}
+}
+
+// AN AGENT WHOSE LATEST BRACKET NAMES NO SEAT IS UNBOUND, and keeps the bare class from its prompt
+// head: the later bracket says its configuration seats several, so the seat an earlier bracket
+// named is not this agent's label. The rule is the record's (agent_binding).
+func TestAnAgentWhoseLatestBracketNamesNoSeatKeepsItsClassLabel(t *testing.T) {
+	bracket := func(seat string) *recordpb.Event {
+		open := &recordpb.SittingOpen{AgentId: proto.String("E"), AgentType: proto.String("frank-exchange-of-views:x")}
+		if seat != "" {
+			open.SeatId = proto.String(seat)
+		}
+		return recordtest.Event(t, "harness", open)
+	}
+	runDir := recordtest.TmpRun(t)
+	recordtest.Seed(t, runDir, registered(t, "red-chair", "C1"), bracket("red-lens-voice"), bracket(""))
+	tr := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tr, "agent-E.jsonl"), []byte(`{"message":{"role":"user","content":"Final assembly"}}`+"\n"+
+		`{"message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tr, "journal.jsonl"), []byte(`{"agentId":"E"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := BuildModel(runtest.Open(t, runDir), tr, Config{}, 1737000000000)
+	if len(m.Seats) != 1 || m.Seats[0].Label != "judge" || m.Seats[0].Epoch != 0 || m.Seats[0].Sitting != 0 {
+		t.Errorf("seats = %+v, want E labelled by its class alone (judge), in no epoch or sitting", m.Seats)
 	}
 }

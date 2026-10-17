@@ -26,7 +26,8 @@ func TestBothEndsOfASpanLand(t *testing.T) {
 }
 
 // THE ENVELOPE NAMES THE HOOK, NOT A SEAT. SubagentStart cannot know which seat it just started
-// (#290), so the seat is recovered later by joining agent_id to the register event. An invented
+// (#290); the writer resolves the configuration to a seat on the bracket's own field where it seats
+// exactly one, and otherwise the seat is recovered by joining agent_id to the register. An invented
 // seat-shaped id here would be a guess written into a permanent record.
 func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 	run := newRun(t)

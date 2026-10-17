@@ -5876,12 +5876,14 @@ type Register struct {
 	// firing hook always carries a value; an absent field means a hook that predates this or no
 	// hook at all — and `run_via` already says which of those two it was.
 	HookVersion *string `protobuf:"bytes,7,opt,name=hook_version,json=hookVersion,proto3,oneof" json:"hook_version,omitempty"`
-	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
+	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, AS THE SEAT STATES IT.
 	//
-	// register is every seat's stated first action, which makes it the one moment the mapping is
-	// knowable: the hook supplies the agent id — the only payload field that discriminates one
-	// seat from another — and the seat supplies which seat it is. Recording their join is what
-	// turns self-asserted identity into a fact later calls can be held to.
+	// register is every seat's stated first action: the hook supplies the agent id — the only
+	// payload field that discriminates one seat from another — and the seat supplies which seat it
+	// is. Recording their join is what turns self-asserted identity into a fact later calls can be
+	// held to. The latest register naming an agent decides its seat; an agent no register names is
+	// bound by its latest hook bracket where that bracket names a seat (SittingOpen.seat_id) — the
+	// record's agent_binding view states the rule.
 	//
 	// A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat id
 	// recovered by parsing the seat's own command — a fact read back out of prose, whose miss is
@@ -6028,8 +6030,9 @@ type SittingOpen struct {
 	// agent_id IS THE ONLY THING THIS END CAN NAME. SubagentStart carries the harness handle and
 	// the agent configuration and NOTHING workflow-supplied (#290, measured 2026-08-23) — the
 	// dispatcher's own seat id does not reach it, and no probe sentinel appears in the payload. So
-	// the seat is resolved LATER, by joining this handle to the register event that names it, which
-	// is the same join record.SeatOfAgent already does.
+	// the writer resolves the seat from the configuration where it seats exactly one (seat_id
+	// below); where it seats several, the seat is the one the agent's register names — the record's
+	// agent_binding view joins this handle to that register.
 	//
 	// That is why the envelope's seat_id on this event is the hook's own origin and not a seat: an
 	// id invented here to look seat-shaped would be a guess written into a permanent record.

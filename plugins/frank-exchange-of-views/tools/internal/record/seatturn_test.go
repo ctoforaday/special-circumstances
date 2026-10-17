@@ -163,7 +163,8 @@ func TestSeatMetricsSaysNotMeasuredRatherThanZero(t *testing.T) {
 // TURNS FROM AN AGENT THAT NEVER REGISTERED STILL COUNT.
 //
 // The join to the seat is a LEFT join for this reason: an inner join would drop every row whose
-// agent has no register event, and report a cheaper run than happened. A crashed seat is exactly
+// agent no register or seat-naming bracket binds, and report a cheaper run than happened. A crashed
+// seat is exactly
 // the one whose cost you want to see.
 func TestSeatMetricsKeepsTurnsFromAnUnregisteredAgent(t *testing.T) {
 	run := runFor(t)

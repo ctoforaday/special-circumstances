@@ -944,32 +944,38 @@ SELECT e."id"      AS "id",
 FROM "events" e
 LEFT JOIN "seat_sitting" ss ON ss."id" = e."sitting_id";
 
--- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
--- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:
--- THE LAST REGISTER WINS, because a re-dispatch writes a fresh register event and a resumed seat
--- legitimately arrives under a new agent id claiming a seat that is already bound. Treating that
--- as a conflict would refuse every resume.
+-- THE AGENT -> SEAT BINDING, the one statement of the rule; every reader of "which seat is this
+-- agent" asks it here (record.SeatOfAgent, and seat_of_agent below for the windows):
 --
--- agent_type comes along because register records it too: it is what the HARNESS called the
--- seat, beside what the seat called itself, and the two disagreeing is a thing worth being able
--- to see rather than a thing to collapse here.
--- A REGISTER IS NOT THE ONLY BINDING. A seat woken with nothing to do need not register — the
--- SubagentStart hook brackets its sitting and the writer resolves the configuration to a seat — so
--- a register-only view reports those agents as anonymous. Every total joined to it then drops their
--- rows or reports a null seat, which is the failure the LEFT JOIN below already guards against for
--- turns and would silently reintroduce for the seats that cost the least.
+--   AN AGENT'S SEAT IS NAMED BY ITS LATEST REGISTER. A re-dispatch writes a fresh register event,
+--   and a resumed seat legitimately arrives under a new agent id claiming a seat that is already
+--   bound; treating that as a conflict would refuse every resume.
 --
--- The register WINS where both exist: it is the seat's own word, and the two disagreeing is a thing
--- worth being able to see rather than a thing to collapse here.
-CREATE VIEW "seat_of_agent" AS
+--   AN AGENT NO REGISTER NAMES IS BOUND BY ITS LATEST HOOK BRACKET, IF THAT BRACKET NAMES A SEAT.
+--   A seat woken with nothing to do need not register — the SubagentStart hook brackets its sitting
+--   and the writer resolves the configuration to a seat — so a register-only binding reports those
+--   agents as anonymous, and every total joined to it drops their rows or reports a null seat. The
+--   bracket that counts is the agent's LATEST, seat-naming or not: a later bracket naming no seat
+--   says this agent's configuration seats several, and naming an earlier seat would be a guess the
+--   record no longer makes. That agent is unbound.
+--
+-- The register WINS where both exist: it is the seat's own word. agent_type comes along from
+-- whichever act binds: it is what the HARNESS called the seat, beside what the seat called itself,
+-- and the two disagreeing is a thing worth being able to see rather than a thing to collapse here.
+-- occasion is what the register says its sitting was convened to do — the bench's, whose four
+-- sittings share one id; NULL on a bracket, which states none.
+--
+-- NO WINDOWS HERE, deliberately: the hook and every seat call ask this binding, and the windows
+-- (events_w) rank every row of the record — seat_of_agent joins them for the readers that want them.
+CREATE VIEW "agent_binding" AS
 SELECT
   r."agent_id"   AS "agent_id",
   e."seat_id"    AS "seat_id",
   r."agent_type" AS "agent_type",
-  e."epoch"      AS "registered_epoch",
-  e."sitting"    AS "sitting"
+  r."occasion"   AS "occasion",
+  r."event_id"   AS "event_id"
 FROM "register" r
-JOIN "events_w" e ON e."id" = r."event_id"
+JOIN "events" e ON e."id" = r."event_id"
 WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
   AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id")
 UNION ALL
@@ -977,19 +983,33 @@ SELECT
   o."agent_id"   AS "agent_id",
   o."seat_id"    AS "seat_id",
   o."agent_type" AS "agent_type",
-  e."epoch"      AS "registered_epoch",
-  e."sitting"    AS "sitting"
+  NULL           AS "occasion",
+  o."event_id"   AS "event_id"
 FROM "sitting_open" o
-JOIN "events_w" e ON e."id" = o."event_id"
 WHERE o."agent_id" IS NOT NULL AND o."agent_id" != ''
   AND o."seat_id" IS NOT NULL AND o."seat_id" != ''
   AND NOT EXISTS (SELECT 1 FROM "register" r2 WHERE r2."agent_id" = o."agent_id")
   AND o."event_id" = (SELECT MAX(o2."event_id") FROM "sitting_open" o2 WHERE o2."agent_id" = o."agent_id");
 
+-- THE BINDING WITH THE TWO WINDOWS OF THE ACT THAT BOUND IT: the EPOCH (the chair sittings at or
+-- before it) and the SITTING (that seat's own sitting count, the opening that began it included),
+-- read off events_w as every window is.
+CREATE VIEW "seat_of_agent" AS
+SELECT
+  b."agent_id"   AS "agent_id",
+  b."seat_id"    AS "seat_id",
+  b."agent_type" AS "agent_type",
+  e."epoch"      AS "registered_epoch",
+  e."sitting"    AS "sitting",
+  b."occasion"   AS "occasion"
+FROM "agent_binding" b
+JOIN "events_w" e ON e."id" = b."event_id";
+
 -- WHAT A SEAT COST, from the turns ingested at capture (#684 F16).
 --
--- A LEFT JOIN, deliberately. A seat whose turns were measured but which never registered still
--- appears, with a null seat_id — the alternative drops its rows from every total and reports a
+-- A LEFT JOIN, deliberately. A seat whose turns were measured but which nothing binds — no register
+-- and no bracket naming its seat — still appears, with a null seat_id — the alternative drops its
+-- rows from every total and reports a
 -- cheaper run than happened, which is the failure this whole issue keeps finding.
 --
 -- NULLIF(ts_ms, 0) is the parser's contract honoured in SQL: 0 means the line carried no

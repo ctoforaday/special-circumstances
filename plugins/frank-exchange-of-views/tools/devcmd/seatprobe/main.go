@@ -506,7 +506,8 @@ func seatEnv(runDir, agentID string) []string {
 	// What remains uncontrolled is smaller and is stated here rather than left to be discovered:
 	// production's dispatcher never learns an agent handle at all (Workflow's agent() returns a
 	// result, not one), so the handle a production seat carries is minted by the hook rather than
-	// by the caller. The BINDING path is now identical; only the handle's provenance differs.
+	// by the caller. A probe seat is a main session no SubagentStart brackets, so it is bound by its
+	// register alone, where a production seat may already be bound by the hook's bracket.
 	return append(os.Environ(),
 		seatenv.Var+"="+runDir,
 		seatenv.AgentVar+"="+agentID,

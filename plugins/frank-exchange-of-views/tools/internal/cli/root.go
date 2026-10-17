@@ -138,7 +138,7 @@ func dispatchedSeat() string {
 	if err != nil {
 		return seatenv.Dispatched(nil)
 	}
-	// NewRun, matching seat.Of: this asks whether an agent has registered, and must answer for a
+	// NewRun, matching seat.Of: this asks which seat the record binds this agent to, and must answer for a
 	// run that is not yet on disk rather than refusing before the question is put.
 	run, rerr := record.NewRun(runDir)
 	if rerr != nil {
@@ -190,7 +190,7 @@ bench rules and never originates.`,
 	root.PersistentFlags().String(flags.Run, "", "the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused")
 	// NO BACKTICKS AROUND `register`: cobra takes the first backquoted word as the flag's
 	// placeholder, and it rendered `--seat-id register`.
-	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused")
+	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
 	// format is primarily view-selected: board/findings/work/motions/telemetry/evidence are JSON

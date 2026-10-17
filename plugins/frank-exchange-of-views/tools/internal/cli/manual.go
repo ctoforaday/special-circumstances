@@ -44,8 +44,8 @@ const manualName = diagnostics.ManualCommand
 // page that only lists commands with pages of their own is left out. Each command's own `--help` is
 // untouched; the economy is the manual's, and diagnostics.ExpandManual reverses it exactly.
 //
-// The surface is the one this tree was built for — the flag, else the seat this agent registered
-// as, exactly as every invocation resolves it — so seatID is captured at construction rather than
+// The surface is the one this tree was built for — the flag, else the seat the record binds this
+// agent to, exactly as every invocation resolves it — so seatID is captured at construction rather than
 // re-derived. It records nothing.
 func newManual(seatID string) *cobra.Command {
 	var forSeat string

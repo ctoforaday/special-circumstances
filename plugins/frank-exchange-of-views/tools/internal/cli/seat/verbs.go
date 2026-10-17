@@ -81,8 +81,8 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 	}
 	// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
 	//
-	// register is where the agent->seat binding is written, so it is also the first and only
-	// place that can see the binding was never possible. The record already handles this
+	// register is where the seat writes its own agent->seat binding, so it is also the first and
+	// only place the seat can see the binding was never possible. The record already handles this
 	// correctly at the write — absent is recorded as absent — and capture already reports it
 	// hours later. What nothing did was tell the SEAT, while the sitting it affects is still
 	// running.
@@ -1108,8 +1108,9 @@ func renderView(cmd *cobra.Command, want string) error {
 
 // RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
 //
-// There is no role level: the seat is bound at `register`, the tool reads the role from that
-// binding, and the root IS the seat's surface. A lens seat runs `mint`; a chair seat running `mint`
+// There is no role level: the seat is bound on the record (by its register, or by the hook's
+// bracket where the configuration seats one), the tool reads the role from that binding, and the
+// root IS the seat's surface. A lens seat runs `mint`; a chair seat running `mint`
 // is told the verb is the lens seat's — the boundary drawn by the only fact that decides it.
 //
 // The seat types no word the tool can already look up: its role is read from its registered seat
