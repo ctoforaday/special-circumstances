@@ -4406,6 +4406,7 @@ var reportExemptions = map[string]string{
 	// their own; capture's dispatch-parity audit is their reader.
 	"cast":     "the run's roster of seats — routing, read by the register refusal and the dispatch plan, never rendered",
 	"dispatch": "who the chair relayed for one epoch — routing, audited by capture against who sat, never rendered",
+	"plan":     "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
