@@ -59,8 +59,11 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 	// the entire reason the set is closed. Substituting the usage line ("the seat's terminal
 	// act") loses it, which the error-catalogue golden caught the moment it was tried.
 	v := enumflag.NewWithoutDefault(new(string), typeName(name, e.Values), record.Identifiers(e.Values), enumflag.EnumCaseSensitive)
+	//
+	// NO SHELL COMPLETION IS REGISTERED. No surface mounts cobra's completion commands, so nothing
+	// could ask for it, and cobra keeps every registered completion in a process-global map keyed
+	// by *pflag.Flag — each tree built would leave its enum flags pinned there for good.
 	c.Flags().Var(&speaking{Value: v, values: e.Values, why: e.Why}, name, usage)
-	_ = v.RegisterCompletion(c, name, record.CompletionHelp(e.Values))
 }
 
 // speaking wraps enumflag's Value so the PARSING is the library's and the REFUSAL is ours.
@@ -71,7 +74,7 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 // seat meets the design, and a probe measured a seat learning its whole surface from what the
 // tool printed back at it after a failure.
 //
-// Wrapping rather than replacing keeps enumflag's parsing, slice handling and completion, so this
+// Wrapping rather than replacing keeps enumflag's parsing and slice handling, so this
 // is a message layer and never a second definition of what is legal.
 type speaking struct {
 	pflag.Value

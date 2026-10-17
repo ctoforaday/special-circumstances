@@ -33,11 +33,10 @@ import (
 //
 // # Why the descriptions are ours and the PARSING is not
 //
-// enumflag (github.com/thediveo/enumflag/v2) owns what it is good at: parsing, case handling,
-// slice-valued flags, and shell completion, with one implementation instead of a hand-rolled
-// pflag.Value per set. Its `Help[E]` type feeds COMPLETION only — it never reaches `--help` — so
-// the rendering stays ours (see internal/cli/enumhelp). Both are built from THIS table, so the
-// parser, the completion, the help menu and the write-time check cannot disagree: that is the
+// enumflag (github.com/thediveo/enumflag/v2) owns what it is good at: parsing, case handling and
+// slice-valued flags, with one implementation instead of a hand-rolled pflag.Value per set. The
+// rendering stays ours (see internal/cli/enumhelp). Both are built from THIS table, so the
+// parser, the help menu and the write-time check cannot disagree: that is the
 // property enums.go exists to hold, extended from the values to their meanings.
 //
 // The grades are the one set that does NOT come through here. flags.GradeValue is a pflag.Value
@@ -114,15 +113,6 @@ func Identifiers(vs []EnumValue) enumflag.EnumIdentifiers[string] {
 		m[v.Name] = []string{v.Name}
 	}
 	return m
-}
-
-// CompletionHelp builds enumflag's per-value completion text from the same table.
-func CompletionHelp(vs []EnumValue) enumflag.Help[string] {
-	h := make(enumflag.Help[string], len(vs))
-	for _, v := range vs {
-		h[v.Name] = v.Means
-	}
-	return h
 }
 
 // Refuse builds the sentence a seat gets for a value outside the set, with the set under it.

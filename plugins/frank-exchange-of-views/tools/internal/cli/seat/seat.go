@@ -1072,9 +1072,8 @@ func SplitGroups(root *cobra.Command) {
 		}
 		sub.GroupID = GroupVerbs
 	}
-	// `help` and `completion` are cobra's, added lazily at execute time; without these they land
-	// under an "Additional Commands:" heading of their own, which reads as a third category of
-	// seat surface rather than as the shell plumbing they are.
+	// `help` is cobra's, added lazily at execute time; without this it lands under an
+	// "Additional Commands:" heading of its own, which reads as a third category of seat surface
+	// rather than as the plumbing it is.
 	root.SetHelpCommandGroupID(GroupVerbs)
-	root.SetCompletionCommandGroupID(GroupVerbs)
 }
