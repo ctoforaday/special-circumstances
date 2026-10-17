@@ -40,7 +40,13 @@ import (
 // run-root stub while `ingest` froze the other one — 40 bytes of heading — as the report's base.
 // With neither stubbed, a report written to the wrong path is an ingest that cannot find its
 // file and says where it looked.
-var dirs = []string{"blue/candidates", "red", "trajectories", "inputs"}
+//
+// `scratch` is the seats' working files — drafts, programs, a spool a seat needs on disk — each
+// named for its seat. It is made here because a shell redirect into a missing directory fails,
+// and a seat's first write is as often `> scratch/…` as a file tool that would make it. Nothing
+// composed or archived reads it: the documents come from the record, and capture keeps records/
+// and proofs/.
+var dirs = []string{"blue/candidates", "red", "trajectories", "inputs", "scratch"}
 
 // marshalJSON matches JS `JSON.stringify(x, null, 2) + '\n'`: two-space indent, a
 // trailing newline, and — critically — NO HTML escaping. Go's default escapes

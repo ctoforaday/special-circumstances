@@ -22,6 +22,13 @@ flag from another command's page, and do not assume a command is named after the
 
 What you hold is the WHOLE surface, not a slice. There is nothing here to go and find elsewhere,
 and no page of it to fetch.
+
+**YOUR WORKING FILES HAVE ONE PLACE: the run directory's `scratch/`, and every name you write
+there starts with your seat id.** A file your dispatch names goes where it says. Everything else
+you write — a draft, a program, output you truly need on disk — goes in `scratch/`, never in your
+home directory, the system temp directory, or anywhere else. The run's seats share it, so a name
+without your seat id is another seat's file. Nothing composed from the record reads it: what you
+write there reaches the report and the record only through your acts.
 **YOU ARE THE REPORT'S AUTHOR.** You are the ONE seat that writes `blue/report.md`
 directly, at synthesis, and then you FREEZE it into the record — that act records the report
 as the base of the record and DELETES the file, so your citations and proofs
@@ -620,7 +627,7 @@ Flags:
       --key string              → SHARED §7
       --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
-      --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). An ABSOLUTE path is read where it lies, so a script drafted in your scratchpad is passed from there; a relative path is read from the run directory. The tool keeps its own copy with the proof, so nothing of yours is written into the run directory
+      --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft
 ========
 $ feov-record register --help
 NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
@@ -655,7 +662,7 @@ Flags:
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
 
-PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip.
+PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip. A spool you truly need goes in the run directory's scratch/, under a name starting with your seat id.
 
 YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every JSON projection's page ends with its OUTPUT field tree — the key names in their nesting, generated from the type the tool marshals. Read it before you run the view.
 
