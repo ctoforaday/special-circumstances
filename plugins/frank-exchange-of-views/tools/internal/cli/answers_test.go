@@ -400,7 +400,10 @@ func answerDrives() []answerDrive {
 			d.endsWithRow(d.refused("a second ruling", "judge", rule("again")...), rowDocketRule)
 			// "a declaration": the bench's is admitted in the sitting that ruled.
 			before := d.admitted("the board as the ruling left it", "blue-respond", "show", "board")
-			d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on that docket motion was wrong, and this is how G1 is to be read")
+			// THE REPLY SAYS WHERE IT GOES: the work list is how a holding reaches the other seats.
+			if out := d.admitted("a declaration", "judge", "declare", "--reason", "my ruling on that docket motion was wrong, and this is how G1 is to be read"); !strings.Contains(out, "every seat's work list carries it") {
+				d.t.Fatalf("the declaration's reply does not say the other seats' work lists carry it:\n%s", out)
+			}
 			// "which moves no gap": the board is as the ruling left it, the ruling still answers that
 			// motion, and the bench's own docket motion is refused.
 			if after := d.admitted("the board after the declaration", "blue-respond", "show", "board"); after != before || !strings.Contains(after, `"open": true`) {

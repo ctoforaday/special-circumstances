@@ -23,7 +23,7 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		byBench = "G-0000000b" // the bench rules it closed
 		notAGap = "G-0000ffff" // named in the holding, minted by nobody
 		// byBench is named by its report token, the form a bench copies out of the report.
-		holding  = byLens + " remains open and is material; " + "<!--gap:" + byBench + "--> is construed with it, and " + notAGap + " is cited. " + byLens + " again."
+		holding  = byLens + " remains open and is material; " + "<!--gap:" + byBench + "--> is construed with it, and " + notAGap + " is cited. " + byLens + " again; G-0000eeee1 is no id."
 		laterOne = "the later holding names no gap"
 	)
 	run := corrRun(t)
