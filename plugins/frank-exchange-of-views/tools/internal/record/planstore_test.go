@@ -134,6 +134,14 @@ func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 	if err != nil || !standing || slices.ContainsFunc(again.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
 		t.Fatalf("asked again: standing %v, blockers %+v, %v; want the plan standing with no review owed", standing, again.Blockers, err)
 	}
+	// Nor is it an act of the sitting: the chair recorded nothing, so no log is asked of it.
+	evs, win, err := eventsAt(recordOf(t, run))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sittingRecordedNothing(evs, win, "red-chair") {
+		t.Errorf("the chair's sitting, whose only event is its stored plan, reads as having recorded something")
+	}
 }
 
 // THE WRITE REFUSES A STORED PLAN NO PRINTING OF A PLAN WRITES: a relay is compared with these bytes.
