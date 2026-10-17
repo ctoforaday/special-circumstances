@@ -44,10 +44,15 @@ func init() { seat.HelpValues["InquirySectionsRule"] = report.InquirySectionsRul
 // TWO ACTS, AND THEY ARE TWO VERBS.
 //
 //	propose  --question "<the question>" --hypothesis "<what would be true if it pays off>"
-//	record   --id Q-… --as underway|confirmed|refuted|declined|abandoned|deferred --reason "<what settled it>"
+//	record   --id Q-… --as underway|confirmed|refuted|declined|abandoned|deferred --reason "<what settled it>" [--method "<what was done>"]
 //
 // A proposal needs a question and starts `proposed`; a record needs the id, the fate and the
 // account of it. Split, each verb requires what it requires and cobra can mark it.
+//
+// THE METHOD IS THE FATE'S, NOT THE PROPOSAL'S (owner ruling, 2026-10-17). Written at proposal it was
+// written before any research and printed beside the question as if it were what was consulted,
+// checked by nothing and changed by no act. On the fate it is report text blue changes the way it
+// changes the reason: by recording the fate again, and the latest record prints.
 //
 // --hypothesis is what makes a later fate checkable: an inquiry that says what would be true if it
 // paid off is confirmed or refuted against its own claim rather than set down on a shrug. It is
@@ -91,14 +96,12 @@ func newInquiryPropose() *cobra.Command {
 		body := &recordpb.Inquiry{
 			InquiryId:  proto.String(id),
 			Question:   proto.String(question),
-			Method:     proto.String(seat.Str(cmd, flags.Method)),
 			Hypothesis: proto.String(seat.Str(cmd, flags.Hypothesis)),
 			Status:     &proposed,
 		}
 		// THE ADVISORY, over exactly what `inquiries()` composes into report.md from this act: the
-		// question, the hypothesis, printed under its own label on the inquiry's row, and the
-		// method, rendered there as _(method)_.
-		tells := spanVoiceTells(question, seat.Str(cmd, flags.Hypothesis), seat.Str(cmd, flags.Method))
+		// question and the hypothesis, each printed under its own label on the inquiry's row.
+		tells := spanVoiceTells(question, seat.Str(cmd, flags.Hypothesis))
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -113,7 +116,6 @@ func newInquiryPropose() *cobra.Command {
 	flags.Text(c, flags.Question, "the QUESTION this inquiry asks, holding no predicted result — research prose for a reader of the SUBJECT, printed in the report word for word as the inquiry's question; a result you expect goes in --hypothesis")
 	seat.Require(c, flags.Question)
 	flags.Text(c, flags.Hypothesis, "your PREDICTION: what would be TRUE if this inquiry pays off. The report prints it as the inquiry's hypothesis, and the fate is judged against it — confirmed where it held, refuted where it did not")
-	flags.Text(c, flags.Method, "optional free text: the source class or technique the approach belongs to, when that is what distinguishes it")
 	return c
 }
 
@@ -147,9 +149,13 @@ func newInquiryRecord() *cobra.Command {
 			return nil, err
 		}
 		body.Reason = proto.String(why)
-		// A fate's reason is composed into the same report.md row as the question, so it meets the
-		// same advisory.
-		tells := spanVoiceTells(why)
+		method := strings.TrimRight(seat.Str(cmd, flags.Method), "\n")
+		if method != "" {
+			body.Method = proto.String(method)
+		}
+		// A fate's reason and method are composed into the same report.md row as the question, so
+		// they meet the same advisory.
+		tells := spanVoiceTells(why, method)
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
@@ -161,6 +167,7 @@ func newInquiryRecord() *cobra.Command {
 	// THE VALUES ARE NOT RE-LISTED HERE: enumhelp renders every value with its own meaning from the
 	// record, so the usage line's job is to say what the FIELD is for.
 	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry", "status"), "the fate of this inquiry")
+	flags.Text(c, flags.Method, "optional: the method this fate is the account of, in the SUBJECT's terms — what was actually done for an approach that ran, what a later run should do for one deferred or declined, what was tried for one abandoned. Printed on the inquiry's row beside the fate")
 	return c
 }
 

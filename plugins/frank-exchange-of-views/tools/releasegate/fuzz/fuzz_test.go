@@ -2139,7 +2139,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 	default:
 		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").run()
 	}
-	// inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
+	// A recorded fate carries an optional --method; feed it sometimes so that flag is exercised too.
 	// An inquiry has an id and a LIFECYCLE: propose it, then record its fate.
 	inquiry := func(role string) {
 		// A DECLINED OR ABANDONED inquiry requires --reason (record.go: an unexplained fate is the
@@ -2160,8 +2160,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// so there is no status to pass — and any other fate is reached by RECORDING it on the
 		// inquiry proposed, which is the cycle red rules on and the oracle reads.
 		out, err := r.do("inquiry propose", seatID).set("--question", line).
-			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").
-			on(50, "--method", "fuzz-method").run()
+			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").run()
 		// RECORDING `proposed` AGAIN IS A REAL STATE — the inquiry is still open and the seat is
 		// saying so rather than settling it — so the fate is drawn from the whole set, not from
 		// the set minus its default.
@@ -2176,7 +2175,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			r.noteInquiry(id)
 			if _, merr := r.do("inquiry record", seatID).set("--id", id).set("--as", st).
-				set("--reason", "fuzz: what changed this inquiry's fate").run(); merr == nil {
+				set("--reason", "fuzz: what changed this inquiry's fate").
+				on(50, "--method", "fuzz-method").run(); merr == nil {
 				r.noteInquiryRecord()
 			}
 		}

@@ -122,12 +122,12 @@ func actRows() map[string]actRow {
 				return []string{"prove", "--quote", "the parser accepts an empty body in this line.", "--script", v["script"], "--reason", text}
 			}},
 		"blue inquiry propose": {seat: "blue-respond", act: func(_ actVars, text string) []string {
-			return []string{"inquiry", "propose", "--question", text, "--hypothesis", "it would settle something", "--method", "a source class"}
+			return []string{"inquiry", "propose", "--question", text, "--hypothesis", "it would settle something"}
 		}},
 		"blue inquiry record": {seat: "blue-respond",
 			setup: func(t *testing.T, runDir string) actVars { proposeQ1(t, runDir); return nil },
 			act: func(_ actVars, text string) []string {
-				return []string{"inquiry", "record", "--id", "Q1", "--as", "underway", "--reason", text}
+				return []string{"inquiry", "record", "--id", "Q1", "--as", "underway", "--reason", text, "--method", "a census of the sources"}
 			}},
 		"blue log":       logRow("blue-respond"),
 		"lens log":       logRow(lensSeat),

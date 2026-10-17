@@ -94,8 +94,12 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add("red-chair", &recordpb.Position{Text: proto.String("gap G1 stands until the race is shown impossible")})
 	add("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
 	add("blue-respond", &recordpb.Inquiry{
-		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY),
-		Question: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
+		InquiryId: proto.String("Q1"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED),
+		Question: proto.String("model-check the two-writer interleaving"),
+	})
+	add("blue-respond", &recordpb.Inquiry{
+		InquiryId: proto.String("Q1"), SupersedesStatus: proto.String("1"),
+		Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Method: proto.String("TLA+"),
 	})
 	add("blue-respond", &recordpb.Inquiry{
 		InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
@@ -159,6 +163,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"**Outcome:** CEILING-TERMINATED",
 		"## Research areas",
 		"model-check the two-writer interleaving",
+		"**Fate:** underway. **Method:** TLA+.",
 		"## Alternatives considered",
 		"rewrite the cache lock-free",
 		"cost exceeds the benefit at this scale",

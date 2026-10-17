@@ -385,7 +385,7 @@ func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 	m := loadedT(t,
 		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C1")}),
 		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
-			Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(), Question: proto.String("a question"), Method: proto.String("read it")}),
+			Status: recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY.Enum(), Question: proto.String("a question")}),
 		// The chair sits again, registers and stops: epoch 2 holds only bookkeeping.
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("C2"),
 			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")}),

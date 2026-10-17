@@ -36,15 +36,19 @@ type Inquiry struct {
 	ID         string
 	Question   string
 	Hypothesis string
-	Method     string
 	Status     string
-	Reason     string   // the reason attached to the CURRENT status
-	Epoch      int      // the epoch the current status was set in
-	History    []string // "e0 underway", "e2 abandoned" …
+	Reason     string // the reason attached to the CURRENT status
+	// Method is the CURRENT fate's, exactly as Reason is: what an approach that ran actually did,
+	// what a deferred or declined one leaves a later run to do, what an abandoned one tried. A
+	// proposal holds none — it is written before any research, and a method printed beside the
+	// question from then reads as what was consulted, with nothing to check it against.
+	Method string
+	Epoch  int    // the epoch the current status was set in
+	Path   []Step // every fate it took, in order, the proposal first
 	// THE FATE IS THE SEAT'S WORD AND NOTHING IS DERIVED BESIDE IT. `abandoned` is "started, and no
 	// answer came" by the enum's own meaning, and `confirmed` and `refuted` are approaches that ran
 	// and answered; a seat reaches any of them straight from `proposed`, so the absence of an `underway`
-	// step says how many fates the seat recorded and nothing about whether the inquiry was taken. History
+	// step says how many fates the seat recorded and nothing about whether the inquiry was taken. Path
 	// holds the path.
 	SeatID string // who last recorded its fate — attribution the one-line row carries
 	// Ruling, RulingWhy and RuledEpoch are the inquiry's FIRST ruling that stands, all three from
@@ -58,6 +62,24 @@ type Inquiry struct {
 	// deliver the research — is an ordinary GAP, minted and closed like any other, and the
 	// per-epoch statement that the read HAPPENED is InquiryReviewDueOf's business, not this
 	// struct's.
+}
+
+// Step is one fate an inquiry took: the epoch it was recorded in, the fate, and the method that
+// record stated. inquiries.md prints the path with each step's method; `show inquiries --json`
+// gives the epoch and fate of each as `history`.
+type Step struct {
+	Epoch  int
+	Status string
+	Method string
+}
+
+// History is the path as `e<epoch> <fate>`, one string per step.
+func (a *Inquiry) History() []string {
+	out := make([]string, 0, len(a.Path))
+	for _, s := range a.Path {
+		out = append(out, fmt.Sprintf("e%d %s", s.Epoch, s.Status))
+	}
+	return out
 }
 
 // InquiriesOf folds the events into one Inquiry per id, in proposal order, for the run-shaped
@@ -86,8 +108,8 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 				byID[id] = a
 				order = append(order, id)
 			}
-			// A creation carries the substance; a recorded fate carries only the new status and
-			// why, so the substance must not be blanked by it. These stay VALUE tests rather than
+			// A creation carries the substance; a recorded fate carries only the new status, why, and
+			// its method, so the substance must not be blanked by it. These stay VALUE tests rather than
 			// presence tests on purpose: the question they ask is "did this event bring
 			// substance", and a fate record that carried `question` as an empty string must not
 			// blank a proposal's question either. `t.Question != nil` would let it.
@@ -97,11 +119,9 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			if v := t.GetHypothesis(); v != "" {
 				a.Hypothesis = v
 			}
-			if v := t.GetMethod(); v != "" {
-				a.Method = v
-			}
-			// STATUS IS OVERWRITTEN BY EVERY EVENT, including one that carried none — that is
-			// what "latest status" means.
+			// STATUS, REASON AND METHOD ARE OVERWRITTEN BY EVERY EVENT, including one that carried
+			// none — that is what "latest status" means, and a method is the account of a fate as the
+			// reason is.
 			//
 			// `Word` is what makes the absent case survive: an unset status is the enum zero, and
 			// Word maps the zero to "" rather than to the literal `unspecified`. Rendering the
@@ -114,8 +134,8 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			// deferred/declined/abandoned carries an underscore. InquiryRuling's words do (`out_of_scope`,
 			// `too_thin`) and take no join either: the schema's spelling is the surface's.
 			a.Status = recordpb.Word(t.GetStatus())
-			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()
-			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
+			a.Reason, a.Method, a.Epoch, a.SeatID = t.GetReason(), t.GetMethod(), w.Epoch, e.GetSeatId()
+			a.Path = append(a.Path, Step{Epoch: w.Epoch, Status: a.Status, Method: a.Method})
 		case *recordpb.MotionRule:
 			// A ruling on an inquiry joins on the inquiry's own id, so `motion inquiry rule`
 			// writes a motion-rule whose motion_id IS a Q-number. This arm is how red's ruling
@@ -269,10 +289,10 @@ type InquiryJSON struct {
 	ID         string `json:"id"`
 	Question   string `json:"question"`
 	Hypothesis string `json:"hypothesis,omitempty"`
-	Method     string `json:"method,omitempty"`
-	Status     string `json:"status"`
-	// Reason belongs to the CURRENT status, not to the inquiry: a reader pairing it with an
-	// earlier status in History would be reading the wrong justification for the wrong fate.
+	// Method and Reason belong to the CURRENT status, not to the inquiry: a reader pairing either
+	// with an earlier status in History would be reading the wrong account of the wrong fate.
+	Method  string   `json:"method,omitempty"`
+	Status  string   `json:"status"`
 	Reason  string   `json:"reason,omitempty"`
 	Epoch   int      `json:"epoch"`
 	History []string `json:"history,omitempty"`
@@ -292,7 +312,7 @@ func InquiriesJSONOf(evs []*Event, win WindowIndex) InquiriesJSON {
 	for _, a := range InquiriesOf(evs, win) {
 		out.Inquiries = append(out.Inquiries, InquiryJSON{
 			ID: a.ID, Question: a.Question, Hypothesis: a.Hypothesis, Method: a.Method,
-			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History,
+			Status: a.Status, Reason: a.Reason, Epoch: a.Epoch, History: a.History(),
 			SeatID: a.SeatID, Ruling: a.Ruling,
 		})
 	}
