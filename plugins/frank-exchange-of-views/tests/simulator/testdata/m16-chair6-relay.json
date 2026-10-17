@@ -56,6 +56,8 @@
     "pass_permitted": false,
     "ceiling": false,
     "max_epochs": 12,
+    "epoch": 6,
+    "final_sitting": false,
     "epoch_limit_reached": false,
     "why": [
       "gap G14 is open and material",

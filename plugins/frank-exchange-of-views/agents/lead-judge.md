@@ -405,6 +405,8 @@ It disputes a gap's grade. The chair rules it and the ruling stands: a seat that
 
 Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.
 
+A grade motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
+
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:

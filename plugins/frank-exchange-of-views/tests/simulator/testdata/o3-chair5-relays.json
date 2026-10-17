@@ -93,6 +93,8 @@
   ],
   "ceiling": false,
   "max_epochs": 12,
+  "epoch": 5,
+  "final_sitting": false,
   "epoch_limit_reached": false,
   "blockers": [
    {
@@ -281,6 +283,8 @@
       ],
       "ceiling": false,
       "max_epochs": 12,
+      "epoch": 5,
+      "final_sitting": false,
       "epoch_limit_reached": false,
       "blockers": [
        {
@@ -472,6 +476,8 @@
       ],
       "ceiling": false,
       "max_epochs": 12,
+      "epoch": 5,
+      "final_sitting": false,
       "epoch_limit_reached": false,
       "blockers": [
        {
@@ -570,6 +576,8 @@
      "stale_areas": [],
      "ceiling": false,
      "max_epochs": 12,
+     "epoch": 5,
+     "final_sitting": false,
      "epoch_limit_reached": false,
      "blockers": [],
      "why": [],
