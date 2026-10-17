@@ -1,7 +1,8 @@
 # Faster test loop
 
-Status: in progress, 2026-10-12. Part A is merged (#1321). Part R (#1326), Part B (#1332, local
-only) and the OCR step change this work turned up (#1330) are built, measured and open. The
+Status: shipped — historical record, 2026-10-17. Part A (#1321), Part R (#1326), Part B (#1332, local
+only) and the OCR step change this work turned up (#1330) are merged, with the outcome PR #1334;
+the follow-ups it filed (#1335-#1339) are closed — #1351, #1369, #1405, #1361, #1402. The
 measured outcome and the rulings that followed it are under "Outcome" below; the sections after
 it are the design as audited. Related: #1013, #1046 (both measure the same gate from the outside).
 
