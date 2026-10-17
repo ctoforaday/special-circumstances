@@ -171,6 +171,13 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	}
 	place := newPlacer(batch.Querier(), evs, rm.ids)
 	newKey := map[string]string{} // source key -> the key the migrated event carries
+	// THE EVENTS.ID A DISPATCH PINS IS TRANSLATED AS AN ID IS. The cast written first, an anchor
+	// placed after an act and a source event that writes nothing each move every later row, so a
+	// pin carried as written names whatever the migrated record holds at that number. A pin names
+	// the report head its party audits, which the source wrote before the dispatch; the migrated
+	// pin is the id of the event that source head was written as.
+	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
+	var wrote int64
 	paired := map[int64]bool{}    // source corrections already written beside their replacement
 	for _, old := range evs {
 		res.In[old.Word]++
@@ -243,6 +250,15 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			if d, ok := body.(*recordpb.Dispatch); ok && len(d.GetOccasions()) == 0 && record.SeatOwesOccasion(d.GetSeatId()) {
 				d.Occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}
 			}
+			if d, ok := body.(*recordpb.Dispatch); ok && d.Pin != nil {
+				to, landed := newID[d.GetPin()]
+				if !landed {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word,
+						Err: fmt.Sprintf("this dispatch pins event %d, which wrote no event on the migrated record before it — the pin would name whatever event holds that number", d.GetPin())})
+					continue
+				}
+				d.Pin = proto.Int64(to)
+			}
 			// A COINING THAT PREDATES THE MATERIAL DEFAULT takes the shipped value for its slug,
 			// else by_grade as a stated fill. A value the source carries is kept as recorded — a
 			// run written by this binary migrates without any of its coinings changing.
@@ -266,6 +282,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			if _, seen := newID[old.ID]; !seen {
+				if err := batch.Querier().QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&wrote); err != nil {
+					return nil, fmt.Errorf("reading the id of the event written from source event %d: %w", old.ID, err)
+				}
+				newID[old.ID] = wrote
+			}
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
 				if _, err := batch.Append(record.Identity{Run: dst, SeatID: seatID}, anchorAfter); err != nil {
