@@ -148,9 +148,17 @@ func proposalAt(q recordsql.Querier, gapID, report string) (old, fixNew string, 
 // it, is followed by an anchor run holding the gap's own anchor — after any trailing punctuation,
 // where an edit's abutting-anchor rule reads it — old is the location as the report holds it, through
 // that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
-// anchors as `show report` prints them. new is fix with each gap anchor of the run it does not carry
-// placed at its content end, where Attach places an anchor on any quote ending there; the run's other
-// anchors are the edit's to carry or refuse. Otherwise the recorded pair.
+// anchors as `show report` prints them. new is fix with each anchor of the run it does not carry that
+// does not back its sentence — the gap and finding anchors — placed at its content end, where Attach
+// places an anchor on any quote ending there; the run's citations and proofs are the edit's to carry
+// or refuse. Otherwise the recorded pair.
+//
+// A FINDING RIDES WITH THE GAP. `lens mint` verifies its pair with the run outside the quote, where an
+// edit leaves it standing on the replacement, and a gap is minted from a finding on its sentence. Left
+// to the edit, that finding was dropped by red's text and every such accept refused as stale on a
+// report nothing had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or proof is the
+// sentence's evidence, and carried onto red's rewording it would back text its source was never read
+// against, so it comes along only where AutoPlace finds its sentence word for word.
 func proposalOver(report, gapID, loc, fix string) (string, string) {
 	start, end, err := anchortext.LocateOnce(report, loc, anchortext.CrossParagraphs)
 	if fix == "" || err != nil {
@@ -167,7 +175,7 @@ func proposalOver(report, gapID, loc, fix string) (string, string) {
 	at := anchortext.ContentEnd(fix)
 	var carried strings.Builder
 	for _, id := range anchor.IDs(run) {
-		if anchor.Kind(id) == anchor.Kind(gapID) && !strings.Contains(fix, anchor.Token(id)) {
+		if !anchor.Backs(id) && !strings.Contains(fix, anchor.Token(id)) {
 			carried.WriteString(anchor.Token(id))
 		}
 	}

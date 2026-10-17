@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -110,6 +111,42 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 			if err := acceptEdit(t, runDir, "H", gap, "--quote", acceptS+anchor.Token(cite)+anchor.Token(gap)+term,
 				"--new", acceptN+anchor.Token(cite)+anchor.Token(gap)+term); err != nil {
 				t.Errorf("blue's hand edit carrying the cite was refused: %v", err)
+			}
+		})
+
+		t.Run("the finding the gap was minted from"+term, func(t *testing.T) {
+			// m25 G-96ac6e01: a lens's finding on S, a gap minted from it prescribing S's rewording, and
+			// blue's accept — refused as stale for dropping the finding, on a report nothing had changed.
+			runDir := acceptRun(t)
+			if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", acceptS+".",
+				"--reason", "overclaim", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
+				t.Fatalf("finding: %v", err)
+			}
+			fx := lastBody(t, runDir, &recordpb.Finding{}).GetId()
+			gap, err := mintQuote(t, runDir, "G", loc, "--new", acceptN+term, "--found-by", fx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tok, ftok := anchor.Token(gap), anchor.Token(fx)
+			if old, new := boardPair(t, runDir, gap); old != acceptS+tok+ftok+term || new != acceptN+tok+ftok+term {
+				t.Errorf("the board's pair is %q -> %q, want the finding carried with the gap's anchor", old, new)
+			}
+			if err := acceptEdit(t, runDir, "A", gap, "--accept"); err != nil {
+				t.Fatalf("accepting a fix on the sentence its finding marks: %v", err)
+			}
+			rep := readReport(t, runDir)
+			if strings.Count(rep, ftok) != 1 || strings.Count(rep, tok) != 1 || !strings.Contains(rep, acceptN+tok+ftok+".") {
+				t.Errorf("the accepted sentence does not carry the gap's and the finding's anchors once at its end:\n%s", rep)
+			}
+			b := lastBody(t, runDir, &recordpb.BlueEdit{})
+			if !b.GetAccepted() || !b.GetAppliedVerbatim() || b.GetAnswers() != gap {
+				t.Errorf("the accept: accepted=%v applied_verbatim=%v answers=%q, want true, true, %s", b.GetAccepted(), b.GetAppliedVerbatim(), b.GetAnswers(), gap)
+			}
+			if !slices.Contains(b.GetReopened(), fx) {
+				t.Errorf("the accept does not record the finding's sentence as changed: reopened %v", b.GetReopened())
+			}
+			if g := openGap(t, runDir, gap); g.LocationState != record.LocationMarked || g.Location != acceptN+"." {
+				t.Errorf("the gap reads %s %q, want marked on red's text", g.LocationState, g.Location)
 			}
 		})
 
