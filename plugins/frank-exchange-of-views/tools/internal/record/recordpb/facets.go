@@ -76,6 +76,9 @@ func EnumFacet(vd protoreflect.EnumValueDescriptor, name string) (value protoref
 	if !IsEnum(name) {
 		return 0, false, fmt.Errorf("facet %q is not an enum facet", name)
 	}
+	if vd == nil {
+		return 0, false, noValue("facet " + name)
+	}
 	opts := vd.Options()
 	if opts == nil || !proto.HasExtension(opts, xt) {
 		return 0, false, nil
@@ -130,6 +133,9 @@ func Facet(vd protoreflect.EnumValueDescriptor, name string) (value bool, declar
 	if numericFacets[name] || IsEnum(name) {
 		return false, false, fmt.Errorf("facet %q is not boolean — read it with Number or EnumFacet", name)
 	}
+	if vd == nil {
+		return false, false, noValue("facet " + name)
+	}
 	opts := vd.Options()
 	if opts == nil || !proto.HasExtension(opts, xt) {
 		return false, false, nil
@@ -147,6 +153,9 @@ func Number(vd protoreflect.EnumValueDescriptor, name string) (value float64, de
 	}
 	if !numericFacets[name] {
 		return 0, false, fmt.Errorf("facet %q is not numeric — read it with Facet", name)
+	}
+	if vd == nil {
+		return 0, false, noValue("facet " + name)
 	}
 	opts := vd.Options()
 	if opts == nil || !proto.HasExtension(opts, xt) {

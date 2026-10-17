@@ -46,6 +46,9 @@ import (
 // carries both annotations has two authors for one sentence; one that names a term the registry
 // does not hold has none.
 func EnumValueDoc(v protoreflect.EnumValueDescriptor) (string, error) {
+	if v == nil {
+		return "", noValue("the value's meaning")
+	}
 	means, _ := proto.GetExtension(v.Options(), E_Means).(string)
 	term, _ := proto.GetExtension(v.Options(), E_DefinedTerm).(string)
 	switch {
@@ -142,6 +145,9 @@ func isZeroValue(v protoreflect.EnumValueDescriptor) bool { return v.Number() ==
 // The miss is LOUD for the same reason EnumValueDoc's is: a silent "" would put a role-shaped
 // hole in a refusal message, which reads as a motion nobody has to rule.
 func RulerOf(v protoreflect.EnumValueDescriptor) (string, error) {
+	if v == nil {
+		return "", noValue("the ruler")
+	}
 	if r, _ := proto.GetExtension(v.Options(), E_RuledBy).(string); r != "" {
 		return r, nil
 	}
@@ -152,7 +158,11 @@ func RulerOf(v protoreflect.EnumValueDescriptor) (string, error) {
 
 // SubjectRuler is RulerOf keyed by the enum value a record carries.
 func SubjectRuler(s MotionSubject) (string, error) {
-	return RulerOf(s.Descriptor().Values().ByNumber(s.Number()))
+	vd, err := declaredValue(s)
+	if err != nil {
+		return "", err
+	}
+	return RulerOf(vd)
 }
 
 // SeatMayFile reports whether a SEAT may put this log type on the record, and whether the value
@@ -166,5 +176,9 @@ func SubjectRuler(s MotionSubject) (string, error) {
 // The schema build already refuses a facet declared on some of an enum's values and not others,
 // so in practice `declared` is false only for a vocabulary that declares it nowhere.
 func SeatMayFile(t LogType) (may bool, declared bool, err error) {
-	return Facet(t.Descriptor().Values().ByNumber(t.Number()), "seat_may_file")
+	vd, err := declaredValue(t)
+	if err != nil {
+		return false, false, err
+	}
+	return Facet(vd, "seat_may_file")
 }
