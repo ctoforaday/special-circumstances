@@ -115,16 +115,15 @@ func relayFixture(t *testing.T) (run record.Run, first, last func() map[string]a
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	}
-	petition := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION)
 	evs := []*record.Event{
 		ev("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
 		ev("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
 		ev("red-lens-logic", &recordpb.Register{}), mint("G1"), mint("G2"),
-		ev("red-lens-logic", &recordpb.Motion{MotionId: proto.String("M1"), Subject: petition, Basis: proto.String("b"),
+		ev("red-lens-logic", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
 			Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}}),
 		// Chair sitting 1.
 		ev("red-chair", &recordpb.Register{}),
-		ev("red-chair", &recordpb.Motion{MotionId: proto.String("M2"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+		ev("red-chair", &recordpb.Motion{MotionId: proto.String("M2"),
 			Basis: proto.String("at impasse"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}}}),
 		ev("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-logic"), GapIds: []string{"G1"}}),
 		ev("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
@@ -135,7 +134,7 @@ func relayFixture(t *testing.T) (run record.Run, first, last func() map[string]a
 		// Chair sitting 2: nobody is readied, and the workflow reads its exit off this plan.
 		ev("red-chair", &recordpb.Register{}),
 		ev("judge", &recordpb.Register{Occasion: recordpb.Occasion_OCCASION_TERMINAL.Enum()}),
-		ev("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: petition, Opinion: proto.String("no"),
+		ev("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("no"),
 			Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}}),
 	}
 	dir := t.TempDir()

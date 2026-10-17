@@ -27,14 +27,13 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	// requirement is satisfied by the field holding text, whatever that text reads as.
 	o := &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("r"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("false"),
 			Settled:    proto.String("the claim as it stood may not be re-asserted"),
-			ReopensOn:  proto.String("a reproduction on the shipped binary"),
+			Direction:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
 	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
@@ -158,7 +157,6 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	direction := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 			Opinion:  proto.String("a real question, but not this one"),
 			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 		}
@@ -185,7 +183,6 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	// A GRADE ruling names a motion, and resolves against a different table entirely.
 	grade := &recordpb.MotionRule{
 		MotionId: proto.String("M9"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("the grade stands"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 	}

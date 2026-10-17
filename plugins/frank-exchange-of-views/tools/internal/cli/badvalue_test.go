@@ -109,15 +109,17 @@ func TestAStrayWordIsRefusedWithTheVerbsFlags(t *testing.T) {
 }
 
 func TestAFlagGroupViolatedIsRefusedWithItsFlagsLines(t *testing.T) {
-	said := assertShortRefusal(t, "red-chair", "spot-check", []string{"spot-check", "--none", "--ids", "G-00000000", "--reason", "r"},
-		"if any flags in the group [none ids] are set none of the others can be")
-	spot := cmdAt(NewRootFor("red-chair"), []string{"spot-check"})
-	for _, name := range []string{"none", "ids"} {
-		if u := spot.Flags().Lookup(name).Usage; !strings.Contains(said, "--"+name+" ") || !strings.Contains(said, u) {
+	said := assertShortRefusal(t, lensSeat, "mint", []string{"mint", "--key", "M-probe", "--class", "scope-creep",
+		"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low",
+		"--complexity", "low", "--fix", "f"},
+		"at least one of the flags in the group [problem reason] is required")
+	mintCmd := cmdAt(NewRootFor(lensSeat), []string{"mint"})
+	for _, name := range []string{"problem", "reason"} {
+		if u := mintCmd.Flags().Lookup(name).Usage; !strings.Contains(said, "--"+name+" ") || !strings.Contains(said, u) {
 			t.Errorf("the refusal does not carry --%s's usage line (%q):\n%s", name, u, said)
 		}
 	}
-	if strings.Contains(said, "--reason ") {
-		t.Errorf("the refusal lists --reason, which is in no group:\n%s", said)
+	if strings.Contains(said, "--fix ") {
+		t.Errorf("the refusal lists --fix, which is in no group:\n%s", said)
 	}
 }

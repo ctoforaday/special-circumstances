@@ -39,7 +39,7 @@ type PlanBlocker struct {
 }
 
 // RemandOwed is one gap whose remand's exchange the plan readies, and the direction that exchange
-// owes — the gap view's `docket_reopens_on`, which the record refuses blank on a remand.
+// owes — the gap view's `docket_direction`, which the record refuses blank on a remand.
 type RemandOwed struct {
 	GapID     string `json:"gap_id"`
 	Direction string `json:"direction" pattern:"\\S" desc:"never blank: the record refuses a remand without one"`
@@ -143,7 +143,7 @@ type openGap struct {
 	// (benchSatFor).
 	unruledFiled  int64
 	unruledMotion string // the motion id of that filing, for the plan's reason; "" when none
-	// direction is the gap view's `docket_reopens_on`: the research direction the latest remand
+	// direction is the gap view's `docket_direction`: the research direction the latest remand
 	// states, which the plan's reason quotes when the remand's exchange is owed.
 	direction string
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
@@ -547,8 +547,7 @@ func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error
 		if noRecord(q) {
 			return nil
 		}
-		rows, err := q.Query(`SELECT c."gap_id", MIN(c."event_id") FROM "closure_act" c
-		  JOIN "live_event" l ON l."event_id" = c."event_id" GROUP BY c."gap_id"`)
+		rows, err := q.Query(`SELECT c."gap_id", MIN(c."event_id") FROM "closure_act" c GROUP BY c."gap_id"`)
 		if err != nil {
 			return fmt.Errorf("asking the record where each closed gap closed: %w", err)
 		}
@@ -662,9 +661,7 @@ type dispatchRow struct {
 // sitting_open, or a register no bracket of its agent preceded. A register under an agent the hook
 // already bracketed JOINED that sitting, so a bracket and its paired register are one opening here,
 // not two: read as two, the register would close the bracket's sitting, and every act after it
-// would land in a sitting that answers no dispatch. A register naming the sitting it repairs opens none
-// either: it sits for no dispatch and ends no sitting, and sittingCloser adds its acts to the
-// sitting it repairs.
+// would land in a sitting that answers no dispatch.
 func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, map[string][]int64) {
 	var ds []dispatchRow
 	openings := map[string][]int64{}
@@ -723,7 +720,7 @@ func benchOccasionSittings(evs []*Event, seq []int64, win WindowIndex) map[recor
 			continue
 		}
 		r, ok := recordpb.BodyAs[*recordpb.Register](e)
-		if _, repairs := recordpb.SittingRepairedBy(e); !ok || r.Occasion == nil || repairs {
+		if !ok || r.Occasion == nil {
 			continue
 		}
 		if p, sat := place[win.Of(e).SittingID]; sat {
@@ -777,13 +774,6 @@ func benchRowSitting(openings []int64, on map[recordpb.Occasion][]int64, d dispa
 //     that opened THIS sitting. The SubagentStop hook writes it when that agent returns, so it is
 //     the harness's observation of this seat, not an act of another seat.
 //
-// A REPAIR OF THE SITTING IS PART OF IT. A register naming the sitting it repairs (repairs_sitting)
-// opens no span of its own: the write path stores it in the seat's latest sitting, and from it to
-// where that register's own sitting would end — the seat's next opening, or the stop of the agent
-// on the repair — its acts are that sitting's. Where the first agent's stop has already closed the
-// sitting when the repairing register lands, the repair is a second span, and the sitting ends where
-// its last span does. No command writes such a register; a record that holds one is read this way.
-//
 // NOTHING ANOTHER SEAT WRITES BOUNDS IT. A read keyed on another seat's act — the chair's next
 // register, the chair's next dispatch row — depends on a rule enforced at that seat's write path,
 // and a warm chair registers once per run: on five archived runs a chair-keyed exchange fold read
@@ -808,7 +798,6 @@ type sittingCloser struct {
 	openings  map[string][]int64 // seat -> the places of the events that opened its sittings, ascending
 	agentOf   map[int64]string   // a bracket's or register's place -> the agent_id it carries
 	stops     map[string][]int64 // agent_id -> the places of its sitting_close events, ascending
-	repairs   map[int64][]int64  // a sitting's opening place -> the places of the registers repairing its sitting, ascending
 	recordEnd int64              // one past the last place on the record
 	when      ReadWhen
 }
@@ -831,37 +820,25 @@ const (
 // sittingCloserOf reads the stream once for every fact that can close a sitting. seq and openings
 // are dispatchLedger's: the same places the sitting's start was read at.
 func sittingCloserOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64, when ReadWhen) sittingCloser {
-	c := sittingCloser{openings: openings, agentOf: map[int64]string{}, stops: map[string][]int64{}, repairs: map[int64][]int64{}, when: when}
+	c := sittingCloser{openings: openings, agentOf: map[int64]string{}, stops: map[string][]int64{}, when: when}
 	if n := len(seq); n > 0 {
 		c.recordEnd = seq[n-1] + 1
 	}
-	place := placesOf(evs, seq, win)
 	for i, e := range evs {
 		// THE AGENT THAT SAT IT is on whichever event opened the sitting — the hook's bracket, or a
-		// register no bracket preceded — and on a repair's own register, whose span its own agent's
-		// stop ends.
+		// register no bracket preceded.
 		if a := recordpb.AgentOpening(e); a != "" {
 			c.agentOf[seq[i]] = a
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
 			c.stops[b.GetAgentId()] = append(c.stops[b.GetAgentId()], seq[i])
 		}
-		// WHICH SITTING A REPAIR COMPLETES IS THE STORED ONE: the write path joins a repair register
-		// to its seat's latest sitting, the one dispatchLedger read the start of — so the spans this
-		// bounds and the sittings that exist come from one answer. An agent id is read above and a
-		// span opened here because they are different facts: a body nothing can read carries no
-		// agent, and still opens a sitting.
-		if _, repairs := recordpb.SittingRepairedBy(e); repairs {
-			if opened, ok := place[win.Of(e).SittingID]; ok {
-				c.repairs[opened] = append(c.repairs[opened], seq[i])
-			}
-		}
 	}
 	return c
 }
 
-// span is one stretch of a sitting's acts: the places from the event that opened it — or a repair's
-// register — up to, not including, the act that closed it.
+// span is a sitting's acts: the places from the event that opened it up to, not including, the act
+// that closed it.
 type span struct{ from, to int64 }
 
 // holds reports whether a place falls in any of the spans.
@@ -874,20 +851,14 @@ func holds(spans []span, at int64) bool {
 	return false
 }
 
-// bounds is the seat's sitting that began at start: the spans its acts fall in — its own, then one
-// per register repairing it — where the last of them ends, and whether every one is closed.
+// bounds is the seat's sitting that began at start: the one span its acts fall in, where it ends,
+// and whether it is closed.
 func (c sittingCloser) bounds(seat string, start int64) (spans []span, end int64, closed bool) {
-	closed = true
-	for _, from := range append([]int64{start}, c.repairs[start]...) {
-		to, ok := c.end(seat, from)
-		spans = append(spans, span{from: from, to: to})
-		end, closed = max(end, to), closed && ok
-	}
-	return spans, end, closed
+	end, closed = c.end(seat, start)
+	return []span{{from: start, to: end}}, end, closed
 }
 
-// end is where the stretch that began at from — the seat's opening of the sitting, or a repair's
-// register — ended: the place of the act that closed it, which is outside it. With nothing about
+// end is where the sitting that began at from ended: the place of the act that closed it, which is outside it. With nothing about
 // this seat past it, end is the end of the record, and closed is false while the run is read as
 // running and true after it.
 func (c sittingCloser) end(seat string, from int64) (int64, bool) {
@@ -1295,7 +1266,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    COALESCE(g."unruled_docket_filed", 0),
 	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), ''),
-	    COALESCE(g."docket_reopens_on", '')
+	    COALESCE(g."docket_direction", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)

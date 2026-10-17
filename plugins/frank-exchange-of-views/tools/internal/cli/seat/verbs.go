@@ -223,7 +223,7 @@ func Closing(key string) *cobra.Command {
 		}); err != nil {
 			return nil, err
 		}
-		return closingResult{ID: Str(cmd, flags.ID)}, nil
+		return closingResult{GapID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
 	// validate refuses a closing that names no gap — "a receipt naming no gap cannot be audited".
@@ -318,7 +318,7 @@ var workPage = []scopedPara{
 	{text: "An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left."},
 	{roles: []string{"lens"}, text: "FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer."},
 	{roles: []string{"lens"}, text: "A LENS'S LIST STATES ITS MINT BUDGET, and it is the count a mint is refused on: `sitting.mint_budget` is the gaps you minted that are `open` now, your `budget` — the most you may hold open at once: the larger of the run's `floor` and `mints` for every `per` of the `units` your area is sized by, named in `unit` — and the mints `left` to you. A gap of yours that closes frees one. `measured: false` says the units cannot be read, and `budget` and `left` are then the floor's. An item states the same numbers; decide gap or finding from it. Absent on every other role's list."},
-	{text: "`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. " + record.LocationStates + "; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_reopens_on`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse."},
+	{text: "`open` holds OPEN gaps only, and each carries WHAT IT TAKES TO ACT ON IT: the grades, class and location, the WHOLE problem (`problem_synopsis` is the first 140 characters, for scanning a long list), the `required_fix` and the `acceptance_check` you will be re-audited against, `minted_by` and `yours_to_close` — only the seat that minted a gap may close or regrade it. YOU SHOULD NOT NEED THE BOARD TO ACT ON YOUR OWN WORK. " + record.LocationStates + "; `edited_since` lists the edits that changed a gap's sentence since you last sat. One with `remanded` was REMANDED by the bench, and `remand_stage` says where a remand ruled at impasse stands. `owed`: the gap is back in the debate for ONE more exchange — the dispatch readies its minting lens and blue on it, owing the research direction the ruling states (`docket_direction`), and an item on each of their lists says so. `spent`: that exchange has begun — if it leaves the gap at impasse, the dispatch dockets it for the bench again, and if it moved the gap, its limits count afresh from the ruling. `at_limit`: remanded at impasse twice, it stays open at its limit. No `remand_stage`: no remand was ruled while the gap was at impasse."},
 	{roles: []string{"lens"}, text: "AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE, and the gap says which: `regrades_owed` is each grade motion on the gap that was ACCEPTED and that no regrade has followed — the `motion_id`, the `dimension` it contested and the `proposed` grade the ruling accepted — on the minting lens's list, and empty on every other. The item in `sitting.open` that names the gap states the same motions."},
 	{roles: []string{"bench", "chair"}, text: "THE LIST CLOSES WITH THE RUN'S LAW: whether setup staged a law corpus for this run, and where it is — the law you read before you rule. It never blocks."},
 	{roles: []string{"lens", "blue"}, text: "WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old` and `fix_new` are the proposal over the report as it stands — the pair blue's accepting `edit` sends — and `fix_basis` says what the fix rests on: `verified`, the tool checked the span against the report, or `proposed`, prose only, and then the gap has no pair."},
@@ -1208,10 +1208,10 @@ func (r registerResult) Human() string {
 }
 
 type closingResult struct {
-	ID string `json:"id"`
+	GapID string `json:"gap_id"`
 }
 
-func (r closingResult) Human() string { return "closing filed for " + r.ID }
+func (r closingResult) Human() string { return "closing filed for " + r.GapID }
 
 // inquestGroup builds the bench's raw-record surface from the same table `show` reads, so a
 // projection cannot be in both or in neither.

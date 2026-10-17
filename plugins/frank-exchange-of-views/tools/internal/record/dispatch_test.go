@@ -64,7 +64,7 @@ func (b *stage) mintSuperseding(evLens, gap, severity, ancestor string) *stage {
 // keeps open beside the dispatch's own docketing at impasse. The stage seeds it; a test that
 // files it live, after seeding, appends the same body.
 func docketMotion(id, gap string) *recordpb.Motion {
-	return &recordpb.Motion{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+	return &recordpb.Motion{MotionId: proto.String(id),
 		Basis: proto.String("escalated by hand"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}}
 }
 func (b *stage) docketMotion(seat, id, gap string) *stage { return b.add(seat, docketMotion(id, gap)) }

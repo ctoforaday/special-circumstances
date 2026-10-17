@@ -29,11 +29,11 @@ package recordsql
 // # What a gap being closed by BOTH arms means here
 //
 // It is legal: red closes on a verified repair, the bench rules on the same gap in a later sitting.
-// The gap view names the LAST standing closing act of each arm (`close_event`, `bench_close_event`)
-// and which arm acted last (`closed_by_bench`) rather than collapsing them into one word, because
-// which act ended the gap is exactly the distinction #342 was about — a reader should not have to
-// know which verb produced a closure, but it must still be able to ask, and it asks the act's body
-// for its word.
+// The gap view names the LAST standing closing act of each arm (`close_event`, `bench_close_event`),
+// which arm's act ended the gap (`closed_by_bench`), and which arm acted last (`bench_closed_last`)
+// rather than collapsing them into one word, because which act ended the gap is exactly the
+// distinction #342 was about — a reader should not have to know which verb produced a closure, but
+// it must still be able to ask, and it asks the act's body for its word.
 const ViewsDDL = `
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
 --
@@ -61,11 +61,9 @@ WHERE e."sitting_id" = e."id";
 -- itself — and per seat, so no sibling seat's acts can move it. It is what a seat id used to carry
 -- as -r<N>, computed from the record instead of typed by the seat.
 --
--- IT COUNTS THE STORED SITTING, NOT REGISTERS. This window used to run its own opening predicate
--- over the events, and that predicate counted EVERY register — including a sitting-record repair,
--- which opens no sitting and which every other reader excluded. The two numbers disagreed by one
--- for any seat that ever repaired, which is the defect a stored sitting_id removes rather than
--- fixes: there is nothing left to keep in step.
+-- IT COUNTS THE STORED SITTING, NOT REGISTERS. A window that ran its own opening predicate over
+-- the events would be a second answer to what opens a sitting, free to disagree with the one the
+-- write path stored; reading sitting_id leaves nothing to keep in step.
 --
 -- "epoch" is GLOBAL: the count of red-chair's sittings at or before the row, whoever wrote the
 -- row. It is what the bucket readers were using the epoch for — which dispatch cycle was this in
@@ -277,10 +275,7 @@ GROUP BY "agent_id", "bucket";
 -- rows in 2.7 ms. The ratio is events/edits, so an unscaled edit count flatters it — the shape, not
 -- the multiple, is the point.
 --
--- Nothing here is new knowledge. The edits are one table; the clock is already a column; which act
--- STANDS after a correction is already live_event, and joining it is what keeps this projection's
--- answer identical to Live's — a struck edit is replaced by its successor AT THE STRUCK ACT'S
--- POSITION, which is why "pos" is selected and ordered on rather than the event id.
+-- Nothing here is new knowledge. The edits are one table, and the clock is already a column.
 --
 -- "delta" is in CHARACTERS because SQLite's length() counts code points on TEXT, which is what Go's
 -- len([]rune(s)) counted. length() on a BLOB would count bytes, and these columns are TEXT.
@@ -296,75 +291,15 @@ SELECT
   COALESCE(b."text", '')                                        AS "reason",
   COALESCE(b."applied_verbatim", 0)                             AS "applied_verbatim",
   COALESCE(b."accepted", 0)                                     AS "accepted",
-  l."pos"                                                       AS "pos",
   b."event_id"                                                  AS "event_id"
 FROM "blue_edit" b
-JOIN "live_event" l ON l."event_id" = b."event_id"
 JOIN "events_w" e ON e."id" = b."event_id";
 
--- THE STRUCK ACTS: every act a seat corrected in the sitting that wrote it, with the act that
--- replaced it, who corrected it and why. A struck act is never hidden — listings render it struck,
--- beside its replacement — but it is never a WINNER: see live_event.
-CREATE VIEW "struck" AS
-SELECT
-  e."id"            AS "event_id",
-  c."corrects"      AS "corrects",
-  c."replacement"   AS "replacement",
-  c."why"           AS "why",
-  ce."seat_id"      AS "seat_id",
-  ce."id"           AS "by_event"
-FROM "correction" c
-JOIN "events" ce ON ce."id" = c."event_id"
-JOIN "events" e  ON e."key" = c."corrects";
-
--- THE ROOT OF EVERY CORRECTION CHAIN: for each replacement, the key of the act its chain began
--- with. The walk runs over the correction rows ALONE and never over "events", so it costs the
--- number of corrections, not the size of the record. (It walked every event once, and the "gap"
--- view reads live_event in several correlated subqueries per gap: every board read, including the
--- ones validation makes inside a write, paid for the whole record each time.)
-CREATE VIEW "correction_root" AS
-WITH RECURSIVE "up"("replacement", "root") AS (
-  SELECT c."replacement", c."corrects" FROM "correction" c
-  UNION ALL
-  SELECT u."replacement", c."corrects" FROM "up" u JOIN "correction" c ON c."replacement" = u."root"
-)
-SELECT u."replacement" AS "replacement", u."root" AS "root"
-FROM "up" u
-WHERE NOT EXISTS (SELECT 1 FROM "correction" c WHERE c."replacement" = u."root");
-
--- EVERY ACT, WHERE IT STANDS IN AN ORDERING, AND WHEN IT STOPPED STANDING. Its position "pos" is its
--- own id, or — for a replacement — the id of the act at the ROOT of its chain: a correction takes its
--- target's place in every ordering, so a reader picking the FIRST or the LATEST act orders by "pos",
--- and a replacement cannot jump ahead of a later act by the same seat (an inquiry's proposal
--- corrected after its fate was recorded must not become the inquiry's latest status). "struck_seq" is the
--- events.id of the correction that struck it, NULL while nothing has.
+-- THE BENCH'S REMANDS: every docket ruling with a disposition that does not close the gap
+-- ("remanded"), one row per ruling — the gap it is about, its events.id, the sitting it was ruled in,
+-- and the research direction it states, which the DocketRuling CHECKs require of a remand.
 --
--- TWO AXES, AND THEY ANSWER DIFFERENT QUESTIONS. "pos" ORDERS the acts that stand; WHETHER an act
--- stood at a point P of the record is on the record's own axis, events.id: it was written at or
--- before P ("event_id" <= P) and no correction written at or before P struck it ("struck_seq" IS
--- NULL OR "struck_seq" > P). A reader asking "as it stood at P" applies exactly that predicate — a
--- correction written after P has not happened at P, however early its replacement sorts. At the
--- record's newest event the predicate is "struck_seq IS NULL", which is live_event.
-CREATE VIEW "act_standing" AS
-SELECT e."id"                   AS "event_id",
-       COALESCE(re."id", e."id") AS "pos",
-       s."by_event"             AS "struck_seq"
-FROM "events" e
-LEFT JOIN "correction_root" cr ON cr."replacement" = e."key"
-LEFT JOIN "events" re ON re."key" = cr."root"
-LEFT JOIN "struck" s ON s."event_id" = e."id";
-
--- THE ACTS THAT STAND NOW, and where each stands: every act no correction has struck.
-CREATE VIEW "live_event" AS
-SELECT "event_id", "pos" FROM "act_standing" WHERE "struck_seq" IS NULL;
-
--- THE BENCH'S REMANDS: every docket ruling that stands (live_event) with a disposition that does not
--- close the gap ("remanded"), one row per ruling — the gap it is about, its events.id, its place
--- "pos" (a correction takes its target's place), the sitting it was ruled in, and the research
--- direction it states. A remand must state reopens_on and cannot state final (the DocketRuling
--- CHECKs), so reopens_on is the direction the remand's exchange owes.
---
--- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_reopens_on"
+-- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
 -- into bench sittings by "sitting_id" and counts a sitting only where the gap was at impasse when the
 -- bench ruled — a question about the exchange count, which the record's Go fold answers and this
@@ -372,15 +307,13 @@ SELECT "event_id", "pos" FROM "act_standing" WHERE "struck_seq" IS NULL;
 CREATE VIEW "remand" AS
 SELECT md."gap_id"                          AS "gap_id",
        mr."event_id"                        AS "event_id",
-       l."pos"                              AS "pos",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
-       rd."reopens_on"                      AS "reopens_on"
+       rd."direction"                       AS "direction"
 FROM "motion_docket" md
 JOIN "motion" mo ON mo."event_id" = md."event_id"
 JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
 JOIN "motion_rule_docket" rd ON rd."event_id" = mr."event_id"
 JOIN "enum_disposition" d ON d."value" = rd."disposition"
-JOIN "live_event" l ON l."event_id" = mr."event_id"
 JOIN "events" e ON e."id" = mr."event_id"
 WHERE NOT d."closes";
 
@@ -390,11 +323,9 @@ WHERE NOT d."closes";
 -- above P. The gap view reads the row that holds now; convergence_at reads the one that held at each
 -- verdict. This is the ONE statement of the regrade overlay and of the materiality rule.
 --
--- THE OVERLAY: on each axis, the latest regrade that touched the axis among the regrades STANDING at
--- the point (act_standing's predicate, on events.id), "latest" by "pos"; else the mint's grade. A
--- stretch begins at the mint, at each regrade, and at each correction that struck one, which are the
--- only points where that answer can change. A correction written after a verdict therefore begins a
--- stretch after it: the verdict's row still holds the original the gate read.
+-- THE OVERLAY: on each axis, the latest regrade that touched the axis among the regrades written at
+-- or before the point (events.id <= P); else the mint's grade. A stretch begins at the mint and at
+-- each regrade, the only points where that answer can change.
 --
 -- THE MATERIALITY RULE: the class's default says 'always' or 'never', and a 'by_grade' class is
 -- material at a severity of medium (mass 2.0) and above. A gap that is not material stays on the
@@ -405,19 +336,15 @@ WHERE NOT d."closes";
 -- a facet on the vocabulary (enum_grade.mass).
 CREATE VIEW "gap_grade" AS
 WITH "act" AS MATERIALIZED (
-  SELECT r."gap_id" AS "gap_id", r."event_id" AS "seq", a."pos" AS "pos", a."struck_seq" AS "struck_seq",
+  SELECT r."gap_id" AS "gap_id", r."event_id" AS "seq",
          r."severity" AS "severity", r."likelihood" AS "likelihood", r."impact" AS "impact",
          r."complexity_cost" AS "complexity_cost"
   FROM "regrade" r
-  JOIN "act_standing" a ON a."event_id" = r."event_id"
 ),
 "turn" AS (
   SELECT m."event_id" AS "minted_event", m."event_id" AS "seq" FROM "mint" m
   UNION
   SELECT m."event_id", a."seq" FROM "mint" m JOIN "act" a ON a."gap_id" = m."gap_id"
-  UNION
-  SELECT m."event_id", a."struck_seq" FROM "mint" m JOIN "act" a ON a."gap_id" = m."gap_id"
-  WHERE a."struck_seq" IS NOT NULL
 ),
 "graded" AS (
   SELECT t."minted_event" AS "minted_event",
@@ -426,20 +353,20 @@ WITH "act" AS MATERIALIZED (
          m."class_material" AS "class_material",
          COALESCE((SELECT a."severity" FROM "act" a
                     WHERE a."gap_id" = m."gap_id" AND a."severity" IS NOT NULL
-                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
-                    ORDER BY a."pos" DESC LIMIT 1), m."severity")               AS "severity",
+                      AND a."seq" <= t."seq"
+                    ORDER BY a."seq" DESC LIMIT 1), m."severity")               AS "severity",
          COALESCE((SELECT a."likelihood" FROM "act" a
                     WHERE a."gap_id" = m."gap_id" AND a."likelihood" IS NOT NULL
-                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
-                    ORDER BY a."pos" DESC LIMIT 1), m."likelihood")             AS "likelihood",
+                      AND a."seq" <= t."seq"
+                    ORDER BY a."seq" DESC LIMIT 1), m."likelihood")             AS "likelihood",
          COALESCE((SELECT a."impact" FROM "act" a
                     WHERE a."gap_id" = m."gap_id" AND a."impact" IS NOT NULL
-                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
-                    ORDER BY a."pos" DESC LIMIT 1), m."impact")                 AS "impact",
+                      AND a."seq" <= t."seq"
+                    ORDER BY a."seq" DESC LIMIT 1), m."impact")                 AS "impact",
          COALESCE((SELECT a."complexity_cost" FROM "act" a
                     WHERE a."gap_id" = m."gap_id" AND a."complexity_cost" IS NOT NULL
-                      AND a."seq" <= t."seq" AND (a."struck_seq" IS NULL OR a."struck_seq" > t."seq")
-                    ORDER BY a."pos" DESC LIMIT 1), m."complexity_cost")        AS "complexity_cost"
+                      AND a."seq" <= t."seq"
+                    ORDER BY a."seq" DESC LIMIT 1), m."complexity_cost")        AS "complexity_cost"
   FROM "turn" t
   JOIN "mint" m ON m."event_id" = t."minted_event"
 )
@@ -461,9 +388,8 @@ LEFT JOIN "enum_grade" gs ON gs."value" = g."severity";
 
 -- EVERY ACT THAT CLOSES A GAP, by its arm: red's close ('close'), and a docket ruling whose
 -- disposition closes ('bench') — whether it closes is read off the vocabulary rather than decided
--- here. Struck acts are rows too: whether one closed the gap at a point is act_standing's question.
--- The gap view reads the LAST of each arm that stands now, and which arm acted last; convergence_at
--- asks whether any stood at a verdict.
+-- here. The gap view reads the LAST of each arm, and which arm acted last; convergence_at asks
+-- whether any was written at or before a verdict.
 --
 -- TWO HOPS ON THE BENCH ARM, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own
 -- event carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
@@ -513,7 +439,7 @@ SELECT
   -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
   --
   -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
-  -- minting lens and blue, on the direction the ruling states (docket_reopens_on). Where a remanded
+  -- minting lens and blue, on the direction the ruling states (docket_direction). Where a remanded
   -- gap stands against that exchange — owed, had, or the gap remanded again and at its limit — turns
   -- on the exchange count, so the record's Go fold decides it (exchangesOf, over the "remand" view's
   -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
@@ -551,12 +477,24 @@ SELECT
   e."id"                                       AS "minted_seq",
   e."epoch"                                    AS "minted_epoch",
   e."seat_id"                                  AS "minted_by",
-  -- HOW THE GAP CLOSED, stated here and nowhere else: the last standing closing act of each arm by
-  -- its events.id (NULL where the arm has none), and whether the bench's is the later of the two.
-  -- A reader takes the act's word, epoch and seat from the event the id names.
+  -- HOW THE GAP CLOSED, stated here and nowhere else: the last closing act of each arm by its
+  -- events.id (NULL where the arm has none), which arm's act ended the gap, and whether the bench's
+  -- is the later of the two. A reader takes the act's word, epoch and seat from the event the id
+  -- names.
   cx."event_id"                                AS "close_event",
   bc."event_id"                                AS "bench_close_event",
-  (bc."pos" IS NOT NULL AND (cx."pos" IS NULL OR bc."pos" > cx."pos")) AS "closed_by_bench",
+  -- WHO CLOSED IT is the arm of the FIRST closing act. A docket motion filed while its gap is open
+  -- stands unruled after the minting lens closes the gap, and the bench rules it to clear the PASS:
+  -- in universe-m25 the lenses closed G-e205e589 and G-a810bbab (ev440, ev460) before the bench
+  -- ruled their k-max dockets (ev488, ev489), and read by its later act the run holds four lens
+  -- closures counted as the bench's. The ruling is the bench's word on the gap; it is not what
+  -- ended it.
+  ((SELECT f."arm" FROM "closure_act" f
+    WHERE f."gap_id" = m."gap_id"
+    ORDER BY f."event_id" LIMIT 1) IS 'bench')                                         AS "closed_by_bench",
+  -- WHOSE WORD STANDS is the later arm's: a bench ruling after red's close overrules red's word, and
+  -- the closure's epoch is that act's.
+  (bc."event_id" IS NOT NULL AND (cx."event_id" IS NULL OR bc."event_id" > cx."event_id")) AS "bench_closed_last",
   (cx."event_id" IS NULL AND bc."event_id" IS NULL)             AS "open",
   -- THE REPEATED FIELDS, ANSWERED HERE RATHER THAN STORED. A gap's lineage and its credited
   -- findings live in child tables, so "does this gap supersede anything" is a join every reader
@@ -590,14 +528,8 @@ SELECT
   -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
   -- MotionsOf over motion_answers; folding the two is #1228.
   --
-  -- ASKED PER MOTION, NEVER AS A COUNT. A docket ruling is correctable in its sitting, and the
-  -- correction is a second motion_rule row for one live act; a count of ruling rows against a
-  -- count of dockets read a corrected ruling as two and took the gap's next docket as ruled
-  -- (#1201), and a count of LIVE rulings still takes two live rulings on one motion as covering an
-  -- unruled sibling. The ruling is NOT joined to live_event: a correction keeps the act's label
-  -- (validateCorrection), so a replacement ruling rules the same motion, and the join would be
-  -- identically true. The filing is not either: a motion is CORRECTION_TIER_NONE, so every filing
-  -- stands.
+  -- ASKED PER MOTION, NEVER AS A COUNT. A count of ruling rows against a count of dockets reads
+  -- two rulings on one motion as covering an unruled sibling (#1201).
   (SELECT max(md3."event_id") FROM "motion_docket" md3
      JOIN "motion" mo3 ON mo3."event_id" = md3."event_id"
    WHERE md3."gap_id" = m."gap_id"
@@ -605,12 +537,12 @@ SELECT
                     WHERE mr3."motion_id" = mo3."motion_id"))                           AS "unruled_docket_filed",
   -- THE DIRECTION THE LATEST REMAND STATES, off the "remand" view every reader of a remand reads.
   --
-  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT. "pos" is
-  -- the events primary key, or a replacement's root's: monotonic, unique, and nothing to do with
-  -- the motion-id spelling that has no usable order. The LATEST remand is the live one — an earlier
-  -- remand's direction has already had its exchange.
-  (SELECT r."reopens_on" FROM "remand" r WHERE r."gap_id" = m."gap_id"
-   ORDER BY r."pos" DESC LIMIT 1)                                                    AS "docket_reopens_on",
+  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT. The events
+  -- primary key is monotonic, unique, and nothing to do with the motion-id spelling that has no
+  -- usable order. The LATEST remand is the live one — an earlier remand's direction has already had
+  -- its exchange.
+  (SELECT r."direction" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."event_id" DESC LIMIT 1)                                                    AS "docket_direction",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.
@@ -632,22 +564,18 @@ LEFT JOIN "gap_grade" gg ON gg."minted_event" = m."event_id" AND gg."until_seq" 
 -- in board_counts while the raw event walk counts it once (a projection disagreement the
 -- consistency oracle catches).
 --
--- LAST AMONG THE ACTS THAT STAND, by "pos": a struck close is not a closure, and a corrected
--- close keeps its original place. (SQLite's bare column beside MAX() is read from the MAX row.)
 LEFT JOIN (
-  SELECT c0."gap_id" AS "gap_id", c0."event_id" AS "event_id", MAX(l0."pos") AS "pos"
+  SELECT c0."gap_id" AS "gap_id", MAX(c0."event_id") AS "event_id"
   FROM "closure_act" c0
-  JOIN "live_event" l0 ON l0."event_id" = c0."event_id"
   WHERE c0."arm" = 'close'
   GROUP BY c0."gap_id"
 ) cx ON cx."gap_id" = m."gap_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — remanded in one
--- epoch and disposed of in the next, or disposed of twice — so this is the LAST standing ruling
--- whose disposition closes (closure_act's bench arm).
+-- epoch and disposed of in the next, or disposed of twice — so this is the LAST ruling whose
+-- disposition closes (closure_act's bench arm).
 LEFT JOIN (
-  SELECT b0."gap_id" AS "gap_id", b0."event_id" AS "event_id", MAX(lr."pos") AS "pos"
+  SELECT b0."gap_id" AS "gap_id", MAX(b0."event_id") AS "event_id"
   FROM "closure_act" b0
-  JOIN "live_event" lr ON lr."event_id" = b0."event_id"
   WHERE b0."arm" = 'bench'
   GROUP BY b0."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
@@ -656,12 +584,10 @@ LEFT JOIN (
 -- THE CONVERGENCE RULE'S INPUTS, AS THE BOARD STOOD AT A POINT: one row per verdict, and one for the
 -- record's newest event.
 --
--- A verdict is judged on the board AS IT STOOD WHEN IT WAS ISSUED: the acts standing at it, and no
--- other. An act stood at a verdict V if it was written at or before V and no correction written at
--- or before V struck it (act_standing) — one axis, events.id, for the regrades that grade a gap and
--- the acts that close it alike. A correction written after V does not change V's board, however
--- early its replacement sorts by "pos". The FAIL refusal at the write path reads the row at the
--- newest event — the point a verdict being written is judged at, where "as it stood" is "now".
+-- A verdict is judged on the board AS IT STOOD WHEN IT WAS ISSUED: the acts written at or before it,
+-- and no other — one axis, events.id, for the regrades that grade a gap and the acts that close it
+-- alike. The FAIL refusal at the write path reads the row at the newest event — the point a verdict
+-- being written is judged at, where "as it stood" is "now".
 --
 -- The columns, each at the point:
 --   mass                  gap_grade's mass summed over the gaps open at the point, on the grades that
@@ -691,9 +617,8 @@ WITH "point" AS MATERIALIZED (
   JOIN "events_w" e ON e."id" = m."event_id"
 ),
 "closed" AS MATERIALIZED (
-  SELECT x."gap_id" AS "gap_id", a."event_id" AS "seq", a."struck_seq" AS "struck_seq"
+  SELECT x."gap_id" AS "gap_id", x."event_id" AS "seq"
   FROM "closure_act" x
-  JOIN "act_standing" a ON a."event_id" = x."event_id"
 ),
 "held" AS MATERIALIZED (
   SELECT "minted_event", "from_seq", "until_seq", "mass", "severity_mass", "material" FROM "gap_grade"
@@ -703,8 +628,7 @@ WITH "point" AS MATERIALIZED (
          b."minted_epoch"                           AS "minted_epoch",
          b."fresh"                                  AS "fresh",
          NOT EXISTS(SELECT 1 FROM "closed" c
-                     WHERE c."gap_id" = b."gap_id" AND c."seq" <= p."seq"
-                       AND (c."struck_seq" IS NULL OR c."struck_seq" > p."seq")) AS "open",
+                     WHERE c."gap_id" = b."gap_id" AND c."seq" <= p."seq") AS "open",
          h."mass"                                   AS "mass",
          h."severity_mass"                          AS "severity_mass",
          h."material"                               AS "material"
@@ -745,8 +669,7 @@ SELECT
   (SELECT count(*) FROM "events")               AS "events";
 
 -- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
--- ruling and the FIRST appeal are the ones that count, and a second of either is refused at the
--- write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
+-- ruling is the one that counts, and a second is refused at the write. The view states the first-wins rule ONCE, so a row inserted past the write cannot
 -- multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
 -- because an inquiry motion has no filing row (the inquiry's proposal IS the
 -- filing) and its answers must be askable all the same.
@@ -764,28 +687,18 @@ SELECT
   rd."disposition"                                       AS "docket",
   COALESCE(fr."grade", fr."petition", fr."inquiry", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
-  fre."id"                                            AS "ruled_seq",
-  fa."reason"                                            AS "appeal_reason",
-  fae."seat_id"                                          AS "appealed_by",
-  fae."id"                                            AS "appealed_seq"
-FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
--- FIRST AMONG THE ACTS THAT STAND: a ruling corrected in its sitting is answered by its
--- replacement, in the original's place.
+  fre."id"                                            AS "ruled_seq"
+FROM (SELECT DISTINCT "motion_id" FROM "motion_rule") ids
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
-  (SELECT x."event_id" FROM "motion_rule" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
-    WHERE x."motion_id" = ids."motion_id" ORDER BY lx."pos" LIMIT 1)
+  (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
-LEFT JOIN "events" fre ON fre."id" = fr."event_id"
-LEFT JOIN "motion_appeal" fa ON fa."event_id" =
-  (SELECT y."event_id" FROM "motion_appeal" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-    WHERE y."motion_id" = ids."motion_id" ORDER BY ly."pos" LIMIT 1)
-LEFT JOIN "events" fae ON fae."id" = fa."event_id";
+LEFT JOIN "events" fre ON fre."id" = fr."event_id";
 
 -- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
 -- how red last ruled the inquiry. The proposal row carries the
--- substance; the LATEST inquiry event carries the status; the LATEST inquiry-subject
--- ruling carries red's answer, including a later ruling that carried no word — an unset arm
--- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
+-- substance; the LATEST inquiry event carries the status; the LATEST ruling on the inquiry —
+-- the one whose arm is the inquiry ruling, which is what makes it an inquiry ruling — carries
+-- red's answer.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -797,21 +710,18 @@ SELECT
   lr."inquiry"                         AS "inquiry_ruling",
   lre."seat_id"                        AS "ruled_by",
   lre."id"                          AS "ruled_seq"
--- Only the acts that stand, in their "pos" order: a proposal corrected after its fate was recorded keeps its
--- place, and its replacement does not become the inquiry's LATEST status.
-FROM (SELECT a0."inquiry_id" AS "inquiry_id", a0."event_id" AS "pid", MIN(l0."pos") AS "ppos"
-        FROM "inquiry" a0 JOIN "live_event" l0 ON l0."event_id" = a0."event_id"
+FROM (SELECT a0."inquiry_id" AS "inquiry_id", MIN(a0."event_id") AS "pid"
+        FROM "inquiry" a0
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
         GROUP BY a0."inquiry_id") p
 JOIN "inquiry" fp ON fp."event_id" = p."pid"
 JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "inquiry" ls ON ls."event_id" =
-  (SELECT x."event_id" FROM "inquiry" x JOIN "live_event" lx ON lx."event_id" = x."event_id"
-     WHERE x."inquiry_id" = p."inquiry_id" ORDER BY lx."pos" DESC LIMIT 1)
+  (SELECT MAX(x."event_id") FROM "inquiry" x WHERE x."inquiry_id" = p."inquiry_id")
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
-  (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."inquiry_id" AND y."subject" = 'inquiry' ORDER BY ly."pos" DESC LIMIT 1)
+  (SELECT MAX(y."event_id") FROM "motion_rule" y
+     WHERE y."motion_id" = p."inquiry_id" AND y."inquiry" IS NOT NULL)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

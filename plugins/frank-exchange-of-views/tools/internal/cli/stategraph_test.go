@@ -262,11 +262,16 @@ func gapProbe(t *testing.T) entityProbe {
 			"--reopens-on", "a reproduction on a clean tree",
 			"--reason", "the rationale"}
 	}
+	// A remand states the direction its exchange owes; a ruling that closes the gap, what reopens it.
 	docketRuleArgs := func(as string) []string {
+		next := "--reopens-on"
+		if as == "remanded" {
+			next = "--direction"
+		}
 		return []string{"motion", "docket", "rule", "--id", "M1", "--as", as,
 			"--principle", "correctness first", "--tension", "correctness vs economy",
 			"--review-flag", "no", "--settled", "the grading stands as recorded",
-			"--reopens-on", "a reproduction on a clean tree",
+			next, "a reproduction on a clean tree",
 			"--reason", "the rationale"}
 	}
 	return entityProbe{

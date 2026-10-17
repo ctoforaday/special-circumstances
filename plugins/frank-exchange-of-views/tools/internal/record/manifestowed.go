@@ -89,7 +89,7 @@ type BlueSitting struct {
 	// record — a floor, not the sitting — so a missing act in it is not a finding and a present one
 	// is. Read after the run, the end of the record closes it and it is never Unresolved.
 	Unresolved bool
-	opened     int64 // the place, in Live order, of the register that opened it
+	opened     int64 // the place, in record order, of the register that opened it
 }
 
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
@@ -107,8 +107,6 @@ type BlueSitting struct {
 // rows for one sitting, and the later is the dispatch; a close counts as "closed first" only
 // between that row and the register.
 func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
-	// The acts that stand: a corrected close or row is read as its replacement, in its place.
-	evs = Live(evs)
 	seq := make([]int64, len(evs))
 	for i := range seq {
 		seq[i] = int64(i)
@@ -178,7 +176,6 @@ func laterBlueDispatchBefore(later []dispatchRow, register int64) bool {
 // the repairs nobody audited, including their author. Unresolved carries over: a sitting the record
 // cannot close may yet file the row, so its unreceipted gaps are what the record holds so far.
 func ManifestUnreceipted(evs []*Event, win WindowIndex, when ReadWhen) ManifestOwing {
-	evs = Live(evs)
 	rowed := map[string]bool{}
 	for _, e := range evs {
 		if mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e); ok && mr.GetGapId() != "" {

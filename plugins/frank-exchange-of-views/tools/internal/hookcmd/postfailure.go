@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -50,7 +51,7 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 	if runDir == "" {
 		return nil
 	}
-	text, ok := failureEntry(in.ToolName, in.ToolInput, in.Error)
+	text, ok := failureEntry(runDir, in.ToolName, in.ToolInput, in.Error)
 	if !ok {
 		return nil
 	}
@@ -70,9 +71,15 @@ func PostFailure(stdin io.Reader, _ io.Writer, rec *hookfailures.Recorder) error
 // WHAT IT WAS AIMED AT, because the guess is the signal: `jq '.[-1]'` against a projection whose
 // help says JSONL, a template path the prompt never gave. A Bash call is named by its whole
 // command, a file tool by its path.
-func failureEntry(tool string, input json.RawMessage, errText string) (string, bool) {
+//
+// THE RUN DIRECTORY IS WRITTEN `.`, in the command, the path and the output alike. The entry lands in
+// the run's log, which run.md and report.html ship, and the directory is the operator's: universe-m25
+// shipped seven of its seats' commands with `/home/<operator>/.claude/scratch/...` in them. A path in
+// a seat's call that is the run's reads as clearly from the run directory, which is where a reader of
+// the shipped set stands; a path outside it is printed as the seat typed it.
+func failureEntry(runDir, tool string, input json.RawMessage, errText string) (string, bool) {
 	var lines []string
-	for _, l := range strings.Split(strings.TrimSpace(errText), "\n") {
+	for _, l := range strings.Split(strings.TrimSpace(inRun(runDir, errText)), "\n") {
 		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "Exit code ") {
 			lines = append(lines, l)
 		}
@@ -107,6 +114,7 @@ func failureEntry(tool string, input json.RawMessage, errText string) (string, b
 		// …` was logged for a call whose `ls`, past the cut, was what exited 2.
 		target = clip(strings.TrimSpace(hookgate.WithoutInjection(ti.Command)), commandShown)
 	}
+	target = inRun(runDir, target)
 	aimed := ""
 	if target != "" {
 		aimed = " on `" + target + "`"
@@ -123,6 +131,43 @@ func failureEntry(tool string, input json.RawMessage, errText string) (string, b
 	// are given, as what they are.
 	return fmt.Sprintf("`%s` failed%s — the status is the whole call's and does not say which part of it failed. Its output opens: %s — and ends: %s",
 		tool, aimed, clip(first, 300), clip(lines[len(lines)-1], 300)), true
+}
+
+// inRun is s with the run directory written `.` wherever it stands as a whole path: followed by a
+// separator, or by a character no path name continues with. A sibling directory whose name begins
+// with the run's (`…_is-91-prime-b2` beside `…_is-91-prime`) is another directory, and keeps its path.
+//
+// The run directory is rooted — `/`-rooted, or a Windows volume path — or nothing is rewritten: a
+// relative one would match inside unrelated words. On Windows the hook is handed the run in the OS's
+// form (`C:\…\run`) and a seat may type it either way, so its slashed form is written `.` as well.
+func inRun(runDir, s string) string {
+	runDir = strings.TrimRight(runDir, "/"+string(filepath.Separator))
+	if !strings.HasPrefix(runDir, "/") && !filepath.IsAbs(runDir) {
+		return s
+	}
+	s = wholePathAsDot(runDir, s)
+	if slashed := filepath.ToSlash(runDir); slashed != runDir {
+		s = wholePathAsDot(slashed, s)
+	}
+	return s
+}
+
+// wholePathAsDot is s with dir written `.` wherever it stands as a whole path (see inRun).
+func wholePathAsDot(runDir, s string) string {
+	var b strings.Builder
+	for {
+		i := strings.Index(s, runDir)
+		if i < 0 {
+			return b.String() + s
+		}
+		end := i + len(runDir)
+		if end < len(s) && strings.ContainsRune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-", rune(s[end])) {
+			b.WriteString(s[:end])
+		} else {
+			b.WriteString(s[:i] + ".")
+		}
+		s = s[end:]
+	}
 }
 
 // commandShown bounds the command a failure entry quotes. It is far above any chain a seat types

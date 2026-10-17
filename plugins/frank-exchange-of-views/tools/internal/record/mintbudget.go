@@ -352,9 +352,8 @@ func (s mintStanding) Left() (left int, measured bool) {
 // mint is admitted without it.
 //
 // OPEN IS THE GAP VIEW'S "open" (recordsql/views.go), the column the board, the PASS gate and the
-// dispatch plan read: no closing act of either arm stands on the gap. So a gap its lens closed, on
-// any disposition, or the bench disposed of, holds no mint; a gap whose close was struck holds one
-// again; a non-material gap holds one, because it is open; and a SUPERSEDED gap holds one until its
+// dispatch plan read: no closing act of either arm is on the gap. So a gap its lens closed, on
+// any disposition, or the bench disposed of, holds no mint; a non-material gap holds one, because it is open; and a SUPERSEDED gap holds one until its
 // lens closes it — superseding closes nothing, and the view calls such a gap stranded.
 //
 // q is the mint's writing transaction, or the run's handle for the work list; report is the report

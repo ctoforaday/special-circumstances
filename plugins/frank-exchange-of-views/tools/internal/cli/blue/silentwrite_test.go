@@ -24,7 +24,7 @@ func TestAnEditThatWouldDoubleATerminatorIsRefused(t *testing.T) {
 	report := `The count  is 27."` + "\n"
 	_, _, _, err := validateEdit(report, `The count is 27."`, `The count is 28."`)
 	if err == nil {
-		t.Fatal("an edit that would leave a punctuation run the document did not have was accepted — " +
+		t.Fatal("an edit that would leave a terminator beside another was accepted — " +
 			"this is the shape that turned a doubled terminator into a tripled one, at exit 0")
 	}
 	// A REFUSAL THAT DOES NOT EXPLAIN SENDS THE SEAT IN A CIRCLE: the same text, refused again.
@@ -131,6 +131,46 @@ func TestAnOrdinaryEditIsNotRefused(t *testing.T) {
 	}
 	if !strings.Contains(got, "28") || exact {
 		t.Errorf("the replacement did not land on the ordinary span: %q exact=%v", got, exact)
+	}
+}
+
+// PUNCTUATION THE REPLACEMENT CARRIES INSIDE IT IS PROSE, REPRODUCED FROM A RUN.
+//
+// universe-m24, blue-respond (ev238, ev246, ev248): three rewordings of a sentence quoting a search
+// query, in a report holding no punctuation run longer than one mark. Each was refused for a run
+// the replacement wrote inside itself (`",` and `',`) or for the quoted phrase ending the sentence
+// before the report's period (`".`) — no terminator landed beside another in any of them.
+func TestPunctuationInsideAReplacementIsNotADoubledTerminator(t *testing.T) {
+	const report = "## Search\n\n" +
+		`A standard web search for "is 91 a prime number" returned nine pages<!--fx:F-775c786f-->. ` +
+		"The results read as snippets, not in full.\n"
+	const quote = `A standard web search for "is 91 a prime number" returned nine pages`
+	for _, tc := range []struct{ name, new, want string }{
+		{"a closing quote then a comma (ev246)", `For the query "is 91 a prime number", nine web pages come up`,
+			`For the query "is 91 a prime number", nine web pages come up<!--fx:F-775c786f-->. `},
+		{"a single quote then a comma (ev248)", `For the query 'is 91 a prime number', nine web pages come up`,
+			`For the query 'is 91 a prime number', nine web pages come up<!--fx:F-775c786f-->. `},
+		{"a quoted phrase ending the sentence (ev238)", `Nine web pages come up for the query "is 91 a prime number"`,
+			`Nine web pages come up for the query "is 91 a prime number"<!--fx:F-775c786f-->. `},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, _, _, err := validateEdit(report, quote, tc.new)
+			if err != nil {
+				t.Fatalf("the edit was refused: %v", err)
+			}
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("got %q, want it to hold %q", got, tc.want)
+			}
+		})
+	}
+	// The case the guard exists for: a terminator landing beside the report's period — refused in the
+	// report the ev238 rewording leaves, whose quoted phrase now ends its sentence in a run as long.
+	reworded, _, _, err := validateEdit(report, quote, `Nine web pages come up for the query "is 91 a prime number"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := validateEdit(reworded, "The results read as snippets, not in full", "The results read as snippets, not in full!"); err == nil {
+		t.Error("a replacement ending in `!` before the report's own period was accepted")
 	}
 }
 

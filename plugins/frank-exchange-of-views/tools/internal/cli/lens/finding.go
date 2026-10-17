@@ -148,7 +148,7 @@ func placementRefusal(noun string, err error) error {
 }
 
 type findingResult struct {
-	ID         string `json:"id"`
+	ID         string `json:"finding_id"`
 	Area       string `json:"area"`
 	Idempotent bool   `json:"idempotent,omitempty"`
 }

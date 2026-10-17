@@ -34,9 +34,7 @@ import (
 // of the report (evidence), a mint crediting a finding
 // (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
 // spot-check is read against (debate), a check backing an open gap's
-// anchor (board), and a ruled inquiry (motions). It holds a CORRECTION of a correctable act in every
-// view that declares one, because the narrowed read loads corrections without being asked (eventsOfAt)
-// and a view whose struck act renders as standing differs from the whole record only where one exists.
+// anchor (board), and a ruled inquiry (motions).
 func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	dir := newRun(t)
 	str := proto.String
@@ -85,53 +83,32 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: str("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: str("a question")}),
 		// The chair rules the inquiry, which makes it an inquiry motion.
-		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1", &recordpb.MotionRule{MotionId: str("Q1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY), Opinion: str("worth the run's time"),
+		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1", &recordpb.MotionRule{MotionId: str("Q1"), Opinion: str("worth the run's time"),
 			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: str("no verb renders a gap's lineage in one read"),
 			Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		// The corrections: each struck act, its replacement, and the correction naming both.
-		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1~1", &recordpb.MotionRule{MotionId: str("Q1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY), Opinion: str("out of scope, on a second reading"),
-			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),
-		correctionOf(t, "red-chair", "red-chair:motion_rule:#1"),
+		// A second regrade, position, log and proof, each its seat's own act.
 		recordtest.At(t, "red-chair", "red-chair:regrade:#9", &recordpb.Regrade{GapId: str("G2"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: str("misread")}),
-		recordtest.At(t, "red-chair", "red-chair:regrade:#9~1", &recordpb.Regrade{GapId: str("G2"),
-			Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("read again")}),
-		correctionOf(t, "red-chair", "red-chair:regrade:#9"),
 		recordtest.At(t, "red-chair", "red-chair:position:#9", &recordpb.Position{Text: str("red's position, misworded")}),
-		recordtest.At(t, "red-chair", "red-chair:position:#9~1", &recordpb.Position{Text: str("red's position, reworded")}),
-		correctionOf(t, "red-chair", "red-chair:position:#9"),
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		recordtest.At(t, "red-chair", "red-chair:log:#9~1", &recordpb.Log{Text: str("the tool refused the cite"),
-			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		correctionOf(t, "red-chair", "red-chair:log:#9"),
 		recordtest.At(t, "blue-respond", "blue-respond:proof:#9", &recordpb.Proof{ProofId: str("P-00000002"), ProofSha: str("def"), ProofBasis: str("basis, misstated")}),
-		recordtest.At(t, "blue-respond", "blue-respond:proof:#9~1", &recordpb.Proof{ProofId: str("P-00000002"), ProofSha: str("def"), ProofBasis: str("basis, restated")}),
-		correctionOf(t, "blue-respond", "blue-respond:proof:#9"),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: str("red cannot settle G2"),
+		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"), Basis: str("red cannot settle G2"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: str("G2")}}}),
-		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Opinion: str("the bench's reasoning"),
+		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("M1"), Opinion: str("the bench's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Close{GapId: str("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   str("L1"), AnchorTool: str("go test"), AnchorTarget: str("./x"), Prose: str("verified at the leaf")}),
-		// The chair's spot-check, read against the archive the closes replay (debate), struck and
-		// restated in its sitting.
+		// The chair's spot-check, read against the archive the closes replay (debate).
 		recordtest.At(t, "red-chair", "red-chair:spot_check:#9", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
 			Ids: []string{"G1"}, Reason: str("the area reads clean")}),
-		recordtest.At(t, "red-chair", "red-chair:spot_check:#9~1", &recordpb.SpotCheck{Areas: []string{"red-lens-r1-logic"},
-			Ids: []string{"G1"}, Reason: str("the area's new paragraph contradicts the table")}),
-		correctionOf(t, "red-chair", "red-chair:spot_check:#9"),
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()}),
 	)
 	run := mustRun(t, dir)
@@ -143,18 +120,8 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	// THE RUN CARRIES EVERY FAMILY A VIEW DECLARES, so a view's parity below is measured on events
 	// it actually loads. A declared family this run lacks is one whose omission nothing here sees.
 	held := map[recordpb.EventType]bool{}
-	typeOfKey := map[string]recordpb.EventType{}
 	for _, e := range whole.Events {
 		held[e.GetType()] = true
-		if e.GetKey() != "" {
-			typeOfKey[e.GetKey()] = e.GetType()
-		}
-	}
-	corrected := map[recordpb.EventType]bool{}
-	for _, e := range whole.Events {
-		if c, ok := recordpb.BodyAs[*recordpb.Correction](e); ok {
-			corrected[typeOfKey[c.GetCorrects()]] = true
-		}
 	}
 	names := make([]string, 0, len(narrowedViews))
 	for name := range narrowedViews {
@@ -167,18 +134,10 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 	for _, name := range names {
 		v := narrowedViews[name]
 		t.Run(name, func(t *testing.T) {
-			correctable, correctedHere := false, false
 			for _, f := range v.declared() {
 				if !held[f] {
 					t.Errorf("the %s view declares %s and this run holds none — seed one, or its parity is unmeasured", name, recordpb.Word(f))
 				}
-				if recordpb.Tier(f) != recordpb.CorrectionTier_CORRECTION_TIER_NONE {
-					correctable = true
-					correctedHere = correctedHere || corrected[f]
-				}
-			}
-			if correctable && !correctedHere {
-				t.Errorf("the %s view declares a correctable family and this run corrects none of its acts — seed a correction, or whether its read loads corrections is unmeasured", name)
 			}
 			narrowed, err := v.ofAny(run)
 			if err != nil {
@@ -448,7 +407,7 @@ func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
 
 // benchClosing is the bench's ruling on docket motion id, closing its gap as repaired.
 func benchClosing(id string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+	return &recordpb.MotionRule{MotionId: proto.String(id),
 		Opinion: proto.String("because"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),

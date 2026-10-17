@@ -16,7 +16,6 @@ func TestAnUnruledMotionIsReported(t *testing.T) {
 	b := famOf(t, []*record.Event{
 		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("the demand would bury a hazard"),
 			Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
 				Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),

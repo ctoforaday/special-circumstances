@@ -1,6 +1,7 @@
 package reportproj
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -52,8 +53,8 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // records it, so replay splices the same bytes and needs no placement of its own.
 //
 // FIRST THE ORDINARY LOCATE, which trims the quote's trailing punctuation. Its result stands unless
-// it misfires in one of the two ways the trim itself causes: the edit changes nothing, or it leaves
-// a punctuation run longer than any the report had (the old terminator standing beside the new).
+// it misfires in one of the two ways the trim itself causes: the edit changes nothing, or it doubles
+// a terminator at its seam (the old terminator standing beside the new — DoubledTerminator).
 // Then, and only when the quote ENDS in punctuation the trim dropped, the quote AS WRITTEN is tried:
 // it must occur byte-for-byte exactly once, carry its anchors unchanged, and change the report. If
 // it does, exact is true and the caller records it — replay reads the field and never re-decides.
@@ -129,7 +130,7 @@ func stripTail(s string) string {
 	return strings.TrimRight(s, anchortext.TrailingPunct+" \t\r\n")
 }
 
-// DoubledTerminator names a punctuation run the edit would CREATE and the report did not have.
+// DoubledTerminator names the punctuation run an edit leaves where a terminator lands beside another.
 //
 // MEASURED, and it is the shape this check exists for. In research/2026-09-02_quadratic-formula
 // (blue-respond) red minted a punctuation repair with a `verified` fix basis, blue applied the
@@ -137,32 +138,69 @@ func stripTail(s string) string {
 // The same happened to two of blue's own edits in that sitting. All three were invisible until
 // blue re-ran red's acceptance check against the shipped document — the verb exited 0 every time.
 //
-// It compares RUNS RATHER THAN COUNTS so ordinary prose cannot trip it: a document may legitimately
-// gain a "?!" or an ellipsis. What it refuses is a run LONGER than any the document already had,
-// which is the signature of a terminator landing beside one rather than on top of it. Anchors
-// between two marks are not content between them, so the runs are read with every anchor out.
+// It reads ONLY THE SEAMS the edit makes — where the changed text meets the text it left alone —
+// because a terminator can land beside another only there. Punctuation inside the replacement is
+// the author's prose: universe-m24's blue edit `For the query "is 91 a prime number", nine web
+// pages come up` carries a `",` in a report holding no run that long, and is a rewording.
+//
+// A run at a seam doubles when BOTH sides of it carry a terminator (`!` against the report's `.`,
+// `91:` against it) or both carry the same closing quote (`"goodbye"` against the report's `".`).
+// A closing quote meeting a terminator is how a quoted phrase ends a sentence: the same sitting's
+// `Nine web pages come up for the query "is 91 a prime number"` before the report's period leaves
+// `".`, which is ordinary English.
+//
+// It reads the SHAPE OF THE SEAM rather than the document's longest run, so prose inside the
+// replacement cannot trip it — a replacement may carry a "?!" or an ellipsis — and a run the document
+// holds elsewhere cannot license it: in a report whose quoted phrase ends a sentence in `".`, a `!`
+// landing beside a period is the same artifact as in one that quotes nothing. A mark added beside
+// the report's own (`?` kept, `!` written after it) has the shape of the doubling and is refused.
+// Anchors between two marks are not content between them, so both texts are read with every anchor
+// out before they are compared.
 func DoubledTerminator(before, after string) string {
-	worst := func(s string) string {
-		s, longest := claimcount.StripAnchors(s), ""
-		for i := 0; i < len(s); {
-			j := i
-			for j < len(s) && strings.ContainsRune(anchortext.TrailingPunct, rune(s[j])) {
-				j++
-			}
-			if j-i > len(longest) {
-				longest = s[i:j]
-			}
-			if j == i {
-				i++
-			} else {
-				i = j
-			}
-		}
-		return longest
+	before, after = claimcount.StripAnchors(before), claimcount.StripAnchors(after)
+	if before == after {
+		return ""
 	}
-	got := worst(after)
-	if len(got) > len(worst(before)) {
-		return got
+	punct := func(b byte) bool { return strings.ContainsRune(anchortext.TrailingPunct, rune(b)) }
+	doubles := func(a, b string) bool {
+		terminates := func(s string) bool {
+			return strings.ContainsFunc(s, func(r rune) bool { return r != '"' && r != '\'' })
+		}
+		return terminates(a) && terminates(b) || strings.ContainsRune(a, '"') && strings.ContainsRune(b, '"') || strings.ContainsRune(a, '\'') && strings.ContainsRune(b, '\'')
+	}
+	// seam is the run across after[at], when it doubles.
+	seam := func(at int) string {
+		i, j := at, at
+		for i > 0 && punct(after[i-1]) {
+			i--
+		}
+		for j < len(after) && punct(after[j]) {
+			j++
+		}
+		if doubles(after[i:at], after[at:j]) {
+			return after[i:j]
+		}
+		return ""
+	}
+	// Where before and after stop agreeing, read from each end. When the two agreements overlap, the
+	// edit is an insertion or a deletion that more than one place could have made — `It works` to
+	// `It works. Does it scale?` before the report's `. Next.` reads as text inserted after the report's
+	// `. ` as well as before it — and each of those places is a seam it may have made.
+	pre, suf, short := 0, 0, min(len(before), len(after))
+	for pre < short && before[pre] == after[pre] {
+		pre++
+	}
+	for suf < short && before[len(before)-1-suf] == after[len(after)-1-suf] {
+		suf++
+	}
+	if pre+suf < short {
+		return cmp.Or(seam(pre), seam(len(after)-suf))
+	}
+	grow := max(len(after)-len(before), 0)
+	for lo := short - suf; lo <= pre; lo++ {
+		if run := cmp.Or(seam(lo), seam(lo+grow)); run != "" {
+			return run
+		}
 	}
 	return ""
 }

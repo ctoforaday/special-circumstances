@@ -607,7 +607,6 @@ func TestInquiryRulingAndSeatStayOutOfTheReport(t *testing.T) {
 		// IS the inquiry's own id — the proposal is the filing, so there is no second identity.
 		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 			Opinion:  proto.String("a real question, not THIS run's"),
 			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 		}),
@@ -639,27 +638,24 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// line is a JOIN across both events: the gap is on the filing, the word on the ruling.
 		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M2"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:    proto.String("red cannot settle G1"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M2"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion:  proto.String("needs a probe"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("correctness"), Tension: proto.String("cost"),
 				ReviewFlag: proto.String("false"),
 				Settled:    proto.String("the claim as it stood may not be re-asserted"),
-				ReopensOn:  proto.String("the probe"),
+				Direction:  proto.String("the probe"),
 			}},
 		}),
 		// A petition is a MOTION now — the retired `petition` event type has no arm in the schema,
 		// so the fixture could only ever have described a state nothing writes.
 		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("the instruction would require asserting what I believe false"),
 			Relief:   proto.String("strike the demand from the docket"),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_INTEGRITY)}},
@@ -779,7 +775,8 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// A PETITION IS A MOTION. This fixture used the retired `petition` type, so after the collapse
 	// the detector counted zero filings and could not fire — the warning it exists to raise was
 	// unreachable while this test went on passing.
-	filed := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
+	filed := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the demand would bury a hazard"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})}
 	d := debateT(t, filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
@@ -791,7 +788,6 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// ruling at all, which is the state the unanswered detector is looking for.
 	answered := append(filed, recordtest.Event(t, "judge", &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Opinion:  proto.String("the hazard is graded, not buried"),
 		Ruling:   &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED},
 	}))
@@ -1044,14 +1040,14 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 // THE ORDERING THAT MAKES ClosedByBench THE WRONG KEY, asserted because the cheap fix passes
 // every other test in this file.
 //
-// Blue closes a gap and files no manifest row; the bench later rules on the same gap. The flag
-// follows the LAST closing event, so ClosedByBench is true — while blue's `close` is still the
-// closure and the receipt is still genuinely missing. Keyed on the flag, this row vanishes from
-// the one section whose stated purpose is to report exactly this.
+// Blue closes a gap and files no manifest row; the bench later rules on the same gap. The bench's
+// word stands, so BenchClosedLast is true — while blue's `close` is still the closure and the
+// receipt is still genuinely missing. Keyed on the flag, this row vanishes from the one section
+// whose stated purpose is to report exactly this.
 func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
 	g := &record.Gap{ID: "G1", HasClosed: true, Closure: &recordpb.Close{}}
 	g.BenchClosure = &recordpb.DocketRuling{}
-	g.ClosedByBench = true
+	g.BenchClosedLast = true
 
 	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).famT(t))
 	if !strings.Contains(got, "G1") {

@@ -53,9 +53,8 @@ func TestEveryProjectionThatReportsAnEpochCanSeeMoreThanOne(t *testing.T) {
 	app(chair, &recordpb.Log{Text: proto.String("no verb renders a gap's lineage in one read"),
 		Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	app(chair, &recordpb.Motion{MotionId: proto.String("M1"),
-		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-		Basis:   proto.String("cannot settle R1-1"),
-		Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}}})
+		Basis:  proto.String("cannot settle R1-1"),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}}})
 
 	// SECOND EPOCH. Everything below lands after the chair sits again, so a projection whose
 	// epoch is stuck reports these rows with the same number as the ones above.

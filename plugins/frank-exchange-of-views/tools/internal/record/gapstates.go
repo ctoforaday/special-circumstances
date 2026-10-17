@@ -24,6 +24,7 @@ type familyGapRow struct {
 	sev, lik, imp, cx      sql.NullString
 	closeEvent, benchEvent sql.NullInt64
 	closedByBench          bool
+	benchClosedLast        bool
 }
 
 // familyReadsAt reads the family's answers off q, the read transaction both come off: the whole
@@ -44,7 +45,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	}
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "material",
-	    "close_event", "bench_close_event", "closed_by_bench"
+	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("asking the record for its gap states: %w", err)
@@ -53,7 +54,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	for rows.Next() {
 		var g familyGapRow
 		if err := rows.Scan(&g.id, &g.epoch, &g.open, &g.sev, &g.lik, &g.imp, &g.cx, &g.material,
-			&g.closeEvent, &g.benchEvent, &g.closedByBench); err != nil {
+			&g.closeEvent, &g.benchEvent, &g.closedByBench, &g.benchClosedLast); err != nil {
 			return r, err
 		}
 		r.gaps = append(r.gaps, g)
@@ -71,18 +72,9 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 func gapStatesOf(r familyReads) ([]*Gap, error) {
 	evs, win := gapFamilyActs(r.merged.Events), r.merged.At
 	byID := eventsByID(evs, win)
-	// THE HISTORY IS A LISTING: every regrade, a struck one marked, before the fold below narrows
-	// the stream to the acts that stand.
-	history := map[string][]RegradeEntry{}
-	for _, l := range Listing(evs) {
-		if r, ok := recordpb.BodyAs[*recordpb.Regrade](l.Event); ok {
-			history[r.GetGapId()] = append(history[r.GetGapId()], RegradeEntry{Regrade: r, Struck: l.Struck})
-		}
-	}
-	// The acts that stand: a corrected mint or regrade is folded as its replacement.
 	mints := map[string]*recordpb.Mint{}
 	regrades := map[string][]*recordpb.Regrade{}
-	for _, e := range Live(evs) {
+	for _, e := range evs {
 		switch m := mustBody(e).(type) {
 		case *recordpb.Mint:
 			if _, seen := mints[m.GetGapId()]; !seen {
@@ -97,19 +89,18 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 		g := &Gap{
 			ID: row.id, Epoch: row.epoch, Open: row.open, Mint: mints[row.id],
 			Regrades:       regrades[row.id],
-			RegradeHistory: history[row.id],
 			Severity:       gradeOrZero(row.sev),
 			Likelihood:     gradeOrZero(row.lik),
 			Impact:         gradeOrZero(row.imp),
 			ComplexityCost: gradeOrZero(row.cx),
 			Material:       row.material,
 		}
-		c, err := closeStateOf(row.id, row.closeEvent, row.benchEvent, row.closedByBench, byID, win)
+		c, err := closeStateOf(row.id, row.closeEvent, row.benchEvent, row.closedByBench, row.benchClosedLast, byID, win)
 		if err != nil {
 			return nil, err
 		}
 		if c != nil {
-			g.HasClosed, g.ClosedEpoch, g.ClosedByBench = true, c.closedEpoch, c.closedByBench
+			g.HasClosed, g.ClosedEpoch, g.ClosedByBench, g.BenchClosedLast = true, c.closedEpoch, c.closedByBench, c.benchClosedLast
 			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure
 		}
 		out = append(out, g)
@@ -157,22 +148,13 @@ func ObservationsOf(evs []*Event) []*Observation {
 // 4-6): no fold builds it, and no board-wide state rides along to drift.
 type Family struct {
 	Gaps []*Gap
-	// Events is the WHOLE stream, struck acts included: a listing shows a corrected act struck,
-	// never hides it. A reader picking a winner or discharging a duty reads Live() instead.
+	// Events is the WHOLE stream: every act stands as filed.
 	Events []*Event
 	// At is where each of Events sits on the record, as the loader read it (WindowIndex). A family
 	// built by hand has none, and a fold that asks it panics rather than read a zero.
-	At WindowIndex
-	// Struck is every same-sitting correction on the stream, indexed once.
-	Struck StruckIndex
-	byID   map[string]*Gap
+	At   WindowIndex
+	byID map[string]*Gap
 }
-
-// Live is the stream a fold reads: each struck act replaced in place by the act that stands.
-func (f Family) Live() []*Event { return Live(f.Events) }
-
-// Listing is the stream a listing renders: the acts that stand, each preceded by what it struck.
-func (f Family) Listing() []Listed { return Listing(f.Events) }
 
 // FamilyOf assembles the family from the record in ONE read transaction: in it, the whole record
 // once and the `gap` view once (familyReadsAt). The closure is the view's, and the bodies it names
@@ -213,19 +195,17 @@ func familyOfReads(r familyReads) (Family, error) {
 // and its window index come from the one read that loaded them (m); a Merged built by hand has no
 // index, and a fold that asks it panics rather than read a zero.
 func NewFamily(gaps []*Gap, m Merged) Family {
-	return Family{Gaps: gaps, Events: m.Events, At: m.At, Struck: StruckIndexOf(m.Events), byID: GapsByID(gaps)}
+	return Family{Gaps: gaps, Events: m.Events, At: m.At, byID: GapsByID(gaps)}
 }
 
 // gapFamilyActs narrows the whole stream to the acts the gap family reads — the mints and regrades
-// it folds, the closes and docket rulings the gap view names and it looks up, and the corrections
-// that strike a mint or a regrade — in record order.
+// it folds, and the closes and docket rulings the gap view names and it looks up — in record order.
 func gapFamilyActs(evs []*Event) []*Event {
 	var out []*Event
 	for _, e := range evs {
 		switch e.GetType() {
 		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE,
-			recordpb.EventType_EVENT_TYPE_CLOSE, recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-			recordpb.EventType_EVENT_TYPE_CORRECTION:
+			recordpb.EventType_EVENT_TYPE_CLOSE, recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			out = append(out, e)
 		}
 	}
