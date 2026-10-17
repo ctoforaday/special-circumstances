@@ -223,7 +223,7 @@ func Closing(key string) *cobra.Command {
 		}); err != nil {
 			return nil, err
 		}
-		return closingResult{ID: Str(cmd, flags.ID)}, nil
+		return closingResult{GapID: Str(cmd, flags.ID)}, nil
 	}))
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this closing argues")
 	// validate refuses a closing that names no gap — "a receipt naming no gap cannot be audited".
@@ -1207,10 +1207,10 @@ func (r registerResult) Human() string {
 }
 
 type closingResult struct {
-	ID string `json:"id"`
+	GapID string `json:"gap_id"`
 }
 
-func (r closingResult) Human() string { return "closing filed for " + r.ID }
+func (r closingResult) Human() string { return "closing filed for " + r.GapID }
 
 // inquestGroup builds the bench's raw-record surface from the same table `show` reads, so a
 // projection cannot be in both or in neither.
