@@ -275,7 +275,8 @@ func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]
 }
 
 // selectJSONArrays keeps only the entries of EVERY top-level array whose JSON text the selector hits,
-// and reports how many it kept of how many there were.
+// and adds the `selection` block saying how many it kept of how many there were. ok is false when the
+// body is not one JSON object it can rewrite, and then nothing was selected.
 //
 // NO PER-VIEW LIST OF KEY NAMES. Naming the arrays per projection would be a hand-kept table of what
 // each view contains — the shape that goes stale the first time a projection grows a list, and the
@@ -292,15 +293,22 @@ func reportJSON(head int64, lines []record.ReportLineJSON, selection map[string]
 // on universe-m10 they habitually write `... 2>&1 | jq '…'`, which would fold the count line into the
 // JSON and fail the parse. A read whose own diagnostics break the commonest way of reading it is
 // worse than one whose shape gains a key you asked for by passing a flag.
-func selectJSONArrays(body []byte, sel Selector) (out []byte, kept, of int) {
+func selectJSONArrays(body []byte, sel Selector) (out []byte, ok bool) {
 	var doc map[string]json.RawMessage
 	if err := json.Unmarshal(body, &doc); err != nil {
-		return body, 0, 0 // not an object: hand back what we were given rather than a guess
+		return nil, false // not one JSON object: there are no entries to select from
 	}
+	kept, of := 0, 0
 	for name, raw := range doc {
+		// AN ARRAY IS WHAT OPENS WITH `[`. A null unmarshals into a slice without error, so a key
+		// that is null — `work`'s `engaged` when blue is not sitting — was rewritten as `[]`, a
+		// value of another type than the one the page documents.
+		if t := bytes.TrimLeft(raw, " \t\r\n"); len(t) == 0 || t[0] != '[' {
+			continue // a scalar, an object or a null is not a set of entries to select from
+		}
 		var items []json.RawMessage
 		if json.Unmarshal(raw, &items) != nil {
-			continue // not an array: a scalar or an object is not a set of entries to select from
+			return nil, false
 		}
 		hit := []json.RawMessage{}
 		for _, it := range items {
@@ -312,20 +320,24 @@ func selectJSONArrays(body []byte, sel Selector) (out []byte, kept, of int) {
 		}
 		// NEVER omitempty: an array filtered to nothing renders `[]`, which is "none of these
 		// matched", not the absent key a reader would read as "this projection has no such list".
-		if b, err := json.Marshal(hit); err == nil {
-			doc[name] = b
+		b, err := json.Marshal(hit)
+		if err != nil {
+			return nil, false
 		}
+		doc[name] = b
 	}
 	// `selection` appears ONLY when a selector was passed, and says what was kept of what there was.
 	// Without it a reader cannot tell a narrow pattern from a narrow board.
-	if sb, err := json.Marshal(selectionBlock(sel, kept, of)); err == nil {
-		doc["selection"] = sb
+	sb, err := json.Marshal(selectionBlock(sel, kept, of))
+	if err != nil {
+		return nil, false
 	}
+	doc["selection"] = sb
 	b, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
-		return body, kept, of
+		return nil, false
 	}
-	return append(b, '\n'), kept, of
+	return append(b, '\n'), true
 }
 
 // WriteSelected is the ONE way a projection's JSON leaves this package.
@@ -345,7 +357,13 @@ func WriteSelected(cmd *cobra.Command, b []byte) error {
 		_, werr := cmd.OutOrStdout().Write(b)
 		return werr
 	}
-	out, _, _ := selectJSONArrays(b, sel)
+	out, ok := selectJSONArrays(b, sel)
+	if !ok {
+		// A SELECTOR THAT CANNOT READ ITS BODY IS A DEFECT IN THE TOOL, NOT A MATCH OF EVERYTHING.
+		// Handing the bytes back unselected printed every entry for every pattern; a view whose output
+		// is not one JSON document takes no selector, and reaching here means one was given it.
+		return feov.Errorf(feov.Internal, "--match and --quote reached a projection that is not one JSON document, so nothing was selected — this view should not carry them")
+	}
 	_, werr := cmd.OutOrStdout().Write(out)
 	return werr
 }
