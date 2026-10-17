@@ -266,8 +266,6 @@ var journalFraming = map[string]string{
 	"result":           "the workflow journal row's field holding what a seat returned — the envelope itself",
 	"agentId":          "the workflow journal row's agent",
 	"message":          "a transcript row's message",
-	"usage":            "a transcript message's token usage",
-	"model":            "a transcript message's model",
 	"content":          "a transcript message's content blocks",
 	"type":             "a transcript content block's kind",
 	"input":            "a tool-use block's input",

@@ -51,8 +51,7 @@ func markedUnconditionally(usage string) bool {
 // breath, with what satisfies them. The help is telling the truth in both halves; the gate's
 // model — each required flag independently mandatory — is the thing that cannot express it.
 var satisfiedByAnother = map[string]string{
-	"problem": "--reason, which the verb copies into the problem field. The help says so in the same sentence: \"(or pass it via --reason)\"",
-	"row":     "--reason, which manifest-row falls back to when --row is absent. The help says so in the same sentence, for the same reason problem's does",
+	"row": "--reason, which manifest-row falls back to when --row is absent. The help says so in the same sentence",
 }
 
 // notEnforcedAtTheFlag are flags whose help says REQUIRED and whose refusal is DELIBERATELY

@@ -47,7 +47,7 @@ func TestTheLayoutShipsWhatAssemblyComposed(t *testing.T) {
 	if s := by["Question"]; s.Ships || s.Text != "" {
 		t.Errorf("a paragraph of the report's text that opens \"**Question:**\" is reported as the Question line: %+v", s)
 	}
-	if s := by["Outcome"]; !strings.HasPrefix(s.Text, "**Outcome:** NONE") {
+	if s := by["Outcome"]; !strings.HasPrefix(s.Text, "**Outcome:** PENDING") {
 		t.Errorf("the Outcome line is not the one assembly composed: %q", s.Text)
 	}
 	// THE SECTIONS THAT OPEN THE REPORT ARE THE BODY'S: the table holds their place in the text,

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
@@ -53,33 +52,23 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 			"still reports success.\n\nboard was:\n%s", out)
 	}
 
-	// AND IT IS NOT DUPLICATED when the problem arrived THROUGH --reason, which is the documented
-	// alternative form (`--problem "..."|--reason`). Storing it twice would make a reader think red
-	// argued something beyond the problem statement when it did not.
-	if _, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
+	// --REASON IS NEVER THE PROBLEM. A mint that gives the argument and no --problem is refused, in
+	// the problem's own words: the text it would have stored was red's argument, and filing it as
+	// the problem — which the report prints — puts red's reasoning in the risk matrix.
+	_, err = runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
 		"--key", "viareason", "--class", "metric-conflation",
 		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
-		"--reason", "the problem arrived through reason"); err != nil {
-		t.Fatal(err)
+		"--reason", "the problem arrived through reason")
+	if err == nil || !strings.Contains(err.Error(), "--problem") {
+		t.Fatalf("a mint with --reason and no --problem = %v, want a refusal naming --problem", err)
 	}
 	out, err = run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got struct {
-		Open []struct {
-			Problem    string `json:"problem"`
-			MintReason string `json:"mint_reason"`
-		} `json:"open"`
-	}
-	if err := json.Unmarshal([]byte(out), &got); err != nil {
-		t.Fatalf("board did not parse: %v", err)
-	}
-	for _, g := range got.Open {
-		if g.MintReason != "" && g.MintReason == g.Problem {
-			t.Errorf("a gap carries its problem twice — once as problem and once as mint_reason: %q", g.Problem)
-		}
+	if strings.Contains(out, "the problem arrived through reason") {
+		t.Errorf("the refused mint reached the board:\n%s", out)
 	}
 }
