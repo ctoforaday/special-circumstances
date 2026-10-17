@@ -36,6 +36,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testjson"
 	"github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
 )
 
@@ -198,19 +199,20 @@ func runPlain(moduleDir string, pkgs []string, parallel int, timeout string) []o
 	cmd := exec.Command("go", testsplit.UnsplitArgs(timeout, parallel, pkgs)...)
 	cmd.Dir = moduleDir
 	stream, runErr := cmd.CombinedOutput()
-	byPkg, stray := fold(stream)
+	s := testjson.Read(stream)
+	stray := s.Stray
 	var out []outcome
 	var silent []string
 	for _, pkg := range pkgs {
-		p := byPkg[pkg]
-		if p == nil || p.verdict == "" {
+		p := s.Packages[pkg]
+		if p == nil || p.Verdict == "" {
 			silent = append(silent, pkg)
 			continue
 		}
-		o := outcome{pkg: pkg, took: p.elapsed, tally: p.tally()}
-		if p.verdict == "fail" {
-			o.problem = p.output
-			if strings.Contains(p.output, "[build failed]") {
+		o := outcome{pkg: pkg, took: p.Elapsed, tally: tallyOf(p)}
+		if p.Verdict == "fail" {
+			o.problem = p.Output
+			if strings.Contains(p.Output, "[build failed]") {
 				o.problem += stray
 			}
 		}
@@ -304,39 +306,25 @@ func runSplit(moduleDir, pkg, work string, n int, timeout string) outcome {
 
 	var problems []string
 	for i, p := range parts {
-		byPkg, _ := fold(p.stream)
-		got := byPkg[pkg]
-		if got == nil {
-			got = &pkgEvents{tests: map[string]string{}}
-		}
-		var missing, failedNames []string
-		for _, name := range shares[i] {
-			switch got.tests[name] {
-			case "pass":
-				o.tally.pass++
-			case "skip":
-				o.tally.skip++
-			case "fail":
-				o.tally.fail++
-				failedNames = append(failedNames, name)
-			default:
-				missing = append(missing, name)
-			}
-		}
-		if p.err == nil && len(missing) == 0 && len(failedNames) == 0 {
+		s := testjson.Read(p.stream)
+		a := s.Answer(pkg, shares[i])
+		o.tally.pass += len(a.Pass)
+		o.tally.skip += len(a.Skip)
+		o.tally.fail += len(a.Fail)
+		if p.err == nil && len(a.Missing) == 0 && len(a.Fail) == 0 {
 			continue
 		}
 		var what []string
-		if len(failedNames) > 0 {
-			what = append(what, "failed: "+strings.Join(failedNames, ", "))
+		if len(a.Fail) > 0 {
+			what = append(what, "failed: "+strings.Join(a.Fail, ", "))
 		}
-		if len(missing) > 0 {
-			what = append(what, "NOT MEASURED, no verdict came back for: "+strings.Join(missing, ", "))
+		if len(a.Missing) > 0 {
+			what = append(what, "NOT MEASURED, no verdict came back for: "+strings.Join(a.Missing, ", "))
 		}
 		if p.err != nil {
 			what = append(what, "the process: "+p.err.Error())
 		}
-		problems = append(problems, fmt.Sprintf("process %d of %d — %s\n%s", i+1, len(shares), strings.Join(what, "; "), got.outputOr(p.raw)))
+		problems = append(problems, fmt.Sprintf("process %d of %d — %s\n%s", i+1, len(shares), strings.Join(what, "; "), outputOr(s.Packages[pkg], p.raw)))
 	}
 	o.took = time.Since(start)
 	// EVERY LISTED NAME, ONCE. The shares are dealt from the list, so the tally is the list

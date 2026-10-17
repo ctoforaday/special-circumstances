@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -109,11 +110,8 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 	// subtest's handles with it, and the next act on a still-live run fails with "sql: database is
 	// closed". A fixture releases the run it created.
 	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(runDir, "records", "record.db")) })
-	dir := filepath.Join(runDir, "records")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("recordtest: %v", err)
-	}
-	db, err := recordsql.Open(filepath.Join(dir, "record.db"))
+	CreatedRecord(t, runDir)
+	db, err := recordsql.Open(filepath.Join(runDir, "records", "record.db"))
 	if err != nil {
 		t.Fatalf("recordtest: opening the run's record: %v", err)
 	}
@@ -144,6 +142,74 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 				i, recordpb.Word(ev.GetType()), ev.GetSeatId(), err)
 		}
 	}
+}
+
+// CreatedRecord gives runDir the empty record `setup` leaves behind — the database as this binary
+// creates it, before any event — unless the run already holds one. It returns the database's path.
+//
+// IT IS A COPY, AND THE COPY IS THE POINT. Creating the record's schema is roughly a tenth of a
+// fixture-heavy package's test CPU (#1337): every fresh database parses the whole DDL and fsyncs it.
+// The bytes copied are the ones this test binary's own recordsql.Open wrote into a scratch directory
+// the first time any test asked, so they cannot fall behind the schema. A checked-in file could.
+//
+// THE COPY IS HELD TO MORE THAN A FRESH DATABASE IS. recordsql opens a record it did not create
+// through requireDeclaredSchema — every table, column, view and the epoch, against this binary's
+// declaration — which a database it creates itself skips. A template that drifted from the schema is
+// refused at the first open, by name.
+func CreatedRecord(t *testing.T, runDir string) string {
+	t.Helper()
+	dir := filepath.Join(runDir, "records")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("recordtest: %v", err)
+	}
+	path := filepath.Join(dir, "record.db")
+	if _, err := os.Stat(path); err == nil {
+		return path
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("recordtest: %v", err)
+	}
+	createdOnce.Do(func() { createdBytes, createdErr = createRecordBytes() })
+	if createdErr != nil {
+		t.Fatalf("recordtest: creating the empty record this binary writes: %v", createdErr)
+	}
+	if err := os.WriteFile(path, createdBytes, 0o644); err != nil {
+		t.Fatalf("recordtest: %v", err)
+	}
+	return path
+}
+
+var (
+	createdOnce  sync.Once
+	createdBytes []byte
+	createdErr   error
+)
+
+// createRecordBytes has recordsql create a record in a scratch directory and returns the database
+// file as it stands once the handle is closed.
+//
+// ONE FILE, OR NOTHING. The record is in WAL mode; closing the last connection checkpoints the log
+// into the database and removes the -wal and -shm files. A log left behind holds pages the main file
+// does not, so copying the main file alone would hand every test a database missing part of its
+// schema — refused here instead.
+func createRecordBytes() ([]byte, error) {
+	scratch, err := os.MkdirTemp("", "recordtest-created-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(scratch)
+	path := filepath.Join(scratch, "record.db")
+	if _, err := recordsql.Open(path); err != nil {
+		return nil, err
+	}
+	if err := recordsql.Close(path); err != nil {
+		return nil, err
+	}
+	for _, side := range []string{"-wal", "-shm"} {
+		if _, err := os.Stat(path + side); !os.IsNotExist(err) {
+			return nil, fmt.Errorf("closing the record left %s behind (stat: %v) — the database file alone is not the record", filepath.Base(path+side), err)
+		}
+	}
+	return os.ReadFile(path)
 }
 
 // TmpRun is a scratch run directory whose cached record handle is released when the test ends.
