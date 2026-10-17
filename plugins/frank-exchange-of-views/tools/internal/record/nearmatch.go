@@ -32,8 +32,9 @@ type NearMatchJSON struct {
 	Score    float64 `json:"score"`
 	Location string  `json:"location"`
 	Status   string  `json:"status"` // open | closed
-	// ClosedBy is "bench" or "red" on a closed gap, and empty on an open one — absent because
-	// there is nothing to say, not because it is unknown.
+	// ClosedBy is "bench" on a closed gap whose standing word is a bench ruling — the gap the work
+	// list's `estopped` bars, whichever arm's act ended it — "red" on any other closed gap, and
+	// empty on an open one: absent because there is nothing to say, not because it is unknown.
 	ClosedBy string `json:"closed_by,omitempty"`
 }
 
@@ -70,7 +71,9 @@ func NearMatch(f Family, candidate, location string, topN int) []NearMatchJSON {
 		status, closedBy := "closed", "red"
 		if g.Open {
 			status, closedBy = "open", ""
-		} else if g.ClosedByBench {
+		} else if g.BenchClosedLast {
+			// THE BAR, NOT THE CLOSER: a bench ruling after the lens's close is estopped all the
+			// same (the work list's `estopped` lists it), so the screen names the bench there too.
 			closedBy = "bench"
 		}
 		out = append(out, NearMatchJSON{ID: g.ID, Score: round2(score), Location: gapLoc, Status: status, ClosedBy: closedBy})

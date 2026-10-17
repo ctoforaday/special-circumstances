@@ -347,7 +347,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 		}
 	}
 	if run := reportproj.DoubledTerminator(report, planned); run != "" {
-		return "", "", false, feov.Errorf(feov.Validation, "this replacement would leave %q in the report — a punctuation run the document did not have. "+
+		return "", "", false, feov.Errorf(feov.Validation, "this replacement would leave %q in the report — a terminator beside another, where the edit meets the text it keeps. "+
 			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --quote names stops SHORT of the "+
 			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
 			"how a repair makes the document strictly worse while reading as applied. The quote as written, punctuation included, "+
