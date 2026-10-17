@@ -2495,9 +2495,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			if r.scenarioOf(id) == dirDisputeLost {
 				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+				// A RULING THAT CLOSES THE GAP ANSWERS WHAT WOULD REOPEN IT ONE OF TWO WAYS, and the
+				// drive takes both: nothing would (--final), or a stated condition (--reopens-on).
 				row = map[string]any{"gap_id": id, "disposition": disp, "settled": settledByFuzzBench,
 					"rationale": "docket-rationale-for-" + id, "final": true}
-				r.benchDisposes(seatID, id, disp, "--final", "--reason", row["rationale"].(string))
+				answer := []string{"--final"}
+				if r.coin(50) {
+					const reopens = "a source the ruling did not weigh"
+					row["final"], row["reopens_on"] = false, reopens
+					answer = []string{"--reopens-on", reopens}
+				}
+				r.benchDisposes(seatID, id, disp, append(answer, "--reason", row["rationale"].(string))...)
 			}
 			res = append(res, row)
 		}
