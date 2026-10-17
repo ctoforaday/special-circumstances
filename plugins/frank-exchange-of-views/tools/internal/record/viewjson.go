@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
@@ -234,7 +235,52 @@ func bodyMap(m proto.Message) (map[string]any, error) {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("re-reading a projected %s body: %w", name, err)
 	}
+	spellEnums(m.ProtoReflect(), out)
 	return out, nil
+}
+
+// spellEnums puts the schema's WORD where protojson wrote an enum value's Go constant name.
+//
+// protojson spells an enum by its value NAME — `DISPOSITION_REPAIRED`, `GRADE_LOW` — while the
+// record stores, the CLI accepts and every other view prints the word: `repaired`, `low`. A seat
+// reading the board's closure saw a word no flag takes and no other view uses, and a red
+// spot-check misdescribed a lens close as a bench close after reading one. The word comes from
+// recordpb.Spelling, the one function every enum on the record is spelled by; the walk follows the
+// message, so a nested body (an anchor, a grade) and a repeated enum are spelled the same way. A
+// value the schema does not declare is left as protojson wrote it rather than blanked.
+func spellEnums(m protoreflect.Message, out map[string]any) {
+	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		key := string(fd.Name())
+		switch {
+		case fd.IsMap():
+			// No body carries a map; protojson would key it by the map's own keys, which this walk
+			// does not need to reach.
+		case fd.IsList():
+			items, _ := out[key].([]any)
+			l := v.List()
+			for i := 0; i < l.Len() && i < len(items); i++ {
+				switch {
+				case fd.Kind() == protoreflect.EnumKind:
+					if vd := fd.Enum().Values().ByNumber(l.Get(i).Enum()); vd != nil {
+						items[i] = recordpb.Spelling(vd)
+					}
+				case fd.Message() != nil:
+					if sub, ok := items[i].(map[string]any); ok {
+						spellEnums(l.Get(i).Message(), sub)
+					}
+				}
+			}
+		case fd.Kind() == protoreflect.EnumKind:
+			if vd := fd.Enum().Values().ByNumber(v.Enum()); vd != nil {
+				out[key] = recordpb.Spelling(vd)
+			}
+		case fd.Message() != nil:
+			if sub, ok := out[key].(map[string]any); ok {
+				spellEnums(v.Message(), sub)
+			}
+		}
+		return true
+	})
 }
 
 // gradeWord adds PRESENCE to GradeStr, and nothing else.
@@ -1307,6 +1353,11 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 		if line != "" {
 			w.Sitting.Open = append(w.Sitting.Open, Item{What: line})
 		}
+	}
+	if role == "bench" || role == "chair" {
+		// LAST, AND NEVER BLOCKING, like the lens's budget: a fact about the run, not work. The two
+		// seats that rule are the two whose prompts send them to the law.
+		w.Sitting.Open = append(w.Sitting.Open, Item{What: lawLine(run)})
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
 	w.Engaged = engagedOf(evs, win, seatID)

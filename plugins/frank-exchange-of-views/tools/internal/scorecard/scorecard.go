@@ -15,9 +15,9 @@
 // BYTE-IDENTITY NOTES:
 //   - `+(x).toFixed(2)` (epoch to 2 decimals, then Number→string dropping trailing zeros) is
 //     jsToFixed2Num.
-//   - The two OBJECT-valued rows (inquiries byStatus; citation_yield_by_epoch) render via
-//     JSON.stringify in INSERTION order; Go maps sort, so they are built as literal JSON strings
-//     (objJSON) preserving first-seen order — never marshaled from a map.
+//   - The OBJECT-valued rows (inquiries byStatus, corrections) render via JSON.stringify in
+//     INSERTION order; Go maps sort, so they are built as literal JSON strings (objJSON)
+//     preserving first-seen order — never marshaled from a map.
 package scorecard
 
 import (
@@ -174,97 +174,6 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 	}
 	a, t := ComputeAnchoredClosures(fam)
 	return a, t, true
-}
-
-var lNum = regexp.MustCompile(`^L(\d+)`)
-
-func citationYieldByRole(fam *record.Family) (objJSON, bool) {
-	if fam == nil {
-		return "", false
-	}
-	return BucketFindingsByRole(record.FindingsJSONOf(fam.Events, fam.At).Findings)
-}
-
-// BucketFindingsByRole buckets findings per EPOCH (chair sitting — the record has no epoch) by
-// lens role-kind (citation L1-4, logic L5, darkside L6) with per-seat yield, and returns the JSON
-// object value in insertion order, or ("", false) when there are no lens findings. The pure
-// kernel (JS bucketFindingsByRole). The split stays: the W2i retune trigger compares per-seat
-// yield across chair sittings, which is exactly what the epoch buckets.
-func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
-	type bucket struct {
-		citation, logic, darkside int
-		seenC, seenL, seenD       map[string]bool
-	}
-	var order []string
-	byEpoch := map[string]*bucket{}
-	for _, f := range findings {
-		m := lNum.FindStringSubmatch(f.Area)
-		if m == nil {
-			continue
-		}
-		roleNum, _ := strconv.Atoi(m[1])
-		if roleNum == 0 {
-			continue
-		}
-		epoch := strconv.Itoa(f.Epoch)
-		b := byEpoch[epoch]
-		if b == nil {
-			b = &bucket{seenC: map[string]bool{}, seenL: map[string]bool{}, seenD: map[string]bool{}}
-			byEpoch[epoch] = b
-			order = append(order, epoch)
-		}
-		switch {
-		case roleNum <= 4:
-			b.citation++
-			b.seenC[f.SeatID] = true
-		case roleNum == 5:
-			b.logic++
-			b.seenL[f.SeatID] = true
-		default:
-			b.darkside++
-			b.seenD[f.SeatID] = true
-		}
-	}
-	if len(order) == 0 {
-		return "", false
-	}
-	perSeat := func(count, seats int) string {
-		if seats == 0 {
-			return "null"
-		}
-		return jsToFixed2Num(float64(count) / float64(seats))
-	}
-	var sb strings.Builder
-	sb.WriteByte('{')
-	for i, epoch := range order {
-		if i > 0 {
-			sb.WriteByte(',')
-		}
-		b := byEpoch[epoch]
-		sc, sl, sd := len(b.seenC), len(b.seenL), len(b.seenD)
-		sb.WriteString(strconv.Quote(epoch))
-		sb.WriteString(`:{"citation":`)
-		sb.WriteString(strconv.Itoa(b.citation))
-		sb.WriteString(`,"logic":`)
-		sb.WriteString(strconv.Itoa(b.logic))
-		sb.WriteString(`,"darkside":`)
-		sb.WriteString(strconv.Itoa(b.darkside))
-		sb.WriteString(`,"seats":{"citation":`)
-		sb.WriteString(strconv.Itoa(sc))
-		sb.WriteString(`,"logic":`)
-		sb.WriteString(strconv.Itoa(sl))
-		sb.WriteString(`,"darkside":`)
-		sb.WriteString(strconv.Itoa(sd))
-		sb.WriteString(`},"per_seat":{"citation":`)
-		sb.WriteString(perSeat(b.citation, sc))
-		sb.WriteString(`,"logic":`)
-		sb.WriteString(perSeat(b.logic, sl))
-		sb.WriteString(`,"darkside":`)
-		sb.WriteString(perSeat(b.darkside, sd))
-		sb.WriteString(`}}`)
-	}
-	sb.WriteByte('}')
-	return objJSON(sb.String()), true
 }
 
 // ---- row builders ----
@@ -506,15 +415,12 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	// them reports the rule working as a loss-condition tripwire, and states nothing the record's
 	// verdicts and blockers do not.
 
-	// citation_yield_by_epoch (object value)
-	if yield, ok := citationYieldByRole(fam); ok {
-		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_epoch", Cls: "diagnostic",
-			Value: yield,
-			Joint: "RETUNE TRIGGER: compare PER_SEAT yield across epochs, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens"})
-	} else {
-		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_epoch", Cls: "diagnostic",
-			Note: "no findings on the record yet (or the tool binary was not passed) — per-role yield needs the findings view"})
-	}
+	// CITATION YIELD BY EPOCH HAS NO ROW. It bucketed findings by the W2i-era lens numbers
+	// (`L1`-`L4` citation, `L5` logic, `L6` dark-side) to retune a cap on citation lenses that
+	// dispatched fewer of them in later epochs. No record carries those numbers — a lens's area is
+	// its name, and migrate renames the old numbers — and no such cap exists, so the row printed
+	// "no findings on the record yet" over every run, including smoke 07d's 21 findings. Findings
+	// per area per epoch are the findings view's own rows.
 
 	rows = append(rows, Row{Clause: "Certification: earned PASS/FAIL", Metric: "finding_precision", Cls: "benchmark",
 		Note: "needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful"})

@@ -123,7 +123,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		{"a: red closes, the bench rules it closed in a later sitting", func(s *closureStage) {
 			s.close(repaired, "red's close")
 			s.epoch().ruled(notADefect)
-		}, closureWant{epoch: 2, fate: "not_a_defect", bodyClass: "DISPOSITION_REPAIRED", benchDispo: "not_a_defect",
+		}, closureWant{epoch: 2, fate: "not_a_defect", bodyClass: "repaired", benchDispo: "not_a_defect",
 			closureProse: "red's close", estopped: true}},
 		// universe-m25 G-e205e589: the chair dockets the gap at its exchange limit (ev391), the lens
 		// closes it repaired (ev440), and the bench rules the docket repaired (ev488) to clear the
@@ -132,7 +132,7 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			m := s.docketed()
 			s.close(repaired, "red's close")
 			s.rule(m, repaired)
-		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "DISPOSITION_REPAIRED", benchDispo: "repaired",
+		}, closureWant{epoch: 1, fate: "repaired", bodyClass: "repaired", benchDispo: "repaired",
 			closureProse: "red's close", estopped: true}},
 		{"b: the bench remands", func(s *closureStage) {
 			s.ruled(remanded)
@@ -140,17 +140,17 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 		{"c: the bench rules it closed twice", func(s *closureStage) {
 			s.ruled(notADefect)
 			s.epoch().ruled(elsewhere)
-		}, closureWant{byBench: true, epoch: 2, fate: "defect_owed_elsewhere", bodyDispo: "DISPOSITION_DEFECT_OWED_ELSEWHERE",
+		}, closureWant{byBench: true, epoch: 2, fate: "defect_owed_elsewhere", bodyDispo: "defect_owed_elsewhere",
 			benchDispo: "defect_owed_elsewhere", estopped: true}},
 		{"d: red closes, the chair carries it under another word", func(s *closureStage) {
 			s.close(accepted, "red's close")
 			s.epoch().carry("1", repaired)
-		}, closureWant{epoch: 2, fate: "repaired", bodyClass: "DISPOSITION_REPAIRED", bodyCarried: "1", closureProse: "carried"}},
+		}, closureWant{epoch: 2, fate: "repaired", bodyClass: "repaired", bodyCarried: "1", closureProse: "carried"}},
 		{"e: red closes, the bench rules, the chair carries", func(s *closureStage) {
 			s.close(accepted, "red's close")
 			s.epoch().ruled(notADefect)
 			s.epoch().carry("1", repaired)
-		}, closureWant{epoch: 3, fate: "repaired", bodyClass: "DISPOSITION_REPAIRED", bodyCarried: "1", benchDispo: "not_a_defect",
+		}, closureWant{epoch: 3, fate: "repaired", bodyClass: "repaired", bodyCarried: "1", benchDispo: "not_a_defect",
 			closureProse: "carried"}},
 	}
 	for _, row := range rows {

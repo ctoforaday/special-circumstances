@@ -52,7 +52,21 @@ type Extraction struct {
 // THE REAL ONE IS THE DEFAULT, and that placement is the point. The obvious alternative — a
 // no-op default that the binary's main replaces — puts a silent, correct-looking failure one
 // forgotten wiring line away: a no-op returns Attempted:false, which records "nobody looked",
-// which is exactly what a fetch of a plain HTML page legitimately records. The miss and the
+// which is exactly what a fetch of a type nothing reads legitimately records. The miss and the
 // honest zero would again be the same bytes. So the engine ships wired, and a TEST is what has
 // to do the swapping.
-var DefaultExtractor Extractor = PDFExtractor{}
+var DefaultExtractor Extractor = DocumentExtractor{}
+
+// DocumentExtractor reads each media type the cache has a reader for: a PDF's text layer through
+// PDFExtractor, and an HTML page's text through extractHTML. Any other type is not attempted.
+type DocumentExtractor struct{}
+
+func (DocumentExtractor) Extract(cacheDir, mediaType string, body []byte) Extraction {
+	switch MediaType(mediaType) {
+	case "application/pdf":
+		return PDFExtractor{}.Extract(cacheDir, "application/pdf", body)
+	case "text/html", "application/xhtml+xml":
+		return extractHTML(body)
+	}
+	return Extraction{}
+}

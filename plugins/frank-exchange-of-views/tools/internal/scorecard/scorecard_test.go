@@ -32,35 +32,6 @@ func TestJsToFixed2Num(t *testing.T) {
 	}
 }
 
-// The two object-valued rows must serialize in JS INSERTION order — a Go map would sort, which
-// is the whole byte-identity trap this port had to solve.
-func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
-	findings := []record.FindingJSON{
-		{Area: "L1", Epoch: 1, SeatID: "a"},
-		{Area: "L1", Epoch: 1, SeatID: "b"},
-		{Area: "L5", Epoch: 1, SeatID: "c"},
-		{Area: "L6", Epoch: 1, SeatID: "c"}, // darkside, 1 seat
-	}
-	got, ok := BucketFindingsByRole(findings)
-	if !ok {
-		t.Fatal("expected findings")
-	}
-	// citation 2 over 2 seats → 1; logic 1 over 1 → 1; darkside 1 over 1 → 1. Keys in the
-	// NON-alphabetical order citation,logic,darkside,seats,per_seat.
-	want := `{"1":{"citation":2,"logic":1,"darkside":1,"seats":{"citation":2,"logic":1,"darkside":1},"per_seat":{"citation":1,"logic":1,"darkside":1}}}`
-	if string(got) != want {
-		t.Errorf("citation_yield JSON:\n got  %s\n want %s", got, want)
-	}
-	// A darkside-less epoch → per_seat.darkside is null (not 0), matching JS.
-	got2, _ := BucketFindingsByRole([]record.FindingJSON{{Area: "L1", Epoch: 2, SeatID: "a"}})
-	if !strings.Contains(string(got2), `"per_seat":{"citation":1,"logic":null,"darkside":null}`) {
-		t.Errorf("empty role must be per_seat null, got %s", got2)
-	}
-	if _, ok := BucketFindingsByRole(nil); ok {
-		t.Error("no findings must return ok=false")
-	}
-}
-
 // closedGap builds a replayed gap closed by a `close` event carrying the given anchor fields.
 func closedGap(c *recordpb.Close) *record.Gap {
 	return &record.Gap{HasClosed: true, Closure: c}

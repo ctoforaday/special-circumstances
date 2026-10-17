@@ -536,7 +536,7 @@ feov-record: regrade: red-lens-evidence has already recorded a regrade on "GAP00
 ── repeat target: the chair sits and states its position
 exit 0
 position recorded
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
@@ -548,7 +548,7 @@ feov-record: position: red-chair has already recorded a position this sitting, a
 ── repeat target: the chair's spot-check
 exit 0
 spot-check: nothing to sample, recorded with its reason
-1 STILL TO CLEAR before the run can PASS, and yours to clear (of 4 item(s) open to you):
+1 STILL TO CLEAR before the run can PASS, and yours to clear (of 5 item(s) open to you):
   · your terminal act is missing — the run cannot say from its own record that it was ever verified
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
@@ -560,7 +560,7 @@ feov-record: spot-check: red-chair has already recorded a spot_check this sittin
 ── repeat target: the chair's verdict
 exit 0
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
-NOTHING HERE IS YOURS TO CLEAR (3 item(s) open to you).
+NOTHING HERE IS YOURS TO CLEAR (4 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (1) — the board's state, not your debt; a PASS is not in view while any of it stands:
   · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
 
@@ -600,12 +600,12 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ── repeat target: the chair carries the closure
 exit 0
 carried the closure of GAP001 (repaired)
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
 
 ── a second carry of a gap in one sitting
 exit 2
