@@ -279,26 +279,6 @@ const (
 	RemovalAsserted = "asserted"
 )
 
-// ClaimAppearsInAnEdit reports whether a claim's text appears in the OLD span of any recorded
-// blue_edit — the record's evidence that the text was in the report and was taken out.
-func ClaimAppearsInAnEdit(run Run, claim string) bool {
-	db, err := openRunForRead(run)
-	return err == nil && claimAppearsInAnEditAt(db, claim)
-}
-
-// claimAppearsInAnEditAt is ClaimAppearsInAnEdit asked of q.
-func claimAppearsInAnEditAt(q recordsql.Querier, claim string) bool {
-	if claim == "" {
-		return false
-	}
-	// instr answers presence exactly as strings.Contains did (a NULL old span yields NULL,
-	// which is not > 0 — the same miss as Contains on an empty string). A read error folds
-	// into false, as the board-read error did.
-	found, err := recordHasAt(q,
-		`SELECT 1 FROM "blue_edit" WHERE instr("old", ?) > 0 LIMIT 1`, claim)
-	return err == nil && found
-}
-
 // EditSpan is one recorded blue_edit's (old, new) pair, in record order.
 type EditSpan struct{ Old, New string }
 
