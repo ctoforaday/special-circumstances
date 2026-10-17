@@ -144,7 +144,7 @@ func slugFile(f string) string {
 func outcomeBadge(fam record.Family) (string, string) {
 	o := outcomeOf(fam.Events)
 	if o == nil {
-		return "NONE", "unknown"
+		return "PENDING", "unknown"
 	}
 	word := outcomeWord(o)
 	cls := "neutral"

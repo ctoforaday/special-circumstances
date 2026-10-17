@@ -1,16 +1,12 @@
-// Package cost is the Go port of cost-audit.mjs: it parses the Workflow harness's per-agent
-// transcripts, prices them by tier, and renders the run's cost.md — plus the model-tier guard
-// (#111, folded in from model-guard.mjs, collapsing the JS cost⇄model-guard import cycle).
+// Package cost prices the Workflow harness's per-agent transcripts and renders the run's cost.md,
+// with the model-tier guard (#111) beside it.
 //
 // It reads TRANSCRIPTS for the spend and (optionally) the run's run-config and its record: the
 // record supplies each agent's seat binding (which epoch a transcript belongs to — the transcript
-// itself cannot say), the ingested seat turns and the board telemetry. The JS module stays for
-// now — capture and the dashboard still import its pure exports — so this and cost-audit.mjs must
-// agree; the differential in the port PR pins them.
+// itself cannot say), the ingested seat turns and the board telemetry.
 package cost
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -18,6 +14,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,15 +22,125 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
-// Prices are $/MTok: input, output, cache-read, cache-write.
-var Prices = map[string][4]float64{
-	"haiku":  {1, 5, 0.10, 1.25},
-	"sonnet": {2, 10, 0.20, 2.50}, // intro pricing through 2026-08-31
-	"opus":   {5, 25, 0.50, 6.25},
-	"fable":  {10, 50, 1.00, 12.50},
+// Rate is one list price, in dollars per million tokens: uncached input, output, a cache read, and a
+// cache write at each of the two lifetimes.
+type Rate struct {
+	Input, Output, CacheRead, Write5m, Write1h float64
+}
+
+// Card is a model's price. Most models have one Rate. A model whose price depends on how long the
+// prompt is carries a second, Long, for any request whose prompt — input, cache read and cache
+// write together — exceeds LongAbove tokens.
+//
+// Window is the model's context window in tokens. It is not a price and it lives here because this
+// is the one table keyed by the model id a response reports: a second table keyed the same way is a
+// second list to forget a new model in.
+type Card struct {
+	Rate      Rate
+	LongAbove int
+	Long      Rate
+	Window    int
+}
+
+// rateFor is the rate a request with this prompt length pays.
+func (c Card) rateFor(prompt int) Rate {
+	if c.LongAbove > 0 && prompt > c.LongAbove {
+		return c.Long
+	}
+	return c.Rate
+}
+
+// Prices is the list price of each model, keyed by the model id the API reports on a response.
+//
+// PRICED BY MODEL, NOT BY TIER. One tier holds models at different prices — Opus 5.5 is $4/$20
+// with cache reads at $0.20, Opus 5 is $5/$25 with $0.50 — and a Haiku 5.5 request costs a tenth of
+// a Haiku 4.5 one. A row per tier priced the 2026-10-17 smoke's Haiku 5.5 seats at Haiku 4.5's
+// rates: $2.41 for what the client billed at $0.29.
+//
+// The rows are Anthropic's published first-party rates. Cache reads are 0.1x input except where a
+// row says otherwise (Opus 5.5 0.05x, Fable 5.1 0.025x); a five-minute write is 1.25x input and a
+// one-hour write 2x. Checked against the client's own costUSD on the 2026-10-17 smoke: the seats'
+// Haiku 5.5 requests priced here, plus the client's own small Haiku calls and two web searches,
+// come to $0.3169418 against the client's $0.3169418; the lead session's Opus 5.5 usage to
+// $0.4910016 against $0.4910016.
+var Prices = map[string]Card{
+	"claude-fable-5-1":  {Rate: Rate{10, 50, 0.25, 12.50, 20}, Window: 1_000_000},
+	"claude-fable-5":    {Rate: Rate{10, 50, 1.00, 12.50, 20}, Window: 1_000_000},
+	"claude-opus-5-5":   {Rate: Rate{4, 20, 0.20, 5, 8}, Window: 1_000_000},
+	"claude-opus-5":     {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
+	"claude-opus-4-8":   {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
+	"claude-opus-4-7":   {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
+	"claude-opus-4-6":   {Rate: Rate{5, 25, 0.50, 6.25, 10}, Window: 1_000_000},
+	"claude-sonnet-5-5": {Rate: Rate{2, 10, 0.20, 2.50, 4}, Window: 1_000_000},
+	"claude-sonnet-5":   {Rate: Rate{2, 10, 0.20, 2.50, 4}, Window: 1_000_000},
+	"claude-sonnet-4-6": {Rate: Rate{3, 15, 0.30, 3.75, 6}, Window: 1_000_000},
+	"claude-haiku-5-5": {
+		Rate:      Rate{0.10, 0.50, 0.01, 0.125, 0.20},
+		LongAbove: 100_000,
+		Long:      Rate{0.50, 2.50, 0.05, 0.625, 1.00},
+		Window:    1_000_000,
+	},
+	"claude-haiku-4-5": {Rate: Rate{1, 5, 0.10, 1.25, 2}, Window: 200_000},
+}
+
+// unpricedRate is what a model with no row is charged: the dearest figure of every row, component by
+// component. An unknown model must over-report, never under-report, and the report names it (Row's
+// Unpriced) so the over-report is never mistaken for a measurement.
+var unpricedRate = func() Rate {
+	var r Rate
+	for _, c := range Prices {
+		for _, x := range []Rate{c.Rate, c.Long} {
+			r.Input = math.Max(r.Input, x.Input)
+			r.Output = math.Max(r.Output, x.Output)
+			r.CacheRead = math.Max(r.CacheRead, x.CacheRead)
+			r.Write5m = math.Max(r.Write5m, x.Write5m)
+			r.Write1h = math.Max(r.Write1h, x.Write1h)
+		}
+	}
+	return r
+}()
+
+// reDated is the date suffix a pinned snapshot id carries (`claude-haiku-4-5-20251001`). The row is
+// the model's; the snapshot is the same model at the same price.
+var reDated = regexp.MustCompile(`-\d{8}$`)
+
+// CardOf is the price card for a model id, and whether the table has one.
+func CardOf(model string) (Card, bool) {
+	c, ok := Prices[reDated.ReplaceAllString(strings.ToLower(model), "")]
+	return c, ok
+}
+
+// WindowOf is a model's context window. A model with no row is given the SMALLEST window in the
+// table, so the context tripwire fires early on it rather than late.
+func WindowOf(model string) int {
+	if c, ok := CardOf(model); ok {
+		return c.Window
+	}
+	w := 0
+	for _, c := range Prices {
+		if w == 0 || c.Window < w {
+			w = c.Window
+		}
+	}
+	return w
+}
+
+// Price is what one request cost: each token count at its rate, the cache write split by lifetime.
+// ok is false when the model has no row and the request was charged the dearest rate instead.
+func Price(t seatturn.Turn, model string) (dollars float64, ok bool) {
+	c, ok := CardOf(model)
+	r := unpricedRate
+	if ok {
+		r = c.rateFor(t.Prompt())
+	}
+	w1h := t.CacheCreation1h
+	w5m := t.CacheCreation - w1h
+	return (float64(t.Input)*r.Input + float64(t.Output)*r.Output + float64(t.CacheRead)*r.CacheRead +
+		float64(w5m)*r.Write5m + float64(w1h)*r.Write1h) / 1e6, ok
 }
 
 // THE TIER LADDER MOVED TO internal/modeltier, AND ONLY THE PRICES STAYED.
@@ -73,65 +180,53 @@ type Row struct {
 	Cr       int
 	Cw       int
 	Cost     float64
+	// Unpriced names the models this agent's requests were served by that have no row in Prices.
+	// Their requests are charged the dearest rate, so Cost over-reports them; the report says so.
+	Unpriced []string
 }
 
-func intOf(v any) int {
-	switch x := v.(type) {
-	case json.Number:
-		if f, err := x.Float64(); err == nil {
-			return int(f)
-		}
-	case float64:
-		return int(x)
-	}
-	return 0
-}
-
-// ScanTranscript sums one agent's usage records and prices them. Non-JSON lines are skipped
-// (a run killed mid-append leaves a half-written final line). A recognized tier always wins; an
-// unrecognized model string only fills a still-empty slot, so one synthetic turn cannot reprice
-// a whole seat to the fallback tier.
+// ScanTranscript sums one agent's requests and prices each one. The transcript is read by
+// seatturn.Parse — the reader seat_turn is ingested with — so a request the client wrote as several
+// lines, one per content block, is one turn here and priced once, as it is billed.
+//
+// A recognized tier always wins the row's model; an unrecognized model string only fills a
+// still-empty slot, so one synthetic turn cannot reprice a whole seat to the fallback tier. A turn
+// that names no model is priced as the row's model.
 func ScanTranscript(txt string) Row {
 	head := txt
 	if len(head) > 2000 {
 		head = head[:2000]
 	}
 	c := seatclass.ClassifySeat(head)
+	_, turns := seatturn.Parse(txt)
 	var model string
-	var inp, out, cr, cw, turns int
-	for _, line := range strings.Split(txt, "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
+	for _, t := range turns {
+		if t.Model != "" && (model == "" || recognized(t.Model)) {
+			model = t.Model
 		}
-		dec := json.NewDecoder(strings.NewReader(line))
-		dec.UseNumber()
-		var j map[string]any
-		if err := dec.Decode(&j); err != nil {
-			continue
-		}
-		msg, _ := j["message"].(map[string]any)
-		if msg == nil {
-			continue
-		}
-		u, _ := msg["usage"].(map[string]any)
-		if u == nil {
-			continue
-		}
-		if mm, ok := msg["model"].(string); ok && mm != "" {
-			if model == "" || recognized(mm) {
-				model = mm
-			}
-		}
-		turns++
-		inp += intOf(u["input_tokens"])
-		out += intOf(u["output_tokens"])
-		cr += intOf(u["cache_read_input_tokens"])
-		cw += intOf(u["cache_creation_input_tokens"])
 	}
-	t := Tier(model)
-	p := Prices[t]
-	cost := (float64(inp)*p[0] + float64(out)*p[1] + float64(cr)*p[2] + float64(cw)*p[3]) / 1e6
-	return Row{Seat: c.Seat, T: t, Turns: turns, Inp: inp, Out: out, Cr: cr, Cw: cw, Cost: cost}
+	row := Row{Seat: c.Seat, T: Tier(model), Turns: len(turns)}
+	unpriced := map[string]bool{}
+	for _, t := range turns {
+		m := t.Model
+		if m == "" {
+			m = model
+		}
+		usd, ok := Price(t, m)
+		if !ok && t.Prompt()+t.Output > 0 {
+			unpriced[m] = true
+		}
+		row.Inp += t.Input
+		row.Out += t.Output
+		row.Cr += t.CacheRead
+		row.Cw += t.CacheCreation
+		row.Cost += usd
+	}
+	for m := range unpriced {
+		row.Unpriced = append(row.Unpriced, m)
+	}
+	sort.Strings(row.Unpriced)
+	return row
 }
 
 // AgentIDOfTranscript is the harness handle a per-agent transcript is filed under: the harness
@@ -284,8 +379,8 @@ func DedupTierFindings(fs []Finding) []Finding {
 // mtok renders a token count as the JS `(n/1e6).toFixed(2)+'M'`.
 func mtok(n int) string { return strconv.FormatFloat(float64(n)/1e6, 'f', 2, 64) + "M" }
 
-// Report writes cost.md to out, byte-for-byte as cost-audit.mjs main() does (each console.log
-// is one line + '\n'). With runDir it appends the tier check and the board-telemetry join.
+// Report writes cost.md to out. With a run it appends the tier check, the per-seat measurements
+// and the board-telemetry join.
 func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	entries, err := os.ReadDir(transcriptDir)
 	if err != nil {
@@ -328,7 +423,7 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	p := func(s string) { fmt.Fprintln(out, s) }
 
 	p("# Cost audit\n")
-	p(fmt.Sprintf("Measured from %d per-agent API transcripts in `%s`. List-rate arithmetic; see the price table in cost-audit.mjs.\n", len(rows), transcriptDir))
+	p(fmt.Sprintf("Measured from %d per-agent API transcripts in `%s`, one turn per API request. Each request is priced at its model's list rate, from feov-record's price table (the cost package's Prices).\n", len(rows), transcriptDir))
 	p("## Per seat-epoch\n")
 	p("| epoch | seat | model | agents | api-turns | input | output | cache-read | cache-write | $ |")
 	p("|---|---|---|---|---|---|---|---|---|---|")
@@ -363,6 +458,10 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 		tN, tTurns, mtok(tInp), mtok(tOut), mtok(tCr), mtok(tCw), strconv.FormatFloat(tCost, 'f', 2, 64)))
 	p("\n## Notes\n")
 	p(fmt.Sprintf("- Cache traffic is %d%% of all tokens; harness panel counters (input+output only) understate real flow accordingly.", CacheShare(tInp, tOut, tCr, tCw)))
+	// AN UNPRICED MODEL IS NAMED, because its dollars are the fallback's and not a measurement.
+	if unpriced := unpricedModels(rows); len(unpriced) > 0 {
+		p(fmt.Sprintf("- **Unpriced model(s): %s.** The price table has no row for them, so their requests are charged the dearest rate in the table and the $ figures above OVER-report them.", strings.Join(unpriced, ", ")))
+	}
 	p("- Known physics (runs 3-4 baseline): lens cost tracks CORPUS size (full re-read x additive growth); merge cost tracks the CUMULATIVE ARCHIVE of closed cases (countermeasure: the ledger/archive shard split); judgment-seat premium is cache-RATE-driven (~5x sonnet-intro cache rates at the session tier), not volume-driven; burn is spiky at the judgment seats.")
 
 	if run.Dir() != "" {
@@ -371,6 +470,22 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 		reportTelemetry(run, p)
 	}
 	return nil
+}
+
+// unpricedModels is every model, across the rows, that the price table has no row for.
+func unpricedModels(rows []Row) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, r := range rows {
+		for _, m := range r.Unpriced {
+			if !seen[m] {
+				seen[m] = true
+				out = append(out, m)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // reportSeatMeasurements renders the per-seat section FROM THE RECORD, not from another pass over

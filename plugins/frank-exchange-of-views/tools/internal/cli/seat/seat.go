@@ -551,9 +551,6 @@ var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is ONE spelling (flags.Prose says why the file forms went). Listed so a
 	// prose FIELD is required through the flag a seat types rather than the key the schema stores.
 	"reason": {flags.Reason},
-	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
-	// same sentence it calls the field required.
-	"problem": {flags.Problem, flags.Reason},
 	// An inquiry's question arrives through its own flag; a manifest receipt is the verb's prose,
 	// so it arrives through the same channel every other prose field does.
 	"question": {flags.Question},

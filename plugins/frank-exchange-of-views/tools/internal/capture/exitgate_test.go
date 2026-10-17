@@ -72,6 +72,64 @@ func TestTheExitCodeAgreesWithTheAuditsItReports(t *testing.T) {
 	}
 }
 
+// THE RUN DOCUMENT CAPTURE LEAVES IS THE RECORD'S AT THE CLOSE, WITH THIS CAPTURE'S AUDITS IN IT.
+//
+// Two orderings, each of which once left run.md describing a different moment. The bench assembles
+// inside its own sitting, so a tier table rendered then could not read the bench's own turns; and
+// the fold read run-record-audit.md BEFORE this capture wrote it, so a first capture folded no
+// integrity audits at all. A placeholder stands in for the bench's assembly: it must be replaced
+// by the re-assembled document, and the audits this very call returned must be the ones folded.
+func TestCaptureReassemblesTheRunDocumentAndFoldsItsOwnAudits(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	if err := os.MkdirAll(filepath.Join(run.Dir(), "trajectories"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runMd := filepath.Join(run.Dir(), "run.md")
+	if err := os.WriteFile(runMd, []byte("# placeholder — the bench's assembly, mid-sitting\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	audits, report, _, err := Run(run, t.TempDir(), time.Date(2026, 10, 17, 19, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !strings.Contains(report, "re-assembled from the record at the close") {
+		t.Errorf("capture did not re-assemble the documents:\n%s", report)
+	}
+	b, err := os.ReadFile(runMd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := string(b)
+	if strings.Contains(doc, "placeholder") {
+		t.Error("run.md is still the bench's mid-sitting assembly")
+	}
+	if !strings.Contains(doc, "\n## Integrity audits\n") {
+		t.Fatalf("a first capture folded no integrity audits into run.md:\n%s", doc)
+	}
+	for _, a := range audits {
+		if want := "**" + a.Check + ": " + a.Verdict + "**"; !strings.Contains(doc, want) {
+			t.Errorf("run.md does not carry this capture's %q", want)
+		}
+	}
+	if !strings.Contains(report, "run.md: ") {
+		t.Errorf("the report does not say what was folded into run.md:\n%s", report)
+	}
+	// WHAT PRODUCED THEM IS NAMED, and it is this binary. Both files named a JavaScript module
+	// deleted long before the 2026-10-17 smoke read them.
+	costMd, err := os.ReadFile(filepath.Join(run.Dir(), "cost.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"run-record-audit.md": report, "cost.md": string(costMd), "run.md": doc} {
+		if strings.Contains(body, ".mjs") {
+			t.Errorf("%s names a .mjs file, and no JavaScript produces it", name)
+		}
+	}
+	if !strings.HasPrefix(report, "# capture-audit — mechanized post-hoc checks (feov-record capture)") {
+		t.Errorf("run-record-audit.md does not name what wrote it:\n%s", report)
+	}
+}
+
 // A RUN WITH NO WORKFLOW JOURNAL CAN BE CLOSED, AND IS NOT CALLED CLEAN FOR IT.
 //
 // Capture is the only code that clears a run's live marker, and it used to fail at its first

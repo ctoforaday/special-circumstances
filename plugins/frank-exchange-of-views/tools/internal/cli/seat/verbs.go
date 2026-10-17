@@ -568,7 +568,7 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			return RefuseAndTeach(cmd, feov.Validation, fmt.Sprintf(
-				"no projection named %q — this reads one projection at a time, and each is listed with the verb that fills it.", args[0]))
+				"no projection named %q — this reads one projection at a time, and each is listed with the verb that fills it.%s", args[0], NamedElsewhere(cmd, args[0])))
 		}
 		// The seat's own default — its pending work and whether the sitting is finished.
 		return renderView(cmd, "")

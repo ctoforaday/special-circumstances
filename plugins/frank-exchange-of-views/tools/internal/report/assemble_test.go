@@ -83,8 +83,8 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	// A missing outcome is flagged, never invented.
 	// A missing outcome is STATE, in the same stamp shape as the others (gblock: "State only") —
 	// never invented, and never narrated here: the missing act is run.md's to say.
-	if s := outcomeStamp(nil); s != "**Outcome:** NONE (no terminal outcome on the record)" {
-		t.Errorf("a missing outcome must be the state NONE, in the stamp's shape: %q", s)
+	if s := outcomeStamp(nil); s != "**Outcome:** PENDING (no outcome on the record yet — the bench records it at the run's exit)" {
+		t.Errorf("a missing outcome must be the state PENDING, in the stamp's shape: %q", s)
 	}
 	// THE STAMP IS A FIELD. It carries the word and the clause naming how the run ended, then — since
 	// gblock's 2026-09-10 ruling — its basis as state in parentheses. The word stays the FIRST token, so
@@ -114,10 +114,10 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if g := verdictGloss(halted); !strings.Contains(g, "HALTED") || !strings.Contains(g, "halt opinion") {
 		t.Errorf("the HALTED gloss must point at the recorded halt opinion: %q", g)
 	}
-	// A missing outcome is flagged by the STAMP, and assembly does not repeat it into
+	// A missing outcome is stated by the STAMP as PENDING, and assembly does not repeat it into
 	// "Read this first" — the gloss exists to carry an argument the field cannot hold, and
 	// there is no argument here.
-	if g := verdictGloss(nil); !strings.Contains(g, "no terminal outcome recorded") {
+	if g := verdictGloss(nil); !strings.Contains(g, "no outcome on the record yet") {
 		t.Errorf("a missing outcome must still be answerable from the gloss: %q", g)
 	}
 	// UNVERIFIED is the word alone, and the bench's ACCOUNT of why is not in the research document
@@ -998,7 +998,7 @@ func TestLogSectionRendered(t *testing.T) {
 		"Log (what the run told the operator",
 		"**red-chair** (defect): the --cx flag is missing",
 		"**blue-respond** (defect): manifest cap fights",
-		"Seats that sat and filed nothing",
+		"Seats that sat and filed no log entry",
 		"**judge**",
 	} {
 		if !strings.Contains(f, want) {

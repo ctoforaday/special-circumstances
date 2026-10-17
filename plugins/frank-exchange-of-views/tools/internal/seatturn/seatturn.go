@@ -22,13 +22,17 @@ import (
 
 // Turn is one API round trip: the usage it reported and the shape of what came back.
 type Turn struct {
-	Index         int   // position among the usage-bearing lines, from 0
-	TSMillis      int64 // the line's own timestamp; 0 when it carried none
+	Index         int   // position among the transcript's requests, from 0, in the order each first appears
+	TSMillis      int64 // the timestamp of the request's LAST line, when its response was complete; 0 when it carried none
 	Model         string
 	Input         int
 	Output        int
 	CacheRead     int
 	CacheCreation int
+	// CacheCreation1h is the part of CacheCreation written with the one-hour lifetime, which is
+	// priced at twice the five-minute write. It is a parse output for pricing and is not a seat_turn
+	// column: the table's shape is the record's, and the price is computed from the transcript.
+	CacheCreation1h int
 	// Thinking and Tool are read off the CONTENT BLOCKS, not inferred from the numbers. The F11
 	// decomposition inferred a thinking turn from a low output_tokens with a long span, which is
 	// a correlation that happens to hold; the block is the fact, and it is right there.
@@ -36,7 +40,27 @@ type Turn struct {
 	Tool     bool
 }
 
+// Prompt is what the request sent: its uncached input, what it read from the cache and what it
+// wrote to it. A price card that changes with prompt length is chosen on this.
+func (t Turn) Prompt() int { return t.Input + t.CacheRead + t.CacheCreation }
+
 // Parse reads a transcript into its turns and reports the agent it belongs to.
+//
+// ONE TURN PER REQUEST, NOT PER LINE. The client writes one transcript line per CONTENT BLOCK of a
+// response — a thinking block, then each tool_use, then text — and every one of those lines repeats
+// the request's usage. Counting lines counted each request once per block: on the 2026-10-17 smoke
+// a dark-side seat had 32 lines for 14 requests, and the run's cache reads summed to 13.97M against
+// the 6,521,112 the client itself billed. The request is named by `message.id`, the API's own id for
+// the response, so the lines sharing one are folded into one turn:
+//   - usage is the LAST line's. The client streams, and the early lines carry the output count as it
+//     stood when that block closed (8, then 8, then 563); the last carries the response's total. The
+//     input and cache counts are the same on every line of a request.
+//   - the timestamp is the last line's, when the response was complete, so a span between two turns
+//     runs from one finished response to the next.
+//   - Thinking and Tool are true when ANY of the request's blocks was one.
+//
+// A usage line with no message.id is its own turn: nothing names the request it belongs to, and
+// joining it to a neighbour would be a guess.
 //
 // THE AGENT ID COMES OFF THE LINE, NOT THE FILENAME. Every record in these files carries
 // `agentId`, and the file is also called agent-<id>.jsonl — recovering it from the name would be
@@ -46,6 +70,7 @@ type Turn struct {
 // A line that does not parse, or carries no usage, is skipped: transcripts interleave user
 // records, tool results and meta lines, and only the assistant's API round trips report usage.
 func Parse(transcript string) (agentID string, turns []Turn) {
+	byID := map[string]int{}
 	for _, line := range strings.Split(transcript, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -54,6 +79,7 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 			AgentID   string `json:"agentId"`
 			Timestamp string `json:"timestamp"`
 			Message   *struct {
+				ID      string `json:"id"`
 				Model   string `json:"model"`
 				Content []struct {
 					Type string `json:"type"`
@@ -63,6 +89,9 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 					Output        int `json:"output_tokens"`
 					CacheRead     int `json:"cache_read_input_tokens"`
 					CacheCreation int `json:"cache_creation_input_tokens"`
+					ByLifetime    *struct {
+						OneHour int `json:"ephemeral_1h_input_tokens"`
+					} `json:"cache_creation"`
 				} `json:"usage"`
 			} `json:"message"`
 		}
@@ -75,14 +104,18 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 		if rec.Message == nil || rec.Message.Usage == nil {
 			continue
 		}
+		u := rec.Message.Usage
 		t := Turn{
 			Index:         len(turns),
 			TSMillis:      millis(rec.Timestamp),
 			Model:         rec.Message.Model,
-			Input:         rec.Message.Usage.Input,
-			Output:        rec.Message.Usage.Output,
-			CacheRead:     rec.Message.Usage.CacheRead,
-			CacheCreation: rec.Message.Usage.CacheCreation,
+			Input:         u.Input,
+			Output:        u.Output,
+			CacheRead:     u.CacheRead,
+			CacheCreation: u.CacheCreation,
+		}
+		if u.ByLifetime != nil {
+			t.CacheCreation1h = u.ByLifetime.OneHour
 		}
 		for _, b := range rec.Message.Content {
 			switch b.Type {
@@ -91,6 +124,20 @@ func Parse(transcript string) (agentID string, turns []Turn) {
 			case "tool_use":
 				t.Tool = true
 			}
+		}
+		if id := rec.Message.ID; id != "" {
+			if i, seen := byID[id]; seen {
+				prev := turns[i]
+				t.Index = prev.Index
+				t.Thinking = t.Thinking || prev.Thinking
+				t.Tool = t.Tool || prev.Tool
+				if t.TSMillis == 0 {
+					t.TSMillis = prev.TSMillis
+				}
+				turns[i] = t
+				continue
+			}
+			byID[id] = len(turns)
 		}
 		turns = append(turns, t)
 	}

@@ -62,16 +62,14 @@ func newMint() *cobra.Command {
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
 		gapID := record.NewID("gap")
+		// ONE FLAG, ONE FIELD. --problem states what is wrong and is the only thing that does;
+		// --reason is red's argument for the gap and is never read as the problem. The problem
+		// used to fall back to --reason when --problem was absent, so the same flag meant the
+		// problem on one mint and the argument on the next, and a seat could not tell from its own
+		// call which field its text had landed in. An absent --problem is refused by the record's
+		// required field, in the problem's own words.
 		problem := seat.Str(cmd, flags.Problem)
-		if problem == "" {
-			problem = text
-		}
-		// RED'S ARGUMENT IS KEPT WHEN IT IS NOT THE PROBLEM STATEMENT ITSELF.
-		//
-		// It was discarded. `--reason` fell back to `--problem` only when problem was empty,
-		// so the ordinary mint — which supplies both — recorded the problem and threw the
-		// reasoning away, while `--reason`'s own help promises "the substance the report
-		// renders and the other side answers". The write returned "minted G4" either way.
+		// RED'S ARGUMENT IS KEPT.
 		//
 		// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
 		// a required_fix may demand, it reported first among its missing things: "Red's closing
@@ -81,10 +79,9 @@ func newMint() *cobra.Command {
 		// unrecorded.
 		//
 		// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
-		// answers and a bench weighs. Stored only when the two differ, so a mint that passed
-		// its problem through --reason does not carry it twice.
+		// answers and a bench weighs.
 		p := &recordpb.Mint{GapId: proto.String(gapID)}
-		if text != "" && text != problem {
+		if text != "" {
 			p.MintReason = proto.String(text)
 		}
 		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
@@ -267,7 +264,7 @@ func newMint() *cobra.Command {
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
 		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote")
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
-	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
+	flags.Text(c, flags.Problem, "what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
 	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")

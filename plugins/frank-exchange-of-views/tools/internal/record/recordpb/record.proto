@@ -239,7 +239,7 @@ enum EventType {
   EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
-  EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing"];
+  EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"];
   EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
@@ -748,7 +748,7 @@ message Mint {
   optional string about_ref = 24;
   optional string problem = 9 [(sql) = {
     required: true
-    why: "what is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-audited"
+    why: "what is wrong — a gap with no stated problem cannot be repaired or re-audited, and --reason is your argument, never the problem"
   }];
   optional string required_fix = 10;
 
@@ -810,8 +810,8 @@ message Mint {
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
   //
   // `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
-  // answers and a bench weighs. `lens mint` stores it only when the two DIFFER, so a mint
-  // that passed its problem through --reason does not carry it twice.
+  // answers and a bench weighs. `lens mint` stores --reason here and nowhere else: --problem is
+  // the only flag that states the problem.
   //
   // IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
   // to catch a dropped key missed it, and internal/record/viewjson.go reported the hole in place

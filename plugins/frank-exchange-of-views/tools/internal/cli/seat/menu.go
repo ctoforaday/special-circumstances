@@ -336,6 +336,38 @@ func NameTakers(root *cobra.Command, flag, noun string) {
 	}
 }
 
+// NamedElsewhere is the refusal's clause for a word typed under one group that names a command
+// under another: `show telemetry` where the surface's `telemetry` is `inquest telemetry`. It is the
+// unknown-flag refusal's question asked of a COMMAND — which commands on this surface carry the
+// word — answered from the tree the refusal is raised in, which is the asking seat's own, so a
+// command another role holds is never offered. "" when no runnable command outside `group` has the
+// name.
+func NamedElsewhere(group *cobra.Command, word string) string {
+	var paths []string
+	var walk func(cur *cobra.Command)
+	walk = func(cur *cobra.Command) {
+		for _, sub := range cur.Commands() {
+			if sub == group || !sub.IsAvailableCommand() {
+				continue
+			}
+			if sub.Name() == word && sub.Runnable() {
+				paths = append(paths, PathOf(sub))
+			}
+			walk(sub)
+		}
+	}
+	walk(group.Root())
+	if len(paths) == 0 {
+		return ""
+	}
+	sort.Strings(paths)
+	verb := "is the command"
+	if len(paths) > 1 {
+		verb = "are the commands"
+	}
+	return fmt.Sprintf(" On this surface %s %s by that name.", andList(quoted(paths)), verb)
+}
+
 func quoted(names []string) []string {
 	out := make([]string, len(names))
 	for i, n := range names {

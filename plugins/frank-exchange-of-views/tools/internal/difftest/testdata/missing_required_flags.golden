@@ -1,13 +1,14 @@
 $ mint --seat-id red-lens-evidence
 exit 2
 stderr:
-feov-record: mint: requires --check, --check-kind, --class, --impact, --likelihood, --severity
+feov-record: mint: requires --check, --check-kind, --class, --impact, --likelihood, --problem, --severity
 
       --check string                             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition
       --check-kind document|computation|source   REQUIRED — what would SETTLE that check
       --class slug                               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class new verb. Its material default is recorded with the gap
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
+      --problem string                           REQUIRED — what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints
       --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized
 
 Run `feov-record mint --help` for what it takes, flag by flag.
@@ -100,7 +101,7 @@ indistinguishable from one that never looked._
 
 ---
 
-**Outcome:** NONE (no terminal outcome on the record)
+**Outcome:** PENDING (no outcome on the record yet — the bench records it at the run's exit)
 
 ## S2
 

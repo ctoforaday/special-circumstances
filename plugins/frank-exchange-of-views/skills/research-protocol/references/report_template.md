@@ -40,7 +40,7 @@
 # report.md — THE RESEARCH
 
 # <Topic>                                <!-- [BLUE] blue's H1, cut at the author's own punctuation boundary -->
-**Outcome:** VERIFIED | UNVERIFIED | CEILING | HALTED | NONE (derived from the record | asserted by the bench | no terminal outcome on the record)
+**Outcome:** VERIFIED | UNVERIFIED | CEILING | HALTED | PENDING (derived from the record | asserted by the bench | no outcome on the record yet — the bench records it at the run's exit)
                                               <!-- [RECORD] the terminal `outcome` event. THE WORD, then its basis as
                                               STATE in parentheses, and nothing else: a field a reader can skim, badge
                                               or grep, whose first token is still the word. Everything that EXPLAINS it
@@ -143,7 +143,7 @@
 
 ## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state; with no outcome, it says the bench never recorded its terminal outcome -->
 
-## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; the seats that sat and filed nothing are named apart -->
+## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; the seats that sat and filed no log entry are named apart -->
 
 ## Record verification                   <!-- [RECORD] the record's own invariant check — a section, never a gate -->
 

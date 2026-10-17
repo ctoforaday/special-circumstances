@@ -60,7 +60,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - The bench is the seat that adjudicates the contested docket, rules on motions and stamps how the run ended.
   - The engine is the workflow script that dispatches the seats the record says are ready and reads the envelopes they return.
   - The operator is the person running the research, and the seat id their own commands run under.
-  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
+  - The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed no log entry — and none of it is debate material.
   - Friction is one type of log entry: something cost the seat a call, a guess or an act — a refusal, a guessed name, a misread shape, a workaround — and it notes what it expected and why, whether or not anything should change; an act no surface offers at all is a request, not friction.
   - A missing capability is an act a seat needed that no surface offers, and it goes in the log, never on the board.
   - A citation is a source attached to a sentence of the report with the cite verb, hashed and dated so it can be checked again.
@@ -299,7 +299,7 @@ Flags:
       --quote string                 REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. It is the REPORT's sentence under every --as value, never the source's
       --reason string                → SHARED §4
       --title string                 REQUIRED — the source's name, as it appears in the composed bibliography
-      --url string                   REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes
+      --url string                   REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it
 
 (Enumerated values:) → SHARED §7
 ========
@@ -315,7 +315,7 @@ AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE: behind an egress proxy, a host o
 Flags:
       --at string     with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. A priority question needs the FIRST time something was visible, which the newest capture cannot answer
       --ocr           read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread (default true)
-      --url string    REQUIRED — the http/https URL to read
+      --url string    REQUIRED — the http/https URL to read. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it
       --via backend   reach the source through a named backend: live | archive | oa | metadata | arxiv | eric | auto. They answer DIFFERENT questions — live the URL itself (the same as omitting this); archive what the page said on a date (right for web pages, usually the landing page for a subscription article); oa whether a legal open copy exists; metadata only that the source exists and where (no text, and the honest answer when there is none to get); arxiv the preprint, in whichever form this tool can take — its PDF, or arXiv's own HTML rendering where the PDF is over the fetch cap, which HAS NO PAGE NUMBERS and must be quoted as the HTML; eric the US education index's record, with its full text where ERIC holds an authorised copy; auto tries arxiv, oa, archive, metadata in that order. A refused live fetch falls back through that same order
 ========
 $ feov-record finding --help
@@ -420,7 +420,7 @@ Flags:
       --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
       --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it
-      --problem string                           REQUIRED — what is wrong (or pass it via --reason)
+      --problem string                           REQUIRED — what is wrong with the report, in the subject's voice — printed in the report's risk matrix. Your argument for the gap goes in --reason, which the report never prints
       --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
       --severity grade                           REQUIRED — how bad the defect is in itself: trivial | low | low_medium | medium | medium_high | high | certain | realized

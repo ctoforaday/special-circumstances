@@ -2,10 +2,15 @@ package cost
 
 import (
 	"fmt"
+	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
 func TestTier(t *testing.T) {
@@ -22,15 +27,9 @@ func TestTier(t *testing.T) {
 			t.Errorf("Tier(%q) = %s, want %s", in, got, want)
 		}
 	}
-	// The fallback IS the dearest row — if the table grows, re-check.
-	worst := ""
-	for k := range Prices {
-		if worst == "" || Prices[k][0] > Prices[worst][0] {
-			worst = k
-		}
-	}
-	if Tier("") != worst {
-		t.Errorf("fallback %s is not the dearest row %s", Tier(""), worst)
+	// The fallback IS the dearest rung of the ladder.
+	if Tier("") != modeltier.Order[len(modeltier.Order)-1] {
+		t.Errorf("fallback %s is not the dearest tier", Tier(""))
 	}
 }
 
@@ -148,26 +147,110 @@ func TestTierMismatch(t *testing.T) {
 	}
 }
 
-// THE PRICE TABLE AND THE TIER LADDER MUST STAY THE SAME ORDER.
-//
-// `dearer` ranked by Prices[t][0] while `Tier` scanned modeltier.Order, and the two agreed only
-// because the rows happened to be sorted the same way — an invariant nobody stated and nothing
-// checked. Ranking moved to the ladder; this is the check that the prices did not drift away from
-// it, which would make the cost report and the tier guard disagree about which model is dearer.
-func TestThePriceTableAgreesWithTheTierLadder(t *testing.T) {
-	for _, tier := range modeltier.Order {
-		if _, ok := Prices[tier]; !ok {
-			t.Errorf("tier %q is on the ladder and has no price row", tier)
+// EVERY PRICED MODEL IS ONE THE TIER GUARD CAN NAME, and the charge for an unpriced one is at least
+// every row's, component by component — an unknown model over-reports and never under-reports.
+func TestThePriceTableIsKeyedByModelsTheLadderKnows(t *testing.T) {
+	for m, c := range Prices {
+		if !modeltier.Recognized(m) {
+			t.Errorf("%q has a price and no tier: the tier guard would call it unrecognized", m)
+		}
+		for _, r := range []Rate{c.Rate, c.Long} {
+			u := unpricedRate
+			if r.Input > u.Input || r.Output > u.Output || r.CacheRead > u.CacheRead || r.Write5m > u.Write5m || r.Write1h > u.Write1h {
+				t.Errorf("%q's rate %+v is dearer than the unpriced charge %+v in some component", m, r, u)
+			}
 		}
 	}
-	if len(Prices) != len(modeltier.Order) {
-		t.Errorf("%d price rows against %d ladder tiers — one of the two has a tier the other has never heard of", len(Prices), len(modeltier.Order))
+}
+
+// THE CLIENT'S OWN BILL IS THE CHECK. These are the 2026-10-17 smoke's figures from the stream's
+// result event: the lead session's Opus 5.5 usage (all of its cache writes one-hour) and the
+// client's costUSD for it.
+func TestPriceReproducesTheClientsBill(t *testing.T) {
+	opus := seatturn.Turn{Input: 32, Output: 5370, CacheRead: 491248, CacheCreation: 35653, CacheCreation1h: 35653}
+	got, ok := Price(opus, "claude-opus-5-5")
+	if !ok || math.Abs(got-0.4910016) > 1e-9 {
+		t.Errorf("Opus 5.5 = $%.7f (priced=%v), want the client's $0.4910016", got, ok)
 	}
-	for i := 1; i < len(modeltier.Order); i++ {
-		lo, hi := Prices[modeltier.Order[i-1]], Prices[modeltier.Order[i]]
-		if !(hi[0] > lo[0]) {
-			t.Errorf("%s input price %v is not above %s's %v, so the ladder no longer orders by cost",
-				modeltier.Order[i], hi[0], modeltier.Order[i-1], lo[0])
+}
+
+// A HAIKU 5.5 PROMPT OVER 100K TOKENS PAYS THE LONG CARD, and the threshold is the PROMPT — uncached
+// input, cache read and cache write — not any one of them.
+func TestHaikuFivePointFiveHasTwoRateCards(t *testing.T) {
+	short := seatturn.Turn{Input: 0, Output: 1_000_000, CacheRead: 100_000}
+	long := seatturn.Turn{Input: 1, Output: 1_000_000, CacheRead: 100_000}
+	s, _ := Price(short, "claude-haiku-5-5")
+	l, _ := Price(long, "claude-haiku-5-5")
+	if math.Abs(s-(0.50+0.001)) > 1e-9 {
+		t.Errorf("a 100,000-token prompt = $%.6f, want the short card's $0.501", s)
+	}
+	if math.Abs(l-(2.50+0.005+0.0000005)) > 1e-9 {
+		t.Errorf("a 100,001-token prompt = $%.7f, want the long card's $2.5050005", l)
+	}
+}
+
+// A ONE-HOUR CACHE WRITE COSTS TWICE THE INPUT RATE, a five-minute one 1.25x.
+func TestCacheWritesArePricedByLifetime(t *testing.T) {
+	five, _ := Price(seatturn.Turn{CacheCreation: 1_000_000}, "claude-opus-5")
+	hour, _ := Price(seatturn.Turn{CacheCreation: 1_000_000, CacheCreation1h: 1_000_000}, "claude-opus-5")
+	if five != 6.25 || hour != 10 {
+		t.Errorf("1M written: five-minute $%v, one-hour $%v — want $6.25 and $10", five, hour)
+	}
+}
+
+func TestADatedSnapshotIsPricedAsItsModel(t *testing.T) {
+	if _, ok := CardOf("claude-haiku-4-5-20251001"); !ok {
+		t.Error("a pinned snapshot id found no row")
+	}
+}
+
+// AN UNPRICED MODEL IS CHARGED THE DEAREST RATE AND NAMED, so the over-report is never read as a
+// measurement.
+func TestAnUnpricedModelIsChargedHighAndNamed(t *testing.T) {
+	r := ScanTranscript(usageLine("claude-opus-9", 1_000_000, 0, 0, 0))
+	if r.Cost != unpricedRate.Input {
+		t.Errorf("cost = %v, want the unpriced input rate %v", r.Cost, unpricedRate.Input)
+	}
+	if len(r.Unpriced) != 1 || r.Unpriced[0] != "claude-opus-9" {
+		t.Errorf("Unpriced = %v, want [claude-opus-9]", r.Unpriced)
+	}
+	var b strings.Builder
+	if err := Report(writeTranscripts(t, usageLine("claude-opus-9", 1, 0, 0, 0)), record.Run{}, &b); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "Unpriced model(s): claude-opus-9") {
+		t.Errorf("cost.md does not name the unpriced model:\n%s", b.String())
+	}
+	// A turn with no tokens (the client's synthetic turns) is not a charge to name.
+	if z := ScanTranscript(usageLine("<synthetic>", 0, 0, 0, 0)); len(z.Unpriced) != 0 {
+		t.Errorf("a zero-token turn named %v", z.Unpriced)
+	}
+}
+
+// ONE REQUEST WRITTEN AS SEVERAL LINES IS PRICED ONCE. The client writes a line per content block and
+// repeats the usage on each; the 2026-10-17 smoke read 2.1x its cache reads by summing the lines.
+func TestScanTranscriptPricesEachRequestOnce(t *testing.T) {
+	line := func(out int) string {
+		return fmt.Sprintf(`{"agentId":"a1","message":{"id":"msg_1","model":"claude-haiku-5-5","content":[{"type":"tool_use"}],"usage":{"input_tokens":2,"output_tokens":%d,"cache_read_input_tokens":50000,"cache_creation_input_tokens":10000}}}`, out)
+	}
+	r := ScanTranscript(strings.Join([]string{line(8), line(8), line(600)}, "\n"))
+	if r.Turns != 1 || r.Cr != 50000 || r.Cw != 10000 || r.Out != 600 {
+		t.Errorf("row = %+v — want 1 turn, 50000 cache read, 10000 written, 600 out", r)
+	}
+	want := (2*0.10 + 600*0.50 + 50000*0.01 + 10000*0.125) / 1e6
+	if math.Abs(r.Cost-want) > 1e-12 {
+		t.Errorf("cost = %v, want %v", r.Cost, want)
+	}
+}
+
+// writeTranscripts puts each body in a transcript directory as agent-<n>.jsonl.
+func writeTranscripts(t *testing.T, bodies ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for i, b := range bodies {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("agent-a%d.jsonl", i)), []byte(b), 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
+	return dir
 }

@@ -647,7 +647,6 @@ const CHAIR_ENVELOPE = {
     // m14's chair then logged the refusal as the schema forcing a verdict it could not give. Every
     // reader below treats a missing verdict and null alike.
     verdict: { ...VERDICT, description: 'the verdict you RECORDED this sitting, restated — the record is the original; null or absent if you recorded none' },
-    notes: { type: 'string' },
   },
 }
 const JUDGE_ENVELOPE = {

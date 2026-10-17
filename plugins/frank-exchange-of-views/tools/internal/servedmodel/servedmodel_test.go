@@ -125,6 +125,28 @@ func TestLocateNamesWhyItFoundNothing(t *testing.T) {
 	}
 }
 
+// A SEAT THE WORKFLOW TOOL DISPATCHED is filed one directory deeper, under the workflow's own id —
+// the layout of every seat in a research run.
+func TestLocateFindsAWorkflowSeat(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", root)
+	dir := filepath.Join(root, "projects", "proj", "sess", "subagents", "workflows", "wf_0772e7ef-6db")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(dir, "agent-a2cebc9f3dfad4d0f.jsonl")
+	if err := os.WriteFile(want, []byte(declared+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Locate("a2cebc9f3dfad4d0f")
+	if err != nil {
+		t.Fatalf("a Workflow seat's trajectory was not found: %v", err)
+	}
+	if got != want {
+		t.Errorf("Locate = %s, want %s", got, want)
+	}
+}
+
 func TestObserveReadsTheOneTrajectoryTheIDNames(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", root)
