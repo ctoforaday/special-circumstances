@@ -145,6 +145,9 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		// A correction is on an archived record only: migrate replays it with the act it replaces,
 		// and no verb records one. Phase 4 of #1298 removes the type.
 		"correction": "written by migrate, replaying an archived record; no verb records one",
+		// The plan is the dispatch verb's second record: it stores the plan it prints beside the
+		// rows, and no flag supplies a byte of it.
+		"plan": "written by `dispatch next` beside its dispatch rows, from the plan it prints",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go

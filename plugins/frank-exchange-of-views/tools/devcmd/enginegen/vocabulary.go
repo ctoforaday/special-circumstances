@@ -38,9 +38,6 @@ type vocabulary struct {
 	benchSeat         string
 	lensOrBlue        []string
 	dispatchOccasions []string
-	// relayBlockerKinds is the kinds capture holds a relayed plan's blockers to the record on,
-	// which are the kinds the engine's no-progress valve keys on.
-	relayBlockerKinds []string
 
 	// plan is record.Plan's relayed fields, and party the struct a party is.
 	plan  []record.PlanField
@@ -66,9 +63,6 @@ func vocabularyFromTheRecord() (vocabulary, error) {
 		return v, err
 	}
 	v.benchSeat, v.lensOrBlue = record.PartySeats()
-	for _, k := range record.RelayBlockerKinds() {
-		v.relayBlockerKinds = append(v.relayBlockerKinds, string(k))
-	}
 	return v, nil
 }
 
@@ -125,11 +119,7 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 	if len(v.dispatchOccasions) == 0 {
 		return nil, fmt.Errorf("the record convenes the bench's party for no occasion")
 	}
-	if len(v.relayBlockerKinds) == 0 {
-		return nil, fmt.Errorf("the record holds a relayed plan's blockers to it on no kind")
-	}
 	fmt.Fprintf(&b, "const BENCH_PARTY_OCCASIONS = %s\n", words(v.dispatchOccasions))
-	fmt.Fprintf(&b, "const KEYED_BLOCKER_KINDS = %s\n", words(v.relayBlockerKinds))
 
 	if err := v.renderPlan(&b); err != nil {
 		return nil, err

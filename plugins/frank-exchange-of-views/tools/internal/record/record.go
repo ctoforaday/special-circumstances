@@ -1293,7 +1293,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireDispatchOccasions(b); err != nil {
 			return err
 		}
-		if err := requireDispatchRemand(b); err != nil {
+	case *recordpb.Plan:
+		if err := requirePrintedPlan(b.GetPrinted()); err != nil {
 			return err
 		}
 	case *recordpb.Gate:

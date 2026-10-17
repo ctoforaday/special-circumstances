@@ -272,6 +272,7 @@ enum EventType {
   EVENT_TYPE_CAST = 36 [(means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
   EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
   EVENT_TYPE_SITTING_LIMIT = 38 [(means) = "a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit"];
+  EVENT_TYPE_PLAN = 40 [(means) = "the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -599,14 +600,15 @@ message Event {
     Cast cast = 55;
     Dispatch dispatch = 56;
     SittingLimit sitting_limit = 57;
+    Plan plan = 59;
   }
 
-  // 59-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
   // `base_ingest`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
-  // (plans/roundless.md §III.B.1), 57 for the sitting limit and 58 for the correction, which is
-  // what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 59 to 80;
+  // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
+  // plan, which is what the reserve is for — the block shrinks and nothing is renumbered.
+  reserved 60 to 80;
 
   // 29 held `motion_appeal`, 46 `revision` and 58 `correction`, whose types are reserved above for
   // the same reason: a stored event carries the bytes.
@@ -2144,16 +2146,30 @@ message Dispatch {
   repeated string gap_ids = 3;
   // occasions is what the BENCH is convened for: `docket` (its gap_ids) and `petition` (the
   // petitions no petition sitting has heard). The bench's one seat id cannot say which question it
-  // is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
-  // that copy to this one, and the bench's sitting for each is the one whose register states the
-  // same occasion. Required on a bench row and refused on any other seat's, at the write.
+  // is asked, so the row says it, and the bench's sitting for each is the one whose register states
+  // the same occasion. Required on a bench row and refused on any other seat's, at the write.
   repeated Occasion occasions = 4;
-  // remand_owed is the gaps whose remand exchange this row readies: the one more exchange the
-  // bench's remand grants a gap at impasse, between its minting lens and blue. The workflow tells
-  // blue the remand's duty and its research direction off the plan's copy, so the row records which
-  // gaps it was told them for and capture holds that copy to this one. Each is among the row's
-  // gap_ids, and only blue's row and a lens's carry any — refused otherwise, at the write.
-  repeated string remand_owed = 5;
+  // 5 held `remand_owed`, the gaps whose remand exchange the row readied. The plan the row was
+  // written from is stored whole (Plan), and its `remand_owed` says the same with the direction.
+  reserved 5;
+  reserved "remand_owed";
+}
+
+// Plan is the plan `dispatch next` printed, WHOLE: the bytes of record.Plan as the verb marshals
+// them, which the chair relays and the workflow dispatches. The record writes one per decision —
+// after the dispatch rows of a plan with parties, and for a plan with none, which writes no row and
+// is the one the workflow reads its exit from — and none when the plan asked for is the one stored
+// last with no sitting opened since.
+//
+// BYTES, NOT A MESSAGE, because record.Plan is the plan's one declaration: the engine's schema of
+// the relay is generated from that struct, and a message mirroring it would be a second declaration
+// to hold level with the first. The write refuses bytes that are not that struct's own encoding.
+// Capture compares each relayed plan with the one stored here; nothing else is compared.
+message Plan {
+  optional string printed = 1 [(sql) = {
+    required: true
+    why: "the plan as the verb printed it, the original every relay of it is compared with; a plan event with nothing printed records a decision nobody can read"
+  }];
 }
 
 // Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.

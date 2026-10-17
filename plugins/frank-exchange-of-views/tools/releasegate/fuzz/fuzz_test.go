@@ -981,14 +981,14 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
+		return debatejs.Keyed(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
 	var env struct {
 		OK     bool           `json:"ok"`
 		Result map[string]any `json:"result"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
+		return debatejs.Keyed(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
@@ -4215,8 +4215,9 @@ var verbsWithEvents = []string{
 	"closing", "inquiry_review", "register",
 	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
-	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
-	"cast", "dispatch",
+	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep. `plan`
+	// is the plan `dispatch next` stores beside its rows.
+	"cast", "dispatch", "plan",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.

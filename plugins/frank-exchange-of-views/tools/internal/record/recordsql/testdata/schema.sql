@@ -109,6 +109,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion fil
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('observe', 'an observation recorded without a claim attached to it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into its sitting');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
@@ -842,13 +843,6 @@ CREATE TABLE "dispatch_occasions" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
-CREATE TABLE "dispatch_remand_owed" (
-  "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
-  "ord"      INTEGER NOT NULL,
-  "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
 CREATE TABLE "sitting_limit" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
@@ -856,6 +850,11 @@ CREATE TABLE "sitting_limit" (
   "seat_id" TEXT,
   "sitting" INTEGER,
   "limit" INTEGER
+) STRICT;
+
+CREATE TABLE "plan" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "printed" TEXT NOT NULL
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");

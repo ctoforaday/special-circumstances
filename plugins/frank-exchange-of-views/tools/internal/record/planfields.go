@@ -10,17 +10,16 @@ import (
 
 // PlanField is one field of the relayed plan as record.Plan declares it.
 //
-// THE DECLARATION IS THE STRUCT, AND THIS IS ITS ONE WALK. Three readers need the plan's shape:
-// `dispatch next` prints it (encoding/json, off the same tags), capture classifies every relayed
-// field by what stands behind it, and the engine script's envelope schema tells the chair's
-// harness what a relay must look like. The second and third read this walk, so a field added to
-// the struct reaches the audit's table and the schema's generator at once, and neither holds a
-// list of its own.
+// THE DECLARATION IS THE STRUCT, AND THIS IS ITS ONE WALK. `dispatch next` prints the plan
+// (encoding/json, off the same tags), the record stores what it printed and computes its key, and
+// the engine script's envelope schema tells the chair's harness what a relay must look like. The
+// key and the schema read this walk, so a field added to the struct reaches both at once.
 //
 // WHAT A GO TYPE CANNOT SAY IS A TAG ON THE FIELD: `desc` is the sentence the schema hands the
 // relaying seat, `bench` the sentence for the same field of the bench's party, `min` an integer's
-// floor and `pattern` a string's, and `emptyonlywith` names the boolean of the same struct that is
-// true whenever a list is empty. A tag absent leaves the schema looser, never wrong.
+// floor and `pattern` a string's, `emptyonlywith` names the boolean of the same struct that is
+// true whenever a list is empty, and `key:"-"` leaves a field out of the plan's key (keyed). A tag
+// absent leaves the schema looser, never wrong.
 type PlanField struct {
 	Name string // the Go field
 	JSON string // the key the verb prints and a relay carries
@@ -41,6 +40,9 @@ type PlanField struct {
 	// EmptyOnlyWith is the JSON key of the boolean, in the same struct, that is true whenever this
 	// list is empty; "" where the field states no such rule.
 	EmptyOnlyWith string
+	// Unkeyed: the field says when the plan was asked, not what it decides, and the plan's key
+	// leaves it out (`key:"-"`).
+	Unkeyed bool
 	// Enum is the closed set of a string field whose Go type declares one.
 	Enum []string
 	// Elem is the JSON type of an array's scalar elements; empty for an array of structs.
@@ -76,7 +78,7 @@ func fieldsOf(t reflect.Type) []PlanField {
 		}
 		p := PlanField{Name: f.Name, JSON: name, Optional: strings.Contains(opts, "omitempty"),
 			Desc: f.Tag.Get("desc"), Bench: f.Tag.Get("bench"), Pattern: f.Tag.Get("pattern"),
-			EmptyOnlyWith: f.Tag.Get("emptyonlywith")}
+			EmptyOnlyWith: f.Tag.Get("emptyonlywith"), Unkeyed: f.Tag.Get("key") == "-"}
 		if m, ok := f.Tag.Lookup("min"); ok {
 			n, err := strconv.Atoi(m)
 			if err != nil {

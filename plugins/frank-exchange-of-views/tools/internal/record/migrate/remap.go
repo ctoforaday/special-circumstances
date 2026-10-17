@@ -78,7 +78,7 @@ var (
 		Finding.about_ref Observe.label Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Log.estopped_by Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids Dispatch.remand_owed
+		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
@@ -94,7 +94,7 @@ var (
 		BlueEdit.new BlueEdit.old Cast.lane_seat_ids Cast.seat_ids Cite.access_date Cite.cite_key
 		Cite.location Cite.ocr_engine Cite.ocr_quote Cite.ocr_text_sha Cite.sha256 Cite.title Cite.url
 		ClassNew.slug Close.anchor_seat Close.carried_from
-		Dispatch.seat_id Finding.finding_key Finding.location Inquiry.supersedes_status Mint.class Mint.fix_basis Mint.fix_new
+		Dispatch.seat_id Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.class Mint.fix_basis Mint.fix_new
 		Mint.location Mint.mint_key Outcome.verdict_basis Proof.location Proof.proof_basis
 		Proof.proof_key Proof.proof_sha Proof.script Register.agent_id Register.agent_type
 		Register.hook_version Register.run_via Register.tool_version

@@ -16,82 +16,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// row is one dispatch row a fixture records: the seat, the head it pins and the gaps it engages.
-type row struct {
-	seat      string
-	pin       int64
-	gaps      []string
-	occasions []recordpb.Occasion
-}
-
-// relayRecord seeds a record in the dispatch parity fixture's shape: each group is one chair sitting
-// — the chair registers, writes the group's rows with nobody registering between, and every party
-// named sits once — and returns the run directory.
-func relayRecord(t *testing.T, groups ...[]row) record.Run {
-	t.Helper()
-	n := 0
-	at := func(seat string, body proto.Message) *record.Event {
-		n++
-		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
-	}
-	reg := func(seat string) *record.Event { return at(seat, &recordpb.Register{}) }
-	evs := []*record.Event{
-		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-lens-logic", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
-	}
-	for _, g := range groups {
-		evs = append(evs, reg("red-chair"))
-		var sits []string
-		seen := map[string]bool{}
-		for _, r := range g {
-			evs = append(evs, at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(r.pin), SeatId: proto.String(r.seat), GapIds: r.gaps, Occasions: r.occasions}))
-			if !seen[r.seat] {
-				seen[r.seat] = true
-				sits = append(sits, r.seat)
-			}
-		}
-		for _, s := range sits {
-			evs = append(evs, reg(s))
-		}
-	}
-	evs = append(evs, reg("red-chair"), reg("judge"), reg("judge"))
-	dir := t.TempDir()
-	recordtest.Seed(t, dir, evs...)
-	return runtest.Open(t, dir)
-}
-
-// chairResult is a chair envelope's result as the workflow journals it: the relayed plan beside the
-// envelope's other fields. The plan is the one the verb prints for these parties on the fixture's
-// record: an exchanges entry per engaged gap with nothing counted, no epoch limit, nothing docketed
-// and nothing holding a PASS that a relay is held to.
-func chairResult(head int64, parties ...row) map[string]any {
-	ps, xs := []any{}, []any{}
-	seen := map[string]bool{}
-	for _, p := range parties {
-		gs := []any{}
-		for _, g := range p.gaps {
-			gs = append(gs, g)
-			if !seen[g] {
-				seen[g] = true
-				xs = append(xs, map[string]any{"gap_id": g, "count": 0, "unresolved": 0})
-			}
-		}
-		party := map[string]any{"seat_id": p.seat, "gap_ids": gs}
-		if len(p.occasions) > 0 {
-			os := []any{}
-			for _, o := range p.occasions {
-				os = append(os, recordpb.Word(o))
-			}
-			party["occasions"] = os
-		}
-		ps = append(ps, party)
-	}
-	return map[string]any{
-		"plan": map[string]any{"head": head, "parties": ps, "docket": []any{}, "remand_owed": []any{}, "exchanges": xs, "pass_permitted": false, "ceiling": false,
-			"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}},
-	}
-}
-
 // journalOf writes results as journal.jsonl lines and reads them back through ReadJournal, so the
 // audit sees exactly what capture hands it — numbers as json.Number included.
 func journalOf(t *testing.T, results ...map[string]any) []map[string]any {
@@ -112,170 +36,180 @@ func journalOf(t *testing.T, results ...map[string]any) []map[string]any {
 	return ReadJournal(dir)
 }
 
-// The fixture's two chair sittings: the lenses on nothing, then blue on G1, every row at head 2.
-var (
-	lensesRows = []row{{seat: "red-lens-evidence", pin: 2}, {seat: "red-lens-logic", pin: 2}}
-	blueRows   = []row{{seat: "blue-respond", pin: 2, gaps: []string{"G1"}}}
-)
-
-func TestRelayedGapIDsDisagreeingWithDispatchRowFail(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	js := journalOf(t, chairResult(2, lensesRows...), chairResult(2, row{seat: "blue-respond", gaps: []string{"G2"}}))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "sitting 2: blue-respond relayed gap_ids [G2], its dispatch row recorded [G1]") {
-		t.Fatalf("a relayed gap id the dispatch row does not hold = %s: %s", a.Verdict, a.Detail)
+// relayed is a chair result whose plan is p as the verb printed it, decoded as the journal holds it.
+func relayed(t *testing.T, p record.Plan) map[string]any {
+	t.Helper()
+	var plan map[string]any
+	if err := json.Unmarshal([]byte(p.Printed()), &plan); err != nil {
+		t.Fatal(err)
 	}
+	return map[string]any{"plan": plan}
 }
 
-func TestRelayedHeadDisagreeingWithPinFails(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	js := journalOf(t, chairResult(2, lensesRows...), chairResult(5, blueRows...))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "sitting 2: blue-respond relayed head 5, its dispatch row pinned 2") {
-		t.Fatalf("a relayed head the dispatch row did not pin = %s: %s", a.Verdict, a.Detail)
+// storedRun is a record the verb dispatched on: the chair asks `dispatch next` at each of its
+// sittings, and every party it names sits before the next. It returns the run and the plan each
+// sitting printed — the chair's faithful relay, sitting by sitting. With petition set, a petition is
+// filed in the first sitting after the chair asked, and the chair asks again.
+func storedRun(t *testing.T, sittings int, petition bool) (record.Run, []record.Plan) {
+	t.Helper()
+	dir := recordtest.TmpRun(t)
+	n := 0
+	seed := func(seat string, body proto.Message) {
+		n++
+		recordtest.Seed(t, dir, recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body))
 	}
+	seed("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}})
+	seed("harness", &recordpb.BaseIngest{Text: proto.String("# r\n\nA sentence.")})
+	run := runtest.Open(t, dir)
+	var plans []record.Plan
+	for k := range sittings {
+		seed("red-chair", &recordpb.Register{})
+		p, _, err := record.DispatchNext(record.Identity{Run: run, SeatID: "red-chair"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if petition && k == 0 {
+			seed("red-chair", &recordpb.Motion{MotionId: proto.String("M-00000001"), Basis: proto.String("b"),
+				Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}})
+			if p, _, err = record.DispatchNext(record.Identity{Run: run, SeatID: "red-chair"}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		plans = append(plans, p)
+		for _, party := range p.Parties {
+			if len(party.Occasions) == 0 {
+				seed(party.SeatID, &recordpb.Register{})
+			}
+			for _, w := range party.Occasions {
+				o, _ := record.OccasionOf(w)
+				seed(party.SeatID, &recordpb.Register{Occasion: o.Enum()})
+			}
+		}
+	}
+	return run, plans
 }
 
-func TestRelayedPartySetDisagreeingWithDispatchFails(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	js := journalOf(t, chairResult(2, lensesRows[0]), chairResult(2, blueRows...))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "sitting 1: relayed parties [red-lens-evidence], the dispatch rows name [red-lens-evidence, red-lens-logic]") {
-		t.Fatalf("a party dropped from the relay = %s: %s", a.Verdict, a.Detail)
+// A FAITHFUL RELAY IS THE STORED PLAN, sitting by sitting, the plan with no party included.
+func TestAFaithfulRelayIsThePlanTheRecordStored(t *testing.T) {
+	run, plans := storedRun(t, 2, false)
+	var js []map[string]any
+	for _, p := range plans {
+		js = append(js, relayed(t, p))
 	}
-}
-
-func TestRelayCountMismatchFails(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	js := journalOf(t, chairResult(2, lensesRows...))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "the journal relays 1 plan(s) with parties and the record holds 2 chair sitting dispatch(es)") {
-		t.Fatalf("one relay for two dispatches = %s: %s", a.Verdict, a.Detail)
-	}
-}
-
-// THE RESUME SHAPE: a resumed workflow re-journals a cached chair result. Every relay is faithful,
-// and the pairing is off by one — the audit says so by the count rather than comparing sitting 2's
-// relay against sitting 1's rows.
-func TestRelayPairingOnDuplicatedChairResult(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	first := chairResult(2, lensesRows...)
-	js := journalOf(t, first, first, chairResult(2, blueRows...))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "the journal relays 3 plan(s) with parties and the record holds 2 chair sitting dispatch(es)") {
-		t.Fatalf("a chair result journaled twice = %s: %s", a.Verdict, a.Detail)
-	}
-}
-
-// A docket plan is never standing, so a chair asking twice in one sitting writes two rows for one
-// party. The later row is the dispatch, and the relay is held to it.
-func TestRelayComparedAgainstLastRowOfDuplicatedGroup(t *testing.T) {
-	twice := []row{{seat: "blue-respond", pin: 2, gaps: []string{"G1"}}, {seat: "blue-respond", pin: 2, gaps: []string{"G1", "G3"}}}
-	run := relayRecord(t, lensesRows, twice)
-
-	last := journalOf(t, chairResult(2, lensesRows...), chairResult(2, row{seat: "blue-respond", gaps: []string{"G3", "G1"}}))
-	if a := DispatchParityAudit(run, last, true); a.Verdict != "PASS" {
-		t.Fatalf("a relay matching the group's last row = %s: %s", a.Verdict, a.Detail)
-	}
-	first := journalOf(t, chairResult(2, lensesRows...), chairResult(2, twice[0]))
-	if a := DispatchParityAudit(run, first, true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "sitting 2: blue-respond relayed gap_ids [G1], its dispatch row recorded [G1, G3]") {
-		t.Fatalf("a relay matching only the group's first row = %s: %s", a.Verdict, a.Detail)
-	}
-}
-
-// A faithful relay passes, and the journal's other results — a lens envelope, the closing chair
-// sitting's empty plan — pair with nothing.
-func TestFaithfulRelayFieldsPass(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	lens := map[string]any{"findings": []any{}}
-	js := journalOf(t, chairResult(2, lensesRows...), lens, chairResult(2, blueRows...), chairResult(2))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) matched their dispatch rows and the record at the end of each chair sitting on head, parties[].seat_id, parties[].gap_ids, parties[].occasions, docket, remand_owed[].gap_id, remand_owed[].direction, exchanges[].gap_id, exchanges[].count, exchanges[].unresolved, pass_permitted, ceiling, max_epochs, blockers[].kind, blockers[].subject, blockers[].owner (blockers of kind contradiction, reopened, no_report, unruled_motion)") {
+	a := DispatchParityAudit(run, journalOf(t, js...), true)
+	if a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 relayed plan(s) each equal to the plan the record stored last in its sitting") {
 		t.Fatalf("a faithful relay = %s: %s", a.Verdict, a.Detail)
 	}
 }
 
-func TestNoJournalStatesFieldsNotCompared(t *testing.T) {
-	run := relayRecord(t, lensesRows, blueRows)
-	a := DispatchParityAudit(run, nil, false)
-	if a.Verdict != "PASS" || !strings.HasSuffix(a.Detail, noJournalNote()) || strings.Contains(a.Detail, "matched") {
-		t.Fatalf("no journal must run the register half and say the relayed fields were not compared = %s: %s", a.Verdict, a.Detail)
-	}
-}
-
-// THE OCCASIONS ARE RELAYED FIELDS WITH A ROW COUNTERPART. The workflow routes the bench on them, so
-// a relay that drops or alters one is a departure like a wrong gap id — and a faithful one is not.
-func TestRelayedOccasionsDisagreeingWithDispatchRowFail(t *testing.T) {
-	bench := []row{{seat: "judge", pin: 2, gaps: []string{"G1"}, occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}}}
-	run := relayRecord(t, lensesRows, bench)
-	faithful := journalOf(t, chairResult(2, lensesRows...), chairResult(2, bench...))
-	if a := DispatchParityAudit(run, faithful, true); strings.Contains(a.Detail, "relayed occasions") {
-		t.Fatalf("a faithful occasion relay was reported: %s", a.Detail)
-	}
-	altered := bench[0]
-	altered.occasions = []recordpb.Occasion{recordpb.Occasion_OCCASION_PETITION, recordpb.Occasion_OCCASION_DOCKET}
-	js := journalOf(t, chairResult(2, lensesRows...), chairResult(2, altered))
-	a := DispatchParityAudit(run, js, true)
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "sitting 2: judge relayed occasions [docket, petition], its dispatch row recorded [docket]") {
-		t.Fatalf("an occasion added in the relay = %s: %s", a.Verdict, a.Detail)
-	}
-}
-
-// THE LAST PLAN'S BLOCKERS ARE HELD TO THE RECORD AT THE END OF THE CHAIR'S LAST SITTING. No row
-// records a blocker, and the workflow convenes the terminal bench off the relayed set — so a chair
-// that asked for its plan, then filed a petition, and relayed the plan it asked for first has
-// relayed a stale one, and a chair that drops a blocker in the relay has altered it. A plan asked
-// for after the filing agrees with the record. The last plan names no party, so it has no rows: its
-// blockers and its epoch limit are what is held.
-func TestTheLastPlansBlockersAreHeldToTheRecord(t *testing.T) {
-	n := 0
-	at := func(seat string, body proto.Message) *record.Event {
-		n++
-		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
-	}
-	evs := []*record.Event{
-		at("harness", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
-		at("harness", &recordpb.BaseIngest{Text: proto.String("# r")}),
-		at("red-chair", &recordpb.Register{}),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")}),
-		at("red-lens-evidence", &recordpb.Register{}),
-		// The chair's last sitting: its plan is empty, and it files a petition after asking.
-		at("red-chair", &recordpb.Register{}),
-		at("red-chair", &recordpb.Motion{MotionId: proto.String("M1"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}}),
-		// The terminal sitting, which the stale plan would not have convened.
-		at("judge", &recordpb.Register{Occasion: recordpb.Occasion_OCCASION_TERMINAL.Enum()}),
-	}
-	dir := t.TempDir()
-	recordtest.Seed(t, dir, evs...)
-	run := runtest.Open(t, dir)
-	final := func(blockers ...any) map[string]any {
-		r := chairResult(2)
-		r["plan"].(map[string]any)["blockers"] = blockers
-		return r
-	}
-	lensRows := []row{{seat: "red-lens-evidence", pin: 2}}
-	petition := map[string]any{"kind": "unruled_motion", "subject": "M1", "owner": "judge"}
-	for _, c := range []struct {
-		name     string
-		last     map[string]any
-		departed bool
-	}{
-		{"asked before the filing", final(), true},
-		{"a blocker altered in the relay", final(map[string]any{"kind": "unruled_motion", "subject": "M9", "owner": "judge"}), true},
-		{"a chair-owned blocker added in the relay", final(petition, map[string]any{"kind": "unruled_motion", "subject": "M2", "owner": "red-chair"}), true},
-		{"asked after the filing", final(petition), false},
-		{"a blocker of a kind no relay is held on", final(petition, map[string]any{"kind": "stale_area", "subject": "red-lens-voice", "owner": "red-chair"}), false},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			a := DispatchParityAudit(run, journalOf(t, chairResult(2, lensRows...), c.last), true)
-			got := strings.Contains(a.Detail, `the last plan: relayed blockers`) && strings.Contains(a.Detail, `the record at the end of the chair's sitting holds [unruled_motion "M1" (judge)]`)
-			if got != c.departed || (a.Verdict == "FAIL") != c.departed {
-				t.Fatalf("departure reported = %v, want %v: %s: %s", got, c.departed, a.Verdict, a.Detail)
+// ANY FIELD ALTERED IN THE RELAY DEPARTS, by equality, and the departure names it: no field is
+// outside the comparison.
+func TestARelayAlteredInAnyFieldDeparts(t *testing.T) {
+	run, plans := storedRun(t, 1, false)
+	for _, f := range record.PlanFields() {
+		t.Run(f.JSON, func(t *testing.T) {
+			r := relayed(t, plans[0])
+			plan := r["plan"].(map[string]any)
+			switch f.Type {
+			case "integer":
+				plan[f.JSON] = json.Number("7")
+			case "boolean":
+				plan[f.JSON] = !plan[f.JSON].(bool)
+			case "string":
+				plan[f.JSON] = "0000000000000000"
+			case "array":
+				if xs := plan[f.JSON].([]any); len(xs) > 0 {
+					plan[f.JSON] = xs[1:]
+				} else if f.Of == nil {
+					plan[f.JSON] = []any{"added"}
+				} else {
+					t.Skipf("the fixture's %s is empty, and an entry added would have to be a whole one", f.JSON)
+				}
 			}
-			if !c.departed && !strings.Contains(a.Detail, "the last plan's blockers and max_epochs matched the record") {
-				t.Fatalf("an agreeing relay does not say it was compared: %s", a.Detail)
+			a := DispatchParityAudit(run, journalOf(t, r), true)
+			if a.Verdict != "FAIL" || !strings.Contains(a.Detail, f.JSON) {
+				t.Fatalf("a relay altered in %s = %s: %s", f.JSON, a.Verdict, a.Detail)
 			}
 		})
 	}
+}
+
+// A KEY THE PLAN DOES NOT DECLARE IS A RELAY ALTERED ON THE WAY; a lens's empty `occasions` is not,
+// because absent and empty are one state there.
+func TestARelayCarryingAnUndeclaredKeyDepartsAndALenssEmptyOccasionsDoesNot(t *testing.T) {
+	run, plans := storedRun(t, 1, false)
+	r := relayed(t, plans[0])
+	r["plan"].(map[string]any)["nested"] = map[string]any{}
+	if a := DispatchParityAudit(run, journalOf(t, r), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "does not read as a plan") {
+		t.Fatalf("an undeclared key = %s: %s", a.Verdict, a.Detail)
+	}
+	r = relayed(t, plans[0])
+	for _, p := range r["plan"].(map[string]any)["parties"].([]any) {
+		p.(map[string]any)["occasions"] = []any{}
+	}
+	if a := DispatchParityAudit(run, journalOf(t, r), true); a.Verdict != "PASS" {
+		t.Fatalf("a lens's empty occasions = %s: %s", a.Verdict, a.Detail)
+	}
+}
+
+// THE PLAN RELAYED IS THE ONE THE CHAIR ASKED FOR LAST: a motion filed after the first asking makes
+// the first plan stale, and relaying it departs on what the filing moved.
+func TestARelayOfAPlanTheSittingMovedPastDeparts(t *testing.T) {
+	run, plans := storedRun(t, 1, true)
+	stored, err := record.StoredPlans(mustEvents(t, run))
+	if err != nil || len(stored) != 2 {
+		t.Fatalf("fixture: %d stored plans, %v; want the plan before the petition and the one after", len(stored), err)
+	}
+	if a := DispatchParityAudit(run, journalOf(t, relayed(t, plans[0])), true); a.Verdict != "PASS" {
+		t.Fatalf("the last plan of the sitting = %s: %s", a.Verdict, a.Detail)
+	}
+	if a := DispatchParityAudit(run, journalOf(t, relayed(t, stored[0].Plan)), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "epoch 1: the relayed plan departs from the plan the record stored last in that sitting on key, parties, blockers, why") {
+		t.Fatalf("the plan before the petition = %s: %s", a.Verdict, a.Detail)
+	}
+}
+
+// A SITTING THE RECORD STORED A PLAN AT IS RELAYED, and a relay names a sitting the record stored a
+// plan at; a duplicated chair result — a resume re-journaling it — is compared like any other.
+func TestEverySittingsPlanIsRelayedAndEveryRelayIsOfAStoredPlan(t *testing.T) {
+	run, plans := storedRun(t, 2, false)
+	if a := DispatchParityAudit(run, journalOf(t, relayed(t, plans[0])), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "epoch 2: the record stored a plan and the journal relays none") {
+		t.Fatalf("a sitting's plan not relayed = %s: %s", a.Verdict, a.Detail)
+	}
+	if a := DispatchParityAudit(run, journalOf(t, relayed(t, plans[0]), relayed(t, plans[0]), relayed(t, plans[1])), true); a.Verdict != "PASS" {
+		t.Fatalf("a chair result journaled twice = %s: %s", a.Verdict, a.Detail)
+	}
+	never := plans[1]
+	never.Epoch = 3
+	if a := DispatchParityAudit(run, journalOf(t, relayed(t, plans[0]), relayed(t, plans[1]), relayed(t, never)), true); a.Verdict != "FAIL" || !strings.Contains(a.Detail, "relays a plan at epoch 3, and the record stored none there") {
+		t.Fatalf("a relay of a plan never stored = %s: %s", a.Verdict, a.Detail)
+	}
+}
+
+// NO JOURNAL, OR NO STORED PLAN: nothing was compared, and the detail says so of whichever is absent.
+func TestARelayWithNothingToCompareSaysSo(t *testing.T) {
+	run, plans := storedRun(t, 1, false)
+	if a := DispatchParityAudit(run, nil, false); !strings.Contains(a.Detail, "no workflow journal, so the relayed plans were NOT compared with the plans the record stored") {
+		t.Fatalf("no journal = %s: %s", a.Verdict, a.Detail)
+	}
+	// A record from before the record stored its plans: the rows alone.
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir,
+		recordtest.At(t, "harness", "c", &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
+		recordtest.At(t, "harness", "b", &recordpb.BaseIngest{Text: proto.String("# r")}),
+		recordtest.At(t, "red-chair", "r1", &recordpb.Register{}),
+		recordtest.At(t, "red-chair", "d1", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("red-lens-evidence")}),
+		recordtest.At(t, "red-lens-evidence", "r2", &recordpb.Register{}))
+	old := runtest.Open(t, dir)
+	if a := DispatchParityAudit(old, journalOf(t, relayed(t, plans[0])), true); !strings.Contains(a.Detail, "the record stores no plan, so the 1 relayed plan(s) were NOT compared") {
+		t.Fatalf("no stored plan = %s: %s", a.Verdict, a.Detail)
+	}
+}
+
+func mustEvents(t *testing.T, run record.Run) []*record.Event {
+	t.Helper()
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return fam.Events
 }
