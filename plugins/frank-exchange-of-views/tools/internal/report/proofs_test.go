@@ -63,14 +63,14 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 
 	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
 	for _, want := range []string{
-		"## Proofs",                // the section
-		"<a id=\"P-deadbeef\">",    // the anchor the footnote links to
-		"### P1 — trial division",  // a HEADING, not a second dangling reference (#590)
-		"console.log('divisors",    // THE SCRIPT — a computation's source IS its evidence
-		"divisors of 9: 3",         // and its output
-		"basis**: reproducible",    // how far it can be trusted
-		"nine.js",                  // which script
-		"applies the method cited", // the cite/compute pair, legible as one argument
+		"## Proofs",                      // the section
+		"<a id=\"P-deadbeef\">",          // the anchor the footnote links to
+		"### P1 — trial division",        // a HEADING, not a second dangling reference (#590)
+		"console.log('divisors",          // THE SCRIPT — a computation's source IS its evidence
+		"divisors of 9: 3",               // and its output
+		"basis**: reproducible",          // how far it can be trusted
+		"`proofs/" + sha + "/script.js`", // which script: the run's own copy, never the path it ran from
+		"applies the method cited",       // the cite/compute pair, legible as one argument
 	} {
 		if !strings.Contains(ev, want) {
 			t.Errorf("evidence.md is missing %q:\n%s", want, ev)
@@ -79,6 +79,50 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 	// The heading must not itself be a footnote reference — the exact shape of #590.
 	if strings.Contains(ev, "### [^P") {
 		t.Errorf("a proof heading was written as a footnote reference (#590):\n%s", ev)
+	}
+}
+
+// A PROOF WITH NO REASON IS NAMED BY THE RUN'S COPY OF ITS SCRIPT, in the report's note and in the
+// evidence heading alike: `prove --reason` is optional, and the path the seat ran is a working file
+// in the operator's home directory on a real run.
+func TestAProofWithNoReasonIsNamedByItsStoredScript(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
+	proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "/home/someone/scratch/nine.py"}}
+	out, _ := weaveProofRefs("Seven divides 91<!--proof:P-deadbeef-->.\n", proofs)
+	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+	const stored = "proofs/" + sha + "/script.py"
+	if !strings.Contains(out, "[^P1]: "+stored) {
+		t.Errorf("the report's note does not name the stored script:\n%s", out)
+	}
+	if !strings.Contains(ev, "### P1 — "+stored) {
+		t.Errorf("the evidence heading does not name the stored script:\n%s", ev)
+	}
+	if strings.Contains(out+ev, "/home/") {
+		t.Errorf("a home-directory path shipped:\n%s\n%s", out, ev)
+	}
+}
+
+// EVERY RE-RUN NAMES RED, never the lens's seat and sitting: on each of the two axes' four cells,
+// and on a re-run its seat struck, whose striker is a seat as well.
+func TestEveryReRunOfAProofIsAttributedToRed(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
+	struck := record.ProofVerification{SeatID: "red-lens-evidence", Sitting: 4, Reproduced: true, Note: "first reading",
+		Struck: &record.Struck{Replacement: "x", By: "red-lens-evidence", Why: "read the wrong line"}}
+	for _, cell := range []struct{ reproduced, sound bool }{{true, true}, {true, false}, {false, true}, {false, false}} {
+		v := &record.ProofVerification{SeatID: "red-lens-evidence", Sitting: 5, Reproduced: cell.reproduced, Sound: cell.sound}
+		proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "nine.py", Reason: "trial division",
+			Verified: v, StruckReruns: []record.ProofVerification{struck}}}
+		ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+		if strings.Contains(ev, "red-lens-evidence") || strings.Contains(ev, "#5") || strings.Contains(ev, "#4") {
+			t.Errorf("reproduced=%v sound=%v: a re-run is attributed to a seat:\n%s", cell.reproduced, cell.sound, ev)
+		}
+		if !strings.Contains(ev, "**audited by red") || !strings.Contains(ev, "~~audited by red: first reading~~ (struck by red: read the wrong line)") {
+			t.Errorf("reproduced=%v sound=%v: the re-runs do not name red:\n%s", cell.reproduced, cell.sound, ev)
+		}
 	}
 }
 
