@@ -1,7 +1,11 @@
 # migrate replays a run in one transaction
 
-> STATUS: approved 2026-10-16 (audit: PASS in rounds 2 and 3), being implemented. Issue #1382. The second half of the work begun in
-> `plans/migrate-staged-publish.md` (merged, #1383/#1386): gblock ruled on 2026-10-15 that the
+> STATUS: shipped — historical record, 2026-10-17. Built as #1392 (merged 2026-10-16, closing #1382);
+> approved 2026-10-16 (audit: PASS in rounds 2 and 3). Measured after: the all-archives migrate test
+> 27.0 s / 26.0 s → 15.0 s / 14.9 s; migrating m23 makes 81 fsyncs instead of 565 — and those 565
+> took 0.036 s in total on that disk, so the gain is per-commit work, not the fsync this plan
+> assumed. Issue #1382. The second half of the work begun in
+> `plans/historical/migrate-staged-publish.md` (merged, #1383/#1386): gblock ruled on 2026-10-15 that the
 > per-event fsync is removed by batching the replay through #1379's caller-held-transaction path,
 > keeping `synchronous=FULL` and adding no process-wide switch.
 >
@@ -219,7 +223,7 @@ changes nothing a live seat does.
 - After the commit, the final `RenderFromRecord(dst)` (`order.go:75`), `AppendSeatTurns` (one
   commit per agent, about a dozen per run — left as it is by ruling) and the publish run as today.
 - One transaction per replay pass, not chunks: a migration that fails is discarded whole (its build
-  directory is removed, `plans/migrate-staged-publish.md` step 4), so a partial commit buys
+  directory is removed, `plans/historical/migrate-staged-publish.md` step 4), so a partial commit buys
   nothing; the WAL for the largest archive is a few megabytes.
 
 ### Alternatives rejected
