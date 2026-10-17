@@ -446,7 +446,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire it, and a head move does not ready a retired lens.
+Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire a lens that owes nothing on its work list, and a head move does not ready a retired lens.
 
 **Delivered to:** lens, chair, operator
 
@@ -532,7 +532,7 @@ An inquiry is one question the research could take up — proposed by blue with 
 
 ## reopened
 
-A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and is the seat readied for it, a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
+A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 **Delivered to:** lens, chair, blue, operator
 

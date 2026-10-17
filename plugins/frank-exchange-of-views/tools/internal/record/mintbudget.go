@@ -248,7 +248,7 @@ func renderProjection(base string, haveBase bool, ops []ReportOp, err error) (st
 // mint like any other; the gap it replaces holds its own until it closes, which superseding does
 // not do — its lens closes it naming the successor. A lens at its budget still sits while the
 // record readies it: it verifies, records findings, regrades and closes its own gaps, and each
-// close frees a mint; with no fresh mint its sittings are barren, so it retires within three. The
+// close frees a mint; it does not retire while it holds them (lensOwesOf). The
 // count is the record's own — the gap view's open gaps this seat minted — not a counter
 // the seat carries. Only a lens is bounded: a seat of another role spends no budget. A mint
 // attributed to an id that is no seat is refused, live and under Migrating alike; migration replays

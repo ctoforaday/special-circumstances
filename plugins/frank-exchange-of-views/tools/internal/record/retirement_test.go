@@ -3,6 +3,7 @@ package record
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -149,7 +150,7 @@ func TestLineageMintIsNotFresh(t *testing.T) {
 		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G1")).
 		sit(2, evLens).add(evLens, cmMint("G3", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G2")).
 		sit(2, evLens).add(evLens, cmMint("G4", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G3"))
-	if f := lensStateOf(t, b.seed()); !f.retired() {
+	if f := lensStateOf(t, b.seed()); f.barren != retiresAfter {
 		t.Fatalf("sittings that minted only lineage are barren: %+v", f)
 	}
 }
@@ -158,7 +159,7 @@ func TestNeverClassMintIsNotFresh(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")).
 		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")).
 		sit(2, evLens).add(evLens, cmMint("G3", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
-	if f := lensStateOf(t, b.seed()); !f.retired() {
+	if f := lensStateOf(t, b.seed()); f.barren != retiresAfter {
 		t.Fatalf("sittings that minted only never-class gaps are barren: %+v", f)
 	}
 }
@@ -247,15 +248,17 @@ func TestPassIsPermittedOnceEveryLensHasSatAtTheHead(t *testing.T) {
 	}
 }
 
-func TestBudgetExhaustedLensRetires(t *testing.T) {
+// A LENS AT ITS BUDGET MINTS NOTHING, so its sittings are barren — and it holds the gaps that spent
+// the budget, which only it can close, so it does not retire while it holds them.
+func TestBudgetExhaustedLensDoesNotRetireWhileItHoldsItsGaps(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).sit(2, evLens).sit(2, evLens).sit(2, evLens)
 	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
 	run := b.seed()
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, liveMint("G2", "x", recordpb.Grade_GRADE_HIGH)); err == nil || !strings.Contains(err.Error(), "budget") {
 		t.Fatalf("fixture: the lens is not at its budget: %v", err)
 	}
-	if f := lensStateOf(t, run); !f.retired() {
-		t.Fatalf("a lens at its budget mints nothing, so its sittings are barren and it retires: %+v", f)
+	if f := lensStateOf(t, run); f.barren != retiresAfter || f.retired() || !slices.Equal(f.owes, []string{"open gap G1"}) {
+		t.Fatalf("a lens at its budget sits barren and does not retire while it holds G1: %+v", f)
 	}
 }
 

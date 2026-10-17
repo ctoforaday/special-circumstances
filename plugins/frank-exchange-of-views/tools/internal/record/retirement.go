@@ -3,6 +3,7 @@ package record
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -15,12 +16,22 @@ import (
 // OTHERWISE. A second look at an unchanged report finds what the first did: across the archived
 // runs, the lenses readied at the head they had last sat at minted nothing and checked nothing,
 // and four in five recorded no act at all. A lens that has never sat is ready for its first look.
-// The gaps a lens is engaged on, a contradiction it read and a reopened citation or proof ready it
-// on their own grounds (foldPlan), whatever the head.
+// The gaps a lens is engaged on and a contradiction it read ready it on their own grounds
+// (foldPlan), whatever the head.
 //
 // A lens that keeps finding nothing stops being asked: b5's chair readied the voice lens alone
 // eleven times as the head moved. So a lens RETIRES at its third sitting in a row that mints no
 // fresh material, and a head move does not ready a retired lens.
+//
+// A LENS THAT OWES IS NOT RETIRED. Judging a proof and closing a gap mint nothing, so a lens could
+// retire holding work no other seat may do: universe-m23's voice lens retired with its gap open and
+// answered by blue, and nobody was readied to close it; a computation lens that only judges proofs
+// retired, and every proof recorded after shipped "not judged". What a lens owes is what its work
+// list names as its own to clear (lensOwesOf) — an open gap it minted, a blocker whose owner it is,
+// a proof it owns that nobody has judged — and while it owes any of it, the head readies it as it
+// readies an unretired lens. That is the bound: it sits at most once per head move, the head moves
+// only by blue's edits, which the gaps' limits and the run's epoch limit bound, and an item it never
+// discharges keeps it ready only when the report has changed.
 //
 //   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
 //     bracket, or a register no bracket preceded — including the sittings it is engaged for on its
@@ -29,7 +40,7 @@ import (
 //   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
 //     A productive sitting returns the count to zero, a retired lens's included.
 //
-// Nothing is ready before a report is ingested. A retired lens still answers its own open gaps.
+// Nothing is ready before a report is ingested.
 
 // retiresAfter is how many sittings in a row with no fresh material mint retire a lens.
 const retiresAfter = 3
@@ -37,15 +48,42 @@ const retiresAfter = 3
 // lensFold is one cast lens, folded.
 type lensFold struct {
 	seat     string
-	barren   int   // trailing sittings with no fresh material mint
-	sittings int   // sittings on the record
-	pin      int64 // pin of the last dispatch it sat for; 0 when it never sat
+	barren   int      // trailing sittings with no fresh material mint
+	sittings int      // sittings on the record
+	pin      int64    // pin of the last dispatch it sat for; 0 when it never sat
+	owes     []string // what it owes (lensOwesOf), each named
 	ready    bool
 	why      string
 }
 
-// retired is a lens whose last retiresAfter sittings minted no fresh material.
-func (f lensFold) retired() bool { return f.barren >= retiresAfter }
+// retired is a lens whose last retiresAfter sittings minted no fresh material and that owes nothing.
+func (f lensFold) retired() bool { return f.barren >= retiresAfter && len(f.owes) == 0 }
+
+// lensOwesOf is what each lens owes, by seat: every item its work list names as its own to clear,
+// each named — an open gap it minted (gaps is the open gaps), a blocker on the stream whose owner it
+// is (events is eventBlockersOf: a contradiction it read, an anchor reopened since its check), and,
+// for the lens that owns proofs (proofOwnerOf), each proof nobody has judged. The work list's other
+// items about its gaps — blue's answer, a remand, an accepted grade motion, another lens's finding —
+// are about an open gap it minted, which is owed already.
+func lensOwesOf(evs []*Event, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
+	out := map[string][]string{}
+	for _, g := range gaps {
+		if g.mintedBy != "" {
+			out[g.mintedBy] = append(out[g.mintedBy], "open gap "+g.id)
+		}
+	}
+	for _, b := range events {
+		if b.Owner != "" {
+			out[b.Owner] = append(out[b.Owner], string(b.Kind)+" "+b.Subject)
+		}
+	}
+	if owner := proofOwnerOf(castOfEvents(evs)); owner != "" {
+		for _, o := range proofChecksOwed(evs, win) {
+			out[owner] = append(out[owner], "unjudged proof "+o.Anchor)
+		}
+	}
+	return out
+}
 
 // StaleArea is a retired lens whose pin the report head has moved past: text it will not audit
 // again changed after it last sat. The chair reads those changes against the area's duties and
@@ -57,8 +95,8 @@ type StaleArea struct {
 
 // lensStates folds every cast lens, in cast order. ids are the events' row ids, aligned with evs;
 // head is the report head (0: nothing ingested); fresh is the set of gap ids minted fresh and
-// material now.
-func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool) []lensFold {
+// material now; owes is lensOwesOf.
+func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool, owes map[string][]string) []lensFold {
 	cast := castOfEvents(evs)
 	ds, openings := dispatchLedger(evs, ids, win)
 	var out []lensFold
@@ -66,7 +104,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 		if seatclass.RoleOfSeat(seat) != "lens" {
 			continue
 		}
-		f := lensFold{seat: seat}
+		f := lensFold{seat: seat, owes: owes[seat]}
 		sat := map[int64]bool{}
 		var sittings []int64
 		for _, d := range ds {
@@ -114,6 +152,8 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			f.why = fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", seat, f.pin, f.barren)
 		case f.sittings == 0:
 			f.ready, f.why = true, fmt.Sprintf("%s: never sat — audits the report at head %d", seat, head)
+		case head > f.pin && len(f.owes) > 0:
+			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; it does not retire while it owes %s)", seat, head, f.pin, f.barren, strings.Join(f.owes, ", "))
 		case head > f.pin:
 			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; it retires at %d)", seat, head, f.pin, f.barren, retiresAfter)
 		default:
@@ -191,12 +231,12 @@ type passLensGate struct {
 	covered map[string]bool // areas a spot-check in the chair's current sitting named
 }
 
-func passLensGateOf(evs []*Event, ids []int64, win WindowIndex, fresh map[string]bool) passLensGate {
+func passLensGateOf(evs []*Event, ids []int64, win WindowIndex, fresh map[string]bool, owes map[string][]string) passLensGate {
 	g := passLensGate{cast: castOfEvents(evs) != nil, head: reportHeadOf(evs, ids), covered: map[string]bool{}}
 	if !g.cast {
 		return g
 	}
-	g.lenses = lensStates(evs, ids, win, g.head, fresh)
+	g.lenses = lensStates(evs, ids, win, g.head, fresh, owes)
 	g.stale = staleAreasOf(g.lenses, g.head)
 	// THIS SITTING is the chair's latest sitting as the write path stored it: its spot-checks in that
 	// sitting — the same window the work list reads (thisSitting). A spot-check filed between the
@@ -240,26 +280,24 @@ func (g passLensGate) uncovered() []StaleArea {
 
 // passLensGateOfRun reads the gate's inputs off the run, on one snapshot (readSnapshot): a gap
 // minted between the stream read and the fresh-material read would be fresh material no lens fold
-// holds. The fold runs after the transaction closes.
+// holds, and one closed between it and the open-gap read a debt no fold holds. The fold runs after
+// the transaction closes.
 func passLensGateOfRun(run Run) (passLensGate, bool, error) {
-	var evs []*Event
-	var win WindowIndex
-	var fresh map[string]bool
+	var r planReads
 	absent := false
 	if err := readSnapshot(run, func(q recordsql.Querier) error {
 		if absent = noRecord(q); absent {
 			return nil
 		}
 		var err error
-		if evs, win, err = eventsAt(q); err != nil {
-			return err
-		}
-		fresh, err = freshMaterialOf(q)
+		r, err = passBlockerReadsAt(q)
 		return err
 	}); err != nil || absent {
 		return passLensGate{}, false, err
 	}
-	return passLensGateOf(evs, win.IDs(evs), win, fresh), true, nil
+	ids := r.win.IDs(r.evs)
+	owes := lensOwesOf(r.evs, r.win, blockerGapsOfOpen(r.gaps), eventBlockersOf(r.evs, ids, r.win))
+	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
 }
 
 // LastSittingJSON is a lens's last sitting, as its work view carries it: the latest sitting STRICTLY

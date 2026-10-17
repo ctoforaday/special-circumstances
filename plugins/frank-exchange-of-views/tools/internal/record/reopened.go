@@ -1,9 +1,13 @@
 package record
 
+import "slices"
+
 // reopened is one citation or proof whose sentence an edit changed and that no sitting opened
 // since has checked. edit and lastCheck are events.id.
 type reopened struct {
 	anchor string
+	// proof is whether the anchor is a proof's; a citation's otherwise.
+	proof bool
 	// sha is a proof's proof_sha; "" for a citation. A reopened proof is owed a judgement of its
 	// sentence; its script's re-run still stands, so the judgement re-runs nothing.
 	sha string
@@ -27,18 +31,31 @@ type reopened struct {
 // finding's or gap's id in an edit's list is not a row either — only a citation and a proof have a
 // check to redo.
 //
-// ANY SEAT'S CHECK CLEARS; THE EVIDENCE LENS IS THE ONE READIED. A check is a reading of the
-// sentence, and the write path lets every lens make one, so the row reads the sitting a check came
-// from and never the seat: on universe-m20 the dark-side lens re-ran P-9e198e9a seven seconds
-// before the evidence lens did, and the anchor was checked from the first. Who is ASKED is a
-// separate fact and has one answer — the blocker's owner is the evidence lens (passBlockersOf),
-// which is the seat dispatch readies and whose work list blocks.
+// ANY SEAT'S CHECK CLEARS; ONE LENS IS READIED. A check is a reading of the sentence, and the write
+// path lets every lens make one, so the row reads the sitting a check came from and never the seat:
+// on universe-m20 the dark-side lens re-ran P-9e198e9a seven seconds before the evidence lens did,
+// and the anchor was checked from the first. Who is ASKED is a separate fact and has one answer per
+// anchor — the blocker's owner (reopenedOwnerOf), which is the seat dispatch readies and whose work
+// list blocks.
 func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
 	var out []reopened
 	for _, s := range anchorChecksOf(evs, win).order {
 		if s.reopened() {
-			out = append(out, reopened{anchor: s.anchor, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck()})
+			out = append(out, reopened{anchor: s.anchor, proof: s.proof, sha: s.sha, edit: s.edit, lastCheck: s.lastCheck()})
 		}
 	}
 	return out
+}
+
+// reopenedOwnerOf is the lens that owes a reopened anchor's check, "" where the cast seats none: a
+// proof's is its owner (proofOwnerOf), the lens that judges it first; a citation's is the evidence
+// lens, whose area leaf-node verification is.
+func reopenedOwnerOf(cast []string, r reopened) string {
+	switch {
+	case r.proof:
+		return proofOwnerOf(cast)
+	case slices.Contains(cast, evidenceSeat):
+		return evidenceSeat
+	}
+	return ""
 }

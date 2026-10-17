@@ -78,12 +78,12 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
   - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
-  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire it, and a head move does not ready a retired lens.
+  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire a lens that owes nothing on its work list, and a head move does not ready a retired lens.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.
-  - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and is the seat readied for it, a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
+  - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
@@ -582,7 +582,7 @@ THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's enviro
 
 What the tool CANNOT answer is whether the script establishes the sentence at that anchor — so it records whether the script REPRODUCED, and you judge whether it PROVES that sentence.
 
-ONE LENS IS OFFERED EACH PROOF NOBODY HAS JUDGED: the computation lens, or the evidence lens where the cast seats no computation lens. No other lens's work list offers it.
+ONE LENS OWNS EACH PROOF: the computation lens, or the evidence lens where the cast seats no computation lens. Its work list alone offers a proof nobody has judged, and it is readied for a judged one an edit reopens.
 
 ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT, and the SCRIPT IS RE-RUN ONCE: it is addressed by its sha256 and never changes, so its re-run stands for every proof on it WHATEVER IT SHOWED — reproduced, did not reproduce, or called the tool. A judgement of any of its sentences after that re-runs nothing: the result's `rerun` reads `not_run`, `standing_rerun` says what the re-run showed and `rerun_by` whose it is. A changed script is a new proof, with its own sha and its own re-run. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
 
