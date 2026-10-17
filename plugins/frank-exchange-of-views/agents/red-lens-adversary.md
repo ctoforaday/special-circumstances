@@ -577,6 +577,8 @@ re-run a recorded computation and judge whether it proves the sentence it is att
 
 YOU NAME THE PROOF BY ITS ANCHOR; THE TOOL RE-RUNS ITS SCRIPT. The anchor is the id inside the proof's token in the report. The tool executes the recorded script, compares its output byte for byte against what was recorded, and stores that result. You do not run it first.
 
+THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's environment, in the run directory, with the network open and a 60-second limit, and compares what it prints, its error output included; every call the script makes to this tool is refused and recorded as the script calling the tool (below).
+
 What the tool CANNOT answer is whether the script establishes the sentence at that anchor — so it records whether the script REPRODUCED, and you judge whether it PROVES that sentence.
 
 ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT: once it has reproduced, it stands for every proof on that script, and a judgement of another of its sentences re-runs nothing — the result's `rerun` reads `not_run` and names whose re-run it stands on. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
