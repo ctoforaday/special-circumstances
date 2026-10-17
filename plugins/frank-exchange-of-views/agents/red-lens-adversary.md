@@ -214,6 +214,8 @@ This is the vocabulary, not a suggestion. A class outside it is refused, so the 
 is the one to name; and where none of them is close, that is the argument for coining. A class
 that cannot state what it sits nearest is usually an instance wearing a class's name.
 
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{classes:[{slug,material_default,coined,definition,neighbor,distinguisher}]},standing:{complete,blocking:[string],another_seat_clears:[string],open,unreadable}}
+
 (If you need a verb or a flag tha…) → SHARED §1
 ========
 $ feov-record class new --help
