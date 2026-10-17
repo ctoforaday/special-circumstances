@@ -292,15 +292,16 @@ func TestASkippedSelectedTestIsNamed(t *testing.T) {
 	}
 }
 
+// The verdict is red on a failed or missing name, a reported race, or a failed `go test`. How
+// each name answered is testjson's to assert; this is what racescope makes of it.
 func TestReadVerdictNeedsAnAnswerForEveryName(t *testing.T) {
 	stream := strings.Join([]string{
-		`{"Action":"run","Test":"TestA"}`,
-		`{"Action":"output","Test":"TestA","Output":"hello\n"}`,
-		`{"Action":"pass","Test":"TestA"}`,
-		`{"Action":"pass","Test":"TestA/sub"}`,
-		`{"Action":"skip","Test":"TestB"}`,
-		`{"Action":"fail","Test":"TestC"}`,
-		`{"Action":"fail"}`,
+		`{"Action":"run","Package":"p","Test":"TestA"}`,
+		`{"Action":"output","Package":"p","Test":"TestA","Output":"hello\n"}`,
+		`{"Action":"pass","Package":"p","Test":"TestA"}`,
+		`{"Action":"skip","Package":"p","Test":"TestB"}`,
+		`{"Action":"fail","Package":"p","Test":"TestC"}`,
+		`{"Action":"fail","Package":"p"}`,
 		`not json at all`,
 	}, "\n")
 	v := readVerdict("p", []string{"TestA", "TestB", "TestC", "TestD"}, []byte(stream), nil)
@@ -310,22 +311,25 @@ func TestReadVerdictNeedsAnAnswerForEveryName(t *testing.T) {
 	if !v.red() || v.race {
 		t.Errorf("red=%v race=%v, want red without a race", v.red(), v.race)
 	}
+	// The printed output is the package's AND what was not its events.
 	if !strings.Contains(v.output, "hello") || !strings.Contains(v.output, "not json at all") {
 		t.Errorf("output dropped a line: %q", v.output)
 	}
-	// A subtest's verdict is not the test's.
-	if v := readVerdict("p", []string{"TestA"}, []byte(`{"Action":"pass","Test":"TestA/sub"}`), nil); len(v.missing) != 1 {
-		t.Errorf("a subtest's pass answered for its parent: %+v", v)
+	if v := readVerdict("p", []string{"TestA"}, []byte(`{"Action":"pass","Package":"other","Test":"TestA"}`), nil); len(v.missing) != 1 || !v.red() {
+		t.Errorf("another package's pass answered for the raced one: %+v", v)
 	}
-	// All answered and passing, and the detector still spoke: red.
-	race := `{"Action":"output","Output":"WARNING: DATA RACE\n"}` + "\n" + `{"Action":"pass","Test":"TestA"}`
-	if v := readVerdict("p", []string{"TestA"}, []byte(race), nil); !v.race || !v.red() {
-		t.Errorf("a reported race did not turn the verdict red: %+v", v)
+	// All answered and passing, and the detector still spoke: red — whether its report arrived
+	// as the package's output or as a line that was not an event.
+	for _, race := range []string{`{"Action":"output","Package":"p","Output":"WARNING: DATA RACE\n"}`, `WARNING: DATA RACE`} {
+		stream := race + "\n" + `{"Action":"pass","Package":"p","Test":"TestA"}`
+		if v := readVerdict("p", []string{"TestA"}, []byte(stream), nil); !v.race || !v.red() {
+			t.Errorf("a reported race did not turn the verdict red: %+v", v)
+		}
 	}
-	if v := readVerdict("p", []string{"TestA"}, []byte(`{"Action":"pass","Test":"TestA"}`), errors.New("exit status 1")); !v.red() {
+	if v := readVerdict("p", []string{"TestA"}, []byte(`{"Action":"pass","Package":"p","Test":"TestA"}`), errors.New("exit status 1")); !v.red() {
 		t.Error("a failed go test with every name passing read as green")
 	}
-	if v := readVerdict("p", []string{"TestA"}, []byte(`{"Action":"pass","Test":"TestA"}`), nil); v.red() {
+	if v := readVerdict("p", []string{"TestA"}, []byte(`{"Action":"pass","Package":"p","Test":"TestA"}`), nil); v.red() {
 		t.Errorf("a clean run read as red: %+v", v)
 	}
 }
