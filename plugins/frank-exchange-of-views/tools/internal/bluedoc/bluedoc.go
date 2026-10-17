@@ -273,15 +273,21 @@ func ValidateProposal(report, old, new string) error {
 // is. Reading the sentence around each anchor sidesteps the boundary question entirely: if the
 // words around the reference changed, the reference needs looking at again, however the offsets
 // happened to fall.
+//
+// EACH DOCUMENT IS SPLIT ONCE, and every anchor's sentence is read off that one split. anchor.Sentences
+// walks the whole document, and this reads the sentence of every anchor the report holds, so a split
+// per anchor costs the report's length times its anchors, under the write lock: on a 3,106-event
+// record with 1,274 anchors, 0.82 s of an edit's 0.85 s hold.
 func ReopenedAnchors(before, after string) []string {
 	bare := map[string]bool{}
 	for _, id := range claimcount.BareAnchorIDs(after) {
 		bare[id] = true
 	}
+	inBefore, inAfter := splitSentences(before), splitSentences(after)
 	var out []string
 	for _, id := range claimcount.ProtectedAnchorIDs(before) {
-		b, okB := SentenceAround(before, anchor.Token(id))
-		a, okA := SentenceAround(after, anchor.Token(id))
+		b, okB := inBefore.around(anchor.Token(id))
+		a, okA := inAfter.around(anchor.Token(id))
 		// An anchor that is GONE from `after` is not reopened — it is dropped, which is a refusal
 		// the caller has already made. Saying both would report one fault as two.
 		if !okB || !okA {
@@ -306,16 +312,30 @@ func ReopenedAnchors(before, after string) []string {
 // the first one's referent changing. It is also the claim `verify` records for a citation, so the
 // sentence a verification read is the one whose change reopens it.
 func SentenceAround(doc, tok string) (string, bool) {
-	a, b := sentenceOf(doc, strings.Index(doc, tok), len(tok))
+	return splitSentences(doc).around(tok)
+}
+
+// sentences is a document with its sentence bounds, as anchor.Sentences splits it — split once, for
+// a reader that asks for the sentence around more than one token of it.
+type sentences struct {
+	doc   string
+	spans [][2]int
+}
+
+func splitSentences(doc string) sentences { return sentences{doc, anchor.Sentences(doc)} }
+
+// around is SentenceAround over the split: the sentence holding tok's first occurrence, flattened.
+func (s sentences) around(tok string) (string, bool) {
+	a, b := s.of(strings.Index(s.doc, tok), len(tok))
 	if a < 0 {
 		return "", false
 	}
-	return flatText(doc[a:b]), true
+	return flatText(s.doc[a:b]), true
 }
 
-// sentenceOf is the bounds of the sentence holding doc[i:i+n], or -1, -1.
-func sentenceOf(doc string, i, n int) (int, int) {
-	for _, sp := range anchor.Sentences(doc) {
+// of is the bounds of the sentence holding doc[i:i+n], or -1, -1.
+func (s sentences) of(i, n int) (int, int) {
+	for _, sp := range s.spans {
 		if sp[0] <= i && i+n <= sp[1] {
 			return sp[0], sp[1]
 		}
@@ -336,11 +356,11 @@ func flatText(s string) string {
 // within span, the text being replaced: a fragment edit that keeps the fragment re-places the
 // anchor, and ReopenedAnchors, reading the document's sentence, still records it.
 func AutoPlace(span, new string) string {
-	flat := flatText(new)
+	flat, inSpan := flatText(new), splitSentences(span)
 	for _, id := range anchor.IDs(span) {
 		tok := anchor.Token(id)
 		at := strings.Index(span, tok)
-		a, b := sentenceOf(span, at, len(tok))
+		a, b := inSpan.of(at, len(tok))
 		if strings.Contains(new, tok) || a < 0 || !strings.Contains(flat, flatText(span[a:b])) {
 			continue
 		}
