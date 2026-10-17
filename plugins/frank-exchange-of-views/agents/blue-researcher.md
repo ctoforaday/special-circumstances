@@ -681,7 +681,7 @@ The tool runs the script TWICE, caches it and its output, and splices an invisib
 
 Identical output twice is recorded as reproducible; output that moves, as observed — still evidence, of a system in motion, but a MEASUREMENT, not a proof. The tool says which you produced.
 
-A SCRIPT THAT CALLS THIS TOOL CAN BE CHECKED BY NOBODY. The tool runs it once more from the proof store as a lens's re-run will, and refuses every call it makes to the tool there; such a script is recorded `not_portable`, and every lens's re-run records it as one no checker can run. Compute the claim in the script itself.
+A SCRIPT THAT CALLS THIS TOOL CAN BE CHECKED BY NOBODY. The tool runs it once more from the proof store as a lens's re-run will, and refuses every call it makes to the tool there; such a script is recorded `not_portable`, and a lens's re-run records it as one no checker can run. Compute the claim in the script itself.
 
 A FAILING CHECK IS A RESULT: a non-zero exit is recorded as evidence, not as an error. Disproving your own claim is worth as much as confirming it.
 

@@ -465,7 +465,7 @@ func citedClaimsWithoutVerify(evs []*Event) []string {
 //
 // AN ITEM IS PER ANCHOR, AND IT SAYS WHAT THE SCRIPT ALREADY HAS. A re-run belongs to the script
 // and answers for every proof on it; a soundness verdict belongs to one sentence (proofverdict.go).
-// So a second anchor on a script that already reproduced is still owed — its sentence was never
+// So a second anchor on a script that was already re-run is still owed — its sentence was never
 // judged — and the act it is owed re-runs nothing. Keyed by sha, the second anchor's item vanished
 // with the first anchor's re-run, and its sentence shipped judged by a verdict on another.
 //
@@ -533,20 +533,21 @@ type proofOwed struct {
 	rerun string
 }
 
-// item is the work-list line, in the order the act needs: read the script, then judge.
+// item is the work-list line, in the order the act needs: read the script, then judge. A script
+// with a re-run is never re-run again, whatever that re-run showed, so the act an item names turns
+// on one thing: whether the script has a re-run.
 func (o proofOwed) item() string {
 	read := "`show evidence --anchor " + o.Anchor + "` prints the script and its recorded output"
-	switch o.rerun {
-	case recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED):
-		return "proof " + o.Anchor + "'s script has REPRODUCED, and nobody has judged whether it establishes THIS sentence — one script can back several, and a verdict on another is not a verdict on this one: " +
-			read + ", and `reproduce --anchor " + o.Anchor + "` records your verdict on its sentence without re-running it"
-	case RerunNone:
+	if o.rerun == RerunNone {
 		return "proof " + o.Anchor + " is recorded and nobody has re-run it — a proof is audited by READING its script and then RE-RUNNING it, never by reading alone: " +
 			read + ", and `reproduce --anchor " + o.Anchor + "` then re-runs it and records your verdict on its sentence in one act"
-	default:
-		return "proof " + o.Anchor + "'s script was re-run and did not reproduce (" + o.rerun + "), and nobody has judged THIS sentence: " +
-			read + ", and `reproduce --anchor " + o.Anchor + "` re-runs it and records your verdict on its sentence in one act"
 	}
+	showed := "did not reproduce (" + o.rerun + ")"
+	if o.rerun == recordpb.Word(recordpb.Rerun_RERUN_REPRODUCED) {
+		showed = "REPRODUCED"
+	}
+	return "proof " + o.Anchor + "'s script was re-run and " + showed + ", and nobody has judged whether it establishes THIS sentence — one script can back several, and a verdict on another is not a verdict on this one: " +
+		read + ", and `reproduce --anchor " + o.Anchor + "` records your verdict on its sentence without re-running it"
 }
 
 // remandOwedItem is the work item a remand's exchange puts on the list of each seat the dispatch

@@ -578,7 +578,7 @@ Flags:
 $ feov-record reproduce --help
 re-run a recorded computation and judge whether it proves the sentence it is attached to
 
-YOU NAME THE PROOF BY ITS ANCHOR; THE TOOL RE-RUNS ITS SCRIPT. The anchor is the id inside the proof's token in the report. The tool executes the recorded script, compares its output byte for byte against what was recorded, and stores that result. You do not run it first.
+YOU NAME THE PROOF BY ITS ANCHOR; THE TOOL RE-RUNS ITS SCRIPT. The anchor is the id inside the proof's token in the report. The tool executes the recorded script, compares its output byte for byte against what was recorded, and stores that result — once per script (below). You do not run it first.
 
 THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's environment, in the run directory, with the network open and a 60-second limit, and compares what it prints, its error output included; every call the script makes to this tool is refused and recorded as the script calling the tool (below).
 
@@ -586,13 +586,13 @@ What the tool CANNOT answer is whether the script establishes the sentence at th
 
 ONE LENS IS OFFERED EACH PROOF NOBODY HAS JUDGED: the computation lens, or the evidence lens where the cast seats no computation lens. No other lens's work list offers it.
 
-ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT: once it has reproduced, it stands for every proof on that script, and a judgement of another of its sentences re-runs nothing — the result's `rerun` reads `not_run` and names whose re-run it stands on. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
+ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT, and the SCRIPT IS RE-RUN ONCE: it is addressed by its sha256 and never changes, so its re-run stands for every proof on it WHATEVER IT SHOWED — reproduced, did not reproduce, or called the tool. A judgement of any of its sentences after that re-runs nothing: the result's `rerun` reads `not_run`, `standing_rerun` says what the re-run showed and `rerun_by` whose it is. A changed script is a new proof, with its own sha and its own re-run. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
 
 READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof where it has to AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. `show evidence`, read AT THE PROOF'S OWN ANCHOR, prints the script this call executes and the output blue recorded — its page says how. Read it, decide what it computes and whether that is what the sentence at its anchor says, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.
 
 YOUR LATEST VERDICT ON A SENTENCE IS YOURS; ANOTHER LENS'S DOES NOT REPLACE IT. An `unsound` you record stands on that anchor beside any other lens's `sound` until you judge the sentence again or blue edits it — an edit reopens the anchor, and a judgement from a sitting opened after the edit is owed.
 
-WHEN THE RE-RUN DOES NOT REPRODUCE. The result's `reproduced` — `result.reproduced` in the JSON form — is true or false on every call: whether the script's re-run printed the recorded output byte for byte. Beside it are `rerun`, what this call did with the script, `got`, what it printed, and `recorded`. The envelope's `ok` says only that the call was accepted. On a proof recorded `reproducible`, a `sound` verdict over a re-run that did not reproduce is REFUSED and nothing is recorded: your verdict and reason were written before that output existed. The refusal prints both outputs; read them and call again with what the run did — `unsound` where the script cannot be run to its recorded output by the seat auditing it. A proof recorded `observed` or `not_portable` is one whose output moves, and your verdict on it is recorded either way.
+WHEN THE RE-RUN DOES NOT REPRODUCE. The result's `reproduced` — `result.reproduced` in the JSON form — is true or false on every call: whether the script's re-run printed the recorded output byte for byte. Beside it are `rerun`, what this call did with the script, `got`, what it printed, and `recorded`. The envelope's `ok` says only that the call was accepted. On a proof recorded `reproducible`, a `sound` verdict over a re-run that did not reproduce — this call's, or the one standing for the script — is REFUSED and nothing is recorded: where this call ran it, your verdict and reason were written before that output existed. The refusal prints both outputs; read them and call again with what the run did — `unsound` where the script cannot be run to its recorded output by the seat auditing it. A proof recorded `observed` or `not_portable` is one whose output moves, and your verdict on it is recorded either way.
 
 A SCRIPT THAT CALLS THIS TOOL CANNOT BE CHECKED. The tool refuses every call a script makes to it while a checker runs the script, and records that it did: the result's `rerun` reads `calls_the_tool` and lists the calls, whatever the script printed — a refusal piped into a number prints a number. A `sound` verdict on it is refused; it is `unsound`, with a reason that says the script reads the debate's tool rather than computing its claim.
 
@@ -604,7 +604,7 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a new judgement of the same proof anch
 latest judgement of a sentence is its verdict on it.
 
 Flags:
-      --anchor <!--proof:P-…-->   REQUIRED — the id of the proof whose sentence you judge, from the report's <!--proof:P-…--> token — `show evidence` lists every proof by it. The tool re-runs that proof's script unless the script has already reproduced
+      --anchor <!--proof:P-…-->   REQUIRED — the id of the proof whose sentence you judge, from the report's <!--proof:P-…--> token — `show evidence` lists every proof by it. The tool re-runs that proof's script unless the script already has a re-run, which stands whatever it showed
       --as sound|unsound            REQUIRED — having READ the script: does it actually establish the sentence at --anchor?
       --reason string               → SHARED §4
 
