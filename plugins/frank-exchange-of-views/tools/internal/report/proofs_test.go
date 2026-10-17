@@ -104,6 +104,28 @@ func TestAProofWithNoReasonIsNamedByItsStoredScript(t *testing.T) {
 	}
 }
 
+// EVERY RE-RUN NAMES RED, never the lens's seat and sitting: on each of the two axes' four cells,
+// and on a re-run its seat struck, whose striker is a seat as well.
+func TestEveryReRunOfAProofIsAttributedToRed(t *testing.T) {
+	runDir := newRun(t)
+	const sha = "abc123def4567890"
+	seedProof(t, runDir, sha, "print(91 % 7)", "0\n")
+	struck := record.ProofVerification{SeatID: "red-lens-evidence", Sitting: 4, Reproduced: true, Note: "first reading",
+		Struck: &record.Struck{Replacement: "x", By: "red-lens-evidence", Why: "read the wrong line"}}
+	for _, cell := range []struct{ reproduced, sound bool }{{true, true}, {true, false}, {false, true}, {false, false}} {
+		v := &record.ProofVerification{SeatID: "red-lens-evidence", Sitting: 5, Reproduced: cell.reproduced, Sound: cell.sound}
+		proofs := []record.Proof{{Label: "P-deadbeef", SHA: sha, Basis: "reproducible", Script: "nine.py", Reason: "trial division",
+			Verified: v, StruckReruns: []record.ProofVerification{struck}}}
+		ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"P-deadbeef": true})
+		if strings.Contains(ev, "red-lens-evidence") || strings.Contains(ev, "#5") || strings.Contains(ev, "#4") {
+			t.Errorf("reproduced=%v sound=%v: a re-run is attributed to a seat:\n%s", cell.reproduced, cell.sound, ev)
+		}
+		if !strings.Contains(ev, "**audited by red") || !strings.Contains(ev, "~~audited by red: first reading~~ (struck by red: read the wrong line)") {
+			t.Errorf("reproduced=%v sound=%v: the re-runs do not name red:\n%s", cell.reproduced, cell.sound, ev)
+		}
+	}
+}
+
 // EVERY REFERENCE THIS WEAVE EMITS HAS A DEFINITION IN THE SAME DOCUMENT.
 //
 // #590 in one assertion. A footnote definition cannot cross a file boundary, so a set of seven

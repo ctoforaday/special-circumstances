@@ -139,7 +139,9 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 		for _, s := range p.StruckReruns {
 			struck := s.Struck
 			if struck != nil {
-				struck = &record.Struck{Replacement: struck.Replacement, By: "red", Why: struck.Why}
+				party := *struck
+				party.By = "red"
+				struck = &party
 			}
 			fmt.Fprintf(&b, "- %s\n", record.StruckMarkdown("audited by red: "+s.Note, struck))
 		}
