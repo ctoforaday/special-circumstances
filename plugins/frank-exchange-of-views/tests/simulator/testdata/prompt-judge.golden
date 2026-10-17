@@ -1,4 +1,4 @@
-prompt sha256: 59e43924d61b1be4e7856f8b383430bab49da9e561ffe2b29d7e7280be4f4f35
+prompt sha256: 1ce3001aae0040869e0567e4c913e3a0e35c995582fb004e94141b14a9e7658d
 
 Adjudication, topic "the seat prompt contract".
 Docketed for you: G-00000001 — each reached impasse under the run's terms and the record docketed it.
@@ -25,8 +25,7 @@ OCCASION: docket — what this sitting was convened to do.
 Your seat id is the same for all four of your sittings, so this is the only thing that tells them apart on the record; it is required of you where it is required of nobody else.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
-A HOLDING THE BENCH RECORDED IN THIS RUN BINDS HOW YOU READ THE RECORD, and each arrives on your work list.
-Where a holding and the board disagree about a gap, the board is the gap's status.
+THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list, and the board, not a holding, says where a gap stands.
 A single command's own page prints at "/opt/feov/bin/feov-record" --seat-id judge <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.

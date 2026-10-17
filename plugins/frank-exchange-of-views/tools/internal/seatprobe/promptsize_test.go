@@ -90,16 +90,18 @@ import (
 //
 // Raised 2026-10-17 for the owner's ruling that a bench holding reaches a seat only as a declaration
 // on the record, on its work list with the board's status beside each gap it names. Every seat's
-// prompt carries the DUTY that ruling states — a recorded holding binds how the record is read, it
-// arrives on the work list, and where it and the board disagree about a gap the board is the gap's
-// status — 191 characters on the one clause every seat receives; the declarations themselves are
-// the work list's, documented on its help page. Measured blue-respond 9,610, red-chair 6,446,
-// red-lens-evidence 10,610, judge 6,026, each rounded up to the next hundred.
+// prompt states the DUTY — this run's bench holdings bind how the record is read, each is on the
+// work list, and the board, not a holding, says where a gap stands — 138 characters on the one
+// clause every seat receives, the shortest wording that keeps all three and keeps a declaration
+// apart from the law's holdings of earlier runs, which only persuade; the declarations themselves
+// are the work list's, documented on its help page. No seat had that much headroom (blue-respond
+// and red-lens-evidence 81, judge 65, red-chair 45), so each ceiling rises by its measured excess
+// to the measured size: blue-respond 9,557, red-chair 6,393, red-lens-evidence 10,557, judge 5,973.
 var ceilings = map[string]int{
-	"blue-respond":      9700,
-	"red-chair":         6500,
-	"red-lens-evidence": 10700,
-	"judge":             6100,
+	"blue-respond":      9557,
+	"red-chair":         6393,
+	"red-lens-evidence": 10557,
+	"judge":             5973,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

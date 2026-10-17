@@ -264,8 +264,10 @@ const inspectionClause = transcriptDir
 // list is read. A prompt is composed once, at dispatch, from the bench's prose: a holding saying a
 // gap "remains open" keeps saying it in every later prompt after the gap closes. Measured on run
 // m25, one such sentence reached 21 prompts; a chair acting on another, written in a declaration,
-// ended its run at CEILING. So the duty carries the rule that
-// settles the disagreement: the board is a gap's status, and the holding is how the record is read.
+// ended its run at CEILING. So the duty carries the rule that settles the disagreement: the board
+// is a gap's status, and the holding is how the record is read.
+// It says THIS RUN'S because the judge and the chair also read the law, where a holding from an
+// earlier run is only persuasive until a human affirms it; a declaration binds the run it is made in.
 // THE SURFACE ARRIVES WITH THE SEAT, SO THIS CLAUSE SENDS IT NOWHERE.
 //
 // scripts/agentgen inlines the whole manual into every constitution, so a seat holds its surface
@@ -323,7 +325,7 @@ const inspectionClause = transcriptDir
 // barren lens read before it reached the report. And the guessed-name sentence: a seat read a
 // projection's name, typed it as a verb, and read the help only after two invented calls failed.
 const recordClause = (seatId, occasion) =>
-  ` SEAT_ID: ${seatId}.${occasion ? ` OCCASION: ${occasion} — what this sitting was convened to do. Your seat id is the same for all four of your sittings, so this is the only thing that tells them apart on the record; it is required of you where it is required of nobody else.` : ''} THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent. A HOLDING THE BENCH RECORDED IN THIS RUN BINDS HOW YOU READ THE RECORD, and each arrives on your work list. Where a holding and the board disagree about a gap, the board is the gap's status.
+  ` SEAT_ID: ${seatId}.${occasion ? ` OCCASION: ${occasion} — what this sitting was convened to do. Your seat id is the same for all four of your sittings, so this is the only thing that tells them apart on the record; it is required of you where it is required of nobody else.` : ''} THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent. THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list, and the board, not a holding, says where a gap stands.
 
 A single command's own page prints at "${binDir}/feov-record" --seat-id ${seatId} <command> --help. The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree. The help is the only authoritative one, and this prompt names the JOB, never the flags.
 

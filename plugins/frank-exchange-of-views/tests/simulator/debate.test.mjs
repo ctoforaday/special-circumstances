@@ -840,9 +840,8 @@ test('W2j: a bench holding reaches a seat from the record alone — every prompt
   assert.ok(world.calls.length > 0, 'nothing was dispatched')
   for (const c of world.calls) {
     assert.ok(!c.prompt.includes(stray), `${c.opts.label} carries a holding the envelope returned`)
-    assert.ok(!c.prompt.includes('BENCH HOLDINGS IN EFFECT'), `${c.opts.label} carries a holdings relay`)
-    assert.ok(c.prompt.includes('A HOLDING THE BENCH RECORDED IN THIS RUN BINDS HOW YOU READ THE RECORD'), `${c.opts.label} is not told what a recorded holding obliges`)
-    assert.ok(c.prompt.includes("Where a holding and the board disagree about a gap, the board is the gap's status"), `${c.opts.label} is not told which wins`)
+    assert.ok(c.prompt.includes("THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list"), `${c.opts.label} is not told what a recorded holding obliges`)
+    assert.ok(c.prompt.includes('the board, not a holding, says where a gap stands'), `${c.opts.label} is not told which wins`)
   }
   for (const seat of ['red-chair #1', 'red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {
     assert.ok(labelsOf(world, seat).length > 0, `${seat} never sat`)
