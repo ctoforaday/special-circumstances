@@ -128,8 +128,7 @@ type MirrorResult struct {
 
 // MirrorLaw stages the repo's law/ corpus read-only into inputs/law.
 func MirrorLaw(repoLawDir string, run record.Run) MirrorResult {
-	runDir := run.Dir()
-	outDir := filepath.Join(runDir, "inputs", "law")
+	outDir := record.LawDir(run)
 	if exists(outDir) {
 		return MirrorResult{Written: false, Reason: "already staged"}
 	}
