@@ -262,7 +262,7 @@ The operator is the person running the research, and the seat id their own comma
 
 ## the log
 
-The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed nothing — and none of it is debate material.
+The log is the entries a seat files for the operator with the `log` verb — a missing capability, a defect in the tooling, or friction, never a clean sitting, which is derived from having sat and filed no log entry — and none of it is debate material.
 
 **Delivered to:** lens, chair, blue, bench, operator
 
