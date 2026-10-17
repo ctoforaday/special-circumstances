@@ -3451,7 +3451,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// of two of the three lanes ran unregistered behind a green sweep.
 	//
 	// EVERY FIFTH RUN CASTS NO COMPUTATION LENS, so the proofs fall to the evidence lens and the
-	// sweep drives the fallback of the one rule that routes them (checkOwnerOf) end to end.
+	// sweep drives the fallback of the one rule that routes them (proofOwnerOf) end to end.
 	areas := castAreasFor(seed)
 	fuzzCast, fuzzLanes := record.CastFor(areas, 3)
 	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: fuzzCast, LaneSeatIds: fuzzLanes}); err != nil {
