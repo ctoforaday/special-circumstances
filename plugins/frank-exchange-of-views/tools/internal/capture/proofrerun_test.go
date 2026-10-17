@@ -167,10 +167,28 @@ func TestProofRerunSamplesTheUnauditedFirstAndSaysHowManyItRan(t *testing.T) {
 		&recordpb.Reproduce{ProofSha: proto.String(rs[0].SHA), Reproduced: proto.Bool(true)}))
 
 	got := ProofRerunAudit(runtest.Open(t, run), 2)
-	if !strings.Contains(got.Detail, "re-ran 2 of 4") {
+	if !strings.Contains(got.Detail, "re-ran 2 of 4 distinct proof script(s), behind 2 of the 4 recorded proof(s)") {
 		t.Errorf("the sample size must reach the report; got:\n%s", got.Detail)
 	}
-	if !strings.Contains(got.Detail, "3 had never been re-run by any seat") {
+	if !strings.Contains(got.Detail, "3 script(s) had never been re-run by any seat") {
 		t.Errorf("the unaudited count is the reason this audit exists; got:\n%s", got.Detail)
+	}
+}
+
+// PROOFS THAT SHARE A SCRIPT ARE COUNTED AS PROOFS, and the script as one re-run (smoke 07d: 9
+// proofs over 6 scripts read "3 of 6 recorded proof(s)"). Three proofs over two scripts, one of
+// them proved twice: re-running both covers all three.
+func TestProofRerunCountsTheProofsBehindEachScript(t *testing.T) {
+	run := t.TempDir()
+	a := provenProof(t, run, "a.sh", "#!/bin/sh\necho a\n")
+	b := provenProof(t, run, "b.sh", "#!/bin/sh\necho b\n")
+	seedProofEvents(t, run, a, b, a)
+	got := ProofRerunAudit(runtest.Open(t, run), 1)
+	if !strings.Contains(got.Detail, "re-ran 1 of 2 distinct proof script(s), behind 2 of the 3 recorded proof(s)") {
+		t.Errorf("the count must name the scripts and the proofs behind the ones re-run; got:\n%s", got.Detail)
+	}
+	got = ProofRerunAudit(runtest.Open(t, run), 3)
+	if !strings.Contains(got.Detail, "re-ran 2 of 2 distinct proof script(s), behind 3 of the 3 recorded proof(s)") {
+		t.Errorf("got:\n%s", got.Detail)
 	}
 }
