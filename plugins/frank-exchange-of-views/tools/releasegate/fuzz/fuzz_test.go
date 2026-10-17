@@ -5451,6 +5451,8 @@ func buildBinary(t *testing.T) string {
 // or a gap (#742/#787): those name something that is not report text, so there is nothing to mark
 // and `show report --anchor` on one correctly finds no window. Asking the anchor events instead
 // asks the question this function's name already claimed to ask.
+// An anchor `retire` took out with its claim is not in the report, and `show report --anchor`
+// refuses it by design; the oracle reads a window, so it skips those.
 func someReportAnchor(run record.Run) string {
 	b, err := record.FamilyOf(run)
 	if err != nil {
@@ -5458,6 +5460,9 @@ func someReportAnchor(run record.Run) string {
 	}
 	for _, e := range b.Events {
 		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
+			if _, _, retired, err := record.AnchorRetiredAt(run, a.GetId()); err != nil || retired {
+				continue
+			}
 			return a.GetId()
 		}
 	}

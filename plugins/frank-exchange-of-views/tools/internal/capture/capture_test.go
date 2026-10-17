@@ -126,13 +126,20 @@ func TestContextUse(t *testing.T) {
 		`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":1000,"cache_read_input_tokens":150000,"cache_creation_input_tokens":0,"output_tokens":10}}}`+"\n")
 	got := ContextUse(dir, []string{"agent-big.jsonl", "agent-small.jsonl"})
 	if got.Verdict != "WARN" {
-		t.Errorf("haiku over 50%% of a 200k window: want WARN, got %s (%s)", got.Verdict, got.Detail)
+		t.Errorf("haiku 4.5 over 50%% of its 200k window: want WARN, got %s (%s)", got.Verdict, got.Detail)
 	}
 	if !strings.Contains(got.Detail, "big") || !strings.Contains(got.Detail, "50% tripwire") {
 		t.Errorf("the breaching seat must be named: %s", got.Detail)
 	}
 	if got := ContextUse(dir, []string{"agent-small.jsonl"}).Verdict; got != "PASS" {
 		t.Errorf("same tokens on a 1M window is 15%%: want PASS, got %s", got)
+	}
+	// THE WINDOW IS THE MODEL'S, NOT THE TIER'S: the same prompt on Haiku 5.5, whose window is 1M, is
+	// 15% of it. The 2026-10-17 smoke's 118K Haiku 5.5 seat was reported at 59% of a 200K window.
+	write(t, filepath.Join(dir, "agent-newhaiku.jsonl"),
+		`{"message":{"role":"assistant","model":"claude-haiku-5-5","usage":{"input_tokens":1000,"cache_read_input_tokens":150000,"cache_creation_input_tokens":0,"output_tokens":10}}}`+"\n")
+	if got := ContextUse(dir, []string{"agent-newhaiku.jsonl"}); got.Verdict != "PASS" {
+		t.Errorf("151K of Haiku 5.5's 1M window: want PASS, got %s (%s)", got.Verdict, got.Detail)
 	}
 	// No usage records → SKIP.
 	empty := t.TempDir()

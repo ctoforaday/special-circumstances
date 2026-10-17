@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/jsonshape"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -452,6 +454,26 @@ type okEnvelope struct {
 	Standing *StandingJSON `json:"standing,omitempty"`
 }
 
+// readOutput is a read verb's --json success as its page states it: okEnvelope with the verb's
+// own result type in the place of the interface, so the tree is generated from the two types that
+// are marshalled.
+func readOutput(result Result) string {
+	env := reflect.TypeOf(okEnvelope{})
+	fields := make([]reflect.StructField, 0, env.NumField())
+	for i := 0; i < env.NumField(); i++ {
+		f := env.Field(i)
+		if f.Type == reflect.TypeOf((*Result)(nil)).Elem() {
+			f.Type = reflect.TypeOf(result)
+		}
+		fields = append(fields, f)
+	}
+	tree := jsonshape.Tree(reflect.New(reflect.StructOf(fields)).Elem().Interface())
+	if tree == "" {
+		return ""
+	}
+	return "\n\nOUTPUT (JSON, with --json — the bare call is the human form): " + tree
+}
+
 func jsonMode(cmd *cobra.Command) bool {
 	b, _ := cmd.Flags().GetBool(flags.JSON)
 	return b
@@ -529,9 +551,6 @@ var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is ONE spelling (flags.Prose says why the file forms went). Listed so a
 	// prose FIELD is required through the flag a seat types rather than the key the schema stores.
 	"reason": {flags.Reason},
-	// mint copies --reason into `problem` when --problem is absent, and its help says so in the
-	// same sentence it calls the field required.
-	"problem": {flags.Problem, flags.Reason},
 	// An inquiry's question arrives through its own flag; a manifest receipt is the verb's prose,
 	// so it arrives through the same channel every other prose field does.
 	"question": {flags.Question},
@@ -878,12 +897,21 @@ func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, 
 // differs by role — and register's and friction's were byte-identical at every call site but one,
 // where the difference was the word "seat" against "sitting". Four hand-kept copies of one
 // paragraph, which is the shape that goes stale in three places and nobody notices.
-func NewKeyed(name, key string, run Handler) *cobra.Command {
+func NewKeyed(name, key string, run Handler) *cobra.Command { return newVerb(name, key, "", run) }
+
+// NewRead is New for a verb that only reads: its page also states the --json success it emits,
+// generated from the verb's result type, because a seat that does not know the key names guesses
+// them — and a guessed key that misses reads as output that was never JSON.
+func NewRead(name string, result Result, run Handler) *cobra.Command {
+	return newVerb(name, name, readOutput(result), run)
+}
+
+func newVerb(name, key, output string, run Handler) *cobra.Command {
 	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
 		Short:        d.menu,
-		Long:         d.menu + "\n\n" + d.detail + "\n" + LogFooter,
+		Long:         d.menu + "\n\n" + d.detail + output + "\n" + LogFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Annotations:  map[string]string{recordsKey: name},

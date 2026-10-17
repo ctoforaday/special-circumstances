@@ -3128,8 +3128,8 @@ type Mint struct {
 	// mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
 	//
 	// `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
-	// answers and a bench weighs. `lens mint` stores it only when the two DIFFER, so a mint
-	// that passed its problem through --reason does not carry it twice.
+	// answers and a bench weighs. `lens mint` stores --reason here and nowhere else: --problem is
+	// the only flag that states the problem.
 	//
 	// IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
 	// to catch a dropped key missed it, and internal/record/viewjson.go reported the hole in place
@@ -7195,7 +7195,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\xf9\x15\n" +
+	"\b_up_mass\"\x97\x16\n" +
 	"\x04Mint\x12\x96\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xf1\x01\n" +
@@ -7209,8 +7209,8 @@ const file_record_proto_rawDesc = "" +
 	"\blocation\x18\b \x01(\tH\aR\blocation\x88\x01\x01\x12=\n" +
 	"\n" +
 	"about_kind\x18\x17 \x01(\x0e2\x19.feov.record.v1.AboutKindH\bR\taboutKind\x88\x01\x01\x12 \n" +
-	"\tabout_ref\x18\x18 \x01(\tH\tR\baboutRef\x88\x01\x01\x12\x8d\x01\n" +
-	"\aproblem\x18\t \x01(\tBn\x82\xb5\x18j\b\x01\x1afwhat is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-auditedH\n" +
+	"\tabout_ref\x18\x18 \x01(\tH\tR\baboutRef\x88\x01\x01\x12\xab\x01\n" +
+	"\aproblem\x18\t \x01(\tB\x8b\x01\x82\xb5\x18\x86\x01\b\x01\x1a\x81\x01what is wrong — a gap with no stated problem cannot be repaired or re-audited, and --reason is your argument, never the problemH\n" +
 	"R\aproblem\x88\x01\x01\x12&\n" +
 	"\frequired_fix\x18\n" +
 	" \x01(\tH\vR\vrequiredFix\x88\x01\x01\x12\x1c\n" +
@@ -7734,7 +7734,7 @@ const file_record_proto_rawDesc = "" +
 	"\aDeclare\x12/\n" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01B\n" +
 	"\n" +
-	"\b_holding*\x81!\n" +
+	"\b_holding*\x86!\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -7748,8 +7748,8 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1aJ\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\x12a\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aI\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\x12S\n" +
-	"\x12EVENT_TYPE_FINDING\x10\v\x1a;\x8a\xb5\x187something red found, graded but not yet minted as a gap\x12\xc6\x01\n" +
-	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb1\x01\x8a\xb5\x18\xac\x01an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed nothing\x12d\n" +
+	"\x12EVENT_TYPE_FINDING\x10\v\x1a;\x8a\xb5\x187something red found, graded but not yet minted as a gap\x12\xcb\x01\n" +
+	"\x0eEVENT_TYPE_LOG\x10\f\x1a\xb6\x01\x8a\xb5\x18\xb1\x01an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry\x12d\n" +
 	"\x0fEVENT_TYPE_HALT\x10\x0e\x1aO\x8a\xb5\x18Kthe bench ending the run on a safety, ethics, consent or integrity boundary\x12b\n" +
 	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aE\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\x12m\n" +
 	"\x0fEVENT_TYPE_MINT\x10\x10\x1aX\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\x12m\n" +

@@ -488,6 +488,10 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 	DescQuote      = DescQuoteAlone + ". Name the section in --reason, where prose belongs"
 	DescAccept     = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text"
 	DescKey        = "your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice"
-	DescURL        = "the source's http/https URL — fetched once and cached, so both sides read the same bytes"
+	DescURL        = "the source's http/https URL — fetched once and cached, so both sides read the same bytes. " + DescURLQuoting
+	// DescURLQuoting is on every flag that takes a URL. A URL carries characters the shell reads as
+	// syntax, and the shell refuses the line before the tool runs, so no refusal of the tool's can
+	// teach it: two seats on the 2026-10-17 smoke each lost a call to --url .../wiki/91_(number).
+	DescURLQuoting = "Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it"
 	DescTitle      = "the source's name, as it appears in the composed bibliography"
 )

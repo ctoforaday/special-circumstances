@@ -1166,13 +1166,25 @@ test('the schema refuses what the plan check refuses: a bench with no occasion, 
 // every value in the pool — and deleted — and each resulting relay the schema accepts is run
 // through the engine. A check added to the engine with no shape for it in the schema fails here,
 // naming the relay; so does a shape loosened in the schema that a check still throws on.
+// THE CHAIR'S ENVELOPE DECLARES ONLY WHAT THE ENGINE READS. A field the schema offers and nothing
+// reads is an invitation to compose into it: the 2026-10-17 smoke's chair wrapped its whole relay in
+// `plan` beside a `notes` it had written, and the retry dropped both. Each declared key is read
+// below as `chairEnv.<key>`; a key added to the schema must be read there, or named here as read.
+test('the chair envelope declares no field the engine does not read', async () => {
+  const schema = await chairSchema()
+  const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
+  for (const key of Object.keys(schema.properties)) {
+    assert.ok(src.includes(`chairEnv.${key}`), `CHAIR_ENVELOPE declares \`${key}\`, which the engine never reads as chairEnv.${key}`)
+  }
+})
+
 test('a relay the envelope schema accepts is never one the engine throws on', async () => {
   const schema = await chairSchema()
   const full = () => chairEnv({
     plan: plan(
       [party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001', 'G-00000002'), { seat_id: 'judge', gap_ids: ['G-00000002'], occasions: ['petition', 'docket'] }],
       { docket: ['G-00000002'], remand_owed: [{ gap_id: 'G-00000001', direction: 'find the primary source' }], exchanges: [{ gap_id: 'G-00000001', count: 2, unresolved: 1 }, { gap_id: 'G-00000002', count: 3, unresolved: 0 }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M-00000001', 'judge')], why: ['G-00000001: open'], max_epochs: 12 }),
-    verdict: null, notes: 'n',
+    verdict: null,
   })
   const paths = []
   const walk = (v, path) => {

@@ -68,12 +68,15 @@ func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 	if s := by["judge"]; s.Measured || s.Matches || s.Served != "" {
 		t.Errorf("an unmeasured seat is neither a match nor a substitution: %+v", s)
 	}
+	if s := by["judge"]; !strings.Contains(s.NotMeasured, "carries no agent id") {
+		t.Errorf("an unmeasured seat says why nothing answered it: %+v", s)
+	}
 }
 
 func TestTiersRendersNotMeasuredRatherThanABlank(t *testing.T) {
 	run, b := tierFixture(t)
 	md := renderTiers(tierReport(runtest.Open(t, run), b))
-	for _, want := range []string{"NOT MEASURED", "substitution declared by the harness", "served measured on 2 of 3"} {
+	for _, want := range []string{"| judge | judgment | claude-sonnet-5 | **NOT MEASURED** — the event that opened this seat's sitting carries no agent id", "substitution declared by the harness", "served measured on 2 of 3"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the rendering must carry %q; got:\n%s", want, md)
 		}
