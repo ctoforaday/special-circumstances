@@ -217,6 +217,90 @@ func TestReadingAcceptsAGenuinelyBlankPage(t *testing.T) {
 	}
 }
 
+// A BLANK PAGE AND A READ THAT PRODUCED NOTHING WRITE DIFFERENT RECEIPTS (#1029). Both come back
+// as the same empty text, so text_sha and length are the same bytes; the engine's ink measurement
+// is what differs, and it has to reach the receipt AND the record's row, or the honest zero and the
+// silent failure are again indistinguishable to everything that reads them.
+func TestABlankPageAndACollapsedReadWriteDifferentReceipts(t *testing.T) {
+	const blankInk, printedInk = 0.0008, 0.015
+	withEngine(t, &fakeEngine{perCall: func(n int) (tessocr.PageResult, error) {
+		if n == 1 {
+			return tessocr.PageResult{Text: "", InkFraction: blankInk}, nil
+		}
+		return tessocr.PageResult{Text: "", InkFraction: printedInk}, nil
+	}})
+	run := runtest.New(t, t.TempDir())
+	sha := "doc-under-test"
+	rd := fakeRender(t, run, sha, [][]byte{[]byte("blank page"), []byte("printed page")}, tessocr.RenderDPI)
+	rec, err := ReadRenderedPages(run, sha, rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// What came back, without the page's identity (number, pixels, time): the part of a receipt
+	// that describes the READ.
+	facts := func(page int) map[string]any {
+		t.Helper()
+		b, err := os.ReadFile(receiptPath(run, sha, page))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatal(err)
+		}
+		for _, k := range []string{"page", "render_sha", "read_at"} {
+			delete(m, k)
+		}
+		return m
+	}
+	blank, collapsed := facts(1), facts(2)
+	if blank["text_sha"] != collapsed["text_sha"] || blank["length"] != collapsed["length"] {
+		t.Fatalf("the fixture is meant to be two empty readings: %v and %v", blank, collapsed)
+	}
+	if fmt.Sprint(blank) == fmt.Sprint(collapsed) {
+		t.Errorf("a blank page and a collapsed read wrote the same receipt: %v", blank)
+	}
+	if blank["ink_fraction"] != blankInk || collapsed["ink_fraction"] != printedInk {
+		t.Errorf("receipt ink_fraction = %v and %v, want the engine's %v and %v",
+			blank["ink_fraction"], collapsed["ink_fraction"], blankInk, printedInk)
+	}
+	if got := []float64{rec.Pages[0].InkFraction, rec.Pages[1].InkFraction}; got[0] != blankInk || got[1] != printedInk {
+		t.Errorf("reading record ink = %v, want [%v %v] — the row must carry what the receipt measured", got, blankInk, printedInk)
+	}
+}
+
+// A ZERO INK FRACTION IS WRITTEN, NOT OMITTED: a page measured at no ink and a receipt that never
+// measured are different facts, and omitempty would make them the same absent key.
+func TestAZeroInkFractionIsWritten(t *testing.T) {
+	withEngine(t, textEngine(func(int) (string, error) { return "", nil }))
+	run, sha, rd := onePageRender(t)
+	if _, err := ReadRenderedPages(run, sha, rd); err != nil {
+		t.Fatal(err)
+	}
+	read := func(path string, into any) {
+		t.Helper()
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(b, into); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var receipt map[string]any
+	read(receiptPath(run, sha, 1), &receipt)
+	var reading struct {
+		Pages []map[string]any `json:"pages"`
+	}
+	read(readingRecordPath(run, sha), &reading)
+	for name, row := range map[string]map[string]any{"receipt": receipt, "reading record row": reading.Pages[0]} {
+		if v, ok := row["ink_fraction"]; !ok || v != 0.0 {
+			t.Errorf("the %s states ink_fraction %v (present: %v), want an explicit 0", name, v, ok)
+		}
+	}
+}
+
 // THE STORED TEXT IS TIDIED AT ITS EDGES AND UNTOUCHED IN ITS MIDDLE.
 //
 // Line endings and trailing whitespace are noise in an artifact about to be cited from.

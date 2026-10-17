@@ -31,6 +31,13 @@ type PageResult struct {
 	// |-separated table for a grid page, or plain text again when the reconstruction
 	// fell back — in which case Fallback says so.
 	Text string
+	// InkFraction is the share of the page's pixels that are ink — dark after the background
+	// normalization and the binarization at 180 that the grid detector also sees. It is the
+	// OCR-independent denominator for an EMPTY reading (#1029): recognition takes no part in it, so
+	// a blank page and a read that produced nothing, which write the same empty text, measure
+	// differently here. Measured over the corpus: the blank page 0.078%, the sparsest page of print
+	// (a contents page) 1.5%, every other page 3.4% or more.
+	InkFraction float64
 	// Table reports that a grid was found. It is kept even when reconstruction later fell back:
 	// "a grid was seen and could not be rebuilt" and "no grid" are different findings. WHICH path
 	// found it is RuleSource, and since #1027 it is not always the detector.
@@ -191,7 +198,22 @@ func (en *Engine) ReadPage(pagePNG []byte, thr GridThresholds) (PageResult, erro
 	return res, nil
 }
 
+// readPage measures the page's ink before anything reads it, and every branch's result carries it:
+// the measurement belongs to the pixels, not to whichever path read them.
 func (en *Engine) readPage(pagePNG []byte, thr GridThresholds) (PageResult, error) {
+	ink, err := InkFraction(pagePNG)
+	if err != nil {
+		return PageResult{}, err
+	}
+	res, err := en.readPageBranch(pagePNG, thr)
+	if err != nil {
+		return PageResult{}, err
+	}
+	res.InkFraction = ink
+	return res, nil
+}
+
+func (en *Engine) readPageBranch(pagePNG []byte, thr GridThresholds) (PageResult, error) {
 	grid, err := DetectGrid(pagePNG, thr)
 	if err != nil {
 		return PageResult{}, err

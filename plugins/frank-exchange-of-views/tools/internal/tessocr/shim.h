@@ -51,6 +51,11 @@ char *tessocr_grid_lines(const unsigned char *png, size_t len, int sel);
    separating them is the caller's. */
 char *tessocr_repaired_rules(const unsigned char *png, size_t len, int close_h, int close_v, int sel);
 
+/* tessocr_ink counts the dark pixels of the page, after the same normalization and binarization the
+ * grid detector uses, and the page's total. Returns 0 on success; nonzero names the failing stage
+ * (1 decode, 2 binarize, 3 count), so a broken image is an ERROR, never a page measuring no ink. */
+int tessocr_ink(const unsigned char *png, size_t len, long long *dark, long long *total);
+
 void tessocr_free_text(char *t);
 
 /* Point this process's stderr (file descriptor 2) at path until tessocr_diag_end, so

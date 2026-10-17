@@ -3,8 +3,11 @@
 package tessocr
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,6 +117,55 @@ func TestEngineRefusalsAfterClose(t *testing.T) {
 	en.Close() // double-close is safe by contract
 	if _, err := en.PageText([]byte{1}); err == nil {
 		t.Fatal("PageText on a closed engine returned no error")
+	}
+}
+
+// THE INK MEASUREMENT IS THE PIXELS', NOT THE READ'S (#1029). A white page measures exactly no ink
+// and reads as empty text; a page of print measures ink, and ReadPage carries the same number the
+// measurement alone returns — so a recognition that came back empty could not have moved it.
+func TestInkFractionMeasuresThePixelsAndReadPageCarriesIt(t *testing.T) {
+	for _, bad := range [][]byte{nil, []byte("not a png")} {
+		if _, err := InkFraction(bad); err == nil {
+			t.Errorf("InkFraction(%q) returned no error — a broken image would read as a blank page", bad)
+		}
+	}
+
+	en, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer en.Close()
+
+	var buf bytes.Buffer
+	white := image.NewGray(image.Rect(0, 0, 850, 1100))
+	for i := range white.Pix {
+		white.Pix[i] = 0xff
+	}
+	if err := png.Encode(&buf, white); err != nil {
+		t.Fatal(err)
+	}
+	blank, err := en.ReadPage(buf.Bytes(), Grid300)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blank.InkFraction != 0 || strings.TrimSpace(blank.Text) != "" {
+		t.Errorf("a white page read as ink %v, text %q — want 0 and empty", blank.InkFraction, blank.Text)
+	}
+
+	prose, err := os.ReadFile(filepath.Join("testdata", "prosepage.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	alone, err := InkFraction(prose)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, err := en.ReadPage(prose, Grid300)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if alone <= 0 || read.InkFraction != alone {
+		t.Errorf("prose page: InkFraction alone %v, on the reading %v — want the same positive number", alone, read.InkFraction)
 	}
 }
 
