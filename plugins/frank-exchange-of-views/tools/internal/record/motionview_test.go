@@ -27,7 +27,6 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String(basis),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 			GapId:     proto.String("G1"),
@@ -65,7 +64,6 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	// And once answered, the answer sits beside the ask rather than replacing it.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("the grades stand"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 	}); err != nil {
@@ -99,7 +97,6 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("b"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 			GapId:     proto.String("G1"),

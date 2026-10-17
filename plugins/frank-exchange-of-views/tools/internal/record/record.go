@@ -850,7 +850,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
 		if b.GetMotionId() != "" {
-			if err := requireSubjectMatches(q, b.GetSubject(), b.GetMotionId()); err != nil {
+			if err := requireSubjectMatches(q, b.Subject(), b.GetMotionId()); err != nil {
 				return err
 			}
 		}
@@ -1176,35 +1176,18 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 			return err
 		}
 	case *recordpb.Motion:
-		if b.Subject == nil || b.GetBasis() == "" {
-			return fmt.Errorf("a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
-		}
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
-			return fmt.Errorf("%q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED || b.GetBasis() == "" {
+			return fmt.Errorf("a motion requires a filing — its subject, one of %s — and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)", strings.Join(MotionSubjects, " | "))
 		}
 		// THE FILER DOES NOT RULE THE SUBJECT (rulerfiles.go) — asked of every writer, because the
 		// verb's absence from the ruler's surface refuses only a seat that types it.
-		if err := requireFilerHoldsNoGavel(seatID, b.GetSubject(), false); err != nil {
+		if err := requireFilerHoldsNoGavel(seatID, b.Subject(), false); err != nil {
 			return err
-		}
-		// THE FILING MUST BE THE SUBJECT'S OWN. This is the structural successor to the
-		// MotionFields loop, which checked that a value belonged to its (subject, key) pair. It
-		// cannot be that any more — `dimension` lives on GradeMotion and `class` on
-		// PetitionMotion, so a grade motion carrying a petition's class is unrepresentable — but
-		// the SUBJECT and the FILING are still two carriers of one fact, and record.proto says
-		// they are "checked against the oneof case at the write". This is that check.
-		//
-		// Only a filing that is PRESENT is checked: a motion whose oneof is unset refuses nothing
-		// it refused before, and inventing a refusal here would be a new gate wearing a
-		// migration's clothes.
-		if b.GetFiling() != nil && filingSubject(b) != b.GetSubject() {
-			return fmt.Errorf("a %s motion carries a %s filing — the subject and the filing are one fact written twice, and a reader that switches on the subject would ask this motion for fields it does not have",
-				recordpb.Word(b.GetSubject()), recordpb.Word(filingSubject(b)))
 		}
 		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
 		// at replay; one against a gap already disposed of asks for a different disposition than
 		// the one that has been made.
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
 			if err := requireGap(q, b.GetGrade().GetGapId(), "--id"); err != nil {
 				return err
 			}
@@ -1241,7 +1224,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// NO requireOpenGap: the retired verb did not demand one, and a bench ruling on a gap red
 		// has already closed is a real act (the consistency oracle has a fixture for exactly that
 		// order). Adding the demand here would be a new gate wearing a migration's clothes.
-		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
@@ -1304,9 +1287,9 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// The set offered back is MotionVerdicts[subject], the table the ruler's help renders
 		// (MotionVerdictEnum), which evsOf generates from the subject's ruling enum — so the
 		// refusal and the help offer one list.
-		if w := rulingWord(b); w == "" || rulingSubject(b) != b.GetSubject() {
+		if w := rulingWord(b); w == "" {
 			return fmt.Errorf("%q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
-				w, recordpb.Word(b.GetSubject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.GetSubject())]), " | "))
+				w, recordpb.Word(b.Subject()), strings.Join(Names(MotionVerdicts[recordpb.Word(b.Subject())]), " | "))
 		}
 	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
 	//
@@ -1546,37 +1529,6 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		}
 	}
 	return nil
-}
-
-// filingSubject is the subject a Motion's filing BELONGS to, read off the oneof case rather than
-// off the `subject` field it is checked against.
-func filingSubject(m *recordpb.Motion) recordpb.MotionSubject {
-	switch m.GetFiling().(type) {
-	case *recordpb.Motion_Grade:
-		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
-	case *recordpb.Motion_Petition:
-		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	case *recordpb.Motion_Inquiry:
-		return recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY
-	case *recordpb.Motion_Docket:
-		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
-	}
-	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
-}
-
-// rulingSubject is filingSubject for the ruling side.
-func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
-	switch r.GetRuling().(type) {
-	case *recordpb.MotionRule_Grade:
-		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
-	case *recordpb.MotionRule_Petition:
-		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
-	case *recordpb.MotionRule_Inquiry:
-		return recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY
-	case *recordpb.MotionRule_Docket:
-		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
-	}
-	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
 
 // rulingWord is the ruling as a seat spells it, and "" when nothing was ruled. It is the one

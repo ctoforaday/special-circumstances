@@ -233,7 +233,7 @@ func TestACorrectionIsRefused(t *testing.T) {
 		red := sit(t, run, "red-chair")
 		mustAppend(t, red, corrMint("G1"))
 		motion := func(basis string) *recordpb.Motion {
-			return &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			return &recordpb.Motion{MotionId: proto.String("M1"),
 				Basis: proto.String(basis), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}
 		}
 		k := mustAppend(t, red, motion("red cannot settle G1")).GetKey()

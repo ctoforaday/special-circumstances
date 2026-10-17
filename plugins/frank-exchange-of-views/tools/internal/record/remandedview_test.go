@@ -38,13 +38,11 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	}
 	file := func(motionID, gapID string) {
 		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:   proto.String("red cannot settle " + gapID),
-			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+			Basis:  proto.String("red cannot settle " + gapID),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 	}
 	carry := func(motionID, reopensOn string) {
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("not this round"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
@@ -56,7 +54,6 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	}
 	dispose := func(motionID string) {
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("settled"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),

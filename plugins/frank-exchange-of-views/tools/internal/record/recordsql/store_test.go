@@ -361,7 +361,6 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String(id),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
 		})); err != nil {
 			t.Fatal(err)
@@ -371,7 +370,6 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	file(1, "M2", "G2")
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
 		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
 		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
@@ -430,7 +428,6 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 			}
 			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("red cannot settle this one"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 			})); err != nil {
@@ -438,7 +435,6 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 			}
 			_, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Opinion:  proto.String("stated"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
@@ -498,7 +494,6 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			// the gap still open, which is exactly the wrong answer this test exists to catch.
 			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("red cannot settle this one"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 			})); err != nil {
@@ -518,7 +513,6 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			}
 			if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Opinion:  proto.String("stated"),
 				Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
 			})); err != nil {
@@ -662,13 +656,11 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 		// which is the only place it can be checked at the write.
 		{"docketed to the bench", &recordpb.Motion{
 			MotionId: proto.String("M1"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("escalating a gap nobody minted"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
 		{"contested by a grade motion", &recordpb.Motion{
 			MotionId: proto.String("M1"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
 	} {

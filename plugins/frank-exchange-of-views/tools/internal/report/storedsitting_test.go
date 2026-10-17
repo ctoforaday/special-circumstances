@@ -61,9 +61,9 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		bracket(t, "red-chair", "C2"),                   // epoch 2: the chair never registers in it
 		bracket(t, "red-lens-voice", "V3"),              // voice sitting 3: bracket only
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:  proto.String("red cannot settle G1"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
+			MotionId: proto.String("M1"),
+			Basis:    proto.String("red cannot settle G1"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:finding:F1", &recordpb.Finding{
 			Id: proto.String("F-00000001"), Text: proto.String("the voice slips")}),
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:log:#1", &recordpb.Log{Text: proto.String("the tool refused"),

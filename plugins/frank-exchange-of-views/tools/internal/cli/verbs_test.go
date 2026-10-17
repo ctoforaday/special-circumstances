@@ -129,7 +129,7 @@ func TestVerbPayloads(t *testing.T) {
 			// `petition` PetitionRuling, `inquiry` InquiryRuling. That separation is what
 			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
 			// the old key could never match. The ruler's argument is `opinion`.
-			want: map[string]string{"motion_id": "M1", "subject": "grade", "grade": "rejected",
+			want: map[string]string{"motion_id": "M1", "grade": "rejected",
 				"opinion": "the evidence does not reach it"},
 			says: "motion M1 ruled rejected",
 		},
@@ -139,7 +139,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
 			want: map[string]string{"gap_id": "G1", "dimension": "severity",
-				"proposed": "low", "basis": "§4 says otherwise", "subject": "grade"},
+				"proposed": "low", "basis": "§4 says otherwise"},
 			says: "filed (grade)",
 		},
 		{
@@ -175,8 +175,7 @@ func TestVerbPayloads(t *testing.T) {
 			path: []string{"motion", "petition", "rule"}, seatID: "judge",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-			want: map[string]string{"motion_id": "M2", "subject": "petition",
-				// `opinion` is the ruler's argument — the one prose channel MotionRule carries.
+			want: map[string]string{"motion_id": "M2", // `opinion` is the ruler's argument — the one prose channel MotionRule carries.
 				"petition": "granted", "opinion": "the written opinion"},
 			says: "motion M2 ruled granted",
 		},

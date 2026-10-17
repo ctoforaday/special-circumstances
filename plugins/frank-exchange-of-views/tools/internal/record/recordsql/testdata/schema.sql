@@ -159,15 +159,6 @@ INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench e
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
 
-CREATE TABLE "enum_motion_subject" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('inquiry', 'a ruling on an inquiry blue proposed; the id is the INQUIRY''s own, because the proposal IS the filing');
-INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
-
 CREATE TABLE "enum_grade_dimension" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -243,6 +234,15 @@ CREATE TABLE "enum_ruling_binds" (
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in its coming sitting');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('both', 'it binds the whole exchange, and every dispatched seat carries it');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the chair');
+
+CREATE TABLE "enum_motion_subject" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('inquiry', 'a ruling on an inquiry blue proposed; the id is the INQUIRY''s own, because the proposal IS the filing');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
 
 CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
@@ -419,11 +419,9 @@ CREATE TABLE "declare" (
 CREATE TABLE "motion" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL UNIQUE,
-  "subject" TEXT,
   "basis" TEXT,
   "relief" TEXT,
-  "filing_case" TEXT,
-  FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value")
+  "filing_case" TEXT
 ) STRICT;
 
 CREATE TABLE "motion_grade" (
@@ -456,7 +454,6 @@ CREATE TABLE "motion_docket" (
 CREATE TABLE "motion_rule" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL,
-  "subject" TEXT,
   "opinion" TEXT NOT NULL,
   "binds" TEXT,
   "grade" TEXT,
@@ -464,7 +461,6 @@ CREATE TABLE "motion_rule" (
   "inquiry" TEXT,
   "ruling_case" TEXT,
   CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("inquiry" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
-  FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value"),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
   FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value"),
@@ -1636,9 +1632,9 @@ LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
 -- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
 -- how red last ruled the inquiry. The proposal row carries the
--- substance; the LATEST inquiry event carries the status; the LATEST inquiry-subject
--- ruling carries red's answer, including a later ruling that carried no word — an unset arm
--- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
+-- substance; the LATEST inquiry event carries the status; the LATEST ruling on the inquiry —
+-- the one whose arm is the inquiry ruling, which is what makes it an inquiry ruling — carries
+-- red's answer.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -1664,7 +1660,7 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."inquiry_id" AND y."subject" = 'inquiry' ORDER BY ly."pos" DESC LIMIT 1)
+     WHERE y."motion_id" = p."inquiry_id" AND y."inquiry" IS NOT NULL ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

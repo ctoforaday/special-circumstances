@@ -39,7 +39,6 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		// A grade motion: the oneof arm WITH scalar columns, referencing the mint above.
 		&recordpb.Motion{
 			MotionId: proto.String("M-1"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Basis:    proto.String("severity is understated"),
 			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 				GapId:     proto.String("G3"),
@@ -52,13 +51,11 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		// back SET, because "filed a petition" and "filed nothing" are different acts.
 		&recordpb.Motion{
 			MotionId: proto.String("M-2"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}},
 		},
 		// A motion with NO filing arm at all: the NULL discriminator path.
 		&recordpb.Motion{
 			MotionId: proto.String("M-3"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Basis:    proto.String("filed bare"),
 		},
 	}
@@ -148,7 +145,6 @@ func BenchmarkEvents(b *testing.B) {
 			&recordpb.Position{Text: proto.String("a position")},
 			&recordpb.Motion{
 				MotionId: proto.String(fmt.Sprintf("M-%d", i+1)),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 					GapId:     proto.String(gap),
 					Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),

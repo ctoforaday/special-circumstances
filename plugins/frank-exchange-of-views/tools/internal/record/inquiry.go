@@ -153,7 +153,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			//
 			// The subject `inquiry` is MOTION_SUBJECT_INQUIRY in the schema, and the only one whose
 			// ruling set is InquiryRuling (endorsed / out_of_scope / too_thin).
-			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+			if t.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 				continue
 			}
 			id := t.GetMotionId()

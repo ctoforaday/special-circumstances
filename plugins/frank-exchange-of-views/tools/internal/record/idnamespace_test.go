@@ -218,7 +218,6 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	case "motion":
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Motion{
 			MotionId: proto.String(id),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("b"),
 			Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
 				Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),

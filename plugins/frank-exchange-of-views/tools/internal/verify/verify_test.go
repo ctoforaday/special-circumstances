@@ -80,7 +80,6 @@ func TestDialecticRefsResolve(t *testing.T) {
 			// check can still test is the FILING's, and that is what is seeded here.
 			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put it to the bench"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 			}),
@@ -223,13 +222,11 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			// is the same number an honest run with no bench sitting produces.
 			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put G2 to the bench"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
 			}),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Opinion:  proto.String("the repair holds"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),

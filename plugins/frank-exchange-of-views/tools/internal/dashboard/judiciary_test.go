@@ -32,7 +32,6 @@ func docketFiled(t *testing.T, motion, gap string) *recordpb.Event {
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.Motion{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("impasse"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
 	})
@@ -48,7 +47,6 @@ func docketRuled(t *testing.T, motion string, d recordpb.Disposition, principle,
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String(opinion),
 		Ruling:   &recordpb.MotionRule_Docket{Docket: r},
 	})
@@ -58,7 +56,6 @@ func gradeFiled(t *testing.T, motion, gap string) *recordpb.Event {
 	t.Helper()
 	return recordtest.Event(t, "blue-respond", &recordpb.Motion{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("over-graded"),
 		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
 	})
@@ -68,7 +65,6 @@ func gradeRuled(t *testing.T, motion string, r recordpb.GradeRuling) *recordpb.E
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("heard"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: r},
 	})

@@ -782,9 +782,9 @@ LEFT JOIN "events" fae ON fae."id" = fa."event_id";
 
 -- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
 -- how red last ruled the inquiry. The proposal row carries the
--- substance; the LATEST inquiry event carries the status; the LATEST inquiry-subject
--- ruling carries red's answer, including a later ruling that carried no word — an unset arm
--- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
+-- substance; the LATEST inquiry event carries the status; the LATEST ruling on the inquiry —
+-- the one whose arm is the inquiry ruling, which is what makes it an inquiry ruling — carries
+-- red's answer.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -810,7 +810,7 @@ LEFT JOIN "inquiry" ls ON ls."event_id" =
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
 LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT y."event_id" FROM "motion_rule" y JOIN "live_event" ly ON ly."event_id" = y."event_id"
-     WHERE y."motion_id" = p."inquiry_id" AND y."subject" = 'inquiry' ORDER BY ly."pos" DESC LIMIT 1)
+     WHERE y."motion_id" = p."inquiry_id" AND y."inquiry" IS NOT NULL ORDER BY ly."pos" DESC LIMIT 1)
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The

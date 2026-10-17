@@ -151,7 +151,7 @@ func TestFrictionEstoppelBecomesToolSourced(t *testing.T) {
 
 // Identity translation handles the full decomposition: scalar fields, a oneof ARM table,
 // and the `_case` discriminator — which is DERIVED, so it is skipped only where the oneof
-// exists to derive it from.
+// exists to derive it from. The motion's entry drops the stored subject, which the arm states.
 func TestIdentityRebuildsAOneofArm(t *testing.T) {
 	old := migrate.OldEvent{
 		ID: 9, SeatID: "red-merge-r1", Round: 1, TS: ts1, Word: "motion",
@@ -163,13 +163,13 @@ func TestIdentityRebuildsAOneofArm(t *testing.T) {
 		},
 		Arms: map[string]map[string]any{"docket": {"gap_id": "R1-1"}},
 	}
-	bodies, err := (migrate.Registry{}).Translate(old)
+	bodies, err := migrate.Entries().Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := bodies[0].(*recordpb.Motion)
-	if m.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
-		t.Errorf("subject word did not convert: %v", m.GetSubject())
+	if m.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+		t.Errorf("subject word did not convert: %v", m.Subject())
 	}
 	if m.GetDocket().GetGapId() != "R1-1" {
 		t.Errorf("the arm table did not rebuild the oneof: %+v", m)

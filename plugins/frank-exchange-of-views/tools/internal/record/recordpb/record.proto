@@ -1510,15 +1510,18 @@ message Log {
 // and the fields that belong to a subject live inside its own message. A grade motion carrying
 // a petition's `class` is then not a validation failure — it is unrepresentable.
 //
-// The `subject` enum is kept alongside for the same reason `Event.type` is kept alongside its
-// body oneof: readers switch on it, and it is checked against the oneof case at the write.
+// THE ARM IS THE SUBJECT, AND NOTHING ELSE CARRIES IT. A grade motion is one whose filing is a
+// GradeMotion; Motion.Subject (recordpb/motionsubject.go) reads the arm, and every reader asks it.
+// A second field holding the same word could only agree with the arm or contradict it.
 message Motion {
   optional string motion_id = 1 [(sql) = {
     required: true
     unique: true
     why: "the id everything else joins on — the tool assigns it, and a motion without one cannot be ruled or rendered"
   }];
-  optional MotionSubject subject = 2;
+  // 2 held the subject, which the filing's arm states. Reserved: a stored motion carries the bytes.
+  reserved 2;
+  reserved "subject";
 
   // basis is the ASK in the filer's words. A motion with no argument is a demand, and the ruler
   // has nothing to rule on.
@@ -1745,7 +1748,10 @@ message MotionRule {
     // work, and it reads as a guarantee.
     why: "the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312"
   }];
-  optional MotionSubject subject = 2;
+  // 2 held the subject, which the ruling's arm states (MotionRule.Subject). Reserved: a stored
+  // ruling carries the bytes.
+  reserved 2;
+  reserved "subject";
   // THE RULER'S ARGUMENT, AND IT IS REQUIRED — which the schema did not say until the docket
   // subject needed it said.
   //

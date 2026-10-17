@@ -206,13 +206,11 @@ func opinionEntry(old OldEvent) ([]proto.Message, error) {
 	docket := &recordpb.DocketMotion{}
 	motion := &recordpb.Motion{
 		MotionId: proto.String(id),
-		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 		Filing:   &recordpb.Motion_Docket{Docket: docket},
 	}
 	ruling := &recordpb.DocketRuling{}
 	rule := &recordpb.MotionRule{
 		MotionId: proto.String(id),
-		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 		Ruling:   &recordpb.MotionRule_Docket{Docket: ruling},
 	}
 	for col, v := range old.Fields {

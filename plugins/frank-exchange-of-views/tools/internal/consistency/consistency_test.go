@@ -54,7 +54,6 @@ func docketed(t *testing.T, seat string, motionID, gapID string) *recordpb.Event
 	t.Helper()
 	return recordtest.At(t, seat, seat+":motion:"+motionID, &recordpb.Motion{
 		MotionId: proto.String(motionID),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("red cannot settle this one"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
 	})
@@ -75,7 +74,6 @@ func benchRule(t *testing.T, seat string, motionID string, d recordpb.Dispositio
 	}
 	return recordtest.At(t, seat, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
 		MotionId: proto.String(motionID),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("ruled on the merits"),
 		Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
 	})

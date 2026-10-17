@@ -70,7 +70,7 @@ func TestTheReportShowsACorrectedActStruck(t *testing.T) {
 // corrected one, and the struck wording is not hidden behind it.
 func TestJudgmentsShowACorrectedRulingStruck(t *testing.T) {
 	ruling := func(opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String(opinion),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"),
@@ -78,8 +78,7 @@ func TestJudgmentsShowACorrectedRulingStruck(t *testing.T) {
 	}
 	evs := []*record.Event{
 		mintT(t, "red-lens-logic", "G1"),
-		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: proto.String("red cannot settle G1"),
+		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("red cannot settle G1"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 	}
 	evs = append(evs, corrected(t, "judge", "judge:motion_rule:#1", ruling("because  refuses"), ruling("because the gate refuses"))...)

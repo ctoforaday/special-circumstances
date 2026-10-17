@@ -329,7 +329,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				}
 			}
 			w := win.Of(e)
-			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.GetSubject()), e.GetSeatId(), w.Epoch, w.Sitting
+			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.Subject()), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
 			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
 			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
@@ -382,7 +382,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			// ruling is also its creation; every other subject is created by its `motion` event,
 			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
 			if _, ok := byID[id]; !ok {
-				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+				if f.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
 				}
 				// AN INQUIRY MOTION IS CREATED BY ITS RULING, and that is not a special case
@@ -495,11 +495,12 @@ func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject
 		}
 		return motionSubjectWord(subject), nil
 	}
-	// The stored word is the schema's spelling; the SURFACE word goes through the same
-	// motionSubjectWord mapping the fold uses.
+	// THE FILING'S ARM IS ITS SUBJECT: `filing_case` names the arm the motion was filed with, and
+	// the arms are spelled as the subjects they carry (recordpb.Motion.Subject). The SURFACE word
+	// goes through the same motionSubjectWord mapping the fold uses.
 	var word sql.NullString
 	found, err := queryRowAt(q, []any{&word},
-		`SELECT "subject" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
+		`SELECT "filing_case" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
 	if err != nil {
 		return "", err
 	}

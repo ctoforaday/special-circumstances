@@ -21,11 +21,11 @@ import (
 // archived appeals.
 func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	gradeRule := func(r recordpb.GradeRuling) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
 	}
 	inquiryRule := func(r recordpb.InquiryRuling) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("Q1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
+		return &recordpb.MotionRule{MotionId: proto.String("Q1"),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
 	}
 	appeal := func(id, reason string) *recordpb.MotionAppeal {
@@ -99,8 +99,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 		{
 			name: "a ruling under another subject is refused",
 			act: func(t *testing.T, run Run) error {
-				_, err := Append(sit(t, run, "judge"), &recordpb.MotionRule{MotionId: proto.String("M1"),
-					Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("o"),
+				_, err := Append(sit(t, run, "judge"), &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("o"),
 					Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_GRANTED}})
 				return err
 			},
@@ -180,16 +179,14 @@ func motionGuardRun(t *testing.T) Run {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").dispatch(2, evLens).register(evLens).
 		mint(evLens, "G1", "high").mint(evLens, "G2", "high").seed()
-	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"),
-		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Basis: proto.String("severity is overstated"),
+	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("severity is overstated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
 	blue := sit(t, run, "blue-respond")
 	mustAppend(t, blue, docketMotion("M2", "G2"))
 	mustAppend(t, blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 		Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
-	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"),
-		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the run is proceeding past a safety objection"),
+	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M3"), Basis: proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}})
 	return run
 }
@@ -295,11 +292,11 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	grade := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE)
 	inquiry := recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY)
 	gradeRule := func(r recordpb.GradeRuling, opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: grade,
+		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Grade{Grade: r}}
 	}
 	inquiryRule := func(id string, r recordpb.InquiryRuling, opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String(id), Subject: inquiry,
+		return &recordpb.MotionRule{MotionId: proto.String(id),
 			Opinion: proto.String(opinion), Ruling: &recordpb.MotionRule_Inquiry{Inquiry: r}}
 	}
 	appeal := func(id string, subject *recordpb.MotionSubject, reason string) *recordpb.MotionAppeal {
@@ -307,8 +304,7 @@ func TestEveryMotionReaderStatesTheRulingThatStands(t *testing.T) {
 	}
 
 	// A second grade motion and a second inquiry, both left unruled by the write.
-	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M4"),
-		Subject: grade, Basis: proto.String("likelihood is overstated"),
+	mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M4"), Basis: proto.String("likelihood is overstated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
 	mustAppend(t, sit(t, run, "blue-respond"), &recordpb.Inquiry{InquiryId: proto.String("Q2"),
@@ -402,7 +398,7 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 		{
 			name: "rulings",
 			act: func(i int) proto.Message {
-				return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				return &recordpb.MotionRule{MotionId: proto.String("M1"),
 					Opinion: proto.String(fmt.Sprintf("ruling %d", i)), Ruling: &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED}}
 			},
 			refusal: "motion M1 is already ruled",
@@ -416,8 +412,7 @@ func TestAMotionIsAnsweredOnceWhenSeatsWriteAtOnce(t *testing.T) {
 				}
 			}
 			run := st.register(evLens).mint(evLens, "G1", "high").seed()
-			mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"),
-				Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE), Basis: proto.String("severity is overstated"),
+			mustAppend(t, sit(t, run, evLens), &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("severity is overstated"),
 				Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
 					Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}})
 			// Every seat sits BEFORE the race: a register is a write too, and the race under test

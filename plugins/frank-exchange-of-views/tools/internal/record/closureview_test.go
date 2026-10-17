@@ -62,7 +62,7 @@ func docketRuling(motion string, word recordpb.Disposition) *recordpb.MotionRule
 	} else {
 		d.Final = proto.Bool(true)
 	}
-	return &recordpb.MotionRule{MotionId: proto.String(motion), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+	return &recordpb.MotionRule{MotionId: proto.String(motion),
 		Opinion: proto.String("because"), Ruling: &recordpb.MotionRule_Docket{Docket: d}}
 }
 
@@ -286,16 +286,14 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	docket := func(motionID, gapID string, rule *recordpb.DocketRuling) {
 		t.Helper()
 		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:   proto.String("red cannot settle " + gapID),
-			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+			Basis:  proto.String("red cannot settle " + gapID),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
 		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
 		// it — lands in epoch 2, which is what "ruled by the bench in round 2" now means.
 		if _, _, err := RegisterSeat(red, "", ""); err != nil {
 			t.Fatal(err)
 		}
 		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("ra"),
 			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})
 	}

@@ -5286,12 +5286,12 @@ func (x *Log) GetEstoppedBy() string {
 // and the fields that belong to a subject live inside its own message. A grade motion carrying
 // a petition's `class` is then not a validation failure — it is unrepresentable.
 //
-// The `subject` enum is kept alongside for the same reason `Event.type` is kept alongside its
-// body oneof: readers switch on it, and it is checked against the oneof case at the write.
+// THE ARM IS THE SUBJECT, AND NOTHING ELSE CARRIES IT. A grade motion is one whose filing is a
+// GradeMotion; Motion.Subject (recordpb/motionsubject.go) reads the arm, and every reader asks it.
+// A second field holding the same word could only agree with the arm or contradict it.
 type Motion struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	MotionId *string                `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
-	Subject  *MotionSubject         `protobuf:"varint,2,opt,name=subject,proto3,enum=feov.record.v1.MotionSubject,oneof" json:"subject,omitempty"`
 	// basis is the ASK in the filer's words. A motion with no argument is a demand, and the ruler
 	// has nothing to rule on.
 	Basis  *string `protobuf:"bytes,3,opt,name=basis,proto3,oneof" json:"basis,omitempty"`
@@ -5342,13 +5342,6 @@ func (x *Motion) GetMotionId() string {
 		return *x.MotionId
 	}
 	return ""
-}
-
-func (x *Motion) GetSubject() MotionSubject {
-	if x != nil && x.Subject != nil {
-		return *x.Subject
-	}
-	return MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
 
 func (x *Motion) GetBasis() string {
@@ -5775,8 +5768,7 @@ type MotionRule struct {
 	// into different files, and replay merged them by timestamp — so a ruling could replay BEFORE its
 	// filing, which record/motion.go records in capitals and works around with a second pass. Here it
 	// is simply unwritable.
-	MotionId *string        `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
-	Subject  *MotionSubject `protobuf:"varint,2,opt,name=subject,proto3,enum=feov.record.v1.MotionSubject,oneof" json:"subject,omitempty"`
+	MotionId *string `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
 	// THE RULER'S ARGUMENT, AND IT IS REQUIRED — which the schema did not say until the docket
 	// subject needed it said.
 	//
@@ -5839,13 +5831,6 @@ func (x *MotionRule) GetMotionId() string {
 		return *x.MotionId
 	}
 	return ""
-}
-
-func (x *MotionRule) GetSubject() MotionSubject {
-	if x != nil && x.Subject != nil {
-		return *x.Subject
-	}
-	return MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
 
 func (x *MotionRule) GetOpinion() string {
@@ -7723,12 +7708,11 @@ const file_record_proto_rawDesc = "" +
 	"\x05_textB\a\n" +
 	"\x05_typeB\t\n" +
 	"\a_sourceB\x0e\n" +
-	"\f_estopped_by\"\xb9\x04\n" +
+	"\f_estopped_by\"\xfe\x03\n" +
 	"\x06Motion\x12\x99\x01\n" +
-	"\tmotion_id\x18\x01 \x01(\tBw\x82\xb5\x18s\b\x01\x1amthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12<\n" +
-	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x19\n" +
-	"\x05basis\x18\x03 \x01(\tH\x03R\x05basis\x88\x01\x01\x12\x1b\n" +
-	"\x06relief\x18\x04 \x01(\tH\x04R\x06relief\x88\x01\x01\x123\n" +
+	"\tmotion_id\x18\x01 \x01(\tBw\x82\xb5\x18s\b\x01\x1amthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12\x19\n" +
+	"\x05basis\x18\x03 \x01(\tH\x02R\x05basis\x88\x01\x01\x12\x1b\n" +
+	"\x06relief\x18\x04 \x01(\tH\x03R\x06relief\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
 	" \x01(\v2\x1b.feov.record.v1.GradeMotionH\x00R\x05grade\x12<\n" +
 	"\bpetition\x18\v \x01(\v2\x1e.feov.record.v1.PetitionMotionH\x00R\bpetition\x129\n" +
@@ -7736,11 +7720,9 @@ const file_record_proto_rawDesc = "" +
 	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketMotionH\x00R\x06docketB\b\n" +
 	"\x06filingB\f\n" +
 	"\n" +
-	"_motion_idB\n" +
-	"\n" +
-	"\b_subjectB\b\n" +
+	"_motion_idB\b\n" +
 	"\x06_basisB\t\n" +
-	"\a_relief\"\xdd\x01\n" +
+	"\a_reliefJ\x04\b\x02\x10\x03R\asubject\"\xdd\x01\n" +
 	"\vGradeMotion\x12-\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12A\n" +
 	"\tdimension\x18\x02 \x01(\x0e2\x1e.feov.record.v1.GradeDimensionH\x01R\tdimension\x88\x01\x01\x126\n" +
@@ -7786,26 +7768,23 @@ const file_record_proto_rawDesc = "" +
 	"\rInquiryMotion\x12\"\n" +
 	"\n" +
 	"inquiry_id\x18\x01 \x01(\tH\x00R\tinquiryId\x88\x01\x01B\r\n" +
-	"\v_inquiry_id\"\x85\x06\n" +
+	"\v_inquiry_id\"\xca\x05\n" +
 	"\n" +
 	"MotionRule\x12\xb3\x01\n" +
-	"\tmotion_id\x18\x01 \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x02id\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12<\n" +
-	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\xaa\x01\n" +
-	"\aopinion\x18\x03 \x01(\tB\x8a\x01\x82\xb5\x18\x81\x01\b\x01\x12\x06reason\x1authe ruling's argument in the ruler's words — a ruling with no reasoning is a verdict the losing party cannot answer\xc0\xb5\x18\x01H\x03R\aopinion\x88\x01\x01\x123\n" +
+	"\tmotion_id\x18\x01 \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x02id\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12\xaa\x01\n" +
+	"\aopinion\x18\x03 \x01(\tB\x8a\x01\x82\xb5\x18\x81\x01\b\x01\x12\x06reason\x1authe ruling's argument in the ruler's words — a ruling with no reasoning is a verdict the losing party cannot answer\xc0\xb5\x18\x01H\x02R\aopinion\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
 	" \x01(\x0e2\x1b.feov.record.v1.GradeRulingH\x00R\x05grade\x12<\n" +
 	"\bpetition\x18\v \x01(\x0e2\x1e.feov.record.v1.PetitionRulingH\x00R\bpetition\x129\n" +
 	"\ainquiry\x18\f \x01(\x0e2\x1d.feov.record.v1.InquiryRulingH\x00R\ainquiry\x126\n" +
 	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketRulingH\x00R\x06docket\x126\n" +
-	"\x05binds\x18\x04 \x01(\x0e2\x1b.feov.record.v1.RulingBindsH\x04R\x05binds\x88\x01\x01B\b\n" +
+	"\x05binds\x18\x04 \x01(\x0e2\x1b.feov.record.v1.RulingBindsH\x03R\x05binds\x88\x01\x01B\b\n" +
 	"\x06rulingB\f\n" +
 	"\n" +
 	"_motion_idB\n" +
 	"\n" +
-	"\b_subjectB\n" +
-	"\n" +
 	"\b_opinionB\b\n" +
-	"\x06_binds\"\xc0\x01\n" +
+	"\x06_bindsJ\x04\b\x02\x10\x03R\asubject\"\xc0\x01\n" +
 	"\fMotionAppeal\x12*\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\b\x82\xb5\x18\x04\x12\x02idH\x00R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x01R\asubject\x88\x01\x01\x12!\n" +
@@ -8308,44 +8287,42 @@ var file_record_proto_depIdxs = []int32{
 	11,  // 71: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
 	22,  // 72: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
 	21,  // 73: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	12,  // 74: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
-	57,  // 75: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	58,  // 76: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	61,  // 77: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	59,  // 78: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	23,  // 79: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	2,   // 80: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	24,  // 81: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	7,   // 82: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	12,  // 83: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
-	13,  // 84: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	14,  // 85: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	15,  // 86: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	60,  // 87: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	25,  // 88: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	12,  // 89: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	26,  // 90: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	26,  // 91: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
-	3,   // 92: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	4,   // 93: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	78,  // 94: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	78,  // 95: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	79,  // 96: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	79,  // 97: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	79,  // 98: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	79,  // 99: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	79,  // 100: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	79,  // 101: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	79,  // 102: feov.record.v1.correct:extendee -> google.protobuf.EnumValueOptions
-	80,  // 103: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	28,  // 104: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	0,   // 105: feov.record.v1.correct:type_name -> feov.record.v1.CorrectionTier
-	27,  // 106: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	107, // [107:107] is the sub-list for method output_type
-	107, // [107:107] is the sub-list for method input_type
-	104, // [104:107] is the sub-list for extension type_name
-	94,  // [94:104] is the sub-list for extension extendee
-	0,   // [0:94] is the sub-list for field type_name
+	57,  // 74: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	58,  // 75: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	61,  // 76: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	59,  // 77: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	23,  // 78: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	2,   // 79: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	24,  // 80: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	7,   // 81: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	13,  // 82: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	14,  // 83: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	15,  // 84: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	60,  // 85: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	25,  // 86: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	12,  // 87: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
+	26,  // 88: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	26,  // 89: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
+	3,   // 90: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	4,   // 91: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	78,  // 92: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	78,  // 93: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	79,  // 94: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	79,  // 95: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	79,  // 96: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	79,  // 97: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	79,  // 98: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	79,  // 99: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	79,  // 100: feov.record.v1.correct:extendee -> google.protobuf.EnumValueOptions
+	80,  // 101: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	28,  // 102: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	0,   // 103: feov.record.v1.correct:type_name -> feov.record.v1.CorrectionTier
+	27,  // 104: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	105, // [105:105] is the sub-list for method output_type
+	105, // [105:105] is the sub-list for method input_type
+	102, // [102:105] is the sub-list for extension type_name
+	92,  // [92:102] is the sub-list for extension extendee
+	0,   // [0:92] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

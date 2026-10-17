@@ -46,13 +46,13 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	// Lead row naming no gap, which is exactly the silent-empty this split exists to remove.
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, merge, merge+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:  proto.String("red cannot settle this one"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			MotionId: proto.String("M1"),
+			Basis:    proto.String("red cannot settle this one"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
 		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Opinion: proto.String("because"),
+			MotionId: proto.String("M1"),
+			Opinion:  proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
@@ -255,13 +255,13 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 			Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
 		}),
 		recordtest.At(t, m, m+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:  proto.String("red cannot settle this one"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G9")}},
+			MotionId: proto.String("M1"),
+			Basis:    proto.String("red cannot settle this one"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G9")}},
 		}),
 		recordtest.At(t, "judge", "judge:motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Opinion: proto.String("because"),
+			MotionId: proto.String("M1"),
+			Opinion:  proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),

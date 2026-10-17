@@ -150,7 +150,6 @@ func gradeMotionFiled(t *testing.T, id, gap string) *Event {
 	t.Helper()
 	return recordtest.Event(t, "blue-respond", &recordpb.Motion{
 		MotionId: proto.String(id),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
 	})
 }
@@ -159,7 +158,6 @@ func gradeMotionRuled(t *testing.T, id string, ruling recordpb.GradeRuling) *Eve
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 		MotionId: proto.String(id),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("ruled"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: ruling},
 	})
@@ -324,7 +322,6 @@ func TestTheOwedRegradeNamesTheAcceptedAxisAndGrade(t *testing.T) {
 	filed := func(id string, d recordpb.GradeDimension, g recordpb.Grade) *Event {
 		return recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String(id),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"), Dimension: recordtest.P(d), Proposed: recordtest.P(g)}},
 		})
 	}
@@ -501,7 +498,6 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 	file := func(motionID, gapID string) *Event {
 		return recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String(motionID),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:    proto.String("red cannot settle " + gapID),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
 		})
@@ -519,7 +515,6 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 			file("M1", "G-carried"),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 				Opinion:  proto.String("not this round"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),

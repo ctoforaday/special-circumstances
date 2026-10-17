@@ -249,7 +249,7 @@ func TestAnArchivedInquiryRulingArrivesUnderSubjectInquiry(t *testing.T) {
 			got := 0
 			for _, e := range fam.Events {
 				r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-				if !ok || r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+				if !ok || r.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 					continue
 				}
 				if r.GetInquiry() == recordpb.InquiryRuling_INQUIRY_RULING_UNSPECIFIED {

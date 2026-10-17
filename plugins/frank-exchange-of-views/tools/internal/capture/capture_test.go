@@ -484,13 +484,11 @@ func TestHarvestPrecedents(t *testing.T) {
 		// harvested holding to the empty string and still report a full count.
 		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M3"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("red cannot settle G2"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
 		}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M3"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String("the cost of the repair exceeds the exposure"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
@@ -504,13 +502,11 @@ func TestHarvestPrecedents(t *testing.T) {
 		// only the motion. Harvesting the petitioner means joining the two.
 		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M4"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Basis:    proto.String("the demand buries a hazard"),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}},
 		}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M4"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Opinion:  proto.String("scope narrowed to shipped artifacts"),
 			Ruling:   &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_GRANTED},
 		}),
@@ -518,13 +514,11 @@ func TestHarvestPrecedents(t *testing.T) {
 		// ruling carries — which is what the no-truncation assertion below reads.
 		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M5"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("put G1 to the bench"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M5"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String(longRationale),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
@@ -543,7 +537,6 @@ func TestHarvestPrecedents(t *testing.T) {
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
 		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
 			Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 		}),
@@ -644,13 +637,11 @@ func docketRuled(t *testing.T, motion, gap string) []*record.Event {
 	return []*record.Event{
 		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String(motion),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("at impasse on " + gap),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
 		}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String(motion),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String("remanded: two cross-references are unrepaired"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),

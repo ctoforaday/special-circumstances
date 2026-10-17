@@ -73,7 +73,6 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Basis:    proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
 			Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),
@@ -119,7 +118,6 @@ func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Basis:    proto.String("the run is proceeding past a safety objection"),
 		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
 			Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),

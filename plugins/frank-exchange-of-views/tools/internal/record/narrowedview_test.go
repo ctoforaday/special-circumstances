@@ -85,14 +85,12 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: str("Q1"),
 			Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: str("a question")}),
 		// The chair rules the inquiry, which makes it an inquiry motion.
-		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1", &recordpb.MotionRule{MotionId: str("Q1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY), Opinion: str("worth the run's time"),
+		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1", &recordpb.MotionRule{MotionId: str("Q1"), Opinion: str("worth the run's time"),
 			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),
 		recordtest.Event(t, "red-chair", &recordpb.Log{Text: str("no verb renders a gap's lineage in one read"),
 			Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		// The corrections: each struck act, its replacement, and the correction naming both.
-		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1~1", &recordpb.MotionRule{MotionId: str("Q1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY), Opinion: str("out of scope, on a second reading"),
+		recordtest.At(t, "red-chair", "red-chair:motion_rule:#1~1", &recordpb.MotionRule{MotionId: str("Q1"), Opinion: str("out of scope, on a second reading"),
 			Ruling: &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE}}),
 		correctionOf(t, "red-chair", "red-chair:motion_rule:#1"),
 		recordtest.At(t, "red-chair", "red-chair:regrade:#9", &recordpb.Regrade{GapId: str("G2"),
@@ -114,11 +112,9 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()}),
 		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: str("red cannot settle G2"),
+		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"), Basis: str("red cannot settle G2"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: str("G2")}}}),
-		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Opinion: str("the bench's reasoning"),
+		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("M1"), Opinion: str("the bench's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
@@ -448,7 +444,7 @@ func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
 
 // benchClosing is the bench's ruling on docket motion id, closing its gap as repaired.
 func benchClosing(id string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+	return &recordpb.MotionRule{MotionId: proto.String(id),
 		Opinion: proto.String("because"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),

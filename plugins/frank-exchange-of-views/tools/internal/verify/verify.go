@@ -518,7 +518,7 @@ func Compute(f record.Family) Stats {
 			// The subject is read from the ENUM and the gap from the grade filing's own
 			// message, which is the pair the schema keeps in step: a petition motion has no
 			// gap_id to find, and could not carry one.
-			if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
+			if f.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
 				continue
 			}
 			if g, isGrade := f.GetFiling().(*recordpb.Motion_Grade); isGrade {

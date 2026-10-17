@@ -33,7 +33,6 @@ func docketFiling(t *testing.T, motion, gap string) *record.Event {
 	t.Helper()
 	return recordtest.Event(t, "red-chair", &recordpb.Motion{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
 	})
 }
@@ -52,7 +51,6 @@ func docketRuling(t *testing.T, motion string, d recordpb.Disposition, opinion s
 	}
 	return recordtest.Event(t, "judge", &recordpb.MotionRule{
 		MotionId: proto.String(motion),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String(opinion),
 		Ruling:   &recordpb.MotionRule_Docket{Docket: r},
 	})
@@ -151,7 +149,6 @@ func TestAPrincipleThatDeclaresTheInspectionCounts(t *testing.T) {
 		docketFiling(t, "M1", "G1"),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion:  proto.String("heard"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),

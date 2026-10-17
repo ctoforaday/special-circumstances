@@ -17,7 +17,7 @@ const remandDirection = "re-derive the figure from the primary table rather than
 
 // remandRuling is the bench remanding a docket motion with direction as its stated research direction.
 func remandRuling(motion, direction string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(motion), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+	return &recordpb.MotionRule{MotionId: proto.String(motion),
 		Opinion: proto.String("the record cannot settle this yet"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Direction: proto.String(direction)}}}

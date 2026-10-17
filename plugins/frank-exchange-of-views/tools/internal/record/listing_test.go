@@ -117,7 +117,7 @@ func TestJSONListingsCarryTheStruckActAsAField(t *testing.T) {
 // as a second ruling.
 func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
 	ruling := func(opinion string) *recordpb.MotionRule {
-		return &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		return &recordpb.MotionRule{MotionId: proto.String("M1"),
 			Opinion: proto.String(opinion),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"),
@@ -126,8 +126,7 @@ func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
 	k := "judge:motion_rule:#1"
 	evs := []*Event{
 		mintsGap(t, "red-lens-logic", "G1"),
-		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"),
-			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET), Basis: proto.String("red cannot settle G1"),
+		recordtest.At(t, "red-chair", "red-chair:motion:#1", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("red cannot settle G1"),
 			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
 		recordtest.At(t, "judge", k, ruling("because  refuses")),
 		recordtest.At(t, "judge", k+"~1", ruling("because the gate refuses")),

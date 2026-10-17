@@ -699,7 +699,7 @@ func debateMD(in Input) []byte {
 				// motion the motions view already renders with its ask beside it. A petition
 				// ruling is the bench acting on the run itself, and its opinion is the operative
 				// part.
-				if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
+				if t.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 					continue
 				}
 				// THE RELIEF LINE IS GONE BECAUSE IT NEVER RENDERED. `relief` is a field of the

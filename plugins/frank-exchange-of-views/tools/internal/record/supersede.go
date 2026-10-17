@@ -127,7 +127,7 @@ func (a Answer) Clause() string {
 func AnswerTo(typ recordpb.EventType, body proto.Message) (Answer, bool) {
 	k := supersederKey{typ: typ}
 	if b, ok := body.(*recordpb.MotionRule); ok {
-		k.subject = b.GetSubject()
+		k.subject = b.Subject()
 	}
 	field := keyField(body)
 	k.keyed = field

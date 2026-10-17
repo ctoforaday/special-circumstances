@@ -8,13 +8,11 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // The bench's docket ruling, as the bench files it (#1201).
 func docketRule(id, opinion string) *recordpb.MotionRule {
 	return &recordpb.MotionRule{MotionId: proto.String(id),
-		Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion: proto.String(opinion),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),

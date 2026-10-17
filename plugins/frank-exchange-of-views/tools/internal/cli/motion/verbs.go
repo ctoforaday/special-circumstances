@@ -97,7 +97,6 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			}
 			body := &recordpb.Motion{
 				MotionId: proto.String(id),
-				Subject:  &subj,
 				Basis:    proto.String(basis),
 			}
 			switch subj {
@@ -293,7 +292,6 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 			subj := mustSubject(subject)
 			body := &recordpb.MotionRule{
 				MotionId: proto.String(id),
-				Subject:  &subj,
 				Opinion:  proto.String(opinion),
 			}
 			word := seat.Str(cmd, flags.As)

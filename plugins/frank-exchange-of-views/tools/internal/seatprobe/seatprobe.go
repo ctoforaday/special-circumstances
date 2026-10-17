@@ -168,10 +168,10 @@ var verbOfEvent = map[recordpb.EventType]string{
 // that have a subject at all, so asking the body cannot go stale against the enum.
 func motionSubject(e *record.Event) string {
 	if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-		return subjectVerb(m.GetSubject())
+		return subjectVerb(m.Subject())
 	}
 	if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
-		return subjectVerb(m.GetSubject())
+		return subjectVerb(m.Subject())
 	}
 	return ""
 }

@@ -574,13 +574,13 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	// Seeded alone, the ruling renders a LEAD line naming the empty string for its gap.
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, merge, merge+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:  proto.String("red cannot settle G1"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			MotionId: proto.String("M1"),
+			Basis:    proto.String("red cannot settle G1"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
 		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Opinion: proto.String("because"),
+			MotionId: proto.String("M1"),
+			Opinion:  proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),

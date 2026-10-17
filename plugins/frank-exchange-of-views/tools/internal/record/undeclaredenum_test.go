@@ -116,7 +116,7 @@ func TestAnUndeclaredEnumNumberIsRefusedByTheWrite(t *testing.T) {
 		paths = append(paths, s.path)
 	}
 	joined := strings.Join(paths, " ")
-	for _, want := range []string{"Log.type", "MotionRule.subject"} {
+	for _, want := range []string{"Log.type", "MotionRule.binds"} {
 		if !strings.Contains(joined, want+" ") && !strings.HasSuffix(joined, want) {
 			t.Fatalf("no row for %s among %d sites — the walk lost a field it must reach", want, len(sites))
 		}

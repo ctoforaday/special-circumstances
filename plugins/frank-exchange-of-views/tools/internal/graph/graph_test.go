@@ -36,7 +36,6 @@ func TestGapHoleHeuristic(t *testing.T) {
 			// vocabulary nothing wrote.
 			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("UNANSWERED")}},
 			}),
 		},
@@ -100,14 +99,12 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-respond", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("ANSWERED")}},
 			}),
 			// THE RULING IS THE ONEOF ARM. `accepted` can only reach the grade arm, so a fixture
 			// cannot pair a grade motion with a petition's verdict the way two loose strings could.
 			recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 				Opinion:  proto.String("the grade was argued and holds"),
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
 			}),
@@ -145,13 +142,11 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 	docket := func(gapID, motionID string, ruled bool) []*record.Event {
 		evs := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String(motionID),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
 		})}
 		if ruled {
 			evs = append(evs, recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String(motionID),
-				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 				Opinion:  proto.String("heard"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					// CARRIED, so the gap stays OPEN. Ruled-and-still-open is the case that
