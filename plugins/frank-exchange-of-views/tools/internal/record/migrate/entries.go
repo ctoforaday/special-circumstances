@@ -35,6 +35,11 @@ func Entries() Registry {
 		// written — the fan-out is the replay's, because it reads the proofs replayed before it
 		// (reproduceAnchors in replay.go).
 		"reproduce": {Translate: reproduceEntry},
+		// A DISPATCH ROW BEFORE EPOCH 31 NAMED THE GAPS WHOSE REMAND EXCHANGE IT READIED. The record
+		// stores the plan the row was written from, whose remand_owed names them with the direction,
+		// and keeps no copy on the row; an archived row's list is not carried, and its plan was never
+		// stored, so the gaps are read off the remand rulings the record replays.
+		"dispatch": {Translate: dispatchEntry},
 		// AN APPEAL HAS NO TRANSLATION. A ruling stands as made, and the record holds no act that
 		// presses one; no archived run holds an appeal, so a record that does is a new fact for its
 		// operator to accept by word, not a shape to guess.
@@ -160,6 +165,24 @@ func citeEntry(old OldEvent) ([]proto.Message, error) {
 		c.SourceCompleteness = recordpb.SourceCompleteness_SOURCE_COMPLETENESS_NOT_RECORDED.Enum()
 	}
 	return []proto.Message{c}, nil
+}
+
+// dispatchEntry: a dispatch row is kept word for word but its remand_owed list.
+func dispatchEntry(old OldEvent) ([]proto.Message, error) {
+	if _, ok := old.Lists["remand_owed"]; ok {
+		lists := map[string][]string{}
+		for k, v := range old.Lists {
+			if k != "remand_owed" {
+				lists[k] = v
+			}
+		}
+		old.Lists = lists
+	}
+	body, err := identityBody(old)
+	if err != nil {
+		return nil, err
+	}
+	return []proto.Message{body}, nil
 }
 
 // registerEntry: a register is kept word for word and opens a sitting of its own. A source at epoch

@@ -73,7 +73,9 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	//
 	// And three fewer for `motion_appeal`, `revision` and `correction`: a ruling stands as made, a
 	// report's change is its edits, and a wrong act is answered by a new act.
-	const wantBodies = 34
+	//
+	// And one more for `plan`: the plan the chair's dispatch printed, stored whole.
+	const wantBodies = 35
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

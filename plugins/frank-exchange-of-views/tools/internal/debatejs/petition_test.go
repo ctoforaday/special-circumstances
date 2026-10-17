@@ -15,8 +15,8 @@ func planWith(parties, blockers []any) map[string]any {
 	if len(blockers) == 0 {
 		blockers = HeldBy(parties)
 	}
-	return map[string]any{"head": 2, "parties": parties, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": len(blockers) == 0, "ceiling": false,
-		"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{"test"}, "stale_areas": []any{}, "blockers": blockers}
+	return Keyed(map[string]any{"head": 2, "parties": parties, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": len(blockers) == 0, "ceiling": false,
+		"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{"test"}, "stale_areas": []any{}, "blockers": blockers})
 }
 
 var (

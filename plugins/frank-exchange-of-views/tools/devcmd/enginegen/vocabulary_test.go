@@ -19,8 +19,8 @@ func sampleVocabulary() vocabulary {
 		petitionRulings: []string{"granted", "denied"}, reliefBinds: []string{"blue"},
 		dispositions: []string{"repaired", "moot"}, verdicts: []string{"PASS", "FAIL"}, outcomes: []string{"VERIFIED"},
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
-		dispatchOccasions: []string{"docket"}, relayBlockerKinds: []string{"reopened"},
-		party: party,
+		dispatchOccasions: []string{"docket"},
+		party:             party,
 		plan: []record.PlanField{
 			{Name: "Head", JSON: "head", Type: "integer", Min: &zero, Desc: "the report's head"},
 			{Name: "Parties", JSON: "parties", Type: "array", Of: party, Items: []record.PlanField{
@@ -56,7 +56,6 @@ const DISPOSITION = { type: 'string', enum: ['repaired', 'moot'] }
 const VERDICT = { type: ['string', 'null'], enum: ['PASS', 'FAIL', null] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_PARTY_OCCASIONS = ['docket']
-const KEYED_BLOCKER_KINDS = ['reopened']
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids', 'occasions'],
@@ -112,7 +111,6 @@ func TestAVocabularyAHarnessCouldNotValidateAgainstIsRefused(t *testing.T) {
 		{"an empty set", func(v *vocabulary) { v.dispositions = nil }, "no word for the docket's dispositions"},
 		{"no party seat", func(v *vocabulary) { v.lensOrBlue = nil }, "no seat a plan's party can be"},
 		{"no dispatch occasion", func(v *vocabulary) { v.dispatchOccasions = nil }, "for no occasion"},
-		{"no relay-held blocker kind", func(v *vocabulary) { v.relayBlockerKinds = nil }, "on no kind"},
 		{"a plan with no parties", func(v *vocabulary) { v.plan = v.plan[:1] }, "no list of parties"},
 		{"a party with no occasions", func(v *vocabulary) { v.plan[1].Items = v.plan[1].Items[:2] }, "no field Occasions"},
 		{"a party whose occasions are required", func(v *vocabulary) { v.plan[1].Items[2].Optional = false }, "not an optional list of words"},

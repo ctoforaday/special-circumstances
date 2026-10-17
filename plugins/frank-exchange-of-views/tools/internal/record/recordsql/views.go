@@ -220,9 +220,10 @@ SELECT
   --                       cost is pure overhead and needs no normalising
   --
   -- BOOKKEEPING IS NOT AN ACT. register announces the seat, log is the channel a sitting closes,
-  -- and sitting_open/sitting_close are the harness's own brackets — counting any of them would
-  -- make every sitting look productive and the empty case unreachable, which is the plausible
-  -- zero this column exists to remove.
+  -- sitting_open/sitting_close are the harness's own brackets, and plan is the record's copy of
+  -- what the chair's dispatch printed (its rows are the act) — counting any of them would make
+  -- every sitting look productive and the empty case unreachable, which is the plausible zero this
+  -- column exists to remove.
   --
   -- SCOPED TO THE SITTING, not the run: events_w carries the sitting ordinal and seat_of_agent
   -- carries this agent's, so the count is what THIS sitting recorded rather than what the seat
@@ -230,7 +231,7 @@ SELECT
   -- defect the work list had before duties were made per-sitting.
   (SELECT COUNT(*) FROM "events_w" ew
      WHERE ew."seat_id" = s."seat_id" AND ew."sitting" = s."sitting"
-       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close'))  AS "acts"
+       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','plan'))  AS "acts"
 FROM "seat_turn" t
 LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
 GROUP BY t."agent_id";

@@ -109,6 +109,7 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion fil
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('observe', 'an observation recorded without a claim attached to it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into its sitting');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('register', 'a seat took its seat — the first act of any seat, stamping the tool version it ran under');
@@ -842,13 +843,6 @@ CREATE TABLE "dispatch_occasions" (
   PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
-CREATE TABLE "dispatch_remand_owed" (
-  "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
-  "ord"      INTEGER NOT NULL,
-  "value"    TEXT    NOT NULL,
-  PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
 CREATE TABLE "sitting_limit" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
@@ -856,6 +850,11 @@ CREATE TABLE "sitting_limit" (
   "seat_id" TEXT,
   "sitting" INTEGER,
   "limit" INTEGER
+) STRICT;
+
+CREATE TABLE "plan" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "printed" TEXT NOT NULL
 ) STRICT;
 
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
@@ -1045,9 +1044,10 @@ SELECT
   --                       cost is pure overhead and needs no normalising
   --
   -- BOOKKEEPING IS NOT AN ACT. register announces the seat, log is the channel a sitting closes,
-  -- and sitting_open/sitting_close are the harness's own brackets — counting any of them would
-  -- make every sitting look productive and the empty case unreachable, which is the plausible
-  -- zero this column exists to remove.
+  -- sitting_open/sitting_close are the harness's own brackets, and plan is the record's copy of
+  -- what the chair's dispatch printed (its rows are the act) — counting any of them would make
+  -- every sitting look productive and the empty case unreachable, which is the plausible zero this
+  -- column exists to remove.
   --
   -- SCOPED TO THE SITTING, not the run: events_w carries the sitting ordinal and seat_of_agent
   -- carries this agent's, so the count is what THIS sitting recorded rather than what the seat
@@ -1055,7 +1055,7 @@ SELECT
   -- defect the work list had before duties were made per-sitting.
   (SELECT COUNT(*) FROM "events_w" ew
      WHERE ew."seat_id" = s."seat_id" AND ew."sitting" = s."sitting"
-       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close'))  AS "acts"
+       AND ew."type" NOT IN ('register','log','sitting_open','sitting_close','plan'))  AS "acts"
 FROM "seat_turn" t
 LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
 GROUP BY t."agent_id";

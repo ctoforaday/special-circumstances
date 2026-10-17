@@ -78,15 +78,6 @@ type blockerKind struct {
 	kind BlockerKind
 	// every: it holds every verdict, not only a PASS. Under a migration only these refuse.
 	every bool
-	// relayHeld: capture holds a relayed plan's blockers of this kind to the record at the end of
-	// the chair sitting that relayed it (RelayBlockersOf), and the engine's no-progress valve keys
-	// on them. It is true for a kind that meets BOTH conditions: the stream alone answers it, so it
-	// can be asked of the record as it stood at a past sitting's end; and no act of the chair's own
-	// sitting moves it other than a motion it files or rules, after which it asks for its plan
-	// again. The gap kinds and the lens kinds read SQL as it stands now. The inquiry review is the
-	// chair's own act of the sitting that relays the plan: due when it asks, recorded before it
-	// ends, so a faithful relay would depart on it at every sitting.
-	relayHeld bool
 	// gloss is the help page's phrase for the kind.
 	gloss string
 	// item is the chair's work-list sentence for one blocker.
@@ -185,7 +176,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind: BlockerContradiction, relayHeld: true,
+		kind:  BlockerContradiction,
 		gloss: "a contradicting source nothing has answered",
 		item: func(b Blocker) string {
 			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and it is unanswered — PASS is refused while it is; %s raises it with `finding --about-kind contradiction --about %s`, which answers it whether or not the sentence still stands. %s", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject, contradictionCitationAnswer)
@@ -216,7 +207,7 @@ var blockerKinds = []blockerKind{
 	// after the edit clears the blocker (reopenedEvidence), so each wording says both: the check
 	// that clears it, and the seat that owes it and is readied for it.
 	{
-		kind: BlockerReopened, relayHeld: true,
+		kind:  BlockerReopened,
 		gloss: "a citation or proof unchecked since its sentence changed",
 		item: func(b Blocker) string {
 			act := "reading it as it now stands against its source"
@@ -242,7 +233,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind: BlockerNoReport, relayHeld: true,
+		kind:  BlockerNoReport,
 		gloss: "no ingested report",
 		item:  func(Blocker) string { return "no report has been ingested — PASS is refused" },
 		refusal: func([]Blocker) string {
@@ -280,7 +271,7 @@ var blockerKinds = []blockerKind{
 		},
 	},
 	{
-		kind: BlockerUnruledMotion, relayHeld: true,
+		kind:  BlockerUnruledMotion,
 		gloss: "an unruled motion",
 		item: func(b Blocker) string {
 			return "motion " + b.Subject + " (" + b.Detail + ") was filed and never ruled — PASS is refused while it stands"
@@ -474,36 +465,11 @@ func unruledMotionBlockers(evs []*Event, ids []int64, win WindowIndex) []Blocker
 	return out
 }
 
-// RelayBlockerKinds is the kinds a relayed plan's blockers are held to the record on, in table
-// order — the kinds the engine's no-progress valve keys on (blockerKind.relayHeld).
-func RelayBlockerKinds() []BlockerKind {
-	var out []BlockerKind
-	for _, r := range blockerKinds {
-		if r.relayHeld {
-			out = append(out, r.kind)
-		}
-	}
-	return out
-}
-
 // BlockerKinds is every kind of the table, in its order.
 func BlockerKinds() []BlockerKind {
 	out := make([]BlockerKind, 0, len(blockerKinds))
 	for _, r := range blockerKinds {
 		out = append(out, r.kind)
-	}
-	return out
-}
-
-// RelayBlockersOf is the gate's list over a stream, as the plan relays it, for the kinds a relay is
-// held to (RelayBlockerKinds). Capture hands it the record as it stood at the end of the chair
-// sitting that relayed a plan, and holds that plan's blockers of those kinds to the answer.
-func RelayBlockersOf(evs []*Event, win WindowIndex) []PlanBlocker {
-	var out []PlanBlocker
-	for _, b := range eventBlockersOf(evs, win.IDs(evs), win) {
-		if kindOf(b.Kind).relayHeld {
-			out = append(out, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
-		}
 	}
 	return out
 }

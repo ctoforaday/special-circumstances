@@ -124,26 +124,6 @@ func ReadJournal(transcriptDir string) []map[string]any {
 	return results
 }
 
-// jsString mirrors JS String(x) for a relayed plan's scalar values (strings pass through).
-func jsString(v any) string {
-	switch x := v.(type) {
-	case string:
-		return x
-	case json.Number:
-		return x.String()
-	case nil:
-		return "null"
-	case bool:
-		if x {
-			return "true"
-		}
-		return "false"
-	default:
-		b, _ := json.Marshal(x)
-		return string(b)
-	}
-}
-
 // ---- AUDIT 1: telemetry presence ----
 
 // LivenessAudit records whether the run reached capture UNDER ITS OWN POWER or was terminated.

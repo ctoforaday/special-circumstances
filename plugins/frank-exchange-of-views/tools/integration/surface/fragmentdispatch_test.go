@@ -256,9 +256,9 @@ func driveEverySite(t *testing.T, agentTypes []string, cfg debatejs.Config) ([]d
 func everySiteBackend(agentTypes []string) debatejs.Backend {
 	gap := anchor.ID("gap", [4]byte{3: 1})
 	plan := func(parties, docket, blockers []any, pass bool) map[string]any {
-		return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{},
+		return debatejs.Keyed(map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{},
 			"pass_permitted": pass, "ceiling": false, "max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false,
-			"why": []any{"fragment dispatch"}, "stale_areas": []any{}, "blockers": blockers}
+			"why": []any{"fragment dispatch"}, "stale_areas": []any{}, "blockers": blockers})
 	}
 	var parties []any
 	for _, typ := range agentTypes {

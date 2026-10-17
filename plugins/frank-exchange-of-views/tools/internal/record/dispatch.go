@@ -66,7 +66,13 @@ func exchangeCountOf(gapID string, x *GapExchanges) ExchangeCount {
 
 // Plan is what `feov-record dispatch next` computes FROM THE BOARD (plans/roundless.md §III.B.1).
 // The chair relays it; the workflow dispatches what it says; nothing in it is a seat's assertion.
+// The record stores it as printed (recordpb.Plan), and capture compares every relay with that.
 type Plan struct {
+	// Key is the plan's identity: two plans carry one key when they decide the same — every field
+	// but those tagged `key:"-"`, which say when the plan was asked (keyed). The engine's no-progress
+	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
+	// sitting is one key repeating.
+	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch and final_sitting"`
 	// Head is the events.id of the latest blue_edit or base_ingest — the report the parties audit.
 	Head int64 `json:"head" min:"0" desc:"events.id of the report head the parties audit"`
 	// Parties is who to engage; empty is the termination signal, and empty is [], never null.
@@ -107,12 +113,12 @@ type Plan struct {
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
 	MaxEpochs int `json:"max_epochs" min:"0" desc:"the run's epoch limit, a term setup records; 0 when the run is held to none"`
 	// Epoch is the epoch the record has reached: the chair sittings opened so far, this one included.
-	Epoch int `json:"epoch" min:"0" desc:"the epoch the record has reached: the chair sittings opened so far, this one included"`
+	Epoch int `json:"epoch" key:"-" min:"0" desc:"the epoch the record has reached: the chair sittings opened so far, this one included"`
 	// FinalSitting: this chair sitting opens the run's last epoch (isFinalEpoch), whoever the board
 	// readies. No seat is dispatched after it, so of the motions filed in it only a petition is heard
 	// in time to change how the run ends — by the bench at the exit — and `motion … file` refuses the
 	// others there (HeardInTime).
-	FinalSitting bool `json:"final_sitting" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
+	FinalSitting bool `json:"final_sitting" key:"-" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
 	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
 	// is not at the limit: it ends as any empty plan does.
@@ -188,7 +194,7 @@ func planFrom(r planReads, files runFiles) (Plan, error) {
 	if err != nil {
 		return emptyPlan(), err
 	}
-	plan := foldPlan(params, r)
+	plan := keyed(foldPlan(params, r))
 	if err := relayable(plan); err != nil {
 		return emptyPlan(), err
 	}
@@ -503,121 +509,6 @@ func HeardInTime(subj recordpb.MotionSubject) Guard {
 	})
 }
 
-// PlanFacts is what the record holds, at one point of its stream, of the plan fields no dispatch
-// row carries. Capture asks for it at the end of each chair sitting that relayed a plan and holds
-// the relay to it (capture.DispatchParityAudit).
-type PlanFacts struct {
-	// Blockers is the gate's list at the point, for the kinds a relay is held to (RelayBlockersOf).
-	Blockers []PlanBlocker
-	// Docketed is the gaps open at the point whose unruled docket motion the chair filed in the
-	// sitting it had open there — the plan's Docket, by the predicate the plan reads
-	// (docketedThisSitting).
-	Docketed []string
-	// MaxEpochs is the run's epoch limit, a term of the run.
-	MaxEpochs int
-	exchanges map[string]*GapExchanges
-	// directions is each remanded gap's research direction at the point: the direction of its latest
-	// remand written at or before it, in events.id order — the gap view's docket_direction, which
-	// the plan's remand_owed quotes, asked of the record as it stood there.
-	directions map[string]string
-}
-
-// ExchangesOn is the gap's entry as a plan computed at the point relays it (exchangeCountOf).
-func (f PlanFacts) ExchangesOn(gapID string) ExchangeCount {
-	return exchangeCountOf(gapID, f.exchanges[gapID])
-}
-
-// RemandDirection is the research direction the gap's latest remand states at the point, and false
-// where no remand on the gap was written by then.
-func (f PlanFacts) RemandDirection(gapID string) (string, bool) {
-	d, ok := f.directions[gapID]
-	return d, ok
-}
-
-// PlanFactsReader answers PlanFacts at any point of one record's stream.
-type PlanFactsReader struct {
-	evs      []*Event
-	ids      []int64
-	win      WindowIndex
-	params   Params
-	closedAt map[string]int64
-	remands  map[string][]remandRow
-}
-
-// PlanFactsOf reads what PlanFacts needs beyond the stream: the run's terms, where each closed gap
-// FIRST closed — the events.id of the earliest standing closing act of either arm, read from
-// closure_act itself — and every remand with its direction, off the "remand" view. EARLIEST here,
-// where the gap view states the LAST: the question is from which point of the stream the gap reads
-// closed, and a later carry or ruling restates a closure the gap already had.
-func PlanFactsOf(run Run, evs []*Event, win WindowIndex) (PlanFactsReader, error) {
-	r := PlanFactsReader{evs: evs, ids: win.IDs(evs), win: win, closedAt: map[string]int64{}}
-	var err error
-	if r.params, err = RunParams(run); err != nil {
-		return r, err
-	}
-	err = readSnapshot(run, func(q recordsql.Querier) error {
-		if noRecord(q) {
-			return nil
-		}
-		var err error
-		if r.remands, err = remandRulingsOf(q); err != nil {
-			return err
-		}
-		rows, err := q.Query(`SELECT c."gap_id", MIN(c."event_id") FROM "closure_act" c GROUP BY c."gap_id"`)
-		if err != nil {
-			return fmt.Errorf("asking the record where each closed gap closed: %w", err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var g string
-			var at int64
-			if err := rows.Scan(&g, &at); err != nil {
-				return err
-			}
-			r.closedAt[g] = at
-		}
-		return rows.Err()
-	})
-	return r, err
-}
-
-// At is the facts as the record stood with its first `end` events written. Every fold is handed
-// that prefix, so nothing written after it — a later epoch's inquiry review, a ruling, a sitting —
-// is in the answer.
-func (r PlanFactsReader) At(end int) PlanFacts {
-	evs, ids := r.evs[:end], r.ids[:end]
-	f := PlanFacts{
-		Blockers:   RelayBlockersOf(evs, r.win),
-		MaxEpochs:  r.params.MaxEpochs,
-		exchanges:  exchangeFold(evs, ids, r.win, WhileRunning),
-		directions: map[string]string{},
-	}
-	if end == 0 {
-		return f
-	}
-	at := ids[end-1]
-	for g, rows := range r.remands {
-		for _, rr := range rows { // in events.id order: the last written by the point stands
-			if rr.eventID <= at {
-				f.directions[g] = rr.direction
-			}
-		}
-	}
-	_, openings := dispatchLedger(evs, ids, r.win)
-	for _, m := range motionsAt(evs, ids, r.win) {
-		if m == nil || m.Ruled() || m.GapID == "" || m.Subject != "docket" {
-			continue
-		}
-		if closed, ok := r.closedAt[m.GapID]; ok && closed <= at {
-			continue
-		}
-		if docketedThisSitting(evs, ids, openings[chairSeat], m.filed) && !slices.Contains(f.Docketed, m.GapID) {
-			f.Docketed = append(f.Docketed, m.GapID)
-		}
-	}
-	return f
-}
-
 // epochLimitHeldTheBench reports whether the chair sitting that opened the run's last epoch left
 // the bench ready for a motion the bench has ruled since — the epoch limit, read after the exit.
 //
@@ -674,9 +565,6 @@ type dispatchRow struct {
 	gaps    []string
 	// occasions is what a bench row convened the bench for; empty on every other seat's row.
 	occasions []recordpb.Occasion
-	// remandOwed is the gaps whose remand exchange the row readies; empty but on blue's row and a
-	// lens's.
-	remandOwed []string
 }
 
 // dispatchLedger reads the stream once for what "did this seat sit" is decided from: every
@@ -702,7 +590,7 @@ func dispatchLedger(evs []*Event, seq []int64, win WindowIndex) ([]dispatchRow, 
 			openings[seat] = append(openings[seat], seq[i])
 		}
 		if b, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
-			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions(), remandOwed: b.GetRemandOwed()})
+			ds = append(ds, dispatchRow{at: seq[i], pin: b.GetPin(), seat: b.GetSeatId(), gaps: b.GetGapIds(), occasions: b.GetOccasions()})
 		}
 	}
 	return ds, openings
@@ -921,9 +809,8 @@ type DispatchGroup struct {
 	// its sitting for each occasion the row convened it for, the latest of them (benchRowSitting).
 	// A party absent here has not sat.
 	Sat map[string]int
-	// PartyRows is each party's LAST row in the group — the row Sat reads, and the one a relayed
-	// plan is compared against: a plan that files a docket, or one that changed since the chair
-	// asked, is never standing, so a chair that asks twice can leave two rows for one party, and
+	// PartyRows is each party's LAST row in the group — the row Sat reads: a plan that files a
+	// docket is never standing, so a chair that asks twice can leave two rows for one party, and
 	// the later is the dispatch.
 	PartyRows map[string]PartyRow
 	rows      []dispatchRow
@@ -935,11 +822,8 @@ type PartyRow struct {
 	Pin    int64
 	GapIDs []string
 	// Occasions is what the row convened the bench for, in the enum's words; empty for every other
-	// seat. Capture holds the relayed plan's `occasions` to it, and the bench's registers of each.
+	// seat. Capture holds the bench's registers of each to it.
 	Occasions []string
-	// RemandOwed is the gaps whose remand exchange the row readies. Capture holds the relayed plan's
-	// `remand_owed` gaps to the group's rows.
-	RemandOwed []string
 }
 
 // DispatchGroups is the record's dispatches, grouped as DispatchGroup says, in stream order.
@@ -974,8 +858,7 @@ func DispatchGroups(evs []*Event, win WindowIndex) []DispatchGroup {
 			last[d.seat] = d
 		}
 		for p, d := range last {
-			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions),
-				RemandOwed: append([]string{}, d.remandOwed...)}
+			g.PartyRows[p] = PartyRow{Pin: d.pin, GapIDs: append([]string{}, d.gaps...), Occasions: wordsOf(d.occasions)}
 			if r, ok := benchRowSitting(openings[p], on, d); ok {
 				g.Sat[p] = int(r)
 			}
@@ -1222,32 +1105,6 @@ func requireDispatchOccasions(b *recordpb.Dispatch) error {
 	}
 	if docket, gaps := seen[recordpb.Occasion_OCCASION_DOCKET], len(b.GetGapIds()) > 0; docket != gaps {
 		return fmt.Errorf("a docket sitting is the bench engaged on gaps, and this row has %s with %d gap(s)", strings.Join(wordsOf(occ), ", "), len(b.GetGapIds()))
-	}
-	return nil
-}
-
-// requireDispatchRemand refuses a dispatch row whose remand_owed disagrees with the row, at the
-// write. A remand's one more exchange is between the gap's minting lens and blue, so only blue's
-// row and a lens's carry one, and each gap it names is one the row engages the seat on. Which lens
-// minted the gap is not asked here: the row is checked against itself, and DispatchNext writes the
-// field from the plan that engaged the minter (TestTheRemandOwedIsRecordedOnTheRowsTheRemandReadies).
-func requireDispatchRemand(b *recordpb.Dispatch) error {
-	owed := b.GetRemandOwed()
-	if len(owed) == 0 {
-		return nil
-	}
-	if seat := b.GetSeatId(); seat != blueRespondSeat && seatclass.RoleOfSeat(seat) != "lens" {
-		return fmt.Errorf("%q is owed no remand exchange; a remand's one more exchange is between the gap's minting lens and %s", seat, blueRespondSeat)
-	}
-	seen := map[string]bool{}
-	for _, g := range owed {
-		if !slices.Contains(b.GetGapIds(), g) {
-			return fmt.Errorf("the row is owed a remand exchange on %s and engages its seat on [%s] — a remand exchange is on a gap the row engages", g, strings.Join(b.GetGapIds(), ", "))
-		}
-		if seen[g] {
-			return fmt.Errorf("the row names %s's remand exchange twice", g)
-		}
-		seen[g] = true
 	}
 	return nil
 }

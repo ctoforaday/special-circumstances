@@ -352,8 +352,7 @@ YOUR ARGUMENT IS PART OF EVERY ACT, and the RECORD renders it — your closings 
 // BENCH_PARTY_OCCASIONS, and a lens's or blue's carries none. AN EMPTY `occasions` ON A LENS OR
 // BLUE IS NOTHING: the verb omits the field for them, the record's dispatch row holds a repeated
 // field with no presence — empty and absent are one state there — and nothing routes on it. Both
-// shapes accept it; neither accepts a word in it. KEYED_BLOCKER_KINDS is the blocker kinds
-// capture holds a relayed plan to the record on (record.RelayBlockerKinds). EVERY OBJECT OF THE
+// shapes accept it; neither accepts a word in it. EVERY OBJECT OF THE
 // PLAN IS CLOSED: the verb prints exactly the keys record.Plan declares, so a key it does not is a
 // relay altered on the way. PLAN_EMPTY_ONLY_WITH is each list the record states empty only while a
 // boolean of the plan is true — `blockers`, empty only when a PASS is permitted — and PLAN's
@@ -371,7 +370,6 @@ const DISPOSITION = { type: 'string', enum: ['repaired', 'repaired_with_regressi
 const VERDICT = { type: ['string', 'null'], enum: ['PASS', 'FAIL', null] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
 const BENCH_PARTY_OCCASIONS = ['docket', 'petition']
-const KEYED_BLOCKER_KINDS = ['contradiction', 'reopened', 'no_report', 'unruled_motion']
 const BENCH_PARTY = {
   type: 'object',
   required: ['seat_id', 'gap_ids', 'occasions'],
@@ -394,9 +392,10 @@ const LENS_OR_BLUE_PARTY = {
 }
 const PLAN = {
   type: 'object',
-  required: ['head', 'parties', 'docket', 'remand_owed', 'exchanges', 'pass_permitted', 'stale_areas', 'ceiling', 'max_epochs', 'epoch', 'final_sitting', 'epoch_limit_reached', 'blockers', 'why'],
+  required: ['key', 'head', 'parties', 'docket', 'remand_owed', 'exchanges', 'pass_permitted', 'stale_areas', 'ceiling', 'max_epochs', 'epoch', 'final_sitting', 'epoch_limit_reached', 'blockers', 'why'],
   additionalProperties: false,
   properties: {
+    key: { type: 'string', pattern: '^[0-9a-f]{16}$', description: "the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch and final_sitting" },
     head: { type: 'integer', minimum: 0, description: 'events.id of the report head the parties audit' },
     parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
     docket: { type: 'array', items: { type: 'string' }, description: 'gaps the verb docketed for the bench at this sitting' },
@@ -414,7 +413,7 @@ const PLAN = {
   },
   anyOf: [{ required: ['pass_permitted'], properties: { pass_permitted: { type: 'boolean', enum: [true] } } }, { required: ['blockers'], properties: { blockers: { type: 'array', minItems: 1 } } }],
 }
-const PLAN_FIELD_TYPES = { head: 'integer', parties: 'array', docket: 'array', remand_owed: 'array', exchanges: 'array', pass_permitted: 'boolean', stale_areas: 'array', ceiling: 'boolean', max_epochs: 'integer', epoch: 'integer', final_sitting: 'boolean', epoch_limit_reached: 'boolean', blockers: 'array', why: 'array' }
+const PLAN_FIELD_TYPES = { key: 'string', head: 'integer', parties: 'array', docket: 'array', remand_owed: 'array', exchanges: 'array', pass_permitted: 'boolean', stale_areas: 'array', ceiling: 'boolean', max_epochs: 'integer', epoch: 'integer', final_sitting: 'boolean', epoch_limit_reached: 'boolean', blockers: 'array', why: 'array' }
 const PLAN_EMPTY_ONLY_WITH = { blockers: 'pass_permitted' }
 const PLAN_ITEM_TYPES = {
   parties: { seat_id: 'string', gap_ids: 'array' },
@@ -577,12 +576,10 @@ const BLUE_ENVELOPE = {
 }
 
 // The chair's envelope RELAYS the record (plans/roundless.md §III.B.1): `plan` is the JSON `dispatch next`
-// printed, verbatim — the verb computed it from the board and recorded it; the chair could drop, add or
-// alter any field of it on the way, which is why capture's dispatch-parity audit holds every field this
-// script branches on to the record — the parties, the head and the remand_owed gaps to the dispatch
-// rows, the docket, the remand directions, the exchange counts and the blockers to the record as it
-// stood when the chair's sitting ended — and why
-// requirePlan below type-checks every field read. The
+// printed, verbatim — the verb computed it from the board and stored it as printed; the chair could
+// drop, add or alter any field of it on the way, which is why capture's dispatch-parity audit compares
+// each relayed plan with the plan the record stored, whole, and why requirePlan below type-checks
+// every field read. The
 // verdict is what the chair RECORDED this sitting, if it recorded one. Nothing else the old envelope carried
 // (gaps, closures, dispute responses, citation counts) is here: the record holds them and every seat reads
 // them through the tool.
@@ -944,35 +941,19 @@ if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — a
 // CEILING: no gap reached its limit and no term ran out; the parties were still ready, and the
 // record says so.
 //
-// THE SAME MEANS THE SAME ON EVERY FIELD CAPTURE HOLDS TO THE RECORD, AND ON NO OTHER. The valve
-// stops a run, so it reads only what a chair cannot alter unseen: the head, the parties, the docket,
-// the remand_owed entries, the exchange counts, pass_permitted, ceiling, and the blockers of
-// KEYED_BLOCKER_KINDS — each of which capture's dispatch-parity audit compares at every relayed plan. `why` is prose nothing can
-// recompute, so it is not read: a chair paraphrasing it would keep a stuck run spending, and one
-// copying a stale one would stop a moving run.
+// THE SAME IS THE PLAN'S KEY. The record computes it over the whole plan but the fields that say
+// when it was asked (record.Plan's `key:"-"` tags), and capture compares every relayed plan with
+// the stored one, key included, so the valve reads one field a chair cannot alter unseen. A blocker
+// that changes alone — a motion filed or ruled, a source read — moves the key, and that is movement
+// on the board.
 //
 // THE MARCH IS CARRIED BY `exchanges`. A gap marching to impasse keeps its head and its parties
 // while its exchange count advances — progress the run's terms (k, k-max) bound, which a valve
 // blind to the counts would cut short under any k of 3 or more. A seat that is dispatched and opens
 // no sitting moves no count, so its plan repeats exactly: the loop this valve exists for.
-//
-// KEYED_BLOCKER_KINDS IS THE RECORD'S RELAY-HELD KINDS (record.RelayBlockerKinds), in the generated
-// vocabulary region. Capture's TestThePlanKeyReadsOnlyComparedFields drives this script over every
-// kind of the record's table and fails on a kind the valve keys on that capture does not hold to
-// the record, and on one it holds that the valve does not key on.
 const NO_PROGRESS_EPOCHS = 3
 const partyList = (ps) => ps.map((p) => `${p.seat_id}${p.gap_ids && p.gap_ids.length ? `[${p.gap_ids.join(' ')}]` : ''}`).join(', ')
 const sortedStrings = (xs) => (Array.isArray(xs) ? xs : []).map(String).sort()
-const planKey = (p) => JSON.stringify({
-  head: p.head,
-  parties: p.parties.map((x) => ({ seat_id: String(x.seat_id), gap_ids: sortedStrings(x.gap_ids), occasions: sortedStrings(x.occasions) })).sort((a, b) => (a.seat_id < b.seat_id ? -1 : a.seat_id > b.seat_id ? 1 : 0)),
-  docket: sortedStrings(p.docket),
-  remand_owed: p.remand_owed.map((o) => `${o.gap_id}|${o.direction}`).sort(),
-  exchanges: p.exchanges.map((x) => `${x.gap_id}|${x.count}|${x.unresolved}`).sort(),
-  blockers: p.blockers.filter((b) => KEYED_BLOCKER_KINDS.includes(b.kind)).map((b) => `${b.kind}|${b.subject}|${b.owner}`).sort(),
-  pass_permitted: !!p.pass_permitted,
-  ceiling: !!p.ceiling,
-})
 let samePlan = { key: null, epochs: 0 }
 let noProgress = null // { epochs, head, parties } when the valve stopped the debate
 let epoch = 0
@@ -1009,7 +990,7 @@ THE ORIGINATOR CLOSES, AND LINEAGE IS NEVER DROPPED. A gap you minted is yours f
 // chair relays it; the verdict, the closings, the spot-check, the rulings on blue's motions and
 // on its inquiries, and the review of the inquiries, are what only the chair does.
 const chairPrompt = () => `Red chair, topic "${topic}". You RUN the debate: you mint nothing and you close nothing — a gap belongs to the lens that minted it from mint to close — and you are the seat that decides whether this report has been verified.${recordClause('red-chair')}${speedClause}${reliefFor('red')}${lawClause}
-FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises, the evidence lens for a citation or proof unchecked since its sentence changed. Relay the plan object it prints, copied whole, VERBATIM as \`plan\` in your envelope; the workflow dispatches what the record says and capture audits your relay against it, so anything you drop, add or alter — a blocker, a remand_owed, a pass_permitted or a ceiling included — fails capture's dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded, or the run is at its epoch limit.
+FIRST, EVERY SITTING, ASK THE RECORD WHO SITS — the dispatch. It reads the board and RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past, the lens and blue of every open material gap below its limits, the bench for every gap at impasse (it dockets those itself), and the seat that owes a blocker another seat must clear — the bench for a petition, the lens that read a contradicting source no finding raises, the evidence lens for a citation or proof unchecked since its sentence changed. Relay the plan object it prints, copied whole, VERBATIM as \`plan\` in your envelope; the record stores that plan and the workflow dispatches what it says, and capture compares your relay with the stored plan, so anything you drop, add or alter fails capture's dispatch-parity audit. ASK AGAIN AS YOUR LAST ACT when you have filed or ruled a motion since you asked, and relay THAT plan. Empty is the record's word that the run is over: with pass_permitted nothing another seat must clear holds a PASS; with ceiling every open material gap is at its limit, ruled and remanded, or the run is at its epoch limit.
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. When the plan says pass_permitted, clear what your work list still marks blocking — those items are yours — then decide: record a PASS verdict if you agree the report is verified, or a FAIL if the board as it stands still stops you, which it does until it converges: nothing material open, no material gap minted this epoch, and the open gaps weighing a small fraction of the run's peak. Otherwise record no verdict this sitting. Your recorded verdict is the ONE fact the run's outcome is derived from.
 AT final_sitting NOBODY SITS AFTER YOU: decide on the board as it is, and argue to the bench in your position.
 VOTE EVERY INQUIRY THIS SITTING, ON ONE READ: read the report ONCE and answer every inquiry against that pass, the way anyone checks a document against a list — not once per inquiry, and from THIS read, because the report is rewritten between sittings. RULE ON BLUE'S INQUIRIES: a ruling is an ARGUMENT, not a command — it needs a reason, and blue decides what becomes of the inquiry with that reason in front of it. RULE THE GRADE MOTIONS blue filed: accept and the minting lens owes the regrade; reject and the grade stands — a seat that disagrees with your ruling puts the gap before the bench, so your reason carries the argument.
@@ -1046,11 +1027,11 @@ while (!halted) {
     break
   }
   if (plan.parties.length === 0) break
-  const key = planKey(plan)
+  const key = plan.key
   samePlan = key === samePlan.key ? { key, epochs: samePlan.epochs + 1 } : { key, epochs: 1 }
   if (samePlan.epochs >= NO_PROGRESS_EPOCHS) {
     noProgress = { epochs: samePlan.epochs, head: plan.head, parties: plan.parties.map((p) => ({ seat_id: String(p.seat_id), gap_ids: sortedStrings(p.gap_ids) })) }
-    log(`epoch ${epoch}: NO PROGRESS — the plan is the same for ${samePlan.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${plan.head} — the same parties, docket, exchange counts and standing blockers; stuck: ${partyList(noProgress.parties)} — the debate stops rather than dispatch them again`)
+    log(`epoch ${epoch}: NO PROGRESS — the plan is the same for ${samePlan.epochs} consecutive epochs (NO_PROGRESS_EPOCHS = ${NO_PROGRESS_EPOCHS}) at head ${plan.head} — key ${key}: the same parties, docket, exchange counts and blockers; stuck: ${partyList(noProgress.parties)} — the debate stops rather than dispatch them again`)
     break
   }
 
@@ -1166,7 +1147,7 @@ log(`debate ended: ${verdict} after ${epoch} chair sitting(s)${halted ? ' (JUDIC
 // blockers are the board at the exit: a blocker the bench owns — a motion whose gavel is the
 // bench's — is what this sitting rules. A chair-ruled motion (grade, inquiry) never convenes it: the
 // bench has no ruling verb for one. The plan the chair relays is the one it asked for LAST in its
-// sitting, and capture holds every relayed plan's list to the record at its sitting's end; `bench outcome` refuses
+// sitting, and capture compares every relayed plan with the one the record stored; `bench outcome` refuses
 // while a bench-owned motion stands, so one filed after it is ruled at assembly.
 //
 // A PETITION STANDING HERE IS HEARD HERE, and its ruling and a halt travel as the petition sitting's

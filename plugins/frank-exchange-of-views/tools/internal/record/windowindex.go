@@ -103,10 +103,12 @@ func (x WindowIndex) LatestSittingOf(seat string) int64 {
 
 // CurrentEpoch is the epoch the debate's work has reached: the stored epoch of the last event in
 // evs that is work. A register is not, and neither is anything the harness wrote — its sitting
-// brackets, its tool-call limits, the cast (HarnessSeat on the envelope): a chair that has just sat
-// opens a new epoch on the record, and its hook's own bookkeeping lands in it, but until something
-// is done in it the current one is still the last with work in it — which is what "stale since the
-// current epoch" has to mean for an inquiry pursued in the previous one.
+// brackets, its tool-call limits, the cast (HarnessSeat on the envelope) — nor a stored plan, the
+// record's copy of what `dispatch next` printed: a chair that has just sat opens a new epoch on the
+// record, and its hook's own bookkeeping lands in it, but until something is done in it the current
+// one is still the last with work in it — which is what "stale since the current epoch" has to mean
+// for an inquiry pursued in the previous one. Counted, the plan would move the epoch by being
+// stored, and the plan it stores would be one the record had moved past.
 //
 // The last work act of a narrowed slice is not the record's, so a narrowed index panics here as it
 // does in LatestSittingOf.
@@ -114,7 +116,7 @@ func (x WindowIndex) CurrentEpoch(evs []*Event) int {
 	x.mustBeWhole("the current epoch")
 	cur := 0
 	for _, e := range evs {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER || e.GetSeatId() == HarnessSeat {
+		if t := e.GetType(); t == recordpb.EventType_EVENT_TYPE_REGISTER || t == recordpb.EventType_EVENT_TYPE_PLAN || e.GetSeatId() == HarnessSeat {
 			continue
 		}
 		cur = x.Of(e).Epoch

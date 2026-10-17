@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, keyed, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -191,7 +191,7 @@ test('UNVERIFIED: nobody ready, neither PASS nor CEILING — the plan\'s reasons
   assert.ok(/ended UNVERIFIED/.test(asm) && /the bench has sat since it was filed/.test(asm), 'the reason reaches the stamp')
 })
 
-// ── the no-progress valve: a plan the same on every field capture compares stops the debate ──
+// ── the no-progress valve: a plan whose key repeats stops the debate ──
 //
 // The B5 loop (2026-09-11): the voice lens was readied alone at head 144 for eleven epochs, because
 // it never registered and so never sat. The chair's stub here repeats that plan well past the
@@ -240,25 +240,29 @@ test('a plan that changes keeps going — the head moving, an exchange count adv
   assert.deepEqual([broken.verdict, broken.epochs], ['VERIFIED', 6])
 })
 
-// THE REASONS ARE PROSE, AND THE VALVE DOES NOT READ THEM. Nothing can recompute `why` from the
-// record, so a chair that rewords it each sitting would otherwise keep a stuck run spending: the
-// plan below is the same on every field capture holds to the record, and it stops.
-test('NO PROGRESS: a plan whose reasons alone change is the same plan', async () => {
-  const reworded = [0, 1, 2, 3, 4, 5].map((n) => chairEnv({ plan: plan([party('red-lens-logic', 'G-00000001'), party('blue-respond', 'G-00000001')], { head: 9, why: [`G-00000001: open, material, ${n} exchange(s) (0 stalled) — below its limits`] }) }))
-  const out = await makeWorld(makeResponder({ chair: [...reworded, passChair()] })).run(script, ARGS)
-  assert.deepEqual([out.verdict, out.epochs, out.termination.no_progress && out.termination.no_progress.epochs], ['UNVERIFIED', NO_PROGRESS_EPOCHS, NO_PROGRESS_EPOCHS])
+// THE VALVE READS THE KEY AND NOTHING ELSE. Plans the same in every field but their key are different
+// plans to it, and plans different in every field but their key are one: the key is the record's
+// statement of what the plan decides, and capture holds the relay to the stored plan, key included.
+test('the valve keys on the plan\'s key alone', async () => {
+  const sameKey = [0, 1, 2, 3].map((n) => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144 + n, key: '00000000000000aa' }) }))
+  const stopped = await makeWorld(makeResponder({ chair: [...sameKey, passChair()] })).run(script, ARGS)
+  assert.deepEqual([stopped.verdict, stopped.epochs], ['UNVERIFIED', NO_PROGRESS_EPOCHS])
+  const keys = [0, 1, 2, 3].map((n) => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, key: `00000000000000a${n}` }) }))
+  const moving = await makeWorld(makeResponder({ chair: [...keys, passChair()] })).run(script, ARGS)
+  assert.deepEqual([moving.verdict, moving.epochs], ['VERIFIED', 5])
 })
 
-// A BLOCKER OF A KIND CAPTURE DOES NOT HOLD TO THE RECORD IS NOT READ EITHER; one of a kind it does
-// hold moves the plan.
-test('the valve keys on the blockers capture holds to the record, and on no other kind', async () => {
+// A BLOCKER OF ANY KIND THAT CHANGES MOVES THE PLAN: the record's key covers the whole plan, so a
+// sitting whose only change is what holds the PASS is progress the valve does not cut short.
+test('a plan whose blockers alone change keeps going, whatever their kind', async () => {
   const stuck = (b) => chairEnv({ plan: plan([party('red-lens-voice')], { head: 144, blockers: [b] }) })
-  const unheld = [0, 1, 2, 3].map((n) => stuck(blocker(`G-0000000${n}`, 'red-lens-logic', 'material_gap')))
-  const stopped = await makeWorld(makeResponder({ chair: [...unheld, passChair()] })).run(script, ARGS)
-  assert.deepEqual([stopped.verdict, stopped.epochs], ['UNVERIFIED', NO_PROGRESS_EPOCHS])
-  const held = [0, 1, 2, 3].map((n) => stuck(blocker(`M-0000000${n}`, 'judge')))
-  const moving = await makeWorld(makeResponder({ chair: [...held, passChair()] })).run(script, ARGS)
-  assert.deepEqual([moving.verdict, moving.epochs], ['VERIFIED', 5])
+  for (const changing of [
+    [0, 1, 2, 3].map((n) => stuck(blocker(`G-0000000${n}`, 'red-lens-logic', 'material_gap'))),
+    [0, 1, 2, 3].map((n) => stuck(blocker(`M-0000000${n}`, 'judge'))),
+  ]) {
+    const moving = await makeWorld(makeResponder({ chair: [...changing, passChair()] })).run(script, ARGS)
+    assert.deepEqual([moving.verdict, moving.epochs], ['VERIFIED', 5])
+  }
 })
 
 // ── the epoch limit: a run TERM, and the record's word, like the carried ceiling ────────────
@@ -1073,7 +1077,7 @@ const relayEnds = async (env) => {
 // m16 (2026-10-08): chair sitting 6 relayed a plan it had rebuilt by hand, with `occasions: []` on
 // both lenses and blue. The schema accepted the envelope; the plan check threw on it; the run ended
 // there, 42 minutes in. The envelope below is that sitting's plan, verdict and notes, off its transcript.
-// `exchanges` is the one field written into it here: the plan carries an entry per engaged gap, and
+// `exchanges` and the key are the fields written into it here: the plan carries an entry per engaged gap, and
 // the sitting's transcript states no count for any of the four. The rebuilt plan also dropped every
 // blocker, and a plan that permits no PASS names what holds it, so the schema refuses that relay
 // now; the empty occasions lists are accepted once its blockers stand.
@@ -1082,7 +1086,7 @@ test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and
   assert.deepEqual(relayed.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
   assert.deepEqual([relayed.plan.blockers, relayed.plan.pass_permitted], [[], false], 'the fixture dropped every blocker')
   assert.ok(!schemaAccepts(await chairSchema(), relayed), 'the schema refuses a plan that permits no PASS and names nothing holding it')
-  const env = { ...relayed, plan: { ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) } }
+  const env = { ...relayed, plan: keyed({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }) }
   assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the empty occasions lists')
   const { world, out } = await relayEnds(env)
   assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),

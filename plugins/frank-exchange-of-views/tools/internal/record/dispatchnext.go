@@ -3,7 +3,6 @@ package record
 import (
 	"database/sql"
 	"fmt"
-	"slices"
 
 	"google.golang.org/protobuf/proto"
 
@@ -13,8 +12,9 @@ import (
 
 // DispatchNext is `dispatch next`'s whole act, in ONE write transaction: the chair's sitting is
 // checked, the plan is folded, a plan already standing is answered with nothing written, the docket
-// motions at impasse are filed, the blockers are read again with them on the record, and one dispatch
-// row per party is written. standing says the plan was already the record's decision.
+// motions at impasse are filed, the blockers are read again with them on the record, one dispatch
+// row per party is written where the rows do not already stand, and the plan is stored as printed.
+// standing says the plan was already the record's decision.
 //
 // ONE TRANSACTION, BECAUSE THE ROWS ARE THE PLAN'S AND THE PLAN IS THE RECORD'S. Folded on one read
 // and written on later ones, the rows record a decision no state of the record yields: a lens's close
@@ -64,12 +64,16 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 	if plan, err = planFrom(r, files); err != nil {
 		return emptyPlan(), false, err
 	}
-	// ASKED AGAIN, NOTHING NEW IS RECORDED. The same plan, with nobody sat since it was written, is
+	// ASKED AGAIN, NOTHING NEW IS RECORDED. The same plan, with nobody sat since it was stored, is
 	// the decision already on the record; writing it again doubles the rows every reader of "who was
-	// dispatched" counts.
-	if dispatchStands(evs, win, plan) {
+	// dispatched" counts. A plan that files a docket is never standing: the filing is new.
+	if len(plan.ToFile) == 0 && planStands(evs, win, plan.Printed()) {
 		return plan, true, nil
 	}
+	// A PLAN THAT CHANGED ONLY IN WHAT HOLDS THE PASS — a motion filed or ruled since the chair
+	// asked — engages the parties its rows already engage: those rows stand, and only the plan is
+	// stored again.
+	rowsStand := dispatchStands(evs, win, plan)
 	write := func(body proto.Message) error {
 		ev := &Event{}
 		typ, err := recordpb.SetBody(ev, body)
@@ -93,23 +97,14 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 			return emptyPlan(), false, fmt.Errorf("docketing %s at impasse: %w", g, err)
 		}
 	}
-	// THE BLOCKERS RETURNED ARE THE GATE'S LIST AS THE RECORD STANDS ONCE THE DOCKET IS FILED. The
-	// plan above was folded before the filing, so its list lacks the motions just written, each an
-	// unruled motion whose gavel is the bench's. The workflow convenes the terminal bench off the
-	// relayed blockers and capture holds them to the record at the end of this sitting: a chair
-	// relaying the list folded before the filing would relay one the record had already moved past,
-	// by the verb's own act.
-	if len(plan.ToFile) > 0 {
-		filed, err := planAt(tx, files)
-		if err != nil {
-			return emptyPlan(), false, err
-		}
-		plan.Blockers = filed.Blockers
-	}
+	wrote := len(plan.ToFile) > 0
 	for _, p := range plan.Parties {
-		// THE OCCASIONS ARE RECORDED, NOT ONLY PRINTED: the workflow routes the bench on the plan's
-		// copy, and a copy with nothing on the record to hold it to could be dropped or altered in
-		// the relay unseen. Capture compares the two.
+		if rowsStand {
+			break
+		}
+		wrote = true
+		// THE OCCASIONS ARE ON THE ROW: the bench's sitting for each is the one whose register states
+		// it, and capture holds the bench's registers to the row.
 		var occasions []recordpb.Occasion
 		for _, w := range p.Occasions {
 			o, ok := OccasionOf(w)
@@ -120,33 +115,34 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		}
 		if err := write(&recordpb.Dispatch{
 			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occasions,
-			RemandOwed: remandOwedOn(plan, p),
 		}); err != nil {
 			return emptyPlan(), false, err
 		}
+	}
+	// THE BLOCKERS RETURNED, AND THE REASONS THAT STATE THEM, ARE THE RECORD'S ONCE THE VERB HAS
+	// WRITTEN. The plan above was folded before its docket motions and its rows: its list lacks the
+	// motions just filed, each an unruled motion whose gavel is the bench's, and the chair's inquiry
+	// review falls due in the epoch its rows are the first work of. The workflow convenes the
+	// terminal bench off the relayed blockers, and the plan asked again in the sitting is folded on
+	// the record with them: a plan stored with the list folded before would be one the record had
+	// already moved past, by the verb's own act, and asked again it would never stand.
+	if wrote {
+		after, err := planAt(tx, files)
+		if err != nil {
+			return emptyPlan(), false, err
+		}
+		plan.Blockers, plan.Why = after.Blockers, after.Why
+		plan = keyed(plan)
+	}
+	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the workflow reads the
+	// chair's copy of it and nothing else, and capture compares every relayed plan with this one.
+	if err := write(&recordpb.Plan{Printed: proto.String(plan.Printed())}); err != nil {
+		return emptyPlan(), false, fmt.Errorf("storing the plan: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return emptyPlan(), false, err
 	}
 	return plan, false, nil
-}
-
-// remandOwedOn is the gaps of plan.RemandOwed whose exchange party p's row readies: those it is
-// engaged on, on blue's row and a lens's. A remand-owed gap engages exactly its minting lens and
-// blue (foldPlan's routeRemandOwed), so the gap is recorded on both rows and on no other. THE ROWS
-// RECORD IT, NOT ONLY THE PRINT: the workflow tells blue the remand's duty and quotes its direction
-// off the plan's copy, and capture holds that copy to these rows.
-func remandOwedOn(plan Plan, p Party) []string {
-	if SeatOwesOccasion(p.SeatID) {
-		return nil
-	}
-	var out []string
-	for _, o := range plan.RemandOwed {
-		if slices.Contains(p.GapIDs, o.GapID) {
-			out = append(out, o.GapID)
-		}
-	}
-	return out
 }
 
 // planAt is PlanDispatch asked of q, the writing transaction DispatchNext holds.

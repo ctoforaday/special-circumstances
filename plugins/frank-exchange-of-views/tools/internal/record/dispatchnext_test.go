@@ -23,7 +23,7 @@ func atImpasse(t *testing.T) Run {
 }
 
 // askedElsewhere is what another asking of `dispatch next` on run writes for plan: the docket motion
-// for each gap it files at impasse, and its rows.
+// for each gap it files at impasse, and its rows. elsewhere adds the plan it stores.
 func askedElsewhere(t *testing.T, plan Plan) []*Event {
 	var acts []*Event
 	for _, g := range plan.ToFile {
@@ -39,6 +39,19 @@ func askedElsewhere(t *testing.T, plan Plan) []*Event {
 			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occ}))
 	}
 	return acts
+}
+
+// elsewhere is everything the other asking writes on a run staged by stage: its motions and rows,
+// then the plan as it printed it — the plan of the record they landed on.
+func elsewhere(t *testing.T, stage func(*testing.T) Run, plan Plan) []*Event {
+	acts := askedElsewhere(t, plan)
+	landed := stage(t)
+	recordtest.Seed(t, landed.Dir(), acts...)
+	printed, err := PlanDispatch(landed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append(acts, recordtest.At(t, "red-chair", "race:plan", &recordpb.Plan{Printed: proto.String(printed.Printed())}))
 }
 
 // recorded counts the docket motions on gap and the dispatch rows on run's record.
@@ -83,14 +96,14 @@ func TestTwoAskingsOfDispatchNextRecordOneDecision(t *testing.T) {
 	}
 
 	after := atImpasse(t)
-	recordtest.Seed(t, after.Dir(), askedElsewhere(t, plan)...)
+	recordtest.Seed(t, after.Dir(), elsewhere(t, atImpasse, plan)...)
 	if _, standing, err := DispatchNext(chair(after)); err != nil || !standing {
 		t.Fatalf("fixture: asked after the other asking = standing %v, %v — want the plan standing", standing, err)
 	}
 
 	raced := atImpasse(t)
 	var standing bool
-	if err := overtaken(t, raced, askedElsewhere(t, plan), func() error {
+	if err := overtaken(t, raced, elsewhere(t, atImpasse, plan), func() error {
 		var err error
 		_, standing, err = DispatchNext(chair(raced))
 		return err
