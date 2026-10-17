@@ -10,6 +10,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/debatejs"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -51,6 +53,11 @@ func relayed(t *testing.T, p record.Plan) map[string]any {
 // sitting printed — the chair's faithful relay, sitting by sitting. With petition set, a petition is
 // filed in the first sitting after the chair asked, and the chair asks again.
 func storedRun(t *testing.T, sittings int, petition bool) (record.Run, []record.Plan) {
+	return dispatchedRun(t, sittings, petition, true)
+}
+
+// dispatchedRun is storedRun, with the parties sitting or never sitting.
+func dispatchedRun(t *testing.T, sittings int, petition, sit bool) (record.Run, []record.Plan) {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
 	n := 0
@@ -77,6 +84,9 @@ func storedRun(t *testing.T, sittings int, petition bool) (record.Run, []record.
 		}
 		plans = append(plans, p)
 		for _, party := range p.Parties {
+			if !sit {
+				break
+			}
 			if len(party.Occasions) == 0 {
 				seed(party.SeatID, &recordpb.Register{})
 			}
@@ -212,4 +222,44 @@ func mustEvents(t *testing.T, run record.Run) []*record.Event {
 		t.Fatal(err)
 	}
 	return fam.Events
+}
+
+// THE ENGINE'S VALVE AND THIS AUDIT READ ONE PLAN. Parties the record dispatches and that never sit
+// leave the board as it was, so the record stores the same plan sitting after sitting — the same key,
+// the epoch apart — and the engine, handed those relays, stops at the third. The audit holds each
+// relay to the stored plan by equality, so the key the valve reads is the record's.
+func TestTheValveStopsOnTheKeyTheRecordRepeats(t *testing.T) {
+	run, plans := dispatchedRun(t, 3, false, false)
+	if plans[0].Key != plans[1].Key || plans[1].Key != plans[2].Key || len(plans[0].Parties) == 0 {
+		t.Fatalf("fixture: keys %s %s %s over %d parties; want one key, readying parties", plans[0].Key, plans[1].Key, plans[2].Key, len(plans[0].Parties))
+	}
+	var js []map[string]any
+	for _, p := range plans {
+		js = append(js, relayed(t, p))
+	}
+	if a := DispatchParityAudit(run, journalOf(t, js...), true); strings.Contains(a.Detail, "departs") {
+		t.Fatalf("a faithful relay of the stuck plans departs: %s", a.Detail)
+	}
+	chair := 0
+	backend := func(seatID, label, prompt string) debatejs.Envelope {
+		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
+			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
+		if seatID == "red-chair" {
+			chair++
+			e["plan"] = js[min(chair, len(js))-1]["plan"]
+		}
+		return e
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, out, err := debatejs.CaptureRun(debatejs.ScriptPath(filepath.Join(wd, "..", "..")), debatejs.Config{Topic: "t", RunDir: t.TempDir(), BinDir: t.TempDir(),
+		Lanes: 1, Model: "haiku", JudgmentModel: "haiku", Backend: backend})
+	if err != nil {
+		t.Fatalf("driving debate.js: %v", err)
+	}
+	if out.Epochs != 3 || out.Verdict != "UNVERIFIED" {
+		t.Fatalf("the engine ran %d chair sitting(s) to %s on one key repeating; want UNVERIFIED at the third", out.Epochs, out.Verdict)
+	}
 }
