@@ -4994,11 +4994,12 @@ type Retire struct {
 	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
 	// counter still counted, which let a retire credit a claim that had never left the count.
 	//
-	// Filled only when the retired claim IS the whole of a recorded edit's old span (across the
-	// anchor layer, modulo surrounding whitespace, emphasis and trailing punctuation — a fragment
-	// names nothing) and that edit's new text was anchors alone, and only with anchors that are
-	// present AND bare in the report at the write — so an anchor carried on into surviving prose can
-	// never be named. An anchor of every kind leaves alike. Each named c- anchor is one counted claim
+	// Filled with the anchors that stood on the retired claim in the edit that took it out — the
+	// claim being the whole of that edit's old span or a run of its whole sentences, across the anchor
+	// layer, modulo surrounding whitespace, emphasis and trailing punctuation (a fragment names
+	// nothing): each that is present AND bare in the report at the write, and each the seat names
+	// that the edit carried onto surviving prose and no later edit put back into prose. An anchor of
+	// every kind leaves alike. Each named c- anchor is one counted claim
 	// leaving the report. Replay removes each named anchor at
 	// this event's position (the report_op view's `remove` rows). A record written before this field
 	// carries none, and replays exactly as it did.
@@ -5876,12 +5877,14 @@ type Register struct {
 	// firing hook always carries a value; an absent field means a hook that predates this or no
 	// hook at all — and `run_via` already says which of those two it was.
 	HookVersion *string `protobuf:"bytes,7,opt,name=hook_version,json=hookVersion,proto3,oneof" json:"hook_version,omitempty"`
-	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
+	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, AS THE SEAT STATES IT.
 	//
-	// register is every seat's stated first action, which makes it the one moment the mapping is
-	// knowable: the hook supplies the agent id — the only payload field that discriminates one
-	// seat from another — and the seat supplies which seat it is. Recording their join is what
-	// turns self-asserted identity into a fact later calls can be held to.
+	// register is every seat's stated first action: the hook supplies the agent id — the only
+	// payload field that discriminates one seat from another — and the seat supplies which seat it
+	// is. Recording their join is what turns self-asserted identity into a fact later calls can be
+	// held to. The latest register naming an agent decides its seat; an agent no register names is
+	// bound by its latest hook bracket where that bracket names a seat (SittingOpen.seat_id) — the
+	// record's agent_binding view states the rule.
 	//
 	// A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat id
 	// recovered by parsing the seat's own command — a fact read back out of prose, whose miss is
@@ -6028,8 +6031,9 @@ type SittingOpen struct {
 	// agent_id IS THE ONLY THING THIS END CAN NAME. SubagentStart carries the harness handle and
 	// the agent configuration and NOTHING workflow-supplied (#290, measured 2026-08-23) — the
 	// dispatcher's own seat id does not reach it, and no probe sentinel appears in the payload. So
-	// the seat is resolved LATER, by joining this handle to the register event that names it, which
-	// is the same join record.SeatOfAgent already does.
+	// the writer resolves the seat from the configuration where it seats exactly one (seat_id
+	// below); where it seats several, the seat is the one the agent's register names — the record's
+	// agent_binding view joins this handle to that register.
 	//
 	// That is why the envelope's seat_id on this event is the hook's own origin and not a seat: an
 	// id invented here to look seat-shaped would be a guess written into a permanent record.
@@ -6403,7 +6407,13 @@ type Dispatch struct {
 	// is asked, so the row says it — the workflow routes the bench on the plan's copy, capture holds
 	// that copy to this one, and the bench's sitting for each is the one whose register states the
 	// same occasion. Required on a bench row and refused on any other seat's, at the write.
-	Occasions     []Occasion `protobuf:"varint,4,rep,packed,name=occasions,proto3,enum=feov.record.v1.Occasion" json:"occasions,omitempty"`
+	Occasions []Occasion `protobuf:"varint,4,rep,packed,name=occasions,proto3,enum=feov.record.v1.Occasion" json:"occasions,omitempty"`
+	// remand_owed is the gaps whose remand exchange this row readies: the one more exchange the
+	// bench's remand grants a gap at impasse, between its minting lens and blue. The workflow tells
+	// blue the remand's duty and its research direction off the plan's copy, so the row records which
+	// gaps it was told them for and capture holds that copy to this one. Each is among the row's
+	// gap_ids, and only blue's row and a lens's carry any — refused otherwise, at the write.
+	RemandOwed    []string `protobuf:"bytes,5,rep,name=remand_owed,json=remandOwed,proto3" json:"remand_owed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6462,6 +6472,13 @@ func (x *Dispatch) GetGapIds() []string {
 func (x *Dispatch) GetOccasions() []Occasion {
 	if x != nil {
 		return x.Occasions
+	}
+	return nil
+}
+
+func (x *Dispatch) GetRemandOwed() []string {
+	if x != nil {
+		return x.RemandOwed
 	}
 	return nil
 }
@@ -7610,12 +7627,14 @@ const file_record_proto_rawDesc = "" +
 	"\x06_limit\"E\n" +
 	"\x04Cast\x12\x19\n" +
 	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\x12\"\n" +
-	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xa1\x03\n" +
+	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xc2\x03\n" +
 	"\bDispatch\x12\xce\x01\n" +
 	"\x03pin\x18\x01 \x01(\x03B\xb6\x01\x82\xb5\x18\xb1\x01\b\x01\x1a\xac\x01the events.id of the report head this party audits — the text it anchors to, reconstructible from the record; a dispatch with no pin is a dispatch against a moving targetH\x00R\x03pin\x88\x01\x01\x12_\n" +
 	"\aseat_id\x18\x02 \x01(\tBA\x82\xb5\x18=\b\x01\x12\x04seat\x1a3the party engaged; refused unless it is in the castH\x01R\x06seatId\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x03 \x03(\tR\x06gapIds\x126\n" +
-	"\toccasions\x18\x04 \x03(\x0e2\x18.feov.record.v1.OccasionR\toccasionsB\x06\n" +
+	"\toccasions\x18\x04 \x03(\x0e2\x18.feov.record.v1.OccasionR\toccasions\x12\x1f\n" +
+	"\vremand_owed\x18\x05 \x03(\tR\n" +
+	"remandOwedB\x06\n" +
 	"\x04_pinB\n" +
 	"\n" +
 	"\b_seat_id\"\x87\x01\n" +

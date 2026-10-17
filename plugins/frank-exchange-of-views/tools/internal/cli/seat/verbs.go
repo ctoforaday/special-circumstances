@@ -81,8 +81,8 @@ func register(s Context, cmd *cobra.Command) (Result, error) {
 	}
 	// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
 	//
-	// register is where the agent->seat binding is written, so it is also the first and only
-	// place that can see the binding was never possible. The record already handles this
+	// register is where the seat writes its own agent->seat binding, so it is also the first and
+	// only place the seat can see the binding was never possible. The record already handles this
 	// correctly at the write — absent is recorded as absent — and capture already reports it
 	// hours later. What nothing did was tell the SEAT, while the sitting it affects is still
 	// running.
@@ -608,7 +608,7 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 		// problem this vocabulary bans everywhere else. --format is the flag `graph` already
 		// uses for the same question.
 		if v.name == "board" {
-			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose)")
+			sub.Flags().String(flags.Format, "json", "json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it)")
 		}
 		// READING AT AN ANCHOR, rather than pulling the whole document to check one sentence.
 		// The window is addressed by anchor because a line number is a fact about a rendering —
@@ -622,7 +622,20 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 		// THE NOUN COMES FROM THE VIEW so the help reads in the seat's terms ("only the gaps matching",
 		// "only the edits matching"); `entries` is the honest default for a projection whose rows have
 		// no better word, rather than a name invented per view in a list that would go stale.
-		AddSelectorFlags(sub, selectorNoun(v.name))
+		//
+		// TELEMETRY TAKES NO SELECTOR: it is a series of JSONL lines, one per epoch, with no document
+		// whose arrays hold entries and nowhere to state what a selection kept — so the pair it carried
+		// returned every line for every pattern. Selecting epochs out of a trend is not a read it has.
+		if v.name != "telemetry" {
+			// A MARKDOWN VIEW SELECTS ITS --json FORM, and says so on the line of the flag a seat is
+			// about to type, as the report's page does for its own bounds. Said in the noun, before the
+			// explanation every view's pair closes with, so the manual still lifts that explanation once.
+			what := selectorNoun(v.name)
+			if !v.jsonByName && v.name != "report" {
+				what += markdownSelectorBound
+			}
+			AddSelectorFlags(sub, what)
+		}
 		// --id IS DECLARED ON THE ONE VIEW IT SCOPES. A flag printed on a page is a flag that works
 		// there: declared on the group, it stood in every view's `Global Flags` block beside the
 		// run and the seat, and two lenses in one run typed `show board --id <gap>` off that block.
@@ -673,6 +686,9 @@ func atAnchorShapeSuffix(name string) string {
 // reportSelectorBound closes --match and --quote on the report's page with what each combines
 // with there: the pair is every view's, and only this view has an anchor read and an assembled form.
 const reportSelectorBound = ". Refused beside --anchor. Beside --assembled it selects SECTIONS, and only with --json"
+
+// markdownSelectorBound qualifies what --match and --quote select on a view whose bare form is markdown.
+const markdownSelectorBound = " of the --json form (the bare form is markdown and refuses this flag)"
 
 // assembledShapeSuffix is the field tree of the report view's assembled layout, for the same reason.
 //
@@ -790,8 +806,7 @@ func renderView(cmd *cobra.Command, want string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), string(b))
-			return nil
+			return WriteSelected(cmd, append(b, '\n'))
 		// THE LOG IS NOT A PROJECTION A SEAT OPENS. Its reader is the OPERATOR's `ops log`
 		// (cli/log.go), never a seat view, so no case here names it and the default's message
 		// below does not advertise it.
@@ -842,6 +857,12 @@ func renderView(cmd *cobra.Command, want string) error {
 		case "", "json":
 			// The default arm, below.
 		case "markdown", "md":
+			// THE MARKDOWN HAS NO ENTRIES TO SELECT, as on every markdown form below.
+			if sel, serr := SelectorOf(cmd); serr != nil {
+				return serr
+			} else if sel.Active() {
+				return feov.Errorf(feov.Validation, "--match and --quote select gaps from the JSON form of board; --format %s is markdown and has no entries to select. Drop --format", f)
+			}
 			// One record read for both renders: ledger and archive are two views of the same
 			// family, and each view.Markdown call would fetch it again.
 			in, err := view.InputOf(run)
@@ -1097,19 +1118,32 @@ func renderView(cmd *cobra.Command, want string) error {
 		return RefuseAndTeach(showGroup(cmd), feov.Validation, fmt.Sprintf("unknown view %q — each view is listed with the verb that fills it.", want))
 	}
 
+	// THE MARKDOWN FORM HAS NO ENTRIES TO SELECT. Its bytes went through WriteSelected, which hands
+	// back what it cannot parse as a document, so `--match` on a bare markdown view printed every
+	// entry and exited 0 — the answer a pattern matching all of them gets (universe m26: `show
+	// inquiries --match zzqqxx` returned all six). The pair selects the --json form of these views,
+	// and is refused here by name.
+	if sel, serr := SelectorOf(cmd); serr != nil {
+		return serr
+	} else if sel.Active() {
+		return feov.Errorf(feov.Validation, "--match and --quote select %s from the --json form of %s; the bare form is markdown and has no entries to select. Add --json", selectorNoun(want), want)
+	}
+
 	scope := Str(cmd, flags.ID)
 
 	b, err := view.Markdown(run, want, scope)
 	if err != nil {
 		return err
 	}
-	return WriteSelected(cmd, b)
+	_, werr := cmd.OutOrStdout().Write(b)
+	return werr
 }
 
 // RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
 //
-// There is no role level: the seat is bound at `register`, the tool reads the role from that
-// binding, and the root IS the seat's surface. A lens seat runs `mint`; a chair seat running `mint`
+// There is no role level: the seat is bound on the record (by its register, or by the hook's
+// bracket where the configuration seats one), the tool reads the role from that binding, and the
+// root IS the seat's surface. A lens seat runs `mint`; a chair seat running `mint`
 // is told the verb is the lens seat's — the boundary drawn by the only fact that decides it.
 //
 // The seat types no word the tool can already look up: its role is read from its registered seat
@@ -1243,7 +1277,20 @@ func inquestGroup() *cobra.Command {
 		// `show` loop, so a flag added there reaches only half the views — which is how `--match` and
 		// The literal selector reached `show board` and not `inquest motions`, in the very change
 		// that was meant to stop behaviour being built twice. Both builders call the same helper now.
-		AddSelectorFlags(sub, selectorNoun(v.name))
+		//
+		// TELEMETRY TAKES NO SELECTOR: it is a series of JSONL lines, one per epoch, with no document
+		// whose arrays hold entries and nowhere to state what a selection kept — so the pair it carried
+		// returned every line for every pattern. Selecting epochs out of a trend is not a read it has.
+		if v.name != "telemetry" {
+			// A MARKDOWN VIEW SELECTS ITS --json FORM, and says so on the line of the flag a seat is
+			// about to type, as the report's page does for its own bounds. Said in the noun, before the
+			// explanation every view's pair closes with, so the manual still lifts that explanation once.
+			what := selectorNoun(v.name)
+			if !v.jsonByName && v.name != "report" {
+				what += markdownSelectorBound
+			}
+			AddSelectorFlags(sub, what)
+		}
 		c.AddCommand(sub)
 	}
 	return c

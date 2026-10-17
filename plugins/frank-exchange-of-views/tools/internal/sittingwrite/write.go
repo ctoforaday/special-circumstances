@@ -36,8 +36,9 @@ import (
 // SubagentStart carries the harness handle and the agent configuration and nothing the workflow
 // supplied (#290, measured 2026-08-23), so the dispatching harness does not know which seat it
 // just started. Inventing a seat-shaped id here would be a guess written into a permanent record;
-// naming the origin is the honest alternative, and the seat is recovered by joining agent_id to
-// the register event that names it — the join record.SeatOfAgent already does.
+// naming the origin is the honest alternative: the writer puts the seat on the bracket body where
+// the configuration seats exactly one, and otherwise the seat is recovered by joining agent_id to
+// the register that names it — the record's agent_binding view.
 const HookSeat = record.HarnessSeat
 
 // Phase names which end of the span is being written.

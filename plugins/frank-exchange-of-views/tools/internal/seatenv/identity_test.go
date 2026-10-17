@@ -2,7 +2,7 @@ package seatenv
 
 import "testing"
 
-// bound is the resolver a caller supplies: which seat this agent registered as. Nothing sets an
+// bound is the resolver a caller supplies: which seat the record binds this agent to. Nothing sets an
 // environment variable for it any more — FEOV_SEAT had readers and no writer, so these tests were
 // exercising a branch no real run could reach. The value now comes off the record, and a test
 // supplies it directly.
@@ -20,23 +20,23 @@ func TestASeatIDDisagreeingWithTheBoundIdentityIsRefused(t *testing.T) {
 	if _, err := ResolveSeat("red-lens-logic", bound("red-lens-evidence")); err == nil {
 		t.Fatal("a --seat-id naming a DIFFERENT seat was accepted; attribution would silently land on the wrong lens")
 	}
-	// Agreement is not a conflict, and the flag alone still works before this agent has registered.
+	// Agreement is not a conflict, and the flag alone still works while nothing binds this agent.
 	if s, err := ResolveSeat("red-lens-evidence", bound("red-lens-evidence")); err != nil || s.ID != "red-lens-evidence" {
 		t.Errorf("the same value from both sources must resolve, got %+v %v", s, err)
 	}
 	if s, err := ResolveSeat("red-lens-evidence", bound("")); err != nil || s.ID != "red-lens-evidence" {
-		t.Errorf("an unregistered agent must still be able to identify itself by flag, got %+v %v", s, err)
+		t.Errorf("an unbound agent must still be able to identify itself by flag, got %+v %v", s, err)
 	}
 }
 
-// A LOOKUP FAILURE IS NOT AN UNREGISTERED AGENT, and folding the two together is how this
+// A LOOKUP FAILURE IS NOT AN UNBOUND AGENT, and folding the two together is how this
 // mechanism would acquire the defect it was built to remove: a record nobody can read would
-// present as a seat that has not registered, and the seat would be sent to register a second
+// present as an agent nothing binds, and the seat would be sent to register a second
 // time against a record that is not there.
 func TestAnUnreadableBindingIsAnErrorRatherThanAnAbsence(t *testing.T) {
 	boom := func() (string, error) { return "", errRead }
 	if _, err := ResolveSeat("red-lens-evidence", boom); err == nil {
-		t.Fatal("a record that could not be read resolved as an agent that simply has not registered")
+		t.Fatal("a record that could not be read resolved as an agent that simply is not bound")
 	}
 }
 

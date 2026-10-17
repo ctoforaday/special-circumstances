@@ -101,7 +101,7 @@ Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
 
 §3 (on 20 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -579,6 +579,8 @@ re-run a recorded computation and judge whether it proves the sentence it is att
 
 YOU NAME THE PROOF BY ITS ANCHOR; THE TOOL RE-RUNS ITS SCRIPT. The anchor is the id inside the proof's token in the report. The tool executes the recorded script, compares its output byte for byte against what was recorded, and stores that result. You do not run it first.
 
+THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's environment, in the run directory, with the network open and a 60-second limit, and compares what it prints, its error output included; every call the script makes to this tool is refused and recorded as the script calling the tool (below).
+
 What the tool CANNOT answer is whether the script establishes the sentence at that anchor — so it records whether the script REPRODUCED, and you judge whether it PROVES that sentence.
 
 ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT: once it has reproduced, it stands for every proof on that script, and a judgement of another of its sentences re-runs nothing — the result's `rerun` reads `not_run` and names whose re-run it stands on. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
@@ -642,7 +644,7 @@ OUTPUT (JSON): {open:[{id,epoch,open,severity,likelihood,impact,complexity_cost,
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose) (default "json")
+      --format string   json (the form a seat acts on) | markdown (the human-verification rendering: open gaps, then the closure archive with its prose; --match and --quote are refused beside it) (default "json")
       --match regex     → SHARED §12
       --quote text      → SHARED §13
 ========
@@ -655,8 +657,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {edits:[{seat
 
 Flags:
       --id gap-id     scope this projection to one gap — red's required_fix beside the edits answering it. No other view is scoped by a gap: for part of any projection by its TEXT, --match (a regex) or --quote (a literal, the same span the acting verbs take)
-      --match regex   select only the edits matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the edits containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the edits of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §14
+      --quote text    select only the edits of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §15
 ========
 $ feov-record show evidence --help
 WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:C-…-->` anchor in the text (url, title, sha256, the sentence it backs, and `source_text_origin`: where its text came from). `work_status` is what a maintained index says about the WORK — `retracted` means the paper was withdrawn: the bytes are genuine, the fetch was sound, and no re-reading of the source can discover it, so a claim resting on it is a finding to file however well it reads. `not_checked` is not reassurance; it says nobody asked. `source_completeness` is which part of the work the copy is, on each source and each of red's verdicts — `abstract` means the citation or the verdict rests on the abstract alone, not on the study; `unverified` and `not_asked` say nobody could tell. A source with `pages` quotes OCR text — a machine's reading, which can misread — and `pages` are the PDF pages the tool found its `ocr_quote` on: check it against one of those page images, not against the reading. Every computation keyed by its `<!--proof:P-…-->` anchor — the id the lens's `reproduce --anchor` takes — with its script's sha256 and red's checks of it, and red's verified claims with their confidence.
@@ -705,8 +707,8 @@ OUTPUT (JSON, with --json — the bare call is the markdown form): {inquiries:[{
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
-      --match regex   select only the inquiries matching this regex (RE2, case-insensitive) — → SHARED §14
-      --quote text    select only the inquiries containing this text LITERALLY (case-insensitive) — → SHARED §15
+      --match regex   select only the inquiries of the --json form (the bare form is markdown and refuses this flag) matching this regex (RE2, case-insensitive) — → SHARED §14
+      --quote text    select only the inquiries of the --json form (the bare form is markdown and refuses this flag) containing this text LITERALLY (case-insensitive) — → SHARED §15
 ========
 $ feov-record show report --help
 THE REPORT, as red audits it and blue amends it; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: blue's `edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:F-…-->`, `show evidence` resolves `<!--cite:C-…-->` and `<!--proof:P-…-->`, and `show board` resolves `<!--gap:G-…-->`. --match and --quote select lines by their text WITH THE ANCHORS OUT, so a pattern crosses an anchor and never names one: to read at an anchor, --anchor is the selector. Written by the opening synthesis and blue's `edit`.

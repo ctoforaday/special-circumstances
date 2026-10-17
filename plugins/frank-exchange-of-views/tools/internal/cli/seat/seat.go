@@ -146,8 +146,8 @@ type Context struct {
 	// states, one byte, and the healthy one wins by default.
 	RunErr error
 
-	// seatErr is the identity resolution's refusal: a --seat-id disagreeing with the seat this
-	// agent registered as. Carried for the same reason RunErr is — Of keeps the flag's value as
+	// seatErr is the identity resolution's refusal: a --seat-id disagreeing with the seat the record
+	// binds this agent to. Carried for the same reason RunErr is — Of keeps the flag's value as
 	// SeatID, so a reader that never consults this acts under an identity the record contradicts.
 	// Run, RequireRun and Begin all refuse on it.
 	seatErr error
@@ -159,8 +159,9 @@ type Context struct {
 	// read one.
 	bindErr error
 
-	// bound is the seat this agent registered as, when the lookup answered one. A refusal of a
-	// disagreeing --seat-id is the registered seat's act, and is logged under it (see RefusalSeat).
+	// bound is the seat the record binds this agent to — its latest register, else its seat-naming
+	// bracket — when the lookup answered one. A refusal of a disagreeing --seat-id is the bound
+	// seat's act, and is logged under it (see RefusalSeat).
 	bound string
 }
 
@@ -190,9 +191,9 @@ func (c Context) Run() (record.Run, error) {
 
 // RefusalSeat is the run and the seat a refusal of this call is logged under.
 //
-// THE REGISTRATION, NOT THE FLAG. A --seat-id that disagrees with the seat this agent registered
-// as is refused, and Run refuses with it — so a logger reading the run through Run could never
-// record that refusal at all. The act was the registered seat's, typing a wrong id, and the entry
+// THE BINDING, NOT THE FLAG. A --seat-id that disagrees with the seat the record binds this agent
+// to is refused, and Run refuses with it — so a logger reading the run through Run could never
+// record that refusal at all. The act was the bound seat's, typing a wrong id, and the entry
 // is attributed to it. Everything else is Run's order: the run's resolution, then its existence.
 func (c Context) RefusalSeat() (record.Run, string, error) {
 	if c.RunErr != nil {
@@ -267,9 +268,9 @@ func requireBound(cmd *cobra.Command, s Context) error {
 		return autoRegister(cmd, s)
 	}
 	return feov.Errorf(feov.Validation,
-		"`register` is your first act and it has not happened: nothing on the record binds this agent to a seat, "+
+		"`register` is your first act and it has not happened: this agent has no register on the record, "+
 			"so %q is a claim rather than an identity. Run `register --seat-id %s` — it records who you are, and every "+
-			"call after it resolves your seat from that binding instead of trusting the flag. This is the ONE call that "+
+			"call after it resolves your seat from the record instead of trusting the flag. This is the ONE call that "+
 			"needs you to type your seat id.",
 		s.SeatID, s.SeatID)
 }
@@ -322,12 +323,13 @@ func autoRegister(cmd *cobra.Command, s Context) error {
 	return nil
 }
 
-// BoundSeat resolves this process's agent handle to the seat it registered as, against a run.
+// BoundSeat resolves this process's agent handle to the seat the record binds it to — its latest
+// register, else its seat-naming bracket — against a run.
 //
 // It is a closure rather than a value because BOTH call sites need it at a moment when the run
 // directory has just been resolved and nothing has read the record yet — and because a nil one is
-// the honest way to say "there is no run to look in", which is a different state from "this agent
-// has not registered".
+// the honest way to say "there is no run to look in", which is a different state from "the record
+// binds this agent to no seat".
 func BoundSeat(run record.Run) func() (string, error) {
 	// `!run.Valid()` is the same test the empty string used to make, and now it cannot be
 	// confused with a run whose path merely happens to be short: a Run is valid or it resolved
@@ -351,7 +353,7 @@ func BoundSeat(run record.Run) func() (string, error) {
 // EVERY VERB THAT WRITES TO THE RUN — an event or a document — goes through Begin (see
 // HandlerRunE), which also holds the agent to register-first. The one write that does not is the
 // tool's own refusal-log entry, which is written BECAUSE Begin refused, and is attributed to the
-// registration through RefusalSeat.
+// seat the record binds this agent to, through RefusalSeat.
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
 	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("", seatenv.AgentID()).Dir })

@@ -119,32 +119,38 @@ SELECT e."id"      AS "id",
 FROM "events" e
 LEFT JOIN "seat_sitting" ss ON ss."id" = e."sitting_id";
 
--- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
--- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:
--- THE LAST REGISTER WINS, because a re-dispatch writes a fresh register event and a resumed seat
--- legitimately arrives under a new agent id claiming a seat that is already bound. Treating that
--- as a conflict would refuse every resume.
+-- THE AGENT -> SEAT BINDING, the one statement of the rule; every reader of "which seat is this
+-- agent" asks it here (record.SeatOfAgent, and seat_of_agent below for the windows):
 --
--- agent_type comes along because register records it too: it is what the HARNESS called the
--- seat, beside what the seat called itself, and the two disagreeing is a thing worth being able
--- to see rather than a thing to collapse here.
--- A REGISTER IS NOT THE ONLY BINDING. A seat woken with nothing to do need not register — the
--- SubagentStart hook brackets its sitting and the writer resolves the configuration to a seat — so
--- a register-only view reports those agents as anonymous. Every total joined to it then drops their
--- rows or reports a null seat, which is the failure the LEFT JOIN below already guards against for
--- turns and would silently reintroduce for the seats that cost the least.
+--   AN AGENT'S SEAT IS NAMED BY ITS LATEST REGISTER. A re-dispatch writes a fresh register event,
+--   and a resumed seat legitimately arrives under a new agent id claiming a seat that is already
+--   bound; treating that as a conflict would refuse every resume.
 --
--- The register WINS where both exist: it is the seat's own word, and the two disagreeing is a thing
--- worth being able to see rather than a thing to collapse here.
-CREATE VIEW "seat_of_agent" AS
+--   AN AGENT NO REGISTER NAMES IS BOUND BY ITS LATEST HOOK BRACKET, IF THAT BRACKET NAMES A SEAT.
+--   A seat woken with nothing to do need not register — the SubagentStart hook brackets its sitting
+--   and the writer resolves the configuration to a seat — so a register-only binding reports those
+--   agents as anonymous, and every total joined to it drops their rows or reports a null seat. The
+--   bracket that counts is the agent's LATEST, seat-naming or not: a later bracket naming no seat
+--   says this agent's configuration seats several, and naming an earlier seat would be a guess the
+--   record no longer makes. That agent is unbound.
+--
+-- The register WINS where both exist: it is the seat's own word. agent_type comes along from
+-- whichever act binds: it is what the HARNESS called the seat, beside what the seat called itself,
+-- and the two disagreeing is a thing worth being able to see rather than a thing to collapse here.
+-- occasion is what the register says its sitting was convened to do — the bench's, whose four
+-- sittings share one id; NULL on a bracket, which states none.
+--
+-- NO WINDOWS HERE, deliberately: the hook and every seat call ask this binding, and the windows
+-- (events_w) rank every row of the record — seat_of_agent joins them for the readers that want them.
+CREATE VIEW "agent_binding" AS
 SELECT
   r."agent_id"   AS "agent_id",
   e."seat_id"    AS "seat_id",
   r."agent_type" AS "agent_type",
-  e."epoch"      AS "registered_epoch",
-  e."sitting"    AS "sitting"
+  r."occasion"   AS "occasion",
+  r."event_id"   AS "event_id"
 FROM "register" r
-JOIN "events_w" e ON e."id" = r."event_id"
+JOIN "events" e ON e."id" = r."event_id"
 WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
   AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id")
 UNION ALL
@@ -152,19 +158,33 @@ SELECT
   o."agent_id"   AS "agent_id",
   o."seat_id"    AS "seat_id",
   o."agent_type" AS "agent_type",
-  e."epoch"      AS "registered_epoch",
-  e."sitting"    AS "sitting"
+  NULL           AS "occasion",
+  o."event_id"   AS "event_id"
 FROM "sitting_open" o
-JOIN "events_w" e ON e."id" = o."event_id"
 WHERE o."agent_id" IS NOT NULL AND o."agent_id" != ''
   AND o."seat_id" IS NOT NULL AND o."seat_id" != ''
   AND NOT EXISTS (SELECT 1 FROM "register" r2 WHERE r2."agent_id" = o."agent_id")
   AND o."event_id" = (SELECT MAX(o2."event_id") FROM "sitting_open" o2 WHERE o2."agent_id" = o."agent_id");
 
+-- THE BINDING WITH THE TWO WINDOWS OF THE ACT THAT BOUND IT: the EPOCH (the chair sittings at or
+-- before it) and the SITTING (that seat's own sitting count, the opening that began it included),
+-- read off events_w as every window is.
+CREATE VIEW "seat_of_agent" AS
+SELECT
+  b."agent_id"   AS "agent_id",
+  b."seat_id"    AS "seat_id",
+  b."agent_type" AS "agent_type",
+  e."epoch"      AS "registered_epoch",
+  e."sitting"    AS "sitting",
+  b."occasion"   AS "occasion"
+FROM "agent_binding" b
+JOIN "events_w" e ON e."id" = b."event_id";
+
 -- WHAT A SEAT COST, from the turns ingested at capture (#684 F16).
 --
--- A LEFT JOIN, deliberately. A seat whose turns were measured but which never registered still
--- appears, with a null seat_id — the alternative drops its rows from every total and reports a
+-- A LEFT JOIN, deliberately. A seat whose turns were measured but which nothing binds — no register
+-- and no bracket naming its seat — still appears, with a null seat_id — the alternative drops its
+-- rows from every total and reports a
 -- cheaper run than happened, which is the failure this whole issue keeps finding.
 --
 -- NULLIF(ts_ms, 0) is the parser's contract honoured in SQL: 0 means the line carried no
@@ -454,7 +474,12 @@ SELECT
   -- rather than beside the other derived ones.
   (gb."open"
      AND gb."unruled_docket_filed" IS NULL
-     AND EXISTS(SELECT 1 FROM "remand" r WHERE r."gap_id" = gb."gap_id"))             AS "remanded"
+     AND EXISTS(SELECT 1 FROM "remand" r WHERE r."gap_id" = gb."gap_id"))             AS "remanded",
+  -- THE MOTION ID OF THAT FILING, which the dispatch plan's reason names. Read off the inner
+  -- select's unruled_docket_filed for the reason remanded is: the filing and its id cannot then
+  -- name two motions.
+  (SELECT mo."motion_id" FROM "motion" mo
+    WHERE mo."event_id" = gb."unruled_docket_filed")                                AS "unruled_docket_motion"
 FROM (
 SELECT
   m."gap_id"                                   AS "gap_id",
@@ -524,9 +549,11 @@ SELECT
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
   -- THE DOCKET MOTION STANDING UNRULED, by its filing's events.id: the newest docket motion on the
   -- gap that no ruling names, NULL when every one is ruled. The dispatch plan reads it to ready the
-  -- bench and to key the bench's sitting on the filing, and remanded (outer select) reads it
-  -- as its "nothing pending" arm. The PASS gate still answers the same question separately, through
-  -- MotionsOf over motion_answers; folding the two is #1228.
+  -- bench and to key the bench's sitting on the filing; remanded and unruled_docket_motion (outer
+  -- select) read it, as the "nothing pending" arm and as the motion's id. The PASS gate asks the
+  -- same per-motion question of the events (motionsAt), and
+  -- TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled (record's
+  -- narrowedview_test.go) holds the two level.
   --
   -- ASKED PER MOTION, NEVER AS A COUNT. A count of ruling rows against a count of dockets reads
   -- two rulings on one motion as covering an unruled sibling (#1201).
@@ -694,11 +721,12 @@ LEFT JOIN "motion_rule" fr ON fr."event_id" =
 LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id";
 
--- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
--- how red last ruled the inquiry. The proposal row carries the
--- substance; the LATEST inquiry event carries the status; the LATEST ruling on the inquiry —
--- the one whose arm is the inquiry ruling, which is what makes it an inquiry ruling — carries
--- red's answer.
+-- AN INQUIRY, whole: proposed by whom, saying what, where its status stands now, and how red
+-- ruled it. The proposal row carries the substance; the LATEST inquiry event carries the status;
+-- red's answer is motion_answers' row for the inquiry's id — the FIRST ruling, the one rule every
+-- reader of a motion's answer states, because the write refuses a second (RequireUnruledMotion).
+-- InquiriesOf is the Go reader of the same answer, and inquiryReadersAgree (record's
+-- motionguards_test.go) holds the two level.
 CREATE VIEW "inquiry_state" AS
 SELECT
   p."inquiry_id"                       AS "inquiry_id",
@@ -707,9 +735,9 @@ SELECT
   fp."question"                        AS "question",
   ls."status"                          AS "status",
   lse."id"                          AS "status_seq",
-  lr."inquiry"                         AS "inquiry_ruling",
-  lre."seat_id"                        AS "ruled_by",
-  lre."id"                          AS "ruled_seq"
+  a."inquiry"                          AS "inquiry_ruling",
+  a."ruled_by"                         AS "ruled_by",
+  a."ruled_seq"                        AS "ruled_seq"
 FROM (SELECT a0."inquiry_id" AS "inquiry_id", MIN(a0."event_id") AS "pid"
         FROM "inquiry" a0
         WHERE COALESCE(a0."inquiry_id", '') != '' AND a0."supersedes_status" IS NULL
@@ -719,10 +747,7 @@ JOIN "events" pe ON pe."id" = p."pid"
 LEFT JOIN "inquiry" ls ON ls."event_id" =
   (SELECT MAX(x."event_id") FROM "inquiry" x WHERE x."inquiry_id" = p."inquiry_id")
 LEFT JOIN "events" lse ON lse."id" = ls."event_id"
-LEFT JOIN "motion_rule" lr ON lr."event_id" =
-  (SELECT MAX(y."event_id") FROM "motion_rule" y
-     WHERE y."motion_id" = p."inquiry_id" AND y."inquiry" IS NOT NULL)
-LEFT JOIN "events" lre ON lre."id" = lr."event_id";
+LEFT JOIN "motion_answers" a ON a."motion_id" = p."inquiry_id";
 
 -- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
 -- report is base + this stream replayed, so the SELECTION of which events mutate the text — and

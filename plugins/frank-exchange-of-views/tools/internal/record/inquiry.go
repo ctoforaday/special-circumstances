@@ -212,8 +212,8 @@ func StaleInquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 }
 
 // InquiryRuling returns red's ruling on an inquiry, or "" if it never ruled. It reads inquiry_state,
-// whose column is the inquiry's newest ruling that stands — on a record the write admitted, its
-// only one.
+// whose column is motion_answers' answer for the inquiry: its first ruling, and on a record the
+// write admitted its only one.
 //
 // The ruling and the inquiry's fate are joined here, so blue pursuing an inquiry red called
 // out-of-scope is told apart from blue pursuing one red endorsed.

@@ -30,9 +30,10 @@ type Seat struct {
 	// FINISHED run reported "running" forever — on this instrument. Reading it off the record is
 	// what makes that unrepresentable rather than repaired.
 	Occasion string
-	// Epoch and Sitting are the record's two windows at this agent's register (plans/roundless.md
-	// §III.A.0), read off the register event the journal's agentId joins to — NOT parsed out of the
-	// transcript head. Epoch is the chair's sitting count at that moment (the dispatch cycle the
+	// Epoch and Sitting are the record's two windows at the act that binds this agent — its latest
+	// register, else its seat-naming bracket (plans/roundless.md §III.A.0) — read off that event,
+	// which the journal's agentId joins to, NOT parsed out of the transcript head. Epoch is the
+	// chair's sitting count at that moment (the dispatch cycle the
 	// sitting belongs to); Sitting is this seat's own sitting count (the ordinal the label
 	// carries). Both are 0 when the record never bound the agent — a run whose hook did not fire,
 	// or no record yet — and 0 is also the honest epoch of a bookend seat that sat before the

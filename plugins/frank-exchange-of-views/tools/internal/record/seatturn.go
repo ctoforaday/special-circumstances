@@ -32,7 +32,7 @@ import (
 func AppendSeatTurns(run Run, agentID string, turns []seatturn.Turn) (int, error) {
 	if agentID == "" {
 		// FILED AGAINST NOTHING IS WORSE THAN NOT FILED. A row keyed on an empty agent joins to
-		// no register event, so it would sit in the table contributing to totals while belonging
+		// no binding in seat_of_agent, so it would sit in the table contributing to totals while belonging
 		// to no seat — present in the count and absent from every per-seat view.
 		return 0, fmt.Errorf("refusing to file %d seat turns against an empty agent id", len(turns))
 	}
@@ -104,8 +104,9 @@ func CountSeatTurns(run Run) (int, error) {
 // SeatMetric is one seat's measured cost, read from the seat_metrics view.
 //
 // The nullable fields are nullable BECAUSE THE ANSWER CAN BE "NOT MEASURED", and that is a
-// different fact from zero. A seat whose turns carried no timestamps has no span; a seat that
-// never registered has no seat id. Rendering either as 0 or "" would put a twenty-minute seat in
+// different fact from zero. A seat whose turns carried no timestamps has no span; an agent that
+// neither a register nor a seat-naming bracket binds has no seat id. Rendering either as 0 or ""
+// would put a twenty-minute seat in
 // a table as instantaneous, or file its cost under the empty seat.
 type SeatMetric struct {
 	AgentID       string

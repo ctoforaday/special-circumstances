@@ -279,7 +279,7 @@ Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
   -v, --version          version for feov-record
 
 ── verb outside the lens role
@@ -323,7 +323,7 @@ Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -368,7 +368,7 @@ Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -409,7 +409,7 @@ Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -452,7 +452,7 @@ Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
   -v, --version          version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
@@ -477,7 +477,7 @@ Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
       --run string       the run directory — the PreToolUse hook injects it in a real run, so you rarely type it. A value that DISAGREES with the run you were dispatched into is refused
       --schema           print the event-schema epoch this binary writes, and exit
-      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with your registration is refused
+      --seat-id string   your seat id, as the dispatch prompt states it (SEAT_ID). Pass it ONCE, at register, which binds it to you on the record; every later call resolves it, so typing it is optional. It SELECTS this surface (the verbs listed are the ones your seat may run); a value disagreeing with the seat the record binds you to is refused
   -v, --version          version for feov-record
 
 ── a mint quoting a sentence that repeats
@@ -510,11 +510,11 @@ feov-record: finding: the finding this call repeats is on the record without its
 
 ── an edit leaving out an anchor whose sentence it rewrites
 exit 2
-feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices soared". To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor
 
 ── an edit leaving out an anchor whose sentence it repeats
 exit 2
-feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor
+feov-record: edit: your old span carries finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit) on the sentence "Prices climbed", and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. Place <!--fx:FINDING002--> where that claim now stands in the replacement — its nearest sentence there reads "Prices climbed.". To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor
 
 ── an edit carrying an anchor onto a heading
 exit 2
@@ -522,7 +522,7 @@ feov-record: edit: this edit puts <!--fx:FINDING002--> on a section heading, and
 
 ── an edit ending its own sentence before an anchor its quote leaves out
 exit 2
-feov-record: edit: your quote stops before finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
+feov-record: edit: your quote stops before finding anchor <!--fx:FINDING002--> (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit). An anchor the quote leaves out stays where it stands, on the text that precedes it, and your replacement ends its own sentence, which would leave every anchor named here on that sentence, whichever sentence held the claim it marks. To reword the sentence, leave its closing punctuation off --new. To move an anchor, or to take its claim out, quote it as `show report` prints it and write it where it goes
 
 ── repeat target: the lens regrades GAP001
 exit 0

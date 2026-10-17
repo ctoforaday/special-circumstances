@@ -66,7 +66,7 @@ and red audits whether the structure carries the argument, never whether a secti
 exists) → risk matrix (graded likelihood × impact × complexity, including risk-accepted items
 with rationale) → **the three
 inquiry sections, Research areas, Future research directions and Alternatives considered** (composed by the tool from the inquiries on the record, one row per inquiry under the heading its fate names; blue records each inquiry and what became of it, and writes none of the three into the report) → **open questions, left open by this run** (authored by blue into the report's `## Open questions`, audited by red every sitting it has moved) →
-footnotes (with access dates; volatility noted for living sources).
+footnotes (with access dates).
 
 **The report's text ships in the order it is written.** Blue writes the TL;DR first, the Catechism
 second, its own sections in the order it chooses and the open questions last; freezing the report
