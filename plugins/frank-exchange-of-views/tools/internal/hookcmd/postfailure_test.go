@@ -3,6 +3,7 @@ package hookcmd
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -127,6 +128,11 @@ func TestTheFailureHookLogsOnlyASeatsOwnFailures(t *testing.T) {
 	fire(with(map[string]any{"agent_id": "a1", "tool_input": map[string]string{"file_path": runDir + "/blue/report.md"}}))
 	if len(logged) != 2 || !strings.HasPrefix(logged[1], "a1 | `Read` failed on `./blue/report.md`") {
 		t.Errorf("the run's own path was logged as the seat typed it, not from the run directory: %q", logged)
+	}
+	// On Windows the run arrives as `C:\…\run` and a seat may type it with forward slashes.
+	fire(with(map[string]any{"agent_id": "a1", "tool_input": map[string]string{"file_path": filepath.ToSlash(runDir) + "/blue/report.md"}}))
+	if len(logged) != 3 || !strings.HasPrefix(logged[2], "a1 | `Read` failed on `./blue/report.md`") {
+		t.Errorf("the run's own path, typed with forward slashes, was logged as the seat typed it: %q", logged)
 	}
 }
 

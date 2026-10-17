@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -133,13 +134,26 @@ func failureEntry(runDir, tool string, input json.RawMessage, errText string) (s
 }
 
 // inRun is s with the run directory written `.` wherever it stands as a whole path: followed by a
-// `/`, or by a character no path name continues with. A sibling directory whose name begins with the
-// run's (`…_is-91-prime-b2` beside `…_is-91-prime`) is another directory, and keeps its path.
+// separator, or by a character no path name continues with. A sibling directory whose name begins
+// with the run's (`…_is-91-prime-b2` beside `…_is-91-prime`) is another directory, and keeps its path.
+//
+// The run directory is rooted — `/`-rooted, or a Windows volume path — or nothing is rewritten: a
+// relative one would match inside unrelated words. On Windows the hook is handed the run in the OS's
+// form (`C:\…\run`) and a seat may type it either way, so its slashed form is written `.` as well.
 func inRun(runDir, s string) string {
-	runDir = strings.TrimRight(runDir, "/")
-	if !strings.HasPrefix(runDir, "/") {
+	runDir = strings.TrimRight(runDir, "/"+string(filepath.Separator))
+	if !strings.HasPrefix(runDir, "/") && !filepath.IsAbs(runDir) {
 		return s
 	}
+	s = wholePathAsDot(runDir, s)
+	if slashed := filepath.ToSlash(runDir); slashed != runDir {
+		s = wholePathAsDot(slashed, s)
+	}
+	return s
+}
+
+// wholePathAsDot is s with dir written `.` wherever it stands as a whole path (see inRun).
+func wholePathAsDot(runDir, s string) string {
 	var b strings.Builder
 	for {
 		i := strings.Index(s, runDir)
