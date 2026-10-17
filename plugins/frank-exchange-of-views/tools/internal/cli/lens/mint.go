@@ -92,10 +92,10 @@ func newMint() *cobra.Command {
 		// on: another lens's coining of the slug commits in parallel, and the mint the write path
 		// admits over it is a mint of a class this run coined.
 		p.Class = proto.String(seat.Str(cmd, flags.Class))
-		guards := []record.Guard{func(l *record.Landing) error {
+		guards := []record.Guard{record.Check(func(l *record.Landing) error {
 			p.ClassNew = proto.Bool(l.ClassCoinedInRun(p.GetClass()))
 			return nil
-		}}
+		})}
 
 		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 		//
@@ -149,13 +149,13 @@ func newMint() *cobra.Command {
 		// the report no longer holds.
 		p.FixBasis = proto.String("proposed")
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			guards = append(guards, func(l *record.Landing) error {
+			guards = append(guards, record.CheckOnReport(func(l *record.Landing) error {
 				report, err := l.Report()
 				if err != nil {
 					return err
 				}
 				return verifiedFix(p, report, seat.Str(cmd, flags.Quote), fixNew)
-			})
+			}))
 		}
 		p.AcceptanceCheck = proto.String(seat.Str(cmd, flags.Check))
 
@@ -196,7 +196,7 @@ func newMint() *cobra.Command {
 		// commits in parallel, and a mint checked against the record before it opens a fresh gap
 		// against the lens's own words. The refusal is decided under the write lock; the log entry
 		// that records it is written after, as its own act.
-		guards = append(guards, func(l *record.Landing) error {
+		guards = append(guards, record.Check(func(l *record.Landing) error {
 			fam, berr := l.Family()
 			if berr != nil {
 				return nil
@@ -206,7 +206,7 @@ func newMint() *cobra.Command {
 				return estopped{prior: prior, prescribed: prescribed}
 			}
 			return nil
-		})
+		}))
 
 		var est estopped
 		switch err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {

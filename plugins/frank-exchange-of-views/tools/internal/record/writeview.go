@@ -24,6 +24,9 @@ type writeView struct {
 	q recordsql.Querier
 	// files is the run's files the checks read: setup's terms and the staged class registry.
 	files runFiles
+	// rendering is the write's report, rendered before the lock (landingReport); nil on a batch's
+	// write, which renders under its own transaction.
+	rendering *landingReport
 }
 
 // runFiles is the two files the write path reads besides the record: inputs/run-config.json (the

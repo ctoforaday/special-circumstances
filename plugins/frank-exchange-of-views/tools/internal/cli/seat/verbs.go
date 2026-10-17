@@ -1259,6 +1259,11 @@ func Location(cmd *cobra.Command) string {
 // edit that commits in between can take the quote out, and an Anchor at a location replay cannot place
 // fails every render of the report from then on (#1252).
 func Places(id, loc string, refuse func(error) error) record.Guard {
+	return record.CheckOnReport(places(id, loc, refuse))
+}
+
+// places is Places' check, for a guard that asks it after reading something else first.
+func places(id, loc string, refuse func(error) error) func(*record.Landing) error {
 	return func(l *record.Landing) error {
 		current, err := l.Report()
 		if err != nil {
@@ -1294,7 +1299,7 @@ func AppendPlaced(s Context, act proto.Message, id, loc string, refuse func(erro
 // --quote, and a retry places the stored location whatever --quote says.
 func PlaceOwed(s Context, id, key string) error {
 	body := &recordpb.Anchor{Id: proto.String(id)}
-	_, err := record.Append(s.Identity(), body, func(l *record.Landing) error {
+	_, err := record.Append(s.Identity(), body, record.CheckOnReport(func(l *record.Landing) error {
 		loc, err := l.UnplacedLocation(id)
 		if err != nil {
 			return err
@@ -1303,7 +1308,7 @@ func PlaceOwed(s Context, id, key string) error {
 			return record.ErrWritesNothing
 		}
 		body.Location = proto.String(loc)
-		return Places(id, loc, func(err error) error {
+		return places(id, loc, func(err error) error {
 			state, repeats, anew := "no longer holds it where an anchor can stand", "naming the same source and claim", ""
 			if errors.Is(err, anchortext.ErrAmbiguous) {
 				state = "now holds it more than once"
@@ -1316,7 +1321,7 @@ func PlaceOwed(s Context, id, key string) error {
 				"The act stands as recorded, with no anchor in the report. To anchor the same point at text the report holds, record a new act: that text as --quote%s",
 				anchor.Kind(id), loc, state, repeats, anew)
 		})(l)
-	})
+	}))
 	if errors.Is(err, record.ErrWritesNothing) {
 		return nil
 	}
