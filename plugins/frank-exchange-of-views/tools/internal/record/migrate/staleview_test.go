@@ -11,7 +11,8 @@ import (
 // A RECORD AT AN EPOCH THIS BINARY HAS WRITTEN CAN STILL HOLD A VIEW IT NO LONGER DEFINES THAT WAY,
 // because a view-only change does not move the epoch. The archived m20 run states epoch 24 and its
 // `gap` view takes the EARLIEST closing act of each arm; this binary's takes the LAST and names it
-// (`close_event`, `bench_close_event`, `closed_by_bench`). Such a record is refused at the open by
+// (`close_event`, `bench_close_event`), with the arm whose act ended the gap (`closed_by_bench`)
+// and the arm that acted last (`bench_closed_last`). Such a record is refused at the open by
 // the view it holds, and migrate is the whole way out: the fresh run states this binary's epoch,
 // holds this binary's views, and reads.
 func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
@@ -63,7 +64,7 @@ func TestARecordWithAStaleGapViewIsRefusedAndMigrates(t *testing.T) {
 	}
 	db := openRO(t, dst.Dir())
 	var named int
-	if err := db.QueryRow(`SELECT count(*) FROM "gap" WHERE "close_event" IS NOT NULL OR "bench_close_event" IS NOT NULL`).Scan(&named); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM "gap" WHERE ("close_event" IS NOT NULL OR "bench_close_event" IS NOT NULL) AND "bench_closed_last" IS NOT NULL`).Scan(&named); err != nil {
 		t.Fatalf("the migrated record's gap view does not name its closing acts: %v", err)
 	}
 	if named != closed {

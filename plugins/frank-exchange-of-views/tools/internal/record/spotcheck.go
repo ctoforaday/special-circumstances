@@ -77,7 +77,7 @@ func archiveOfGapView(q recordsql.Querier, evs []*Event, win WindowIndex) (Archi
 	if noRecord(q) {
 		return a, nil
 	}
-	rows, err := q.Query(`SELECT "gap_id", "close_event", "bench_close_event", "closed_by_bench" FROM "gap"`)
+	rows, err := q.Query(`SELECT "gap_id", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last" FROM "gap"`)
 	if err != nil {
 		return a, fmt.Errorf("asking the record for its archive: %w", err)
 	}
@@ -86,11 +86,11 @@ func archiveOfGapView(q recordsql.Querier, evs []*Event, win WindowIndex) (Archi
 	for rows.Next() {
 		var id string
 		var closeEvent, benchEvent sql.NullInt64
-		var closedByBench bool
-		if err := rows.Scan(&id, &closeEvent, &benchEvent, &closedByBench); err != nil {
+		var closedByBench, benchClosedLast bool
+		if err := rows.Scan(&id, &closeEvent, &benchEvent, &closedByBench, &benchClosedLast); err != nil {
 			return a, err
 		}
-		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, byID, win)
+		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, benchClosedLast, byID, win)
 		if err != nil {
 			return a, err
 		}

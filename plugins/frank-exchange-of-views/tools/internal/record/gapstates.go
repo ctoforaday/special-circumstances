@@ -24,6 +24,7 @@ type familyGapRow struct {
 	sev, lik, imp, cx      sql.NullString
 	closeEvent, benchEvent sql.NullInt64
 	closedByBench          bool
+	benchClosedLast        bool
 }
 
 // familyReadsAt reads the family's answers off q, the read transaction both come off: the whole
@@ -44,7 +45,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	}
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost", "material",
-	    "close_event", "bench_close_event", "closed_by_bench"
+	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("asking the record for its gap states: %w", err)
@@ -53,7 +54,7 @@ func familyReadsAt(q recordsql.Querier) (familyReads, error) {
 	for rows.Next() {
 		var g familyGapRow
 		if err := rows.Scan(&g.id, &g.epoch, &g.open, &g.sev, &g.lik, &g.imp, &g.cx, &g.material,
-			&g.closeEvent, &g.benchEvent, &g.closedByBench); err != nil {
+			&g.closeEvent, &g.benchEvent, &g.closedByBench, &g.benchClosedLast); err != nil {
 			return r, err
 		}
 		r.gaps = append(r.gaps, g)
@@ -94,12 +95,12 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 			ComplexityCost: gradeOrZero(row.cx),
 			Material:       row.material,
 		}
-		c, err := closeStateOf(row.id, row.closeEvent, row.benchEvent, row.closedByBench, byID, win)
+		c, err := closeStateOf(row.id, row.closeEvent, row.benchEvent, row.closedByBench, row.benchClosedLast, byID, win)
 		if err != nil {
 			return nil, err
 		}
 		if c != nil {
-			g.HasClosed, g.ClosedEpoch, g.ClosedByBench = true, c.closedEpoch, c.closedByBench
+			g.HasClosed, g.ClosedEpoch, g.ClosedByBench, g.BenchClosedLast = true, c.closedEpoch, c.closedByBench, c.benchClosedLast
 			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure
 		}
 		out = append(out, g)

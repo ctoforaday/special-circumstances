@@ -153,11 +153,16 @@ type Gap struct {
 	Likelihood     recordpb.Grade
 	Impact         recordpb.Grade
 	ComplexityCost recordpb.Grade
-	// ClosedByBench distinguishes a JUDICIAL closure from one red made. Red cannot
-	// close a bench-closed gap itself without double-counting closure history and
-	// corrupting the repair_regression denominator, so the projection has to record WHO
-	// closed it, not merely that it is closed.
+	// ClosedByBench distinguishes a JUDICIAL closure from one red made: whether the act that
+	// ENDED the gap — its first standing closing act — was the bench's. Red cannot close a
+	// bench-closed gap itself without double-counting closure history and corrupting the
+	// repair_regression denominator, so the projection has to record WHO closed it, not merely
+	// that it is closed. A ruling on a docket motion that stood unruled after the lens closed the
+	// gap does not make the bench its closer.
 	ClosedByBench bool
+	// BenchClosedLast is whether the LATER of the two arms' standing closing acts is the bench's.
+	// The closure's word follows it: a bench ruling after red's close overrules red's word.
+	BenchClosedLast bool
 	// Material is the gap's materiality NOW: its class's default, and for a `by_grade` class its
 	// current severity against the floor. It is the gap view's "material" column (gap_grade's
 	// standing row), which FamilyOf reads.
@@ -212,12 +217,12 @@ func (g *Gap) ClosureReason() string {
 	if g == nil {
 		return ""
 	}
-	// THE LAST CLOSER'S WORD, not a fixed precedence. This read Closure first unconditionally,
-	// so a gap red closed and the bench later ruled kept showing red's class — every reader of
-	// this helper (the graph, the archive, the debate render, verify) reported a fate the record
-	// had since overruled. ClosedByBench already says whose closing event was last; the word
-	// follows it, with the other writer's word as the fallback for a class-less close.
-	if g.ClosedByBench {
+	// THE LAST CLOSER'S WORD, not a fixed precedence and not the first closer's: a gap red closed
+	// and the bench later ruled carries the bench's word in every reader of this helper (the graph,
+	// the archive, the debate render, verify), because the ruling overrules it. BenchClosedLast
+	// says whose closing act was last; the word follows it, with the other writer's word as the
+	// fallback for a class-less close.
+	if g.BenchClosedLast {
 		if w := recordpb.Word(g.BenchClosure.GetDisposition()); w != "" {
 			return w
 		}
