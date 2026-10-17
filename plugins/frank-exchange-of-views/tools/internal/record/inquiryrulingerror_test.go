@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,7 +25,6 @@ func TestInquiryRulingReturnsTheReadItCannotMake(t *testing.T) {
 	}
 	mustAppend(t, red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 		Opinion:  proto.String("a real question, but not this run's"),
 		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 	})

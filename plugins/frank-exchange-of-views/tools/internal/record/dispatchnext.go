@@ -86,7 +86,6 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		basis := fmt.Sprintf("at impasse under the run's terms — the exchanges on %s reached their limit without resolving it; the bench owes a ruling", g)
 		if err := write(&recordpb.Motion{
 			MotionId: proto.String(NewID("motion")),
-			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String(basis),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
 		}); err != nil {

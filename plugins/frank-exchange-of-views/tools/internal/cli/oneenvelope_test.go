@@ -117,8 +117,9 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "near-match", path: "near-match", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments, refused by the verb's own check", seat: chair, args: []string{"dispatch", "later"},
 			verb: "dispatch", path: "dispatch", role: "chair", code: "validation", teaches: true, logged: true},
-		{kind: "flag group", seat: chair, args: []string{"spot-check", "--none", "--ids", "G-0000beef", "--areas", "a", "--reason", "r"},
-			verb: "spot-check", path: "spot-check", role: "chair", code: "validation", short: true, logged: true},
+		{kind: "flag group", seat: lens, args: []string{"mint", "--key", "M-probe", "--class", "scope-creep", "--check-kind", "document",
+			"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low", "--fix", "f"},
+			verb: "mint", path: "mint", role: "lens", code: "validation", short: true, logged: true},
 
 		// Who is asking.
 		{kind: "seat id disagrees with the registration", seat: lens, env: []string{"FEOV_AGENT_ID=" + boundAgent},

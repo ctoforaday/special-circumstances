@@ -72,9 +72,6 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Old: proto.String("we claim the moon is cheese"), New: proto.String("retracted"), Text: proto.String("r")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Revision{Text: proto.String("round 1 edits")}); err != nil {
-		t.Fatal(err)
-	}
 
 	run := mustRun(t, runDir)
 	b, err := FamilyOf(run)

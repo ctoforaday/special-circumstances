@@ -181,7 +181,7 @@ func TestNoConditionallyRequiredFieldIsMarkedUnconditional(t *testing.T) {
 		"feov.record.v1.Inquiry.question":   "a recorded fate names an existing inquiry and carries only its new status and reason",
 		"feov.record.v1.Close.successor":    "only CLOSED_WITH_REGRESSION names one; the message-level check says so",
 		"feov.record.v1.Close.carried_from": "a carry restates an earlier closure; an ordinary close has none",
-		"feov.record.v1.SpotCheck.ids":      "the --none form samples nothing and says why",
+		"feov.record.v1.SpotCheck.ids":      "a spot-check naming no closure samples nothing and says why",
 	}
 	od := (&Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
 	if od == nil {

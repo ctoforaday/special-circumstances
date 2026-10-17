@@ -2101,7 +2101,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the rest — a sitting without a spot-check is a sitting the record holds as sound, and a
 		// drive that filed one every sitting would never put that in front of the oracle.
 		//
-		// An emptiness claim is made only when the board agrees.
+		// A spot-check names no closure only when the board holds none.
 		if stale := r.staleAreas(); len(stale) > 0 || r.coin(50) {
 			sc := r.do("spot-check", seatID)
 			if len(stale) > 0 {
@@ -2111,8 +2111,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
 					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
 			} else {
-				sc.bare("--none").
-					set("--reason", "fuzz: the archive was empty at round start").run()
+				sc.set("--reason", "fuzz: the archive was empty at round start").run()
 			}
 		}
 		// RED RULES EVERY UNRULED INQUIRY, and the ruling follows the question it was proposed
@@ -2502,21 +2501,30 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// left the hand-filed motions unruled, and a bench that sat and ruled nothing is not
 		// re-readied for them.
 		// THE ENVELOPE IS THE BENCH'S ACCOUNT OF WHAT IT RULED, in JUDGE_ENVELOPE's shape: debate.js
-		// builds the ruling every later seat is handed from it, so a remand row with no reopens_on
-		// would hand blue a remand owing no direction while the record holds one.
+		// builds the ruling every later seat is handed from it. A remand row states no reopens_on —
+		// a remand closes nothing — and its direction reaches blue and the lens from the record,
+		// through the plan's remand_owed.
 		res := []any{} // an array, never null — the schema refuses null
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
 			row := map[string]any{"gap_id": id, "disposition": "remanded", "settled": settledByFuzzBench,
-				"rationale": "fuzz: carried with a stated direction for " + id, "reopens_on": direction}
+				"rationale": "fuzz: carried with a stated direction for " + id}
 			if r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "remanded", "--reopens-on", direction, "--reason", row["rationale"].(string))
+				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", row["rationale"].(string))
 			}
 			if r.scenarioOf(id) == dirDisputeLost {
 				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+				// A RULING THAT CLOSES THE GAP ANSWERS WHAT WOULD REOPEN IT ONE OF TWO WAYS, and the
+				// drive takes both: nothing would (--final), or a stated condition (--reopens-on).
 				row = map[string]any{"gap_id": id, "disposition": disp, "settled": settledByFuzzBench,
 					"rationale": "docket-rationale-for-" + id, "final": true}
-				r.benchDisposes(seatID, id, disp, "--final", "--reason", row["rationale"].(string))
+				answer := []string{"--final"}
+				if r.coin(50) {
+					const reopens = "a source the ruling did not weigh"
+					row["final"], row["reopens_on"] = false, reopens
+					answer = []string{"--reopens-on", reopens}
+				}
+				r.benchDisposes(seatID, id, disp, append(answer, "--reason", row["rationale"].(string))...)
 			}
 			res = append(res, row)
 		}
@@ -4160,11 +4168,6 @@ var verbsWithEvents = []string{
 	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
 	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
 	"cast", "dispatch",
-	// A correction an archived record holds: migrate replays it beside the act it replaced, and no
-	// verb records one.
-	"correction",
-	// An appeal an archived record holds: migrate replays it, and no verb records one.
-	"motion_appeal",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -4196,20 +4199,6 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
-	// NO COMMAND WRITES A CORRECTION. The type stays declared so `migrate` can replay the
-	// corrections an archived record holds, and migrate is its one writer (record.Append refuses
-	// one outside a migration); migrate's own tests drive it. Phase 4 of #1298 removes the type
-	// and this exemption with it.
-	"correction": true,
-	// NO COMMAND WRITES AN APPEAL. A ruling stands, and a seat that disagrees with one files a
-	// docket motion. The type stays declared so `migrate` can replay an appeal an archived record
-	// holds, and migrate is its one writer (record.Append refuses one outside a migration);
-	// record's motion-guard tests drive that replay. Phase 4 of #1298 removes the type and this
-	// exemption with it.
-	"motion_appeal": true,
-	// NO COMMAND WRITES A REVISION. The type stays declared so `migrate` can carry the revisions
-	// an archived record holds, and migrate is its one writer; migrate's own tests drive it.
-	"revision": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -4356,7 +4345,6 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
-	"revision":    "written by migrate alone, for the revisions an archived record holds — no command records one and no document renders its prose: the changelog lists what left the report",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
 	"blue_edit":   "mutates blue/report.md, which assembly ships as written; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
@@ -4887,7 +4875,7 @@ func TestFuzzDebate(t *testing.T) {
 		if quotesRefused == 0 {
 			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
 		}
-		// THE REPEATED-ACT GATE. No verb takes a correction: a seat that got an act wrong meets the
+		// THE REPEATED-ACT GATE. A seat that got an act wrong meets the
 		// refusal of its second, and that refusal names the act that answers the first. A drive
 		// that stopped repeating an act would leave those refusals unreached behind a green sweep.
 		if repeatsRefused == 0 {
@@ -5143,7 +5131,7 @@ func someProof(run record.Run) (anchor, sha string) {
 	if err != nil {
 		return "", ""
 	}
-	for _, e := range record.Live(b.Events) {
+	for _, e := range b.Events {
 		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetProofId() != "" && p.GetProofSha() != "" {
 			return p.GetProofId(), p.GetProofSha()
 		}

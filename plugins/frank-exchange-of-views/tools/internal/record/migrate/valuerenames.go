@@ -19,9 +19,8 @@ import (
 var valueRenames = map[protoreflect.FullName]map[string]string{
 	"feov.record.v1.Disposition": {"carried": "remanded"},
 	// ONE CONCEPT, ONE WORD: what blue proposes and the chair rules on is an inquiry, and an
-	// archive may spell the motion subject, the anchor kind or an open or confirmed fate with an
-	// earlier word for the same value.
-	"feov.record.v1.MotionSubject": {"direction": "inquiry", "avenue": "inquiry"},
+	// archive may spell the anchor kind or an open or confirmed fate with an earlier word for the
+	// same value. (A motion's subject is its arm, which inquiryArm respells.)
 	"feov.record.v1.AboutKind":     {"avenue": "inquiry"},
 	"feov.record.v1.InquiryStatus": {"pursued": "underway", "concluded": "confirmed"},
 }

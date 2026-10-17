@@ -393,7 +393,7 @@ var fuzzArms = []fuzzArm{
 	{name: "chair spot-check", weight: 1, seats: []string{"red-chair"}, verb: []string{"spot-check"},
 		flags: func(rng *rand.Rand) []string {
 			if rng.Intn(2) == 0 {
-				return []string{"--none", "--reason", "nothing archived yet"}
+				return []string{"--reason", "nothing archived yet"}
 			}
 			return []string{"--ids", "GAP001,GAP002", "--reason", "re-read both closures"}
 		}},
@@ -415,8 +415,8 @@ var fuzzArms = []fuzzArm{
 			f := []string{"--id", pick(rng, fuzzMotions), "--as", "remanded", "--principle", "p", "--tension", "t",
 				"--reason", "the ruling", "--review-flag", "r", "--settled", "the proposition this ruling bars"}
 			if rng.Intn(4) > 0 {
-				// omitted: no --reopens-on, the validation path. A remand states its direction.
-				f = append(f, "--reopens-on", "a reproduction on the shipped binary")
+				// omitted: no --direction, the validation path. A remand states its direction.
+				f = append(f, "--direction", "a reproduction on the shipped binary")
 			}
 			return f
 		}},
@@ -450,7 +450,7 @@ var tourArms = []fuzzArm{
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
 	tourArm("chair inquiry review", []string{"red-chair"}, []string{"inquiry", "review"}, reasonOnly, nil),
-	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--none", "--reason", t} }, nil),
+	tourArm("chair spot-check", []string{"red-chair"}, []string{"spot-check"}, func(t string) []string { return []string{"--reason", t} }, nil),
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
 	tourArm("chair motion grade rule", []string{"red-chair"}, []string{"motion", "grade", "rule"},
@@ -459,7 +459,7 @@ var tourArms = []fuzzArm{
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
 			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
-				"--settled", "the proposition this ruling bars", "--reopens-on", "a reproduction on the shipped binary", "--reason", t}
+				"--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", t}
 		}, nil),
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
 		func(t string) []string { return []string{"--question", t, "--hypothesis", "it would settle something"} }, nil),

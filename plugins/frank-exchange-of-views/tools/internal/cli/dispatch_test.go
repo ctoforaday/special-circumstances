@@ -99,7 +99,7 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		t.Fatalf("motions on the record = %d, want the docket motion the verb filed", len(motions))
 	}
 	m, _ := recordpb.BodyAs[*recordpb.Motion](motions[0])
-	if m.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET || m.GetDocket().GetGapId() != "G1" || !strings.Contains(m.GetBasis(), "impasse") {
+	if m.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET || m.GetDocket().GetGapId() != "G1" || !strings.Contains(m.GetBasis(), "impasse") {
 		t.Errorf("the docket motion = %+v, want a docket filing on G1 stating impasse", m)
 	}
 	// THE BLOCKERS PRINTED ARE THE GATE'S LIST WITH THE DOCKET FILED. The verb files the motion after

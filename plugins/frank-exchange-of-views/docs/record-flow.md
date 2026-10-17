@@ -6,25 +6,13 @@ motions, opinions — are events; the markdown files are *projections* of the re
 human reading afterward, never the channel. This diagram is kept current with the code
 ([[fuzzers-and-diagrams-track-code]]); update it in the same PR as any record/protocol change.
 
-## A correction on an archived record
+## A wrong act
 
-No verb makes a correction: an act stands as filed, and a seat answers a wrong one with another act
-— which act is one table, `superseders` in `internal/record/supersede.go`, rendered on each
-recording verb's help page and on the refusal of a second act where a sitting holds one. Records
-written while seats could strike an act hold `correction` events; `migrate` replays each beside the
-act it replaced, and nothing else writes one. Nothing is edited: every view reads the acts that
-stand (`live_event` in SQL, `Live` in Go), and every listing shows the first act struck beside its
-replacement (`struck`, `Listing`).
-
-```mermaid
-flowchart LR
-  A[act K] --> R[replacement K~1]
-  R --- C[correction: K struck by K~1, why]
-  C --> S[struck view]
-  C --> L[live_event: K~1 stands in K's place]
-  S --> V[listings: K shown struck, then K~1]
-  L --> W[winners and folds read K~1]
-```
+An act stands as filed, and a seat answers a wrong one with another act — which act is one table,
+`superseders` in `internal/record/supersede.go`, rendered on each recording verb's help page and on
+the refusal of a second act where a sitting holds one. Nothing is edited, and every view reads every
+act. A record from before epoch 27 may hold same-sitting corrections; `migrate` writes each chain as
+its last replacement, in the place the chain began, and writes nothing for its later links.
 
 ## Findings & citations onto the record (#62 pt1, #70/#71)
 

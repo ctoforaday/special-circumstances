@@ -235,8 +235,8 @@ type Motion struct {
 	// filed is the place (motionsAt's seq) of the motion's first filing in the stream; zero for a
 	// motion created by its ruling, or one read through MotionsOf, which carries no places.
 	filed int64
-	// ruled is the place (motionsAt's seq) of the ruling the motion carries: a corrected ruling's
-	// is the place it was first made in. Zero for an unruled motion, or one read through MotionsOf.
+	// ruled is the place (motionsAt's seq) of the ruling the motion carries. Zero for an unruled
+	// motion, or one read through MotionsOf.
 	ruled int64
 }
 
@@ -252,19 +252,15 @@ func MotionsOf(evs []*Event, win WindowIndex) []*Motion { return motionsAt(evs, 
 // is the one that knows where each was filed and ruled, so a reader asking "has its owner sat
 // since" or "what followed the ruling" needs no second pass and no second rule for which ruling.
 //
-// A MOTION'S ANSWER IS ITS FIRST RULING THAT STANDS — the rule the write enforces
+// A MOTION'S ANSWER IS ITS FIRST RULING — the rule the write enforces
 // (requireUnanswered) and motion_answers states in SQL.
 // TestEveryMotionReaderStatesTheRulingThatStands holds this walk, InquiriesOf and the view to one
 // answer; recordsql's TestMotionAnswersStatesFirstWinsOnce holds the view to first-wins on the two
 // rulings only a raw insert produces.
 //
 // Each filing, proposal and ruling carries the epoch and sitting the record stored it in (win): a
-// filing made in a sitting-record repair is the repaired sitting's, and one made before its
-// seat's paired register is the hook-opened sitting's.
+// filing made before its seat's paired register is the hook-opened sitting's.
 func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
-	// The acts that stand: a ruling corrected in its sitting is read as its replacement, in its
-	// place, so the first-wins answer is the corrected one and never a second ruling.
-	evs, seq = liveAt(evs, seq)
 	byID := map[string]*Motion{}
 	var order []string
 
@@ -329,7 +325,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 				}
 			}
 			w := win.Of(e)
-			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.GetSubject()), e.GetSeatId(), w.Epoch, w.Sitting
+			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.Subject()), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
 			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
 			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
@@ -382,7 +378,7 @@ func motionsAt(evs []*Event, seq []int64, win WindowIndex) []*Motion {
 			// ruling is also its creation; every other subject is created by its `motion` event,
 			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
 			if _, ok := byID[id]; !ok {
-				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+				if f.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
 				}
 				// AN INQUIRY MOTION IS CREATED BY ITS RULING, and that is not a special case
@@ -495,11 +491,12 @@ func requireMotionSubjectRef(q recordsql.Querier, subject recordpb.MotionSubject
 		}
 		return motionSubjectWord(subject), nil
 	}
-	// The stored word is the schema's spelling; the SURFACE word goes through the same
-	// motionSubjectWord mapping the fold uses.
+	// THE FILING'S ARM IS ITS SUBJECT: `filing_case` names the arm the motion was filed with, and
+	// the arms are spelled as the subjects they carry (recordpb.Motion.Subject). The SURFACE word
+	// goes through the same motionSubjectWord mapping the fold uses.
 	var word sql.NullString
 	found, err := queryRowAt(q, []any{&word},
-		`SELECT "subject" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
+		`SELECT "filing_case" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
 	if err != nil {
 		return "", err
 	}
@@ -587,12 +584,10 @@ func requireUnanswered(q rowQuerier, body proto.Message) error {
 // q is the writing transaction (requireUnanswered).
 func RequireUnruledMotion(q rowQuerier, id, answer string) error {
 	// motion_answers is the one statement of first-wins: the FIRST ruling is the one quoted,
-	// its word whichever arm the rule carried, "" when it carried none. A row whose ruled_by
-	// is NULL is an archived appeal with no ruling — not a ruling, so it does not refuse.
+	// its word whichever arm the rule carried.
 	var word, seat sql.NullString
 	found, err := rowOf(q, []any{&word, &seat},
-		`SELECT a."ruling", a."ruled_by" FROM "motion_answers" a
-		  WHERE a."motion_id" = ? AND a."ruled_by" IS NOT NULL`, id)
+		`SELECT a."ruling", a."ruled_by" FROM "motion_answers" a WHERE a."motion_id" = ?`, id)
 	if err != nil {
 		return err
 	}

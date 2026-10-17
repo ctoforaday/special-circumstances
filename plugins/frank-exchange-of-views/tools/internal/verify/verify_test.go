@@ -80,7 +80,6 @@ func TestDialecticRefsResolve(t *testing.T) {
 			// check can still test is the FILING's, and that is what is seeded here.
 			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put it to the bench"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 			}),
@@ -223,13 +222,11 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			// is the same number an honest run with no bench sitting produces.
 			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put G2 to the bench"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
 			}),
 			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
-				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Opinion:  proto.String("the repair holds"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
@@ -365,10 +362,9 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	if len(Failed(Run(b.fam(t)))) != 0 {
 		t.Error("an inapplicable check must not appear in Failed()")
 	}
-	// The PASS gate, and corrections-resolve — this record holds no same-sitting correction, so
-	// that check has nothing to hold either. Both are n/a, and nothing else is.
-	if na := NotApplicable(Run(b.fam(t))); len(na) != 2 || na[0].Name != "pass-closes-all-gaps" || na[1].Name != "corrections-resolve" {
-		t.Errorf("NotApplicable() = %+v, want exactly the PASS gate and corrections-resolve", na)
+	// The PASS gate is n/a, and nothing else is.
+	if na := NotApplicable(Run(b.fam(t))); len(na) != 1 || na[0].Name != "pass-closes-all-gaps" {
+		t.Errorf("NotApplicable() = %+v, want exactly the PASS gate", na)
 	}
 	if got.Detail == "" {
 		t.Error("an unexplained 'did not apply' is the unreadable zero this state exists to remove")

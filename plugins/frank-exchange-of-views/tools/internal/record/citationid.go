@@ -116,9 +116,7 @@ func CitedSources(run Run) ([]Source, error) {
 	}
 	seen := map[string]bool{}
 	var out []Source
-	// THE ACTS THAT STAND: a cite corrected in its sitting is read as its replacement, in its place,
-	// so the first-seen label carries the corrected title rather than the struck one.
-	for _, e := range Live(m.Events) {
+	for _, e := range m.Events {
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// No body at all, so nothing to cite. The old code reached the same answer by a
@@ -142,15 +140,14 @@ func CitedSources(run Run) ([]Source, error) {
 	return out, nil
 }
 
-// CiteByLabel returns the standing blue cite a citation label names — the corrected act where
-// one was corrected — or nil when no cite carries it.
+// CiteByLabel returns the blue cite a citation label names, or nil when no cite carries it.
 func CiteByLabel(run Run, label string) (*recordpb.Cite, error) {
 	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
 	var out *recordpb.Cite
-	for _, e := range Live(m.Events) {
+	for _, e := range m.Events {
 		if c := e.GetCite(); c != nil && c.GetLabel() == label {
 			out = c
 		}
@@ -294,9 +291,6 @@ type Proof struct {
 	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
 	// itself information the reader needs, so the report says so rather than omitting it.
 	Verified *ProofVerification
-	// StruckReruns are re-runs of this proof their seat corrected in the sitting, each marked with
-	// who struck it and why — listed, never dropped. Verified is the one that stands.
-	StruckReruns []ProofVerification
 }
 
 // ProofVerification is one `reproduce` event: red re-ran the script and compared bytes.
@@ -313,8 +307,6 @@ type ProofVerification struct {
 	Note     string
 	Recorded string // only on a mismatch
 	Observed string
-	// Struck is set on a re-run a same-sitting correction replaced.
-	Struck *Struck
 }
 
 // RecordedProofs returns every proof on the record, in event order.
@@ -330,13 +322,11 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
 	// than in every reader.
 	//
-	// THE LISTING, ONCE: a re-run a correction struck is kept, marked, under StruckReruns, and the
-	// one that stands — in its place, never a later act by position alone — is Verified.
+	// The latest re-run of a proof is Verified: a second re-run is admitted, and its reason says
+	// which earlier one it replaces.
 	verified := map[string]*ProofVerification{}
-	struck := map[string][]ProofVerification{}
 	// The epoch and sitting stamped here are the ones the record holds red's re-run in.
-	for _, l := range Listing(m.Events) {
-		e := l.Event
+	for _, e := range m.Events {
 		w := m.At.Of(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -363,11 +353,6 @@ func RecordedProofs(run Run) ([]Proof, error) {
 			// channel this message has.
 			Note:     r.GetNote(),
 			Recorded: r.GetRecordedOutput(), Observed: r.GetObservedOutput(),
-			Struck: l.Struck,
-		}
-		if l.Struck != nil {
-			struck[r.GetProofSha()] = append(struck[r.GetProofSha()], *v)
-			continue
 		}
 		verified[r.GetProofSha()] = v
 	}
@@ -381,9 +366,7 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	// subject is whether the computation held — the plausible zero this migration exists to
 	// remove. The schema decision is the lead's; the compile error is the loud miss.
 	var out []Proof
-	// THE ACTS THAT STAND: a proof corrected in its sitting is read as its replacement, in its
-	// place, so the Proofs section prints the corrected note once rather than the struck one.
-	for _, e := range Live(m.Events) {
+	for _, e := range m.Events {
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
@@ -405,8 +388,7 @@ func RecordedProofs(run Run) ([]Proof, error) {
 			Reason: pf.GetText(),
 			Drift:  pf.GetDrift(),
 			// nil when nobody re-ran it, which the report states rather than omits.
-			Verified:     verified[pf.GetProofSha()],
-			StruckReruns: struck[pf.GetProofSha()],
+			Verified: verified[pf.GetProofSha()],
 		})
 	}
 	return out, nil

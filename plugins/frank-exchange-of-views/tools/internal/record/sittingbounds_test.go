@@ -42,31 +42,3 @@ func TestAStopThatLandsAfterTheNextRegisterClosesNothing(t *testing.T) {
 		t.Errorf("owed = %+v, want one gap per sitting and both sittings closed", o)
 	}
 }
-
-// A REPAIR JOINS ITS OWN SEAT'S SITTING AND NOBODY ELSE'S (#1002, finding 5). The record cannot hold
-// it any other way: the write path stores a repair register in its own seat's latest sitting, and
-// the closer joins a repair to the sitting it is stored in, never to the one its key names. Read by
-// key, one blue seat naming another's register would extend that other seat's sitting over its own
-// acts, and the manifest and record-parity would answer for a sitting that never held them.
-func TestARepairNamingAnotherSeatsSittingJoinsNothing(t *testing.T) {
-	opened := "blue-respond:register:#1"
-	evs := []*Event{
-		recordtest.At(t, "red-chair", "red-chair:dispatch:d1", &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String("blue-respond"), GapIds: []string{"G1"}}),
-		recordtest.At(t, "blue-respond", opened, &recordpb.Register{AgentId: proto.String("blue-a")}),
-		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{Answers: proto.String("G1")}),
-		recordtest.At(t, HarnessSeat, "harness:sitting_close:s1", &recordpb.SittingClose{AgentId: proto.String("blue-a")}),
-		// Another blue seat, sitting, claims blue-respond's sitting as the one it repairs.
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:register:#1", &recordpb.Register{AgentId: proto.String("syn-a")}),
-		recordtest.At(t, "blue-synthesize", "blue-synthesize:register:#2", &recordpb.Register{AgentId: proto.String("syn-b"), RepairsSitting: proto.String(opened)}),
-		// An act by blue-respond after its sitting closed, inside the span the foreign repair would open.
-		recordtest.At(t, "blue-respond", "blue-respond:manifest_row:m1", &recordpb.ManifestRow{GapId: proto.String("G1"), Row: proto.String("recomputed")}),
-	}
-	m := loadedT(t, append(gapsExist(t, "G1"), evs...)...)
-	ss := BlueSittings(m.Events, m.At, WhileRunning)
-	if len(ss) != 1 {
-		t.Fatalf("blue sittings = %d, want 1", len(ss))
-	}
-	if got := strings.Join(actTypes(ss[0]), ","); got != "EVENT_TYPE_REGISTER,EVENT_TYPE_BLUE_EDIT" {
-		t.Errorf("blue-respond's sitting = %s, want it closed by its own stop — another seat's register does not reopen it", got)
-	}
-}
