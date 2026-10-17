@@ -112,6 +112,10 @@ func TestDoubledTerminatorReadsOnlyTheSeam(t *testing.T) {
 		{"a sentence added before the report's period", "It works. Next.", "It works. Does it scale?. Next.", "?."},
 		{"a sentence added before the report's period, past its anchor",
 			"It works<!--fx:F-11111111-->. Next.", "It works. Really!<!--fx:F-11111111-->. Next.", "!."},
+		{"a mark added after the report's", "It works. Next.", "It works.! Next.", ".!"},
+		{"a replacement that starts with a mark, beside the report's", "It works. Next.", "It works.! Later.", ".!"},
+		// The guard judges a change: a report it is handed unchanged holds no seam, whatever it holds.
+		{"no change, over a report that holds a doubled run", "It works!. Next.", "It works!. Next.", ""},
 		{"a paragraph repeated beside itself", "One. Two.\n\nNext.", "One. Two.\n\nOne. Two.\n\nNext.", ""},
 		// An edit that moves two anchors between its sentences: before and after part inside a token.
 		{"a terminator beside the report's, past anchors the edit moved",
