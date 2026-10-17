@@ -121,10 +121,6 @@ func spansIn(text string) []seatSpan {
 	return out
 }
 
-// seatRoles is the order every walk over the trees takes. A map range picked a different tree's
-// copy of a shared verb from run to run, so a flag check could pass on one run and fail the next.
-var seatRoles = []string{"lens", "chair", "blue", "bench"}
-
 // roleTree is one role's command tree.
 type roleTree struct {
 	role string

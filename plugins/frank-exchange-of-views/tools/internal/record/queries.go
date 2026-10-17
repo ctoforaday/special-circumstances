@@ -331,23 +331,30 @@ func ReportProjectionAt(db recordsql.Querier) (base string, haveBase bool, ops [
 	if !haveBase {
 		return "", false, nil, nil
 	}
-	// The second key orders the one case where an event yields several rows — a retire naming
-	// more than one anchor — so replay is deterministic rather than whatever SQLite returns.
-	opRows, err := db.Query(`SELECT "kind", "a", "b", "exact" FROM "report_op" ORDER BY "event_id", "a"`)
+	ops, err = reportOpsAfter(db, 0)
+	return base, haveBase, ops, err
+}
+
+// reportOpsAfter is the report_op rows of the events after event id `after`, in replay order: every
+// row, for an `after` of 0. The second key orders the one case where an event yields several rows — a
+// retire naming more than one anchor — so replay is deterministic rather than whatever SQLite returns.
+func reportOpsAfter(db recordsql.Querier, after int64) ([]ReportOp, error) {
+	opRows, err := db.Query(`SELECT "kind", "a", "b", "exact" FROM "report_op" WHERE "event_id" > ? ORDER BY "event_id", "a"`, after)
 	if err != nil {
-		return "", false, nil, fmt.Errorf("reading the report ops: %w", err)
+		return nil, fmt.Errorf("reading the report ops: %w", err)
 	}
 	defer opRows.Close()
+	var ops []ReportOp
 	for opRows.Next() {
 		var op ReportOp
 		var a, b sql.NullString
 		if err := opRows.Scan(&op.Kind, &a, &b, &op.Exact); err != nil {
-			return "", false, nil, err
+			return nil, err
 		}
 		op.A, op.B = a.String, b.String
 		ops = append(ops, op)
 	}
-	return base, haveBase, ops, opRows.Err()
+	return ops, opRows.Err()
 }
 
 // ReportBaseExists reports whether this run has a frozen base — the write-once state test behind

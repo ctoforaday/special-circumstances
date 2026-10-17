@@ -20,7 +20,7 @@ func TestZZFlagDump(t *testing.T) {
 	walk = func(c *cobra.Command, prefix string) {
 		for _, sub := range c.Commands() {
 			name := sub.Name()
-			if name == "help" || name == "completion" {
+			if name == "help" {
 				continue
 			}
 			path := strings.TrimSpace(prefix + " " + name)

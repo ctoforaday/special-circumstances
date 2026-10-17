@@ -125,7 +125,7 @@ func newRetire() *cobra.Command {
 			return nil
 		}
 
-		if _, err := record.Append(s.Identity(), body, guard); err != nil {
+		if _, err := record.Append(s.Identity(), body, record.CheckOnReport(guard)); err != nil {
 			return nil, err
 		}
 		return retireResult{Claim: seat.Str(cmd, flags.Quote), Anchors: body.Anchors, Stayed: stayed}, nil
