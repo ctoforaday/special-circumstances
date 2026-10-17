@@ -82,11 +82,16 @@ import (
 // first. Every instruction survives; only the words naming the model's interior do not, and saying
 // it takes more of them. red-lens-evidence absorbed the change inside its existing ceiling; the
 // judge measured 7,879 (+29), so 7,850 -> 7,900.
+//
+// Lowered 2026-10-17 (issue #1268, phase D) to each seat's measured size rounded up to the next
+// hundred, after the prompts stopped restating what the seat's constitution carries: blue-respond
+// 9,419, red-chair 6,260, red-lens-evidence 10,419, judge 5,840. The ceilings had drifted far above
+// the prompts as the clauses moved out, so growth up to the old numbers passed unseen.
 var ceilings = map[string]int{
-	"blue-respond":      15200,
-	"red-chair":         10200,
-	"red-lens-evidence": 12300,
-	"judge":             7900,
+	"blue-respond":      9500,
+	"red-chair":         6300,
+	"red-lens-evidence": 10500,
+	"judge":             5900,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

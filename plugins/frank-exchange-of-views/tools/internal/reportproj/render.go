@@ -256,7 +256,9 @@ func RenderFromRecord(run record.Run) (string, error) {
 	return record.RenderRun(run)
 }
 
-// Replay folds the ordered mutations over the frozen base.
+// Replay folds the ordered mutations over the frozen base. Each mutation reads only the running text,
+// so replaying ops[k:] over what ops[:k] left is replaying ops whole: the write path relies on it to
+// fold another write's ops onto a render it made before its lock (record.RegisterReportRenderer).
 func Replay(base string, haveBase bool, ops []record.ReportOp) (string, error) {
 	if !haveBase {
 		return "", fmt.Errorf("no base has been ingested for this run — there is nothing to render. Its author freezes the report into the record first; citing, proving, counting claims and editing all read the frozen report")

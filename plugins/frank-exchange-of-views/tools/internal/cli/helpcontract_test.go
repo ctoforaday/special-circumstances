@@ -194,7 +194,7 @@ func walk(c *cobra.Command, fn func(*cobra.Command, []string)) {
 	rec = func(cur *cobra.Command, path []string) {
 		for _, sub := range cur.Commands() {
 			n := sub.Name()
-			if n == "help" || n == "completion" {
+			if n == "help" {
 				continue
 			}
 			p := append(append([]string{}, path...), n)

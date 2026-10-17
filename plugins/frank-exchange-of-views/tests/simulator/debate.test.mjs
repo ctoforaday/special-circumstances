@@ -359,7 +359,12 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay the plan object it prints, copied whole, VERBATIM as `plan`/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
-  assert.ok(/CLOSING ARGUMENTS/.test(p) && /~120 words/.test(p) && /its assertable empty form only when the archive was empty when you sat/.test(p) && /VOTE EVERY INQUIRY/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  assert.ok(/VOTE EVERY INQUIRY/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  // THE POSITION, THE CLOSINGS AND THE SPOT-CHECK ARE UNCONDITIONAL DUTIES, so the constitution is
+  // their one carrier and the prompt, which every chair sitting receives unchanged, restates none.
+  const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
+  assert.ok(/owes a closing argument of ~120 words/.test(chairMd) && /its assertable empty form only when the archive was empty when you sat/.test(chairMd) && /YOUR POSITION ARGUES TO THE BENCH/.test(chairMd), 'the chair constitution lost the position, the closings or the spot-check')
+  assert.ok(!/CLOSING ARGUMENTS/.test(p) && !/YOUR POSITION ARGUES TO THE BENCH/.test(p) && !/A CLOSURE IS A CLAIM/.test(p), 'the chair prompt restates a duty its constitution carries')
   assert.ok(!/dispatch next|--as |show (board|work|motions)|motion (grade|inquiry) rule/.test(p), 'the chair is told the ACT; the word it types is the help page\'s')
   assert.ok(!/COALESCE/.test(p) && !/only writer/.test(p), 'the coalescing chair is gone with the mechanism')
   assert.ok(chair.opts.schema.properties.plan && chair.opts.schema.required.includes('plan'), 'the envelope carries the plan')
@@ -377,13 +382,16 @@ test('the chair is told a lens sits again only on a moved head and retires at th
   const p = labelsOf(world, 'red-chair')[0].prompt
   assert.ok(/RECORDS who sits — each lens that has never sat or whose last sitting the report head has moved past,/.test(p), 'the dispatch is described by the head and the lens\'s last sitting')
   assert.ok(!/active lenses/.test(p) && !/re-arm/.test(p), 'no lens is described as ready at a head it has sat at')
-  assert.ok(/A lens with no gap engaged is readied when it has never sat or the report head has moved since its last sitting, and not otherwise\. Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens\./.test(p), 'ready only on a moved head, retired at three')
-  assert.ok(/permits a PASS only when no lens is ready — every lens has sat at the head or has retired — and nothing another seat must clear holds it\. BEFORE a PASS/.test(p), 'the no-lens-ready PASS condition')
-  assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(p), 'the stale areas')
-  assert.ok(/The spot-check is owed before a PASS and at no other time: name in it every stale area the plan lists/.test(p), 'the spot-check is owed before a PASS, and names the stale areas')
   assert.ok(!/every sitting it is not empty/.test(p) && !/Re-sample the archive/.test(p), 'no sitting without a PASS in view owes a spot-check')
-  assert.ok(/YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record/.test(p), 'the by-class listing')
+  // THE READINESS RULE AND THE PASS IT PERMITS ARE THE CONSTITUTION'S, ONCE. They hold at every chair
+  // sitting, so the prompt carries none of them (TestEveryFragmentRendersOnceWhereItIsIncluded, rule 2).
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')
+  assert.ok(/A lens with no gap engaged is readied when it has never sat or the report head has moved since its last sitting, and not otherwise\. Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens\./.test(chairMd), 'ready only on a moved head, retired at three')
+  assert.ok(/permits a PASS only when no lens is ready — every lens has sat at the head or has retired — and nothing another seat must clear holds it\. BEFORE a PASS/.test(chairMd), 'the no-lens-ready PASS condition')
+  assert.ok(/BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict/.test(chairMd), 'the stale areas')
+  assert.ok(/The spot-check is owed before a PASS and at no other time: name in it every stale area the plan lists/.test(chairMd), 'the spot-check is owed before a PASS, and names the stale areas')
+  assert.ok(/YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record/.test(chairMd), 'the by-class listing')
+  assert.ok(!/A LENS SITS AGAIN/.test(p) && !/YOUR PASS LISTS EVERY OPEN GAP/.test(p) && !/The spot-check is owed before a PASS/.test(p), 'the chair prompt restates the readiness rule its constitution carries')
   for (const clause of ['and not otherwise. Three sittings in a row with no fresh material mint retire it', 'The plan permits a PASS only when no lens is ready', "each stale area's pin", 'YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS', 'each lens that has never sat or whose last sitting the report head has moved past']) {
     assert.ok(chairMd.includes(clause), `the chair constitution and prompt disagree: ${clause}`)
   }
@@ -632,8 +640,10 @@ test('synthesis: provenance tagging, open questions, the catechism, and ownershi
   // on every verb whose text the report prints (edit, ingest, the inquiry's propose and record, and
   // prove's note and cite's title, which the Bibliography prints),
   // so a copy here is a second statement of a contract nothing keeps in step.
-  assert.ok(/THE REPORT'S CONTENT RULE .* is on the verbs that write report text/.test(synth),
-    'the synthesis prompt must point at where the report content rule lives')
+  // The pointer is the synthesizer constitution's, once: it holds at every synthesis.
+  const synthMd = readFileSync(new URL('../../agents/blue-synthesizer.md', import.meta.url), 'utf8')
+  assert.ok(/The full content rule .* is on the verbs that write report text/.test(synthMd) && !/CONTENT RULE/i.test(synth),
+    'the synthesizer constitution, and not its prompt, points at where the report content rule lives')
   assert.ok(!/RESEARCH PROSE AND THE TOOL'S OWN MARKERS/.test(synth) && !/EXTRACTED from the record/.test(synth),
     'the synthesis prompt restates the verbs\' report content rule instead of pointing at it')
   assert.ok(synth.includes('## Open questions') && synth.includes('THE CATECHISM IS YOURS') && synth.includes('## The Catechism') && synth.includes('every risk-accepted residual'))
@@ -734,8 +744,8 @@ test('every seat prompt carries the speed clause and the record contract, and le
   // THE SURFACE ARRIVES WITH THE SEAT, AND SO DOES THE DUTY TO READ IT: the constitution carries
   // every command's own --help and the one statement of the read-it-whole duty (the
   // surface-discovery fragment). The prompt adds what only the sitting knows — where one page prints.
-  assert.ok(/YOUR CONFIGURATION HOLDS YOUR WHOLE SURFACE/.test(lens) && lens.includes('--seat-id red-lens-evidence <command> --help'), 'the lens lost the pointer to its surface and to one page of it')
-  assert.ok(!/IS A GUESS/.test(lens) && !/READ IT BEFORE YOU CHOOSE/.test(lens), 'the lens prompt restates the surface-reading duty its constitution states')
+  assert.ok(lens.includes('--seat-id red-lens-evidence <command> --help'), 'the lens lost the pointer to one page of its surface')
+  assert.ok(!/IS A GUESS/.test(lens) && !/READ IT BEFORE YOU CHOOSE/.test(lens) && !/YOUR CONFIGURATION HOLDS YOUR WHOLE SURFACE/.test(lens), 'the lens prompt restates the surface-reading duty its constitution states')
   const audit = readFileSync(new URL('../../skills/adversarial-audit/SKILL.md', import.meta.url), 'utf8')
   assert.ok(/Before you act, read your WHOLE SURFACE/.test(audit) && /is a guess/.test(audit), 'the red seats lost the surface-reading directive: the skill they preload does not state it')
   // AND IT DOES NOT SEND THE SEAT AFTER A DOCUMENT IT WAS GIVEN. Both retired shapes: the
