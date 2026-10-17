@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -127,6 +129,9 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if m := lastBody(t, runDir, &recordpb.Mint{}); m.GetFixBasis() != "verified" {
+				t.Errorf("the mint's fix_basis is %q, want verified", m.GetFixBasis())
+			}
 			tok, ftok := anchor.Token(gap), anchor.Token(fx)
 			if old, new := boardPair(t, runDir, gap); old != acceptS+tok+ftok+term || new != acceptN+tok+ftok+term {
 				t.Errorf("the board's pair is %q -> %q, want the finding carried with the gap's anchor", old, new)
@@ -147,6 +152,46 @@ func TestAcceptCarriesTheGapAnchor(t *testing.T) {
 			}
 			if g := openGap(t, runDir, gap); g.LocationState != record.LocationMarked || g.Location != acceptN+"." {
 				t.Errorf("the gap reads %s %q, want marked on red's text", g.LocationState, g.Location)
+			}
+		})
+
+		t.Run("a citation on S when red mints"+term, func(t *testing.T) {
+			// The accept carries no citation onto red's rewording, so the mint refuses to verify one:
+			// nothing is recorded, and the refusal names the citation and the three ways on.
+			runDir := acceptRun(t)
+			cite := citeSentence(t, runDir, acceptS+".", "https://costs/1")
+			before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
+			_, err := mintQuote(t, runDir, "G", loc, "--new", acceptN+term)
+			if err == nil {
+				t.Fatal("a mint verified a rewording the accept refuses: the citation on the sentence would not survive it")
+			}
+			for _, want := range []string{"NOTHING IS RECORDED", cite, "word for word", "as `show report` prints it", "--fix"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("the refusal does not say %q: %v", want, err)
+				}
+			}
+			if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != before {
+				t.Errorf("a refused mint recorded %d mint(s)", n-before)
+			}
+
+			// The two prescriptions the refusal offers are verified, and the accept applies each.
+			for i, c := range []struct{ new, want func(ctok string) string }{
+				{func(string) string { return acceptKeep + term }, func(ctok string) string { return acceptS + ctok + ". Analysts disagree about why" }},
+				{func(ctok string) string { return acceptN + ctok + term }, func(string) string { return acceptN }},
+			} {
+				runDir := acceptRun(t)
+				ctok := anchor.Token(citeSentence(t, runDir, acceptS+".", "https://costs/1"))
+				gap, err := mintQuote(t, runDir, "G", loc, "--new", c.new(ctok))
+				if err != nil {
+					t.Fatalf("offered prescription %d: %v", i, err)
+				}
+				if err := acceptEdit(t, runDir, "A", gap, "--accept"); err != nil {
+					t.Fatalf("offered prescription %d verified, then refused at accept: %v", i, err)
+				}
+				rep := readReport(t, runDir)
+				if strings.Count(rep, ctok) != 1 || strings.Count(rep, anchor.Token(gap)) != 1 || !strings.Contains(rep, c.want(ctok)) {
+					t.Errorf("offered prescription %d: the report does not hold red's text with each anchor once:\n%s", i, rep)
+				}
 			}
 		})
 
@@ -307,5 +352,128 @@ func TestShowWorkCarriesTheBoardsFixPairForBlue(t *testing.T) {
 		if v, has := g[k]; has {
 			t.Errorf("work item %s has %s = %v; its lens proposed no text", prose, k, v)
 		}
+	}
+}
+
+// acceptFinding files a lens finding at quote and returns its id.
+func acceptFinding(t *testing.T, runDir, key, quote string) string {
+	t.Helper()
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
+		"--reason", "overclaim", "--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
+		t.Fatalf("finding: %v", err)
+	}
+	return lastBody(t, runDir, &recordpb.Finding{}).GetId()
+}
+
+// recordedPrescription appends a gap prescribing fix at quote with no mint verb in between — the
+// mint body of a prose-only gap on a scratch run of the same report, carrying the pair as recorded,
+// with its anchor — so the accept can be asked about a pair the mint never judged.
+func recordedPrescription(t *testing.T, body, runDir, quote, fix string) string {
+	t.Helper()
+	scratch := acceptRunOf(t, body)
+	if _, err := mintQuote(t, scratch, "TEMPLATE", quote); err != nil {
+		t.Fatalf("the template mint: %v", err)
+	}
+	m := proto.Clone(lastBody(t, scratch, &recordpb.Mint{})).(*recordpb.Mint)
+	gap := record.NewID("gap")
+	m.GapId, m.MintKey, m.FixNew, m.FixBasis = proto.String(gap), proto.String("RECORDED"), proto.String(fix), proto.String("verified")
+	m.ClassMaterial = nil // stamped by the write path
+	m.DistinctFrom = nil
+	for _, g := range boardOf(t, runDir).Open {
+		m.DistinctFrom = append(m.DistinctFrom, g.ID)
+	}
+	if _, err := record.AppendPlaced(record.Identity{Run: runtest.Open(t, runDir), SeatID: lensSeat}, m, gap, quote); err != nil {
+		t.Fatalf("recording the prescription: %v", err)
+	}
+	return gap
+}
+
+// MINT VERIFIES EXACTLY WHAT THE ACCEPT APPLIES. Each row is a report, what stands on it when red
+// mints, and red's pair. Run A mints it through the verb; run B, the same state, records the pair with
+// no mint judgement and asks the accept. Verified in A ⇔ applied in B, and a fix verified in A is
+// applied in A. The authoring bound is outside the equivalence: it is what red may prescribe, not
+// whether the accept applies it.
+func TestMintVerifiesExactlyWhatTheAcceptApplies(t *testing.T) {
+	const costs = "# Costs\n\nThe year opened badly. " + acceptS + ". Volume recovered later.\n"
+	const stray = "# H\n\nIntro.\n\n(They stand " + strayPeriod + "\n"
+	const heading = "# Title\n\n## Method\n\nThe sieve runs once.\n"
+	const wrapped = "# Method\n\n- The procedure is proven to\n  correctly decide primality for every input.\n- A second item.\n"
+	type row struct {
+		name, body string
+		// on puts what stands on the report when red mints, and returns red's quote and text.
+		on   func(t *testing.T, runDir string) (quote, fix string)
+		want bool
+	}
+	var rows []row
+	for _, term := range []string{"", "."} {
+		loc := acceptS + term
+		rows = append(rows,
+			row{"plain" + term, costs, func(*testing.T, string) (string, string) { return loc, acceptN + term }, true},
+			row{"the finding on S" + term, costs, func(t *testing.T, d string) (string, string) {
+				acceptFinding(t, d, "F1", acceptS+".")
+				return loc, acceptN + term
+			}, true},
+			row{"a finding inside S" + term, costs, func(t *testing.T, d string) (string, string) {
+				acceptFinding(t, d, "F1", "Costs rose sharply")
+				return loc, acceptN + term
+			}, false},
+			row{"a citation on S, reworded" + term, costs, func(t *testing.T, d string) (string, string) {
+				citeSentence(t, d, acceptS+".", "https://costs/1")
+				return loc, acceptN + term
+			}, false},
+			row{"a citation on S, kept" + term, costs, func(t *testing.T, d string) (string, string) {
+				citeSentence(t, d, acceptS+".", "https://costs/1")
+				return loc, acceptKeep + term
+			}, true},
+			row{"a citation on S, carried" + term, costs, func(t *testing.T, d string) (string, string) {
+				return loc, acceptN + anchor.Token(citeSentence(t, d, acceptS+".", "https://costs/1")) + term
+			}, true},
+			row{"a second gap on S" + term, costs, func(t *testing.T, d string) (string, string) {
+				if _, err := mintQuote(t, d, "G0", loc); err != nil {
+					t.Fatal(err)
+				}
+				return loc, acceptN + term
+			}, true},
+			row{"quoting another gap's anchor" + term, costs, func(t *testing.T, d string) (string, string) {
+				g1, err := mintQuote(t, d, "G0", loc, "--new", acceptN+term)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t1 := anchor.Token(g1)
+				return acceptS + t1 + term, "Costs rose, though less than feared" + t1 + term
+			}, true},
+			row{"a wrapped list item" + term, wrapped, func(*testing.T, string) (string, string) {
+				return "The procedure is proven to\ncorrectly decide primality for every input" + term, "The procedure decides primality correctly for every input it was tested on" + term
+			}, true},
+		)
+	}
+	rows = append(rows,
+		row{"a punctuation repair on the literal span", stray, func(*testing.T, string) (string, string) { return strayPeriod, "on their own.)" }, true},
+		row{"a repair that changes nothing", stray, func(*testing.T, string) (string, string) { return "on their own.);", "on their own.)" }, false},
+		row{"red's text made a heading", heading, func(*testing.T, string) (string, string) { return "The sieve", "## The sieve" }, false},
+	)
+	for _, r := range rows {
+		t.Run(r.name, func(t *testing.T) {
+			a := acceptRunOf(t, r.body)
+			quote, fix := r.on(t, a)
+			before := countType(t, a, recordpb.EventType_EVENT_TYPE_MINT)
+			gap, err := mintQuote(t, a, "G", quote, "--new", fix)
+			verified := err == nil && lastBody(t, a, &recordpb.Mint{}).GetFixBasis() == "verified"
+			if err != nil && countType(t, a, recordpb.EventType_EVENT_TYPE_MINT) != before {
+				t.Errorf("a refused mint recorded a mint")
+			}
+			if verified {
+				if err := acceptEdit(t, a, "A", gap, "--accept"); err != nil {
+					t.Errorf("a fix the mint verified is refused at accept: %v", err)
+				}
+			}
+
+			b := acceptRunOf(t, r.body)
+			quote, fix = r.on(t, b)
+			applied := acceptEdit(t, b, "A", recordedPrescription(t, r.body, b, quote, fix), "--accept") == nil
+			if verified != applied || verified != r.want {
+				t.Errorf("mint verified=%v (%v), accept applied=%v, want both %v", verified, err, applied, r.want)
+			}
+		})
 	}
 }

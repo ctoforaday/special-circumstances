@@ -1893,7 +1893,7 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 // the pair is located from the location AS MINTED, which the marking below replaces. The board and
 // the work item both take the pair from here, so neither can serve one the other does not.
 func locateGap(report string, err error, g *WorkGapState) {
-	g.FixOld, g.FixNew = proposalOver(report, g.ID, g.Location, g.FixNew)
+	g.FixOld, g.FixNew = ProposalOver(report, g.ID, g.Location, g.FixNew)
 	if g.Location == "" {
 		return
 	}

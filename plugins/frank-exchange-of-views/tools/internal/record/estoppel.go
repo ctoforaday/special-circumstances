@@ -135,16 +135,22 @@ func Proposal(run Run, gapID, report string) (old, fixNew string, found bool, er
 
 // proposalAt is Proposal asked of q.
 func proposalAt(q recordsql.Querier, gapID, report string) (old, fixNew string, found bool, err error) {
-	var loc, fix sql.NullString
-	found, err = queryRowAt(q, []any{&loc, &fix}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	loc, fix, found, err := prescriptionAt(q, gapID)
 	if err != nil || !found {
 		return "", "", false, err
 	}
-	old, fixNew = proposalOver(report, gapID, loc.String, fix.String)
+	old, fixNew = ProposalOver(report, gapID, loc, fix)
 	return old, fixNew, true, nil
 }
 
-// proposalOver is a gap's prescribed pair over report. Where the location, located as an edit locates
+// prescriptionAt is the location and text gapID's mint recorded, as q holds them.
+func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found bool, err error) {
+	var l, f sql.NullString
+	found, err = queryRowAt(q, []any{&l, &f}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	return l.String, f.String, found, err
+}
+
+// ProposalOver is a gap's prescribed pair over report. Where the location, located as an edit locates
 // it, is followed by an anchor run holding the gap's own anchor — after any trailing punctuation,
 // where an edit's abutting-anchor rule reads it — old is the location as the report holds it, through
 // that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
@@ -153,13 +159,13 @@ func proposalAt(q recordsql.Querier, gapID, report string) (old, fixNew string, 
 // places an anchor on any quote ending there; the run's citations and proofs are the edit's to carry
 // or refuse. Otherwise the recorded pair.
 //
-// A FINDING RIDES WITH THE GAP. `lens mint` verifies its pair with the run outside the quote, where an
-// edit leaves it standing on the replacement, and a gap is minted from a finding on its sentence. Left
-// to the edit, that finding was dropped by red's text and every such accept refused as stale on a
-// report nothing had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or proof is the
-// sentence's evidence, and carried onto red's rewording it would back text its source was never read
-// against, so it comes along only where AutoPlace finds its sentence word for word.
-func proposalOver(report, gapID, loc, fix string) (string, string) {
+// A FINDING RIDES WITH THE GAP. A gap is minted from a finding on its sentence, and left to the edit,
+// that finding was dropped by red's text and every such accept refused as stale on a report nothing
+// had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or proof is the sentence's
+// evidence, and carried onto red's rewording it would back text its source was never read against, so
+// it comes along only where AutoPlace finds its sentence word for word. `lens mint` judges its pair
+// through this function too (blue.PlanAccept), so a pair the accept would refuse is refused there.
+func ProposalOver(report, gapID, loc, fix string) (string, string) {
 	start, end, err := anchortext.LocateOnce(report, loc, anchortext.CrossParagraphs)
 	if fix == "" || err != nil {
 		return loc, fix
