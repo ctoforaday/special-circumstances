@@ -148,7 +148,7 @@ func newFetch() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().String(flags.URL, "", "the http/https URL to read")
+	c.Flags().String(flags.URL, "", "the http/https URL to read. "+flags.DescURLQuoting)
 	// THE FIRST BACKQUOTED WORD IS COBRA'S PLACEHOLDER, so it is the shape (`backend`), not a value:
 	// it rendered `--via archive`, which reads like a default.
 	c.Flags().String(flags.Via, "", "reach the source through a named `backend`: "+

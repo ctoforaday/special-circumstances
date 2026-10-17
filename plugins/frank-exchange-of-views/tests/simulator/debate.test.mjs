@@ -1172,7 +1172,7 @@ test('a relay the envelope schema accepts is never one the engine throws on', as
     plan: plan(
       [party('red-lens-evidence', 'G-00000001'), party('blue-respond', 'G-00000001', 'G-00000002'), { seat_id: 'judge', gap_ids: ['G-00000002'], occasions: ['petition', 'docket'] }],
       { docket: ['G-00000002'], remand_owed: [{ gap_id: 'G-00000001', direction: 'find the primary source' }], exchanges: [{ gap_id: 'G-00000001', count: 2, unresolved: 1 }, { gap_id: 'G-00000002', count: 3, unresolved: 0 }], stale_areas: [{ seat_id: 'red-lens-voice', pin: 3 }], blockers: [blocker('M-00000001', 'judge')], why: ['G-00000001: open'], max_epochs: 12 }),
-    verdict: null, notes: 'n',
+    verdict: null,
   })
   const paths = []
   const walk = (v, path) => {

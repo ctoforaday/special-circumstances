@@ -380,8 +380,8 @@ func outcomeOf(evs []*record.Event) *recordpb.Outcome {
 	return last
 }
 
-// outcomeStamp composes the outcome line from the terminal outcome event. A missing outcome
-// is flagged, never invented — the same invariant as a missing blue section.
+// outcomeStamp composes the outcome line from the terminal outcome event. A missing outcome is
+// never invented: it is PENDING, the state of every run before its bench records one.
 //
 // CASING IS PRESENTATION. The record carries the schema's spelling (`verified`, `ceiling`) and
 // the stamp wants emphasis, so the UPPER-CASING HAPPENS HERE, at display time. A second
@@ -390,9 +390,14 @@ func outcomeOf(evs []*record.Event) *recordpb.Outcome {
 func outcomeStamp(o *recordpb.Outcome) string {
 	if o == nil {
 		// STATE ONLY (gblock, 2026-09-10), in the same shape as every other stamp: a word, then its
-		// basis in parentheses. The act that was missing — `bench outcome` never ran — is a fact about
-		// the run, and run.md's verdict-basis section says it.
-		return outcomeLine + " NONE (no terminal outcome on the record)"
+		// basis in parentheses.
+		//
+		// PENDING, NOT A DEFECT. Every assembly before the bench's last sitting has no outcome to
+		// stamp — a seat reading `show report --assembled` mid-run sees this line — and "NONE (no
+		// terminal outcome on the record)" read as a finding: a lens on the 2026-10-17 smoke filed
+		// one against it, at a line no seat can change. Capture re-assembles at the close, so a run
+		// whose bench recorded an outcome ships with it stamped.
+		return outcomeLine + " PENDING (no outcome on the record yet — the bench records it at the run's exit)"
 	}
 	return outcomeLine + " " + outcomeWord(o) + basisState(o.GetVerdictBasis())
 }
@@ -439,7 +444,7 @@ func outcomeWord(o *recordpb.Outcome) string {
 // paragraph a reader meets, which is where the argument was always addressed.
 func verdictGloss(o *recordpb.Outcome) string {
 	if o == nil {
-		return "_(no terminal outcome recorded — the bench's `outcome` was not run before assembly.)_"
+		return "_(no outcome on the record yet — the bench records it at the run's exit, and the documents are assembled again then.)_"
 	}
 	var lead string
 	switch o.GetVerdict() {
@@ -1379,8 +1384,10 @@ func logSection(fam record.Family) string {
 		spoke[e.GetSeatId()] = true
 		rows = append(rows, fmt.Sprintf("- **%s** (%s): %s", e.GetSeatId(), recordpb.Word(f.GetType()), t))
 	}
-	// A SEAT THAT SAT AND FILED NOTHING LOOKED AND FOUND NOTHING. The harness brackets every
-	// dispatch, so this is read off the stored sitting rather than asserted by the seat.
+	// A SEAT THAT SAT AND FILED NO LOG ENTRY LOOKED AND FOUND NOTHING TO REPORT. The harness
+	// brackets every dispatch, so this is read off the stored sitting rather than asserted by the
+	// seat. It says nothing of the seat's other acts: a lens listed here may have minted gaps, and
+	// the heading said "filed nothing" over exactly such a seat on the 2026-10-17 smoke.
 	for _, l := range fam.Events {
 		if seat, opens := fam.At.Opens(l); opens && !spoke[seat] && !named[seat] {
 			named[seat] = true
@@ -1402,9 +1409,9 @@ func logSection(fam record.Family) string {
 	// than from an entry each had to file — the harness brackets every dispatch, so a seat that sat
 	// and said nothing is a seat that looked and found nothing.
 	if len(attested) > 0 {
-		out += "\n### Seats that sat and filed nothing\n\n" + strings.Join(attested, "\n") + "\n"
+		out += "\n### Seats that sat and filed no log entry\n\n" + strings.Join(attested, "\n") + "\n"
 	} else if len(rows) > 0 {
-		out += "\nNo seat sat without filing, so the list above is every seat that spoke.\n"
+		out += "\nEvery seat that sat filed a log entry, so the list above is every seat that sat.\n"
 	}
 	return strings.TrimRight(out, "\n")
 }
