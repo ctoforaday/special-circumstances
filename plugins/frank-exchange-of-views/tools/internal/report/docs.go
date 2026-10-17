@@ -342,36 +342,25 @@ func factBox(fam record.Family) string {
 // first" carries the terminal statement alone; the ones it replaced are history, and history
 // belongs in a document rather than stacked under a heading that reads as parallel asks.
 func supersededAsks(evs []*record.Event) string {
-	// THE LISTING: every certification, a struck one marked. The statement the report carries is
-	// the LAST one that stands; every other — replaced by a later certification, or struck by its
-	// own seat's correction — is listed here, in the order it was made, never dropped.
-	type ask struct {
-		text   string
-		struck *record.Struck
-	}
-	var all []ask
-	carried := -1
-	for _, l := range record.Listing(evs) {
-		if c, ok := recordpb.BodyAs[*recordpb.Certify](l.Event); ok {
+	// The statement the report carries is the LAST one; every other, replaced by a later
+	// certification, is listed here, in the order it was made, never dropped.
+	var all []string
+	for _, e := range evs {
+		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
 			if s := strings.TrimSpace(c.GetStatement()); s != "" {
-				all = append(all, ask{s, l.Struck})
-				if l.Struck == nil {
-					carried = len(all) - 1
-				}
+				all = append(all, s)
 			}
 		}
 	}
 	var rows []string
-	for i, a := range all {
-		if i != carried {
-			rows = append(rows, record.StruckMarkdown(a.text, a.struck))
-		}
+	if len(all) > 1 {
+		rows = all[:len(all)-1]
 	}
 	if len(rows) == 0 {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("The LAST statement that stands is the one the report carries; these are the ones it replaced, or that the bench struck and corrected, in the order they were made.\n\n")
+	b.WriteString("The LAST statement is the one the report carries; these are the ones it replaced, in the order they were made.\n\n")
 	for i, s := range rows {
 		fmt.Fprintf(&b, "%d. %s\n\n", i+1, s)
 	}

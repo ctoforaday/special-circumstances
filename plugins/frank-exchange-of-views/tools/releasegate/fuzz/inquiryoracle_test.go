@@ -27,7 +27,6 @@ func inquiryOracleRun(t *testing.T, line string, ruling recordpb.InquiryRuling) 
 		{blue, &recordpb.Inquiry{InquiryId: proto.String("Q1"), Question: proto.String(line), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}},
 		{red, &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
-			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 			Opinion:  proto.String("ruled as the line was proposed"),
 			Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: ruling},
 		}},

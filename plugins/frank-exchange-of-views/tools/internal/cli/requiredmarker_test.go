@@ -59,21 +59,21 @@ type requiredProbe struct {
 // one while the other is present runs clean, and omitting both is refused naming both — a
 // requirement no single-flag marker states, so these are exempt from the marker check and the
 // help carries the alternative in prose (helpcontract_test.go's satisfiedByAnother reads the
-// same shape from the other side).
+// same shape from the other side). `motion docket rule` answers what follows its ruling with one
+// of three, chosen by --as: --direction on a remand, else --reopens-on or --final.
 var oneOfAnother = map[string]string{
 	"problem":    "reason",
 	"reason":     "problem",
 	"reopens-on": "final",
 	"final":      "reopens-on",
-	"ids":        "none",
-	"none":       "ids",
+	"direction":  "final",
 }
 
 // verbsWithAOneOf are the verbs on which oneOfAnother applies — --reason is ordinary everywhere
 // but `mint`, where it stands in for --problem. A pair exempts a flag only where its partner is
 // registered: `motion docket rule` has --final/--reopens-on and no --problem, so its --reason is
 // held to the marker like any other.
-var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true, "spot-check": true}
+var verbsWithAOneOf = map[string]bool{"mint": true, "motion docket rule": true}
 
 func requiredProbes() map[string]requiredProbe {
 	probes := map[string]requiredProbe{}

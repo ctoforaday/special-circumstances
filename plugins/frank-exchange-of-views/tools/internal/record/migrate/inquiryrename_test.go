@@ -72,8 +72,8 @@ func TestAnOldInquiryRulingMigratesUnderTheOneWord(t *testing.T) {
 			continue
 		}
 		found = true
-		if r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
-			t.Errorf("the ruling's subject arrived as %v, want inquiry — the value rename did not run", r.GetSubject())
+		if r.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+			t.Errorf("the ruling's subject arrived as %v, want inquiry — the value rename did not run", r.Subject())
 		}
 		if r.GetInquiry() != recordpb.InquiryRuling_INQUIRY_RULING_ENDORSED {
 			t.Errorf("the ruling arrived as %v, want endorsed under the inquiry arm — the column rename did not run", r.GetRuling())
@@ -96,7 +96,7 @@ func TestAnOldInquiryMotionArmMigratesUnderTheOneWord(t *testing.T) {
 	found := false
 	for _, e := range fam.Events {
 		mo, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok || mo.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+		if !ok || mo.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 			continue
 		}
 		found = true

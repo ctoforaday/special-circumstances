@@ -9,7 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // The evidence acts a reopened anchor is folded from, seeded with only the fields the fold joins on.
@@ -238,25 +237,6 @@ func TestEveryCheckResultHasAClearingDisposition(t *testing.T) {
 				t.Errorf("a later sitting's re-run (reproduced %v, %s) clears = %v, want %v", reproduced, s, cleared, want)
 			}
 		}
-	}
-}
-
-// A CORRECTED RE-RUN IS THE RE-RUN IT CORRECTS, WHERE THAT ONE STOOD. The correction is filed in a
-// sitting opened after the edit; the re-run it replaces was made before it. Read at the
-// replacement's own place it would clear a proof nobody re-ran since the sentence changed.
-func TestACorrectedRerunKeepsItsPlace(t *testing.T) {
-	b := reopenedBoard(t).proof("P-1", "s1").reproduce(evLens, "s1", true, recordpb.Soundness_SOUNDNESS_SOUND)
-	first, key := b.at(), b.lastKey()
-	b.reopen("P-1")
-	edit := b.at()
-	b.dispatch(edit, evLens).register(evLens)
-	b.evs = append(b.evs,
-		recordtest.At(t, evLens, key+"~1", &recordpb.Reproduce{ProofSha: proto.String("s1"), Reproduced: proto.Bool(true),
-			Soundness: recordpb.Soundness_SOUNDNESS_SOUND.Enum(), Note: proto.String("the note, reworded")}),
-		correctionOf(t, evLens, key))
-	got := reopenedRows(t, b)
-	if len(got) != 1 || got[0] != (reopened{anchor: "P-1", sha: "s1", edit: edit, lastCheck: first}) {
-		t.Errorf("rows = %+v, want P-1 still reopened at edit %d, its last check the re-run's own place %d", got, edit, first)
 	}
 }
 

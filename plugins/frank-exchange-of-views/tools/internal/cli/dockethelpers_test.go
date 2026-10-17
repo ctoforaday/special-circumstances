@@ -46,7 +46,7 @@ func docketFile(t *testing.T, runDir, filer, gapID, basis string) string {
 func benchRuleArgs(motionID, as, principle string) []string {
 	reopen := []string{"--final"}
 	if as == "remanded" {
-		reopen = []string{"--reopens-on", "a reproduction on the shipped binary"}
+		reopen = []string{"--direction", "a reproduction on the shipped binary"}
 	}
 	return append([]string{"motion", "docket", "rule", "--id", motionID, "--as", as,
 		"--principle", principle,

@@ -33,7 +33,6 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}, "--reason"},
 		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}, "--reason"},
 		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{}, "--reason"},
-		{recordpb.EventType_EVENT_TYPE_REVISION, &recordpb.Revision{}, "--reason"},
 	} {
 		t.Run(recordpb.Word(tc.typ), func(t *testing.T) {
 			err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", tc.typ, tc.body)
@@ -48,8 +47,7 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 }
 
 func TestARealDischargeIsAccepted(t *testing.T) {
-	// EACH TYPE'S OWN BODY. The earlier conversion passed a Revision for all four, so three of the
-	// cases validated a message the verb does not write — the assertion held for the wrong reason.
+	// EACH TYPE'S OWN BODY, so each case validates the message its verb writes.
 	prose := proto.String("what I reached for and what happened")
 	for _, c := range []struct {
 		typ  recordpb.EventType
@@ -58,7 +56,6 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}},
 		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_REQUEST.Enum()}},
 		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{Text: prose}},
-		{recordpb.EventType_EVENT_TYPE_REVISION, &recordpb.Revision{Text: prose}},
 	} {
 		if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "blue-respond", c.typ, c.body); err != nil {
 			t.Errorf("%s with a reason was refused: %v", recordpb.Word(c.typ), err)
@@ -84,7 +81,7 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 }
 
 // spot-check is DELIBERATELY not in this class: its bare form is a documented decision with its
-// own test, and its --none --reason exists for the same distinction. Pinned so a later sweep of
+// own test, and its --reason says why it named nothing. Pinned so a later sweep of
 // this class does not "fix" it by mistake.
 func TestSpotCheckBareStaysAccepted(t *testing.T) {
 	if err := validateRun(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {

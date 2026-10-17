@@ -62,7 +62,7 @@ func raceStage(t *testing.T) Run {
 }
 
 func gradeMotion(id, gap string, proposed recordpb.Grade) *recordpb.Motion {
-	return &recordpb.Motion{MotionId: proto.String(id), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+	return &recordpb.Motion{MotionId: proto.String(id),
 		Basis: proto.String("the likelihood is overstated"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap),
 			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: proposed.Enum()}}}
 }

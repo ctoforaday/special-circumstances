@@ -36,22 +36,72 @@ func TestAnArchivedInquiryFateMigratesAsRecorded(t *testing.T) {
 	}
 }
 
-// fatesIn counts the acts of one table by status.
+// fatesIn counts the acts of one table by status, as a migration writes them: an act an archive's
+// correction chain replaced is written once, as the chain's head, in its root's place.
 func fatesIn(t *testing.T, db *sql.DB, table string) map[string]int {
 	t.Helper()
-	rows, err := db.Query(`SELECT "status", count(*) FROM "` + table + `" GROUP BY "status"`)
+	out := map[string]int{}
+	for _, a := range writtenActs(t, db, table, "status") {
+		out[a.text.String]++
+	}
+	return out
+}
+
+// writtenActs is one table's acts in record order, each column read as a migration writes the act:
+// a row a correction replaced is passed over, and a corrected root carries its chain head's columns.
+// A record that holds no correction table holds no chain.
+func writtenActs(t *testing.T, db *sql.DB, table, text string) []inquiryAct {
+	t.Helper()
+	rows, err := db.Query(`SELECT e."key", x."` + text + `", x."reason", x."supersedes_status" FROM "` + table + `" x
+	  JOIN "events" e ON e."id" = x."event_id" ORDER BY x."event_id"`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
-	out := map[string]int{}
+	var keys []string
+	byKey := map[string]inquiryAct{}
 	for rows.Next() {
-		var status string
-		var n int
-		if err := rows.Scan(&status, &n); err != nil {
+		var k sql.NullString
+		var a inquiryAct
+		if err := rows.Scan(&k, &a.text, &a.reason, &a.supersedes); err != nil {
 			t.Fatal(err)
 		}
-		out[status] = n
+		keys = append(keys, k.String)
+		byKey[k.String] = a
+	}
+	rows.Close()
+	next := map[string]string{}
+	var has int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE "name" = 'correction'`).Scan(&has); err != nil {
+		t.Fatal(err)
+	}
+	if has > 0 {
+		cr, err := db.Query(`SELECT "corrects", "replacement" FROM "correction"`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for cr.Next() {
+			var c, r string
+			if err := cr.Scan(&c, &r); err != nil {
+				t.Fatal(err)
+			}
+			next[c] = r
+		}
+		cr.Close()
+	}
+	replaced := map[string]bool{}
+	for _, r := range next {
+		replaced[r] = true
+	}
+	var out []inquiryAct
+	for _, k := range keys {
+		if replaced[k] {
+			continue
+		}
+		head := k
+		for r, ok := next[head]; ok; r, ok = next[head] {
+			head = r
+		}
+		out = append(out, byKey[head])
 	}
 	return out
 }
@@ -141,15 +191,15 @@ func inquiryActs(t *testing.T, db *sql.DB, table, text string) []inquiryAct {
 // AN ARCHIVED PROPOSAL ARRIVES AS AN INQUIRY HOLDING A QUESTION AND NO REASON. The archive's table
 // and its text column carry earlier names, and the archive's propose wrote the same text into its
 // reason.
-// Every act arrives, in order, under the current table; each proposal's question is its archived
+// Every act arrives, in order, under the current table — a corrected act once, as its chain's head; each proposal's question is its archived
 // text byte for byte and carries no reason, and every later act's reason is the archive's, byte for
 // byte.
 func TestAnArchivedProposalArrivesAsAQuestionWithNoReason(t *testing.T) {
 	const archive = "2026-09-11_is-91-prime-b9.tar.gz"
 	src := recordtest.RequireArchive(t, archive)
-	before := inquiryActs(t, openRO(t, src), "avenue", "line")
-	if len(before) != 26 {
-		t.Fatalf("%s holds %d archived inquiry act(s), want 26", archive, len(before))
+	before := writtenActs(t, openRO(t, src), "avenue", "line")
+	if len(before) != 25 {
+		t.Fatalf("%s holds %d archived inquiry act(s) once its correction chain is written as its head, want 25", archive, len(before))
 	}
 	res, dst := migrateArchive(t, archive)
 	if len(res.Refusals) != 0 {
@@ -249,7 +299,7 @@ func TestAnArchivedInquiryRulingArrivesUnderSubjectInquiry(t *testing.T) {
 			got := 0
 			for _, e := range fam.Events {
 				r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-				if !ok || r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+				if !ok || r.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 					continue
 				}
 				if r.GetInquiry() == recordpb.InquiryRuling_INQUIRY_RULING_UNSPECIFIED {

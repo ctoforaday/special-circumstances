@@ -37,7 +37,6 @@ func eraEntries() Registry {
 		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
 			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
 		"position":  mapped("position", ren{"reason": "text"}, nil, nil),
-		"revision":  mapped("revision", ren{"reason": "text"}, nil, nil),
 		"closing":   mapped("closing", ren{"reason": "text"}, nil, nil),
 		"reproduce": mapped("reproduce", ren{"reason": "note"}, nil, nil),
 		"certify":   mapped("certify", ren{"reason": "statement"}, nil, nil),
@@ -121,12 +120,12 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 	// tables — that shape is the CURRENT one and translates by identity; only the flat shard
 	// shape (dimension/proposed beside the subject) needs this entry.
 	if len(old.Arms) > 0 || old.Fields["dimension"] == nil && old.Fields["proposed"] == nil && old.Fields["gap_id"] == nil {
-		return (Registry{}).Translate(inquiryArm(old))
+		return (Registry{}).Translate(withoutSubject(inquiryArm(old)))
 	}
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
 	}
-	m := &recordpb.Motion{Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum()}
+	m := &recordpb.Motion{}
 	g := &recordpb.GradeMotion{}
 	m.Filing = &recordpb.Motion_Grade{Grade: g}
 	for col, v := range old.Fields {
@@ -165,7 +164,13 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		return (Registry{}).Translate(inquiryArm(old))
+		bodies, err := (Registry{}).Translate(withoutSubject(inquiryArm(old)))
+		for _, b := range bodies {
+			if r, ok := b.(*recordpb.MotionRule); ok {
+				remandDirection(r.GetDocket())
+			}
+		}
+		return bodies, err
 	}
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)
@@ -183,14 +188,12 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	}
 	switch subject {
 	case "grade":
-		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum()
 		num, err := enumNumberOf(recordpb.GradeRuling(0).Descriptor(), ruling)
 		if err != nil {
 			return nil, fmt.Errorf("motion_rule.ruling (grade): %w", err)
 		}
 		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
 	case "inquiry":
-		r.Subject = recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY.Enum()
 		num, err := enumNumberOf(recordpb.InquiryRuling(0).Descriptor(), ruling)
 		if err != nil {
 			return nil, fmt.Errorf("motion_rule.ruling (inquiry): %w", err)
@@ -200,6 +203,23 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
 	}
 	return []proto.Message{r}, nil
+}
+
+// withoutSubject drops a motion's or a ruling's `subject` column, which a source at epoch 26 or
+// earlier stores beside the arm that states the same subject. The write path refused a subject
+// that disagreed with its arm, so the arm alone carries what the column said.
+func withoutSubject(old OldEvent) OldEvent {
+	if _, ok := old.Fields["subject"]; !ok {
+		return old
+	}
+	fields := map[string]any{}
+	for k, v := range old.Fields {
+		if k != "subject" {
+			fields[k] = v
+		}
+	}
+	old.Fields = fields
+	return old
 }
 
 // inquiryArms are the arm names an archive gave the inquiry's motion arm and ruling column.

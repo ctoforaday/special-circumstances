@@ -110,20 +110,18 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// the filing, so the ruling alone would be a disposition of nothing.
 	add("red-chair", &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("red cannot settle G1 without the model-check"),
 		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 	})
 	add("judge", &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("a model-check is owed before this closes"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"),
 			ReviewFlag: proto.String("false"),
 			Settled:    proto.String("the claim as it stood may not be re-asserted"),
-			ReopensOn:  proto.String("a model-check of the two-writer interleaving"),
+			Direction:  proto.String("a model-check of the two-writer interleaving"),
 		}},
 	})
 	add("judge", &recordpb.Outcome{

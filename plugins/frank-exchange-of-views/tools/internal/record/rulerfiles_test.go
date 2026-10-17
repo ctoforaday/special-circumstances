@@ -14,7 +14,7 @@ import (
 // motion — or, for the inquiry, the proposal the chair then rules. A subject with no arm fails the
 // test that walks the enum, so a new subject is driven here on the day it is added.
 func filingBy(subj recordpb.MotionSubject) proto.Message {
-	m := &recordpb.Motion{MotionId: proto.String("M9"), Subject: recordtest.P(subj), Basis: proto.String("the ask")}
+	m := &recordpb.Motion{MotionId: proto.String("M9"), Basis: proto.String("the ask")}
 	switch subj {
 	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
 		m.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),

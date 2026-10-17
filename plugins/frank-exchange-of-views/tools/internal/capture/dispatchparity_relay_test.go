@@ -241,7 +241,7 @@ func TestTheLastPlansBlockersAreHeldToTheRecord(t *testing.T) {
 		at("red-lens-evidence", &recordpb.Register{}),
 		// The chair's last sitting: its plan is empty, and it files a petition after asking.
 		at("red-chair", &recordpb.Register{}),
-		at("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
+		at("red-chair", &recordpb.Motion{MotionId: proto.String("M1"),
 			Basis: proto.String("b"), Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}}),
 		// The terminal sitting, which the stale plan would not have convened.
 		at("judge", &recordpb.Register{Occasion: recordpb.Occasion_OCCASION_TERMINAL.Enum()}),

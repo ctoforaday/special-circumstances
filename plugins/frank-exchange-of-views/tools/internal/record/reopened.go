@@ -38,19 +38,11 @@ type reopened struct {
 // P-9e198e9a seven seconds before the evidence lens did, and the anchor was checked from the
 // first. Who is ASKED is a separate fact and has one answer — the blocker's owner is the evidence
 // lens (passBlockersOf), which is the seat dispatch readies and whose work list blocks.
-//
-// A corrected re-run stands in its target's place (liveAt), so it reads at that place's id and
-// that place's sitting: a correction filed in a later sitting does not date the re-run it corrects.
 func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
 	// An item's edit is 0 while it owes nothing: never reopened, retired, or cleared.
 	var order []*reopened
 	byAnchor := map[string]*reopened{}
 	bySha := map[string][]*reopened{} // a proof and its re-run join on proof_sha, the record's only join
-	place := make([]int64, len(evs))
-	for i := range place {
-		place[i] = int64(i)
-	}
-	live, at := liveAt(evs, place)
 	hold := func(anchor, sha string) {
 		if anchor == "" || byAnchor[anchor] != nil {
 			return
@@ -63,7 +55,7 @@ func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
 		}
 	}
 	// The anchors first: a cite may arrive after the check of it.
-	for _, e := range live {
+	for _, e := range evs {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
 		case *recordpb.Cite:
@@ -76,8 +68,8 @@ func reopenedEvidence(evs []*Event, win WindowIndex) []reopened {
 			hold(b.GetProofId(), b.GetProofSha())
 		}
 	}
-	for i, e := range live {
-		stood := win.Of(evs[at[i]])
+	for _, e := range evs {
+		stood := win.Of(e)
 		id := stood.ID
 		check := func(it *reopened, clears bool) {
 			if it == nil {

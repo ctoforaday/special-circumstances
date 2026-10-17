@@ -89,7 +89,7 @@ func planReadsOf(run Run) (planReads, error) {
 // at the end of each chair sitting that relayed a plan; an answer that read the whole record would
 // hold a faithful relay of an early plan to a later sitting's rulings, counts and dockets.
 func TestPlanFactsAnswerForTheRecordAsItStoodAtThePoint(t *testing.T) {
-	petition := &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
+	petition := &recordpb.Motion{MotionId: proto.String("M1"),
 		Basis: proto.String("b"), Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}}
 	closeG3 := &recordpb.Close{GapId: proto.String("G3"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}
@@ -104,7 +104,7 @@ func TestPlanFactsAnswerForTheRecordAsItStoodAtThePoint(t *testing.T) {
 		register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1")
 	second := len(b.evs) // the end of chair sitting 3: its docket of sitting 2 is an earlier sitting's
 	b.register(evLens).register("blue-respond").
-		register("judge").add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Opinion: proto.String("no"),
+		register("judge").add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("no"),
 		Ruling: &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED}}).
 		// The chair carries G3's closure forward at the end: a second closing act, after every point
 		// asked below. G3 reads closed from its FIRST.
@@ -187,7 +187,7 @@ func TestTheRelayHeldKindsAreStatedOnTheKindTable(t *testing.T) {
 	}
 	// No report, and a motion: the stream arms alone, and RelayBlockersOf in table order.
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").
-		register(evLens).add(evLens, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
+		register(evLens).add(evLens, &recordpb.Motion{MotionId: proto.String("M1"),
 		Basis: proto.String("b"), Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}})
 	run := b.seed()
 	evs, win, err := eventsAt(recordOf(t, run))

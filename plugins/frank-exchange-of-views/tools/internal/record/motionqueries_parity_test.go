@@ -21,7 +21,7 @@ func inquiryRulingFold(t *testing.T, run Run, inquiryID string) string {
 	ruling := ""
 	for _, e := range b.Events {
 		mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY || mr.GetMotionId() != inquiryID {
+		if !ok || mr.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY || mr.GetMotionId() != inquiryID {
 			continue
 		}
 		ruling = ""
@@ -58,7 +58,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	if _, err := Append(blue, &recordpb.Motion{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("severity is understated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
 			GapId:     proto.String("G1"),
@@ -89,7 +88,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("the grade stands"),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 	}); err != nil {
@@ -118,7 +116,6 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 	if _, err := Append(red, &recordpb.MotionRule{
 		MotionId: proto.String("Q1"),
-		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY),
 		Opinion:  proto.String("worth the run's time"),
 		Ruling:   &recordpb.MotionRule_Inquiry{Inquiry: recordpb.InquiryRuling_INQUIRY_RULING_OUT_OF_SCOPE},
 	}); err != nil {

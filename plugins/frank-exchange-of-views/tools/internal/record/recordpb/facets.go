@@ -30,7 +30,6 @@ import (
 // a reader gets back.
 var facets = map[string]protoreflect.ExtensionType{
 	"closes":        E_Closes,
-	"correct":       E_Correct,
 	"mass":          E_Mass,
 	"seat_may_file": E_SeatMayFile,
 }
@@ -43,66 +42,8 @@ var numericFacets = map[string]bool{"mass": true}
 // IsNumeric reports whether a declared facet carries a number.
 func IsNumeric(name string) bool { return numericFacets[name] }
 
-// IsEnum reports whether a declared facet carries a word of ANOTHER vocabulary — the third kind,
-// which arrived with `correct`: a type's correction tier is neither a yes/no nor a weight but one of
-// a closed set, so the column carries the tier's word and points at the tier's own vocabulary table.
-//
-// READ OFF THE EXTENSION, not kept in a second map: the extension's own field descriptor already
-// says it is enum-valued and names the enum. (A package-level map of descriptors would also be
-// initialised before the generated file registers them, and hold nil.)
-func IsEnum(name string) bool { return FacetEnum(name) != nil }
-
-// FacetEnum is the vocabulary an enum facet's values come from, or nil for another kind.
-func FacetEnum(name string) protoreflect.EnumDescriptor {
-	xt, ok := facets[name]
-	if !ok {
-		return nil
-	}
-	fd := xt.TypeDescriptor()
-	if fd.Kind() != protoreflect.EnumKind {
-		return nil
-	}
-	return fd.Enum()
-}
-
-// EnumFacet reads an ENUM facet off one value, with the declared/undeclared split the other two
-// kinds make: the zero of the facet's vocabulary is a value nobody should declare, and "declared
-// nothing" must not arrive as that zero.
-func EnumFacet(vd protoreflect.EnumValueDescriptor, name string) (value protoreflect.EnumNumber, declared bool, err error) {
-	xt, ok := facets[name]
-	if !ok {
-		return 0, false, fmt.Errorf("%q is not a declared value facet (have %v)", name, FacetNames())
-	}
-	if !IsEnum(name) {
-		return 0, false, fmt.Errorf("facet %q is not an enum facet", name)
-	}
-	if vd == nil {
-		return 0, false, noValue("facet " + name)
-	}
-	opts := vd.Options()
-	if opts == nil || !proto.HasExtension(opts, xt) {
-		return 0, false, nil
-	}
-	return proto.GetExtension(opts, xt).(protoreflect.Enum).Number(), true, nil
-}
-
-// Tier is how much of an act of this type a same-sitting correction may change, off the type's own
-// declaration. An undeclared type — which the schema refuses to build — answers NONE rather than
-// the zero, so a missing answer can never read as permission.
-func Tier(t EventType) CorrectionTier {
-	vd := t.Descriptor().Values().ByNumber(t.Number())
-	if vd == nil {
-		return CorrectionTier_CORRECTION_TIER_NONE
-	}
-	n, declared, err := EnumFacet(vd, "correct")
-	if err != nil || !declared || n == 0 {
-		return CorrectionTier_CORRECTION_TIER_NONE
-	}
-	return CorrectionTier(n)
-}
-
-// IsProse reports whether a field declares itself the seat's own wording — the part a PROSE-tier
-// correction may change. Undeclared answers false: the field is frozen unless it says otherwise.
+// IsProse reports whether a field declares itself the seat's own wording. Undeclared answers
+// false.
 func IsProse(fd protoreflect.FieldDescriptor) (value, declared bool) {
 	opts := fd.Options()
 	if opts == nil || !proto.HasExtension(opts, E_Prose) {
@@ -130,8 +71,8 @@ func Facet(vd protoreflect.EnumValueDescriptor, name string) (value bool, declar
 		return false, false, fmt.Errorf("%q is not a declared value facet (have %v) — "+
 			"an unresolved facet name would silently admit every value, so it refuses instead", name, FacetNames())
 	}
-	if numericFacets[name] || IsEnum(name) {
-		return false, false, fmt.Errorf("facet %q is not boolean — read it with Number or EnumFacet", name)
+	if numericFacets[name] {
+		return false, false, fmt.Errorf("facet %q is not boolean — read it with Number", name)
 	}
 	if vd == nil {
 		return false, false, noValue("facet " + name)

@@ -58,7 +58,7 @@ func TestAnIdentityRowHoldingTheOldDispositionMigrates(t *testing.T) {
 		Fields: map[string]any{"motion_id": "M1", "subject": "docket", "ruling_case": "docket"},
 		Arms:   map[string]map[string]any{"docket": {"disposition": "carried", "principle": "correctness first"}},
 	}
-	bodies, err := (migrate.Registry{}).Translate(old)
+	bodies, err := migrate.Entries().Translate(old)
 	if err != nil {
 		t.Fatal(err)
 	}

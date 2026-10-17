@@ -19,10 +19,9 @@ type onceAct struct {
 
 // onceActs IS THE ENUMERATION OF THE RULE, one row per type in `singleton`. The set assertion below
 // fails when a type joins that map without a row here, so a new once-per-sitting act cannot ship
-// without someone deciding what it looks like across a repair.
+// without a row.
 var onceActs = map[recordpb.EventType]onceAct{
 	recordpb.EventType_EVENT_TYPE_POSITION: {"blue-respond", &recordpb.Position{Text: proto.String("the position")}},
-	recordpb.EventType_EVENT_TYPE_REVISION: {"blue-respond", &recordpb.Revision{Text: proto.String("the sitting's edits")}},
 	recordpb.EventType_EVENT_TYPE_VERDICT:  {"red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}},
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: {"red-chair", &recordpb.SpotCheck{Ids: []string{"G1"},
 		Reason: proto.String("the anchor still resolves")}},
@@ -65,7 +64,6 @@ func TestTheOncePerSittingActsAreRefusedASecondTimeInOneSitting(t *testing.T) {
 				refused bool
 			}{
 				{"the same turn", func(*stage, string) {}, true},
-				{"across a repair", func(b *stage, opened string) { b.repairs(c.seat, "agent-b", opened) }, true},
 				{"a new sitting", func(b *stage, _ string) { b.register(c.seat) }, false},
 			} {
 				t.Run(arm.name, func(t *testing.T) {

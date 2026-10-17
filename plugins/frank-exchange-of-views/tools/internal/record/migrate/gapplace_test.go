@@ -199,16 +199,6 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 			s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 			s.corroboration("c-0000aaa1", "Costs rose sharply in Q1.")
 		}},
-		{"a correction placing again what a retire took out", "cite", `has already recorded a anchor on "C-0000aaa1"`, func(s *shapeSource) {
-			cited := s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
-			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Costs rose sharply in Q1."), Reason: proto.String("refuted"), Anchors: []string{"c-0000aaa1"}})
-			fixed := proto.Clone(cited.GetCite()).(*recordpb.Cite)
-			fixed.Title = proto.String("S, section 2")
-			if _, err := replayed(record.Identity{Run: s.run, SeatID: shapeBlue,
-				Correct: &record.Correct{Type: recordpb.EventType_EVENT_TYPE_CITE, Key: cited.GetKey(), Why: "the title was wrong"}}, fixed); err != nil {
-				s.t.Fatalf("seeding the correction: %v", err)
-			}
-		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			src := newShapeSource(t, base)
@@ -227,20 +217,13 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 // AN ARCHIVED CITATION, PROOF AND CORROBORATION PLACED THEIR MARKER BY BEING RECORDED, and each is
 // brought forward with one Anchor right after it, from its seat. The place in the stream is what
 // keeps the render: the edit that follows the citation carries its anchor, and replays only if the
-// Anchor stands before it. A same-sitting correction re-carries its id and gains none; an act that
-// named no quote placed nothing and gains none.
+// Anchor stands before it. An act that named no quote placed nothing and gains none.
 func TestPlacementTranslationAnchorsEveryPlacer(t *testing.T) {
 	src := newShapeSource(t, "# H\n\nCosts rose sharply in Q1. Volume fell.\n\n- Water is wet.\n- Fire is hot.\n")
-	cited := src.cite("c-0000aaa1", "Costs rose sharply in Q1.")
+	src.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 	src.edit("Costs rose sharply in Q1<!--cite:c-0000aaa1-->.", "Costs rose modestly in Q1<!--cite:c-0000aaa1-->.", false)
 	src.proof("p-0000aaa1", "Water is wet.")
 	src.proof("p-0000aaa2", "")
-	fixed := proto.Clone(cited.GetCite()).(*recordpb.Cite)
-	fixed.Title = proto.String("S, section 2")
-	if _, err := replayed(record.Identity{Run: src.run, SeatID: shapeBlue,
-		Correct: &record.Correct{Type: recordpb.EventType_EVENT_TYPE_CITE, Key: cited.GetKey(), Why: "the title was wrong"}}, fixed); err != nil {
-		t.Fatalf("seeding the correction: %v", err)
-	}
 	src.corroboration("c-0000aaa2", "Fire is hot.")
 
 	m, md, _, dst := src.migrated()

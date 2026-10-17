@@ -60,36 +60,9 @@ type Inquiry struct {
 	// struct's.
 }
 
-// StruckText is a struck act's text, with who struck it and why.
-type StruckText struct {
-	Text string
-	Struck
-}
-
-// StruckInquiryTexts is, per inquiry, the wording of each proposal or recorded fate its seat
-// corrected in the sitting — what the inquiries LISTING shows struck beside the question that stands.
-// InquiriesOf folds the acts that stand; this is the part of the listing that fold drops.
-func StruckInquiryTexts(evs []*Event) map[string][]StruckText {
-	out := map[string][]StruckText{}
-	for _, l := range Listing(evs) {
-		a, ok := recordpb.BodyAs[*recordpb.Inquiry](l.Event)
-		if !ok || l.Struck == nil {
-			continue
-		}
-		text := a.GetQuestion()
-		if text == "" {
-			text = a.GetReason()
-		}
-		out[a.GetInquiryId()] = append(out[a.GetInquiryId()], StruckText{Text: text, Struck: *l.Struck})
-	}
-	return out
-}
-
 // InquiriesOf folds the events into one Inquiry per id, in proposal order, for the run-shaped
 // readers.
 func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
-	// The acts that stand: a proposal or recorded fate corrected in its sitting is read as its replacement.
-	evs = Live(evs)
 	byID := map[string]*Inquiry{}
 	var order []string
 	ruled := map[*Inquiry]bool{}
@@ -153,7 +126,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			//
 			// The subject `inquiry` is MOTION_SUBJECT_INQUIRY in the schema, and the only one whose
 			// ruling set is InquiryRuling (endorsed / out_of_scope / too_thin).
-			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
+			if t.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_INQUIRY {
 				continue
 			}
 			id := t.GetMotionId()
@@ -268,7 +241,6 @@ func InquiryRuling(run Run, inquiryID string) (string, error) {
 // InquiryReviewDueOf reports whether the chair's inquiry review is owed: inquiries exist and none
 // of the review events falls in the current epoch.
 func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
-	evs = Live(evs)
 	if len(InquiriesOf(evs, win)) == 0 {
 		return false
 	}
