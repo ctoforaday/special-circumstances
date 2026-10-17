@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -1257,4 +1257,41 @@ test('a stopped run resumes: every completed sitting replays under the prompt it
   assert.deepEqual(resumed.tally.ran, ['red-chair #2 · test', 'judge · assemble · test'], 'only the stopped sitting and what follows it run')
   assert.equal(out.verdict, 'VERIFIED')
   assert.equal(out.gaps_outstanding, 0)
+})
+
+// ── every dispatched schema compiles strict ────────────────────────────────────────────────
+
+// EVERY SCHEMA THE ENGINE DISPATCHES COMPILES UNDER STRICT TYPES WITH NO WARNING. The harness
+// compiles each one at launch and logs what strict types finds, and keeps going: the chair's PLAN
+// carried a `minItems` with no `type` in an anyOf branch, and every smoke run's launch log said so
+// while every test here stayed green. The worlds below reach each sitting the engine dispatches
+// with a schema, and the census is held to the source: one schema per `schema: <NAME>` it declares.
+test('every envelope schema the engine dispatches compiles under strict types with no warning', async () => {
+  const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
+  const declared = new Set([...src.matchAll(/\bschema: ([A-Z_]+)\b/g)].map((m) => m[1]))
+  const worlds = [
+    makeResponder(),
+    makeResponder({ chair: [chairEnv({ plan: plan([petitionBench(), party('blue-respond', 'G-00000001')], { blockers: [blocker('M-00000001', 'judge')] }) }), passChair()] }),
+    makeResponder({ chair: [chairEnv({ plan: plan([party('judge', 'G-00000001')]) }), passChair()] }),
+    makeResponder({ chair: [chairEnv({ plan: ceilingPlan({ blockers: [blocker('M-00000001', 'judge')] }) })] }),
+  ]
+  const seen = new Map()
+  for (const respond of worlds) {
+    const world = makeWorld(respond)
+    await world.run(script, ARGS)
+    for (const c of world.calls) if (c.opts.schema) seen.set(JSON.stringify(c.opts.schema), c.opts)
+  }
+  assert.equal(seen.size, declared.size, `the worlds reach ${seen.size} distinct schemas and the engine declares ${declared.size} (${[...declared].join(', ')}) — a schema no world dispatches is not checked`)
+  for (const opts of seen.values()) assert.deepEqual(strictTypesWarnings(opts.schema), [], `${opts.label}: the schema warns under strict types`)
+})
+
+// The check is ajv's, line for line, on the schema that tripped it: a branch's property with a
+// typed keyword and no type, and the same property typed.
+test('the strict-types check reports a typed keyword with no type, and only that', () => {
+  const branch = (blockers) => ({ type: 'object', properties: { blockers: { type: 'array' } }, anyOf: [{ required: ['blockers'], properties: { blockers } }] })
+  assert.deepEqual(strictTypesWarnings(branch({ minItems: 1 })), ['strict mode: missing type "array" for keyword "minItems" at "#/anyOf/0/properties/blockers" (strictTypes)'])
+  assert.deepEqual(strictTypesWarnings(branch({ type: 'array', minItems: 1 })), [])
+  assert.deepEqual(strictTypesWarnings({ type: 'string', anyOf: [{ type: 'integer' }] }), ['strict mode: type "integer" not allowed by context "string" at "#/anyOf/0" (strictTypes)'])
+  assert.deepEqual(strictTypesWarnings({ type: ['string', 'integer'] }), ['strict mode: use allowUnionTypes to allow union type keyword at "#" (strictTypes)'])
+  assert.deepEqual(strictTypesWarnings({ type: ['string', 'null'], enum: ['PASS', null] }), [])
 })

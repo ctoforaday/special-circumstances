@@ -88,7 +88,7 @@ const PLAN = {
     ceiling: { type: 'boolean' },
     to_file: { type: 'array', items: { type: 'string' } },
   },
-  anyOf: [{ required: ['ceiling'], properties: { ceiling: { enum: [true] } } }, { required: ['debts'], properties: { debts: { minItems: 1 } } }],
+  anyOf: [{ required: ['ceiling'], properties: { ceiling: { type: 'boolean', enum: [true] } } }, { required: ['debts'], properties: { debts: { type: 'array', minItems: 1 } } }],
 }
 const PLAN_FIELD_TYPES = { head: 'integer', parties: 'array', debts: 'array', ceiling: 'boolean' }
 const PLAN_EMPTY_ONLY_WITH = { debts: 'ceiling' }

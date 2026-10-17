@@ -153,3 +153,42 @@ export function schemaAccepts(schema, v) {
   }
   return true
 }
+
+// THE STRICT-TYPES COMPILE THE WORKFLOW HARNESS RUNS ON A DISPATCH'S SCHEMA, as ajv@8 runs it by
+// default (strictTypes: "log", no union types). The harness LOGS each miss at launch and compiles
+// the schema anyway, so a schema it warns on still validates — and the warning is the only sign
+// that a keyword sits where no `type` licenses it. The rules, from ajv's checkStrictTypes:
+//   - a keyword that applies to one JSON type (minItems to arrays, required to objects, …) needs
+//     that type in the schema's `type`, or in the type of the schema it is applied beside;
+//   - an anyOf branch reads the same value, so it inherits its parent's type; a property's or an
+//     item's schema reads a new value, and inherits none;
+//   - a branch's `type` must be one its context allows;
+//   - a `type` names one type, or one type and null.
+// It returns ajv's own message for each miss, with the path ajv prints. Like schemaAccepts, it
+// refuses a keyword it does not implement rather than pass what it could not read.
+const KEYWORD_TYPE = { minItems: 'array', maxItems: 'array', items: 'array', required: 'object', properties: 'object', additionalProperties: 'object', minimum: 'number', pattern: 'string' }
+const includesType = (ts, t) => ts.includes(t) || (t === 'integer' && ts.includes('number'))
+const hasApplicableType = (ts, t) => ts.includes(t) || (t === 'number' && ts.includes('integer'))
+export function strictTypesWarnings(schema, path = '#', context = []) {
+  const warn = []
+  for (const k of Object.keys(schema)) if (!SCHEMA_KEYWORDS.has(k)) throw new Error(`strictTypesWarnings: the schema uses \`${k}\` at ${path}, which this check does not implement — teach it the keyword before trusting its answer`)
+  const types = schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type]
+  let dataTypes = context
+  if (types.length) {
+    if (!context.length) dataTypes = types
+    else {
+      for (const t of types) if (!includesType(context, t)) warn.push(`strict mode: type "${t}" not allowed by context "${context.join(',')}" at "${path}" (strictTypes)`)
+      dataTypes = context.filter((t) => includesType(types, t))
+    }
+  }
+  if (types.length > 1 && !(types.length === 2 && types.includes('null'))) warn.push(`strict mode: use allowUnionTypes to allow union type keyword at "${path}" (strictTypes)`)
+  for (const [k, t] of Object.entries(KEYWORD_TYPE)) {
+    if (schema[k] !== undefined && !hasApplicableType(dataTypes, t)) warn.push(`strict mode: missing type "${t}" for keyword "${k}" at "${path}" (strictTypes)`)
+  }
+  if (Array.isArray(schema.items)) throw new Error(`strictTypesWarnings: tuple \`items\` at ${path} is not implemented`)
+  if (schema.items) warn.push(...strictTypesWarnings(schema.items, `${path}/items`))
+  for (const [k, sub] of Object.entries(schema.properties || {})) warn.push(...strictTypesWarnings(sub, `${path}/properties/${k}`))
+  if (schema.additionalProperties && typeof schema.additionalProperties === 'object') warn.push(...strictTypesWarnings(schema.additionalProperties, `${path}/additionalProperties`))
+  for (const [i, sub] of (schema.anyOf || []).entries()) warn.push(...strictTypesWarnings(sub, `${path}/anyOf/${i}`, dataTypes))
+  return warn
+}

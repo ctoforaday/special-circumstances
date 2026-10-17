@@ -412,7 +412,7 @@ const PLAN = {
     blockers: { type: 'array', description: 'everything holding a PASS, from the list the verdict gate refuses on, with the seat whose act clears each; empty only when pass_permitted is true', items: { type: 'object', required: ['kind', 'subject', 'owner'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['stranded_gap', 'material_gap', 'contradiction', 'reopened', 'no_report', 'lens_ready', 'stale_area', 'unruled_motion', 'inquiry_review'] }, subject: { type: 'string', description: "the reference that names it: a gap id, a motion id, a lens seat, an anchor, a contradiction's id; empty for the run-wide kinds" }, owner: { type: 'string' } } } },
     why: { type: 'array', items: { type: 'string' } },
   },
-  anyOf: [{ required: ['pass_permitted'], properties: { pass_permitted: { enum: [true] } } }, { required: ['blockers'], properties: { blockers: { minItems: 1 } } }],
+  anyOf: [{ required: ['pass_permitted'], properties: { pass_permitted: { type: 'boolean', enum: [true] } } }, { required: ['blockers'], properties: { blockers: { type: 'array', minItems: 1 } } }],
 }
 const PLAN_FIELD_TYPES = { head: 'integer', parties: 'array', docket: 'array', remand_owed: 'array', exchanges: 'array', pass_permitted: 'boolean', stale_areas: 'array', ceiling: 'boolean', max_epochs: 'integer', epoch: 'integer', final_sitting: 'boolean', epoch_limit_reached: 'boolean', blockers: 'array', why: 'array' }
 const PLAN_EMPTY_ONLY_WITH = { blockers: 'pass_permitted' }
