@@ -131,6 +131,11 @@ type PageReading struct {
 	// Length is the reading's length in runes — a cheap shape check on a page that came
 	// back far shorter than its neighbours, which is what a truncation looks like.
 	Length int `json:"length"`
+	// InkFraction is the share of the page's pixels that are ink, measured by the engine without
+	// recognition (tessocr.PageResult.InkFraction). It is what an empty reading is read against: a
+	// Length of 0 beside an ink fraction near zero is a blank page, and the same Length beside ink is
+	// a read that produced nothing (#1029). Never omitted — a zero here is a measurement.
+	InkFraction float64 `json:"ink_fraction"`
 	// DPI is the resolution THIS page was rendered and read at, and part of the re-derivation
 	// key: the grid constants are derived from it (tessocr.GridFor). It sits on the page rather
 	// than on the document because a scan is read at its own resolution (#1031), and a document
@@ -198,6 +203,8 @@ type pageReceipt struct {
 	ReadAt    time.Time `json:"read_at"`
 	TextSha   string    `json:"text_sha"`
 	Length    int       `json:"length"`
+	// InkFraction is PageReading.InkFraction, measured when the page was read.
+	InkFraction float64 `json:"ink_fraction"`
 
 	Table                  bool               `json:"table,omitempty"`
 	RuleSource             tessocr.RuleSource `json:"rule_source,omitempty"`
@@ -215,7 +222,7 @@ type pageReceipt struct {
 // projection, used by both read loops, so the two cannot select different fields.
 func (r pageReceipt) pageReading() PageReading {
 	return PageReading{
-		Page: r.Page, TextSha: r.TextSha, Length: r.Length, DPI: r.DPI,
+		Page: r.Page, TextSha: r.TextSha, Length: r.Length, InkFraction: r.InkFraction, DPI: r.DPI,
 		Table: r.Table, RuleSource: r.RuleSource, RotatedPage: r.RotatedPage,
 		GridIntersections: r.GridIntersections, RepairedCrossings: r.RepairedCrossings,
 		Reconstruction: r.Reconstruction, ReconstructionFallback: r.ReconstructionFallback,
@@ -310,7 +317,8 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi float64)
 	r := pageReceipt{
 		Page: page, RenderSha: renderSha, DPI: dpi, Engine: DefaultPageEngine.Identity(),
 		ReadAt: time.Now().UTC(), TextSha: Sha([]byte(norm)), Length: len([]rune(norm)),
-		Table: res.Table, RotatedPage: res.RotatedPage,
+		InkFraction: res.InkFraction,
+		Table:       res.Table, RotatedPage: res.RotatedPage,
 		Reconstruction: res.Reconstruction, ReconstructionFallback: res.Fallback,
 		TextCells: res.TextCells, TextCellFallback: res.TextCellFallback,
 	}

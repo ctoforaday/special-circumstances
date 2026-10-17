@@ -134,6 +134,24 @@ func DetectGrid(png []byte, t GridThresholds) (GridStats, error) {
 	return GridStats{HPix: int(h), VPix: int(v), Intersections: int(ix)}, nil
 }
 
+// InkFraction measures the share of a page's pixels that are ink (see PageResult.InkFraction). It
+// needs no Engine — like DetectGrid it is pure leptonica, over the same normalized and binarized
+// pixels — and a page that fails to decode is an error, never a page measuring no ink.
+func InkFraction(png []byte) (float64, error) {
+	if len(png) == 0 {
+		return 0, errors.New("tessocr: empty image")
+	}
+	var dark, total C.longlong
+	rc := C.tessocr_ink((*C.uchar)(unsafe.Pointer(&png[0])), C.size_t(len(png)), &dark, &total)
+	if rc != 0 {
+		return 0, fmt.Errorf("tessocr: ink measurement failed at stage %d (1 decode, 2 binarize, 3 count)", int(rc))
+	}
+	if total <= 0 {
+		return 0, errors.New("tessocr: ink measurement over an image with no pixels")
+	}
+	return float64(dark) / float64(total), nil
+}
+
 // captureDiagnostics runs fn with this process's stderr pointed at a scratch file (see
 // tessocr_diag_begin) and returns what was written there during fn — tesseract's own
 // diagnostics for that call. The scratch file lives only for the call. A capture that

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr/corpus"
@@ -128,6 +129,71 @@ func trimDPI(d float64) string { return strconv.FormatFloat(d, 'f', 2, 64) }
 // returns the golden text and what a human's expect block is checked against.
 func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	t.Helper()
+	run, sha, rd, native := renderCorpusPage(t, c)
+	rec, err := ReadRenderedPages(run, sha, rd)
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(rec.Pages) != 1 {
+		t.Fatalf("a corpus page is one page; this one read %d", len(rec.Pages))
+	}
+	p := rec.Pages[0]
+
+	text, err := os.ReadFile(PageTextPath(run, sha, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	observed := corpus.Observed{Table: p.Table, Text: string(text)}
+	if p.TextCells != nil {
+		observed.Tables, observed.Rows, observed.Columns = p.TextCells.Tables, p.TextCells.Rows, p.TextCells.Columns
+	}
+	if p.Reconstruction != nil && p.TextCells == nil {
+		observed.Rows, observed.Columns = p.Reconstruction.RowsFound, p.Reconstruction.SubColumnsFound
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s · %s · rendered at %s DPI (native %s), %dx%d px\n", c.Slug,
+		DefaultPageEngine.Identity(), trimDPI(firstOf(rd.DPIRange())), trimDPI(native.Max()),
+		rd.Renders[0].WidthPx, rd.Renders[0].HeightPx)
+	// The RULE SOURCE is on this line because eight goldens that do not name it read as if one
+	// path produced them, and on a repaired page the intersections beside it are the DETECTOR's
+	// zero — which is what a page carrying no rules at all also reads as (#1027). The INK is on it
+	// because a length of 0 is what a blank page and a read that produced nothing both write, and
+	// the ink is what tells them apart (#1029).
+	fmt.Fprintf(&b, "table: %v · rules: %s · rotated: %v · grid intersections: %d · repaired crossings: %d · length: %d · ink: %s\n",
+		p.Table, ruleSourceOrNone(p.RuleSource), p.RotatedPage, p.GridIntersections,
+		p.RepairedCrossings, p.Length, inkPercent(p.InkFraction))
+	if p.Reconstruction != nil {
+		r := p.Reconstruction
+		fmt.Fprintf(&b, "marks: %d columns, %d subcolumns, %d rows, %d of %d placed, psm disagreement %.2f\n",
+			r.ColumnsFound, r.SubColumnsFound, r.RowsFound, r.MarksPlaced, r.MarksTotal, r.PSMDisagreement)
+	}
+	if p.TextCells != nil {
+		tc := p.TextCells
+		fmt.Fprintf(&b, "text cells: %d tables, %d bands, %d rows, %d columns, %d cells, %d words placed\n",
+			tc.Tables, tc.Bands, tc.Rows, tc.Columns, tc.Cells, tc.WordsPlaced)
+	}
+	if p.ReconstructionFallback != "" {
+		fmt.Fprintf(&b, "fell back: %s\n", p.ReconstructionFallback)
+	}
+	if p.TextCellFallback != "" {
+		fmt.Fprintf(&b, "text cells fell back: %s\n", p.TextCellFallback)
+	}
+	b.WriteString("---\n")
+	b.Write(text)
+	return b.String(), observed
+}
+
+// inkPercent prints an ink fraction as a percentage to three places: enough to show a blank page's
+// speckle as more than zero without printing precision the binarization does not have.
+func inkPercent(f float64) string { return strconv.FormatFloat(f*100, 'f', 3, 64) + "%" }
+
+// renderCorpusPage fetches ONE corpus page from loopback and renders it the way production renders
+// it, returning what a read needs: the run, the document's sha, the render, and the page's native
+// resolution.
+func renderCorpusPage(t *testing.T, c corpus.Case) (record.Run, string, RenderRecord, NativeDPI) {
+	t.Helper()
 	gz, err := os.ReadFile(filepath.Join(c.Dir, corpus.FilePage))
 	if err != nil {
 		t.Fatal(err)
@@ -170,57 +236,7 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	if err != nil {
 		t.Fatalf("rendering: %v", err)
 	}
-	rec, err := ReadRenderedPages(run, e.Sha, rd)
-	if err != nil {
-		t.Fatalf("reading: %v", err)
-	}
-	if len(rec.Pages) != 1 {
-		t.Fatalf("a corpus page is one page; this one read %d", len(rec.Pages))
-	}
-	p := rec.Pages[0]
-
-	text, err := os.ReadFile(PageTextPath(run, e.Sha, 1))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	observed := corpus.Observed{Table: p.Table, Text: string(text)}
-	if p.TextCells != nil {
-		observed.Tables, observed.Rows, observed.Columns = p.TextCells.Tables, p.TextCells.Rows, p.TextCells.Columns
-	}
-	if p.Reconstruction != nil && p.TextCells == nil {
-		observed.Rows, observed.Columns = p.Reconstruction.RowsFound, p.Reconstruction.SubColumnsFound
-	}
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s · %s · rendered at %s DPI (native %s), %dx%d px\n", c.Slug,
-		DefaultPageEngine.Identity(), trimDPI(firstOf(rd.DPIRange())), trimDPI(native[0].Max()),
-		rd.Renders[0].WidthPx, rd.Renders[0].HeightPx)
-	// The RULE SOURCE is on this line because eight goldens that do not name it read as if one
-	// path produced them, and on a repaired page the intersections beside it are the DETECTOR's
-	// zero — which is what a page carrying no rules at all also reads as (#1027).
-	fmt.Fprintf(&b, "table: %v · rules: %s · rotated: %v · grid intersections: %d · repaired crossings: %d · length: %d\n",
-		p.Table, ruleSourceOrNone(p.RuleSource), p.RotatedPage, p.GridIntersections,
-		p.RepairedCrossings, p.Length)
-	if p.Reconstruction != nil {
-		r := p.Reconstruction
-		fmt.Fprintf(&b, "marks: %d columns, %d subcolumns, %d rows, %d of %d placed, psm disagreement %.2f\n",
-			r.ColumnsFound, r.SubColumnsFound, r.RowsFound, r.MarksPlaced, r.MarksTotal, r.PSMDisagreement)
-	}
-	if p.TextCells != nil {
-		tc := p.TextCells
-		fmt.Fprintf(&b, "text cells: %d tables, %d bands, %d rows, %d columns, %d cells, %d words placed\n",
-			tc.Tables, tc.Bands, tc.Rows, tc.Columns, tc.Cells, tc.WordsPlaced)
-	}
-	if p.ReconstructionFallback != "" {
-		fmt.Fprintf(&b, "fell back: %s\n", p.ReconstructionFallback)
-	}
-	if p.TextCellFallback != "" {
-		fmt.Fprintf(&b, "text cells fell back: %s\n", p.TextCellFallback)
-	}
-	b.WriteString("---\n")
-	b.Write(text)
-	return b.String(), observed
+	return run, e.Sha, rd, native[0]
 }
 
 func firstOf(a, _ float64) float64 { return a }

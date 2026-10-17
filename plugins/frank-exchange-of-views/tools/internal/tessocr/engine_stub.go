@@ -42,6 +42,10 @@ func DetectGrid(png []byte, t GridThresholds) (GridStats, error) {
 	return GridStats{}, ErrNotCompiledIn
 }
 
+// InkFraction reports the engine absent. Answering 0 would read as a page with no ink on it — the
+// blank page this measurement exists to tell apart from a read that produced nothing.
+func InkFraction(png []byte) (float64, error) { return 0, ErrNotCompiledIn }
+
 // GridLines is the rule geometry behind DetectGrid; on a stub build it refuses like every
 // other engine entry point rather than answering "no rules", which would read as a page
 // that carries none.

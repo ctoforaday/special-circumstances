@@ -1,6 +1,6 @@
 # nbs602-blank
 
-A blank page: the receipt says length 0, which is also what a collapsed read says.
+A blank page: its reading is empty, which is also what a read that collapsed writes; the receipt's ink fraction is what tells the two apart.
 
 ## Where it came from
 
