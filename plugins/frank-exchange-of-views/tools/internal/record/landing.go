@@ -90,9 +90,9 @@ func (l *Landing) Verdict() (verdict, why string, ok bool, err error) {
 // Outcome is RecordedOutcome asked of the landing record.
 func (l *Landing) Outcome() (string, error) { return recordedOutcomeAt(l.w.q) }
 
-// Proposal is record.Proposal asked of the landing record, over report.
-func (l *Landing) Proposal(gapID, report string) (old, fixNew string, found bool, err error) {
-	return proposalAt(l.w.q, gapID, report)
+// Prescription is the location and text gapID's mint recorded, as the landing record holds them.
+func (l *Landing) Prescription(gapID string) (loc, fix string, found bool, err error) {
+	return prescriptionAt(l.w.q, gapID)
 }
 
 // ProposalAppliedVerbatim is record.ProposalAppliedVerbatim asked of the landing record.

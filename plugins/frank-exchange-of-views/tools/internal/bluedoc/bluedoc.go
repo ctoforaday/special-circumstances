@@ -166,15 +166,7 @@ func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 		switch want, got := o[id], n[id]; {
 		case got == 0:
 			sent, _ := SentenceAround(oldSpan, anchor.Token(id))
-			on, near := fmt.Sprintf("on the sentence %q", sent), ""
-			if sent == "" {
-				on = "bare of any sentence"
-			}
-			if s := nearestSentence(newText, sent); s != "" {
-				near = fmt.Sprintf(" — its nearest sentence there reads %q", s)
-			}
-			return "", fmt.Errorf("your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
-				"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", anchor.Label(id), on, anchor.Token(id), near)
+			return "", &ErrAnchorDropped{ID: id, Sentence: sent, Near: nearestSentence(newText, sent)}
 		case got != want:
 			return "", fmt.Errorf("%s appears %d time(s) in the old span but %d in the replacement — an anchor may not be duplicated or removed by an edit; carry each one across exactly once", anchor.Label(id), want, got)
 		}
@@ -185,6 +177,29 @@ func AnchorsTransitUnchanged(oldSpan, newText string) (string, error) {
 		}
 	}
 	return newText, nil
+}
+
+// ErrAnchorDropped names the anchor a replacement drops: one its span carries that the replacement
+// neither carries nor keeps the sentence of word for word, with that sentence ("" for an anchor bare of
+// any) and the replacement's nearest one. Typed so a verb whose seat has no `edit` — `lens mint`,
+// judging red's prescription by the accept's rule — words it in that seat's acts.
+type ErrAnchorDropped struct{ ID, Sentence, Near string }
+
+// On is where the dropped anchor stood: on its sentence, or bare.
+func (e *ErrAnchorDropped) On() string {
+	if e.Sentence == "" {
+		return "bare of any sentence"
+	}
+	return fmt.Sprintf("on the sentence %q", e.Sentence)
+}
+
+func (e *ErrAnchorDropped) Error() string {
+	near := ""
+	if e.Near != "" {
+		near = fmt.Sprintf(" — its nearest sentence there reads %q", e.Near)
+	}
+	return fmt.Sprintf("your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
+		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
 }
 
 // ErrAnchorIntroduced names the anchor a replacement invented.
@@ -228,28 +243,10 @@ func (e *ErrAnchorIntroduced) Error() string {
 // loose and red writes blue's report while the decline rate quietly goes to zero.
 const MaxProposalGrowth = 120
 
-// ValidateProposal decides whether a CONCRETE proposed fix is one blue could actually apply,
-// and one red is entitled to propose. It is the whole mechanism behind `fix_basis: verified`:
-// the basis is DERIVED from passing this, never asserted by the seat that would benefit from
-// the claim.
-//
-// Passing it means red read the real document — an exact, unique, non-word-splitting span
-// cannot be written from memory of what the report probably says. That forced read is the
-// point: all three of the smoke's round-2 gaps were contradictions between blue's new text
-// and text red never re-read before prescribing.
-func ValidateProposal(report, old, new string) error {
-	if old == new {
-		return fmt.Errorf("the proposed old and new text are identical — there is no change to propose")
-	}
-	// REPLACING: red's proposal is text blue will apply verbatim, so it owes the same duty an
-	// edit does — carry the anchors on the span it rewrites.
-	start, end, err := LocateUniqueReplacing(report, old)
-	if err != nil {
-		return err
-	}
-	if _, err := AnchorsTransitUnchanged(report[start:end], new); err != nil {
-		return err
-	}
+// RefuseAuthoring refuses a CONCRETE proposed fix that grows its span past MaxProposalGrowth: what red
+// is entitled to propose. Whether blue could apply it is the accept's own judgement (blue.PlanAccept),
+// which `lens mint` asks as well.
+func RefuseAuthoring(old, new string) error {
 	if grew := utf8.RuneCountInString(new) - utf8.RuneCountInString(old); grew > MaxProposalGrowth {
 		return fmt.Errorf("a concrete proposal may add at most %d characters to the span it replaces, and this adds %d — that size is a substantive ADDITION, which is blue's to author. State it as prose in --fix instead: red says what is wrong and what must be true, blue writes the report", MaxProposalGrowth, grew)
 	}
