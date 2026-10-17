@@ -69,7 +69,8 @@ func LocateUniqueReplacing(report, old string) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	return start, settleAbuttingAnchor(report, old, end), nil
+	start, end = settleAbuttingAnchors(report, old, start, end)
+	return start, end, nil
 }
 
 // LocateLiteral resolves `old` BYTE FOR BYTE: no whitespace folding, no skipping of the anchor
@@ -113,35 +114,70 @@ func AbuttingRun(report string, end int) (run string, punct int) {
 	return after[:anchor.SkipRun(after, 0)], len(tail) - len(after)
 }
 
-// settleAbuttingAnchor is where a replaced span ends when an anchor run stands against it: THE
-// QUOTE DECIDES, anchor by anchor.
+// settleAbuttingAnchors is where a replaced span starts and ends when anchors stand against it: THE
+// QUOTE DECIDES, anchor by anchor, and by one rule at both ends.
 //
 // An anchor the quote does not carry is OUTSIDE the span. The edit replaces the quoted text and the
-// run stays exactly where it stands — after the replacement, before the terminator, its bytes
-// untouched — and ReopenedAnchors, which reads sentences rather than spans, records that the
-// sentence under it changed. tidySeam takes the terminator a replacement brings against the run.
+// anchor stays exactly where it stands, its bytes untouched — at the end, after the replacement and
+// before the terminator, where ReopenedAnchors, which reads sentences rather than spans, records that
+// the sentence under it changed, and tidySeam takes the terminator a replacement brings against it.
 //
-// An anchor the quote carries is INSIDE it: the span runs through the LAST anchor of the run the
-// quote holds, punctuation before the run included, so the transit check sees every anchor up to
-// there and the replacement says where each goes. normalizeQuote drops annotation spans from the
-// quote as well as from the report, so without this a sentence quoted exactly as `show report`
-// prints it would locate a span ending before the anchors it names. Anchors of the run past the
-// last one quoted stay outside.
+// An anchor the quote carries is INSIDE it. normalizeQuote drops annotation spans from the quote as
+// well as from the report, so the located span runs from the quote's first content character to its
+// last, and a quote copied as `show report` prints it — opening with the bare anchors of a cut claim,
+// or closing on the anchors before a terminator — would otherwise name anchors outside the span it
+// replaces. Against each end stand the anchors and the whitespace between them (after the end, past
+// the punctuation the quote's trim left out too); the span reaches to take in the outermost anchor
+// there the quote carries, with everything between it and the text. Anchors further out stay outside.
 //
-// REPLAY RUNS THIS ON EVERY RECORDED SPLICE, so it never refuses: a quote that carries the whole run
-// takes the whole run, as every recorded edit that carries one does.
-func settleAbuttingAnchor(report, quoted string, end int) int {
-	run, punct := AbuttingRun(report, end)
-	held := 0
-	anchor.Each(run, func(_, stop int, id string) {
+// REPLAY RUNS THIS ON EVERY RECORDED SPLICE, so it never refuses: a quote that carries an anchor takes
+// it, as every recorded edit that carries one does.
+func settleAbuttingAnchors(report, quoted string, start, end int) (int, int) {
+	before := start
+	for before > 0 {
+		if anchortext.IsSpace(report[before-1]) {
+			before--
+			continue
+		}
+		j := strings.LastIndex(report[:before], "<!--")
+		if j < 0 || anchor.SkipRun(report[:before], j) != before {
+			break
+		}
+		before = j
+	}
+	_, punct := AbuttingRun(report, end)
+	after := end + punct
+	for after < len(report) {
+		if anchortext.IsSpace(report[after]) {
+			after++
+		} else if n := anchor.SkipRun(report, after); n > after {
+			after = n
+		} else {
+			break
+		}
+	}
+	if first, _, ok := carriedReach(report[before:start], quoted); ok {
+		start = before + first
+	}
+	if _, last, ok := carriedReach(report[end:after], quoted); ok {
+		end += last
+	}
+	return start, end
+}
+
+// carriedReach is how far into edge the anchors quoted carries reach: from the first one's start to
+// the last one's stop, and whether it carries any.
+func carriedReach(edge, quoted string) (first, last int, ok bool) {
+	first = -1
+	anchor.Each(edge, func(s, e int, id string) {
 		if strings.Contains(quoted, anchor.Token(id)) {
-			held = stop
+			if first < 0 {
+				first = s
+			}
+			last = e
 		}
 	})
-	if held == 0 {
-		return end
-	}
-	return end + punct + held
+	return first, last, first >= 0
 }
 
 // AnchorsTransitUnchanged enforces the one anchor invariant a replacement must satisfy: it
