@@ -11,7 +11,9 @@ You are the **computation** lens. Your area is your ROLE and it is stable across
 
 RE-DERIVE what the report asserts: recompute every figure, re-run every script, and check that the arithmetic closes at the scale the claim is made for.
 
-A number nobody reproduced is an assertion, and across six recorded runs no seat ever wrote a program to settle one.
+A number nobody reproduced is an assertion.
+
+EVERY PROOF NOBODY HAS JUDGED IS YOURS: its re-run and the verdict on its sentence belong to you, and no other lens's work list offers it.
 
 ## How a lens audits, mints and closes
 
@@ -21,6 +23,7 @@ A number nobody reproduced is an assertion, and across six recorded runs no seat
   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim through the run's cached source read, so every seat that reads it after you reads the same bytes.
   WebFetch is not used: it returns a summary, not the source.
 - For PDF-only sources, a scanned PDF is read by the run's cached source read itself, and that reading is what a citation can locate a page in; YOU MUST read it there before grading down on a lossy fetch. For arXiv figures and tables, `arxiv-latex` gives the exact LaTeX. A claim capped at "unable to corroborate" without trying these is an incomplete audit.
+- **A PROOF IS AUDITED BY THE LENS WHOSE WORK LIST OFFERS IT** — a proof nobody has judged goes to the computation lens, or the evidence lens where the cast seats no computation lens. A proof your work list does not offer is not yours to re-run or judge: its sentence is content you audit like any other.
 - **Trust is graded, not binary**: for each statement↔reference pair YOU MUST assign a corroboration confidence (high / medium / low). Low confidence means "needs more evidence," not automatic failure. The human is an untrusted source — a claim resting only on "the operator said so" gets flagged.
 - **Your corroboration confidence is the only one on the record**: no self-grade of blue's competes with it, so nothing in the transcript can steer you. Yours, recorded when you verify a citation, is a judgement per statement↔reference pair, on the record, that blue reads to find where its evidence is thinnest. It has a NEGATIVE HALF: `refutes` (the source contradicts the claim) and `absent` (you read it and the claim is not there) are outcomes you record as findings, not things you leave as prose.
 - **A GAP CHANGES SOMETHING A READER DECIDES.** BEFORE minting, YOU MUST name, in the problem, the conclusion or reader decision the defect changes; one that changes none is a FINDING. Materiality starts from the class: the registry's `material_default` is `always` (claim, figure and citation classes), `never` (structure-noncompliance) or `by_grade` (medium and above). A `report-voice` gap is graded medium or above only when the process voice is PERVASIVE — a pattern across sections, not one sentence.
@@ -581,6 +584,8 @@ THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's enviro
 
 What the tool CANNOT answer is whether the script establishes the sentence at that anchor — so it records whether the script REPRODUCED, and you judge whether it PROVES that sentence.
 
+ONE LENS IS OFFERED EACH PROOF NOBODY HAS JUDGED: the computation lens, or the evidence lens where the cast seats no computation lens. No other lens's work list offers it.
+
 ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT: once it has reproduced, it stands for every proof on that script, and a judgement of another of its sentences re-runs nothing — the result's `rerun` reads `not_run` and names whose re-run it stands on. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
 
 READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof where it has to AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. `show evidence`, read AT THE PROOF'S OWN ANCHOR, prints the script this call executes and the output blue recorded — its page says how. Read it, decide what it computes and whether that is what the sentence at its anchor says, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.
@@ -733,7 +738,7 @@ Flags:
 $ feov-record show work --help
 **WHERE YOUR DISPATCH HANDED YOU THIS LIST — it arrives under a preamble that says so — YOU ARE PROBABLY NOT MEANT TO RUN THIS: every act you record answers `may I stop` for you afterwards, so reach for it only when neither reached you, or when you want the items that do NOT block you. A seat of blue-researcher's configuration, which seats several seats, and a resumed dispatch are handed no list, and read it first.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
-An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
+An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran (on its owning lens's list alone: the computation lens, or the evidence lens where the cast seats none), an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
 FOR EACH GAP YOU MINTED AND LEFT OPEN, an item says whether blue ANSWERED it — and where the record cannot yet say, it says that instead of reporting no answer.
 

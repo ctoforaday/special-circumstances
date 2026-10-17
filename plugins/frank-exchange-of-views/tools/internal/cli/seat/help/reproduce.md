@@ -10,6 +10,8 @@ THE RE-RUN'S CONDITIONS. The tool runs the stored script with your seat's enviro
 
 What the tool CANNOT answer is whether the script establishes the sentence at that anchor — so it records whether the script REPRODUCED, and you judge whether it PROVES that sentence.
 
+ONE LENS IS OFFERED EACH PROOF NOBODY HAS JUDGED: the computation lens, or the evidence lens where the cast seats no computation lens. No other lens's work list offers it.
+
 ONE SCRIPT CAN BACK SEVERAL SENTENCES, and the two halves belong to different things. The re-run belongs to the SCRIPT: once it has reproduced, it stands for every proof on that script, and a judgement of another of its sentences re-runs nothing — the result's `rerun` reads `not_run` and names whose re-run it stands on. Your verdict belongs to the ONE SENTENCE you named: a script that computes one leg of a sentence's claim and not another's is sound for the first and unsound for the second, and each anchor keeps its own verdict.
 
 READ FIRST, THEN CALL THIS ONCE. This call re-runs the proof where it has to AND records your verdict in the same act: the verdict and its reason are part of it, and no form of it re-runs without recording. So the reading comes before the call. `show evidence`, read AT THE PROOF'S OWN ANCHOR, prints the script this call executes and the output blue recorded — its page says how. Read it, decide what it computes and whether that is what the sentence at its anchor says, then call this with that verdict and your reason. A verdict recorded in order to see the re-run is your judgement on the record from that moment, where every other seat reads it.

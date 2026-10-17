@@ -100,11 +100,17 @@ func TestASoundVerdictOnAnObservedProofIsRecorded(t *testing.T) {
 // THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12).
 //
 // One script backs two sentences. The first lens's re-run reproduces it for both; the second
-// sentence is still owed a judgement, its work item says the script has reproduced, and the lens
-// that judges it runs nothing. Each sentence keeps its own verdict: the second lens's `unsound` on
-// one does not move the first lens's `sound` on the other, and neither overwrites the other.
+// sentence is still owed a judgement, its work item — on the computation lens's list alone, the
+// lens that owns proofs in this cast — says the script has reproduced, and the judgement runs
+// nothing. Each sentence keeps its own verdict: the second lens's `unsound` on one does not move
+// the first lens's `sound` on the other, and neither overwrites the other.
 func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T) {
 	runDir := newRun(t)
+	cast, lanes := record.CastFor(nil, 1)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
+		t.Fatalf("cast: %v", err)
+	}
 	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n\nSeven is the fourth prime.\n")
 	counter := filepath.Join(runDir, "runs.txt")
 	// The script counts its own executions in a file beside the run, so the test can see whether
@@ -128,22 +134,25 @@ func TestASecondSentenceOnAReproducedScriptIsJudgedWithoutReRunning(t *testing.T
 	}
 	runsBefore, _ := os.ReadFile(counter)
 
-	// The second sentence is owed, and its item says the script has reproduced.
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-evidence"); err != nil {
-		t.Fatal(err)
-	}
-	work, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-lens-evidence")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "proof " + anchors[1] + "'s script has REPRODUCED, and nobody has judged whether it establishes THIS sentence"; !strings.Contains(work, want) {
-		t.Errorf("the work list does not offer the second sentence's judgement:\n%s", work)
-	}
-	if strings.Contains(work, "proof "+anchors[0]) {
-		t.Errorf("the work list still offers the judged sentence:\n%s", work)
+	// The second sentence is owed, on the owner's list alone, and its item says the script has reproduced.
+	for _, lens := range []string{"red-lens-computation", "red-lens-evidence", "red-lens-logic"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", lens); err != nil {
+			t.Fatal(err)
+		}
+		work, err := run(t, "show", "work", "--run", runDir, "--seat-id", lens)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "proof " + anchors[1] + "'s script has REPRODUCED, and nobody has judged whether it establishes THIS sentence"
+		if owner := lens == "red-lens-computation"; strings.Contains(work, want) != owner {
+			t.Errorf("%s's work list offers the second sentence's judgement = %v, want %v:\n%s", lens, !owner, owner, work)
+		}
+		if strings.Contains(work, "proof "+anchors[0]) {
+			t.Errorf("%s's work list still offers the judged sentence:\n%s", lens, work)
+		}
 	}
 
-	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-evidence", "--anchor", anchors[1], "--as", "unsound",
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-computation", "--anchor", anchors[1], "--as", "unsound",
 		"--reason", "trial division says nothing about the ordinal of a prime", "--json")
 	if err != nil {
 		t.Fatalf("the second sentence's judgement: %v\n%s", err, out)

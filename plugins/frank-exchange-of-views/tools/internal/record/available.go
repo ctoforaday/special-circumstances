@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -162,17 +163,22 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		for _, key := range citedClaimsWithoutVerify(evs) {
 			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
 		}
+		// A PROOF IS ON ITS OWNER'S LIST ALONE (proofOwnerOf). Every other lens judges the proof's
+		// sentence as content and reads its standing verdict off `show evidence`.
+		//
 		// THE ITEM CARRIES THE ID THE VERB TAKES: the proof's anchor, which `reproduce --anchor`
 		// takes and the seat reads in the report. When the verb took the script's sha256 and the
 		// item named the anchor, three lenses on universe-m11 spent 22 proof-file reads and 14
 		// filesystem hunts translating one into the other, for 12 re-runs.
-		for _, o := range proofChecksOwed(evs, win) {
-			//
-			// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
-			// RE-RUNNING it, not by reading it" and handed over the re-run's id — so the first thing
-			// a lens could do with the item was record a verdict on a script it had not read (wave A,
-			// 2026-10-09: three placeholder verdicts, each of which stands).
-			add(o.item())
+		if seatID == proofOwnerOf(castOfEvents(evs)) {
+			for _, o := range proofChecksOwed(evs, win) {
+				//
+				// AND IT SAYS WHERE THE SCRIPT IS READ, IN THE ORDER THE ACT NEEDS. It said "audited by
+				// RE-RUNNING it, not by reading it" and handed over the re-run's id — so the first thing
+				// a lens could do with the item was record a verdict on a script it had not read (wave A,
+				// 2026-10-09: three placeholder verdicts, each of which stands).
+				add(o.item())
+			}
 		}
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
 		//
@@ -487,6 +493,30 @@ func proofChecksOwed(evs []*Event, win WindowIndex) []proofOwed {
 		out = append(out, proofOwed{ProofRef: ProofRef{Anchor: s.anchor, Sha: s.sha}, rerun: v.rerunWord()})
 	}
 	return out
+}
+
+// computationSeat is the computation lens's seat — the owner of every unjudged proof where the
+// cast seats it (proofOwnerOf).
+const computationSeat = "red-lens-computation"
+
+// proofOwnerOf is the lens whose work list offers a proof nobody has judged: the computation lens
+// where the cast seats it, else the evidence lens, else none.
+//
+// ONE LENS OWNS A PROOF (gblock, 2026-10-17): "doesn't it belong to computation/proof to run, and
+// for the rest it's just content to judge?" A proof item on every lens's list put lenses dispatched
+// together in a race to re-run and judge one script — universe-m26 re-ran one script 16 times across
+// five lenses. Every other lens reads the proof's standing verdict and judges its sentence as
+// content. A cast seating neither lens offers the proof to nobody, and it ships stated "not judged"
+// in the report's evidence, as a proof nobody judged does in any cast; a proof never held a PASS
+// for being unjudged.
+func proofOwnerOf(cast []string) string {
+	switch {
+	case slices.Contains(cast, computationSeat):
+		return computationSeat
+	case slices.Contains(cast, evidenceSeat):
+		return evidenceSeat
+	}
+	return ""
 }
 
 // ProofRef is a recorded proof named BOTH ways: the anchor the report carries and the verb takes,

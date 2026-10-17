@@ -9,7 +9,9 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // A PROOF'S SCRIPT IS READ THROUGH THE RECORD'S PROJECTION.
@@ -22,9 +24,15 @@ import (
 // instead.
 
 // provenRun records one proof and returns its anchor and sha256 as the unscoped table lists them.
+// Its cast seats the evidence lens and no computation lens, so the proofs are the evidence lens's.
 func provenRun(t *testing.T, body string) (runDir, anchor, sha string) {
 	t.Helper()
 	runDir = newRun(t)
+	cast, lanes := record.CastFor([]string{"evidence", "logic"}, 1)
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: cast, LaneSeatIds: lanes}); err != nil {
+		t.Fatalf("cast: %v", err)
+	}
 	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", body)
 	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
