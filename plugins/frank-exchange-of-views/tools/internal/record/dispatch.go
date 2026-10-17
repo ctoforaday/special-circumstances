@@ -38,7 +38,7 @@ type PlanBlocker struct {
 }
 
 // RemandOwed is one gap whose remand's exchange the plan readies, and the direction that exchange
-// owes — the gap view's `docket_reopens_on`, which the record refuses blank on a remand.
+// owes — the gap view's `docket_direction`, which the record refuses blank on a remand.
 type RemandOwed struct {
 	GapID     string `json:"gap_id"`
 	Direction string `json:"direction" pattern:"\\S" desc:"never blank: the record refuses a remand without one"`
@@ -135,7 +135,7 @@ type openGap struct {
 	// (benchSatFor).
 	unruledFiled  int64
 	unruledMotion string // the motion id of that filing, for the plan's reason; "" when none
-	// direction is the gap view's `docket_reopens_on`: the research direction the latest remand
+	// direction is the gap view's `docket_direction`: the research direction the latest remand
 	// states, which the plan's reason quotes when the remand's exchange is owed.
 	direction string
 	// supersededBy is the successor that names this gap as an ancestor, when one does and this gap
@@ -1235,7 +1235,7 @@ func openGaps(db recordsql.Querier) ([]openGap, error) {
 	    CASE WHEN g."stranded" THEN COALESCE(g."superseded_by", '') ELSE '' END,
 	    COALESCE(g."unruled_docket_filed", 0),
 	    COALESCE((SELECT mo."motion_id" FROM "motion" mo WHERE mo."event_id" = g."unruled_docket_filed"), ''),
-	    COALESCE(g."docket_reopens_on", '')
+	    COALESCE(g."docket_direction", '')
 	  FROM "gap" g WHERE g."open" ORDER BY g."minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its open gaps: %w", err)

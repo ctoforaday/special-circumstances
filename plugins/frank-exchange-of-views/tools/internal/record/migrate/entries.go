@@ -171,6 +171,17 @@ func registerEntry(old OldEvent) ([]proto.Message, error) {
 	return []proto.Message{r}, nil
 }
 
+// remandDirection carries a remand's research direction to the field that holds it. A source at
+// epoch 26 or earlier states it as `reopens_on`, its one column for what follows a ruling; a ruling
+// that closes the gap keeps its `reopens_on`, which is what would reopen it. The disposition says
+// which the source meant.
+func remandDirection(r *recordpb.DocketRuling) {
+	if r.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED || r.ReopensOn == nil {
+		return
+	}
+	r.Direction, r.ReopensOn = r.ReopensOn, nil
+}
+
 // frictionNoneEntry: the explicit empty form carried "none" as an entry. The type that said so is
 // retired and clean is derived from a bracketed sitting that filed nothing, so the row translates
 // to no event at all — the statement survives, computed rather than stored.
@@ -259,9 +270,13 @@ func opinionEntry(old OldEvent) ([]proto.Message, error) {
 	if ruling.ReviewFlag == nil {
 		ruling.ReviewFlag = proto.String("not stated: this ruling predates the review-flag requirement (migrated from a bench opinion)")
 	}
+	if ruling.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && ruling.ReopensOn == nil {
+		ruling.ReopensOn = proto.String("not stated: this remand predates the direction requirement (migrated from a bench opinion)")
+	}
 	if ruling.ReopensOn == nil && ruling.Final == nil {
 		ruling.ReopensOn = proto.String("not stated: this ruling predates the reopens-on/final requirement (migrated from a bench opinion)")
 	}
+	remandDirection(ruling)
 	// The motion's ask, in the only words the record has for it: the bench took the gap up
 	// on its own motion. Synthesized text says so rather than posing as a filing.
 	motion.Basis = proto.String("migrated from a bench opinion: the bench took this gap up sua sponte")

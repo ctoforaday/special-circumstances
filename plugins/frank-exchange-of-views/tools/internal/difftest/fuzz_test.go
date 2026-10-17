@@ -415,8 +415,8 @@ var fuzzArms = []fuzzArm{
 			f := []string{"--id", pick(rng, fuzzMotions), "--as", "remanded", "--principle", "p", "--tension", "t",
 				"--reason", "the ruling", "--review-flag", "r", "--settled", "the proposition this ruling bars"}
 			if rng.Intn(4) > 0 {
-				// omitted: no --reopens-on, the validation path. A remand states its direction.
-				f = append(f, "--reopens-on", "a reproduction on the shipped binary")
+				// omitted: no --direction, the validation path. A remand states its direction.
+				f = append(f, "--direction", "a reproduction on the shipped binary")
 			}
 			return f
 		}},
@@ -459,7 +459,7 @@ var tourArms = []fuzzArm{
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
 			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
-				"--settled", "the proposition this ruling bars", "--reopens-on", "a reproduction on the shipped binary", "--reason", t}
+				"--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", t}
 		}, nil),
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
 		func(t string) []string { return []string{"--question", t, "--hypothesis", "it would settle something"} }, nil),

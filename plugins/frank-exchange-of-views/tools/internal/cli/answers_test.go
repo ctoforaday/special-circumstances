@@ -394,7 +394,7 @@ func answerDrives() []answerDrive {
 			m := docketFile(d.t, d.run, "red-chair", "G1", "red cannot settle G1")
 			rule := func(text string) []string {
 				return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
-					"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", text}
+					"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
 			}
 			d.admitted("the ruling", "judge", rule("one more exchange")...)
 			d.endsWithRow(d.refused("a second ruling", "judge", rule("again")...), rowDocketRule)
@@ -417,7 +417,7 @@ func answerDrives() []answerDrive {
 			}
 			again := docketFile(d.t, d.run, "red-chair", "G1", "the ruling left G1 where it was")
 			d.admitted("the bench's ruling on the new motion", "judge", "motion", "docket", "rule", "--id", again, "--as", "remanded", "--principle", "thoroughness over speed",
-				"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", "the gap again")
+				"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", "the gap again")
 		}},
 		{name: "a ruling on a petition", row: rowPetition, helps: []string{"bench motion petition rule"}, drive: func(d drive) {
 			m := motionID(d.t, d.run, "motion", "petition", "file", "--seat-id", lensSeat,

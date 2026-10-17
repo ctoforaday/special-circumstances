@@ -59,12 +59,14 @@ type requiredProbe struct {
 // one while the other is present runs clean, and omitting both is refused naming both — a
 // requirement no single-flag marker states, so these are exempt from the marker check and the
 // help carries the alternative in prose (helpcontract_test.go's satisfiedByAnother reads the
-// same shape from the other side).
+// same shape from the other side). `motion docket rule` answers what follows its ruling with one
+// of three, chosen by --as: --direction on a remand, else --reopens-on or --final.
 var oneOfAnother = map[string]string{
 	"problem":    "reason",
 	"reason":     "problem",
 	"reopens-on": "final",
 	"final":      "reopens-on",
+	"direction":  "final",
 	"ids":        "none",
 	"none":       "ids",
 }

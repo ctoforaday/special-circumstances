@@ -480,10 +480,12 @@ CREATE TABLE "motion_rule_docket" (
   "settled" TEXT NOT NULL,
   "reopens_on" TEXT,
   "final" INTEGER,
+  "direction" TEXT,
   CHECK ("final" IS NULL OR "final" IN (0, 1)),
-  CHECK ("reopens_on" IS NOT NULL OR "final" IS NOT NULL),
+  CHECK ("disposition" = 'remanded' OR "reopens_on" IS NOT NULL OR "final" IS NOT NULL),
   CHECK ("reopens_on" IS NULL OR "final" IS NULL),
-  CHECK ("disposition" <> 'remanded' OR coalesce(trim("reopens_on", ' ' || char(9, 10, 13)), '') <> ''),
+  CHECK ("disposition" <> 'remanded' OR (coalesce(trim("direction", ' ' || char(9, 10, 13)), '') <> '' AND "reopens_on" IS NULL AND "final" IS NULL)),
+  CHECK ("disposition" = 'remanded' OR "direction" IS NULL),
   FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;
 
@@ -1213,10 +1215,9 @@ SELECT "event_id", "pos" FROM "act_standing" WHERE "struck_seq" IS NULL;
 -- THE BENCH'S REMANDS: every docket ruling that stands (live_event) with a disposition that does not
 -- close the gap ("remanded"), one row per ruling — the gap it is about, its events.id, its place
 -- "pos" (a correction takes its target's place), the sitting it was ruled in, and the research
--- direction it states. A remand must state reopens_on and cannot state final (the DocketRuling
--- CHECKs), so reopens_on is the direction the remand's exchange owes.
+-- direction it states, which the DocketRuling CHECKs require of a remand.
 --
--- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_reopens_on"
+-- ONE DEFINITION FOR EVERY READER OF A REMAND. The gap view's "remanded" and "docket_direction"
 -- read it, and so does the dispatch's remand fold (record.remandRulingsOf), which groups the rows
 -- into bench sittings by "sitting_id" and counts a sitting only where the gap was at impasse when the
 -- bench ruled — a question about the exchange count, which the record's Go fold answers and this
@@ -1226,7 +1227,7 @@ SELECT md."gap_id"                          AS "gap_id",
        mr."event_id"                        AS "event_id",
        l."pos"                              AS "pos",
        COALESCE(e."sitting_id", e."id")     AS "sitting_id",
-       rd."reopens_on"                      AS "reopens_on"
+       rd."direction"                       AS "direction"
 FROM "motion_docket" md
 JOIN "motion" mo ON mo."event_id" = md."event_id"
 JOIN "motion_rule" mr ON mr."motion_id" = mo."motion_id"
@@ -1365,7 +1366,7 @@ SELECT
   -- THE BENCH REMANDED IT AND NOTHING IS PENDING, and this is the column that lets a seat be told so.
   --
   -- A remand ruled at impasse sends the gap back to the debate for ONE more exchange between its
-  -- minting lens and blue, on the direction the ruling states (docket_reopens_on). Where a remanded
+  -- minting lens and blue, on the direction the ruling states (docket_direction). Where a remanded
   -- gap stands against that exchange — owed, had, or the gap remanded again and at its limit — turns
   -- on the exchange count, so the record's Go fold decides it (exchangesOf, over the "remand" view's
   -- rows); this column says only that a remand stands on the gap and no docket motion on it stands
@@ -1461,8 +1462,8 @@ SELECT
   -- the events primary key, or a replacement's root's: monotonic, unique, and nothing to do with
   -- the motion-id spelling that has no usable order. The LATEST remand is the live one — an earlier
   -- remand's direction has already had its exchange.
-  (SELECT r."reopens_on" FROM "remand" r WHERE r."gap_id" = m."gap_id"
-   ORDER BY r."pos" DESC LIMIT 1)                                                    AS "docket_reopens_on",
+  (SELECT r."direction" FROM "remand" r WHERE r."gap_id" = m."gap_id"
+   ORDER BY r."pos" DESC LIMIT 1)                                                    AS "docket_direction",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.

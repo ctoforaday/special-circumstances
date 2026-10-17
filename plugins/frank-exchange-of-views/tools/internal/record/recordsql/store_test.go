@@ -403,19 +403,22 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 // The write path refuses it first, in words a bench can act on; the DocketRuling CHECK is what
 // holds when anything else inserts — migrate's replay, a fixture, a future verb. A remand ruled
 // final, or with a blank or whitespace direction, would reach blue and the minting lens owing
-// nothing.
+// nothing; one stating what would reopen it states a condition for a gap it never closed.
 func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 	for _, c := range []struct {
 		name      string
+		direction *string
 		reopensOn *string
 		final     *bool
 		refused   bool
 	}{
-		{"final, no direction", nil, proto.Bool(true), true},
-		{"blank direction", proto.String(""), nil, true},
-		{"whitespace direction", proto.String(" \t\n\r "), nil, true},
-		{"a direction and final", proto.String("a reproduction on the shipped binary"), proto.Bool(true), true},
-		{"a direction", proto.String("a reproduction on the shipped binary"), nil, false},
+		{"final, no direction", nil, nil, proto.Bool(true), true},
+		{"reopens_on, no direction", nil, proto.String("new evidence"), nil, true},
+		{"blank direction", proto.String(""), nil, nil, true},
+		{"whitespace direction", proto.String(" \t\n\r "), nil, nil, true},
+		{"a direction and final", proto.String("a reproduction on the shipped binary"), nil, proto.Bool(true), true},
+		{"a direction and reopens_on", proto.String("a reproduction on the shipped binary"), proto.String("new evidence"), nil, true},
+		{"a direction", proto.String("a reproduction on the shipped binary"), nil, nil, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			db := store(t)
@@ -443,6 +446,7 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 					Tension:     proto.String("the repair costs a round"),
 					ReviewFlag:  proto.String("the reproduction settles it"),
 					Settled:     proto.String(""),
+					Direction:   c.direction,
 					ReopensOn:   c.reopensOn,
 					Final:       c.final,
 				}},
@@ -510,7 +514,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			}
 			// A remand states the direction its exchange owes, never final.
 			if c.as == recordpb.Disposition_DISPOSITION_REMANDED {
-				dr.Final, dr.ReopensOn = nil, proto.String("a reproduction on the shipped binary")
+				dr.Final, dr.Direction = nil, proto.String("a reproduction on the shipped binary")
 			}
 			if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),

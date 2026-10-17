@@ -523,7 +523,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 				Opinion:  proto.String("not this round"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
-					ReopensOn:   proto.String("blue reporting what the stated direction found"),
+					Direction:   proto.String("blue reporting what the stated direction found"),
 					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 				}},
 			}),
@@ -558,7 +558,7 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
 	gaps := []WorkGapState{
 		{ID: "CARRIED", Open: true, Material: true, Remanded: true, remand: remandOwed, route: routeRemandOwed,
-			DocketReopensOn: "blue reporting what the stated direction found"},
+			DocketDirection: "blue reporting what the stated direction found"},
 		{ID: "FRESH", Open: true, Material: true},
 	}
 	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair")

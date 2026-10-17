@@ -178,7 +178,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	// pin is the id of the event that source head was written as.
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
-	paired := map[int64]bool{}    // source corrections already written beside their replacement
+	paired := map[int64]bool{} // source corrections already written beside their replacement
 	for _, old := range evs {
 		res.In[old.Word]++
 		if old.Word == correctionWord {

@@ -19,7 +19,7 @@ func docketRule(id, opinion string) *recordpb.MotionRule {
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 			Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
-			Settled: proto.String("st"), ReopensOn: proto.String("new evidence")}}}
+			Settled: proto.String("st"), Direction: proto.String("new evidence")}}}
 }
 
 const (
@@ -192,20 +192,23 @@ func TestTheDocketRulingWriteRefusesAnOmittedPresenceField(t *testing.T) {
 	})
 }
 
-// EVERY REMAND STATES ITS DIRECTION (gblock, 2026-10-04). A remand sends the gap back for one more
-// exchange, and the dispatch hands blue and the minting lens the ruling's reopens_on as what that
-// exchange owes; a remand that said --final would hand them nothing. --final says nothing would
-// reopen the gap, which a remand contradicts, so the pair is refused rather than given a meaning.
+// EVERY REMAND STATES ITS DIRECTION (gblock, 2026-10-04), AND ONLY A REMAND DOES. A remand sends the
+// gap back for one more exchange, and the dispatch hands blue and the minting lens the ruling's
+// direction as what that exchange owes. --reopens-on and --final say what would reopen a closed gap,
+// which a remand is not, so either on a remand is refused rather than given a meaning; a direction on
+// a ruling that closes the gap is research no exchange is dispatched to do.
 func TestARemandStatesItsDirection(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		set  func(*recordpb.DocketRuling)
 	}{
-		{"remanded --final", func(d *recordpb.DocketRuling) { d.ReopensOn, d.Final = nil, proto.Bool(true) }},
-		{"remanded with neither", func(d *recordpb.DocketRuling) { d.ReopensOn = nil }},
+		{"remanded --final", func(d *recordpb.DocketRuling) { d.Direction, d.Final = nil, proto.Bool(true) }},
+		{"remanded with neither", func(d *recordpb.DocketRuling) { d.Direction = nil }},
 		{"remanded with a direction and --final", func(d *recordpb.DocketRuling) { d.Final = proto.Bool(true) }},
-		{"remanded with a blank direction", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String("") }},
-		{"remanded with a whitespace direction", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String(" \t\n") }},
+		{"remanded with a direction and --reopens-on", func(d *recordpb.DocketRuling) { d.ReopensOn = proto.String("new evidence") }},
+		{"remanded --reopens-on and no direction", func(d *recordpb.DocketRuling) { d.Direction, d.ReopensOn = nil, proto.String("new evidence") }},
+		{"remanded with a blank direction", func(d *recordpb.DocketRuling) { d.Direction = proto.String("") }},
+		{"remanded with a whitespace direction", func(d *recordpb.DocketRuling) { d.Direction = proto.String(" \t\n") }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			run := mustRun(t, docketRunDir(t))
@@ -215,12 +218,12 @@ func TestARemandStatesItsDirection(t *testing.T) {
 			if err == nil {
 				t.Fatal("a remand stating no direction reached the record — blue and the minting lens would be dispatched owing nothing")
 			}
-			if !strings.Contains(err.Error(), "--as remanded requires --reopens-on") {
-				t.Errorf("the refusal does not name --reopens-on, so the bench cannot tell what the remand owes: %v", err)
+			if !strings.Contains(err.Error(), "--as remanded requires --direction") {
+				t.Errorf("the refusal does not name --direction, so the bench cannot tell what the remand owes: %v", err)
 			}
 		})
 	}
-	t.Run("remanded --reopens-on", func(t *testing.T) {
+	t.Run("remanded --direction", func(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
 		if _, err := Append(sit(t, run, "judge"), docketRule("M1", "the ruling")); err != nil {
 			t.Errorf("a remand stating its direction was refused: %v", err)
@@ -230,9 +233,19 @@ func TestARemandStatesItsDirection(t *testing.T) {
 		run := mustRun(t, docketRunDir(t))
 		o := docketRule("M1", "the ruling")
 		d := o.GetDocket()
-		d.Disposition, d.ReopensOn, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), nil, proto.Bool(true)
+		d.Disposition, d.Direction, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), nil, proto.Bool(true)
 		if _, err := Append(sit(t, run, "judge"), o); err != nil {
 			t.Errorf("a final not_a_defect ruling was refused: %v", err)
+		}
+	})
+	t.Run("a disposition that ends the gap states no direction", func(t *testing.T) {
+		run := mustRun(t, docketRunDir(t))
+		o := docketRule("M1", "the ruling")
+		d := o.GetDocket()
+		d.Disposition, d.Final = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
+		_, err := Append(sit(t, run, "judge"), o)
+		if err == nil || !strings.Contains(err.Error(), "--direction is the research a remand's one more exchange owes") {
+			t.Errorf("a not_a_defect ruling stating a direction was not refused for it: %v", err)
 		}
 	})
 }

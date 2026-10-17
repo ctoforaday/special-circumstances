@@ -34,7 +34,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 			Principle:   proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("false"),
 			Settled:    proto.String("the claim as it stood may not be re-asserted"),
-			ReopensOn:  proto.String("a reproduction on the shipped binary"),
+			Direction:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
 	if err := validateRun(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {

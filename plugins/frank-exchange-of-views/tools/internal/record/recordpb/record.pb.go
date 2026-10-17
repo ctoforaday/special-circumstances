@@ -5622,14 +5622,14 @@ type DocketRuling struct {
 	Tension    *string `protobuf:"bytes,3,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
 	ReviewFlag *string `protobuf:"bytes,4,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
 	Settled    *string `protobuf:"bytes,5,opt,name=settled,proto3,oneof" json:"settled,omitempty"`
-	// ONE COLUMN, TWO MEANINGS, SPLIT BY THE DISPOSITION. On a ruling that closes the gap it is the
-	// condition that would reopen it; on a remand, which closes nothing, it is the research direction
-	// the remand's exchange owes. Every reader of a remand reads it as the direction (the "remand"
-	// view, the dispatch plan's remand_owed, the work lists), and the help says both.
+	// What would reopen the gap a ruling closes. A remand states none (the checks above).
 	ReopensOn *string `protobuf:"bytes,6,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
 	// Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
 	// checks above are what make "neither" and "both" unrepresentable.
-	Final         *bool `protobuf:"varint,7,opt,name=final,proto3,oneof" json:"final,omitempty"`
+	Final *bool `protobuf:"varint,7,opt,name=final,proto3,oneof" json:"final,omitempty"`
+	// THE RESEARCH A REMAND'S ONE MORE EXCHANGE OWES blue and the minting lens. Every reader of a
+	// remand reads this (the "remand" view, the dispatch plan's remand_owed, the work lists).
+	Direction     *string `protobuf:"bytes,8,opt,name=direction,proto3,oneof" json:"direction,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5711,6 +5711,13 @@ func (x *DocketRuling) GetFinal() bool {
 		return *x.Final
 	}
 	return false
+}
+
+func (x *DocketRuling) GetDirection() string {
+	if x != nil && x.Direction != nil {
+		return *x.Direction
+	}
+	return ""
 }
 
 // InquiryMotion rules on an inquiry blue proposed. The id is the INQUIRY's own — an inquiry has
@@ -7747,21 +7754,23 @@ const file_record_proto_rawDesc = "" +
 	"\x06_class\"\xbb\x01\n" +
 	"\fDocketMotion\x12\x9f\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
-	"\a_gap_id\"\xf1\x10\n" +
+	"\a_gap_id\"\xed\x13\n" +
 	"\fDocketRuling\x12\xfd\x01\n" +
 	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB\xb8\x01\x82\xb5\x18\xb3\x01\b\x01\x12\x02as\x1a\xaa\x01the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12{\n" +
 	"\tprinciple\x18\x02 \x01(\tBX\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same one\xc0\xb5\x18\x01H\x01R\tprinciple\x88\x01\x01\x12\xc1\x01\n" +
 	"\atension\x18\x03 \x01(\tB\xa1\x01\x82\xb5\x18\x98\x01\b\x01\x1a\x93\x01the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied\xc0\xb5\x18\x01H\x02R\atension\x88\x01\x01\x12\xac\x01\n" +
 	"\vreview_flag\x18\x04 \x01(\tB\x85\x01\x82\xb5\x18}\b\x01\x12\vreview-flag\x1alwhat a human should look at again — or, where nothing needs a human, what on the record already settles it\xc0\xb5\x18\x01H\x03R\n" +
 	"reviewFlag\x88\x01\x01\x12\x94\x01\n" +
-	"\asettled\x18\x05 \x01(\tBu\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01\xc0\xb5\x18\x01H\x04R\asettled\x88\x01\x01\x12\xf8\x01\n" +
+	"\asettled\x18\x05 \x01(\tBu\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01\xc0\xb5\x18\x01H\x04R\asettled\x88\x01\x01\x12\x9b\x01\n" +
 	"\n" +
-	"reopens_on\x18\x06 \x01(\tB\xd3\x01\x82\xb5\x18\xca\x01\x12\n" +
-	"reopens-on\x1a\xbb\x01on a ruling that closes the gap, the evidence or condition that would make it worth raising again; on a remand, the research direction its one more exchange owes blue and the minting lens\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
-	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xe4\x06\x92\xb5\x18\xc8\x02\n" +
-	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x94\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
-	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\xd9\x02\n" +
-	"]\"disposition\" <> 'remanded' OR coalesce(trim(\"reopens_on\", ' ' || char(9, 10, 13)), '') <> ''\x12\xf7\x01a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; a blank one is no direction, and --final says nothing would reopen a closed gap — a remand closes nothingB\x0e\n" +
+	"reopens_on\x18\x06 \x01(\tBw\x82\xb5\x18o\x12\n" +
+	"reopens-on\x1aaon a ruling that closes the gap: the evidence or condition that would make it worth raising again\xc0\xb5\x18\x01H\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
+	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01\x12\x90\x01\n" +
+	"\tdirection\x18\b \x01(\tBm\x82\xb5\x18e\x12\tdirection\x1aXon a remand: the research direction its one more exchange owes blue and the minting lens\xc0\xb5\x18\x01H\aR\tdirection\x88\x01\x01:\x9c\t\x92\xb5\x18\xfa\x02\n" +
+	"M\"disposition\" = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\xa8\x02a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting\x92\xb5\x18\xb4\x01\n" +
+	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one\x92\xb5\x18\x8d\x03\n" +
+	"\x8b\x01\"disposition\" <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)\x12\xfc\x01a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the minting lens; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing\x92\xb5\x18\xcd\x01\n" +
+	"1\"disposition\" = 'remanded' OR \"direction\" IS NULL\x12\x97\x01--direction is the research a remand's one more exchange owes; a ruling that closes the gap sends no exchange, and what would reopen it is --reopens-onB\x0e\n" +
 	"\f_dispositionB\f\n" +
 	"\n" +
 	"_principleB\n" +
@@ -7771,7 +7780,9 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_settledB\r\n" +
 	"\v_reopens_onB\b\n" +
-	"\x06_final\"B\n" +
+	"\x06_finalB\f\n" +
+	"\n" +
+	"_direction\"B\n" +
 	"\rInquiryMotion\x12\"\n" +
 	"\n" +
 	"inquiry_id\x18\x01 \x01(\tH\x00R\tinquiryId\x88\x01\x01B\r\n" +

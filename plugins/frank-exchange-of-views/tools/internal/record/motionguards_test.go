@@ -34,7 +34,7 @@ func TestTheMotionWriteRefusesWhatReadersCannotAgreeOn(t *testing.T) {
 	finalDocketRule := func() *recordpb.MotionRule {
 		r := docketRule("M2", "the bench rules again")
 		r.GetDocket().Disposition = recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
-		r.GetDocket().ReopensOn = nil
+		r.GetDocket().Direction = nil
 		r.GetDocket().Final = proto.Bool(true)
 		return r
 	}

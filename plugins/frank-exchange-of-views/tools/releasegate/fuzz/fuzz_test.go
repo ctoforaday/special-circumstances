@@ -2483,15 +2483,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// left the hand-filed motions unruled, and a bench that sat and ruled nothing is not
 		// re-readied for them.
 		// THE ENVELOPE IS THE BENCH'S ACCOUNT OF WHAT IT RULED, in JUDGE_ENVELOPE's shape: debate.js
-		// builds the ruling every later seat is handed from it, so a remand row with no reopens_on
-		// would hand blue a remand owing no direction while the record holds one.
+		// builds the ruling every later seat is handed from it. A remand row states no reopens_on —
+		// a remand closes nothing — and its direction reaches blue and the lens from the record,
+		// through the plan's remand_owed.
 		res := []any{} // an array, never null — the schema refuses null
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
 			row := map[string]any{"gap_id": id, "disposition": "remanded", "settled": settledByFuzzBench,
-				"rationale": "fuzz: carried with a stated direction for " + id, "reopens_on": direction}
+				"rationale": "fuzz: carried with a stated direction for " + id}
 			if r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "remanded", "--reopens-on", direction, "--reason", row["rationale"].(string))
+				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", row["rationale"].(string))
 			}
 			if r.scenarioOf(id) == dirDisputeLost {
 				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})

@@ -820,7 +820,7 @@ type WorkGapJSON struct {
 	// on the JSON needs the same fact as a field rather than by matching on the sentence. `omitempty`
 	// on the direction and not on the flag: false is a real answer, "" is the absence of one.
 	Remanded        bool   `json:"remanded"`
-	DocketReopensOn string `json:"docket_reopens_on,omitempty"`
+	DocketDirection string `json:"docket_direction,omitempty"`
 	// RemandStage is where the gap stands against the remands the bench ruled at impasse — the
 	// dispatch's own fold (exchangesOf), so a seat reads the stage the plan acts on rather than
 	// matching it out of the work list's sentence: "owed" (its one more exchange, between its
@@ -943,10 +943,10 @@ type WorkGapState struct {
 	// way AwaitingProof is — the alternative was a second Go fold of a question the SQL already
 	// answers, which is what #681's standing rule forbids.
 	Remanded bool
-	// DocketReopensOn is the research direction the latest remand states, or "" when the bench has
+	// DocketDirection is the research direction the latest remand states, or "" when the bench has
 	// never remanded the gap. It is the SUBSTANCE of the remand: without it a seat is told the gap
 	// came back from the bench and not what to do about it.
-	DocketReopensOn string
+	DocketDirection string
 	// remand is where the gap stands against the bench's counted remands, and route what the
 	// dispatch does with it (routeOf) — the plan's own predicate over the plan's own fold
 	// (exchangesOf), so the work lists say what the dispatch does. unruledDocket is the view's
@@ -1012,7 +1012,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		return r, err
 	}
 	r.reportBase, r.haveBase, r.reportOps, r.reportErr = ReportProjectionAt(q)
-	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_reopens_on",
+	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_proof", "remanded", "docket_direction",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
@@ -1030,7 +1030,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 		var mintedEvent int64
 		var closeEvent, benchEvent sql.NullInt64
 		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
-		// remanded/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
+		// remanded/docket_direction here, about_kind/about_ref on main. A scan that kept
 		// one side's order would still COMPILE and would silently read each value into the wrong
 		// field — every gap's problem text landing in about_ref and so on.
 		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.Remanded, &reopensOn,
@@ -1042,7 +1042,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			return r, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
-		g.DocketReopensOn = reopensOn.String
+		g.DocketDirection = reopensOn.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
@@ -1189,7 +1189,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 				YoursToClose: reader != "" && g.MintedBy == reader,
 				RegradesOwed: []OwedRegradeJSON{},
 				CheckKind:    g.CheckKind, AwaitingProof: g.AwaitingProof,
-				Remanded: g.Remanded, DocketReopensOn: g.DocketReopensOn, RemandStage: remandStageWords[g.remand],
+				Remanded: g.Remanded, DocketDirection: g.DocketDirection, RemandStage: remandStageWords[g.remand],
 				FoundBy:  strs(g.FoundBy),
 				Material: g.Material,
 			}

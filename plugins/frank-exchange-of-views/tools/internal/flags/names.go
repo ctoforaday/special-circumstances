@@ -259,8 +259,11 @@ const (
 	ReopensOn = "reopens-on"
 	// Final is ReopensOn's assertable empty case, on the `friction --none` pattern: "nothing
 	// would reopen this" is a positive answer to the question, not a skipped field.
-	Final  = "final"
-	Relief = "relief"
+	Final = "final"
+	// Direction is a remand's: the research its one more exchange owes. A remand closes nothing,
+	// so it answers neither ReopensOn nor Final.
+	Direction = "direction"
+	Relief    = "relief"
 
 	// Blue's process record.
 	Method     = "method"
@@ -335,7 +338,7 @@ func All() []string {
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,
-		Settled, ReopensOn, Final,
+		Settled, ReopensOn, Final, Direction,
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, MaxSittingCalls, MaxEpochs, LensArea, LensAreaReason, BinDir, RunID, ScriptPath, AllowSubstitution,
 		Card, Watch, Now, Serve,

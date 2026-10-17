@@ -52,7 +52,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				Tension:     proto.String("cost against certainty"),
 				ReviewFlag:  proto.String("none"),
 				Settled:     proto.String("nothing yet — the gap survives"),
-				ReopensOn:   proto.String(reopensOn)}}})
+				Direction:   proto.String(reopensOn)}}})
 	}
 	dispose := func(motionID string) {
 		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
@@ -113,7 +113,7 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 		}
 		if g.Remanded != want {
 			t.Errorf("%s: remanded = %v, want %v (open=%v, reopens_on=%q)",
-				id, g.Remanded, want, g.Open, g.DocketReopensOn)
+				id, g.Remanded, want, g.Open, g.DocketDirection)
 		}
 	}
 	// THE ROWS THE DISPATCH'S REMAND FOLD READS: one per standing remand ruling, in the order they
@@ -134,21 +134,21 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	// ORDER's second remand (M10) is the last act on the record, so it is the last of ORDER's rows:
 	// the rows stand in the record's order, never the motion ids'.
 	ids := evs.At.IDs(evs.Events)
-	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID != ids[len(ids)-1] || rs[1].reopensOn != "the SECOND condition, which is the live one") {
+	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID != ids[len(ids)-1] || rs[1].direction != "the SECOND condition, which is the live one") {
 		t.Errorf("ORDER's rows out of the record's order: %+v (want M10's ruling, place %d, last)", rs, ids[len(ids)-1])
 	}
 	// AND THE CONDITION IS THE LIVE ONE. This is the half an order-free predicate cannot answer,
 	// and the half a motion-id ordering gets wrong: `motion_rule.event_id` is the events primary
 	// key, so the latest carry is the one the bench actually made last.
-	if got := by["ORDER"].DocketReopensOn; !strings.Contains(got, "SECOND") {
+	if got := by["ORDER"].DocketDirection; !strings.Contains(got, "SECOND") {
 		t.Errorf("ORDER: reopens_on = %q, want the SECOND condition — a reader ordering on the motion id "+
 			"picks M9 over M10 and hands the seat a condition that was already answered", got)
 	}
-	if got := by["CARRIED"].DocketReopensOn; got != "blue reporting what the stated direction found" {
+	if got := by["CARRIED"].DocketDirection; got != "blue reporting what the stated direction found" {
 		t.Errorf("CARRIED: reopens_on = %q, want the bench's own words", got)
 	}
 	// A gap nobody carried must carry no condition — "" is the honest empty, not a missing read.
-	if got := by["FRESH"].DocketReopensOn; got != "" {
+	if got := by["FRESH"].DocketDirection; got != "" {
 		t.Errorf("FRESH was never carried and reports a reopens-on condition: %q", got)
 	}
 }

@@ -46,7 +46,7 @@ func docketRuling(t *testing.T, motion string, d recordpb.Disposition, opinion s
 	}
 	// A ruling states what reopens the gap or that it is final, never both.
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
-		r.ReopensOn = proto.String("the stated direction reporting back")
+		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
 	}

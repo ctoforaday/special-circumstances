@@ -536,7 +536,7 @@ func proofsWithoutReproduce(evs []*Event) []ProofRef {
 // readies for it — blue, and the gap's minting lens — carrying the research direction the ruling
 // states, so the bench's words reach the two seats that owe them.
 func remandOwedItem(g WorkGapState, blue bool) string {
-	dir := g.DocketReopensOn
+	dir := g.DocketDirection
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench"
 	if blue {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange — you and its minting lens are dispatched on it, and what you owe is the research direction the ruling states: " + dir + next
@@ -550,7 +550,7 @@ func remandedGapForChair(g WorkGapState) string {
 	const head = "gap "
 	switch g.route {
 	case routeRemandOwed:
-		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketReopensOn
+		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies its minting lens and blue for one more exchange on the research direction the ruling states: " + g.DocketDirection
 	case routeRedocket:
 		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again"
 	case routeAtLimit:

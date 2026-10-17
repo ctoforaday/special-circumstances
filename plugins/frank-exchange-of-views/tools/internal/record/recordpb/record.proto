@@ -1620,10 +1620,11 @@ message DocketRuling {
   // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
   // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
   // which is the defect the friction channel carried for eighteen consecutive sittings until
-  // `--none` made the empty case sayable.
+  // `--none` made the empty case sayable. The question is a closing ruling's: a remand closes
+  // nothing, so it owes a direction instead (below).
   option (check) = {
-    expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting"
+    expr: "\"disposition\" = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
+    why: "a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting"
   };
 
   // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
@@ -1634,16 +1635,22 @@ message DocketRuling {
     why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
   };
 
-  // A REMAND STATES ITS DIRECTION. A remand sends the gap back to the debate for one more exchange,
-  // and the dispatch hands that exchange's two seats — blue and the minting lens — the ruling's
-  // `reopens_on` as the research direction they owe. `final` says nothing would reopen the gap,
-  // which a remand contradicts: with the check above, a remand states `reopens_on` and never
-  // `final`. A blank is no direction: the check trims what the write path's strings.TrimSpace
-  // trims in ASCII (space, tab, newline, carriage return), and a NULL reopens_on fails it, where a
-  // bare `trim(NULL) <> ''` would be NULL and pass.
+  // A REMAND STATES ITS DIRECTION AND NOTHING THAT REOPENS. A remand sends the gap back to the
+  // debate for one more exchange, and the dispatch hands that exchange's two seats — blue and the
+  // minting lens — the ruling's `direction` as the research they owe. A remand closes nothing, so
+  // neither `reopens_on` nor `final` answers anything on it. A blank is no direction: the check
+  // trims what the write path's strings.TrimSpace trims in ASCII (space, tab, newline, carriage
+  // return), and a NULL direction fails it, where a bare `trim(NULL) <> ''` would be NULL and pass.
   option (check) = {
-    expr: "\"disposition\" <> 'remanded' OR coalesce(trim(\"reopens_on\", ' ' || char(9, 10, 13)), '') <> ''"
-    why: "a remand sends the gap back for one more exchange, and --reopens-on is the research direction that exchange owes blue and the minting lens; a blank one is no direction, and --final says nothing would reopen a closed gap — a remand closes nothing"
+    expr: "\"disposition\" <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)"
+    why: "a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the minting lens; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing"
+  };
+
+  // A DIRECTION IS A REMAND'S. A ruling that closes the gap sends no exchange anywhere, so a
+  // direction on it would be research nobody is dispatched to do.
+  option (check) = {
+    expr: "\"disposition\" = 'remanded' OR \"direction\" IS NULL"
+    why: "--direction is the research a remand's one more exchange owes; a ruling that closes the gap sends no exchange, and what would reopen it is --reopens-on"
   };
 
   // NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
@@ -1683,18 +1690,22 @@ message DocketRuling {
     why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
   }, (prose) = true];
 
-  // ONE COLUMN, TWO MEANINGS, SPLIT BY THE DISPOSITION. On a ruling that closes the gap it is the
-  // condition that would reopen it; on a remand, which closes nothing, it is the research direction
-  // the remand's exchange owes. Every reader of a remand reads it as the direction (the "remand"
-  // view, the dispatch plan's remand_owed, the work lists), and the help says both.
+  // What would reopen the gap a ruling closes. A remand states none (the checks above).
   optional string reopens_on = 6 [(sql) = {
     flag: "reopens-on"
-    why: "on a ruling that closes the gap, the evidence or condition that would make it worth raising again; on a remand, the research direction its one more exchange owes blue and the minting lens"
+    why: "on a ruling that closes the gap: the evidence or condition that would make it worth raising again"
   }, (prose) = true];
 
   // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
   // checks above are what make "neither" and "both" unrepresentable.
   optional bool final = 7;
+
+  // THE RESEARCH A REMAND'S ONE MORE EXCHANGE OWES blue and the minting lens. Every reader of a
+  // remand reads this (the "remand" view, the dispatch plan's remand_owed, the work lists).
+  optional string direction = 8 [(sql) = {
+    flag: "direction"
+    why: "on a remand: the research direction its one more exchange owes blue and the minting lens"
+  }, (prose) = true];
 }
 
 // InquiryMotion rules on an inquiry blue proposed. The id is the INQUIRY's own — an inquiry has

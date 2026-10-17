@@ -87,7 +87,7 @@ var (
 		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryReview.reason BlueEdit.text Revision.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
-		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on MotionRule.opinion
+		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction MotionRule.opinion
 		MotionAppeal.reason Outcome.prose Outcome.verdict_why Position.text Halt.opinion
 		Certify.statement Declare.holding Correction.why`)
 	dataFields = fieldSet(`Anchor.location BaseIngest.text BlueEdit.edit_key

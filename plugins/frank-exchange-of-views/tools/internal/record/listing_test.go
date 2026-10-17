@@ -121,7 +121,7 @@ func TestMotionsReadACorrectedRulingAsTheOneThatStands(t *testing.T) {
 			Opinion: proto.String(opinion),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"),
-				Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), ReopensOn: proto.String("r")}}}
+				Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"), Direction: proto.String("r")}}}
 	}
 	k := "judge:motion_rule:#1"
 	evs := []*Event{

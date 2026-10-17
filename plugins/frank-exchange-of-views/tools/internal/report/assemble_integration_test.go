@@ -123,7 +123,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"),
 			ReviewFlag: proto.String("false"),
 			Settled:    proto.String("the claim as it stood may not be re-asserted"),
-			ReopensOn:  proto.String("a model-check of the two-writer interleaving"),
+			Direction:  proto.String("a model-check of the two-writer interleaving"),
 		}},
 	})
 	add("judge", &recordpb.Outcome{

@@ -12,7 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// remandDirection is the research direction the bench's remand states, as the ruling's reopens_on.
+// remandDirection is the research direction the bench's remand states.
 const remandDirection = "re-derive the figure from the primary table rather than the press summary"
 
 // remandRuling is the bench remanding a docket motion with direction as its stated research direction.
@@ -20,7 +20,7 @@ func remandRuling(motion, direction string) *recordpb.MotionRule {
 	return &recordpb.MotionRule{MotionId: proto.String(motion), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 		Opinion: proto.String("the record cannot settle this yet"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
-			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), ReopensOn: proto.String(direction)}}}
+			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Direction: proto.String(direction)}}}
 }
 
 // sitClosed is one complete sitting of seat: its register, and the stop the SubagentStop hook

@@ -71,7 +71,7 @@ func benchRule(t *testing.T, seat string, motionID string, d recordpb.Dispositio
 	}
 	// A remand states the direction its exchange owes, never --final.
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
-		dr.Final, dr.ReopensOn = nil, proto.String("a reproduction on the shipped binary")
+		dr.Final, dr.Direction = nil, proto.String("a reproduction on the shipped binary")
 	}
 	return recordtest.At(t, seat, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
 		MotionId: proto.String(motionID),

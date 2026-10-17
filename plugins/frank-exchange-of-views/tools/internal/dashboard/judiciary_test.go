@@ -42,7 +42,7 @@ func docketRuled(t *testing.T, motion string, d recordpb.Disposition, principle,
 	t.Helper()
 	r := &recordpb.DocketRuling{Disposition: recordtest.P(d), Principle: proto.String(principle), Tension: proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"), Settled: proto.String("whether the gap stands")}
 	if d == recordpb.Disposition_DISPOSITION_REMANDED {
-		r.ReopensOn = proto.String("the stated direction reporting back")
+		r.Direction = proto.String("the stated direction reporting back")
 	} else {
 		r.Final = proto.Bool(true)
 	}

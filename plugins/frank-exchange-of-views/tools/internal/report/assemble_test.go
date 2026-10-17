@@ -652,7 +652,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 				Principle:   proto.String("correctness"), Tension: proto.String("cost"),
 				ReviewFlag: proto.String("false"),
 				Settled:    proto.String("the claim as it stood may not be re-asserted"),
-				ReopensOn:  proto.String("the probe"),
+				Direction:  proto.String("the probe"),
 			}},
 		}),
 		// A petition is a MOTION now — the retired `petition` event type has no arm in the schema,

@@ -332,7 +332,8 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 					ReviewFlag: seat.OptStr(cmd, flags.ReviewFlag),
 					Settled:    seat.OptStr(cmd, flags.Settled),
 				}
-				// EXACTLY ONE OF THESE, and the schema refuses the other two states. Set only
+				// A CLOSING RULING STATES EXACTLY ONE OF --reopens-on AND --final, A REMAND ITS
+				// --direction AND NEITHER OF THEM; the schema refuses every other state. Set only
 				// what was passed: an empty `reopens_on` written as present would satisfy the
 				// "at least one" check while saying nothing, which is the shape --final exists
 				// to make sayable.
@@ -342,6 +343,7 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 				if fin, _ := cmd.Flags().GetBool(flags.Final); fin {
 					dr.Final = proto.Bool(true)
 				}
+				dr.Direction = seat.OptStr(cmd, flags.Direction)
 				body.Ruling = &recordpb.MotionRule_Docket{Docket: dr}
 			default:
 				// The ruling half of the same silence: no arm leaves Ruling nil, `rulingWord`
@@ -474,8 +476,9 @@ var ruleFlagHelp = map[string]string{
 	flags.Tension:    "the values that pulled against each other; where none did, the ruling's weakest point: what a party would argue against the rule you applied",
 	flags.ReviewFlag: "what a human should look at again; where nothing needs a human, what on the record already settles it",
 	flags.Settled:    "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition",
-	flags.ReopensOn:  "on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. On a remand, which closes nothing: the research direction its one more exchange owes blue and the minting lens — required, and never with --final",
+	flags.ReopensOn:  "on a ruling that closes the gap: the evidence or condition that would make it worth raising again — or pass --final to say nothing would. A remand closes nothing, so it never passes this",
 	flags.Final:      "on a ruling that closes the gap: nothing would reopen it. The assertable empty case for --reopens-on: pass exactly one of the two. A remand closes nothing, so it never passes this",
+	flags.Direction:  "on a remand, and required there: the research direction its one more exchange owes blue and the minting lens. A ruling that closes the gap sends no exchange, so it never passes this",
 }
 
 // idShapeFor is WHICH KIND of id a motion verb's --id takes, so the page names the kind and a

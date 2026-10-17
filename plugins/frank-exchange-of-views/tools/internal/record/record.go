@@ -1257,7 +1257,7 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// answer and not an omission — the `friction --none` shape, for the same measured reason:
 		// an empty channel that cannot assert its own emptiness goes unclosed.
 		//
-		// THE SCHEMA CARRIES THIS TOO, as three (check) options on DocketRuling, and the two are not
+		// THE SCHEMA CARRIES THIS TOO, as four (check) options on DocketRuling, and the two are not
 		// a restatement: the tool refuses in words a bench can act on, and the database refuses
 		// independently of the tool, because a CHECK's `why` does not currently reach the seat —
 		// its violation arrives as raw driver text. Close that and this guard becomes redundant.
@@ -1265,16 +1265,20 @@ func validateAgainst(w writeView, seatID string, typ recordpb.EventType, body pr
 		// It moved here with the verb. The other three subjects rule with a word and a reason and
 		// have no reopening to answer for, so the check is on the arm rather than the event.
 		//
-		// A REMAND ANSWERS IT WITH --reopens-on, ALWAYS. The remand's one more exchange owes the
-		// direction the ruling states, and the dispatch hands blue and the minting lens its
-		// reopens_on; --final says nothing would reopen a gap the remand never closed. Asked first,
-		// so a remand stating neither, or stating --final, is told what a remand owes rather than
-		// offered --final. A blank direction is no direction.
+		// A REMAND ANSWERS WITH --direction, ALWAYS, AND WITH NOTHING ELSE. The remand's one more
+		// exchange owes the research the ruling states, and the dispatch hands blue and the minting
+		// lens its direction; --reopens-on and --final say what would reopen a gap the remand never
+		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
+		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
+		// no exchange.
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
-			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && (strings.TrimSpace(d.Docket.GetReopensOn()) == "" || d.Docket.Final != nil) {
-				return fmt.Errorf("--as remanded requires --reopens-on, and never --final: --reopens-on is the research direction the remand's one more exchange owes blue and the minting lens, and --final says nothing would reopen a closed gap — a remand closes nothing")
-			}
-			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
+			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
+				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
+					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
+				}
+			} else if d.Docket.Direction != nil {
+				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and --as %s closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing", recordpb.Word(d.Docket.GetDisposition()))
+			} else if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
 				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {

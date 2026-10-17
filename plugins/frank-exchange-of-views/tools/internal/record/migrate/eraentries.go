@@ -165,7 +165,13 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
 	if _, flat := old.Fields["ruling"]; !flat {
-		return (Registry{}).Translate(inquiryArm(old))
+		bodies, err := (Registry{}).Translate(inquiryArm(old))
+		for _, b := range bodies {
+			if r, ok := b.(*recordpb.MotionRule); ok {
+				remandDirection(r.GetDocket())
+			}
+		}
+		return bodies, err
 	}
 	r := &recordpb.MotionRule{}
 	subject, _ := old.Fields["subject"].(string)

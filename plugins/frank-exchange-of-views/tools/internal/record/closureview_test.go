@@ -58,7 +58,7 @@ func docketRuling(motion string, word recordpb.Disposition) *recordpb.MotionRule
 	d := &recordpb.DocketRuling{Disposition: recordtest.P(word),
 		Principle: proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"), Settled: proto.String("st")}
 	if word == recordpb.Disposition_DISPOSITION_REMANDED {
-		d.ReopensOn = proto.String("new evidence")
+		d.Direction = proto.String("new evidence")
 	} else {
 		d.Final = proto.Bool(true)
 	}
@@ -307,7 +307,7 @@ func TestTheBoardEmbedsItsClosuresRegradesAndCredit(t *testing.T) {
 	docket("M2", "G2", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
-		Settled: proto.String("st"), ReopensOn: proto.String("new evidence")})
+		Settled: proto.String("st"), Direction: proto.String("new evidence")})
 
 	// The count split: one verify (red's read), one cite (blue's authoring).
 	app(red, &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String("c"),

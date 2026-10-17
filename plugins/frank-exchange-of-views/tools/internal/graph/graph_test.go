@@ -158,7 +158,7 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 					// separates "the bench answered" from "the gap closed" — a closing
 					// disposition would make this pass for the wrong reason.
 					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
-					ReopensOn:   proto.String("the stated direction reporting back"),
+					Direction:   proto.String("the stated direction reporting back"),
 					Principle:   proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s"),
 				}},
 			}))

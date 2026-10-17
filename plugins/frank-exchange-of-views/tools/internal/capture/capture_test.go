@@ -531,7 +531,7 @@ func TestHarvestPrecedents(t *testing.T) {
 				Principle:   proto.String("a deferral still owes a direction"),
 				Tension:     proto.String("economy"), ReviewFlag: proto.String("none: the acceptance check settles it"),
 				Settled:   proto.String(""),
-				ReopensOn: proto.String("a reproduction on the shipped binary"),
+				Direction: proto.String("a reproduction on the shipped binary"),
 			}},
 		}),
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
@@ -654,7 +654,7 @@ func docketRuled(t *testing.T, motion, gap string) []*record.Event {
 			Opinion:  proto.String("remanded: two cross-references are unrepaired"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
-				ReopensOn:   proto.String("the two sentences rewritten"),
+				Direction:   proto.String("the two sentences rewritten"),
 			}},
 		}),
 	}

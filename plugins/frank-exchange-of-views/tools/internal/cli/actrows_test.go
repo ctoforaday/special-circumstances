@@ -202,7 +202,7 @@ func actRows() map[string]actRow {
 			act: func(v actVars, text string) []string {
 				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",
 					"--principle", "thoroughness over speed", "--tension", "cost against certainty",
-					"--review-flag", "none", "--settled", "nothing yet", "--reopens-on", "a reproduction", "--reason", text}
+					"--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
 			}},
 	}
 }
