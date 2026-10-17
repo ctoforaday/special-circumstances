@@ -68,7 +68,8 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
 			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
 			fileSays(actingRole, subject) + "\n\n" +
-			"Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.",
+			"Every seat but the one that rules a subject may file on it; exactly one rules, and `rule` appears only on that seat's surface.\n\n" +
+			"A filing at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.",
 		// THROUGH BEGIN, like every other writing verb: the filer is the seat this agent registered
 		// as, an agent with no register is registered first or refused, and the refusal renders in
 		// the envelope every verb's does. The filer id is what found_by, estoppel and the bench read.
@@ -138,7 +139,7 @@ func newFile(actingRole, subject string, required []string) *cobra.Command {
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				body.Relief = proto.String(r)
 			}
-			if _, err := record.Append(s.Identity(), body); err != nil {
+			if _, err := record.Append(s.Identity(), body, record.HeardInTime); err != nil {
 				return nil, err
 			}
 			return filed{ID: id, Subject: subject}, nil

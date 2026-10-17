@@ -87,9 +87,16 @@ import (
 // hundred, after the prompts stopped restating what the seat's constitution carries: blue-respond
 // 9,419, red-chair 6,260, red-lens-evidence 10,419, judge 5,840. The ceilings had drifted far above
 // the prompts as the clauses moved out, so growth up to the old numbers passed unseen.
+//
+// Raised 2026-10-17 for the chair's final sitting: one sentence of duty — at final_sitting nothing
+// put before the bench is heard in time, so the chair decides on the board as it stands and argues
+// in its position what it would have asked. Smoke m25's last chair filed a docket motion it said
+// "the bench hears at the next dispatch", in the run's last epoch, and the run ended CEILING over a
+// board that permitted a PASS. The refusal and the field are the tool's (motion and dispatch help);
+// the sentence is the job. red-chair measured 6,419, so 6,300 -> 6,500 by the rule above.
 var ceilings = map[string]int{
 	"blue-respond":      9500,
-	"red-chair":         6300,
+	"red-chair":         6500,
 	"red-lens-evidence": 10500,
 	"judge":             5900,
 }

@@ -112,8 +112,9 @@ func TestTheEpochLimitOutcomeSurvivesTheBenchRulingAtTheExit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
 			stageRetiredLens(t, runDir, tc.withGap)
-			setEpochLimit(t, runDir, 4)
-			motionID := tc.file(t, runDir)
+			setEpochLimit(t, runDir, 5)
+			motionID := tc.file(t, runDir)             // in epoch 4, before the final sitting
+			asSeat(t, runDir, "red-chair", "register") // epoch 5: the final sitting
 			plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
 			if !plan.EpochLimitReached || !plan.Ceiling || len(plan.Parties) != 0 {
 				t.Fatalf("the chair's last plan = %+v, want the epoch limit reached with the bench undispatched", plan)
@@ -135,11 +136,69 @@ func TestTheEpochLimitOutcomeSurvivesTheBenchRulingAtTheExit(t *testing.T) {
 			asSeat(t, runDir, "judge", "register", "--occasion", "assemble")
 			asSeat(t, runDir, "judge", "outcome", "--as", "CEILING", "--reason", "the run's term ran out with the bench still to rule")
 			verdict, basis, why := outcomeOf(t, runDir)
-			if verdict != "CEILING" || basis != record.VerdictDerived || !strings.Contains(why, "epoch limit 4 reached") {
+			if verdict != "CEILING" || basis != record.VerdictDerived || !strings.Contains(why, "epoch limit 5 reached") {
 				t.Errorf("the outcome on the record = (%q, %q, %q), want CEILING derived from the epoch limit", verdict, basis, why)
 			}
 		})
 	}
+}
+
+// A MOTION FILED AT THE RUN'S FINAL SITTING IS REFUSED, EVERY SUBJECT, AND NOTHING IS RECORDED. No
+// seat is dispatched after the sitting that opens the last epoch, so the chair rules no grade motion
+// and the bench is convened for no docket or petition before the exit. The plan says the sitting is
+// final whoever the board readies (record's TestAPassPermittedAtTheLastEpochIsNotTheEpochLimit holds
+// it where a PASS is permitted, which was m25's last sitting).
+func TestAMotionFiledAtTheFinalSittingIsRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name, filer string
+		args        []string
+	}{
+		{"a docket motion", "red-chair", []string{"motion", "docket", "file", "--id", limitGap, "--reason", "the bench's holding reads this gap as open"}},
+		{"a petition", "red-chair", []string{"motion", "petition", "file", "--class", "integrity", "--relief", "strike it", "--reason", "the finding quotes a source nobody fetched"}},
+		{"a grade motion", "blue-respond", []string{"motion", "grade", "file", "--id", limitGap, "--dimension", "severity", "--proposed", "low", "--reason", "the defect changes no reader decision"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := newRun(t)
+			stageRetiredLens(t, runDir, true)
+			setEpochLimit(t, runDir, 4)
+			plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json"))
+			if !plan.FinalSitting || plan.Epoch != 4 {
+				t.Fatalf("the plan at epoch 4 of 4 = %+v, want epoch 4 and the final sitting", plan)
+			}
+			before := len(eventsOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION))
+			out, err := runAt(t, append(tc.args, "--run", runDir, "--seat-id", tc.filer)...)
+			if err == nil {
+				t.Fatalf("%s filed at the final sitting was recorded: %s", tc.name, out)
+			}
+			for _, want := range []string{"is not heard in time", "epoch 4, the last under the run's epoch limit of 4", "Nothing was recorded", "records the verdict the board permits"} {
+				if !strings.Contains(out+err.Error(), want) {
+					t.Errorf("the refusal does not say %q: %v\n%s", want, err, out)
+				}
+			}
+			if after := len(eventsOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION)); after != before {
+				t.Errorf("the refused filing left %d motion(s) on the record, want %d", after, before)
+			}
+
+			// One epoch earlier the same filing is heard: the sitting is not final.
+			runDir = newRun(t)
+			stageRetiredLens(t, runDir, true)
+			setEpochLimit(t, runDir, 5)
+			if plan := planOf(t, asSeat(t, runDir, "red-chair", "dispatch", "next", "--json")); plan.FinalSitting || plan.Epoch != 4 {
+				t.Fatalf("the plan at epoch 4 of 5 = %+v, want epoch 4 and not the final sitting", plan)
+			}
+			asSeat(t, runDir, tc.filer, tc.args...)
+		})
+	}
+}
+
+// eventsOfType is the record's events of one type.
+func eventsOfType(t *testing.T, runDir string, typ recordpb.EventType) []*record.Event {
+	t.Helper()
+	evs, _, err := record.EventsOf(runtest.Open(t, runDir), typ)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return evs
 }
 
 // filePetition files blue's petition and returns its motion id.
