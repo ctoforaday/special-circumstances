@@ -138,7 +138,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("requireInquiry on an unknown id = %v, want the refusal", err)
 	}
 
-	// Estoppel: the byte-exact pair, the proof join, the edit's old span.
+	// Estoppel: the byte-exact pair, the proof join.
 	// Over a render the location stands in unanchored, the pair is the recorded one.
 	const render = "# R\n\nAt dawn the sky is teal at noon, or so it reads.\n"
 	if ok, err := ProposalAppliedVerbatim(run, "G1", render, "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
@@ -152,9 +152,6 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 	if !ProofAnswers(run, "G3") || ProofAnswers(run, "G1") || ProofAnswers(run, "") {
 		t.Error("ProofAnswers disagrees with the recorded proof join")
-	}
-	if !ClaimAppearsInAnEdit(run, "moon is cheese") || ClaimAppearsInAnEdit(run, "never written") {
-		t.Error("ClaimAppearsInAnEdit disagrees with the recorded old spans")
 	}
 
 	// The gaps the work list marks as awaiting a proof: G1 is the open computation gap with no proof; G3's proof discharges

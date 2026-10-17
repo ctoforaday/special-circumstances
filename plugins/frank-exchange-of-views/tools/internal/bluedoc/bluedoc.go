@@ -199,7 +199,7 @@ func (e *ErrAnchorDropped) Error() string {
 		near = fmt.Sprintf(" — its nearest sentence there reads %q", e.Near)
 	}
 	return fmt.Sprintf("your old span carries %s %s, and the replacement neither carries it nor keeps that sentence word for word exactly once, so the tool cannot put it back. "+
-		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, make the replacement that anchor alone and then retire the claim with blue's `retire` — the retire takes the anchor out with it, and where the claim was a clause inside a sentence, name the anchor to the retire with --anchor", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
+		"Place %s where that claim now stands in the replacement%s. To take the claim itself out, carry that anchor in the replacement and then retire the claim with blue's `retire` — an anchor left bare leaves with it, and one still on prose that stays leaves when you name it to the retire with --anchor", anchor.Label(e.ID), e.On(), anchor.Token(e.ID), near)
 }
 
 // ErrAnchorIntroduced names the anchor a replacement invented.
