@@ -67,6 +67,7 @@ func graphEdges() (seats int, edges int, reached map[string][]string, unreachedR
 var referenceKinds = map[string]string{
 	"gap-id":          "a board gap, checked with record.GapExists",
 	"citation-anchor": "a citation anchor id, checked with record.CitationExists",
+	"proof-anchor":    "a proof anchor id, checked with record.ProofExists",
 	"inquiry-id":      "an inquiry, checked with record.InquiryExists",
 }
 
