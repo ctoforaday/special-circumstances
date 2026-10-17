@@ -314,11 +314,12 @@ func ServedBy(t *testing.T, agentID, served, requested string) string {
 	}
 	line := `{"agentId":"` + agentID + `","type":"assistant","message":{"model":"` + served +
 		`","role":"assistant","content":` + content + `}}` + "\n"
-	// THE LAYOUT IS THE HARNESS'S, and the fixture has to use it: Locate globs
-	// `projects/<project>/<session>/subagents/agent-<id>.jsonl`, so a file dropped at the root is
-	// honestly not found — which is the same answer a seat with no trajectory gets, and would make
-	// this helper a fixture that silently measures nothing.
-	dir := filepath.Join(root, "projects", "p", "s", "subagents")
+	// THE LAYOUT IS THE HARNESS'S, and the fixture has to use it: Locate searches each
+	// `projects/<project>/<session>/subagents/` directory, so a file dropped at the root is honestly
+	// not found — which is the same answer a seat with no trajectory gets, and would make this helper
+	// a fixture that silently measures nothing. It is the Workflow tool's layout because every seat
+	// of a research run is a Workflow seat.
+	dir := filepath.Join(root, "projects", "p", "s", "subagents", "workflows", "wf_test")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -93,6 +93,8 @@ type TierRow struct {
 	// beside it rather than a reader inferring the state from the blank.
 	Served   string `json:"served,omitempty"`
 	Measured bool   `json:"measured"`
+	// NotMeasured says why nothing answered, set exactly when Measured is false.
+	NotMeasured string `json:"notMeasured,omitempty"`
 	// Declared marks a substitution the harness itself announced, as against one this join
 	// deduced by comparing tiers.
 	Declared bool `json:"declared"`
@@ -122,7 +124,7 @@ func tierReport(run record.Run, b record.Family) TierReport {
 			configured = judgment
 		}
 		row := TierRow{SeatID: sm.SeatID, Class: sm.Class, Configured: configured,
-			Served: sm.Served, Measured: sm.Measured(), Declared: sm.Substituted()}
+			Served: sm.Served, Measured: sm.Measured(), NotMeasured: sm.NotMeasured, Declared: sm.Substituted()}
 		// MATCHES IS FALSE WHEN NOTHING WAS MEASURED, and that is the point of carrying Measured
 		// separately: a reader that treats !Matches as "substituted" would over-report, and one
 		// that treats an unmeasured seat as matching would rebuild the defect.
@@ -149,7 +151,7 @@ func renderTiers(r TierReport) string {
 		served := s.Served
 		switch {
 		case !s.Measured:
-			served = "**NOT MEASURED**"
+			served = "**NOT MEASURED** — " + s.NotMeasured
 		case s.Declared:
 			served = "**" + s.Served + "** (substitution declared by the harness)"
 		case !s.Matches:
