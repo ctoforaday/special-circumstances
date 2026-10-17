@@ -154,6 +154,7 @@ The run lands in `research/<date>_<slug>/`:
 | `report.html` | The whole set with real tabs and cross-document links — one self-contained file, no server |
 | `records/record.db` | The record — one SQLite store, the authoritative account of every act |
 | `blue/`, `red/` | The seats' working surfaces — blue's lane drafts |
+| `scratch/` | The seats' working files — drafts and programs, each named for its seat; nothing composed or archived reads it |
 | `inputs/` | The brief, the pinned configuration, the scorecards — what the run was asked to do |
 | `trajectories/` | Per-seat execution journals |
 | `cost.md` | Per-seat, per-sitting token and dollar accounting |

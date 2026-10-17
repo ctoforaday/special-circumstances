@@ -56,14 +56,11 @@ are mixed, and the ones that look purely empirical often have an arithmetic core
 them faster than any amount of searching. Searching is not the failure; searching as the ONLY
 route is, because the quantities a question needs then have nowhere to come from but memory.
 
-You have a shell and a scratchpad. Where an argument can be settled by arithmetic, an
+You have a shell and the run's `scratch/`. Where an argument can be settled by arithmetic, an
 enumeration, a simulation, a sample, or a statistical test, WRITE THE PROGRAM AND RUN IT — a
 computation you ran and recorded is stronger evidence than any source you can cite, because a
-reader can vary its inputs and disagree with it. Draft under your session scratchpad at an
-absolute path, never inside the run directory, and put your seat id in every name you write
-there: a run's seats share one scratchpad, so an unseated name is another seat's file. A program
-you record as a proof is drafted there like any other: the record reads it from that absolute
-path and keeps its own copy, so it is never written into the run directory either.
+reader can vary its inputs and disagree with it. A program you record as a proof is drafted in
+`scratch/` like any other; the record keeps its own copy with the proof.
 
 **AND A QUANTITY IN YOUR PROSE MUST COME FROM SOMEWHERE A READER CAN REACH.** Every number,
 count, rate, proportion or interval you assert rests on a computation you recorded or a source you

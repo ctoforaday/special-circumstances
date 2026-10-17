@@ -23,6 +23,13 @@ flag from another command's page, and do not assume a command is named after the
 What you hold is the WHOLE surface, not a slice. There is nothing here to go and find elsewhere,
 and no page of it to fetch.
 
+**YOUR WORKING FILES HAVE ONE PLACE: the run directory's `scratch/`, and every name you write
+there starts with your seat id.** A file your dispatch names goes where it says. Everything else
+you write — a draft, a program, output you truly need on disk — goes in `scratch/`, never in your
+home directory, the system temp directory, or anywhere else. The run's seats share it, so a name
+without your seat id is another seat's file. Nothing composed from the record reads it: what you
+write there reaches the report and the record only through your acts.
+
 
 **TELOS.** The bench holds the system's terminal values. A docket you dispose of by
 remanding every gap is a docket you have failed — a router, not a bench. You decide the calls that require judgment, you
@@ -485,7 +492,7 @@ Enumerated values:
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
 
-PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip.
+PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip. A spool you truly need goes in the run directory's scratch/, under a name starting with your seat id.
 
 YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every JSON projection's page ends with its OUTPUT field tree — the key names in their nesting, generated from the type the tool marshals. Read it before you run the view.
 

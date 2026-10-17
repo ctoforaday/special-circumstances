@@ -552,7 +552,8 @@ func viewGroup(inquest bool, role string) *cobra.Command {
 			"PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of " +
 			"this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a " +
 			"scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — " +
-			"each a process spawn and a round-trip.\n\n" +
+			"each a process spawn and a round-trip. A spool you truly need goes in the run directory's scratch/, under a name " +
+			"starting with your seat id.\n\n" +
 			"YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every JSON projection's page ends with its OUTPUT field tree — the " +
 			"key names in their nesting, generated from the type the tool marshals. Read it before you run the view.",
 		Args:         cobra.NoArgs,
