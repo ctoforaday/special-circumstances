@@ -88,16 +88,17 @@ import (
 // 9,419, red-chair 6,260, red-lens-evidence 10,419, judge 5,840. The ceilings had drifted far above
 // the prompts as the clauses moved out, so growth up to the old numbers passed unseen.
 //
-// Raised 2026-10-17 for the chair's final sitting: one sentence of duty — at final_sitting no party
-// sits after the chair, so it decides on the board as it stands and argues in its position what it
-// would have asked the bench. Smoke m25's last chair filed a docket motion it said "the bench hears
-// at the next dispatch", in the run's last epoch, and the run ended CEILING over a board that
-// permitted a PASS. The refusal, the petition the exit still hears, and the field are the tool's
-// (motion and dispatch help); the sentence is the job. red-chair measured 6,395, so 6,300 -> 6,400
-// by the rule above.
+// Held 2026-10-17 for the chair's final sitting: one sentence of duty — at final_sitting nobody sits
+// after the chair, so it decides on the board as it is and argues to the bench in its position.
+// Smoke m25's last chair filed a docket motion it said "the bench hears at the next dispatch", in the
+// run's last epoch, and the run ended CEILING over a board that permitted a PASS. It fits inside
+// 6,300 (red-chair 6,297): the prompt's account of epoch_limit_reached — that nobody further is
+// dispatched — is the dispatch page's, and the sentence carries the duty that follows from it. The
+// refusal, the petition the exit still hears, and the field are the tool's (motion and dispatch help).
+// A ceiling rises only when the duty cannot fit in it.
 var ceilings = map[string]int{
 	"blue-respond":      9500,
-	"red-chair":         6400,
+	"red-chair":         6300,
 	"red-lens-evidence": 10500,
 	"judge":             5900,
 }
