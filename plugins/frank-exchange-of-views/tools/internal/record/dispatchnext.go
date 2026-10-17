@@ -97,24 +97,12 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 			return emptyPlan(), false, fmt.Errorf("docketing %s at impasse: %w", g, err)
 		}
 	}
-	// THE BLOCKERS RETURNED ARE THE GATE'S LIST AS THE RECORD STANDS ONCE THE DOCKET IS FILED. The
-	// plan above was folded before the filing, so its list lacks the motions just written, each an
-	// unruled motion whose gavel is the bench's. The workflow convenes the terminal bench off the
-	// relayed blockers and capture holds them to the record at the end of this sitting: a chair
-	// relaying the list folded before the filing would relay one the record had already moved past,
-	// by the verb's own act.
-	if len(plan.ToFile) > 0 {
-		filed, err := planAt(tx, files)
-		if err != nil {
-			return emptyPlan(), false, err
-		}
-		plan.Blockers = filed.Blockers
-		plan = keyed(plan)
-	}
+	wrote := len(plan.ToFile) > 0
 	for _, p := range plan.Parties {
 		if rowsStand {
 			break
 		}
+		wrote = true
 		// THE OCCASIONS ARE ON THE ROW: the bench's sitting for each is the one whose register states
 		// it, and capture holds the bench's registers to the row.
 		var occasions []recordpb.Occasion
@@ -130,6 +118,21 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		}); err != nil {
 			return emptyPlan(), false, err
 		}
+	}
+	// THE BLOCKERS RETURNED, AND THE REASONS THAT STATE THEM, ARE THE RECORD'S ONCE THE VERB HAS
+	// WRITTEN. The plan above was folded before its docket motions and its rows: its list lacks the
+	// motions just filed, each an unruled motion whose gavel is the bench's, and the chair's inquiry
+	// review falls due in the epoch its rows are the first work of. The workflow convenes the
+	// terminal bench off the relayed blockers, and the plan asked again in the sitting is folded on
+	// the record with them: a plan stored with the list folded before would be one the record had
+	// already moved past, by the verb's own act, and asked again it would never stand.
+	if wrote {
+		after, err := planAt(tx, files)
+		if err != nil {
+			return emptyPlan(), false, err
+		}
+		plan.Blockers, plan.Why = after.Blockers, after.Why
+		plan = keyed(plan)
 	}
 	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the workflow reads the
 	// chair's copy of it and nothing else, and capture compares every relayed plan with this one.

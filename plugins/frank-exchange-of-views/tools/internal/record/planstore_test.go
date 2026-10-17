@@ -92,6 +92,50 @@ func TestAPlanAskedAgainStandsAndOneChangedInItsBlockersAloneWritesNoRows(t *tes
 	}
 }
 
+// THE PLAN STORED IS THE RECORD AS THE VERB LEFT IT. Its rows are the first work of the chair's new
+// epoch, so the inquiry review reviewed last epoch falls due by the verb's own act: the plan carries
+// that, and asked again in the sitting it stands.
+func TestThePlanStoredCarriesWhatItsOwnRowsMadeDue(t *testing.T) {
+	chair := func(run Run) Identity { return Identity{Run: run, SeatID: "red-chair"} }
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
+		register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).dispatch(2, evLens).
+		register(evLens).mint(evLens, "G1", "high").register("red-chair").seed()
+	before, err := PlanDispatch(run)
+	if err != nil || len(before.Parties) == 0 || slices.ContainsFunc(before.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
+		t.Fatalf("fixture: %d parties, blockers %+v, %v; want parties and the review not yet due", len(before.Parties), before.Blockers, err)
+	}
+	plan, _, err := DispatchNext(chair(run))
+	if err != nil || !slices.ContainsFunc(plan.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
+		t.Fatalf("the stored plan's blockers %+v, %v; want the review its rows made due", plan.Blockers, err)
+	}
+	if again, standing, err := DispatchNext(chair(run)); err != nil || !standing {
+		t.Fatalf("asked again = standing %v, %v; want the plan standing: %s then %s", standing, err, plan.Printed(), again.Printed())
+	}
+	if stored, _ := storedOf(t, run); len(stored) != 1 {
+		t.Fatalf("%d plans stored; want one", len(stored))
+	}
+}
+
+// A STORED PLAN IS NOT WORK IN THE EPOCH. A chair sitting whose plan readies nobody does nothing in
+// its epoch by asking, so the inquiry review of the last epoch with work in it still answers: stored
+// and asked again, the plan is the same, and it holds no review.
+func TestAStoredPlanMovesNoEpoch(t *testing.T) {
+	chair := func(run Run) Identity { return Identity{Run: run, SeatID: "red-chair"} }
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
+		register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).dispatch(2, evLens).
+		register(evLens).register("red-chair").seed()
+	plan, _, err := DispatchNext(chair(run))
+	if err != nil || len(plan.Parties) != 0 {
+		t.Fatalf("fixture: %d parties, %v; want nobody ready", len(plan.Parties), err)
+	}
+	again, standing, err := DispatchNext(chair(run))
+	if err != nil || !standing || slices.ContainsFunc(again.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
+		t.Fatalf("asked again: standing %v, blockers %+v, %v; want the plan standing with no review owed", standing, again.Blockers, err)
+	}
+}
+
 // THE WRITE REFUSES A STORED PLAN NO PRINTING OF A PLAN WRITES: a relay is compared with these bytes.
 func TestTheWriteRefusesAPlanNoPrintingWrites(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").seed()
