@@ -1,6 +1,8 @@
 package record
 
 import (
+	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -65,7 +67,7 @@ func TestAContradictionIsPerClaim(t *testing.T) {
 func TestTheWriteRefusesAReferenceTheRuleDoesNotAdmit(t *testing.T) {
 	b := reopenedBoard(t).add(evLens, contradictingVerify("the sky is green"))
 	m := loadedT(t, b.evs...)
-	open := unansweredContradictions(m.Events, m.At.IDs(m.Events))
+	open := unansweredContradictions(m.Events, m.At)
 	if len(open) != 1 {
 		t.Fatalf("fixture: %d open contradictions, want 1", len(open))
 	}
@@ -131,4 +133,99 @@ func TestAnEditedAwayContradictionIsAnsweredByReference(t *testing.T) {
 			t.Errorf("contradiction %s still holds the PASS after the finding answered it", b.Subject)
 		}
 	}
+}
+
+// THE CITATION'S STANDING ANSWERS A CONTRADICTION ON IT (gblock, 2026-10-16): a retire of the
+// anchor, or the anchor holding — a check that backs the sentence stands and none that does not,
+// so the reading has been replaced by an edit or by its own seat. Each case is read on the PASS
+// gate and on `show evidence`, which must agree.
+func TestTheCitationsStandingAnswersAContradiction(t *testing.T) {
+	refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
+	// rereads is a verify of C-1 against the sentence the edit wrote, which the tool reads off the
+	// anchor: a refuting one opens a contradiction of its own rather than joining the first.
+	rereads := func(b *stage, seat string) *stage {
+		return b.add(seat, &recordpb.Verify{Anchor: proto.String("C-1"), Claim: proto.String("the claim as edited"), Outcome: refutes.Enum(),
+			Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(), Text: proto.String("read at the leaf")})
+	}
+	sits := func(b *stage, seat string) *stage { return b.dispatch(b.at(), seat).register(seat) }
+	// contradicted is the evidence lens's backing check of C-1 standing, then the logic lens's
+	// refuting reading of it from a sitting of its own.
+	contradicted := func() (*stage, string) {
+		b := reopenedBoard(t, outsideLens)
+		sits(b, outsideLens).verify(outsideLens, "C-1", refutes)
+		return b, strconv.FormatInt(b.at(), 10)
+	}
+	for _, c := range []struct {
+		name  string
+		build func(b *stage) *stage
+		open  bool
+	}{
+		{"another lens's backing check, with no edit since the reading, is a disagreement", func(b *stage) *stage { return b }, true},
+		{"a retire of the anchor answers it", func(b *stage) *stage {
+			return b.add("blue-respond", &recordpb.Retire{Claim: proto.String("the claim C-1 backs"), Reason: proto.String("wrong"), Anchors: []string{"C-1"}})
+		}, false},
+		{"a backing check from a sitting opened after the edit answers it", func(b *stage) *stage {
+			return sits(b.reopen("C-1"), evLens).supports(evLens, "C-1")
+		}, false},
+		{"a backing check before the edit does not", func(b *stage) *stage {
+			return sits(b, evLens).supports(evLens, "C-1").reopen("C-1")
+		}, true},
+		{"a backing check after the edit from a sitting opened before it does not", func(b *stage) *stage {
+			return sits(b, evLens).reopen("C-1").supports(evLens, "C-1")
+		}, true},
+		{"a check from a later sitting that does not back the sentence does not", func(b *stage) *stage {
+			return rereads(sits(b.reopen("C-1"), outsideLens), outsideLens)
+		}, true},
+		{"a backing check its own seat's later check replaced does not", func(b *stage) *stage {
+			return rereads(sits(b.reopen("C-1"), evLens).supports(evLens, "C-1"), evLens)
+		}, true},
+		{"the reader's own later backing check, with no edit, answers it", func(b *stage) *stage {
+			return sits(b, outsideLens).supports(outsideLens, "C-1")
+		}, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			b, id := contradicted()
+			if got := openContradictionIDs(t, c.build(b)); slices.Contains(got, id) != c.open {
+				t.Errorf("open contradictions = %v; contradiction %s open = %v, want %v", got, id, !c.open, c.open)
+			}
+		})
+	}
+
+	// AN EDIT BEFORE THE READING IS NOT AN EDIT OF WHAT WAS READ: the reading is of the sentence as
+	// it stands, so another lens's backing check of that same sentence is still a disagreement.
+	b := reopenedBoard(t, outsideLens).reopen("C-1")
+	sits(b, outsideLens).verify(outsideLens, "C-1", refutes)
+	id := strconv.FormatInt(b.at(), 10)
+	if got := openContradictionIDs(t, sits(b, evLens).supports(evLens, "C-1")); !slices.Contains(got, id) {
+		t.Errorf("open contradictions = %v, want %s open: the edit came before the reading", got, id)
+	}
+}
+
+// openContradictionIDs is the contradictions holding the PASS, held equal to the ones `show
+// evidence` lists as unanswered.
+func openContradictionIDs(t *testing.T, b *stage) []string {
+	t.Helper()
+	run := b.seed()
+	var held []string
+	for _, bl := range mustBlockers(t, run) {
+		if bl.Kind == BlockerContradiction {
+			held = append(held, bl.Subject)
+		}
+	}
+	raw, err := EvidenceJSONBytes(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ej EvidenceJSON
+	if err := json.Unmarshal(raw, &ej); err != nil {
+		t.Fatal(err)
+	}
+	var listed []string
+	for _, c := range ej.UnansweredContradictions {
+		listed = append(listed, c.ID)
+	}
+	if !slices.Equal(held, listed) {
+		t.Errorf("the PASS gate holds contradictions %v, and show evidence lists %v unanswered", held, listed)
+	}
+	return held
 }

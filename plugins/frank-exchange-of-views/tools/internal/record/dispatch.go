@@ -386,11 +386,11 @@ func foldPlan(params Params, r planReads) Plan {
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
 			if _, sat := firstAfter(openings[b.Owner], b.since); sat {
-				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and no finding raises it — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b)))
+				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b)))
 				continue
 			}
 			engage(b.Owner, "")
-			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and no finding raises it — ready, to raise it", b.Owner, b.Detail, contradictionFact(b)))
+			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it", b.Owner, b.Detail, contradictionFact(b)))
 		}
 	}
 	// ONE SITTING FOR EVERY REOPENED ANCHOR, ONCE PER REOPENING. "Sat" is a sitting the lens opened
