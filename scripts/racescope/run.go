@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testjson"
 )
 
 // verdict is one package's raced run, read from `go test -json`.
@@ -21,9 +20,7 @@ type verdict struct {
 	pass    int
 	failed  []string
 	skipped []string
-	// missing are selected names that came back with no pass, fail or skip event — an Example
-	// with no `// Output:` is one. The name was asked for and nothing ran: not measured.
-	missing []string
+	missing []string // testjson.Answers.Missing: asked for, not answered
 	race    bool
 	runErr  error
 	output  string
@@ -33,54 +30,19 @@ func (v verdict) red() bool {
 	return v.runErr != nil || len(v.failed) > 0 || len(v.missing) > 0 || v.race
 }
 
-type testEvent struct {
-	Action string
-	Test   string
-	Output string
-}
-
-// readVerdict folds a `go test -json` stream into a verdict for the selected names.
-//
-// EVERY SELECTED NAME MUST ANSWER. `go test -run` exits 0 when its pattern matches nothing, so
-// the exit code cannot say the set ran; the per-test events can.
+// readVerdict reads a package's raced run for the selected names: every selected name must
+// answer (testjson.Answers says why), and a race the detector printed is red whatever the
+// verdicts say.
 func readVerdict(pkg string, names []string, stream []byte, runErr error) verdict {
-	v := verdict{pkg: pkg, runErr: runErr}
-	final := map[string]string{}
-	var out strings.Builder
-	sc := bufio.NewScanner(bytes.NewReader(stream))
-	sc.Buffer(make([]byte, 1<<20), 1<<26)
-	for sc.Scan() {
-		line := sc.Bytes()
-		var ev testEvent
-		if json.Unmarshal(line, &ev) != nil || ev.Action == "" {
-			// A build failure arrives as plain text; it is the output worth printing.
-			out.Write(line)
-			out.WriteByte('\n')
-			continue
-		}
-		switch ev.Action {
-		case "output":
-			out.WriteString(ev.Output)
-		case "pass", "fail", "skip":
-			if ev.Test != "" && !strings.Contains(ev.Test, "/") {
-				final[ev.Test] = ev.Action
-			}
-		}
+	s := testjson.Read(stream)
+	a := s.Answer(pkg, names)
+	v := verdict{pkg: pkg, runErr: runErr, pass: len(a.Pass), failed: a.Fail, skipped: a.Skip, missing: a.Missing}
+	// What did not arrive as the package's events — a `go` error, a build failure — comes first.
+	v.output = s.Stray
+	if p := s.Packages[pkg]; p != nil {
+		v.output += p.Output
 	}
-	v.output = out.String()
 	v.race = strings.Contains(v.output, "WARNING: DATA RACE")
-	for _, n := range names {
-		switch final[n] {
-		case "pass":
-			v.pass++
-		case "fail":
-			v.failed = append(v.failed, n)
-		case "skip":
-			v.skipped = append(v.skipped, n)
-		default:
-			v.missing = append(v.missing, n)
-		}
-	}
 	return v
 }
 

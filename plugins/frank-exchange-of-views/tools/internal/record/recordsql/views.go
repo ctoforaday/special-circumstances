@@ -29,11 +29,11 @@ package recordsql
 // # What a gap being closed by BOTH arms means here
 //
 // It is legal: red closes on a verified repair, the bench rules on the same gap in a later sitting.
-// The gap view names the LAST standing closing act of each arm (`close_event`, `bench_close_event`)
-// and which arm acted last (`closed_by_bench`) rather than collapsing them into one word, because
-// which act ended the gap is exactly the distinction #342 was about — a reader should not have to
-// know which verb produced a closure, but it must still be able to ask, and it asks the act's body
-// for its word.
+// The gap view names the LAST standing closing act of each arm (`close_event`, `bench_close_event`),
+// which arm's act ended the gap (`closed_by_bench`), and which arm acted last (`bench_closed_last`)
+// rather than collapsing them into one word, because which act ended the gap is exactly the
+// distinction #342 was about — a reader should not have to know which verb produced a closure, but
+// it must still be able to ask, and it asks the act's body for its word.
 const ViewsDDL = `
 -- A SITTING IS A ROW THAT NAMES ITSELF, and this view is the one place that says so.
 --
@@ -552,11 +552,24 @@ SELECT
   e."epoch"                                    AS "minted_epoch",
   e."seat_id"                                  AS "minted_by",
   -- HOW THE GAP CLOSED, stated here and nowhere else: the last standing closing act of each arm by
-  -- its events.id (NULL where the arm has none), and whether the bench's is the later of the two.
-  -- A reader takes the act's word, epoch and seat from the event the id names.
+  -- its events.id (NULL where the arm has none), which arm's act ended the gap, and whether the
+  -- bench's is the later of the two. A reader takes the act's word, epoch and seat from the event
+  -- the id names.
   cx."event_id"                                AS "close_event",
   bc."event_id"                                AS "bench_close_event",
-  (bc."pos" IS NOT NULL AND (cx."pos" IS NULL OR bc."pos" > cx."pos")) AS "closed_by_bench",
+  -- WHO CLOSED IT is the arm of the FIRST standing closing act. A docket motion filed while its gap
+  -- is open stands unruled after the minting lens closes the gap, and the bench rules it to clear
+  -- the PASS: in universe-m25 the lenses closed G-e205e589 and G-a810bbab (ev440, ev460) before the
+  -- bench ruled their k-max dockets (ev488, ev489), and read by its later act the run holds four
+  -- lens closures counted as the bench's. The ruling is the bench's word on the gap; it is not what
+  -- ended it.
+  ((SELECT f."arm" FROM "closure_act" f
+      JOIN "live_event" lf ON lf."event_id" = f."event_id"
+    WHERE f."gap_id" = m."gap_id"
+    ORDER BY lf."pos" LIMIT 1) IS 'bench')                                            AS "closed_by_bench",
+  -- WHOSE WORD STANDS is the later arm's: a bench ruling after red's close overrules red's word, and
+  -- the closure's epoch is that act's.
+  (bc."pos" IS NOT NULL AND (cx."pos" IS NULL OR bc."pos" > cx."pos")) AS "bench_closed_last",
   (cx."event_id" IS NULL AND bc."event_id" IS NULL)             AS "open",
   -- THE REPEATED FIELDS, ANSWERED HERE RATHER THAN STORED. A gap's lineage and its credited
   -- findings live in child tables, so "does this gap supersede anything" is a join every reader
