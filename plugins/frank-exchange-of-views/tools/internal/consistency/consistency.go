@@ -39,15 +39,18 @@ import (
 
 // gtGap is the ground truth for one gap, derived from the raw event walk.
 //
-// LAST-WRITER SEMANTICS THROUGHOUT: the record is append-only and ordered, so "who closed this
-// gap" means the last closing event, "its fate" means that event's word, and "its grades" mean the
-// mint's grades overlaid by every regrade in order. Any reader that answers differently is
-// answering a different question, and the divergence is what the oracle reports.
+// THE RECORD IS APPEND-ONLY AND ORDERED, so "who closed this gap" means the arm of the FIRST
+// closing event — the act that ended it — while "its fate" means the LAST closing event's word and
+// "its grades" mean the mint's grades overlaid by every regrade in order. A bench ruling on a gap
+// its lens has closed overrules the lens's word and does not make the bench its closer. Any reader
+// that answers differently is answering a different question, and the divergence is what the
+// oracle reports.
 type gtGap struct {
-	open       bool
-	everClosed bool
-	lastCloser string // "red" (a close event) or "bench" (a closing opinion)
-	lastClass  string // the word carried by the LAST closing event; "" if it carried none
+	open        bool
+	everClosed  bool
+	firstCloser string // "red" (a close event) or "bench" (a closing opinion): the arm that ended it
+	lastCloser  string // the arm of the LAST closing event, whose word and epoch stand
+	lastClass   string // the word carried by the LAST closing event; "" if it carried none
 	// lastCloseEpoch is the epoch of the last closing event — the chair sittings opened at or
 	// before it, COUNTED IN THIS WALK rather than read off the stored window. The oracle is a
 	// second opinion on the board's ClosedEpoch, and a second opinion that shares the first's
@@ -184,6 +187,9 @@ func walk(events []*record.Event) *groundTruth {
 			if g == nil {
 				continue
 			}
+			if !g.everClosed {
+				g.firstCloser = "red"
+			}
 			g.open, g.everClosed = false, true
 			g.lastCloser = "red"
 			g.lastClass = recordpb.Word(m.GetClosureClass())
@@ -226,6 +232,9 @@ func walk(events []*record.Event) *groundTruth {
 			if !closes[w] {
 				g.carriedCount++
 				continue
+			}
+			if !g.everClosed {
+				g.firstCloser = "bench"
 			}
 			g.open, g.everClosed = false, true
 			g.lastCloser = "bench"
@@ -285,9 +294,9 @@ func holdGap(id string, g *gtGap, rg *record.Gap, add func(rule, format string, 
 	if g.everClosed && rg.ClosedEpoch != g.lastCloseEpoch {
 		add("replay-agreement", "gap %s: last closing event is in epoch %d, board ClosedEpoch=%d", id, g.lastCloseEpoch, rg.ClosedEpoch)
 	}
-	if g.everClosed && rg.ClosedByBench != (g.lastCloser == "bench") {
-		add("closer-attribution", "gap %s: last closing event was %s's (epoch %d), board ClosedByBench=%v",
-			id, g.lastCloser, g.lastCloseEpoch, rg.ClosedByBench)
+	if g.everClosed && rg.ClosedByBench != (g.firstCloser == "bench") {
+		add("closer-attribution", "gap %s: the closing event that ended it was %s's, board ClosedByBench=%v",
+			id, g.firstCloser, rg.ClosedByBench)
 	}
 	// THE WORD IS THE LAST CLOSING ACT'S. A family that named an earlier act of the same arm agrees
 	// on every line above — closed, by the same arm — and reports a fate a later close replaced.
@@ -405,12 +414,12 @@ func Check(run record.Run) ([]string, error) {
 	}
 	benchGT := 0
 	for _, g := range gt.gaps {
-		if !g.open && g.lastCloser == "bench" {
+		if !g.open && g.firstCloser == "bench" {
 			benchGT++
 		}
 	}
 	if bj.Counts.ClosedByBench != benchGT {
-		add("closer-attribution", "counts.closed_by_bench=%d; %d gaps' LAST closing event is the bench's", bj.Counts.ClosedByBench, benchGT)
+		add("closer-attribution", "counts.closed_by_bench=%d; %d gaps were ended by a bench ruling", bj.Counts.ClosedByBench, benchGT)
 	}
 	if bj.Counts.TotalObservations != gt.observations {
 		add("counts", "counts.total_observations=%d, %d finding events on the record", bj.Counts.TotalObservations, gt.observations)
@@ -442,7 +451,7 @@ func Check(run record.Run) ([]string, error) {
 	// carried for near-match screening. The screen carries `closed_by` itself now, so the work list
 	// holds only OPEN work and this invariant follows the fact to the projection that still states
 	// it. The check is the same one: the view's fold and the raw walk must agree about whose
-	// closing event was last, because red may reopen its own closure and a bench ruling is estopped.
+	// closing event ended the gap.
 	for _, g := range bj.Closed {
 		raw := gt.gaps[g.ID]
 		if raw == nil || raw.open {
@@ -453,8 +462,8 @@ func Check(run record.Run) ([]string, error) {
 		if g.ClosedByBench {
 			was = "bench"
 		}
-		if was != raw.lastCloser {
-			add("closer-attribution", "board.closed %s: closed_by=%q, last closing event was %s's", g.ID, was, raw.lastCloser)
+		if was != raw.firstCloser {
+			add("closer-attribution", "board.closed %s: closed_by=%q, the closing event that ended it was %s's", g.ID, was, raw.firstCloser)
 		}
 	}
 

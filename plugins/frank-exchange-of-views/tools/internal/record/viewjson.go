@@ -401,7 +401,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
 	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event",
-	    "close_event", "bench_close_event", "closed_by_bench"
+	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return out, fmt.Errorf("asking the record for its board: %w", err)
@@ -415,10 +415,10 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
 		var mintedEvent int64
 		var closeEvent, benchEvent sql.NullInt64
-		var closedByBench bool
+		var closedByBench, benchClosedLast bool
 		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent,
-			&closeEvent, &benchEvent, &closedByBench); err != nil {
+			&closeEvent, &benchEvent, &closedByBench, &benchClosedLast); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
@@ -450,7 +450,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		for _, l := range foundBy[mintedEvent] {
 			credited[l] = true
 		}
-		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, byID, win)
+		c, err := closeStateOf(id, closeEvent, benchEvent, closedByBench, benchClosedLast, byID, win)
 		if err != nil {
 			out.Anomalies = append(out.Anomalies, fmt.Sprintf("%v — the closure was DROPPED from this projection, not rendered empty", err))
 		}
@@ -518,19 +518,21 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 }
 
 // closeState is the gap view's closure for one gap (`close_event`, `bench_close_event`,
-// `closed_by_bench`) with the bodies those ids name: attribution follows the LAST standing closing
-// act, whichever arm wrote it, while both bodies stay addressable (the embedded body prefers the red
-// close even when the bench closed last).
+// `closed_by_bench`, `bench_closed_last`) with the bodies those ids name: attribution is the arm
+// whose standing act ENDED the gap, the word and the epoch are the LAST standing closing act's,
+// whichever arm wrote it, and both bodies stay addressable (the embedded body prefers the red close
+// even when the bench closed last).
 type closeState struct {
 	lastClose        *recordpb.Close        // the body `close_event` names: the last standing red close
 	lastBenchClosure *recordpb.DocketRuling // the body `bench_close_event` names: the last standing CLOSING docket ruling
 	closedEpoch      int                    // the epoch of the later of the two
-	closedByBench    bool                   // `closed_by_bench`: whether that later act was the bench's
+	closedByBench    bool                   // `closed_by_bench`: whether the act that ended the gap was the bench's
+	benchClosedLast  bool                   // `bench_closed_last`: whether the later of the two was the bench's
 }
 
 // reason is the last closer's word — Gap.ClosureReason, asked of the same pair.
 func (c *closeState) reason() string {
-	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench}).ClosureReason()
+	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench, BenchClosedLast: c.benchClosedLast}).ClosureReason()
 }
 
 // eventsByID indexes evs by events.id, the key the gap view names a closing act by.
@@ -548,11 +550,11 @@ func eventsByID(evs []*Event, win WindowIndex) map[int64]*Event {
 // THE MISS IS LOUD. The view decides which act closed the gap and names it by id; an id the read
 // did not load, or one whose body is not the arm's, is an error naming the gap and the event, never
 // "not closed" — a closed gap with no closure reads exactly like a gap with nothing to say there.
-func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBench bool, byID map[int64]*Event, win WindowIndex) (*closeState, error) {
+func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBench, benchClosedLast bool, byID map[int64]*Event, win WindowIndex) (*closeState, error) {
 	if !closeEvent.Valid && !benchEvent.Valid {
 		return nil, nil
 	}
-	c := &closeState{closedByBench: closedByBench}
+	c := &closeState{closedByBench: closedByBench, benchClosedLast: benchClosedLast}
 	miss := func(column string, id int64) error {
 		return fmt.Errorf("gap %s: the gap view names event %d as its %s, and the events this read loaded hold no such act", gapID, id, column)
 	}
@@ -572,7 +574,7 @@ func closeStateOf(gapID string, closeEvent, benchEvent sql.NullInt64, closedByBe
 			return nil, miss("bench_close_event", benchEvent.Int64)
 		}
 		c.lastBenchClosure = rule.GetDocket()
-		if closedByBench {
+		if benchClosedLast {
 			last = e
 		}
 	}
@@ -913,8 +915,8 @@ func synopsis(s string) string {
 }
 
 // WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
-// (openness, the regrade-overlaid grades, the proof debt, and `closed_by_bench`) plus the last
-// closer's word, read off the act the view names. The work list walks the gap view in the order
+// (openness, the regrade-overlaid grades, the proof debt, `closed_by_bench` and `bench_closed_last`)
+// plus the last closer's word, read off the act the view names. The work list walks the gap view in the order
 // BoardJSONOfRun does, so the two agree on membership and order. It is the input SittingOf and
 // availableOf read instead of a folded Board.
 type WorkGapState struct {
@@ -939,6 +941,9 @@ type WorkGapState struct {
 	// Edits are the edits whose recorded `reopened` names the gap, in record order.
 	Edits                              []GapEdit
 	Open, AwaitingProof, ClosedByBench bool
+	// benchClosedLast is the view's `bench_closed_last`: whether the later closing act is the
+	// bench's, which the closure's word and its bar on re-raising follow.
+	benchClosedLast bool
 	// Remanded: OPEN, the bench has remanded it, and nothing is pending. Off the view, the same
 	// way AwaitingProof is — the alternative was a second Go fold of a question the SQL already
 	// answers, which is what #681's standing rule forbids.
@@ -1017,7 +1022,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
 	    "material", "class_material", "stranded", "superseded_by",
 	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL,
-	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench"
+	    "fix_basis", "fix_new", "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return r, fmt.Errorf("asking the record for its work list: %w", err)
@@ -1038,7 +1043,7 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent,
 			&g.Material, &classMaterial, &g.Stranded, &supersededBy,
 			&requiredFix, &acceptanceCheck, &mintedBy, &g.unruledDocket,
-			&fixBasis, &fixNew, &closeEvent, &benchEvent, &g.ClosedByBench); err != nil {
+			&fixBasis, &fixNew, &closeEvent, &benchEvent, &g.ClosedByBench, &g.benchClosedLast); err != nil {
 			return r, err
 		}
 		g.ClassMaterial, g.SupersededBy = classMaterial.String, supersededBy.String
@@ -1074,7 +1079,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 		g.Edits = r.edits[g.ID]
 		locateGap(report, renderErr, &g)
 		g.FoundBy, g.Supersedes = r.foundBy[row.mintedEvent], r.supersedes[row.mintedEvent]
-		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, byID, r.win)
+		c, err := closeStateOf(g.ID, row.closeEvent, row.benchEvent, g.ClosedByBench, g.benchClosedLast, byID, r.win)
 		if err != nil {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
@@ -1200,8 +1205,9 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 			continue
 		}
 		// RED'S OWN CLOSURES ARE NOT A BAR, so they are not here. A seat may reopen what it closed;
-		// what it may not do is re-raise what the bench ruled.
-		if !g.ClosedByBench {
+		// what it may not do is re-raise what the bench ruled — and the bench's ruling bars it when it
+		// is the later act, the lens's close before it or not.
+		if !g.benchClosedLast {
 			continue
 		}
 		ci := EstoppedJSON{ID: g.ID, ClosedBy: "bench", LocationState: g.LocationState, Location: g.Location,
