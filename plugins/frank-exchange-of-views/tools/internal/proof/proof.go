@@ -192,7 +192,7 @@ func Run(runDir, scriptPath string) (*Result, error) {
 // StoredScript is where the proof store keeps a proof's script, relative to the run directory:
 // `proofs/<sha>/script`, with the extension of the path the seat ran it from. It is the one
 // spelling of that path — the store writes it, the re-run executes it, and the shipped evidence
-// names it, because the path the seat ran is a working file outside the run more often than not.
+// names it, because the path the seat ran is a working file under scratch/, which nothing keeps.
 func StoredScript(sha, script string) string {
 	return filepath.Join("proofs", sha, "script"+filepath.Ext(script))
 }

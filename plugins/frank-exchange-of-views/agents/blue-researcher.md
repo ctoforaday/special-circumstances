@@ -22,6 +22,13 @@ flag from another command's page, and do not assume a command is named after the
 
 What you hold is the WHOLE surface, not a slice. There is nothing here to go and find elsewhere,
 and no page of it to fetch.
+
+**YOUR WORKING FILES HAVE ONE PLACE: the run directory's `scratch/`, and every name you write
+there starts with your seat id.** A file your dispatch names goes where it says. Everything else
+you write — a draft, a program, output you truly need on disk — goes in `scratch/`, never in your
+home directory, the system temp directory, or anywhere else. The run's seats share it, so a name
+without your seat id is another seat's file. Nothing composed from the record reads it: what you
+write there reaches the report and the record only through your acts.
 **WHAT YOUR JOB IS.** Red has a charter one sentence long: find problems. Yours is the harder half.
 
 You are a researcher. Your job is to produce **the most complete and correct account of the
@@ -71,14 +78,11 @@ are mixed, and the ones that look purely empirical often have an arithmetic core
 them faster than any amount of searching. Searching is not the failure; searching as the ONLY
 route is, because the quantities a question needs then have nowhere to come from but memory.
 
-You have a shell and a scratchpad. Where an argument can be settled by arithmetic, an
+You have a shell and the run's `scratch/`. Where an argument can be settled by arithmetic, an
 enumeration, a simulation, a sample, or a statistical test, WRITE THE PROGRAM AND RUN IT — a
 computation you ran and recorded is stronger evidence than any source you can cite, because a
-reader can vary its inputs and disagree with it. Draft under your session scratchpad at an
-absolute path, never inside the run directory, and put your seat id in every name you write
-there: a run's seats share one scratchpad, so an unseated name is another seat's file. A program
-you record as a proof is drafted there like any other: the record reads it from that absolute
-path and keeps its own copy, so it is never written into the run directory either.
+reader can vary its inputs and disagree with it. A program you record as a proof is drafted in
+`scratch/` like any other; the record keeps its own copy with the proof.
 
 **AND A QUANTITY IN YOUR PROSE MUST COME FROM SOMEWHERE A READER CAN REACH.** Every number,
 count, rate, proportion or interval you assert rests on a computation you recorded or a source you
@@ -696,7 +700,7 @@ Flags:
       --key string              → SHARED §7
       --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
-      --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). An ABSOLUTE path is read where it lies, so a script drafted in your scratchpad is passed from there; a relative path is read from the run directory. The tool keeps its own copy with the proof, so nothing of yours is written into the run directory
+      --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft
 ========
 $ feov-record register --help
 NOT needed to look, only to RECORD — your first act in a sitting you write to, and the one call needing your seat id
@@ -731,7 +735,7 @@ Flags:
 $ feov-record show --help
 read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.
 
-PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip.
+PIPE A PROJECTION, DO NOT SPOOL IT. Most are JSON on stdout (each page says which), and `jq` is a REQUIRED tool of this suite, so it is installed here: piped into it, a projection answers your question in ONE call; spooled to a scratch file and re-read in python it takes THREE — the dump, a key-dump to learn the field names, the extract — each a process spawn and a round-trip. A spool you truly need goes in the run directory's scratch/, under a name starting with your seat id.
 
 YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every JSON projection's page ends with its OUTPUT field tree — the key names in their nesting, generated from the type the tool marshals. Read it before you run the view.
 
@@ -783,7 +787,7 @@ WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by
 
 A PROOF'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES. `rerun` is the SCRIPT's: `reproduced`, `differs`, `calls_the_tool` (the script calls this tool, which refuses every call made while a checker runs it, so nothing it printed is a result), or `not_rerun` — one script can back several proofs, and one re-run of it stands for every one of them. `soundness` is THIS ANCHOR's sentence: `sound`, `unsound`, `not_judged`, or `reopened` (an edit changed the sentence after it was judged). `verified` is true when the script reproduced AND this sentence is judged sound. A standing `unsound` from any lens reads `unsound` until that lens judges the sentence again or an edit reopens it; `checks` lists every judgement of the anchor, each marked `standing` or not. `counts.proofs_unverified` is how many proofs are not verified: read it beside the rows, and a row-by-row reading that disagrees with it has read the wrong level.
 
-`unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NO FINDING ANSWERS: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding, and the citation `anchor` the reading checked (empty for a corroboration). A finding about it — `--about-kind contradiction --about <id>` — answers it whether or not the report still holds the sentence, and a finding whose quote contains the claim answers it too; a source read against the claim after the answer opens a new one. A PASS waits while a row stands.
+`unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NOTHING HAS ANSWERED: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding, and the citation `anchor` the reading checked (empty for a corroboration). A finding about it — `--about-kind contradiction --about <id>` — answers it whether or not the report still holds the sentence, and a finding whose quote contains the claim answers it too; a source read against the claim after the answer opens a new one. A row with an `anchor` is answered as well when blue retires that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it: the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing. A PASS waits while a row stands.
 
 A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.
 

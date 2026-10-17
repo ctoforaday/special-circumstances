@@ -147,7 +147,7 @@ func newProve() *cobra.Command {
 
 	// DescQuoteAlone: this verb's --reason is the proof note the report prints, no place for a section name.
 	flags.Text(c, flags.Quote, flags.DescQuoteAlone)
-	c.Flags().String(flags.Script, "", "path of the program that settles it (.py, .js, .mjs, .sh or .go). An ABSOLUTE path is read where it lies, so a script drafted in your scratchpad is passed from there; a relative path is read from the run directory. The tool keeps its own copy with the proof, so nothing of yours is written into the run directory")
+	c.Flags().String(flags.Script, "", "path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft")
 	seat.Require(c, flags.Quote, flags.Script)
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists(record.ProveCitesAdvice)), flags.Cites, "the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
 	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
