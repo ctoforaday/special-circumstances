@@ -930,15 +930,13 @@ func TestProseChannelResolution(t *testing.T) {
 		}
 	})
 
-	t.Run("the prose channel fills problem when --problem is absent", func(t *testing.T) {
+	t.Run("the prose channel never fills problem", func(t *testing.T) {
 		runDir := newRun(t)
 		registerLensOnce(t, runDir)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-			"--class", "x", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel"); err != nil {
-			t.Fatal(err)
-		}
-		if got := lastBody(t, runDir, &recordpb.Mint{}).GetProblem(); got != "from the prose channel" {
-			t.Errorf("problem = %q", got)
+		_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+			"--class", "x", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel")
+		if err == nil || !strings.Contains(err.Error(), "requires --problem") {
+			t.Errorf("a mint with --reason and no --problem = %v, want it refused for --problem", err)
 		}
 	})
 }

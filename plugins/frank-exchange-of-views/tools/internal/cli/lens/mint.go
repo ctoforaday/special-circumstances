@@ -283,9 +283,6 @@ func newMint() *cobra.Command {
 	// tool meets it.
 	seat.Supplies(c, "gap_id", "the tool mints it (record.NewID), at random — an id a seat chose would name a gap the record does not hold")
 	seat.Supplies(c, "class_material", "stamped from the class registry at the write path")
-	// REFUSED AT THE FLAG, before anything else is resolved: no other flag stands in for it, so a
-	// mint without it is wrong whatever else it carries.
-	seat.Require(c, flags.Problem)
 	return c
 }
 

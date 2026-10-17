@@ -117,9 +117,12 @@ func TestEveryRefusalKindHasOneEnvelope(t *testing.T) {
 			verb: "near-match", path: "near-match", role: "lens", code: "validation", short: true, logged: true},
 		{kind: "wrong arguments, refused by the verb's own check", seat: chair, args: []string{"dispatch", "later"},
 			verb: "dispatch", path: "dispatch", role: "chair", code: "validation", teaches: true, logged: true},
-		{kind: "flag group", seat: lens, args: []string{"mint", "--key", "M-probe", "--class", "scope-creep", "--check-kind", "document",
-			"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low", "--fix", "f"},
-			verb: "mint", path: "mint", role: "lens", code: "validation", short: true, logged: true},
+		// A FLAG GROUP has no row: no seat verb declares a group a call can violate (see
+		// TestAFlagGroupViolatedIsRefusedWithItsFlagsLines). mint without --problem is now a missing
+		// required flag.
+		{kind: "missing required flag", seat: lens, args: []string{"mint", "--key", "M-probe", "--class", "scope-creep", "--check-kind", "document",
+			"--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low", "--fix", "f", "--reason", "r"},
+			verb: "mint", path: "mint", role: "lens", code: "missing_field", short: true, logged: true},
 
 		// Who is asking.
 		{kind: "seat id disagrees with the registration", seat: lens, env: []string{"FEOV_AGENT_ID=" + boundAgent},

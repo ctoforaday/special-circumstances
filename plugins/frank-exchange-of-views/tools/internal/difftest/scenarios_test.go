@@ -214,7 +214,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", hostile),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
-					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", hostile),
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", hostile, "--reason", hostile),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "A claim sits under S2.", "--reason", hostile),
 			},

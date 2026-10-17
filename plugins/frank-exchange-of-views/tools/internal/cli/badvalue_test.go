@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
@@ -108,14 +111,32 @@ func TestAStrayWordIsRefusedWithTheVerbsFlags(t *testing.T) {
 	}
 }
 
+// NO SEAT VERB DECLARES A GROUP A CALL CAN VIOLATE NOW: mint's [problem reason] was the last, and
+// it went with the --reason-as-problem fallback; class new's and close's groups are each also
+// required flag by flag, which cobra refuses first. The refusal is held on a command built here,
+// so a group added to a verb later is answered the way this says.
 func TestAFlagGroupViolatedIsRefusedWithItsFlagsLines(t *testing.T) {
-	said := assertShortRefusal(t, lensSeat, "mint", []string{"mint", "--key", "M-probe", "--class", "scope-creep",
-		"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low",
-		"--complexity", "low", "--fix", "f"},
-		"at least one of the flags in the group [problem reason] is required")
-	mintCmd := cmdAt(NewRootFor(lensSeat), []string{"mint"})
+	c := &cobra.Command{Use: "probe", RunE: func(*cobra.Command, []string) error { return nil }}
+	c.Flags().String("problem", "", "what is wrong")
+	c.Flags().String("reason", "", "why it matters")
+	c.Flags().String("fix", "", "the fix")
+	c.MarkFlagsOneRequired("problem", "reason")
+	c.SetArgs([]string{"--fix", "f"})
+	c.SilenceErrors, c.SilenceUsage = true, true
+	err := c.Execute()
+	if err == nil {
+		t.Fatal("cobra accepted a call that set no flag of a one-required group")
+	}
+	r := seat.RefuseFlagGroup(c, err.Error(), err)
+	if r == nil {
+		t.Fatal("RefuseFlagGroup found no violated group")
+	}
+	said := seat.Diagnosis(r)
+	if !strings.HasPrefix(said, "at least one of the flags in the group [problem reason] is required") {
+		t.Errorf("the refusal does not open with cobra's sentence:\n%s", said)
+	}
 	for _, name := range []string{"problem", "reason"} {
-		if u := mintCmd.Flags().Lookup(name).Usage; !strings.Contains(said, "--"+name+" ") || !strings.Contains(said, u) {
+		if u := c.Flags().Lookup(name).Usage; !strings.Contains(said, "--"+name+" ") || !strings.Contains(said, u) {
 			t.Errorf("the refusal does not carry --%s's usage line (%q):\n%s", name, u, said)
 		}
 	}
