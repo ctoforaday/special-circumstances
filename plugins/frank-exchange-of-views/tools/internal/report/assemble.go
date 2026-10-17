@@ -643,8 +643,8 @@ func setAside(status string) bool { return !taken(status) && !deferred(status) }
 // changed: one underway at r0 and abandoned at r2 would render under both headings at once, as an
 // expansion and as an alternative to itself.
 //
-// A ROW SAYS FOUR THINGS, EACH UNDER ITS OWN LABEL: the question the inquiry asks, the hypothesis
-// that was tested, the fate, and what was found. Labelled, the question is a question and the
+// A ROW SAYS FIVE THINGS, EACH UNDER ITS OWN LABEL: the question the inquiry asks, the hypothesis
+// that was tested, the fate, the method that fate states, and what was found. Labelled, the question is a question and the
 // hypothesis is a hypothesis whatever became of it; an unlabelled bold text carrying a predicted
 // result beside a finding that contradicts it would read as a claim of the report's.
 //
@@ -665,9 +665,6 @@ func inquiries(a *assembly, s Section) string {
 			continue
 		}
 		row := "- **Question:** " + inItem(a.Question, "  ")
-		if a.Method != "" {
-			row += fmt.Sprintf(" _(%s)_", a.Method)
-		}
 		if a.Hypothesis != "" {
 			row += "\n  - **Hypothesis:** " + inItem(a.Hypothesis, "    ")
 		}
@@ -676,6 +673,11 @@ func inquiries(a *assembly, s Section) string {
 		// exactly as one confirmed or refuted straight from `proposed` ran; a missing `underway` step is
 		// a fate the seat did not record, which is the debate's fact and renders in inquiries.md.
 		row += "\n  - **Fate:** " + a.Status + "."
+		// THE METHOD IS THE LATEST FATE'S, LABELLED, ON THE FATE'S LINE: what that fate did, or leaves
+		// a later run to do. Beside the question and unlabelled it read as what was consulted.
+		if a.Method != "" {
+			row += " **Method:** " + inItem(a.Method, "    ")
+		}
 		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
 		if a.Reason != "" {
 			label := "Why"

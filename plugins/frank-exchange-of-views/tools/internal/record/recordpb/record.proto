@@ -1344,6 +1344,9 @@ message Inquiry {
     why: "the question this inquiry asks — an unnamed inquiry teaches a future run nothing"
   }, (prose) = true];
   optional string hypothesis = 3 [(prose) = true];
+  // method is a FATE's account, as reason is: what an approach that ran actually did, what a
+  // deferred or declined one leaves a later run to do, what an abandoned one tried. A proposal holds
+  // none (record.go's Inquiry arm refuses one), and the latest fate's method is the one printed.
   optional string method = 4 [(prose) = true];
   optional InquiryStatus status = 5 [(sql) = {
     required: true

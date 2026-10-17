@@ -164,20 +164,26 @@ func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 		return recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String(id), Status: st.Enum(),
 			Question: proto.String(line), Hypothesis: proto.String(hyp), Reason: proto.String(reason)})
 	}
+	// THE METHOD IS THE LATEST FATE'S. Q2's earlier fate states one and its latest states none, so
+	// its row prints none: a method is the account of the fate it was recorded with.
 	board := famOf(t, []*record.Event{
 		av("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether one Fermat test settles it", "a passing test is no evidence of primality", ""),
-		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), Method: proto.String("computation"),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q1"), SupersedesStatus: proto.String("1"), Method: proto.String("a Fermat test in base 3"),
 			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_REFUTED), Reason: proto.String("a passing test is evidence, not proof")}),
-		av("Q2", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "whether trial division settles it", "", "7 divides 91"),
+		av("Q2", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether trial division settles it", "", ""),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q2"), SupersedesStatus: proto.String("1"), Method: proto.String("trial division to 7"),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY), Reason: proto.String("2, 3 and 5 do not divide 91")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q2"), SupersedesStatus: proto.String("1"),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED), Reason: proto.String("7 divides 91")}),
 		av("Q3", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether a sieve is faster", "it is", ""),
 		av("Q4", recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED, "whether a lookup table exists", "one does", "the bound is 9"),
 	})
 	research := inquirySection(t, board, "Research areas")
 	for name, want := range map[string]string{
-		"a refuted inquiry prints its hypothesis as one and says it did not hold": "- **Question:** whether one Fermat test settles it _(computation)_\n" +
+		"a refuted inquiry prints its hypothesis as one, the method its fate states, and says it did not hold": "- **Question:** whether one Fermat test settles it\n" +
 			"  - **Hypothesis:** a passing test is no evidence of primality\n" +
-			"  - **Fate:** refuted. **Found:** a passing test is evidence, not proof",
-		"an inquiry with no hypothesis prints no hypothesis line": "- **Question:** whether trial division settles it\n" +
+			"  - **Fate:** refuted. **Method:** a Fermat test in base 3 **Found:** a passing test is evidence, not proof",
+		"an inquiry with no hypothesis prints no hypothesis line, and a latest fate with no method prints none": "- **Question:** whether trial division settles it\n" +
 			"  - **Fate:** confirmed. **Found:** 7 divides 91",
 		"an inquiry still proposed has found nothing and holds no reason": "- **Question:** whether a sieve is faster\n" +
 			"  - **Hypothesis:** it is\n" +
@@ -207,9 +213,9 @@ func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 		Question: proto.String("APPROACH: census the plan.\n\nARGUMENT: ordering is scarce."), Hypothesis: proto.String("one exists\nand it is explicit"),
 		Reason: proto.String("none exists.\n\nThe plan names no function.")})})
 	got := inquirySection(t, board, "Research areas")
-	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce. _(census)_\n" +
+	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce.\n" +
 		"  - **Hypothesis:** one exists  \n    and it is explicit\n" +
-		"  - **Fate:** refuted. **Found:** none exists.  \n    The plan names no function."
+		"  - **Fate:** refuted. **Method:** census **Found:** none exists.  \n    The plan names no function."
 	if !strings.Contains(got, want) {
 		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
 	}
@@ -449,7 +455,7 @@ func TestEveryRowOfTheLayoutSaysHowContentReachesIt(t *testing.T) {
 			seen[key] = true
 		}
 		if s.fate != nil {
-			if !strings.Contains(s.From, "the question it asks, its hypothesis, its fate, and what was found or why it stands there") {
+			if !strings.Contains(s.From, "the question it asks, its hypothesis, its fate with the method it states, and what was found or why it stands there") {
 				t.Errorf("inquiry section %q: its row does not say what a row of it holds: from %q", s.Heading, s.From)
 			}
 			for _, f := range fatesOf(s) {

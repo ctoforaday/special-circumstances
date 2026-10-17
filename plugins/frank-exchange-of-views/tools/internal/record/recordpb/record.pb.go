@@ -4687,10 +4687,13 @@ type Inquiry struct {
 	// Marked unconditional, CheckRequired would refuse every record of a fate before the
 	// conditional check could run, and the derived DDL would put NOT NULL on the column so the row
 	// could not be stored either.
-	Question   *string        `protobuf:"bytes,2,opt,name=question,proto3,oneof" json:"question,omitempty"`
-	Hypothesis *string        `protobuf:"bytes,3,opt,name=hypothesis,proto3,oneof" json:"hypothesis,omitempty"`
-	Method     *string        `protobuf:"bytes,4,opt,name=method,proto3,oneof" json:"method,omitempty"`
-	Status     *InquiryStatus `protobuf:"varint,5,opt,name=status,proto3,enum=feov.record.v1.InquiryStatus,oneof" json:"status,omitempty"`
+	Question   *string `protobuf:"bytes,2,opt,name=question,proto3,oneof" json:"question,omitempty"`
+	Hypothesis *string `protobuf:"bytes,3,opt,name=hypothesis,proto3,oneof" json:"hypothesis,omitempty"`
+	// method is a FATE's account, as reason is: what an approach that ran actually did, what a
+	// deferred or declined one leaves a later run to do, what an abandoned one tried. A proposal holds
+	// none (record.go's Inquiry arm refuses one), and the latest fate's method is the one printed.
+	Method *string        `protobuf:"bytes,4,opt,name=method,proto3,oneof" json:"method,omitempty"`
+	Status *InquiryStatus `protobuf:"varint,5,opt,name=status,proto3,enum=feov.record.v1.InquiryStatus,oneof" json:"status,omitempty"`
 	// supersedes_status marks this event as a record of a fate rather than a proposal.
 	SupersedesStatus *string `protobuf:"bytes,6,opt,name=supersedes_status,json=supersedesStatus,proto3,oneof" json:"supersedes_status,omitempty"`
 	// A declined, deferred or abandoned inquiry requires a reason: the road not taken is worthless

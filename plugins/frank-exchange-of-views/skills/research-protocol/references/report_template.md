@@ -73,8 +73,9 @@
 
 ## Research areas                        <!-- [RECORD] the inquiries taken up, and what each yielded — a research topic
                                               taken on, under the fate the record gives it. Every inquiry row is
-                                              labelled: the question it asks, its hypothesis, its fate, and what was
-                                              found — or, for an approach that did not run, why it stands there. -->
+                                              labelled: the question it asks, its hypothesis, its fate with the method
+                                              it states, and what was found — or, for an approach that did not run,
+                                              why it stands there. -->
 
 ## Future research directions            <!-- [RECORD] inquiries DEFERRED — kept, not set aside: worth taking and not by THIS
                                               run. Its reason says what a later run should pick it up FOR. It reaches the
@@ -122,10 +123,11 @@
 # inquiries.md — each inquiry and what became of it
 
 ## (by fate)                             <!-- [RECORD] every inquiry grouped by its current fate, each with its hypothesis,
-                                              the PATH its status took epoch by epoch, the seat that last recorded its fate and red's
-                                              ruling; then the inquiries still awaiting a decision. The same
-                                              rendering a seat reads through the tool. report.md carries only each inquiry's
-                                              fate and reason; this is where how it got there lives. Omitted when the run
+                                              the PATH its status took epoch by epoch with each fate's method, the
+                                              seat that last recorded its fate and red's ruling; then the inquiries
+                                              still awaiting a decision. The same rendering a seat reads through the
+                                              tool. report.md carries only each inquiry's latest fate, method and
+                                              reason; this is where how it got there lives. Omitted when the run
                                               recorded no inquiry. -->
 
 # evidence.md — the computations

@@ -202,6 +202,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
 	proofAnchors := map[string][]string{} // proof_sha -> the anchors of the proofs written on it, in order
+	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -262,6 +263,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
 			// what a fresh record's does.
 			rm.apply(body, src.Fields["label"])
+			if q, ok := body.(*recordpb.Inquiry); ok {
+				carryInquiryMethod(q, proposalMethod)
+			}
 			if b, ok := body.(*recordpb.BaseIngest); ok {
 				res.base = b.GetText()
 				if inOrder {
@@ -349,6 +353,27 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	}
 	res.IDs, res.GapAnchors = rm.ids, place.census
 	return res, nil
+}
+
+// carryInquiryMethod moves an inquiry's method from its proposal to its fates. BEFORE EPOCH 30 THE
+// METHOD WAS THE PROPOSAL'S, written before any research; from epoch 30 it is a fate's account and a
+// proposal holds none (the write refuses one). So a proposal's method is taken off it and given to
+// every fate recorded on that inquiry that states none, and the migrated report prints on each row
+// the method the source printed. An inquiry with no fate beyond its proposal has nowhere to carry it:
+// its method is dropped, and that row prints none — the residue of this translation, which
+// TestTheProposalsMethodMovesToItsFates states. A source at epoch 30 or later holds no proposal
+// method, and passes through unchanged.
+func carryInquiryMethod(q *recordpb.Inquiry, held map[string]string) {
+	if q.SupersedesStatus == nil {
+		if m := q.GetMethod(); m != "" {
+			held[q.GetInquiryId()] = m
+		}
+		q.Method = nil
+		return
+	}
+	if m, ok := held[q.GetInquiryId()]; ok && q.GetMethod() == "" {
+		q.Method = proto.String(m)
+	}
 }
 
 // wordOf spells a written event's type the way the record does.
