@@ -108,3 +108,50 @@ func TestParseOfNothingIsNothing(t *testing.T) {
 		t.Errorf("empty transcript gave agent=%q turns=%d", agent, len(turns))
 	}
 }
+
+// ONE REQUEST, THREE LINES, ONE TURN. The client writes a line per content block and repeats the
+// request's usage on each; the early lines carry the output count as it stood when that block
+// closed. This is the shape of the 2026-10-17 smoke's dark-side seat (32 lines, 14 requests), cut
+// to two requests with a tool result between them.
+const multiBlock = `{"agentId":"a1","timestamp":"2026-10-17T18:44:06.877Z","requestId":"req_1","message":{"id":"msg_1","model":"claude-haiku-5-5","content":[{"type":"thinking"}],"usage":{"input_tokens":2,"output_tokens":8,"cache_read_input_tokens":37265,"cache_creation_input_tokens":11228,"cache_creation":{"ephemeral_5m_input_tokens":11228,"ephemeral_1h_input_tokens":0}}}}
+{"agentId":"a1","timestamp":"2026-10-17T18:44:07.420Z","requestId":"req_1","message":{"id":"msg_1","model":"claude-haiku-5-5","content":[{"type":"tool_use"}],"usage":{"input_tokens":2,"output_tokens":8,"cache_read_input_tokens":37265,"cache_creation_input_tokens":11228,"cache_creation":{"ephemeral_5m_input_tokens":11228,"ephemeral_1h_input_tokens":0}}}}
+{"agentId":"a1","type":"user","timestamp":"2026-10-17T18:44:07.900Z","toolUseResult":{"ok":true}}
+{"agentId":"a1","timestamp":"2026-10-17T18:44:08.013Z","requestId":"req_1","message":{"id":"msg_1","model":"claude-haiku-5-5","content":[{"type":"tool_use"}],"usage":{"input_tokens":2,"output_tokens":563,"cache_read_input_tokens":37265,"cache_creation_input_tokens":11228,"cache_creation":{"ephemeral_5m_input_tokens":11228,"ephemeral_1h_input_tokens":0}}}}
+{"agentId":"a1","timestamp":"2026-10-17T18:44:12.303Z","requestId":"req_2","message":{"id":"msg_2","model":"claude-haiku-5-5","content":[{"type":"text"}],"usage":{"input_tokens":2,"output_tokens":3,"cache_read_input_tokens":48493,"cache_creation_input_tokens":3860,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":3860}}}}
+{"agentId":"a1","timestamp":"2026-10-17T18:44:13.391Z","requestId":"req_2","message":{"id":"msg_2","model":"claude-haiku-5-5","content":[{"type":"text"}],"usage":{"input_tokens":2,"output_tokens":458,"cache_read_input_tokens":48493,"cache_creation_input_tokens":3860,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":3860}}}}
+`
+
+func TestParseCountsOneTurnPerRequestNotPerContentBlock(t *testing.T) {
+	_, turns := Parse(multiBlock)
+	if len(turns) != 2 {
+		t.Fatalf("got %d turns from 2 requests written as 5 lines — each content block was counted as a turn", len(turns))
+	}
+	first, second := turns[0], turns[1]
+	if first.Index != 0 || second.Index != 1 {
+		t.Errorf("indices %d, %d — want 0, 1: a request's later lines must not advance the count", first.Index, second.Index)
+	}
+	// The cache figures are the request's once, not once per block: summed over lines they would
+	// read 3x and 2x what the client billed.
+	if first.CacheRead != 37265 || first.CacheCreation != 11228 || first.Input != 2 {
+		t.Errorf("first request's usage = %+v", first)
+	}
+	if first.Output != 563 || second.Output != 458 {
+		t.Errorf("output = %d, %d — want the LAST line's 563 and 458, the response's total rather than a block's running count", first.Output, second.Output)
+	}
+	if !first.Thinking || !first.Tool {
+		t.Errorf("the first request carried a thinking block and a tool call on different lines: Thinking=%v Tool=%v", first.Thinking, first.Tool)
+	}
+	if second.Thinking || second.Tool {
+		t.Errorf("a text-only request: %+v", second)
+	}
+	// 2026-10-17T18:44:08.013Z, the request's last line.
+	if first.TSMillis != 1792262648013 {
+		t.Errorf("TSMillis = %d, want the last line's 1792262648013", first.TSMillis)
+	}
+	if first.CacheCreation1h != 0 || second.CacheCreation1h != 3860 {
+		t.Errorf("one-hour writes = %d, %d — want 0 and 3860", first.CacheCreation1h, second.CacheCreation1h)
+	}
+	if first.Prompt() != 2+37265+11228 {
+		t.Errorf("Prompt() = %d", first.Prompt())
+	}
+}
