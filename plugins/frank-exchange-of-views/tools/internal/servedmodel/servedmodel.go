@@ -27,9 +27,11 @@
 //
 // The file is `agent-<agent_id>.jsonl`, and `agent_id` is the harness's own handle for the
 // subagent — injected by the PreToolUse hook as FEOV_AGENT_ID, never typed by a seat, and the ONE
-// payload field that discriminates one seat from another. It is unique BY CONSTRUCTION, so a glob
+// payload field that discriminates one seat from another. It is unique BY CONSTRUCTION, so a search
 // for that exact name is not a pattern standing in for a schema: it either resolves to the one
-// file the harness wrote for this agent, or to nothing.
+// file the harness wrote for this agent, or to nothing. The id never enters a pattern — it is
+// compared with each file's name — so no id, whatever it carries, widens the search to another
+// seat's file.
 //
 // NOTHING IS A LOUD ANSWER, not a quiet zero. Locate distinguishes "no such trajectory" from "more
 // than one" from "the search root does not exist", because a run whose measurement silently
@@ -41,9 +43,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -66,20 +68,6 @@ type Observation struct {
 func (o Observation) Substituted() bool {
 	return o.Declared && o.Requested != "" && o.Requested != o.Served
 }
-
-// unsafeInGlob is the shape check on the agent id, and it checks EXACTLY the thing that is
-// dangerous: the id arrives from the environment and goes into a glob, so a separator or a
-// metacharacter would widen the search silently — and a widened search that matches SOMETHING is
-// worse than one that matches nothing, because it reports another seat's model as this seat's.
-//
-// IT DELIBERATELY DOES NOT REQUIRE THE SHAPE THE HARNESS HAPPENS TO MINT TODAY. Every real id
-// measured so far is 17 lowercase hex characters, and a `^[0-9a-f]{6,64}$` check passed every one
-// of them — and would have refused, silently and permanently, the day the harness changed the
-// format. That is this repository's own recurring defect wearing a validation hat: a narrow
-// matcher whose miss is indistinguishable from an honest absence. The measurement is a
-// best-effort read whose failure is already loud; the only thing worth refusing here is an id
-// that would make the search answer about the wrong seat.
-var unsafeInGlob = regexp.MustCompile(`[*?\[\]/\\]|^$`)
 
 // Read scans one trajectory and returns what it says about the serving model.
 //
@@ -156,27 +144,34 @@ func Locate(id string) (string, error) {
 	if id == "" {
 		return "", fmt.Errorf("servedmodel: no agent id — this process was not rewritten by the PreToolUse hook, so the seat's trajectory cannot be named and the serving model is NOT MEASURED (it is not the configured one by default)")
 	}
-	if unsafeInGlob.MatchString(id) || len(id) > 256 {
-		return "", fmt.Errorf("servedmodel: agent id %q carries a path separator or a glob metacharacter and is NOT used to build a search — it would widen the glob and could match a trajectory belonging to some other seat, which is worse than measuring nothing", id)
-	}
 	roots := searchRoots()
 	if len(roots) == 0 {
 		return "", fmt.Errorf("servedmodel: no home directory and no CLAUDE_CONFIG_DIR, so there is nowhere to look for agent-%s.jsonl", id)
 	}
+	name := "agent-" + id + ".jsonl"
 	var hits []string
 	for _, root := range roots {
-		// `projects/<project>/<session>/subagents/agent-<id>.jsonl` is the layout, and the two
-		// wildcards are the project slug and the session — neither of which a seat knows. The id
-		// is the discriminator and it is exact.
-		for _, pat := range []string{
-			filepath.Join(root, "projects", "*", "*", "subagents", "agent-"+id+".jsonl"),
-			filepath.Join(root, "projects", "*", "*", "subagents", "*", "agent-"+id+".jsonl"),
-		} {
-			m, err := filepath.Glob(pat)
-			if err != nil {
-				return "", fmt.Errorf("servedmodel: searching for agent-%s.jsonl: %w", id, err)
-			}
-			hits = append(hits, m...)
+		// ONE RULE: the transcript is the file named agent-<id>.jsonl under a session's
+		// `projects/<project>/<session>/subagents/` directory, at any depth. The two wildcards are
+		// the project slug and the session — neither of which a seat knows — and the depth is the
+		// dispatcher's: a plain subagent sits in `subagents/` itself, a Workflow seat in
+		// `subagents/workflows/wf_<id>/`. The id is the discriminator and it is exact.
+		dirs, err := filepath.Glob(filepath.Join(root, "projects", "*", "*", "subagents"))
+		if err != nil {
+			return "", fmt.Errorf("servedmodel: searching for %s: %w", name, err)
+		}
+		for _, dir := range dirs {
+			// An unreadable subtree is skipped rather than fatal: what it hides is reported as the
+			// miss below, never as a match.
+			_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return nil
+				}
+				if !d.IsDir() && d.Name() == name {
+					hits = append(hits, path)
+				}
+				return nil
+			})
 		}
 	}
 	hits = dedup(hits)
@@ -184,7 +179,7 @@ func Locate(id string) (string, error) {
 	case 1:
 		return hits[0], nil
 	case 0:
-		return "", fmt.Errorf("servedmodel: no trajectory named agent-%s.jsonl under %s — the serving model is NOT MEASURED for this seat, which is a different answer from \"it matched what was configured\"", id, strings.Join(roots, ", "))
+		return "", fmt.Errorf("servedmodel: no trajectory named agent-%s.jsonl under any session's subagents directory in %s — the serving model is NOT MEASURED for this seat, which is a different answer from \"it matched what was configured\"", id, strings.Join(roots, ", "))
 	default:
 		return "", fmt.Errorf("servedmodel: %d files named agent-%s.jsonl (%s) — the agent id is supposed to be unique, so this is a search that has stopped discriminating and its answer is refused rather than picked from", len(hits), id, strings.Join(hits, ", "))
 	}
