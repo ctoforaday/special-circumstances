@@ -282,3 +282,50 @@ func contains(haystack []string, needle string) bool {
 	}
 	return false
 }
+
+// A READ VERB'S PAGE STATES THE JSON IT EMITS, and the keys are held to the ones that arrive — the
+// envelope's and each class row's. m27's architecture lens asked `class list --json` for a `class`
+// key, found none, and logged that the verb printed the human table: the key is `slug`, and no page
+// said so.
+func TestClassListDocumentsTheJSONItEmits(t *testing.T) {
+	runDir := seatRun(t)
+	registerLensOnce(t, runDir)
+	out, err := run(t, "class", "list", "--run", runDir, "--seat-id", lensSeat, "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	help, err := run(t, "class", "list", "--seat-id", lensSeat, "--help")
+	if err != nil {
+		t.Fatal(err)
+	}
+	documented := outputLine.FindStringSubmatch(help)
+	if documented == nil {
+		t.Fatalf("class list emits JSON under --json and its page carries no OUTPUT tree:\n%s", help)
+	}
+	tree := documented[1]
+	var env struct {
+		Result struct {
+			Classes []map[string]json.RawMessage `json:"classes"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || len(env.Result.Classes) == 0 {
+		t.Fatalf("class list --json: %v\n%s", err, out)
+	}
+	emitted := topLevelKeys(t, "class list", strings.TrimSpace(out))
+	documentedTop := treeTopLevelKeys(tree)
+	for _, k := range emitted {
+		if !contains(documentedTop, k) {
+			t.Errorf("class list emits %q, which its OUTPUT tree does not name:\n  %s", k, tree)
+		}
+	}
+	for _, k := range documentedTop {
+		if !contains(emitted, k) {
+			t.Errorf("class list documents %q, which it does not emit:\n  %s", k, tree)
+		}
+	}
+	for k := range env.Result.Classes[0] {
+		if !strings.Contains(tree, "{"+k+",") && !strings.Contains(tree, ","+k+",") && !strings.Contains(tree, ","+k+"}") {
+			t.Errorf("a class row carries %q, which the OUTPUT tree does not name:\n  %s", k, tree)
+		}
+	}
+}
