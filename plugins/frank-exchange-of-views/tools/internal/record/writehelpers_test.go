@@ -48,15 +48,6 @@ func replayed(id Identity, body proto.Message) (*Event, error) {
 	return Append(id, body)
 }
 
-func mustReplay(t *testing.T, id Identity, body proto.Message) *Event {
-	t.Helper()
-	ev, err := replayed(id, body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ev
-}
-
 func seatLog(text string) *recordpb.Log {
 	return &recordpb.Log{Text: proto.String(text), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
 }
