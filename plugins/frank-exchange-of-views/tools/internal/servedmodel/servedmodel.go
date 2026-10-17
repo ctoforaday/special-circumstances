@@ -165,12 +165,19 @@ func Locate(id string) (string, error) {
 	}
 	var hits []string
 	for _, root := range roots {
-		// `projects/<project>/<session>/subagents/agent-<id>.jsonl` is the layout, and the two
-		// wildcards are the project slug and the session — neither of which a seat knows. The id
-		// is the discriminator and it is exact.
+		// TWO LAYOUTS, and every seat of a research run is in the second. A plain subagent's
+		// trajectory is `projects/<project>/<session>/subagents/agent-<id>.jsonl`; one the Workflow
+		// tool dispatched is `…/subagents/workflows/<workflow>/agent-<id>.jsonl`. The wildcards are
+		// the project slug, the session and the workflow — none of which a seat knows. The id is the
+		// discriminator and it is exact.
+		//
+		// The second pattern was `subagents/*/agent-<id>.jsonl`, one level short of the workflow
+		// directory, so it matched nothing a harness writes: on the 2026-10-17 smoke the bench's
+		// assembly, run inside its own sitting before any of its turns were on the record, printed
+		// the judgment tier NOT MEASURED for the one seat whose trajectory it was writing.
 		for _, pat := range []string{
 			filepath.Join(root, "projects", "*", "*", "subagents", "agent-"+id+".jsonl"),
-			filepath.Join(root, "projects", "*", "*", "subagents", "*", "agent-"+id+".jsonl"),
+			filepath.Join(root, "projects", "*", "*", "subagents", "workflows", "*", "agent-"+id+".jsonl"),
 		} {
 			m, err := filepath.Glob(pat)
 			if err != nil {
