@@ -104,13 +104,18 @@ func newRetire() *cobra.Command {
 				return err
 			}
 			exiting := anchorsExiting(md, claim, spans)
+			if len(exiting) == 0 && len(named.Value()) == 0 {
+				if err := fragmentRefusal(md, claim, spans); err != nil {
+					return err
+				}
+			}
 			// A MARKER INSIDE A SENTENCE IS NEVER BARE: when the claim was a clause, the rest of the
 			// sentence still stands before its marker. The seat names it, and the tool checks the name
 			// against the edit that left the marker alone. B9's G4 was two retires that took nothing
 			// and said nothing, over a corroboration marker on a mid-sentence clause.
 			left := leftByTheCut(claim, spans)
 			for _, id := range named.Value() {
-				if err := namedExits(md, id, left, spans); err != nil {
+				if err := namedExits(md, claim, id, left, spans); err != nil {
 					return err
 				}
 				if !slices.Contains(exiting, id) {
@@ -140,30 +145,68 @@ func newRetire() *cobra.Command {
 	return c
 }
 
-// leftByTheCut is every marker an edit that took this claim out left behind in an anchors-only
-// span, with the position of the last such edit — the same match anchorsExiting reads.
+// leftByTheCut is every marker an edit that cut this claim down to its anchors left behind of it
+// (heldAt), with the position of the last such edit.
 func leftByTheCut(claim string, spans []record.EditSpan) map[string]int {
 	out := map[string]int{}
-	want := quoteCore(claim)
-	if want == "" {
-		return out
-	}
 	for i, sp := range spans {
-		ids := claimcount.ProtectedAnchorIDs(sp.New)
-		if len(ids) == 0 || claimcount.HasProse(sp.New) || quoteCore(sp.Old) != want {
-			continue
-		}
-		for _, id := range ids {
+		held, _ := heldAt(claim, sp)
+		for _, id := range held {
 			out[id] = i
 		}
 	}
 	return out
 }
 
+// heldAt is what an edit that cut its old span down to anchors alone left of claim: the anchors that
+// stood on claim in that span, in the order the edit left them. claim names them when it is the whole
+// span or a run of the span's whole sentences (anchor.Sentences): a sentence is what an anchor marks,
+// so one edit cutting two claims leaves each its own anchors to leave with. A claim lying inside the
+// span as neither is a fragment of what the edit cut, and in is the text it was cut from — the
+// sentences holding it, or the whole span where it crosses one.
+func heldAt(claim string, sp record.EditSpan) (held []string, in []string) {
+	want := quoteCore(claim)
+	cut := claimcount.ProtectedAnchorIDs(sp.New)
+	if want == "" || len(cut) == 0 || claimcount.HasProse(sp.New) {
+		return nil, nil
+	}
+	if quoteCore(sp.Old) == want {
+		return cut, nil
+	}
+	sents := anchor.Sentences(sp.Old)
+	for i := range sents {
+		for j := i; j < len(sents); j++ {
+			seg := sp.Old[sents[i][0]:sents[j][1]]
+			if quoteCore(seg) != want {
+				continue
+			}
+			held = []string{}
+			for _, id := range cut {
+				if strings.Contains(seg, anchor.Token(id)) {
+					held = append(held, id)
+				}
+			}
+			return held, nil
+		}
+	}
+	if !strings.Contains(claimcount.StripAnchors(sp.Old), want) {
+		return nil, nil
+	}
+	for _, s := range sents {
+		if seg := sp.Old[s[0]:s[1]]; strings.Contains(claimcount.StripAnchors(seg), want) {
+			in = append(in, seg)
+		}
+	}
+	if len(in) == 0 {
+		in = []string{sp.Old}
+	}
+	return nil, in
+}
+
 // namedExits checks a marker the seat named against what the cut left: it stands in the report,
 // an edit that took this claim out left it on its own, and no LATER edit put it back into prose —
 // a marker re-attached to text backs that text now, and leaves only with it.
-func namedExits(md, id string, left map[string]int, spans []record.EditSpan) error {
+func namedExits(md, claim, id string, left map[string]int, spans []record.EditSpan) error {
 	if err := flags.AnchorID().Set(id); err != nil {
 		return fmt.Errorf("--anchor %s: %w", id, err)
 	}
@@ -173,7 +216,7 @@ func namedExits(md, id string, left map[string]int, spans []record.EditSpan) err
 	}
 	i, ok := left[id]
 	if !ok {
-		return feov.Errorf(feov.Validation, "--anchor %s: no edit that took this claim out left %s on its own — `edit` the claim down to its markers first, then retire it naming the one that backed only it", id, tok)
+		return feov.Errorf(feov.Validation, "--anchor %s: %s", id, notHeld(claim, tok, spans))
 	}
 	for _, sp := range spans[i+1:] {
 		if strings.Contains(sp.New, tok) && claimcount.HasProse(sp.New) {
@@ -181,6 +224,41 @@ func namedExits(md, id string, left map[string]int, spans []record.EditSpan) err
 		}
 	}
 	return nil
+}
+
+// notHeld says why the anchor tok is not one this claim's cut left (heldAt), from the edits: where
+// tok stood when an edit cut this claim with others down to their anchors, that the claim is a
+// fragment of a sentence such an edit cut, or that no edit cut the claim down to its anchors.
+func notHeld(claim, tok string, spans []record.EditSpan) string {
+	var frag []string
+	for _, sp := range spans {
+		held, in := heldAt(claim, sp)
+		if held == nil {
+			for _, seg := range in {
+				frag = append(frag, quoted(flatClaim(seg)))
+			}
+			continue
+		}
+		if !strings.Contains(sp.Old, tok) {
+			continue
+		}
+		on := "on no sentence of it"
+		for _, s := range anchor.Sentences(sp.Old) {
+			if seg := sp.Old[s[0]:s[1]]; strings.Contains(seg, tok) {
+				on = "on " + quoted(flatClaim(seg))
+			}
+		}
+		these := "no anchor stood on this claim there"
+		if len(held) > 0 {
+			these = "the anchors that stood on this claim there are " + strings.Join(held, ", ")
+		}
+		return fmt.Sprintf("%s did not stand on this claim when an edit cut it down to its anchors with the text around it — it stood %s, and %s. "+
+			"Name an anchor this claim held, or retire the claim %s stood on", tok, on, these, tok)
+	}
+	if len(frag) > 0 {
+		return fmt.Sprintf("this claim is part of a sentence an edit cut down to its anchors, and a retire takes the anchors of whole sentences of what the edit cut. Quote the sentence as it stood: %s", strings.Join(frag, " or "))
+	}
+	return fmt.Sprintf("no edit cut this claim down to its anchors, so none left %s on its own — `edit` the claim down to its anchors first, then retire it naming the one that backed only it", tok)
 }
 
 // stayedBehind is every marker the cut left that still stands and is not leaving, said — so a
@@ -206,38 +284,79 @@ func stayedBehind(md string, left map[string]int, exiting []string) []keptAnchor
 // on into surviving prose is never named. Everything else about the retire is unchanged when
 // this is empty.
 //
-// THE QUOTE MUST BE THE WHOLE OF WHAT LEFT. The claim is compared with the edit's entire old
-// span, not searched for inside it: a fragment ("sky") would otherwise sweep the anchor of the
-// sentence it came from, record removal_basis=verified, and put the fragment in the report's
-// withdrawn claims as if it were what left. The comparison is across the anchor layer, with
-// surrounding whitespace, emphasis markers and trailing punctuation trimmed, because that is how
-// a seat quotes it: the edit's old span carries the anchor token the seat copied from `show
-// report`, and the retire's --quote often does not.
+// THE QUOTE IS THE WHOLE OF WHAT LEFT, OR WHOLE SENTENCES OF IT (heldAt). The claim is compared with
+// the edit's entire old span and with each run of its whole sentences, never searched for inside
+// them: a fragment ("sky") would otherwise sweep the anchor of the sentence it came from, record
+// removal_basis=verified, and put the fragment in the report's withdrawn claims as if it were what
+// left (fragmentRefusal refuses it instead). A sentence is the unit an anchor marks, so an edit that
+// cuts two claims leaves each its own anchors: m25 cut two sentences carrying three finding anchors
+// in one edit (ev247), retired each with its own reason (ev258, ev259), and with the whole-span
+// comparison alone both took nothing and the three anchors stood bare until a third retire quoted
+// the pair (ev367). The comparison is across the anchor layer, with surrounding whitespace, emphasis
+// markers and trailing punctuation trimmed, because that is how a seat quotes it: the edit's old span
+// carries the anchor token the seat copied from `show report`, and the retire's --quote often does
+// not.
 func anchorsExiting(md, claim string, spans []record.EditSpan) []string {
-	want := quoteCore(claim)
-	if want == "" {
-		return nil
-	}
-	bare := map[string]bool{}
-	for _, id := range claimcount.BareAnchorIDs(md) {
-		bare[id] = true
-	}
-	seen := map[string]bool{}
+	bare := bareAnchors(md)
 	var out []string
 	for _, sp := range spans {
-		ids := claimcount.ProtectedAnchorIDs(sp.New)
-		if len(ids) == 0 || claimcount.HasProse(sp.New) || quoteCore(sp.Old) != want {
-			continue
-		}
-		for _, id := range ids {
-			if bare[id] && !seen[id] {
-				seen[id] = true
+		held, _ := heldAt(claim, sp)
+		for _, id := range held {
+			if bare[id] && !slices.Contains(out, id) {
 				out = append(out, id)
 			}
 		}
 	}
 	return out
 }
+
+// bareAnchors is the set of anchors standing bare in md.
+func bareAnchors(md string) map[string]bool {
+	bare := map[string]bool{}
+	for _, id := range claimcount.BareAnchorIDs(md) {
+		bare[id] = true
+	}
+	return bare
+}
+
+// fragmentRefusal refuses a retire whose claim is a fragment of a sentence an edit cut down to its
+// anchors (heldAt's in), where no edit took the claim out whole and that sentence's anchors stand bare: the
+// retire would explain a removal and leave them standing, and the claim that left is the sentence.
+func fragmentRefusal(md, claim string, spans []record.EditSpan) error {
+	bare := bareAnchors(md)
+	var ids, from []string
+	for _, sp := range spans {
+		held, in := heldAt(claim, sp)
+		if held != nil || quoteCore(sp.Old) == quoteCore(claim) {
+			return nil
+		}
+		for _, seg := range in {
+			n := len(ids)
+			for _, id := range anchor.IDs(seg) {
+				if bare[id] && !slices.Contains(ids, id) {
+					ids = append(ids, id)
+				}
+			}
+			if s := quoted(flatClaim(seg)); len(ids) > n && !slices.Contains(from, s) {
+				from = append(from, s)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	return feov.Errorf(feov.Validation, "%s is part of what an edit cut down to its anchors, and the anchors it left there stand bare: %s. "+
+		"A retire takes the anchors of the claim it quotes — the whole of what the edit cut, or whole sentences of it — and a fragment of a sentence takes none. "+
+		"Quote the sentence it was part of as it stood: %s", quoted(claim), strings.Join(ids, ", "), strings.Join(from, " or "))
+}
+
+// flatClaim is s as a seat quotes it: anchors out, whitespace runs read as one space.
+func flatClaim(s string) string {
+	return strings.Join(strings.Fields(claimcount.StripAnchors(s)), " ")
+}
+
+// quoted is s between double quotes, unescaped, so a seat copying it back gets the report's bytes.
+func quoted(s string) string { return `"` + s + `"` }
 
 // quoteCore is a quote or span reduced to what it says: anchors out, the list marker or block-quote
 // marker it opens with out — those lie outside every sentence (anchor.Sentences), and an edit that
