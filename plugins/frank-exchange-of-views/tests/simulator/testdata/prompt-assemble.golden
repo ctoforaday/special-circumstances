@@ -1,4 +1,4 @@
-prompt sha256: efdc61eca1ed08d7dff47735f155781bf1863afeb733c170d24e3a3cbc95c044
+prompt sha256: cd7a5f0e36b6d3649b32518e1a6e4bbe872d8d85f1aa82ddca8dfa21db420543
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 3 chair sitting(s) — the chair recorded PASS with the board permitting it.
@@ -18,7 +18,7 @@ A tool cannot mis-author a synthesis surface — the TL;DR and the catechism are
 An open gap that is not material stays open on the board and in the risk matrix; the chair's PASS listed it by class, on the record.
 THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.
 Infra debts the bench named: [].
-LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
+LAW: read the law your work list names before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 SPEED: ONE MESSAGE IS ONE ROUND-TRIP, whatever it carries.
 Five independent tool calls in ONE message cost one round-trip; the same five in five messages cost five, and a round-trip is seconds.
 So batch every call that does not need a prior call's OUTPUT as its input: all your projections together, independent fetches together, several file reads together.
