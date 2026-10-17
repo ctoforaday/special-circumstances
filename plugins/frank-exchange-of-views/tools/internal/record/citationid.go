@@ -303,9 +303,6 @@ func (p Proof) Reproduced() bool {
 	return p.Rerun != nil && p.Rerun.Rerun == recordpb.Rerun_RERUN_REPRODUCED
 }
 
-// Verified is the anchor's verdict: its script reproduced AND its own sentence is judged sound.
-func (p Proof) Verified() bool { return p.Reproduced() && p.Soundness == SoundnessSound }
-
 // ProofRerun is one `reproduce` that RAN a proof's script. The result is COMPUTED by the tool, not
 // claimed by the seat — which is the whole reason re-running beats re-reading.
 type ProofRerun struct {

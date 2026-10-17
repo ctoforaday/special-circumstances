@@ -122,17 +122,6 @@ type anchorLedger struct {
 // at is the anchor's standing, or nil when the record holds no citation or proof at that anchor.
 func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anchor] }
 
-// onSha is every proof anchor on one script, in record order.
-func (l *anchorLedger) onSha(sha string) []*anchorStanding {
-	var out []*anchorStanding
-	for _, s := range l.order {
-		if sha != "" && s.sha == sha {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
 // anchorChecksOf folds the record into its anchor ledger. win supplies each event's events.id and
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
