@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
@@ -33,8 +36,12 @@ import (
 
 // mintMeasure is one way of sizing the report for a lens: what it counts, and how to count it.
 type mintMeasure struct {
-	name  string // what the refusal calls the unit, plural: "citations on the record"
-	count func(recordsql.Querier) (int, error)
+	name string // what the refusal calls the unit, plural: "citations on the record"
+	// count counts the units off the record q holds, and off its report, which report renders.
+	count func(q recordsql.Querier, report func() (string, error)) (int, error)
+	// readsReport is whether count reads the report: a mint measured by it renders the report before
+	// its write takes the lock (validationReadsReport).
+	readsReport bool
 }
 
 var (
@@ -42,15 +49,15 @@ var (
 	// row is one citation (its event key is the citation label), and a retired source was still
 	// one the evidence lens had to verify. Counted from the record, not the rendered report, so the
 	// evidence budget never depends on the renderer and cannot shrink under a lens mid-run.
-	measureCitations = mintMeasure{"citations on the record", countRows(`SELECT count(*) FROM "cite"`)}
+	measureCitations = mintMeasure{"citations on the record", countRows(`SELECT count(*) FROM "cite"`), false}
 	// Proofs: blue's `proof` rows — every computation recorded on the run. A reproduce is red's
 	// act on a proof and lives in its own table.
-	measureProofs = mintMeasure{"proofs on the record", countRows(`SELECT count(*) FROM "proof"`)}
+	measureProofs = mintMeasure{"proofs on the record", countRows(`SELECT count(*) FROM "proof"`), false}
 	// Claims: claimcount.Count on the CURRENT report — citation anchors attached to prose.
-	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count)}
+	measureClaims = mintMeasure{"claims in the current report", countInReport(claimcount.Count), true}
 	// Paragraphs: claimcount.Paragraphs on the CURRENT report — blank-line-separated blocks that
 	// carry prose; headings, anchor-only lines, footnote definitions and fenced code do not.
-	measureParagraphs = mintMeasure{"prose paragraphs in the current report", countInReport(claimcount.Paragraphs)}
+	measureParagraphs = mintMeasure{"prose paragraphs in the current report", countInReport(claimcount.Paragraphs), true}
 )
 
 // mintScale is one area's row: its unit, and the rate — `mints` mints for every `per` units. Two
@@ -149,32 +156,55 @@ func LensMintBudget(run Run, seatID string) (LensBudget, error) {
 	return lensBudgetAt(db, AreaOf(seatID), p.MintBudget)
 }
 
-// lensBudgetAt is the area's budget over the record q holds — the mint's writing transaction, or the
-// run's handle.
+// lensBudgetAt is the area's budget over the record q holds, its report rendered from q.
 func lensBudgetAt(q recordsql.Querier, area string, floor int) (LensBudget, error) {
+	return lensBudgetOver(q, renderFrom(q), area, floor)
+}
+
+// lensBudgetOver is the area's budget over the record q holds — the mint's writing transaction, or
+// the run's handle — and the report it renders, which report returns: the write's landing report
+// (writeView.report) or a render of q.
+func lensBudgetOver(q recordsql.Querier, report func() (string, error), area string, floor int) (LensBudget, error) {
 	s, err := mintScaleOf(area)
 	if err != nil {
 		return LensBudget{}, err
 	}
 	b := LensBudget{Area: area, Measure: s.measure.name, Mints: s.mints, Per: s.per, Floor: floor}
-	if b.Units, err = s.measure.count(q); err != nil {
+	if b.Units, err = s.measure.count(q, report); err != nil {
 		return b, fmt.Errorf("counting %s: %w", s.measure.name, err)
 	}
 	b.Budget = budgetOf(floor, b.Units, s.mints, s.per)
 	return b, nil
 }
 
-func countRows(query string) func(recordsql.Querier) (int, error) {
-	return func(q recordsql.Querier) (int, error) {
+// renderFrom is the report q holds, rendered when asked.
+func renderFrom(q recordsql.Querier) func() (string, error) {
+	return func() (string, error) { return RenderAt(q) }
+}
+
+// validationReadsReport is whether the write path's validation of body, written by seatID, reads
+// the report: a live mint by a lens whose budget is measured on it (requireMintWithinBudget). The
+// write renders the report before it takes the lock (appendOwn); a mint whose seat validation turns
+// away before the measure renders for nothing.
+func validationReadsReport(seatID string, body proto.Message) bool {
+	if _, ok := body.(*recordpb.Mint); !ok || Migrating {
+		return false
+	}
+	s, ok := mintScales[AreaOf(seatID)]
+	return ok && s.measure.readsReport
+}
+
+func countRows(query string) func(recordsql.Querier, func() (string, error)) (int, error) {
+	return func(q recordsql.Querier, _ func() (string, error)) (int, error) {
 		var n int
 		_, err := queryRowAt(q, []any{&n}, query)
 		return n, err
 	}
 }
 
-func countInReport(count func(string) int) func(recordsql.Querier) (int, error) {
-	return func(q recordsql.Querier) (int, error) {
-		md, err := RenderAt(q)
+func countInReport(count func(string) int) func(recordsql.Querier, func() (string, error)) (int, error) {
+	return func(_ recordsql.Querier, report func() (string, error)) (int, error) {
+		md, err := report()
 		if err != nil {
 			return 0, err
 		}
@@ -189,6 +219,11 @@ var errNoRenderer = fmt.Errorf("this binary registers no report renderer (intern
 // (internal/reportproj) imports this package, so the write path is handed it instead. It asks the
 // record nothing, so a reader holding a read transaction takes the rows on it and replays after the
 // transaction closes.
+//
+// IT IS A LEFT FOLD OF THE OPS OVER THE BASE: replaying B over the text A replayed to is replaying A
+// then B over the base. The write path folds the ops another write added onto a render it made before
+// its lock (landingReport.fold) and reads the result as the report; TestTheReportReplayIsAFold
+// (internal/record/migrate) holds the renderer to it on archived runs.
 var reportRenderer func(base string, haveBase bool, ops []ReportOp) (string, error)
 
 // RegisterReportRenderer hands the write path the renderer the report-sized budgets read.
@@ -254,8 +289,9 @@ func requireMintWithinBudget(w writeView, seatID string) error {
 	}
 	// THE STANDING IS READ IN THE MINT'S OWN TRANSACTION. Read before it, two mints from one lens —
 	// parallel calls in one sitting — both find the last slot free and both land, and the lens holds
-	// one gap more than its budget admits.
-	st, err := lensMintStanding(w.q, w.files.params, seatID, area)
+	// one gap more than its budget admits. The report it is measured on is the write's landing
+	// report, rendered before the lock where nothing has moved it since.
+	st, err := lensMintStanding(w.q, w.report, w.files.params, seatID, area)
 	if err != nil {
 		return err
 	}
@@ -321,9 +357,9 @@ func (s mintStanding) Left() (left int, measured bool) {
 // again; a non-material gap holds one, because it is open; and a SUPERSEDED gap holds one until its
 // lens closes it — superseding closes nothing, and the view calls such a gap stranded.
 //
-// q is the mint's writing transaction, or the run's handle for the work list; params reads the run's
-// terms.
-func lensMintStanding(q recordsql.Querier, params func() (Params, error), seatID, area string) (mintStanding, error) {
+// q is the mint's writing transaction, or the run's handle for the work list; report is the report
+// it holds (lensBudgetOver); params reads the run's terms.
+func lensMintStanding(q recordsql.Querier, report func() (string, error), params func() (Params, error), seatID, area string) (mintStanding, error) {
 	p, err := params()
 	if err != nil {
 		return mintStanding{}, err
@@ -334,7 +370,7 @@ func lensMintStanding(q recordsql.Querier, params func() (Params, error), seatID
 		// CODED AND SAID AS THE MINT'S REFUSAL, as the duplicate screen says its own failed read.
 		return mintStanding{}, feov.Wrap(feov.Conflict, err, "the board could not be read, so the gaps %s holds open cannot be counted against its mint budget: %v", seatID, err)
 	}
-	st.Budget, st.MeasureErr = lensBudgetAt(q, area, p.MintBudget)
+	st.Budget, st.MeasureErr = lensBudgetOver(q, report, area, p.MintBudget)
 	return st, nil
 }
 
@@ -373,7 +409,7 @@ func mintBudgetOf(run Run, seatID string) (*MintBudgetJSON, string) {
 	db, err := openRunForRead(run)
 	var st mintStanding
 	if err == nil {
-		st, err = lensMintStanding(db, filesOf(run).params, seatID, area)
+		st, err = lensMintStanding(db, renderFrom(db), filesOf(run).params, seatID, area)
 	}
 	if err != nil {
 		return nil, fmt.Sprintf("your mint budget is NOT MEASURED — %v — and that is not a report that no mint is left to you", err)

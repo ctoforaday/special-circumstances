@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // positionDuty is the sentence that states the position duty in a dispatch.
@@ -14,10 +15,14 @@ const positionDuty = "YOUR POSITION ARGUES TO THE BENCH"
 // positionWord is the event's name as a word of its own — not `disposition`, not `composition`.
 var positionWord = regexp.MustCompile(`(?i)\bpositions?\b`)
 
-// THE POSITION DUTY IS STATED ONLY TO A SEAT THAT OWES ONE. The prompts are prose, so they cannot
-// call record.SeatOwesPosition; this holds them to it. Every dispatch the engine makes is rendered —
-// lanes, the frontier, the synthesizer, the chair, a lens, blue's response, the bench — and the duty
-// sentence is in exactly those whose seat the predicate names.
+// THE POSITION DUTY IS STATED ONLY TO A SEAT THAT OWES ONE, AND ONCE. The prompts and the
+// constitutions are prose, so they cannot call record.SeatOwesPosition; this holds them to it. Every
+// dispatch the engine makes is rendered — lanes, the frontier, the synthesizer, the chair, a lens,
+// blue's response, the bench — and the duty sentence is in exactly those whose seat the predicate
+// names, counted over what the seat is handed: its agent definition, the skills it preloads, and
+// the prompt. Where an agent type sits as one seat only (the chair) the duty is unconditional and
+// its constitution carries it; where one type sits as several seats and one of them owes it (blue's
+// response, beside the lanes and the frontier) the prompt of that sitting carries it.
 //
 // AND A SEAT THAT OWES NONE IS NOT TOLD OF ONE AT ALL. The shared record clause once said "your
 // position and closings in the transcript" to every seat; across seventeen archived runs lanes, the
@@ -30,13 +35,26 @@ func TestThePositionDutyIsStatedOnlyToASeatThatOwesOne(t *testing.T) {
 	ds, _ := drivePlans(t, []map[string]any{planWith([]any{lensParty, blueParty, docketBench}, []any{})}, nil)
 
 	seen := map[string]bool{}
+	constitution := map[string]string{}
 	for _, d := range ds {
 		if d.SeatID == "" {
 			continue // a re-prompt of a seat already sitting: it names no seat and restates no duty
 		}
 		seen[d.SeatID] = true
+		typ := strings.TrimPrefix(d.AgentType, "frank-exchange-of-views:")
+		if _, ok := constitution[typ]; !ok {
+			path, err := repotree.Plugin("agents", typ+".md")
+			if err != nil {
+				t.Fatal(err)
+			}
+			text, err := repotree.ConstitutionText(path)
+			if err != nil {
+				t.Fatalf("%s: %v", d.SeatID, err)
+			}
+			constitution[typ] = text
+		}
 		owes := record.SeatOwesPosition(d.SeatID)
-		if got := strings.Count(d.Prompt, positionDuty); (got == 1) != owes || got > 1 {
+		if got := strings.Count(constitution[typ]+"\n"+d.Prompt, positionDuty); (got == 1) != owes || got > 1 {
 			t.Errorf("%s (%s): the dispatch states the position duty %d time(s), and SeatOwesPosition is %v", d.SeatID, d.Label, got, owes)
 		}
 		if !owes {

@@ -105,7 +105,6 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 	read := map[pair]bool{}
 	typeRead := map[string]bool{}
 	rendered := map[string]bool{}
-	stillDuplicated := map[string]bool{}
 	for _, d := range ds {
 		typ := strings.TrimPrefix(d.AgentType, "frank-exchange-of-views:")
 		where := fmt.Sprintf("debate.js:%d, agent type %s (%s)", d.Site, typ, d.Label)
@@ -182,30 +181,11 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 		}
 		sort.Strings(twice)
 		for _, s := range twice {
-			n := count[s]
-			if dOwnedDuplicates[typ][s] {
-				stillDuplicated[s] = true
-				if n == 2 {
-					continue
-				}
-			}
 			if first {
 				t.Errorf("%s: one sentence renders %d times in this dispatch:\n\n  %s\n\n"+
 					"A seat holds each duty in one carrier. Keep the copy in the constitution where the duty is "+
 					"unconditional and in the prompt where it depends on this sitting, and delete the other.",
-					where, n, s)
-			}
-		}
-	}
-
-	// THE LISTED DUPLICATES STILL FIRE, each at exactly two copies, or the list is wrong.
-	for typ, set := range dOwnedDuplicates {
-		for s := range set {
-			if !stillDuplicated[s] {
-				t.Errorf("dOwnedDuplicates lists a sentence of %s's that no longer renders twice in its dispatch:\n\n  %s\n\n"+
-					"Two causes read the same here. Either a copy was DELETED — then delete this entry. Or one copy was "+
-					"EDITED and the two now disagree, which is the drift this gate exists for — then make them one "+
-					"sentence in one carrier, and delete this entry.", typ, s)
+					where, count[s], s)
 			}
 		}
 	}
@@ -229,32 +209,6 @@ func TestEveryFragmentRendersOnceWhereItIsIncluded(t *testing.T) {
 	sort.Strings(pairs)
 	t.Logf("read %d dispatch(es) over %d (site, agent type) pair(s), %d site(s), %d fragment(s):\n  %s",
 		len(ds), len(pairs), len(sites), len(fragments), strings.Join(pairs, "\n  "))
-}
-
-// dOwnedDuplicates are the sentences rule 2 finds twice in one dispatch TODAY, by agent type. Each
-// is a prompt's copy of a sentence the seat's constitution already carries, and removing a copy
-// changes what a seat is dispatched with — which is measured on a run of its own (issue #1268,
-// phase D), never folded into the change that added this gate.
-//
-// A HAND-KEPT EXCEPTION LIST IS THE SHAPE scripts/agentgen's TestNoBulletIsAuthoredTwice REFUSES,
-// and it is tolerable here for one reason: an entry that stops rendering exactly twice FAILS, so
-// the list cannot outlive a copy, cannot hide a third one, and only shrinks. Phase D ends with this
-// declaration deleted. Every other duplicate fails now.
-var dOwnedDuplicates = map[string]map[string]bool{
-	"red-chair": {
-		"The plan permits a PASS only when no lens is ready — every lens has sat at the head or has retired — and nothing another seat must clear holds it.":                                                                     true,
-		"BEFORE a PASS, read the changes since each stale area's pin and name those areas in your spot-check; a defect you find there goes in that spot-check, and you record no verdict.":                                       true,
-		"YOUR PASS LISTS EVERY OPEN GAP THAT IS NOT MATERIAL, BY CLASS — your work list marks each — with one line on why it changes no reader decision, on the record.":                                                         true,
-		"A lens with no gap engaged is readied when it has never sat or the report head has moved since its last sitting, and not otherwise.":                                                                                    true,
-		"Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens.":                                                                                                          true,
-		"It holds two things no act of the sitting holds: what you ask the bench to hold, and why you left untaken a step the record offered you — a closure not restated, a gap not put before the bench, a verdict held back.": true,
-		"It restates no act and nothing on the board: the record holds every grade, closure, ruling and dispatch of this sitting, and the bench reads them there.":                                                               true,
-	},
-	"blue-researcher": {
-		"Three sittings in a row with no fresh material mint retire it, and a head move does not ready a retired lens.":                                                                                                                               true,
-		"It holds two things no act of the sitting holds: what you ask the bench to weigh, and why you left untaken a route the record offered you — a repair a gap's fix prescribed that you did not make, a gap you rebutted rather than repaired.": true,
-		"It restates no edit, manifest row or motion: each carries its own reason on the record.":                                                                                                                                                     true,
-	},
 }
 
 // driveEverySite runs the shipped debate.js under everySiteBackend and returns every dispatch it

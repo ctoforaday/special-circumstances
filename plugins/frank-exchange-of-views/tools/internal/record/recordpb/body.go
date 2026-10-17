@@ -50,6 +50,12 @@ func SetBody(ev *Event, body proto.Message) (EventType, error) {
 					"that type, so every reader switching on `type` would skip the body silently",
 				fd.Name(), strings.ToUpper(string(fd.Name())))
 		}
+		// AN ENUM NUMBER THE SCHEMA DOES NOT DECLARE IS REFUSED HERE, before the body is on the
+		// event: every write passes through SetBody, so no guard, validation or store downstream
+		// ever reads an undeclared value (CheckDeclared).
+		if err := CheckDeclared(body); err != nil {
+			return EventType_EVENT_TYPE_UNSPECIFIED, err
+		}
 		ev.ProtoReflect().Set(fd, protoreflect.ValueOfMessage(body.ProtoReflect()))
 		ev.Type = typ.Enum()
 		return typ, nil

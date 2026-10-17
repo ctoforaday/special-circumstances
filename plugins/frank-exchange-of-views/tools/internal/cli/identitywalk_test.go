@@ -125,7 +125,7 @@ func runnableCommands(t *testing.T, surface, runDir string) [][]string {
 	var walk func(c *cobra.Command, path []string)
 	walk = func(c *cobra.Command, path []string) {
 		for _, sub := range c.Commands() {
-			if sub.Name() == "help" || sub.Name() == "completion" {
+			if sub.Name() == "help" {
 				continue
 			}
 			p := append(append([]string{}, path...), sub.Name())

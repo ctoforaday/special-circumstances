@@ -133,8 +133,7 @@ func sharedAcrossSeats(path string) bool {
 
 // walkSurface is THE walk of one surface: every command on it, groups and leaves alike, in TREE
 // ORDER — a group before the commands it holds, siblings in the order cobra lists them — with
-// cobra's own `help` and `completion` left out, because they are not part of the contract a seat
-// learns.
+// cobra's own `help` left out, because it is not part of the contract a seat learns.
 //
 // The path handed to fn is what a seat TYPES on that surface (`inquiry propose`,
 // `motion grade file`, `show`), never a join key. Everything that asks "what is on this surface"
@@ -145,7 +144,7 @@ func walkSurface(root *cobra.Command, fn func(path []string, c *cobra.Command)) 
 	rec = func(c *cobra.Command, prefix []string) {
 		for _, sub := range c.Commands() {
 			name := sub.Name()
-			if name == "help" || name == "completion" {
+			if name == "help" {
 				continue
 			}
 			path := append(append([]string{}, prefix...), name)
@@ -254,11 +253,22 @@ func CommandPaths() []string {
 // repository keeps paying for.
 func AllRoots() map[string]*cobra.Command {
 	out := map[string]*cobra.Command{}
-	for _, role := range []string{"lens", "chair", "blue", "bench"} {
+	for _, role := range seatRoles {
 		out[role] = NewRootFor(dispatchedSeatFor(role))
 	}
 	out[record.OperatorRole] = NewRootFor(record.OperatorRole)
 	return out
+}
+
+// seatRoles are the roles with a seat surface, in the order every walk over the trees takes. A map
+// range picked a different tree's copy of a shared verb from run to run, so a flag check could pass
+// on one run and fail the next.
+var seatRoles = []string{"lens", "chair", "blue", "bench"}
+
+// SurfaceRoles names every tree AllRoots builds, without building one: a tree is the most
+// expensive value in this package, and a caller wanting five words should not pay for five.
+func SurfaceRoles() []string {
+	return append(append([]string{}, seatRoles...), record.OperatorRole)
 }
 
 // dispatchedSeatFor is a seat id of the given role, for building that role's tree in the gates and
