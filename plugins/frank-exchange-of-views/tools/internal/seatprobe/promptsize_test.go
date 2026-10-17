@@ -104,11 +104,15 @@ import (
 // clause every seat receives, the shortest wording that keeps all three and keeps a declaration
 // apart from the law's holdings of earlier runs, which only persuade; the declarations themselves
 // are the work list's, documented on its help page. No seat had that much headroom (blue-respond
-// and red-lens-evidence 81, judge 65, red-chair 45), so each ceiling rises by its measured excess
-// to the measured size: blue-respond 9,557, red-chair 6,393, red-lens-evidence 10,557, judge 5,973.
+// and red-lens-evidence 81, judge 65), so each ceiling rises by its measured excess to the measured
+// size: blue-respond 9,557, red-lens-evidence 10,557, judge 5,973. The chair holds 6,300 with the
+// duty and the final-sitting sentence both, measuring 6,284, by leaving two mechanics to the tool:
+// its relay sentence names what it must not alter by class (anything dropped, added or altered fails
+// the dispatch-parity audit, a blocker, pass_permitted or ceiling included) rather than field by
+// field, and the PASS refusal of a board that does not permit one is the verdict page's.
 var ceilings = map[string]int{
 	"blue-respond":      9557,
-	"red-chair":         6393,
+	"red-chair":         6300,
 	"red-lens-evidence": 10557,
 	"judge":             5973,
 }
