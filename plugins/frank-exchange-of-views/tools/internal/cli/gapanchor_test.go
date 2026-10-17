@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -222,8 +223,10 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 	t.Run("a prescription", func(t *testing.T) {
 		runDir := newRun(t)
 		writeReport(t, runDir, report)
+		// The accept carries the gap's own anchor on red's text, so the refusal names it, the first
+		// anchor the heading would take.
 		_, err := mintQuote(t, runDir, "G", "The sieve", "--new", "## The sieve")
-		if err == nil || !strings.Contains(err.Error(), "this edit puts <!--fx:F-0000bbbb--> on a section heading") {
+		if err == nil || !regexp.MustCompile(`this edit puts <!--gap:G-[0-9a-f]{8}--> on a section heading`).MatchString(err.Error()) {
 			t.Fatalf("refusal = %v, want lens mint to refuse the heading", err)
 		}
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {

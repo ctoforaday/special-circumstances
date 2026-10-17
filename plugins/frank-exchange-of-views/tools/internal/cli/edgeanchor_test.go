@@ -14,8 +14,10 @@ import (
 // The shape is smoke m18's: a sentence holding a citation and a gap before its terminator, blue
 // quoting and rewriting its prose alone. The edit applies, the run's bytes stand after the new text
 // and before the terminator, the event records the replacement as written and every anchor of the
-// run as reopened — and a lens prescribing a fix on that sentence, its quote stopping at the same
-// place, mints, with or without the terminator: the pair an acceptance sends carries the run.
+// run as reopened. A lens prescribing a rewording of that sentence, its quote stopping at the same
+// place, is judged as the accept would apply it, with the run inside the span: the citation does not
+// survive the rewording, so the mint is refused, with or without the terminator, and the same
+// rewording with the citation written into it mints, the gap's anchor at the quote's end.
 //
 // A REPLACEMENT THAT ENDS ITS OWN SENTENCE IS REFUSED while the run stays put (gblock, 2026-10-10;
 // universe-m19's ev358, ev434, ev435, ev436): the refusal names every anchor of the run, the report
@@ -72,9 +74,15 @@ func TestAnAnchorRunAtTheQuotesEndStaysWhereItStands(t *testing.T) {
 		t.Run("mint"+term, func(t *testing.T) {
 			runDir := acceptRun(t)
 			cite := citeSentence(t, runDir, acceptS+".", "https://costs/1")
-			gap, err := mintQuote(t, runDir, "G", acceptS+term, "--new", acceptN+term)
+			if _, err := mintQuote(t, runDir, "R", acceptS+term, "--new", acceptN+term); err == nil || !strings.Contains(err.Error(), cite) {
+				t.Fatalf("a rewording that drops the citation on its sentence = %v, want refused naming %s", err, cite)
+			}
+			if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
+				t.Fatalf("the refused prescription recorded %d mint(s)", n)
+			}
+			gap, err := mintQuote(t, runDir, "G", acceptS+term, "--new", acceptN+anchor.Token(cite)+term)
 			if err != nil {
-				t.Fatalf("a prescription whose quote stops before the citation on its sentence was refused: %v", err)
+				t.Fatalf("a prescription writing the citation into its rewording was refused: %v", err)
 			}
 			if rep := readReport(t, runDir); !strings.Contains(rep, acceptS+anchor.Token(gap)+anchor.Token(cite)+".") {
 				t.Errorf("the gap's anchor is not at the quote's end, before the citation already there:\n%s", rep)

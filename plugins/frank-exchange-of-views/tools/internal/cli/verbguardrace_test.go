@@ -203,17 +203,12 @@ func TestEstoppelIsAskedOfTheRecordTheMintLandsOn(t *testing.T) {
 func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	id := record.NewID("finding")
-	// THE TREE IS DRIVEN WITHOUT run's refusal checks: the refusal this race earns is the transit
-	// refusal bluedoc words for blue (anchor.Label names `edit` and `retire`), which reaches a lens
-	// through any --new over an anchored span, race or none — a wording defect of its own, not this
-	// guard's.
 	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
-		t.Cleanup(func() { _ = recordsql.CloseUnder(runDir) })
-		_, err := Invoke(NewRootFor(lensSeat), []string{"mint", "--run", runDir, "--seat-id", lensSeat,
+		_, err := runMint(t, runDir, "--run", runDir, "--seat-id", lensSeat,
 			"--key", "G1", "--class", "overclaim", "--problem", "the defect", "--fix", "the fix",
 			"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--complexity", "low",
-			"--quote", raceSentence + ".", "--new", "Costs rose modestly across the first quarter."}, lensSeat)
+			"--quote", raceSentence+".", "--new", "Costs rose modestly across the first quarter.")
 		return err
 	})
 	md := renders(t, runDir)
