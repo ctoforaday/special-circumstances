@@ -60,4 +60,16 @@ func TestAPassPermittedAtTheLastEpochIsNotTheEpochLimit(t *testing.T) {
 	if !plan.PassPermitted || plan.EpochLimitReached || plan.Ceiling {
 		t.Fatalf("plan = %+v, want PASS permitted and no epoch-limit ceiling", plan)
 	}
+	// AND THE CHAIR IS TOLD THE SITTING IS FINAL, with nobody ready as with parties held back.
+	if !plan.FinalSitting || plan.Epoch != 2 {
+		t.Errorf("plan = %+v, want epoch 2 and the final sitting", plan)
+	}
+	writeRunConfig(t, b.runDir, `{"maxEpochs":3}`)
+	if plan, _ := PlanDispatch(run); plan.FinalSitting || plan.Epoch != 2 {
+		t.Errorf("plan at epoch 2 of 3 = %+v, want epoch 2 and not the final sitting", plan)
+	}
+	writeRunConfig(t, b.runDir, `{"k":2}`)
+	if plan, _ := PlanDispatch(run); plan.FinalSitting {
+		t.Errorf("plan with no maxEpochs on the run = %+v, want no final sitting", plan)
+	}
 }

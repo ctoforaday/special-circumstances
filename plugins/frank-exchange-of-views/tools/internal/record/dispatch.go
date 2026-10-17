@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -105,6 +106,13 @@ type Plan struct {
 	Ceiling bool `json:"ceiling"`
 	// MaxEpochs is the run's epoch limit (Params.MaxEpochs); 0 when the run is held to none.
 	MaxEpochs int `json:"max_epochs" min:"0" desc:"the run's epoch limit, a term setup records; 0 when the run is held to none"`
+	// Epoch is the epoch the record has reached: the chair sittings opened so far, this one included.
+	Epoch int `json:"epoch" min:"0" desc:"the epoch the record has reached: the chair sittings opened so far, this one included"`
+	// FinalSitting: this chair sitting opens the run's last epoch (isFinalEpoch), whoever the board
+	// readies. No seat is dispatched after it, so of the motions filed in it only a petition is heard
+	// in time to change how the run ends — by the bench at the exit — and `motion … file` refuses the
+	// others there (HeardInTime).
+	FinalSitting bool `json:"final_sitting" desc:"this chair sitting opens the run's last epoch: no seat is dispatched after it, and of the motions filed now only a petition is heard, by the bench at the exit"`
 	// EpochLimitReached: this chair sitting opens the run's last epoch with parties the board
 	// readies, and they are not dispatched — the run ends CEILING. A last epoch with nobody ready
 	// is not at the limit: it ends as any empty plan does.
@@ -425,7 +433,9 @@ func foldPlan(params Params, r planReads) Plan {
 	// the chair records the PASS as ever. The docket stands — filing a motion dispatches no seat,
 	// and the terminal bench rules what stays unruled at the exit.
 	plan.MaxEpochs = params.MaxEpochs
-	if params.MaxEpochs > 0 && len(plan.Parties) > 0 && win.LastEpoch(evs) >= params.MaxEpochs {
+	plan.Epoch = win.LastEpoch(evs)
+	plan.FinalSitting = isFinalEpoch(params, plan.Epoch)
+	if plan.FinalSitting && len(plan.Parties) > 0 {
 		plan.Why = append(plan.Why, fmt.Sprintf("epoch limit %d reached — this chair sitting opens the run's last epoch, so the %d party(ies) above are not dispatched", params.MaxEpochs, len(plan.Parties)))
 		plan.Parties = []Party{}
 		plan.EpochLimitReached, plan.Ceiling = true, true
@@ -441,6 +451,56 @@ func foldPlan(params Params, r planReads) Plan {
 		}
 	}
 	return plan
+}
+
+// isFinalEpoch reports whether epoch is the run's last under its epoch limit: the chair sitting that
+// opens epoch MaxEpochs is the run's final sitting, and no seat is dispatched after it. The plan
+// reads it for who is dispatched, the verdict for CEILING after the exit, and the write path for the
+// motions nobody is left to hear. A run held to no limit has no final sitting.
+func isFinalEpoch(params Params, epoch int) bool {
+	return params.MaxEpochs > 0 && epoch >= params.MaxEpochs
+}
+
+// HeardAtTheExit reports whether a motion of subj filed at the run's final sitting still reaches a
+// seat that can change how the run ends. A petition does: the terminal bench hears a petition standing
+// at the exit, and it may halt the run there — a petition is the channel for an objection that the run
+// must not go on, and the last sitting is no exception. A docket motion does not: the terminal bench
+// rules it, and the run ends CEILING however it rules (epochLimitHeldTheBench). A grade motion does
+// not: the chair rules it, and the chair does not sit again.
+func HeardAtTheExit(subj recordpb.MotionSubject) bool {
+	return subj == recordpb.MotionSubject_MOTION_SUBJECT_PETITION
+}
+
+// HeardInTime is the guard of a seat's motion filing: at the run's final sitting a motion of a subject
+// not HeardAtTheExit is refused and nothing is written. The chair rules no motion after that sitting
+// and the bench is convened for none before the exit, so such a motion holds the PASS until the run
+// ends, and a docket motion ends the run CEILING however the terminal bench rules it
+// (epochLimitHeldTheBench). Asked under the write lock, as every verb's check is. The docket the
+// dispatch files at impasse is not a seat's motion and passes no such guard: it is the terminal
+// bench's to rule.
+func HeardInTime(subj recordpb.MotionSubject) Guard {
+	return Check(func(l *Landing) error {
+		if HeardAtTheExit(subj) {
+			return nil
+		}
+		epochs, err := epochsAt(l.w.q)
+		if err != nil || len(epochs) == 0 {
+			return err
+		}
+		params, err := l.w.files.params()
+		if err != nil {
+			return err
+		}
+		epoch := epochs[len(epochs)-1]
+		if !isFinalEpoch(params, epoch) {
+			return nil
+		}
+		word := recordpb.Word(subj)
+		return feov.Errorf(feov.Conflict, "a %s motion filed at the run's final sitting is not heard in time: the record is at epoch %d, the last under the run's epoch limit of %d, and no seat is dispatched after this sitting. "+
+			"Recorded, it would hold the PASS until the run ends, and no ruling on it could change how the run ends. Nothing was recorded. "+
+			"At the final sitting the chair records the verdict the board permits — a PASS where the plan permits one, or a FAIL — or none, and the run's outcome is derived from the record as it stands. "+
+			"What the motion would have argued goes in a position, which the transcript carries to the bench at the exit; an objection that the run must not go on is a petition, which the bench hears at the exit", word, epoch, params.MaxEpochs)
+	})
 }
 
 // PlanFacts is what the record holds, at one point of its stream, of the plan fields no dispatch
@@ -553,7 +613,7 @@ func (r PlanFactsReader) At(end int) PlanFacts {
 // dispatched after that sitting, so every such ruling is the exit's.
 func epochLimitHeldTheBench(params Params, r planReads) bool {
 	evs, win := r.evs, r.win
-	if params.MaxEpochs <= 0 || win.LastEpoch(evs) < params.MaxEpochs {
+	if !isFinalEpoch(params, win.LastEpoch(evs)) {
 		return false
 	}
 	ids := win.IDs(evs)

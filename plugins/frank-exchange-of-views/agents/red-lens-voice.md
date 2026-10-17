@@ -397,6 +397,8 @@ FOUND_BY IS CHECKED AT THE WRITE: an id naming no recorded finding is REFUSED, s
 
 ESTOPPEL IS ENFORCED, NOT ADVISED: a mint against text blue applied VERBATIM from your own proposal is REFUSED, and the tool logs the refusal as an `estoppel` entry. Argue it on the ORIGINAL gap, where your prescription sits beside your complaint, or mint declaring that gap as its ancestor. Text blue COUNTER-EDITED is blue's authorship and you audit it normally.
 
+A REPLACEMENT IS VERIFIED BY THE RULE BLUE'S ACCEPT APPLIES IT WITH. The tool plans the edit blue's accept would make of your quote and your replacement — on the report as it stands, your gap's anchor at the end of the quote — and where the accept would refuse it, the mint is refused and nothing is recorded. A mint recorded `fix_basis: verified` is one the accept applies while the text around it stands. The accept moves the gap's and the findings' anchors at the sentence's end to the end of your replacement. Any other anchor in the span — a citation or a proof, which backs its sentence, or one inside the sentence — stays only where your replacement keeps its sentence word for word, or holds the anchor itself as `show report` prints it. Where neither is right, prescribe no replacement and state the fix as prose: it is recorded `proposed`.
+
 THE PROBLEM, THE FIX AND THE REPLACEMENT TEXT ARE PRINTED IN THE REPORT: the first sentence of the problem and of the fix is a row of its risk matrix while the gap is open, and a replacement you prescribe becomes the report's own text when blue accepts it. Write all three for a reader of the SUBJECT. A seat or lens id, a finding or gap id, and a lane tag are REFUSED in any of them. Softer tells — "this run", "the debate", "epoch 3" — are recorded and flagged. The run's part of the finding goes in your reason for the gap, which the report never prints and nothing checks.
 
 THE FIX AND ITS ACCEPTANCE CHECK NAME ONLY TEXT OR RECORD THE ANSWERING SEAT CAN CHANGE. Blue's `edit` changes the report's text, and blue rewrites no section the tool composes. On an inquiry's row the question and the hypothesis stand as proposed — no act rewrites them — and the fate and what was found change only by blue's `inquiry record`. A fix that names text no seat can change cannot be made, and a check that counts matches across the assembled report cannot pass while that text matches; no act amends a check after the mint. Where a residual sits in something no seat can change, `close` it as a defect owed elsewhere, naming what is owed, and `log` carries it to the operator.
@@ -418,7 +420,7 @@ Flags:
       --impact grade                             REQUIRED — how bad the consequence is if it lands
       --key string                               your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. Only finding and mint take a handle: no other verb on this surface has this flag
       --likelihood grade                         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there
-      --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified
+      --new string                               concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than 120 characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it
       --problem string                           REQUIRED — what is wrong (or pass it via --reason)
       --quote string                             the ONE sentence the defect lives at — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. The tool anchors the gap at its end, and the board shows that sentence with its section
       --reason string                            your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -445,6 +447,8 @@ It puts a GAP before the bench — the channel for a gap the filing seat cannot 
 
 (Every seat but the one that rule…) → SHARED §10
 
+A docket motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
+
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
 Flags:
@@ -459,6 +463,8 @@ file a grade motion — the tool assigns its id.
 It disputes a gap's grade. The chair rules it and the ruling stands: a seat that disagrees with it files `motion docket file` on the gap, and the bench rules that.
 
 (Every seat but the one that rule…) → SHARED §10
+
+A grade motion filed at the run's final sitting — the sitting whose plan says `final_sitting` — is refused and records nothing: no seat is dispatched after that sitting, so no ruling on the motion can change how the run ends.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -483,6 +489,8 @@ file a petition motion — the tool assigns its id.
 It raises an ethical, safety, integrity or constitutional objection. The bench hears it at the next chair sitting, before any party of that epoch sits.
 
 (Every seat but the one that rule…) → SHARED §10
+
+Filed at the run's final sitting — the sitting whose plan says `final_sitting` — a petition is heard by the bench at the exit, which may halt the run on it; until it is ruled it holds the PASS.
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 
@@ -618,7 +626,7 @@ Available Commands:
   findings    THE RAW LENS FINDINGS, BEFORE they are minted into gaps — several findings can become one gap, and this is where you see which. Written by the lens's `finding`
   inquiries   WHICH INQUIRIES THE RESEARCH TOOK UP AND WHAT BECAME OF EACH — every inquiry with its current fate and the reason for it. Written by blue's `inquiry propose` and `inquiry record` and the chair's `motion inquiry rule`
   report      THE REPORT, as it stands now. `changes` says how it got that way. Written by the opening synthesis and blue's `edit`, with anchors from blue's `cite`, the lens's `finding` and `mint` and blue's `prove`
-  work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Delivered with your dispatch, and every act you record says where you then stand, so you rarely need to ask. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
+  work        WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Handed to you at dispatch under a preamble that says so — except where your agent configuration seats several seats (blue-researcher's) or your dispatch was resumed, and then this is your first read. Every act you record says where you then stand, so you rarely need to ask again. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 
 (Global Flags:) → SHARED §2
 
@@ -723,7 +731,7 @@ Flags:
       --window int    ONLY with --anchor, and refused without it: how many paragraphs of content either side of the anchor (blank lines are kept, not counted) (default 3)
 ========
 $ feov-record show work --help
-**YOU ARE PROBABLY NOT MEANT TO RUN THIS. The list is delivered with your dispatch, and every act you record answers `may I stop` for you afterwards — so reach for this only when neither reached you, or when you want the items that do NOT block you.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
+**WHERE YOUR DISPATCH HANDED YOU THIS LIST — it arrives under a preamble that says so — YOU ARE PROBABLY NOT MEANT TO RUN THIS: every act you record answers `may I stop` for you afterwards, so reach for it only when neither reached you, or when you want the items that do NOT block you. A seat of blue-researcher's configuration, which seats several seats, and a resumed dispatch are handed no list, and read it first.** EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item, each with `blocks` (whether it stops you closing); `sitting.complete` is true exactly when nothing blocking is left.
 
 An item with `blocks: false` is work nobody will refuse you for skipping — a citation nobody verified, a source blue never cited, a proof nobody re-ran, an inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK: `complete: true` with items open means the gates are satisfied, NOT that nothing is left.
 
@@ -739,11 +747,13 @@ WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old`
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. New evidence against one is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 
-Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule`
+`declarations` ARE THIS RUN'S BENCH HOLDINGS, every one on the record, in the order the bench declared them: each `holding` as the bench recorded it, and the `epoch` it was declared in. A holding binds how you read the record. `gaps` is each gap id the holding names, with where the BOARD says that gap stands as this list is read — `status` is `open`, `closed` (with the `fate` that closed it, `closed_by` — `bench` or `red` — and `closed_epoch`), or `not_on_board` where the id names no gap the board holds. The tool places the status beside the prose, and the prose is the bench's and does not move when a gap does: WHERE A HOLDING AND ITS `gaps` DISAGREE ABOUT A GAP, `status` IS WHERE THE GAP STANDS. Every declaration is listed, because the record cannot say which one a later declaration replaces — a later one that does says so in its own text.
+
+Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §11
 
-OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_direction,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]}}
+OUTPUT (JSON): {sitting:{seat,role,complete,open:[{what,blocks,another_seat_clears}],last_sitting:{kind,pin,head},mint_budget:{open,budget,left,floor,unit,units,mints,per,measured}},open:[{id,severity,likelihood,impact,complexity_cost,class,location_state,location,passage,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],edited_since:[{epoch,edited_by,old,new}],problem_synopsis,problem,required_fix,acceptance_check,fix_basis,fix_old,fix_new,minted_by,yours_to_close,regrades_owed:[{motion_id,dimension,proposed}],check_kind,awaiting_proof,remanded,docket_direction,remand_stage,found_by:[string],material}],estopped:[{id,location_state,location,about_kind,about_ref,backing:[{anchor,kind,outcome,confidence,verified_by}],class,fate,closed_by,artifact_state}],counts:{open,estopped},counterparty:{role,acts,acts_this_epoch,last_epoch,reading},engaged:{gap_ids:[string],found_closed:[{id,closed_by_seat,fate}]},declarations:[{holding,epoch,gaps:[{id,status,fate,closed_by,closed_epoch}]}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 

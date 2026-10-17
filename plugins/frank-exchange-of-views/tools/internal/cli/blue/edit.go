@@ -130,11 +130,9 @@ func newEdit() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			oldStr, newStr := oldStr, newStr
+			var a Accepted
 			if accepting {
-				// The pair is read over the render the edit validates against, so the accepted span
-				// carries the gap's anchor as the report holds it.
-				loc, fix, found, err := l.Proposal(gapID, peek)
+				loc, fix, found, err := l.Prescription(gapID)
 				if err != nil {
 					return err
 				}
@@ -144,39 +142,30 @@ func newEdit() *cobra.Command {
 				if strings.TrimSpace(fix) == "" {
 					return feov.Errorf(feov.Conflict, "--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
 				}
-				oldStr, newStr = loc, fix
-				if err := typedPair(oldStr, newStr); err != nil {
-					return err
-				}
-			}
-			// Computed before the edit can be refused below, so the note rides on the result.
-			// Nothing here can refuse: the tells are collected and ride back on the result.
-			tells = spanVoiceTells(newStr)
-
-			planned, applied, exact, err := validateEdit(peek, oldStr, newStr)
-			if err != nil {
-				// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` now refuses to verify one,
-				// but a gap minted before it did can still carry one, and calling it stale would send blue
-				// to hunt for a change in the report that never happened.
-				if accepting && errors.Is(err, reportproj.ErrNoChange) {
+				a, err = PlanAccept(peek, gapID, loc, fix)
+				// A PRESCRIPTION THAT CHANGES NOTHING IS NOT STALE. `lens mint` refuses to verify one, but
+				// the report can move under a verified fix until it changes nothing, and calling that stale
+				// would send blue to hunt for a change in the report that never happened.
+				if errors.Is(err, reportproj.ErrNoChange) {
 					return fmt.Errorf("--accept: the fix recorded on %s changes nothing — applied to the report as it stands, "+
 						"it leaves every byte where it is (%w). There is nothing to accept. If the defect red named is still there, write the "+
 						"edit yourself with --quote and --new; if it is not, argue that on the gap", gapID, err)
 				}
 				// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
-				// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
-				// commonest is the transit check's: blue placed a citation anchor against the span red
-				// located, the accepted pair carries the run the gap's anchor stands in, and red's text
-				// has no word-for-word sentence to put the citation back on.
-				if accepting {
+				// --quote or to copy an anchor into --new, and an accepting caller passes neither. The mint
+				// was judged by this same planner over the report as it stood, so what refuses it now is a
+				// change since: commonest, a citation blue placed on the sentence red located, which red's
+				// text has no word-for-word sentence to put back on.
+				if err != nil {
 					return fmt.Errorf("--accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
 						"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
 				}
+			} else if a, err = planTyped(peek, oldStr, newStr); err != nil {
 				return err
 			}
-			if err := composedRefusal(peek, planned); err != nil {
-				return err
-			}
+			oldStr, newStr, planned, applied, exact := a.Old, a.New, a.Planned, a.Applied, a.Exact
+			// Nothing here can refuse: the tells are collected and ride back on the result.
+			tells = spanVoiceTells(newStr)
 
 			body.Old = proto.String(oldStr)
 			body.New = proto.String(applied) // with any anchor the tool put back, so replay splices the same bytes
@@ -262,6 +251,36 @@ func typedPair(old, new string) error {
 	return nil
 }
 
+// Accepted is the edit `--accept` makes of a gap's prescription: the pair it sends, the report it
+// plans, the replacement with any anchor the tool put back, and whether it took the literal span.
+type Accepted struct {
+	Old, New, Planned, Applied string
+	Exact                      bool
+}
+
+// PlanAccept is THE judgement of whether a gap's prescription applies: loc and fix as its mint records
+// them, over report with the gap's anchor standing in it. `edit --accept` applies the edit it plans,
+// and `lens mint` records a fix verified exactly where it plans one over the report the mint lands
+// on, its anchor placed — so a verified fix is one the accept applies, and one the accept would refuse
+// is refused at the mint. Two judges of one pair are how a mint came to verify fixes every accept
+// refused (m25: 0 of 3 applied).
+func PlanAccept(report, gapID, loc, fix string) (Accepted, error) {
+	old, new := record.ProposalOver(report, gapID, loc, fix)
+	if err := typedPair(old, new); err != nil {
+		return Accepted{}, err
+	}
+	return planTyped(report, old, new)
+}
+
+// planTyped is the edit of old by new over report, as every edit plans it.
+func planTyped(report, old, new string) (Accepted, error) {
+	planned, applied, exact, err := validateEdit(report, old, new)
+	if err == nil {
+		err = composedRefusal(report, planned)
+	}
+	return Accepted{Old: old, New: new, Planned: planned, Applied: applied, Exact: exact}, err
+}
+
 // errBunched is the edit guard's refusal of a bunched run (bunchedRun); the verb words it with
 // bunchedRefusal once the write has rolled back.
 var errBunched = feov.Errorf(feov.Validation, "the replacement carries a run of anchors to the end of its last sentence")
@@ -325,8 +344,8 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 	// over the splice before the tidy: the run opens a sentence of its own exactly when the
 	// replacement closed the one before it.
 	//
-	// Here and not in PlanSplice: `lens mint` checks a prescription before the gap's anchor stands,
-	// and the pair --accept sends carries that run (record.Proposal), so it is never stay-put.
+	// The pair --accept sends, and `lens mint` judges, carries the run holding the gap's anchor
+	// (record.ProposalOver), so it is never stay-put.
 	// A literal span holds the terminator, and a run past a terminator is on no sentence of the span.
 	if start, end, err := bluedoc.LocateUniqueReplacing(report, old); err == nil && !exact {
 		if run, punct := bluedoc.AbuttingRun(report, end); run != "" && punct == 0 && claimcount.HasProse(applied) {

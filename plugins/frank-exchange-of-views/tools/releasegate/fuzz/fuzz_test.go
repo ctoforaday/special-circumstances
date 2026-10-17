@@ -236,6 +236,9 @@ type runner struct {
 	// next write — kept here so the driver can name a prior epoch to --carried-from without reading
 	// it back out of a seat id, which carries none.
 	chairRegisters int
+	// declared is how many `declare` calls the record accepted — the count every role's work list
+	// must carry, read back by the declarations oracle.
+	declared int
 	// minter: gap id -> the LENS seat whose mint created it. THE ORIGINATOR CLOSES (roundless
 	// §III.B.3): the record refuses a `close` (without --carried-from) or a `regrade` on a gap
 	// from any seat but the one whose mint created it, so every close and regrade this driver
@@ -978,14 +981,14 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
 	if err != nil {
 		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	var env struct {
 		OK     bool           `json:"ok"`
 		Result map[string]any `json:"result"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
-		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}}
 	}
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
@@ -2295,10 +2298,24 @@ func (r *runner) extras(role, seatID string, open []string) {
 			r.do("certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
 		})
 		// A DECLARATION MOVES NO GAP, which is why it takes no --id and why the coverage walk
-		// would otherwise never reach it: every other bench act names something.
+		// would otherwise never reach it: every other bench act names something. It NAMES an open
+		// gap most of the time, in the prose a bench writes — bare, or as the report's anchor token
+		// — so every later work list states that gap's board status beside it as the gap moves, and
+		// the declarations oracle in runOne holds each list to the board.
 		r.maybe(35, func() {
-			r.do("declare", seatID).
-				set("--reason", "fuzz holding: a term is construed this way for the rest of the run").run()
+			holding := "fuzz holding: a term is construed this way for the rest of the run"
+			if len(open) > 0 && r.coin(70) {
+				id := pick(r.rng, open)
+				if r.coin(50) {
+					id = anchor.Token(id)
+				}
+				holding = id + " remains open; " + holding
+			}
+			if _, err := r.do("declare", seatID).set("--reason", holding).run(); err == nil {
+				r.mu.Lock()
+				r.declared++
+				r.mu.Unlock()
+			}
 		})
 	}
 }
@@ -2475,7 +2492,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 
 	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
-		r.extras("bench", seatID, nil)
+		// THE BOARD'S OPEN GAPS, for a declaration to name: the bench is engaged on no gap of its
+		// own here, so this list is the only one that gives a fuzz holding a gap to write about.
+		r.extras("bench", seatID, r.openGaps())
 		// THE TERMINAL SITTING RULES WHAT STILL STANDS whose gavel is the bench's: the petitions,
 		// and the docket motions — a gap docketed at the sitting that reached the epoch limit was
 		// dispatched to nobody, and `bench outcome` refuses while its motion stands.
@@ -3521,6 +3540,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
 			return res
 		}
+	}
+	// A DECLARED GAP READS AS THE BOARD STATES IT, on every role's list. The fuzz bench writes
+	// "remains open" whatever becomes of the gap, so a status read from the prose, or off a read the
+	// board does not make, disagrees here on whatever shape the sweep reached.
+	if msg := declarationsAgreeWithBoard(stageRun, r.declared); msg != "" {
+		res.err = msg
+		return res
 	}
 	// READING THE REPORT AT AN ANCHOR, over the anchors this run actually minted.
 	//
@@ -5996,4 +6022,48 @@ func forcedWhyClause(why string) string {
 		return " The run stated no exit reason."
 	}
 	return " It exited on: " + why
+}
+
+// declarationsAgreeWithBoard is "" when every role's work list carries the run's declared count of
+// declarations and each gap one names reads as the board states that gap; otherwise what disagreed.
+func declarationsAgreeWithBoard(run record.Run, declared int) string {
+	bj, err := record.BoardJSONOfRun(run)
+	if err != nil {
+		return "declarations oracle: the board does not read: " + err.Error()
+	}
+	board := map[string]record.GapJSON{}
+	for _, g := range append(append([]record.GapJSON{}, bj.Open...), bj.Closed...) {
+		board[g.ID] = g
+	}
+	for _, rs := range [][2]string{{"blue", "blue-respond"}, {"lens", "red-lens-evidence"}, {"chair", "red-chair"}, {"bench", "judge"}} {
+		w, err := record.WorkOfSeat(run, rs[0], rs[1])
+		if err != nil {
+			return "declarations oracle: " + rs[1] + "'s work list does not read: " + err.Error()
+		}
+		if len(w.Declarations) != declared {
+			return fmt.Sprintf("declarations oracle: %s's work list carries %d declarations; the record accepted %d", rs[1], len(w.Declarations), declared)
+		}
+		for _, d := range w.Declarations {
+			for _, dg := range d.Gaps {
+				g, onBoard := board[dg.ID]
+				want := record.DeclaredGapJSON{ID: dg.ID, Status: "not_on_board"}
+				switch {
+				case onBoard && g.Open:
+					want.Status = "open"
+				case onBoard:
+					want = record.DeclaredGapJSON{ID: dg.ID, Status: "closed", Fate: dg.Fate, ClosedBy: "red", ClosedEpoch: g.ClosedEpoch}
+					if g.ClosedByBench {
+						want.ClosedBy = "bench"
+					}
+					if dg.Fate == "" {
+						return fmt.Sprintf("declarations oracle: %s's list names closed gap %s with no fate", rs[1], dg.ID)
+					}
+				}
+				if dg != want {
+					return fmt.Sprintf("declarations oracle: %s's list reads declared gap %+v; the board says %+v", rs[1], dg, want)
+				}
+			}
+		}
+	}
+	return ""
 }

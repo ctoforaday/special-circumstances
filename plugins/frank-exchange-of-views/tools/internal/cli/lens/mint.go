@@ -8,8 +8,10 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -154,7 +156,7 @@ func newMint() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return verifiedFix(p, report, seat.Str(cmd, flags.Quote), fixNew)
+				return verifiedFix(p, report, gapID, seat.Str(cmd, flags.Quote), fixNew)
 			}))
 		}
 		p.AcceptanceCheck = proto.String(seat.Str(cmd, flags.Check))
@@ -267,7 +269,7 @@ func newMint() *cobra.Command {
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
 	flags.Text(c, flags.Problem, "what is wrong (or pass it via --reason)")
 	flags.Text(c, flags.Fix, "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
-	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified", bluedoc.MaxProposalGrowth))
+	flags.Text(c, flags.New, fmt.Sprintf("concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. A replacement more than %d characters longer than the span is refused as AUTHORING — a substantive addition is blue's to write, and you say so in --fix. Passing it records fix_basis: verified, and it is refused where blue's accept would refuse it", bluedoc.MaxProposalGrowth))
 	flags.Text(c, flags.Check, "the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description. For a class defect, the check is the enumerating command and its pass condition")
 	enumhelp.Flag(c, flags.CheckKind, record.MustEnum("mint", "check_kind"), ("what would SETTLE that check"))
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
@@ -341,22 +343,33 @@ type estopped struct{ prior, prescribed string }
 
 func (e estopped) Error() string { return "estoppel against " + e.prior }
 
-// verifiedFix marks p's fix verified where --quote and --new are a pair blue could apply to report
-// verbatim — refusing a pair that is not legal, or that would change nothing.
-func verifiedFix(p *recordpb.Mint, report, quote, fixNew string) error {
-	if err := bluedoc.ValidateProposal(report, quote, fixNew); err != nil {
+// verifiedFix marks p's fix verified where --quote and --new are a pair blue's accept applies to report
+// with the gap's anchor placed — judged by the accept's own planner (blue.PlanAccept), so a fix
+// verified here is one the accept applies, and one it would refuse is refused here.
+func verifiedFix(p *recordpb.Mint, report, gapID, quote, fixNew string) error {
+	if err := bluedoc.RefuseAuthoring(quote, fixNew); err != nil {
 		return err
 	}
-	// A FIX THAT CHANGES NOTHING IS NOT VERIFIED. The pair can be distinct, present and legal
-	// and still be a no-op once located — a repair confined to trailing punctuation the quote
-	// could not reach. Asked through the SAME planner `blue edit` records with, so a prescription
-	// passes here exactly when blue's --accept would apply it. Not inside bluedoc: reportproj
-	// owns the splice and already imports bluedoc. Past ValidateProposal, its one other refusal
-	// is an anchor the fix puts on a heading, which stands as it is.
-	if _, _, _, err := reportproj.PlanSplice(report, quote, fixNew); errors.Is(err, reportproj.ErrNoChange) {
+	placed, err := anchortext.Attach(report, gapID, quote)
+	if err != nil {
+		return err
+	}
+	if _, err := blue.PlanAccept(placed, gapID, quote, fixNew); errors.Is(err, reportproj.ErrNoChange) {
 		return fmt.Errorf("%w A prescription blue would apply to no effect cannot be verified: fix the quote so its replacement changes the report, or state the fix as prose in --fix", err)
 	} else if err != nil {
-		return err
+		// The accept's refusal of a dropped anchor is worded for blue, whose acts it names; red's is the
+		// same fact, the anchor and its sentence.
+		why := err.Error()
+		var dropped *bluedoc.ErrAnchorDropped
+		if errors.As(err, &dropped) {
+			why = fmt.Sprintf("the span carries %s %s %s, and --new neither carries it nor keeps that sentence word for word", anchor.Kind(dropped.ID), anchor.Token(dropped.ID), dropped.On())
+		}
+		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of --quote: %s. "+
+			"NOTHING IS RECORDED. A fix is verified only where the accept applies it, so what the accept would refuse is refused here. "+
+			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a proof, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
+			"Where such an anchor is what does not survive: keep the sentence it marks word for word in --new, and the tool puts the anchor back on it; "+
+			"or write the anchor into --new after the text it marks, as `show report` prints it; "+
+			"or leave --new off and state the fix as prose in --fix", why)
 	}
 	p.FixNew = proto.String(fixNew)
 	p.FixBasis = proto.String("verified")

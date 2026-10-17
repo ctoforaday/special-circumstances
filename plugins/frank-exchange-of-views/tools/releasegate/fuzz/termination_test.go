@@ -120,7 +120,7 @@ func plan(parties []any, pass, ceiling bool, docket []any, why string) map[strin
 		blockers = debatejs.HeldBy(parties)
 	}
 	return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": pass, "ceiling": ceiling,
-		"max_epochs": 0, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers}
+		"max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{why}, "stale_areas": []any{}, "blockers": blockers}
 }
 
 func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch, debatejs.Outcome, *board) {
@@ -139,7 +139,7 @@ func runSchedule(t *testing.T, script string, sched []move) ([]debatejs.Dispatch
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "termination", "rulings": []any{},
-			"dispositions": []any{}, "holdings": []any{}, "manifest": []any{},
+			"dispositions": []any{}, "manifest": []any{},
 			"saturation_reached": false,
 		}
 		switch {

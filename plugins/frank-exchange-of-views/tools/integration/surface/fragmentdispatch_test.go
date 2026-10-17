@@ -257,7 +257,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 	gap := anchor.ID("gap", [4]byte{3: 1})
 	plan := func(parties, docket, blockers []any, pass bool) map[string]any {
 		return map[string]any{"head": 2, "parties": parties, "docket": docket, "remand_owed": []any{}, "exchanges": []any{},
-			"pass_permitted": pass, "ceiling": false, "max_epochs": 0, "epoch_limit_reached": false,
+			"pass_permitted": pass, "ceiling": false, "max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false,
 			"why": []any{"fragment dispatch"}, "stale_areas": []any{}, "blockers": blockers}
 	}
 	var parties []any
@@ -271,7 +271,7 @@ func everySiteBackend(agentTypes []string) debatejs.Backend {
 		map[string]any{"seat_id": "judge", "gap_ids": []any{gap}, "occasions": []any{"petition", "docket"}})
 	chair := 0
 	return func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "fragment dispatch", "rulings": []any{}, "dispositions": []any{}, "holdings": []any{},
+		e := debatejs.Envelope{"synopsis": "fragment dispatch", "rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{gap}, "saturation_reached": false, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++

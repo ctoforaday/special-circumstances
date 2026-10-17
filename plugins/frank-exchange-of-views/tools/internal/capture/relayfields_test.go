@@ -74,6 +74,8 @@ var planVariants = map[string]planVariant{
 	"Plan.Ceiling":                {"ceiling", func(p map[string]any, i int) { p["ceiling"] = i%2 == 1 }},
 	"Plan.MaxEpochs":              {"max_epochs", func(p map[string]any, i int) { p["max_epochs"] = 90 + i }},
 	"Plan.EpochLimitReached":      {"", func(p map[string]any, i int) { p["epoch_limit_reached"] = true }},
+	"Plan.Epoch":                  {"", func(p map[string]any, i int) { p["epoch"] = 30 + i }},
+	"Plan.FinalSitting":           {"", func(p map[string]any, i int) { p["final_sitting"] = i%2 == 1 }},
 	"Plan.Blockers[].Kind": {"blockers", func(p map[string]any, i int) {
 		entry(p, "blockers", 0)["kind"] = []string{"contradiction", "reopened", "no_report"}[i]
 	}},
@@ -155,7 +157,7 @@ func relayFixture(t *testing.T) (run record.Run, first, last func() map[string]a
 				map[string]any{"gap_id": "G1", "count": 0, "unresolved": 0},
 				map[string]any{"gap_id": "G2", "count": 0, "unresolved": 0},
 			},
-			"pass_permitted": false, "ceiling": false, "max_epochs": 0, "epoch_limit_reached": false,
+			"pass_permitted": false, "ceiling": false, "max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false,
 			"why": []any{"a reason"}, "stale_areas": []any{}, "blockers": standing()}
 	}
 	last = func() map[string]any {
@@ -211,12 +213,12 @@ func drivenEpochs(t *testing.T, plans []map[string]any) int {
 	t.Helper()
 	chair := 0
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{}, "holdings": []any{},
+		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++
 			e["plan"] = map[string]any{"head": 2, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": true,
-				"ceiling": false, "max_epochs": 0, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}}
+				"ceiling": false, "max_epochs": 0, "epoch": 1, "final_sitting": false, "epoch_limit_reached": false, "why": []any{}, "stale_areas": []any{}, "blockers": []any{}}
 			if chair <= len(plans) {
 				e["plan"] = plans[chair-1]
 			}

@@ -646,6 +646,10 @@ type WorkJSON struct {
 	// answer a gap another seat can close first. The key is never omitted: the help's field tree
 	// names it, and a top-level key a reader was told of and cannot find reads as a failed read.
 	Engaged *EngagedJSON `json:"engaged"`
+	// Declarations are the bench's holdings, every one on the record, each gap one names beside the
+	// board's status for it — on every seat's list, because a holding binds every seat. See
+	// DeclarationJSON.
+	Declarations []DeclarationJSON `json:"declarations"`
 }
 
 // GapBackingJSON is one anchor in a gap's location, and what the record knows about it.
@@ -956,6 +960,7 @@ type WorkGapState struct {
 	route                            gapRoute
 	unruledDocket                    bool
 	Fate                             string // the last closer's word; closed gaps only
+	closedEpoch                      int    // the epoch of the act that closed it; closed gaps only
 	Severity, Likelihood, Impact, Cx any
 	FoundBy, Supersedes              []string
 	// Material, ClassMaterial, Stranded and SupersededBy are the view's columns the PASS gate
@@ -1080,7 +1085,7 @@ func workGapStatesOf(run Run, r workReads) ([]WorkGapState, error) {
 			return nil, fmt.Errorf("the work list cannot be computed: %w", err)
 		}
 		if c != nil {
-			g.Fate = c.reason()
+			g.Fate, g.closedEpoch = c.reason(), c.closedEpoch
 		}
 		out = append(out, g)
 	}
@@ -1168,7 +1173,7 @@ func workJSONOfGaps(gaps []WorkGapState, since int, verified map[string]GapBacki
 	// Sitting carries its own list, and it is initialised HERE as well as in SittingOf: a WorkJSON
 	// built without a sitting still marshals one, and a nil there renders `"open": null` — "not
 	// computed" where the truth is "nothing open".
-	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}}
+	out := WorkJSON{Open: []WorkGapJSON{}, Estopped: []EstoppedJSON{}, Sitting: SittingJSON{Open: []Item{}}, Declarations: []DeclarationJSON{}}
 	for _, g := range gaps {
 		if g.Open {
 			item := WorkGapJSON{
@@ -1357,6 +1362,7 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
 	w.Engaged = engagedOf(evs, win, seatID)
+	w.Declarations = declarationsOf(evs, win, gaps)
 	return w, nil
 }
 
@@ -1844,7 +1850,7 @@ const LocationStates = "Each quote gap carries `location_state`: `" + LocationMa
 // the pair is located from the location AS MINTED, which the marking below replaces. The board and
 // the work item both take the pair from here, so neither can serve one the other does not.
 func locateGap(report string, err error, g *WorkGapState) {
-	g.FixOld, g.FixNew = proposalOver(report, g.ID, g.Location, g.FixNew)
+	g.FixOld, g.FixNew = ProposalOver(report, g.ID, g.Location, g.FixNew)
 	if g.Location == "" {
 		return
 	}

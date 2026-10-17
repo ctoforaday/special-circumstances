@@ -50,6 +50,8 @@ var relayedPlanFields = map[string]relayField{
 	"Plan.PassPermitted":          {relayCompared, "false on each paired relay: the record permits a PASS only with nobody dispatched. On a plan with no parties it reaches the engine's log line and return value only"},
 	"Plan.Ceiling":                {relayCompared, "false on each paired relay: the record is at its ceiling only with nobody dispatched. On a plan with no parties the engine states CEILING from it, and the bench's `outcome` derives the word from the record and refuses one it cannot derive"},
 	"Plan.MaxEpochs":              {relayCompared, "every relayed plan, against the run's terms"},
+	"Plan.Epoch":                  {relayNotActedOn, "type-checked by the engine and never read after: the chair reads it"},
+	"Plan.FinalSitting":           {relayNotActedOn, "type-checked by the engine and never read after: the chair reads it, and the record refuses a motion filed at the final sitting whatever the relay says"},
 	"Plan.Blockers[].Kind":        {relayCompared, "every relayed plan, at its chair sitting's end, for the kinds record.RelayBlockerKinds names; the other kinds read SQL as it stands now or move by the chair's own review, and the engine's valve keys on none of them"},
 	"Plan.Blockers[].Subject":     {relayCompared, "with its kind"},
 	"Plan.Blockers[].Owner":       {relayCompared, "with its kind"},
