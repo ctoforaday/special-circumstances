@@ -32,7 +32,7 @@ func drivePlans(t *testing.T, plans []map[string]any, extra Envelope) ([]Dispatc
 	t.Helper()
 	chair := 0
 	backend := func(seatID, label, prompt string) Envelope {
-		e := Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{}, "holdings": []any{},
+		e := Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
 		for k, v := range extra {
 			e[k] = v

@@ -16,9 +16,8 @@ import (
 //
 // This is the edge with the defect history. debate.js reads no record, so a fact reaches a
 // later seat only if it travels on an envelope and the engine threads it into a prompt — and
-// three separate defects were exactly that thread missing: holdings shipped and reached no
-// reader (#503), relief reached one hardcoded site and bound nobody else (#360), and blue
-// received adjudicated gaps as a bare subtraction (#524). Each was found by reading, one at a
+// two separate defects were exactly that thread missing: relief reached one hardcoded site and
+// bound nobody else (#360), and blue received adjudicated gaps as a bare subtraction (#524). Each was found by reading, one at a
 // time, months apart, because nothing asks the question.
 //
 // It is answered by EXECUTION, not by parsing. Each field is filled with a sentinel that could
@@ -44,7 +43,6 @@ func deliverySentinel(field string) string {
 // each is asserted. A field NOT listed here is reported and not asserted — the difference
 // between "this must travel" and "this was measured".
 var deliveryExpectations = map[string]string{
-	"judge.holdings":                "the envelope's own comment says a holding reaches other seats ONLY if it travels here, because debate.js reads no record (#503)",
 	"judge.dispositions.settled":    "the barred proposition — red's estoppel line is built from it (#517) and blue's duty is statable only through it (#524)",
 	"judge.dispositions.reopens_on": "the other assertable answer to what would reopen a ruling; a seat that cannot see it cannot honour or contest the bar",
 }
@@ -56,6 +54,7 @@ var deliveryNotForwarded = map[string]string{
 	"red.log":                      "deliberate — a seat's log entries are on the record and no envelope schema declares `log`; a seat that returns one anyway is read by nobody, and a prompt carrying it is the envelope channel back (#1267)",
 	"blue.log":                     "as above, from the other party",
 	"judge.dispositions.rationale": "deliberate — the prompts tell every seat THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT, and forwarding it would ship the snapshot that instruction exists to prevent",
+	"judge.holdings":               "deliberate — no envelope schema declares it: a holding binds as a declaration on the record, which every seat's work list carries with the board's status beside each gap it names. One returned on the envelope anyway is read by nobody, and a prompt carrying it would relay bench prose about a gap's status that does not move when the gap does",
 	"red.notes":                    "NOT deliberate as far as anything states: `notes` appears exactly once in debate.js, on its own schema line, and no engine branch and no prompt reads it. Filed as #662; listed here so the gate stays honest until that is resolved",
 }
 
@@ -85,7 +84,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			"synopsis": "delivery graph", "verdict": "FAIL", "citations_checked": 0,
 			"gaps": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
-			"dispositions": []any{}, "grade_motions": []any{}, "holdings": []any{},
+			"dispositions": []any{}, "grade_motions": []any{},
 			"manifest":           []any{"G1", "G2"},
 			"saturation_reached": false, "open_gaps": []any{},
 		}

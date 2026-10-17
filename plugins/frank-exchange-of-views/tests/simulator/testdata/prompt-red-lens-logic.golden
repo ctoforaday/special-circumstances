@@ -1,4 +1,4 @@
-prompt sha256: ef2ff25e3f081eb2572d57f656927b93fbe62e2af6424b8469124883e323eda2
+prompt sha256: 154090eb1a86a737a7207ea214c671efaee5cbd879f016b3016aecaf10036875
 
 Red lens sitting, area logic, topic "the seat prompt contract".
 STEELMAN DUTY: read the exploration space via the `inquiries` projection (the tool renders it fresh from the inquiry events on the record).
@@ -49,6 +49,7 @@ A sitting with nothing to do runs no commands — it says so in its synopsis and
 SEAT_ID: red-lens-logic.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
+THIS RUN'S BENCH HOLDINGS BIND HOW YOU READ THE RECORD; each is on your work list, and the board, not a holding, says where a gap stands.
 A single command's own page prints at "/opt/feov/bin/feov-record" --seat-id red-lens-logic <command> --help.
 The projection names, this prompt's words for a concept, and the command that writes it are three different vocabularies and they do not always agree.
 The help is the only authoritative one, and this prompt names the JOB, never the flags.
