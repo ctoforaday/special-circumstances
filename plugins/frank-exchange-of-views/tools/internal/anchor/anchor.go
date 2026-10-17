@@ -72,7 +72,7 @@ var otherIDs = []kind{
 }
 
 // lifecycle is what Label says of every kind alike, because every kind lives the same way.
-const lifecycle = " (the tool places it and every edit carries it; its claim leaves by `edit` down to the bare anchor, then `retire`, which takes the anchor out with it — never by a raw edit)"
+const lifecycle = " (the tool places it and every edit carries it; its claim leaves by `edit`, which carries the anchor, then `retire`, which takes the anchor out with it — never by a raw edit)"
 
 const tokenOpen, tokenClose = "<!--", "-->"
 
