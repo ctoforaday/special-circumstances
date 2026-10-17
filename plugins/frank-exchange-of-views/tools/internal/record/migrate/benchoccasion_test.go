@@ -8,6 +8,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // A BENCH ROW WRITTEN BEFORE EPOCH 19 CONVENED THE BENCH FOR ITS DOCKET, and migrated it says so.
@@ -56,18 +58,20 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 	t.Logf("%d archived bench row(s) migrated as a docket", bench)
 }
 
-// AN ARCHIVED RUN STORES NO PLAN, AND ITS ROWS NO REMAND EXCHANGE. Every archive predates the stored
-// plan (epoch 31): migrate reconstructs none — today's fold over the record's prefix is not what the
-// binary that ran it printed — so the relay audit on a migrated run reports that it compared nothing.
-// The census reads every archive and fails on a stored plan or on an archive set holding no dispatch
-// row, because the translation would then be tested by nothing.
-func TestAnArchivedRunStoresNoPlan(t *testing.T) {
+// AN ARCHIVED RUN'S STORED PLANS ARE THE ONES IT STORED, AND ITS ROWS NO REMAND EXCHANGE. An archive
+// written before the stored plan (epoch 31) migrates with none: migrate reconstructs none — today's
+// fold over the record's prefix is not what the binary that ran it printed — so the relay audit on
+// such a run reports that it compared nothing. An archive written at this binary's epoch carries the
+// plans it stored, byte for byte. The census reads every archive and fails on a plan the source did
+// not store, a stored plan lost or altered, or an archive set holding no dispatch row, because the
+// translation would then be tested by nothing.
+func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 	dir := filepath.Dir(archivePath(t, "2026-09-11_is-91-prime-b9.tar.gz"))
 	tarballs, err := filepath.Glob(filepath.Join(dir, "*.tar.gz"))
 	if err != nil || len(tarballs) == 0 {
 		t.Fatalf("no archived run found under %s: %v", dir, err)
 	}
-	rows := 0
+	rows, carried := 0, 0
 	for _, tb := range tarballs {
 		name := filepath.Base(tb)
 		res, dst := migrateArchive(t, name)
@@ -79,9 +83,33 @@ func TestAnArchivedRunStoresNoPlan(t *testing.T) {
 			t.Fatal(err)
 		}
 		stored, err := record.StoredPlans(fam.Events)
-		if err != nil || len(stored) != 0 {
-			t.Errorf("%s: migrated with %d stored plan(s), %v — an archive stores none", name, len(stored), err)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
 		}
+		// THE SOURCE'S OWN PLANS, read with this binary — which opens only a record of its epoch;
+		// an older one stores none.
+		var want []string
+		if res.SourceEpoch != nil && *res.SourceEpoch >= 31 {
+			src, err := record.FamilyOf(runtest.Open(t, recordtest.ExtractArchive(t, name)))
+			if err != nil {
+				t.Fatalf("%s: the source does not open: %v", name, err)
+			}
+			sp, err := record.StoredPlans(src.Events)
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			for _, p := range sp {
+				want = append(want, p.Printed)
+			}
+		}
+		var got []string
+		for _, p := range stored {
+			got = append(got, p.Printed)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: migrated with %d stored plan(s), the source stored %d — a migrated record stores exactly the source's plans, byte for byte", name, len(got), len(want))
+		}
+		carried += len(want)
 		for _, e := range fam.Events {
 			if _, ok := recordpb.BodyAs[*recordpb.Dispatch](e); ok {
 				rows++
@@ -91,7 +119,7 @@ func TestAnArchivedRunStoresNoPlan(t *testing.T) {
 	if rows == 0 {
 		t.Fatal("no archived run holds a dispatch row — the translation is exercised by nothing")
 	}
-	t.Logf("%d archived dispatch row(s) migrated; no archive stores a plan", rows)
+	t.Logf("%d archived dispatch row(s) migrated; %d stored plan(s) carried", rows, carried)
 }
 
 // A ROW'S REMAND EXCHANGE IS NOT CARRIED: the row is translated word for word without it.
