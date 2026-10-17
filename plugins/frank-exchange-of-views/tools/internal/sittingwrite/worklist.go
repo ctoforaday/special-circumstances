@@ -42,7 +42,7 @@ const (
 		"each item with whether it blocks you finishing; `sitting.complete` is the answer to whether " +
 		"anything does. The bench's holdings are in `declarations`, each gap one names beside where the " +
 		"board says it stands now. Act on it, and read it again from your surface after you have " +
-		"recorded anything, because your own acts move it."
+		"recorded anything, because your own acts move it, and so do the acts of the seats dispatched beside you."
 
 	// unreadable is the preamble on a list that could NOT be read, and it exists so that this case
 	// and an empty list are not the same bytes. A seat handed "nothing is open to you" when the truth

@@ -4994,11 +4994,12 @@ type Retire struct {
 	// bibliography entry in the assembled report, an empty `- ?` bullet, and a segment the claim
 	// counter still counted, which let a retire credit a claim that had never left the count.
 	//
-	// Filled only when the retired claim IS the whole of a recorded edit's old span (across the
-	// anchor layer, modulo surrounding whitespace, emphasis and trailing punctuation — a fragment
-	// names nothing) and that edit's new text was anchors alone, and only with anchors that are
-	// present AND bare in the report at the write — so an anchor carried on into surviving prose can
-	// never be named. An anchor of every kind leaves alike. Each named c- anchor is one counted claim
+	// Filled with the anchors that stood on the retired claim in the edit that took it out — the
+	// claim being the whole of that edit's old span or a run of its whole sentences, across the anchor
+	// layer, modulo surrounding whitespace, emphasis and trailing punctuation (a fragment names
+	// nothing): each that is present AND bare in the report at the write, and each the seat names
+	// that the edit carried onto surviving prose and no later edit put back into prose. An anchor of
+	// every kind leaves alike. Each named c- anchor is one counted claim
 	// leaving the report. Replay removes each named anchor at
 	// this event's position (the report_op view's `remove` rows). A record written before this field
 	// carries none, and replays exactly as it did.

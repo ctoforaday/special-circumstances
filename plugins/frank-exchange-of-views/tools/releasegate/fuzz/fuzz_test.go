@@ -3506,10 +3506,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			// shape and there is no expected entry list to compare against. A regex of one dot matches
 			// every character, so it must keep everything the unselected read had; a quote nothing can
 			// contain must keep nothing. The counts come from the tool's own `selection` block rather
-			// than from counting the output here, so this reads the answer the SEAT reads — and a view
-			// that renders text instead of JSON simply carries no block and is driven without it.
+			// than from counting the output here, so this reads the answer the SEAT reads.
+			//
+			// ON THE --json FORM, WHICH IS WHAT THE PAIR SELECTS. A markdown form refuses it, and on a
+			// view that is JSON by name the flag is the same bytes; so every view that carries the pair
+			// answers with a selection block, and one that does not is a failure rather than a skip. A
+			// view whose page carries no pair is not driven with one.
+			if !viewSelects(role, group, v) {
+				continue
+			}
 			for _, sel := range [][]string{{"--match", "."}, {"--quote", impossibleQuote}} {
-				sargs := append([]string{group, v, "--run", runDir, "--seat-id", sid}, sel...)
+				sargs := append([]string{group, v, "--run", runDir, "--seat-id", sid, "--json"}, sel...)
 				out, err := drive(bin, sargs...)
 				if err != nil {
 					res.err = role + " " + group + " " + v + " " + strings.Join(sel, " ") + " failed: " + err.Error()
@@ -3522,11 +3529,24 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					} `json:"selection"`
 				}
 				if json.Unmarshal([]byte(strings.TrimSpace(string(out))), &doc) != nil || doc.Selection == nil {
-					continue // a text view, or a refusal the drive already reported
+					res.err = fmt.Sprintf("%s %s %s --json %s answered with no selection block — the pair it carries did not select:\n%s",
+						role, group, v, strings.Join(sel, " "), out)
+					return res
 				}
-				if sel[0] == "--match" && doc.Selection.Matched != doc.Selection.Of {
+				// THE REPORT'S `of` IS ITS LINE COUNT, blank lines included, and a selection never keeps a
+				// blank line — so there everything means every line with text on it.
+				want := doc.Selection.Of
+				if v == "report" {
+					n, err := reportTextLines(bin, group, runDir, sid)
+					if err != nil {
+						res.err = role + " " + group + " report --json failed: " + err.Error()
+						return res
+					}
+					want = n
+				}
+				if sel[0] == "--match" && doc.Selection.Matched != want {
 					res.err = fmt.Sprintf("%s %s %s --match . kept %d of %d — a pattern matching every character dropped entries",
-						role, group, v, doc.Selection.Matched, doc.Selection.Of)
+						role, group, v, doc.Selection.Matched, want)
 					return res
 				}
 				if sel[0] == "--quote" && doc.Selection.Matched != 0 {
@@ -4580,6 +4600,44 @@ var viewNamesForFuzz = seat.ViewNames()
 // literal `role == "bench" || role == "chair"` here would be that rule written twice, going stale
 // the next time it moves. The rule has already moved once, and a hardcoded "show" at the call sites
 // is exactly what failed when it did.
+// reportTextLines is how many of the report's lines carry text, read off its unselected --json form.
+func reportTextLines(bin, group, runDir, sid string) (int, error) {
+	out, err := drive(bin, group, "report", "--run", runDir, "--seat-id", sid, "--json")
+	if err != nil {
+		return 0, err
+	}
+	var doc struct {
+		Lines []struct {
+			Text string `json:"text"`
+		} `json:"lines"`
+	}
+	if err := json.Unmarshal(out, &doc); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, ln := range doc.Lines {
+		if strings.TrimSpace(ln.Text) != "" {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// viewSelects reports whether the view's page, in this role's tree, carries the selector pair.
+func viewSelects(role, group, view string) bool {
+	for _, c := range seat.RoleVerbs(role) {
+		if c.Name() != group {
+			continue
+		}
+		for _, sub := range c.Commands() {
+			if sub.Name() == view {
+				return sub.Flags().Lookup("match") != nil
+			}
+		}
+	}
+	return false
+}
+
 func roleHasGroup(role, group string) bool {
 	for _, c := range seat.RoleVerbs(role) {
 		if c.Name() == group {
