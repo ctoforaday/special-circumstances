@@ -114,6 +114,20 @@ func TestCaptureReassemblesTheRunDocumentAndFoldsItsOwnAudits(t *testing.T) {
 	if !strings.Contains(report, "run.md: ") {
 		t.Errorf("the report does not say what was folded into run.md:\n%s", report)
 	}
+	// WHAT PRODUCED THEM IS NAMED, and it is this binary. Both files named a JavaScript module
+	// deleted long before the 2026-10-17 smoke read them.
+	costMd, err := os.ReadFile(filepath.Join(run.Dir(), "cost.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"run-record-audit.md": report, "cost.md": string(costMd), "run.md": doc} {
+		if strings.Contains(body, ".mjs") {
+			t.Errorf("%s names a .mjs file, and no JavaScript produces it", name)
+		}
+	}
+	if !strings.HasPrefix(report, "# capture-audit — mechanized post-hoc checks (feov-record capture)") {
+		t.Errorf("run-record-audit.md does not name what wrote it:\n%s", report)
+	}
 }
 
 // A RUN WITH NO WORKFLOW JOURNAL CAN BE CLOSED, AND IS NOT CALLED CLEAN FOR IT.
