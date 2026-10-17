@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // write drops a script into the run dir and returns its run-relative path.
@@ -131,12 +133,12 @@ func TestReproduceReRunsAndAgrees(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ok, got, want, err := Reproduce(runDir, res.SHA)
+	rr, err := Reproduce(runDir, res.SHA)
 	if err != nil {
 		t.Fatalf("Reproduce: %v", err)
 	}
-	if !ok {
-		t.Errorf("a reproducible proof did not reproduce: got %q want %q", got, want)
+	if !rr.Matches || len(rr.ToolCalls) != 0 {
+		t.Errorf("a reproducible proof did not reproduce: got %q want %q (tool calls %q)", rr.Got, rr.Want, rr.ToolCalls)
 	}
 }
 
@@ -161,9 +163,39 @@ func TestEmptyScriptIsRefused(t *testing.T) {
 	}
 }
 
+// A SCRIPT THAT CALLS THE TOOL NEVER REPRODUCES, AND IS GRADED AS ONE NO CHECKER CAN RUN. The
+// stand-in does what feov-record does under a checker's run — appends its call to the marker the
+// run names (seatenv.VarProofRerun) — and prints the same 0 either way, as a script piping the
+// tool's refusal through `jq` does. Its output alone could never tell the re-run anything.
+func TestAScriptThatCallsTheToolNeverReproduces(t *testing.T) {
+	hasNode(t)
+	runDir := t.TempDir()
+	s := write(t, runDir, "reads-the-record.js", `const fs = require("fs");
+if (process.env.`+seatenv.VarProofRerun+`) fs.appendFileSync(process.env.`+seatenv.VarProofRerun+`, "feov-record show board --json\n");
+console.log("0");`)
+	res, err := Run(runDir, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Basis != NotPortable || !strings.Contains(res.Drift, "calls feov-record (feov-record show board --json)") {
+		t.Errorf("prove graded a script that calls the tool %q (%q), want not_portable naming the call", res.Basis, res.Drift)
+	}
+	rr, err := Reproduce(runDir, res.SHA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rr.Matches || len(rr.ToolCalls) != 1 || rr.ToolCalls[0] != "feov-record show board --json" {
+		t.Errorf("the re-run of a script that called the tool reads matches=%v calls=%q — its output %q equals the recorded %q, and that is the hiding this exists to end", rr.Matches, rr.ToolCalls, rr.Got, rr.Want)
+	}
+	// The marker is the run's own: the environment this test runs in never carries it.
+	if os.Getenv(seatenv.VarProofRerun) != "" {
+		t.Errorf("%s leaked into the caller's environment", seatenv.VarProofRerun)
+	}
+}
+
 // Reproducing something never recorded must fail loudly, not report agreement with nothing.
 func TestReproduceRefusesAnUnknownProof(t *testing.T) {
-	if _, _, _, err := Reproduce(t.TempDir(), "deadbeef"); err == nil {
+	if _, err := Reproduce(t.TempDir(), "deadbeef"); err == nil {
 		t.Fatal("reproducing a proof that was never recorded reported success")
 	}
 }

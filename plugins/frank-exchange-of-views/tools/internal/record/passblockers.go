@@ -42,8 +42,8 @@ const (
 // Blocker is one thing on the board holding the PASS gate, and the seat whose act clears it.
 type Blocker struct {
 	Kind BlockerKind
-	// Subject is what holds it: a gap id, a claim, a lens seat, a motion id — "" for the kinds that
-	// are about the run as a whole (no_report, inquiry_review).
+	// Subject is what holds it: a gap id, a contradiction's id, a lens seat, a motion id — "" for
+	// the kinds that are about the run as a whole (no_report, inquiry_review).
 	Subject string
 	// Owner is the seat whose act clears it — the gap's minter, the lens that read the
 	// contradicting source, the ready lens, the motion's gavel-holder, the chair for its own
@@ -51,7 +51,7 @@ type Blocker struct {
 	Owner string
 	// Detail is what the wording needs beyond the subject: a stranded gap's successor, a motion's
 	// subject and gavel, a stale area's pin, a reopened proof's sha256 (""
-	// for a reopened citation).
+	// for a reopened citation), a contradiction's claim.
 	Detail string
 	// About is the gap an unruled motion is about, "" for a motion about no gap.
 	About string
@@ -118,6 +118,10 @@ func ownerOr(b Blocker, fallback string) string {
 // contradictionReader is who raises a contradiction when the record names no reader.
 const contradictionReader = "a lens"
 
+// contradictionFact is a contradiction's name on every surface: the word and its id, which is the
+// `--about` value that answers it. A bare decimal would read as a count.
+func contradictionFact(b Blocker) string { return "contradiction " + b.Subject }
+
 // reopenedFact is the one sentence every wording of a reopened blocker states: which anchor, the
 // edit that changed its sentence, and its latest check — all three as the record
 // holds them, so a reader can go to each.
@@ -180,24 +184,24 @@ var blockerKinds = []blockerKind{
 		kind: BlockerContradiction, relayHeld: true,
 		gloss: "a contradicting source no finding raises",
 		item: func(b Blocker) string {
-			return fmt.Sprintf("red read a source that contradicts or does not support the claim %q and no finding raises it — PASS is refused until one does; %s raises it", b.Subject, ownerPhrase(b, "reader", contradictionReader))
+			return fmt.Sprintf("%s: red read a source that contradicts or does not support the claim %q and no finding raises it — PASS is refused until one does; %s raises it with `finding --about-kind contradiction --about %s`, which answers it whether or not the sentence still stands", contradictionFact(b), b.Detail, ownerPhrase(b, "reader", contradictionReader), b.Subject)
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
 			for _, b := range bs {
 				if b.Owner == "" {
-					named = append(named, fmt.Sprintf("%q", b.Subject))
+					named = append(named, fmt.Sprintf("%s: %q", contradictionFact(b), b.Detail))
 					continue
 				}
-				named = append(named, fmt.Sprintf("%q (read by %s)", b.Subject, b.Owner))
+				named = append(named, fmt.Sprintf("%s: %q (read by %s)", contradictionFact(b), b.Detail, b.Owner))
 			}
 			return fmt.Sprintf("red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
-				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --quote \"<the claim>\" --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
+				"Each is red's own reading that the report says something its source does not. The lens that read it raises it with the lens's `finding --about-kind contradiction --about <its id> --reason \"<what the source actually says>\"`, graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has; a finding whose `--quote` contains the claim answers it as well, while the report still holds the sentence. "+
 				"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raising them is a lens's act; PASS waits for it, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("a source %s read contradicts or does not support %q and no finding raises it — %s", ownerOr(b, contradictionReader), b.Subject, planHold(b, "PASS is not permitted until one does"))
+			return fmt.Sprintf("%s: a source %s read contradicts or does not support %q and no finding raises it — %s", contradictionFact(b), ownerOr(b, contradictionReader), b.Detail, planHold(b, "PASS is not permitted until one does"))
 		},
 	},
 	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the evidence
@@ -213,7 +217,7 @@ var blockerKinds = []blockerKind{
 		item: func(b Blocker) string {
 			act := "reading it as it now stands against its source"
 			if b.Detail != "" {
-				act = "re-running it (`reproduce --id " + b.Detail + "`)"
+				act = "judging whether its script establishes the sentence as it now stands (`reproduce --anchor " + b.Subject + "`, which re-runs nothing once the script has reproduced)"
 			}
 			return fmt.Sprintf("%s — PASS is refused until a lens checks it from a sitting opened after the edit, by %s. %s",
 				reopenedFact(b), act, reopenedOwed)
@@ -225,7 +229,7 @@ var blockerKinds = []blockerKind{
 			}
 			return fmt.Sprintf("%d citation(s) or proof(s) are unchecked since their sentence changed:\n  %s\n"+
 				"Each check on the record is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
-				"A `verify` (any result but `unreachable`) or a `reproduce` from a sitting opened after the edit clears it, whichever lens records it. "+
+				"A `verify` of the citation (any result but `unreachable`) or a `reproduce` naming the proof's anchor, from a sitting opened after the edit, clears it, whichever lens records it. "+
 				"%s; PASS waits for the check, and `--as FAIL` does not",
 				len(bs), strings.Join(named, "\n  "), reopenedOwed)
 		},
@@ -424,8 +428,8 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	// ids IS evs's events.id, aligned with it — the place dispatchLedger and benchOccasionSittings read
 	// sittings by, and the one a stored sitting is named by — so a blocker's `since` and the
 	// sitting it is compared with are places in one sequence.
-	for _, c := range unansweredContradictionsBy(evs) {
-		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.claim, Owner: c.reader, since: ids[c.at]})
+	for _, c := range unansweredContradictions(evs, ids) {
+		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since})
 	}
 	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE EVIDENCE LENS IS IN THE CAST. A blocker whose
 	// owner cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence`

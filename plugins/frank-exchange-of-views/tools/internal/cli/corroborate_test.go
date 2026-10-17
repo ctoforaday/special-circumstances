@@ -157,7 +157,11 @@ func TestARefutingCorroborationIsClearedByAFindingAtItsQuote(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+		var claims []string
+		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+			claims = append(claims, c.Claim)
+		}
+		return claims
 	}
 	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",

@@ -301,12 +301,13 @@ var EnumFields = map[string][]EnumField{
 			Key: "check_kind", Flag: flags.CheckKind, Values: evsOf(recordpb.CheckKind(0).Descriptor()),
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",
 		},
-		// THE SAME SET `finding` CARRIES, FROM THE SAME DECLARATION, because it is the same question asked at
-		// the next step of one act. Mint's help used to send an omission back to a borrowed quote —
-		// "quote the sentence where it SHOULD be" — which is the handle the finding had just been
-		// taught to stop using.
+		// THE SET `finding` CARRIES, LESS `contradiction`, FROM THE SAME DECLARATION, because it is
+		// the same question asked at the next step of one act. Mint's help used to send an omission
+		// back to a borrowed quote — "quote the sentence where it SHOULD be" — which is the handle the
+		// finding had just been taught to stop using. A contradiction is raised by a finding, and the
+		// gap is minted from that finding, so a gap is never about one (the write refuses it).
 		{
-			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
+			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: gapAboutKinds(),
 			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
 		},
 	},
@@ -348,4 +349,23 @@ func MustEnum(typ, key string) EnumField {
 		panic("record: no declared enum for " + typ + "." + key)
 	}
 	return e
+}
+
+// gapAboutKinds is what a gap may be about: the AboutKinds whose `gap_may_name` facet admits them.
+// A value that declares no facet panics, as a disposition with no `closes` does: read as admitted
+// by default, it would offer a gap an anchor nobody decided it may carry.
+func gapAboutKinds() []EnumValue {
+	ed := recordpb.AboutKind(0).Descriptor()
+	var out []EnumValue
+	for _, v := range evsOf(ed) {
+		vd, _ := recordpb.BySpelling(ed, v.Name)
+		may, declared, err := recordpb.Facet(vd, "gap_may_name")
+		if err != nil || !declared {
+			panic(fmt.Sprintf("about kind %s does not declare whether a gap may name it: %v", v.Name, err))
+		}
+		if may {
+			out = append(out, v)
+		}
+	}
+	return out
 }

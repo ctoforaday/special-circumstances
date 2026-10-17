@@ -2,7 +2,8 @@ package record
 
 import (
 	"database/sql"
-	"slices"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -287,29 +288,46 @@ type Proof struct {
 	// exchange that could not say what happened. That file is gone and this is a field.
 	Drift string
 
-	// Verified is red's independent re-run (#343): whether the proof reproduced for the
-	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
-	// itself information the reader needs, so the report says so rather than omitting it.
-	Verified *ProofVerification
+	// Rerun is the SCRIPT's standing re-run (#343): the latest `reproduce` of this sha that ran it,
+	// shared by every proof on the script. Nil when nobody re-ran it — and that absence is itself
+	// information the reader needs, so the report says so rather than omitting it.
+	Rerun *ProofRerun
+	// Soundness is THIS ANCHOR's sentence — sound | unsound | not_judged | reopened — and Judgements
+	// are the standing verdicts it is read from, one per seat (proofverdict.go).
+	Soundness  string
+	Judgements []ProofJudgement
 }
 
-// ProofVerification is one `reproduce` event: red re-ran the script and compared bytes.
-// `Reproduced` is COMPUTED by the tool, not claimed by the seat — which is the whole reason
-// re-running beats re-reading.
-type ProofVerification struct {
-	SeatID     string
-	Epoch      int
-	Sitting    int
-	Reproduced bool
-	// Sound is red's JUDGEMENT, made by reading the script: does it establish the claim it is
-	// anchored to? Reproducing measures determinism only.
-	Sound    bool
-	Note     string
-	Recorded string // only on a mismatch
-	Observed string
+// Reproduced is whether the script's standing re-run printed the recorded output.
+func (p Proof) Reproduced() bool {
+	return p.Rerun != nil && p.Rerun.Rerun == recordpb.Rerun_RERUN_REPRODUCED
 }
 
-// RecordedProofs returns every proof on the record, in event order.
+// Verified is the anchor's verdict: its script reproduced AND its own sentence is judged sound.
+func (p Proof) Verified() bool { return p.Reproduced() && p.Soundness == SoundnessSound }
+
+// ProofRerun is one `reproduce` that RAN a proof's script. The result is COMPUTED by the tool, not
+// claimed by the seat — which is the whole reason re-running beats re-reading.
+type ProofRerun struct {
+	SeatID  string
+	Epoch   int
+	Sitting int
+	Rerun   recordpb.Rerun
+	// Recorded and Observed are the two outputs, kept only where the re-run differed.
+	Recorded, Observed string
+}
+
+// ProofJudgement is one standing soundness verdict on a proof's anchor: red's JUDGEMENT, made by
+// reading the script, of whether it establishes that sentence.
+type ProofJudgement struct {
+	SeatID string
+	Epoch  int
+	Sound  bool
+	Note   string
+}
+
+// RecordedProofs returns every proof on the record, in event order, each with its script's re-run
+// and its own sentence's verdict.
 //
 // The OUTPUT and the SCRIPT BODY are deliberately not here: they live on disk under
 // <run>/proofs/<sha256>/ and can be large. The assembler reads them from the artifact so the
@@ -319,63 +337,16 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
-	// than in every reader.
-	//
-	// The latest re-run of a proof is Verified: a second re-run is admitted, and its reason says
-	// which earlier one it replaces.
-	verified := map[string]*ProofVerification{}
-	// The epoch and sitting stamped here are the ones the record holds red's re-run in.
-	for _, e := range m.Events {
-		w := m.At.Of(e)
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		r, isReproduce := body.(*recordpb.Reproduce)
-		if !isReproduce {
-			continue
-		}
-		v := &ProofVerification{
-			SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
-			// `reproduced` is COMPUTED by the tool and always written; an absent one reads
-			// false, which is what the old bool-assertion default did with a missing or
-			// wrongly-typed key. ProofVerification.Reproduced is a plain bool and cannot
-			// carry the absence, so the presence distinction stops here as it did before.
-			Reproduced: r.GetReproduced(),
-			// The seat types --as sound|unsound; the string compare against "sound" becomes
-			// the enum it was standing in for. UNSPECIFIED (absent) is not sound, exactly as
-			// an absent `soundness` key was not.
-			Sound: r.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
-			// --reason lands on Reproduce.note. The flag and the field are two vocabularies
-			// (recordpb/required.go says so outright: a close stores `prose`, an opinion
-			// `rationale`, and the flag for both is --reason); `note` is the only prose
-			// channel this message has.
-			Note:     r.GetNote(),
-			Recorded: r.GetRecordedOutput(), Observed: r.GetObservedOutput(),
-		}
-		verified[r.GetProofSha()] = v
-	}
-	// THREE FIELDS OF THIS PROJECTION HAVE NO FIELD ON `recordpb.Proof`, and they are left
-	// UNCONVERTED rather than defaulted — see the report to the lead. `blue prove` writes
-	// `script`, `exit` and `drift` onto the proof event (cli/blue/prove.go:85,86,90) and
-	// report/proofs.go renders all three: the script's path names the code fence's language,
-	// the exit code is a line of the Proofs section, and `drift` is describeDrift's SENTENCE
-	// ("exit code moved 2 -> 3"), which the schema's `optional bool drift` cannot carry.
-	// Zero-filling them would render a drifting proof as a clean one, in a section whose whole
-	// subject is whether the computation held — the plausible zero this migration exists to
-	// remove. The schema decision is the lead's; the compile error is the loud miss.
+	ledger := anchorChecksOf(m.Events, m.At)
+	reruns := scriptRerunsOf(m.Events)
 	var out []Proof
 	for _, e := range m.Events {
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		pf, isProof := body.(*recordpb.Proof)
+		pf, isProof := recordpb.BodyAs[*recordpb.Proof](e)
 		if !isProof {
 			continue
 		}
-		out = append(out, Proof{
+		v := proofVerdictOf(ledger.at(pf.GetProofId()), reruns)
+		p := Proof{
 			Label: pf.GetProofId(),
 			// Written as `sha256`, joined on as `proof_sha` — one fact, one field now.
 			SHA:    pf.GetProofSha(),
@@ -385,13 +356,37 @@ func RecordedProofs(run Run) ([]Proof, error) {
 			Cites:  pf.GetCites(),
 			// --reason lands on Proof.text, the message's only prose channel — the same
 			// flag/field split recordpb/required.go records for Verify.text.
-			Reason: pf.GetText(),
-			Drift:  pf.GetDrift(),
-			// nil when nobody re-ran it, which the report states rather than omits.
-			Verified: verified[pf.GetProofSha()],
-		})
+			Reason:    pf.GetText(),
+			Drift:     pf.GetDrift(),
+			Soundness: v.soundness,
+		}
+		if r := v.rerun; r != nil {
+			w := m.At.Of(r.ev)
+			p.Rerun = &ProofRerun{SeatID: r.ev.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting, Rerun: r.rerun,
+				Recorded: r.recorded, Observed: r.observed}
+		}
+		for _, c := range v.judgements {
+			r, _ := recordpb.BodyAs[*recordpb.Reproduce](c.ev)
+			p.Judgements = append(p.Judgements, ProofJudgement{SeatID: c.seat, Epoch: m.At.Of(c.ev).Epoch, Sound: c.holds, Note: r.GetNote()})
+		}
+		out = append(out, p)
 	}
 	return out, nil
+}
+
+// ProofAt is the recorded proof at one anchor, with its script's re-run and its sentence's verdict —
+// what `reproduce --anchor` acts on. An anchor no proof carries is refused by name.
+func ProofAt(run Run, anchorID string) (Proof, error) {
+	proofs, err := RecordedProofs(run)
+	if err != nil {
+		return Proof{}, err
+	}
+	for _, p := range proofs {
+		if p.Label == anchorID {
+			return p, nil
+		}
+	}
+	return Proof{}, fmt.Errorf("--anchor names %s, which no proof on this record carries (%d proof(s)) — it takes the id inside a proof's token in the report; `show evidence` lists every proof by its anchor", anchorID, len(proofs))
 }
 
 // ExistingCorroborationLabel returns the label this seat already minted for the same source and
@@ -422,8 +417,8 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 	return label, nil
 }
 
-// unansweredContradictions returns the claims where red read a source that CONTRADICTS the
-// report and no finding was ever raised about it.
+// contradictionsOf is every contradiction red recorded, in the order the record opened them, each
+// with the finding that answered it ("" while it is open). ids is evs's events.id, aligned with it.
 //
 // THE NEGATIVE HALF OF THE CORROBORATION AXIS HAS TO REACH THE BOARD. A supporting corroboration
 // becomes a footnote and reaches the reader that way; `refutes` and `absent` are not references
@@ -434,72 +429,132 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // THE TOOL DOES NOT DISCHARGE THE DUTY, and that is deliberate. Writing the finding here would
 // mean inventing its severity, likelihood and impact — three grades nobody chose, feeding the
 // mass calculation that decides what a gap is worth. A fabricated grade reads exactly like a
-// judged one. So the duty is REPORTED and red grades its own finding, the way
-// InquiryReviewDueOf reports a read that has not happened rather than pretending it did.
+// judged one. So the duty is REPORTED and red grades its own finding.
 //
-// The match is deliberately loose — any finding by any lens quoting the same claim answers it.
-// A stricter join (same seat, same epoch) would refuse a contradiction one lens found and
-// another raised, which is the collaboration the lens roles exist for.
+// THE RULE, PER CLAIM (gblock, 2026-10-06), folded in record order:
+//
+//   - A READING is a verify whose outcome contradicts (refutes | absent) a non-empty claim. The
+//     first reading of a claim with none open OPENS a contradiction, whose ID is that reading's
+//     events.id. A later reading of the same claim while it is open JOINS it: its seat becomes the
+//     owner, and `since` moves to it, so dispatch readies the new owner. The id does not change.
+//   - A FINDING ANSWERS the open contradiction it names, by reference (`--about-kind contradiction
+//     --about <id>`), or every open contradiction whose claim its quote contains. Either covers
+//     every reading joined so far, and the contradiction closes. A reading of the claim after the
+//     finding opens a NEW contradiction with its own id: the answer was to what had been read.
+//
+// THE REFERENCE IS THE ANSWER THAT SURVIVES AN EDIT. A quote must be the report's text at the
+// write, so once blue edits the contradicted sentence away no finding can quote it — the case that
+// held a PASS for the rest of a run whose report blue had FIXED (plans/v2/01). The id names the
+// reading, which an edit does not move.
 //
 // QUOTING THE CLAIM IS THE MATCHER'S QUESTION, NOT STRING EQUALITY. Both quotes are placed in the
 // report by anchortext, which reads whitespace runs as one separator and drops trailing
 // punctuation, so two spellings of one sentence place at one span — and a finding that quotes the
-// contradicted clause with the rest of its sentence is about that clause. A finding answers a
-// claim when the claim is located in the finding's quote, by that matcher. A finding on PART of
+// contradicted clause with the rest of its sentence is about that clause. A finding on PART of
 // the claim, or on another sentence, answers nothing: it does not quote what the source read.
-func unansweredContradictions(evs []*Event) []string {
-	var out []string
-	for _, c := range unansweredContradictionsBy(evs) {
-		out = append(out, c.claim)
+//
+// THE MATCH IS ANY LENS'S. A stricter join (same seat) would refuse a contradiction one lens found
+// and another raised, which is the collaboration the lens roles exist for.
+//
+// A reading that names a citation carries its anchor, so the anchor's checks (anchorChecksOf) are
+// the reader for anything a later rule asks of the sentence that reading was of.
+func contradictionsOf(evs []*Event, ids []int64) []contradiction {
+	var out []*contradiction
+	open := map[string]*contradiction{} // claim -> its open contradiction
+	answer := func(c *contradiction, by string) {
+		c.answeredBy = by
+		delete(open, c.claim)
 	}
-	return out
-}
-
-// contradiction is one unanswered contradiction and the seat whose verify last read the source
-// contradicting it — the lens whose act raises it — and where in the stream that verify sits, which
-// is when the lens came to owe it.
-type contradiction struct {
-	claim, reader string
-	at            int
-}
-
-// unansweredContradictionsBy is unansweredContradictions with each claim's reader: the seat of the
-// LATEST contradicting verify of the claim, so a re-read by another lens makes that lens the owner.
-func unansweredContradictionsBy(evs []*Event) []contradiction {
-	var quoted []string // every finding's quote
-	for _, e := range evs {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
-				quoted = append(quoted, loc)
+	for i, e := range evs {
+		body, _ := recordpb.Body(e)
+		switch b := body.(type) {
+		case *recordpb.Verify:
+			claim := strings.TrimSpace(b.GetClaim())
+			if !contradicts(b.GetOutcome()) || claim == "" {
+				continue
+			}
+			if c := open[claim]; c != nil {
+				c.reader, c.since = e.GetSeatId(), ids[i]
+				continue
+			}
+			c := &contradiction{id: ids[i], claim: claim, reader: e.GetSeatId(), anchor: b.GetAnchor(), since: ids[i]}
+			open[claim] = c
+			out = append(out, c)
+		case *recordpb.Finding:
+			if b.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
+				for _, c := range out {
+					if c.answeredBy == "" && strconv.FormatInt(c.id, 10) == strings.TrimSpace(b.GetAboutRef()) {
+						answer(c, b.GetId())
+					}
+				}
+			}
+			if loc := strings.TrimSpace(b.GetLocation()); loc != "" {
+				for _, c := range out {
+					if start, _ := anchortext.LocateSpan(loc, c.claim); c.answeredBy == "" && start >= 0 {
+						answer(c, b.GetId())
+					}
+				}
 			}
 		}
 	}
-	answered := func(claim string) bool {
-		return slices.ContainsFunc(quoted, func(loc string) bool {
-			start, _ := anchortext.LocateSpan(loc, claim)
-			return start >= 0
-		})
+	res := make([]contradiction, len(out))
+	for i, c := range out {
+		res[i] = *c
 	}
-	at := map[string]int{} // claim -> its place in out
+	return res
+}
+
+// requireOpenContradiction refuses a finding's reference to a contradiction that is not open: a
+// ref that is not an id, one no reading opened, or one a finding already answered — that refusal
+// names the answering finding. It runs on replay as well: the reading is written before the
+// finding that answers it, so a translated reference resolves and a mistranslated one is loud.
+func requireOpenContradiction(q recordsql.Querier, ref string) error {
+	ref = strings.TrimSpace(ref)
+	if _, err := strconv.ParseInt(ref, 10, 64); err != nil {
+		return fmt.Errorf("--about %q is not a contradiction's id: it is the number `show evidence` lists as the `id` of each of its unanswered_contradictions", ref)
+	}
+	evs, win, err := eventsOfAt(q, recordpb.EventType_EVENT_TYPE_VERIFY, recordpb.EventType_EVENT_TYPE_FINDING)
+	if err != nil {
+		return err
+	}
+	open := 0
+	for _, c := range contradictionsOf(evs, win.IDs(evs)) {
+		switch {
+		case c.idWord() == ref && c.answeredBy != "":
+			return fmt.Errorf("contradiction %s is already answered, by finding %s: one finding answers a contradiction, and a source read against the claim after it opens a new one with its own id", ref, c.answeredBy)
+		case c.idWord() == ref:
+			return nil
+		case c.answeredBy == "":
+			open++
+		}
+	}
+	return fmt.Errorf("--about %s names no contradiction on this record (%d open) — a contradiction's id is the `id` `show evidence` lists under unanswered_contradictions", ref, open)
+}
+
+// unansweredContradictions is contradictionsOf less the answered ones.
+func unansweredContradictions(evs []*Event, ids []int64) []contradiction {
 	var out []contradiction
-	for i, e := range evs {
-		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
-		if !ok || !contradicts(v.GetOutcome()) {
-			continue
+	for _, c := range contradictionsOf(evs, ids) {
+		if c.answeredBy == "" {
+			out = append(out, c)
 		}
-		claim := strings.TrimSpace(v.GetClaim())
-		if claim == "" || answered(claim) {
-			continue
-		}
-		if k, seen := at[claim]; seen {
-			out[k].reader, out[k].at = e.GetSeatId(), i
-			continue
-		}
-		at[claim] = len(out)
-		out = append(out, contradiction{claim: claim, reader: e.GetSeatId(), at: i})
 	}
 	return out
 }
+
+// contradiction is one contradiction red recorded: its id (the events.id of the reading that opened
+// it), the claim, the seat whose reading last joined it — the lens whose act raises it — and where
+// that reading sits, which is when the lens came to owe it. anchor is the citation the opening
+// reading checked, "" for a corroboration; answeredBy is the id of the finding that answered it.
+type contradiction struct {
+	id                 int64
+	claim, reader      string
+	anchor, answeredBy string
+	since              int64
+}
+
+// idWord is the contradiction's id as every surface spells it: decimal, the `--about` value.
+func (c contradiction) idWord() string { return strconv.FormatInt(c.id, 10) }
 
 // contradicts is the half of the outcome set that says the text is not supported. It is the
 // complement of the set that earns a footnote, and the two are written as one pair so a value

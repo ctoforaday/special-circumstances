@@ -131,6 +131,12 @@ extend google.protobuf.EnumValueOptions {
   // weight, not an absent one, which is exactly why the column is NOT NULL.
   optional double mass = 50005;
 
+  // gap_may_name IS WHETHER A GAP MAY BE ABOUT THIS KIND OF THING, and it is on the value for the
+  // reason every facet is: an AboutKind cannot be added without answering it. A finding takes every
+  // kind; a gap takes the kinds this admits. `contradiction` is the one it refuses — a
+  // contradiction is raised by a finding, and the gap is minted from that finding.
+  optional bool gap_may_name = 50010;
+
   // 50007 held `correct`, a type's same-sitting correction tier. No act is corrected: a wrong one is
   // answered by a new act. The number is not reused.
 }
@@ -401,6 +407,22 @@ enum Soundness {
   SOUNDNESS_UNSPECIFIED = 0;
   SOUNDNESS_SOUND = 1 [(means) = "you READ the script and it computes what it claims to compute"];
   SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to"]; // the dangerous cell, because it looks maximally credible
+}
+
+// Rerun is what one `reproduce` did with the proof's SCRIPT, which every proof anchor on that
+// script shares. The tool writes it; a seat never states it. Soundness is the other half, judged
+// per anchor, because one script can back several sentences and only one of them may be what it
+// computes.
+//
+// NOT_RUN IS A VALUE AND NOT AN ABSENCE. A bool `reproduced` read false both where the script
+// printed something else and where nothing re-ran it, and a reader of the record could not tell a
+// failed check from a judgement made on an earlier re-run.
+enum Rerun {
+  RERUN_UNSPECIFIED = 0;
+  RERUN_REPRODUCED = 1 [(means) = "this act re-ran the stored script and it printed the recorded output byte for byte"];
+  RERUN_DIFFERS = 2 [(means) = "this act re-ran the stored script and it printed something other than the recorded output"];
+  RERUN_CALLS_THE_TOOL = 3 [(means) = "this act re-ran the stored script and the script called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker's hands, so nothing is reproduced"];
+  RERUN_NOT_RUN = 4 [(means) = "this act did not run the script: an earlier re-run of the same script stands for every proof on it, and this act judged its own anchor's sentence against that re-run"];
 }
 
 // InquiryStatus is an inquiry's fate. The inquiries projection groups BY status, so a value outside
@@ -717,6 +739,9 @@ message Mint {
   // An anchor is OPTIONAL on a gap and REQUIRED on a finding, which is the pre-existing difference
   // between the two verbs and is not changed here; what is enforced is that a gap does not claim
   // both, because a gap has one subject.
+  //
+  // A gap takes every kind but `contradiction`: a contradiction is raised by a finding, and the
+  // gap is minted from that finding (the write refuses it here).
   optional AboutKind about_kind = 23;
   optional string about_ref = 24;
   optional string problem = 9 [(sql) = {
@@ -955,9 +980,10 @@ message SpotCheck {
 // than a slightly longer enum name is for anyone.
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
-  ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
-  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor"];
-  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
+  ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there", (gap_may_name) = true];
+  ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor", (gap_may_name) = true];
+  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands", (gap_may_name) = true];
+  ABOUT_KIND_CONTRADICTION = 4 [(means) = "a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that", (gap_may_name) = false];
 }
 
 message Finding {
@@ -984,6 +1010,10 @@ message Finding {
   // WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
   // report quote, which places a marker) or this pair is set — a finding anchored to nothing is
   // the state the verb refuses, and one anchored to BOTH is claiming two subjects.
+  //
+  // About a `contradiction`, about_ref is the contradiction's id — the events.id of the reading
+  // that opened it, in decimal — and the write refuses one that names no open contradiction.
+  // `migrate` translates it, because events.id renumbers on replay.
   optional AboutKind about_kind = 9;
   optional string about_ref = 10;
 }
@@ -1236,16 +1266,39 @@ message Proof {
   optional string location = 11 [(prose) = false, (sql) = { flag: "quote" }];
 }
 
-// Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
-// comparing bytes and is never claimed by the seat, while `soundness` is red's JUDGEMENT of
-// whether the script establishes the claim it is anchored to.
+// Reproduce is red checking ONE PROOF ANCHOR. REPRODUCING IS NOT PROVING: `rerun` is COMPUTED by
+// the tool and is never claimed by the seat, while `soundness` is red's JUDGEMENT of whether the
+// script establishes THIS anchor's sentence.
+//
+// THE ANCHOR IS ABOUT THE QUOTE, THE PROOF IS ABOUT THE PROOF ITSELF (gblock, 2026-10-12). One
+// script can back several sentences — `prove` of a script already proved records a new anchor over
+// the same sha — so a re-run belongs to the script and answers for every anchor on it, while a
+// soundness verdict belongs to the one sentence it was judged against. Keyed by sha alone, a lens's
+// `unsound` on one sentence was overwritten by another lens's `sound` on another in 11 of 15
+// archived runs with proofs.
+//
+// The seat names the proof by its anchor; the tool derives `proof_sha` from it, and the write
+// refuses a sha that is not that proof's. The two joins are spelled as Proof spells them —
+// `proof_id` for the anchor, `proof_sha` for the script.
+//
+// NOT KEYED. A seat may judge one anchor more than once in a sitting, and its latest judgement is
+// its verdict: a check is read by the anchor's ledger (anchorchecks.go), which takes each seat's
+// latest, so a retried write repeats a verdict and changes nothing.
 message Reproduce {
   optional string proof_sha = 1;
-  optional bool reproduced = 2;
   optional Soundness soundness = 3;
   optional string recorded_output = 4;
   optional string observed_output = 5;
   optional string note = 6 [(sql) = { flag: "reason" }, (prose) = true];
+  optional string proof_id = 7 [(sql) = {
+    flag: "anchor"
+    required: true
+    why: "the proof whose sentence you judged, by its anchor — a soundness verdict is about one sentence, and a script can back several"
+  }];
+  optional Rerun rerun = 8;
+
+  reserved 2;
+  reserved "reproduced";
 }
 
 // InquiryReview is the chair's statement, ONCE PER EPOCH, that it read the current report against

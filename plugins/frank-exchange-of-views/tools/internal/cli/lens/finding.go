@@ -46,7 +46,7 @@ func newFinding() *cobra.Command {
 		}
 		location := seat.Location(cmd)
 		aboutKind, aboutRef := seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)
-		about, aboutRefP, aerr := record.ResolveAbout(run, aboutKind, aboutRef)
+		about, aboutRefP, aerr := record.ResolveAbout(run, record.MustEnum("finding", "about_kind"), aboutKind, aboutRef)
 		aboutSet := about != nil
 		if aerr != nil {
 			return nil, aerr
@@ -124,8 +124,8 @@ func newFinding() *cobra.Command {
 	// neither — so the marker states the condition, not the bare word.
 	flags.Text(c, flags.Quote, "REQUIRED unless --about-kind/--about name the subject — "+flags.DescQuote+". The finding anchor is placed there")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
-		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, or a gap already on the board; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's")
-	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, or a gap id. It is CHECKED against the record")
+		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a contradiction red recorded; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it, and answers it whether or not the report still holds the sentence")
+	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a contradiction's id, which show evidence lists under unanswered_contradictions. It is CHECKED against the record")
 	// The handler refuses a finding with no explanation; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }

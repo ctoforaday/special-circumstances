@@ -74,10 +74,12 @@ type recordedProof struct {
 // recorded invisible to this audit, and a proof recorded with no artifact on disk look like no
 // proof at all: both of those are exactly the states worth reporting.
 func recordedProofs(evs []*record.Event) []recordedProof {
+	// A SCRIPT A SEAT RE-RAN is one with a reproduce that RAN it; a reproduce that judged its
+	// anchor on an earlier re-run ran nothing.
 	rerun := map[string]bool{}
 	for i := range evs {
 		if body, ok := recordpb.Body(evs[i]); ok {
-			if r, is := body.(*recordpb.Reproduce); is && r.GetProofSha() != "" {
+			if r, is := body.(*recordpb.Reproduce); is && r.GetProofSha() != "" && r.GetRerun() != recordpb.Rerun_RERUN_NOT_RUN {
 				rerun[r.GetProofSha()] = true
 			}
 		}
@@ -135,14 +137,20 @@ func ProofRerunAudit(run record.Run, sample int) Audit {
 	var notes []string
 	for _, p := range proofs[:sample] {
 		ran++
-		matches, got, want, err := proof.Reproduce(run.Dir(), p.sha)
+		rr, err := proof.Reproduce(run.Dir(), p.sha)
+		got, want := rr.Got, rr.Want
 		switch {
 		case err != nil:
 			// A PROOF THAT CANNOT BE RE-RUN IS THE ONE THING A PROOF IS FOR. The recorded output
 			// or the stored script is gone, so nothing in this run can check it any more.
 			fails++
 			notes = append(notes, fmt.Sprintf("FAIL %s could not be re-run: %v", short(p.sha), err))
-		case matches:
+		case len(rr.ToolCalls) > 0:
+			// A SCRIPT THAT CALLS THE TOOL CANNOT BE CHECKED BY ANYONE, this audit included: the
+			// tool refuses every call made under a re-run, whatever the script then prints.
+			fails++
+			notes = append(notes, fmt.Sprintf("FAIL %s calls feov-record (%s), which refuses every call made under a re-run, so no checker can run it", short(p.sha), rr.ToolCalls[0]))
+		case rr.Matches:
 			// Reproduced. Nothing to say per proof; the count says it.
 		case p.basis == proof.Observed || p.basis == proof.NotPortable:
 			// Recorded AS something that does not hold still: `observed` moves by nature, and

@@ -95,7 +95,11 @@ func TestARefutingVerificationIsClearedByAFindingAtItsSentence(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions
+		var claims []string
+		for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+			claims = append(claims, c.Claim)
+		}
+		return claims
 	}
 	if out, err := verifyAs(t, runDir, anchor, "refutes"); err != nil || !printsClaim(out, verifiedSentence) {
 		t.Fatalf("verify did not record and print the claim it read: %v\n%s", err, out)

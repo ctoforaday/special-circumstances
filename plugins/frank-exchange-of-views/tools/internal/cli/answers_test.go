@@ -144,7 +144,7 @@ const (
 	rowDocketRule  = "a declaration, which moves no gap: the gap comes before you again only in a docket motion another seat files"
 	rowPetition    = "a declaration"
 	rowInquiry     = "a new record of the inquiry's fate"
-	rowReproduce   = "a new re-run of the proof, whose reason says which earlier re-run it replaces"
+	rowReproduce   = "a new judgement of the same proof anchor — a seat's latest judgement of a sentence is its verdict on it"
 )
 
 const (
@@ -407,8 +407,8 @@ func answerDrives() []answerDrive {
 		{name: "reproduce", row: rowReproduce, helps: []string{"lens reproduce"}, drive: func(d drive) {
 			s := script(d.t, d.run, "p.js", "console.log(91 % 7)")
 			d.admitted("prove", "blue-respond", "prove", "--quote", quoteThree, "--script", s, "--reason", "the computation")
-			sha := lastBody(d.t, d.run, &recordpb.Proof{}).GetProofSha()
-			twice(lensSeat, "reproduce", "--id", sha, "--as", "sound")(d)
+			proofAnchor := lastBody(d.t, d.run, &recordpb.Proof{}).GetProofId()
+			twice(lensSeat, "reproduce", "--anchor", proofAnchor, "--as", "sound")(d)
 		}},
 		{name: "inquiry review", row: "a new review of the inquiries", helps: []string{"chair inquiry review"}, drive: twice("red-chair", "inquiry", "review")},
 		{name: "log", row: "a new log entry", helps: []string{"blue log", "lens log", "chair log", "bench log"}, drive: func(d drive) {

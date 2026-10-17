@@ -7,33 +7,33 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// m20Archive is universe-m20: 437 events at the epoch this binary reads. Blue's edit at event 389
-// reopened proof P-9e198e9a, last re-run at event 359.
+// m20Archive is universe-m20: 465 events at the epoch this binary reads. Blue's edit at event 415
+// reopened proof P-9e198e9a, last judged at event 384.
 const m20Archive = "2026-10-11_is-91-prime-m20.tar.gz"
 
 // THE EVIDENCE LENS IS READIED FOR A REOPENED ANCHOR, AND ANY LENS'S LATER CHECK CLEARS IT.
 //
-// In m20 both lenses opened sittings after the edit (the dark-side lens at event 403, the evidence
-// lens at 404). The dark-side lens re-ran the proof at event 406 and the evidence lens at 409.
+// In m20 both lenses opened sittings after the edit (the dark-side lens at event 429, the evidence
+// lens at 430). The dark-side lens judged the proof at event 432 and the evidence lens at 436.
 // Every surface said the PASS waited "until red-lens-evidence re-runs it" while the fold had
 // cleared the anchor three events earlier, on another seat's check. The fold is the rule: a check
 // is a reading from a sitting opened after the edit, whichever lens makes it. What the surfaces
 // state is who owes it and is readied, and what clears it — both, in the same sentence.
 //
 // The event ids are this archive's rows, read by SQL outside the fold (blue_edit_reopened, and
-// reproduce joined to events on the proof's sha).
+// reproduce joined to events on the proof's anchor).
 func TestM20AnotherLensClearsWhatTheEvidenceLensIsReadiedFor(t *testing.T) {
 	whole := archivedEvents(t, m20Archive)
-	if len(whole) != 437 || whole[388].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT ||
-		whole[405].GetSeatId() != "red-lens-dark-side" || whole[405].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE ||
-		whole[408].GetSeatId() != evLens || whole[408].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE {
-		t.Fatalf("the archive is not the m20 this test reads: %d events, 389 a %s, 406 %s's %s, 409 %s's %s", len(whole),
-			whole[388].GetType(), whole[405].GetSeatId(), whole[405].GetType(), whole[408].GetSeatId(), whole[408].GetType())
+	if len(whole) != 465 || whole[414].GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT ||
+		whole[431].GetSeatId() != "red-lens-dark-side" || whole[431].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE ||
+		whole[435].GetSeatId() != evLens || whole[435].GetType() != recordpb.EventType_EVENT_TYPE_REPRODUCE {
+		t.Fatalf("the archive is not the m20 this test reads: %d events, 415 a %s, 432 %s's %s, 436 %s's %s", len(whole),
+			whole[414].GetType(), whole[431].GetSeatId(), whole[431].GetType(), whole[435].GetSeatId(), whole[435].GetType())
 	}
-	const fact = "P-9e198e9a's sentence changed at edit 389 and no sitting opened since has checked it (its last check is event 359)"
+	const fact = "P-9e198e9a's sentence changed at edit 415 and no sitting opened since has checked it (its last check is event 384)"
 
 	// After both lenses opened their sittings, before either re-ran the proof.
-	run := archiveAt(t, m20Archive, whole, 405)
+	run := archiveAt(t, m20Archive, whole, 431)
 	var owners []string
 	for _, b := range mustBlockers(t, run) {
 		if b.Kind == BlockerReopened {
@@ -45,7 +45,7 @@ func TestM20AnotherLensClearsWhatTheEvidenceLensIsReadiedFor(t *testing.T) {
 	}
 	// The evidence lens's work list blocks on it; the dark-side lens's, open since the same edit, does not.
 	owed := strings.Join(blockingItems(sittingOfRunT(t, run, "lens", evLens)), "\n")
-	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by re-running it (`reproduce --id ea091047a1ce", reopenedOwed,
+	for _, want := range []string{fact + " — PASS is refused until a lens checks it from a sitting opened after the edit, by judging whether its script establishes the sentence as it now stands (`reproduce --anchor P-9e198e9a`", reopenedOwed,
 		// Both facts, in the words a seat reads: who owes the check, and that the owner is not the only seat whose check clears.
 		evLens + " owes that check and is the seat readied for it", "another lens's check from such a sitting clears it as well"} {
 		if !strings.Contains(owed, want) {
@@ -56,9 +56,9 @@ func TestM20AnotherLensClearsWhatTheEvidenceLensIsReadiedFor(t *testing.T) {
 		t.Errorf("the dark-side lens's work list blocks on an anchor it does not owe:\n%s", other)
 	}
 
-	// The dark-side lens's re-run, event 406: the anchor is checked, three events before the
+	// The dark-side lens's judgement, event 432: the anchor is checked, four events before the
 	// evidence lens's own.
-	for _, b := range mustBlockers(t, archiveAt(t, m20Archive, whole, 406)) {
+	for _, b := range mustBlockers(t, archiveAt(t, m20Archive, whole, 432)) {
 		if b.Kind == BlockerReopened {
 			t.Errorf("%s still holds the PASS after the dark-side lens re-ran it from a sitting opened after the edit", b.Subject)
 		}

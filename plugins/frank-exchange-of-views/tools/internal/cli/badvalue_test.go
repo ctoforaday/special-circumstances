@@ -54,7 +54,7 @@ func assertShortRefusal(t *testing.T, seatID, path string, args []string, opens 
 
 func TestAnEnumeratedFlagsBadValueIsRefusedWithItsSet(t *testing.T) {
 	said := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--about-kind", "", "--reason", "r"},
-		"--about-kind takes one of section|inquiry|gap and was given nothing. ")
+		"--about-kind takes one of section|inquiry|gap|contradiction and was given nothing. ")
 	// THE FLAG AND THE VALUE ONCE: the parser's wrapper names both in front of a sentence that does.
 	for _, twice := range []string{"invalid argument", `(got "")`, "nothing was passed, and"} {
 		if strings.Contains(said, twice) {
@@ -72,7 +72,7 @@ func TestAnEnumeratedFlagsBadValueIsRefusedWithItsSet(t *testing.T) {
 	}
 
 	near := assertShortRefusal(t, "red-lens-evidence", "finding", []string{"finding", "--about-kind", "Section", "--about", "x", "--reason", "r"},
-		`--about-kind takes one of section|inquiry|gap, not "Section": it differs from "section" only in case. `)
+		`--about-kind takes one of section|inquiry|gap|contradiction, not "Section": it differs from "section" only in case. `)
 	if strings.Contains(near, "invalid argument") {
 		t.Errorf("the near miss is refused under the parser's wrapper:\n%s", near)
 	}

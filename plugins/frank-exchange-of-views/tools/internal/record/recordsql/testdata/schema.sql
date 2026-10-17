@@ -225,11 +225,13 @@ INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the 
 
 CREATE TABLE "enum_about_kind" (
   "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
+  "means" TEXT NOT NULL,
+  "gap_may_name" INTEGER NOT NULL CHECK ("gap_may_name" IN (0, 1))
 ) STRICT;
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands');
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor');
-INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('contradiction', 'a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that', 0);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('gap', 'a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands', 1);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('inquiry', 'an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report''s own text or a proof contradicts. The steelman duty''s own anchor', 1);
+INSERT INTO "enum_about_kind" ("value", "means", "gap_may_name") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there', 1);
 
 CREATE TABLE "enum_check_kind" (
   "value" TEXT PRIMARY KEY,
@@ -309,6 +311,15 @@ CREATE TABLE "enum_soundness" (
 ) STRICT;
 INSERT INTO "enum_soundness" ("value", "means") VALUES ('sound', 'you READ the script and it computes what it claims to compute');
 INSERT INTO "enum_soundness" ("value", "means") VALUES ('unsound', 'it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to');
+
+CREATE TABLE "enum_rerun" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_rerun" ("value", "means") VALUES ('calls_the_tool', 'this act re-ran the stored script and the script called feov-record, which refuses every call made inside a re-run: the check cannot run in a checker''s hands, so nothing is reproduced');
+INSERT INTO "enum_rerun" ("value", "means") VALUES ('differs', 'this act re-ran the stored script and it printed something other than the recorded output');
+INSERT INTO "enum_rerun" ("value", "means") VALUES ('not_run', 'this act did not run the script: an earlier re-run of the same script stands for every proof on it, and this act judged its own anchor''s sentence against that re-run');
+INSERT INTO "enum_rerun" ("value", "means") VALUES ('reproduced', 'this act re-ran the stored script and it printed the recorded output byte for byte');
 
 CREATE TABLE "enum_inquiry_status" (
   "value" TEXT PRIMARY KEY,
@@ -689,13 +700,14 @@ CREATE TABLE "proof" (
 CREATE TABLE "reproduce" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "proof_sha" TEXT,
-  "reproduced" INTEGER,
   "soundness" TEXT,
   "recorded_output" TEXT,
   "observed_output" TEXT,
   "note" TEXT,
-  CHECK ("reproduced" IS NULL OR "reproduced" IN (0, 1)),
-  FOREIGN KEY ("soundness") REFERENCES "enum_soundness"("value")
+  "proof_id" TEXT NOT NULL,
+  "rerun" TEXT,
+  FOREIGN KEY ("soundness") REFERENCES "enum_soundness"("value"),
+  FOREIGN KEY ("rerun") REFERENCES "enum_rerun"("value")
 ) STRICT;
 
 CREATE TABLE "inquiry" (

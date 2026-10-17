@@ -3,6 +3,7 @@ package migrate
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -200,6 +201,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	// pin is the id of the event that source head was written as.
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
+	proofAnchors := map[string][]string{} // proof_sha -> the anchors of the proofs written on it, in order
 	for _, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -231,6 +233,10 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				res.AcceptedLosses[loss.Word] = loss.Reason
 				continue
 			}
+			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			continue
+		}
+		if bodies, err = reproduceAnchors(bodies, proofAnchors); err != nil {
 			res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 			continue
 		}
@@ -279,6 +285,17 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				d.Pin = proto.Int64(to)
 			}
+			// A FINDING ABOUT A CONTRADICTION NAMES IT BY events.id — the reading that opened it —
+			// and is translated as the pin is: through the id of the event that reading was written
+			// as. An untranslated id names whatever the migrated record holds at that number.
+			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
+				to, err := contradictionRef(f.GetAboutRef(), newID)
+				if err != nil {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+					continue
+				}
+				f.AboutRef = proto.String(to)
+			}
 			// A COINING THAT PREDATES THE MATERIAL DEFAULT takes the shipped value for its slug,
 			// else by_grade as a stated fill. A value the source carries is kept as recorded — a
 			// run written by this binary migrates without any of its coinings changing.
@@ -302,6 +319,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			if p, ok := body.(*recordpb.Proof); ok && p.GetProofSha() != "" {
+				proofAnchors[p.GetProofSha()] = append(proofAnchors[p.GetProofSha()], p.GetProofId())
+			}
 			if _, seen := newID[old.ID]; !seen {
 				if err := batch.Querier().QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&wrote); err != nil {
 					return nil, fmt.Errorf("reading the id of the event written from source event %d: %w", old.ID, err)
@@ -401,4 +421,53 @@ func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Batch, dst re
 	sort.Strings(cast)
 	_, err := batch.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast})
 	return err == nil, err
+}
+
+// reproduceAnchors carries a reproduce written before epoch 28 — keyed by its script's sha, with no
+// anchor — to the anchors it judged (gblock, 2026-10-12: reproduced per sha, sound per anchor).
+// Every proof on that script written before it gets the reproduce's soundness and note: its
+// verdict was the only one any of those sentences had. The re-run is the script's, so the first
+// anchor carries it with its outputs, and each other anchor is judged on that re-run (not_run).
+// A proof on the script written after it gets nothing: it was never judged.
+//
+// A reproduce with no proof of its script before it has no sentence to carry its verdict to, and
+// is refused by name. A reproduce that names its anchor passes as written.
+func reproduceAnchors(bodies []proto.Message, proofAnchors map[string][]string) ([]proto.Message, error) {
+	var out []proto.Message
+	for _, b := range bodies {
+		r, ok := b.(*recordpb.Reproduce)
+		if !ok || r.ProofId != nil {
+			out = append(out, b)
+			continue
+		}
+		anchors := proofAnchors[r.GetProofSha()]
+		if len(anchors) == 0 {
+			return nil, fmt.Errorf("this reproduce re-ran script %s, and no proof on that script was written before it — there is no anchor to carry its verdict to", r.GetProofSha())
+		}
+		for i, a := range anchors {
+			c := proto.Clone(r).(*recordpb.Reproduce)
+			c.ProofId = proto.String(a)
+			if i > 0 {
+				c.Rerun = recordpb.Rerun_RERUN_NOT_RUN.Enum()
+				c.RecordedOutput, c.ObservedOutput = nil, nil
+			}
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
+// contradictionRef translates a finding's contradiction reference — a source events.id — to the
+// events.id the reading it names was written as. A reference the replay wrote nothing for is a
+// refusal: left as it was, it would name whatever the migrated record holds at that number.
+func contradictionRef(ref string, newID map[int64]int64) (string, error) {
+	n, err := strconv.ParseInt(strings.TrimSpace(ref), 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("this finding answers contradiction %q, which is not an events.id", ref)
+	}
+	to, landed := newID[n]
+	if !landed {
+		return "", fmt.Errorf("this finding answers contradiction %d, whose reading wrote no event on the migrated record before it — the reference would name whatever event holds that number", n)
+	}
+	return strconv.FormatInt(to, 10), nil
 }

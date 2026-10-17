@@ -335,6 +335,13 @@ var narrowedBy = map[[2]string]func(t *testing.T, vd protoreflect.EnumValueDescr
 		}
 		return !closes
 	},
+	{"mint", "about_kind"}: func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool {
+		may, declared, err := recordpb.Facet(vd, "gap_may_name")
+		if err != nil || !declared {
+			t.Fatalf("AboutKind %s declares no `gap_may_name` facet: %v", vd.Name(), err)
+		}
+		return !may
+	},
 }
 
 // tableCarries answers whether the table lists this schema value, under the schema's spelling or

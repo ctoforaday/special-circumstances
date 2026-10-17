@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A GAP ABOUT AN ABSENCE ANCHORS THE WAY THE FINDING DID, with the same two flags.
@@ -68,12 +69,14 @@ func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	}
 }
 
-// THE TWO VERBS OFFER THE SAME VOCABULARY, and this is the assertion that keeps them offering it.
+// THE TWO VERBS OFFER ONE VOCABULARY, and this is the assertion that keeps them offering it: a gap
+// takes every kind a finding takes that the kind's `gap_may_name` facet admits, and nothing else.
 //
 // The flags could stay spelled alike while the closed sets behind them drifted — a value added for
 // findings and not for gaps would leave a seat able to anchor a finding somewhere it cannot then
-// anchor the gap, which is the half-state that reads as done. The sets are compared rather than
-// re-listed, so a value added to one and not the other fails here rather than in a run.
+// anchor the gap, which is the half-state that reads as done. The one value a gap refuses is a
+// contradiction: the finding raises it, and the gap is minted from that finding. The sets are
+// compared rather than re-listed, so a value added to one and not the other fails here.
 func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 	finding, gap := record.MustEnum("finding", "about_kind"), record.MustEnum("mint", "about_kind")
 	words := func(e record.EnumField) []string {
@@ -83,8 +86,14 @@ func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 		}
 		return out
 	}
-	f, g := strings.Join(words(finding), ","), strings.Join(words(gap), ",")
-	if f != g {
+	var admitted []string
+	for _, w := range words(finding) {
+		if w != recordpb.Word(recordpb.AboutKind_ABOUT_KIND_CONTRADICTION) {
+			admitted = append(admitted, w)
+		}
+	}
+	f, g := strings.Join(admitted, ","), strings.Join(words(gap), ",")
+	if f != g || len(words(finding)) != len(admitted)+1 {
 		t.Errorf("`lens finding` and `lens mint` no longer anchor to the same things:\n  finding: %s\n  mint:    %s", f, g)
 	}
 	if finding.Flag != gap.Flag {

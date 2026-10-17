@@ -492,6 +492,10 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string
 
 // Execute runs the CLI.
 func Execute() {
+	if marker := os.Getenv(seatenv.VarProofRerun); marker != "" {
+		refuseInsideProofRerun(marker, os.Args[1:])
+		os.Exit(2)
+	}
 	if _, err := Invoke(newRoot(), os.Args[1:], dispatchedSeat()); err != nil {
 		os.Exit(2)
 	}

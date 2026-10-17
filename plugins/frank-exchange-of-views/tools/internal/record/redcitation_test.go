@@ -156,7 +156,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	if !strings.Contains(err.Error(), claim) {
 		t.Errorf("the refusal does not name the claim, so red cannot tell which reading is unanswered: %v", err)
 	}
-	if !strings.Contains(err.Error(), "`finding --quote") {
+	if !strings.Contains(err.Error(), "`finding --about-kind contradiction --about") {
 		t.Errorf("the refusal does not name the act that clears it — a blocking message that does not say how to unblock is an invitation to guess: %v", err)
 	}
 
@@ -300,7 +300,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 	ev := EvidenceJSONOf(b.Events, b.At)
-	if len(ev.UnansweredContradictions) != 1 || ev.UnansweredContradictions[0] != claim {
+	if len(ev.UnansweredContradictions) != 1 || ev.UnansweredContradictions[0].Claim != claim {
 		t.Errorf("unanswered_contradictions = %v, want just %q — red cannot discharge a duty it cannot see", ev.UnansweredContradictions, claim)
 	}
 	// The supporting one carries the footnote it minted; the refuting one carries none, because

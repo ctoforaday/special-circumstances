@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -10,7 +11,8 @@ import (
 )
 
 // ResolveAbout turns the --about-kind/--about pair into a checked anchor, for EVERY verb that
-// takes one.
+// takes one. admitted is the set the verb declares for --about-kind: a gap is never about a
+// contradiction, and a finding may be.
 //
 // IT LIVES HERE RATHER THAN BESIDE EITHER CALLER BECAUSE THERE ARE TWO. `lens finding` files the
 // finding and `lens mint` files the gap that finding becomes; a seat that anchors an omission at
@@ -21,7 +23,7 @@ import (
 //
 // The refusal names the flags and not the command: whichever verb the seat typed, the renderer
 // prints it.
-func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, error) {
+func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.AboutKind, *string, error) {
 	kind, ref = strings.TrimSpace(kind), strings.TrimSpace(ref)
 	if kind == "" && ref == "" {
 		return nil, nil, nil
@@ -32,9 +34,14 @@ func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, erro
 		return nil, nil, fmt.Errorf("--about-kind and --about are one anchor and are given together — " +
 			"the kind says what sort of thing you are naming, the reference says which one")
 	}
+	// THE VERB'S OWN DECLARED SET, so the refusal lists what this verb takes.
+	names := Names(admitted.Values)
 	k, ok := AboutKindOf(kind)
-	if !ok || k == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
-		return nil, nil, fmt.Errorf("%q is not a thing this can be about (section | inquiry | gap)", kind)
+	if !ok || k == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED || !slices.Contains(names, kind) {
+		if k == recordpb.AboutKind_ABOUT_KIND_CONTRADICTION {
+			return nil, nil, fmt.Errorf("a gap is not about a contradiction: raise the contradiction with a finding (`--about-kind contradiction --about <its id>`), and mint the gap from that finding with --found-by")
+		}
+		return nil, nil, fmt.Errorf("%q is not a thing this can be about (%s)", kind, strings.Join(names, " | "))
 	}
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
 	// borrowed from a nearby paragraph: an inquiry id either names an inquiry this run proposed or it
@@ -51,6 +58,14 @@ func ResolveAbout(run Run, kind, ref string) (*recordpb.AboutKind, *string, erro
 			return nil, nil, err
 		}
 		if err := requireGap(db, ref, "--about"); err != nil {
+			return nil, nil, err
+		}
+	case recordpb.AboutKind_ABOUT_KIND_CONTRADICTION:
+		db, err := openRunForRead(run)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := requireOpenContradiction(db, ref); err != nil {
 			return nil, nil, err
 		}
 	}
