@@ -39,6 +39,8 @@ research/<date>_<slug>/
 │   │                  #   by `ingest`, which deletes it. From then the report is read
 │   │                  #   through the tool, and every change goes through the `edit` verb
 │   └── candidates/    # best-of-N lane drafts, one method each, preserved (authored)
+├── scratch/           # the seats' working files — drafts, programs, a needed spool — each name
+│                      #   starting with its seat id. Nothing composed or archived reads it
 └── cost.md            # measured tokens + dollars per seat-sitting (written by `capture`)
 
 RECORD — no file at all; read through the tool. Every projection, what each is for, and the
