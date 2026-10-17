@@ -717,6 +717,48 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 // --json is the machine contract: a success is a structured ack (read the id from a field,
 // not by parsing prose), a failure is a structured error (branch on ok:false), and the
 // default mode stays byte-identical prose because the template renders the same fields.
+// AN ACT'S RESULT NAMES ITS ID BY KIND. mint, regrade, close and manifest-row carry `gap_id`,
+// inquiry propose `inquiry_id`, prove `proof_id`, motion file and rule `motion_id`; finding carried a
+// bare `id` and closing named its gap `id`. m25 ev472: a lens read the mint it had just made at the
+// finding's `.result.id`, got null for a mint that landed, and recovered the id from `show work`.
+func TestActResultsNameTheirIDByKind(t *testing.T) {
+	runDir := newRun(t)
+	seedBlueReport(t, runDir)
+	registerChairOnce(t, runDir)
+	registerLensOnce(t, runDir)
+	result := func(args ...string) map[string]any {
+		t.Helper()
+		out, err := run(t, append([]string{"--json"}, args...)...)
+		if err != nil {
+			t.Fatalf("%s: %v", args[0], err)
+		}
+		var env map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &env); err != nil {
+			t.Fatalf("%s --json is not JSON (%v): %s", args[0], err, out)
+		}
+		r, _ := env["result"].(map[string]any)
+		if _, bare := r["id"]; bare {
+			t.Errorf("%s --json carries a bare id: %v", args[0], r)
+		}
+		return r
+	}
+	f := result("finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--severity", "low",
+		"--likelihood", "low", "--impact", "low", "--quote", "§1", "--reason", "r")
+	fid, _ := f["finding_id"].(string)
+	if want := lastBody(t, runDir, &recordpb.Finding{}).GetId(); fid != want {
+		t.Errorf("finding --json result %v, want finding_id %s", f, want)
+	}
+	g := result("mint", "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "x", "--check-kind", "document",
+		"--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--found-by", fid)
+	gid, _ := g["gap_id"].(string)
+	if gid != handleText(t, runDir, "G1") {
+		t.Errorf("mint --json result %v, want gap_id G1", g)
+	}
+	if c := result("closing", "--run", runDir, "--seat-id", "red-chair", "--id", gid, "--reason", "argued"); c["gap_id"] != gid {
+		t.Errorf("closing --json result %v, want gap_id %s", c, gid)
+	}
+}
+
 func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	runDir := newRun(t)
 	seatID := lensSeat
