@@ -1,1 +1,0 @@
-- [Anchor not in sources](pattern_anchor_not_in_sources.md) — check evidence `independent` list before flagging a cite anchor as unbacked

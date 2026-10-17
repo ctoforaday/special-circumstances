@@ -1,6 +1,7 @@
 # migrate publishes its destination whole and synced
 
-> STATUS: approved 2026-10-15 (audit: two consecutive PASSes, rounds 4 and 5), not started. Asked for by gblock on 2026-10-14 ("Plan it", then
+> STATUS: shipped — historical record, 2026-10-17. Built as #1386 (merged 2026-10-16); approved
+> 2026-10-15 (audit: two consecutive PASSes, rounds 4 and 5). Asked for by gblock on 2026-10-14 ("Plan it", then
 > "build it properly"), after `faster-test-loop.md`'s follow-ups left `internal/record/migrate` as
 > the local suite's floor. Audited in five rounds as `plans/migrate-bulk-load.md`, which paired this
 > with a `synchronous=OFF` bulk mode. Round 5 found that bulk mode's reason obsolete — since #1379

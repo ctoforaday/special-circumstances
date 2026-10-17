@@ -1044,14 +1044,14 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 // THE ORDERING THAT MAKES ClosedByBench THE WRONG KEY, asserted because the cheap fix passes
 // every other test in this file.
 //
-// Blue closes a gap and files no manifest row; the bench later rules on the same gap. The flag
-// follows the LAST closing event, so ClosedByBench is true — while blue's `close` is still the
-// closure and the receipt is still genuinely missing. Keyed on the flag, this row vanishes from
-// the one section whose stated purpose is to report exactly this.
+// Blue closes a gap and files no manifest row; the bench later rules on the same gap. The bench's
+// word stands, so BenchClosedLast is true — while blue's `close` is still the closure and the
+// receipt is still genuinely missing. Keyed on the flag, this row vanishes from the one section
+// whose stated purpose is to report exactly this.
 func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
 	g := &record.Gap{ID: "G1", HasClosed: true, Closure: &recordpb.Close{}}
 	g.BenchClosure = &recordpb.DocketRuling{}
-	g.ClosedByBench = true
+	g.BenchClosedLast = true
 
 	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}, Events: blueSatOn(t, []string{"G1"}, "G1")}).famT(t))
 	if !strings.Contains(got, "G1") {

@@ -65,6 +65,7 @@ func SeatModels(run Run, f Family) []SeatModel {
 	}
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
+	var onRecord map[string]string // read once, on the first seat whose trajectory is not found
 	for _, e := range f.Events {
 		seat, opens := f.At.Opens(e)
 		if !opens {
@@ -84,8 +85,22 @@ func SeatModels(run Run, f Family) []SeatModel {
 		}
 		obs, err := servedmodel.Observe(agent)
 		if err != nil {
-			row.Served, row.Requested, row.NotMeasured = "", "", err.Error()
-			continue
+			// THE RECORD'S OWN TURNS ANSWER WHERE THE TRAJECTORY CANNOT BE FOUND. Capture ingests
+			// every seat transcript into seat_turn, each row naming the model that served it, and a
+			// reader in another configuration directory — the operator after a universe run, the
+			// record copied off the box — finds no trajectory to open. Smoke 07d reported 13 seats
+			// NOT MEASURED while all 647 of their turn rows named claude-haiku-5-5. A
+			// declared substitution is the trajectory's alone, so this answers the model and not
+			// the declaration.
+			if onRecord == nil {
+				onRecord = servedOnRecord(run)
+			}
+			m, ok := onRecord[agent]
+			if !ok {
+				row.Served, row.Requested, row.NotMeasured = "", "", err.Error()+"; and the record holds no turn of this agent"
+				continue
+			}
+			obs = servedmodel.Observation{Served: m}
 		}
 		row.Served, row.Requested, row.NotMeasured = obs.Served, obs.Requested, ""
 		configured := model
@@ -97,6 +112,34 @@ func SeatModels(run Run, f Family) []SeatModel {
 	out := make([]SeatModel, 0, len(order))
 	for _, s := range order {
 		out = append(out, *bySeat[s])
+	}
+	return out
+}
+
+// servedOnRecord is the model each agent's FIRST recorded turn names, from seat_turn — the turn
+// servedmodel.Read takes from a trajectory. A run with no seat_turn table, or a record that cannot
+// be read, answers nothing, and each seat then states its trajectory's reason.
+func servedOnRecord(run Run) map[string]string {
+	out := map[string]string{}
+	if run.Dir() == "" {
+		return out
+	}
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return out
+	}
+	rows, err := db.Query(`SELECT t."agent_id", t."model" FROM "seat_turn" t
+	  WHERE t."model" <> '' AND t."turn_idx" = (SELECT min(u."turn_idx") FROM "seat_turn" u
+	    WHERE u."agent_id" = t."agent_id" AND u."model" <> '')`)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var agent, model string
+		if rows.Scan(&agent, &model) == nil {
+			out[agent] = model
+		}
 	}
 	return out
 }
