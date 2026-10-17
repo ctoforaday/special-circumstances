@@ -212,7 +212,7 @@ func drivenEpochs(t *testing.T, plans []map[string]any) int {
 	t.Helper()
 	chair := 0
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
-		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{}, "holdings": []any{},
+		e := debatejs.Envelope{"synopsis": "t", "rulings": []any{}, "dispositions": []any{},
 			"manifest": []any{}, "saturation_reached": false, "open_gaps": 0}
 		if seatID == "red-chair" {
 			chair++

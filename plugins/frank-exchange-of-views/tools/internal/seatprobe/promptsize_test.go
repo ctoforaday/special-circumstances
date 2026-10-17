@@ -87,11 +87,19 @@ import (
 // hundred, after the prompts stopped restating what the seat's constitution carries: blue-respond
 // 9,419, red-chair 6,260, red-lens-evidence 10,419, judge 5,840. The ceilings had drifted far above
 // the prompts as the clauses moved out, so growth up to the old numbers passed unseen.
+//
+// Raised 2026-10-17 for the owner's ruling that a bench holding reaches a seat only as a declaration
+// on the record, on its work list with the board's status beside each gap it names. Every seat's
+// prompt carries the DUTY that ruling states — a recorded holding binds how the record is read, it
+// arrives on the work list, and where it and the board disagree about a gap the board is the gap's
+// status — 191 characters on the one clause every seat receives; the declarations themselves are
+// the work list's, documented on its help page. Measured blue-respond 9,610, red-chair 6,446,
+// red-lens-evidence 10,610, judge 6,026, each rounded up to the next hundred.
 var ceilings = map[string]int{
-	"blue-respond":      9500,
-	"red-chair":         6300,
-	"red-lens-evidence": 10500,
-	"judge":             5900,
+	"blue-respond":      9700,
+	"red-chair":         6500,
+	"red-lens-evidence": 10700,
+	"judge":             6100,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

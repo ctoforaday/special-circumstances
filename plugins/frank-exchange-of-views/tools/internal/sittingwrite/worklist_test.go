@@ -23,6 +23,7 @@ import (
 // the render is what satisfies the dispatch and excuses the log channel, so a list rendered before
 // the append would tell a freshly dispatched seat to register for a sitting it is already in.
 func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
+	const declared = "G-00000001 remains open and is material"
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.At(t, record.HarnessSeat, "harness:cast", &recordpb.Cast{
@@ -32,7 +33,10 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 		// THE DISPATCH IS WHAT MAKES THE ORDERING OBSERVABLE. Without one the seat owes no sitting
 		// whichever order the render and the append run in, and the assertion below holds nothing.
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
-			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}))
+			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}),
+		// A HOLDING REACHES THE SEAT ON THIS LIST and nowhere else, with the board's word for each gap
+		// it names beside the bench's prose — here a gap the board does not hold.
+		recordtest.At(t, "judge", "bench:declare", &recordpb.Declare{Holding: proto.String(declared)}))
 
 	var forSeat bytes.Buffer
 	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_01", AgentType: "frank-exchange-of-views:red-lens-evidence", TranscriptPath: ""}, &forSeat); err != nil {
@@ -46,6 +50,14 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 	var w record.WorkJSON
 	if err := json.Unmarshal([]byte(body), &w); err != nil {
 		t.Fatalf("what was handed to the seat is not the work list projection (%v):\n%s", err, body)
+	}
+	if len(w.Declarations) != 1 || w.Declarations[0].Holding != declared {
+		t.Errorf("the seat was handed declarations %+v, want the bench's one as recorded", w.Declarations)
+	} else if g := w.Declarations[0].Gaps; len(g) != 1 || g[0].ID != "G-00000001" || g[0].Status != "not_on_board" {
+		t.Errorf("the declared gap reads %+v beside the holding, want the board's word that it holds no such gap", g)
+	}
+	if !strings.Contains(out[:strings.Index(out, "{")], "`declarations`") {
+		t.Errorf("the preamble does not tell the seat where the bench's holdings are:\n%s", out)
 	}
 	if w.Sitting.Seat != "red-lens-evidence" || w.Sitting.Role != "lens" {
 		t.Errorf("the list is addressed to %q/%q, not to the seat the configuration names", w.Sitting.Seat, w.Sitting.Role)

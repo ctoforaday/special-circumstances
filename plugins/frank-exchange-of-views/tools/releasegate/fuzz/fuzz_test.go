@@ -2280,10 +2280,15 @@ func (r *runner) extras(role, seatID string, open []string) {
 			r.do("certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
 		})
 		// A DECLARATION MOVES NO GAP, which is why it takes no --id and why the coverage walk
-		// would otherwise never reach it: every other bench act names something.
+		// would otherwise never reach it: every other bench act names something. It NAMES an open
+		// gap most of the time, in the prose a bench writes, so every later work list states that
+		// gap's board status beside it as the gap moves.
 		r.maybe(35, func() {
-			r.do("declare", seatID).
-				set("--reason", "fuzz holding: a term is construed this way for the rest of the run").run()
+			holding := "fuzz holding: a term is construed this way for the rest of the run"
+			if len(open) > 0 && r.coin(70) {
+				holding = pick(r.rng, open) + " remains open; " + holding
+			}
+			r.do("declare", seatID).set("--reason", holding).run()
 		})
 	}
 }

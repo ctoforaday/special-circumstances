@@ -827,22 +827,26 @@ test('W2c: no plan convenes it, no sitting — whatever an envelope carries; gra
   }
 })
 
-test('W2j: a bench holding binds every seat that follows it, across sittings', async () => {
+test('W2j: a bench holding reaches a seat from the record alone — every prompt states the duty, and none carries a holding', async () => {
+  // A BENCH THAT RETURNS A HOLDING ON ITS ENVELOPE ANYWAY binds nobody through it: no schema
+  // declares the field, and a holding is a declaration on the record, which every seat's work list
+  // carries with the board's status beside each gap it names.
+  const stray = 'G-00000002 remains open and is material'
   const world = makeWorld(makeResponder({
     chair: [chairEnv({ plan: plan([party('judge', 'G-00000001')], { docket: ['G-00000001'] }) }), chairEnv({ plan: plan([party('red-lens-evidence'), party('blue-respond', 'G-00000002')]) }), passChair()],
-    judge: [judgeEnv({ holdings: [{ term: 'material', construed: 'medium or above on current severity' }] })],
+    judge: [judgeEnv({ holdings: [stray] })],
   }))
   await world.run(script, ARGS)
-  for (const seat of ['red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {
-    const prompt = labelsOf(world, seat)[0].prompt
-    assert.ok(prompt.includes('BENCH HOLDINGS IN EFFECT'), `${seat} was not bound by the holding`)
-    // THE HOLDING AS STATED IS WHAT A SEAT RELIES ON (gblock's ruling, 2026-10-09): the bench's opinions
-    // are on the bench's and the chair's own read group, so a lens or blue sent to the reasoning is sent
-    // to a read it does not hold.
-    assert.ok(prompt.includes('rely on a holding, or work around it, as it is stated here'), `${seat} is not told to rely on the holding as stated`)
-    assert.ok(!/Read the bench's reasoning/.test(prompt), `${seat} is sent to the bench's reasoning for a holding`)
+  assert.ok(world.calls.length > 0, 'nothing was dispatched')
+  for (const c of world.calls) {
+    assert.ok(!c.prompt.includes(stray), `${c.opts.label} carries a holding the envelope returned`)
+    assert.ok(!c.prompt.includes('BENCH HOLDINGS IN EFFECT'), `${c.opts.label} carries a holdings relay`)
+    assert.ok(c.prompt.includes('A HOLDING THE BENCH RECORDED IN THIS RUN BINDS HOW YOU READ THE RECORD'), `${c.opts.label} is not told what a recorded holding obliges`)
+    assert.ok(c.prompt.includes("Where a holding and the board disagree about a gap, the board is the gap's status"), `${c.opts.label} is not told which wins`)
   }
-  assert.ok(!labelsOf(world, 'red-chair #1')[0].prompt.includes('BENCH HOLDINGS IN EFFECT'), 'nothing binds before it is held')
+  for (const seat of ['red-chair #1', 'red-chair #2', 'red-lens-evidence', 'blue-respond', 'judge · assemble']) {
+    assert.ok(labelsOf(world, seat).length > 0, `${seat} never sat`)
+  }
 })
 
 test('integrity inspection arms only with transcriptDir, on the bench, and binds integrity-not-merits', async () => {
