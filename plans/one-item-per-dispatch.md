@@ -28,6 +28,14 @@
 > argued against, not around; §III.2's schemas and §III.3's generator belong to slimming plans 09
 > and 07; §III.6 states the vehicle question as relay versus read. Each correction is dated in
 > place. Nothing in §III has started; §I's ruling is still open.
+>
+> Corrected 2026-10-16 against `fa7e8dd7` (351 commits since `12879192`; EventSchema 25): the
+> epoch is back as a terminator and blockers stay in the no-progress key, so §III.2's loop loses
+> two legs it has to replace; seat memory was cut on a blind A/B (#1372) and the chair relay is
+> closed and generated (#1370, #1341), which lands two of §III's steps by measurement; the
+> constitution figures are restated from the tree; #1255 and #1262 closed; and §IV.7 runs
+> gblock's cutting rule — cut on lack of value, measured across the archives — against §III's
+> own additions, which three of them fail. #1290, #1291, #1292 are unread since filing.
 
 ## I. Summary & Goals
 
@@ -93,6 +101,10 @@ what the Workflow script is *for*.
 
 ### II.1 The engine (`debate.js`, 1148 lines at `b0ff6679`)
 
+> Corrected 2026-10-16: 1256 lines at `a211b996`; the loop is at `:1065`, chair `:1067`, the
+> petition hearing `:1105`, lenses `:1109`, blue `:1114`, bench `:1141`; lens and lane calls
+> still carry no schema (`:940–942`, `:1109–1110`); the four JS-memory facts are at `:778–842`.
+>
 > Corrected 2026-10-09: 1262 lines at `12879192`; the epoch loop is at `:1076` (chair `:1078`,
 > lenses `:1116`, blue `:1121`, bench `:1150`) with a petition bench sitting inserted before the
 > lenses (`:1112`, #1239). Every other line number in this section is at `b0ff6679` and is read
@@ -306,6 +318,26 @@ what makes a relay a receipt. Under an item loop the valve is per item:
 an item re-readied with an unchanged premise is the no-progress condition, which the `as_of`
 refusal of §III.4 states exactly.
 
+**Corrected 2026-10-16 — two legs of the loop below are gone and must be replaced.** (1) The
+epoch is a terminator again: the roundless amendment of 2026-10-12 says the budget alone does
+not terminate a run, and what ends one is lens retirement (three barren sittings in a row,
+ruled 2026-10-13) and the epoch limit, which is now a CEILING arm of the plan. An item loop has
+no epoch, so it owes a terminator of its own: the honest candidate is the same two rules re-keyed
+on items — a lens retires after three barren items, and the run ceilings on a per-run item count
+— and that re-keying is the design question, not a detail. (2) "The valve keyed on identical
+plans goes" is wrong as stated: the cut of blockers from the key was tried and refused
+(2026-10-11) because three reachable cases — a petition ruled while another is filed, a retired
+lens working through contradictions, a lens readied by a contradiction as it retires — are
+blocker-only changes that are progress. Keyed on `as_of` alone the item valve would stop those
+runs UNVERIFIED. The per-item condition is therefore "same subject, same premise, same
+blockers", and #1290's stored plan is what makes that one comparison. (3) The chair relay is
+closed: the chair envelope refuses unknown properties and its plan schema is generated from the
+Go `Plan` (#1370, #1341), so item 1's "schema'd envelope" exists for the chair and the plan-09
+step this section deferred to is done. #1370 states the remaining limit in the engine's own
+words: a schema-valid relay that drops content is caught only after the fact by dispatch
+parity, because the workflow cannot read the plan off the record. That sentence is §III.6's
+relay-versus-read question, stated from the other side.
+
 With both, the loop is: read the ready items → dispatch each as it becomes ready (`pipeline`,
 not `parallel`) → on each receipt, re-read. The epoch, `max_epochs`, and the no-progress valve
 keyed on identical plans go; the mint budget (roundless §III.B.2.2) and a per-run item budget
@@ -330,7 +362,14 @@ the brief is the conditional carrier and the per-occasion constitution the uncon
 nothing here adds a third. Plan 09 phase 3 generates the engine's seat block from Go. Two
 generators writing agent-facing text from two declarations is the shape this plan exists to
 remove; whether they are one is a question those plans own, and this document does not file it. The numbers this
-section lacked: #1284 measured the fixed context per seat at 96–102 KB of definition plus
+section lacked [superseded 2026-10-16: three cut PRs (#1363, #1365, #1367) changed the shape —
+the generated manual lost six to seven kilobytes per definition with every help page
+byte-identical, skill text moved into per-role fragments under one-carrier-per-duty, and
+rationale moved to code comments; at `a211b996` a lens definition is 11.8k generated words and
+2.0k outside the markers, the hand-written part having grown because duties moved into it, the
+chair 9.0k/1.4k, the bench 8.0k/2.8k, blue-researcher 12.1k/3.6k; the per-occasion generator
+this section proposes now starts from fragments, which is the registry plan 07 phase C built
+(#1319)]: #1284 measured the fixed context per seat at 96–102 KB of definition plus
 preloaded skills (the bench 80 KB, preloading nothing), with only the hook-delivered list
 per-item; it also recorded that the run-directory map drew a seat to read `report.md`, which
 `hookgate` refused — evidence that seats stop reading the whole report by design.
@@ -467,7 +506,14 @@ does a seat relay the record to a script that drives them", and the petition-lat
 (#1262), `SubagentStart` does not fire on a resumed dispatch (#1111), and two open runs record
 nothing (#1255). The slimming survey's D4 — stop injecting `FEOV_RUN` — would remove the identity
 row's carrier; identity then comes from the dispatch through the boundary or not at all, which
-is why D4 and #1255 are one decision (commented there 2026-10-09).
+is why D4 and #1255 are one decision (commented there 2026-10-09). [Corrected 2026-10-16: #1255
+closed by #1385 — two live runs in one project are a recorded hook fault naming both, `setup`
+refuses a second, and `FEOV_RUN` injection was explicitly KEPT, so the identity row's carrier
+stands and D4 was not taken; #1262 closed by #1380 — a hook bracket opens the sitting and the
+call cap counts from it; #1111 is still open. "One live run per project" bounds vehicle 2: a
+`claude -p` seat pool shares one run directory. The Workflow tool's v2 — a fact world the
+launching session can steer by run id — is still stubbed in 2.1.300; gblock's WAIT ruling of
+2026-10-10 stands and is re-checked per release.]
 
 ## IV. Risks & Objections
 
@@ -540,6 +586,32 @@ dispatch is higher than modelled, and it is a partial return to the sitting.
 is a schema change and an epoch bump, each migrates archived runs through `migrate`, and none
 of it is a compatibility path. That is the repository's rule and the cost is real.
 
+### IV.7 The cutting rule, run against this document's own additions
+
+gblock's rule for the slimming workstream (2026-10-10, sharpened 2026-10-15): cut on lack of
+VALUE, not on non-use — measure across the archives first, and the test is whether the thing
+tells a reader something true and decision-relevant that the record or gate does not. The rig
+plan adds things. Held to that rule at `a211b996`, against the archive evidence file the
+workstream keeps (`plans/v2/work/10-evidence.md` in its scratch):
+
+| addition | archive evidence | verdict under the rule |
+|---|---|---|
+| `verify-citation` as a kind (§III.1) | a real blocker kind, `reopened`, owned by the evidence lens, since #1311; the m19 defect it answers is in the archive | **valued** |
+| `Occasion` on every seat (§III.1, #1291) | the turn-taking measurement (13 runs, 204 triples): the lens sits on its own last word 50 times, 42 at an unchanged head — a sitting whose question the record could not name | **valued**, by the measurement that priced the waste at 2.3% of tokens |
+| schema'd lens and lane receipts (§III.2 item 1) | "envelopes and the workflow journal are NOT in any archive"; envelopes are being emptied, not filled (#1282, 9ac1d7e3) | **unmeasurable** — stays only as the carrier of the receipt, never as a store of facts |
+| `as_of` sequence refusal (§III.4) | one measured race, three refused corrections in wave A; corrections since cut; blue sits alone | **no evidence** until two writers exist; built last, if at all |
+| per-item `budget` (§III.1) | `seat_turn` rows in two archives only; no per-item call counts anywhere | **no evidence**; the sitting cap already exists and is re-keyed, not replaced |
+| `closing` as a kind (§III.1) | no closings at all in 10 of 17 runs | **cut** from the census; a closing is an act inside `rule`, not an occasion |
+| `propagate` as a kind (§III.1) | the sweep it formalised existed only as revision prose, since cut | **cut** from the census |
+| the harness-boundary grep gate (§III.6, §V.1) | a hand-kept allowlist of carrier names with no second host to run on | **wrong level** — facts-are-fields' invariant-at-wrong-level; replaced below by generation from the `Harness` implementation's own declaration |
+
+So the kind census of §III.1 shrinks to what the record can value: `audit-area`, `adjudicate`,
+`verify-citation`, `respond`, `rule`, `verdict`, `spot-check` (one, owed before a PASS only —
+ruled 2026-10-12), and the chair's once-per-epoch `inquiry review` (`plans/avenue-becomes-inquiry.md`),
+which an item loop must find a key for. What the rule does not reach is the wall clock: the
+chain measurement of §IV.5 is the one number no archive holds and no cut has touched, and it is
+still the reason this document exists.
+
 ## V. Verification — what proves any of this
 
 ### V.0 Measure before building (the gate on every step below)
@@ -582,11 +654,15 @@ and the cheap dispatch read) stands on its own merits.
   refused naming the first; the `as_of` field on `Item` in `record.proto` with `migrate` on an
   archived run. *Re-arms on record.proto, dispatch.go, sitting.go.*
 - §III.3: `agentgen -check` green per kind; the `manual` golden per kind read line by line.
-- §III.6 (added 2026-10-02): a test that fails any rig package naming a `claude` carrier — a
-  socket path, a `CLAUDE_*` or `FEOV_*` variable, a hook event name, a hook JSON key — outside the
-  `claude` implementation; the Antigravity cell for the mid-sitting post is *not measured* until
-  a probe posted from a plain process arrives inside a running `agy -p` seat, the way the socket
-  probe did on 2026-09-28. *Re-arms on any new reader of a hook payload or `CLAUDE_*` variable.*
+- §III.6 (added 2026-10-02; replaced 2026-10-16 under §IV.7): the `claude` implementation of the
+  harness boundary DECLARES its carriers — the socket path, the environment variables it reads,
+  the hook events and payload keys — as one table, and the gate is generated from that
+  declaration: every string in the table must appear only inside that implementation, and every
+  `CLAUDE_*`/`FEOV_*` read in the tools module must be in the table (`pluginparity`'s import
+  gate is the shape). A hand-kept allowlist beside the declaration is the defect, not the gate.
+  The Antigravity cell for the mid-sitting post is *not measured* until a probe posted from a
+  plain process arrives inside a running `agy -p` seat, the way the socket probe did on
+  2026-09-28. *Re-arms on any new environment or payload read in the tools module.*
 - The engine still runs: `universe.sh build` + `run` on `--smoke`, the installed copy grepped
   for a phrase from the change, `stream-json` watched, never `--output-format json`.
 - `FEOV_RELEASE_GATE=1 go test ./releasegate/fuzz/` by hand before any record or hook-shape
