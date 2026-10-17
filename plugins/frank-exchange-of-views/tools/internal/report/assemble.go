@@ -644,9 +644,10 @@ func setAside(status string) bool { return !taken(status) && !deferred(status) }
 // expansion and as an alternative to itself.
 //
 // A ROW SAYS FIVE THINGS, EACH UNDER ITS OWN LABEL: the question the inquiry asks, the hypothesis
-// that was tested, the fate, the method that fate states, and what was found. Labelled, the question is a question and the
-// hypothesis is a hypothesis whatever became of it; an unlabelled bold text carrying a predicted
-// result beside a finding that contradicts it would read as a claim of the report's.
+// that was tested, the fate, the method that fate states, and what was found. Labelled, the
+// question is a question and the hypothesis is a hypothesis whatever became of it; an unlabelled
+// bold text carrying a predicted result beside a finding that contradicts it would read as a claim
+// of the report's.
 //
 // A ROW IS IN THE SUBJECT'S TERMS — and says nothing about who or how. The id of the seat that
 // recorded the fate, the epoch-by-epoch status history, red's ruling with its opinion, and whether
@@ -674,9 +675,11 @@ func inquiries(a *assembly, s Section) string {
 		// a fate the seat did not record, which is the debate's fact and renders in inquiries.md.
 		row += "\n  - **Fate:** " + a.Status + "."
 		// THE METHOD IS THE LATEST FATE'S, LABELLED, ON THE FATE'S LINE: what that fate did, or leaves
-		// a later run to do. Beside the question and unlabelled it read as what was consulted.
+		// a later run to do. Beside the question and unlabelled it read as what was consulted. A
+		// method is most often a phrase with no full stop, and the label after it would read as its
+		// last words, so it ends with one as the fate does.
 		if a.Method != "" {
-			row += " **Method:** " + inItem(a.Method, "    ")
+			row += " **Method:** " + endSentence(inItem(a.Method, "    "))
 		}
 		// A PROPOSAL HOLDS NO REASON: until a fate is recorded there is nothing found to print.
 		if a.Reason != "" {
@@ -704,6 +707,14 @@ func inquiries(a *assembly, s Section) string {
 		body = strings.Join(rows, "\n")
 	}
 	return body
+}
+
+// endSentence ends prose with a full stop unless it already ends a sentence.
+func endSentence(prose string) string {
+	if strings.HasSuffix(prose, ".") || strings.HasSuffix(prose, "?") || strings.HasSuffix(prose, "!") {
+		return prose
+	}
+	return prose + "."
 }
 
 // inItem keeps prose of several lines inside the list item that prints it: every further line is

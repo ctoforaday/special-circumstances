@@ -363,6 +363,11 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 // its method is dropped, and that row prints none — the residue of this translation, which
 // TestTheProposalsMethodMovesToItsFates states. A source at epoch 30 or later holds no proposal
 // method, and passes through unchanged.
+//
+// ONLY THE PROPOSAL'S METHOD IS CARRIED, never an earlier fate's. No write path before epoch 30 put
+// a method on a fate (none of the 23 archived runs holds one), so the source's fold printed the
+// proposal's; and at epoch 30 a fate that states none clears the method, so carrying an earlier
+// fate's forward would rewrite what a newer source prints.
 func carryInquiryMethod(q *recordpb.Inquiry, held map[string]string) {
 	if q.SupersedesStatus == nil {
 		if m := q.GetMethod(); m != "" {

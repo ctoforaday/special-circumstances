@@ -156,9 +156,9 @@ func TestAnAbandonedRowCarriesThePlainFateWhateverItsPath(t *testing.T) {
 	}
 }
 
-// THE ROW SAYS WHAT WAS ASKED, WHAT WAS EXPECTED, WHAT BECAME OF IT AND WHAT WAS FOUND, each under
-// its own label, so a reader cannot take the question or the hypothesis for a claim of the
-// report's.
+// THE ROW SAYS WHAT WAS ASKED, WHAT WAS EXPECTED, WHAT BECAME OF IT, BY WHAT METHOD, AND WHAT WAS
+// FOUND, each under its own label, so a reader cannot take the question or the hypothesis for a
+// claim of the report's.
 func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 	av := func(id string, st recordpb.InquiryStatus, line, hyp, reason string) *record.Event {
 		return recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String(id), Status: st.Enum(),
@@ -176,13 +176,15 @@ func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q2"), SupersedesStatus: proto.String("1"),
 			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED), Reason: proto.String("7 divides 91")}),
 		av("Q3", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether a sieve is faster", "it is", ""),
-		av("Q4", recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED, "whether a lookup table exists", "one does", "the bound is 9"),
+		av("Q4", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, "whether a lookup table exists", "one does", ""),
+		recordtest.Event(t, "blue-r1", &recordpb.Inquiry{InquiryId: proto.String("Q4"), SupersedesStatus: proto.String("1"), Method: proto.String("Look 91 up in a published table of primes."),
+			Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_DECLINED), Reason: proto.String("the bound is 9")}),
 	})
 	research := inquirySection(t, board, "Research areas")
 	for name, want := range map[string]string{
 		"a refuted inquiry prints its hypothesis as one, the method its fate states, and says it did not hold": "- **Question:** whether one Fermat test settles it\n" +
 			"  - **Hypothesis:** a passing test is no evidence of primality\n" +
-			"  - **Fate:** refuted. **Method:** a Fermat test in base 3 **Found:** a passing test is evidence, not proof",
+			"  - **Fate:** refuted. **Method:** a Fermat test in base 3. **Found:** a passing test is evidence, not proof",
 		"an inquiry with no hypothesis prints no hypothesis line, and a latest fate with no method prints none": "- **Question:** whether trial division settles it\n" +
 			"  - **Fate:** confirmed. **Found:** 7 divides 91",
 		"an inquiry still proposed has found nothing and holds no reason": "- **Question:** whether a sieve is faster\n" +
@@ -197,8 +199,9 @@ func TestAnInquiryRowLabelsItsQuestionHypothesisFateAndFinding(t *testing.T) {
 		t.Errorf("a question is printed in bold, as a claim of the report's would be:\n%s", research)
 	}
 	alt := inquirySection(t, board, "Alternatives considered")
-	if want := "  - **Hypothesis:** one does\n  - **Fate:** declined. **Why:** the bound is 9"; !strings.Contains(alt, want) {
-		t.Errorf("an approach that did not run found nothing: its reason is why it stands there; want\n%s\nin\n%s", want, alt)
+	// A method that already ends a sentence is not given a second full stop.
+	if want := "  - **Hypothesis:** one does\n  - **Fate:** declined. **Method:** Look 91 up in a published table of primes. **Why:** the bound is 9"; !strings.Contains(alt, want) {
+		t.Errorf("an approach that did not run found nothing: its reason is why it stands there, after the method its fate states; want\n%s\nin\n%s", want, alt)
 	}
 }
 
@@ -215,7 +218,7 @@ func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 	got := inquirySection(t, board, "Research areas")
 	want := "- **Question:** APPROACH: census the plan.  \n  ARGUMENT: ordering is scarce.\n" +
 		"  - **Hypothesis:** one exists  \n    and it is explicit\n" +
-		"  - **Fate:** refuted. **Method:** census **Found:** none exists.  \n    The plan names no function."
+		"  - **Fate:** refuted. **Method:** census. **Found:** none exists.  \n    The plan names no function."
 	if !strings.Contains(got, want) {
 		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
 	}

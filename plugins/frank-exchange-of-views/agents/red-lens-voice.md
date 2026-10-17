@@ -349,7 +349,7 @@ Flags:
 Enumerated values:
   --about-kind
     section        a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    inquiry        an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
+    inquiry        an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
     gap            a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
     contradiction  a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote that
 ========
@@ -430,7 +430,7 @@ Flags:
 Enumerated values:
   --about-kind
     section  a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there
-    inquiry  an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
+    inquiry  an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchor
     gap      a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands
 
   --check-kind

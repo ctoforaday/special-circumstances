@@ -163,7 +163,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"**Outcome:** CEILING-TERMINATED",
 		"## Research areas",
 		"model-check the two-writer interleaving",
-		"**Fate:** underway. **Method:** TLA+",
+		"**Fate:** underway. **Method:** TLA+.",
 		"## Alternatives considered",
 		"rewrite the cache lock-free",
 		"cost exceeds the benefit at this scale",

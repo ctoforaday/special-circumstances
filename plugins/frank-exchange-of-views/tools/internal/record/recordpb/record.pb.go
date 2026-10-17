@@ -7803,11 +7803,11 @@ const file_record_proto_rawDesc = "" +
 	"\x1aINQUIRY_RULING_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x17INQUIRY_RULING_ENDORSED\x10\x01\x1a4\x8a\xb5\x180worth this run's time — blue should take it up\x12K\n" +
 	"\x1bINQUIRY_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12|\n" +
-	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xdb\a\n" +
+	"\x17INQUIRY_RULING_TOO_THIN\x10\x03\x1a_\x8a\xb5\x18[in scope, but the hypothesis as stated does not justify what testing it would cost this run*\xf7\a\n" +
 	"\tAboutKind\x12\x1a\n" +
 	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xb1\x01\n" +
-	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\x92\x02\n" +
-	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\xf9\x01\x8a\xb5\x18\xf0\x01an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, or a fate the report's own text or a proof contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\xae\x02\n" +
+	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x95\x02\x8a\xb5\x18\x8c\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1af\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it standsе\x18\x01\x12\xec\x02\n" +
 	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xcd\x02\x8a\xb5\x18\xc4\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
