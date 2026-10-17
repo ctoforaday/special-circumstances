@@ -30,21 +30,23 @@ import (
 // for an empty plan, so the two sequences are one per chair sitting that dispatched. A count mismatch
 // FAILs and nothing is compared, because the pairing is then unknown. Per pair, every relayed field
 // with a row counterpart is compared: the seat_id set against the group's parties, each party's
-// gap_ids and occasions (as sets) against its PartyRows row, and the plan's head against that row's
-// pin. The row is the LAST one naming the party in the group — a plan that files a docket, or one that
+// gap_ids and occasions (as sets) against its PartyRows row, the plan's head against that row's
+// pin, and the plan's remand_owed gaps against the remand_owed its rows recorded. The row is the LAST one naming the party in the group — a plan that files a docket, or one that
 // changed since the chair asked, is never standing, so a chair that asks twice can write two rows,
 // and the later is the dispatch. Without this half a wrong gap
 // id or head reached a seat and every sitting still matched, so the relay read as faithful.
 //
 // RELAYED FIELDS NO ROW CARRIES AGAINST THE RECORD AT THE END OF THE CHAIR'S SITTING. The engine
 // branches on more of the plan than the rows record: its no-progress valve keys on the docket, the
-// exchange counts and the blockers; blue is told what the sitting docketed; the terminal bench
-// sitting is convened off the last plan's blockers the bench owns. So each relayed plan is held to
+// remands owed, the exchange counts and the blockers; blue is told what the sitting docketed, and
+// the research direction of each remand it owes an exchange on; the terminal bench sitting is
+// convened off the last plan's blockers the bench owns. So each relayed plan is held to
 // record.PlanFacts as the record stood when the chair sitting that relayed it ended — after its
 // last dispatch row, before the next seat's opening. A value dropped, added or altered in the
 // relay, or a motion filed or ruled after the plan was asked for, departs here: the plan the chair
 // relays is the one it asked for last. A plan with no parties has no rows and is the last one; its
-// blockers and its epoch limit are held the same way, at the end of the chair's last sitting.
+// blockers, its epoch limit and its remand directions are held the same way, at the end of the
+// chair's last sitting.
 // relayedPlanFields classifies every field of the plan, and the detail's list renders from it.
 //
 // THE JOURNAL HOLDS ONE CHAIR RESULT PER CHAIR SITTING — the stated assumption the pairing rests on.
@@ -387,7 +389,8 @@ func chairSittingEnd(evs []*record.Event, win record.WindowIndex, from int) int 
 // factDepartures holds one relayed plan to the record's facts at the end of the chair sitting that
 // relayed it, naming the plan (`where`), the field, and the relayed and recorded values. g is the
 // dispatch group the plan pairs with, nil for the last plan when it names no party: that plan has
-// no rows, nobody sits on it, and its blockers and epoch limit are what the engine still reads.
+// no rows, nobody sits on it, and its blockers, epoch limit and remand directions are what the
+// engine still reads — the set of its remand_owed gaps has no row to be held to.
 func factDepartures(where string, plan map[string]any, at record.PlanFacts, g *record.DispatchGroup) []string {
 	var out []string
 	const atEnd = "the record at the end of the chair's sitting holds"
@@ -409,8 +412,33 @@ func factDepartures(where string, plan map[string]any, at record.PlanFacts, g *r
 	if n, ok := relayedInt(plan["max_epochs"]); !ok || n != int64(at.MaxEpochs) {
 		out = append(out, fmt.Sprintf("%s: relayed max_epochs %s, the run's terms set %d", where, jsString(plan["max_epochs"]), at.MaxEpochs))
 	}
+	// A REMAND'S DIRECTION IS THE RECORD'S: each relayed entry quotes the latest remand on its gap
+	// written by the sitting's end, which is what the workflow hands blue as the exchange's direction.
+	var owed []string
+	ros, _ := plan["remand_owed"].([]any)
+	for _, x := range ros {
+		o, _ := x.(map[string]any)
+		gap, direction := jsString(o["gap_id"]), jsString(o["direction"])
+		owed = append(owed, gap)
+		if d, ok := at.RemandDirection(gap); !ok || d != direction {
+			recorded := "no remand on it"
+			if ok {
+				recorded = fmt.Sprintf("its remand's direction %q", d)
+			}
+			out = append(out, fmt.Sprintf("%s: relayed remand_owed %s with direction %q, %s %s", where, gap, direction, atEnd, recorded))
+		}
+	}
 	if g == nil {
 		return out
+	}
+	// THE GAPS ARE THE ROWS': the verb records each remand-owed gap on the rows of the seats its
+	// exchange readies, so the relayed set is the union of the group's rows.
+	var recordedOwed []string
+	for _, seat := range g.Parties {
+		recordedOwed = append(recordedOwed, g.PartyRows[seat].RemandOwed...)
+	}
+	if !sameSet(owed, recordedOwed) {
+		out = append(out, fmt.Sprintf("%s: relayed remand_owed %s, its dispatch rows recorded %s", where, setOf(owed), setOf(recordedOwed)))
 	}
 	var docket []string
 	ds, _ := plan["docket"].([]any)

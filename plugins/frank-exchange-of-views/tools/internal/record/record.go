@@ -1293,6 +1293,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireDispatchOccasions(b); err != nil {
 			return err
 		}
+		if err := requireDispatchRemand(b); err != nil {
+			return err
+		}
 	case *recordpb.Gate:
 		// THE ADMISSION FIRST: a live verdict claiming a migration's admission is refused before
 		// any gate reads the board, and a migrated PASS is stamped with the open material gaps its

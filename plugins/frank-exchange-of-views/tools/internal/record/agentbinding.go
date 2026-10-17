@@ -1,10 +1,13 @@
 package record
 
+import "fmt"
+
 // The agent -> seat binding, read back.
 //
-// `register` writes agent_id as a field on its event (see RegisterSeat), because it is the one
-// moment the mapping is knowable: the hook supplies the agent handle, the seat supplies which
-// seat it is. This file is the read half.
+// `register` writes agent_id as a field on its event (see RegisterSeat): the hook supplies the agent
+// handle, the seat supplies which seat it is. The SubagentStart bracket carries the handle too, and
+// its writer stores the seat where the configuration seats exactly one. The agent_binding view
+// states which of them binds; this file is the read half.
 //
 // WHY THIS IS A LOOKUP ON THE RECORD AND NOT A TABLE SOMEWHERE. The alternative was a JSON map
 // the hook keeps, keyed on a seat id recovered by parsing the seat's own command. That is a fact
@@ -12,13 +15,15 @@ package record
 // the same bytes as an honest absence. The record already holds every other fact about a seat,
 // validated at the write.
 
-// SeatOfAgent answers which seat the given harness agent registered as.
+// SeatOfAgent answers which seat the given harness agent sits as: the seat its latest register
+// names, else the seat its latest hook bracket names.
 //
 // THE THREE ANSWERS ARE KEPT APART ON PURPOSE, because collapsing them is how this becomes
 // another plausible zero:
 //
-//	("", false, nil)    nothing bound. The agent has not registered — a live, ordinary state at
-//	                    the very start of a sitting, and NOT an error.
+//	("", false, nil)    nothing bound. No register names the agent and its latest hook bracket, if
+//	                    any, names no seat — a live, ordinary state at the very start of a
+//	                    sitting, and NOT an error.
 //	(seat, true, nil)   bound.
 //	("", false, err)    the record could not be read at all. Distinct from "nothing bound",
 //	                    because a separated record nobody can reach would otherwise report an
@@ -27,37 +32,67 @@ package record
 // THE LAST REGISTER WINS. A re-dispatch writes a fresh register event, so a resumed seat
 // legitimately arrives under a NEW agent id claiming a seat that is already bound. Treating that
 // as a conflict would refuse every resume; the binding is simply the most recent claim.
+//
+// THE HARNESS BRACKET BINDS TOO, and without it the free sitting cannot be taken. A seat that is not
+// bound has no identity here, so the CLI hands it the OPERATOR surface — on which `show work` does
+// not exist. It could therefore only skip `register` by never looking, and could only know it need
+// not look BY looking. Measured: 8 of 9 sittings with nothing owed registered anyway, which is the
+// tool's answer rather than the seat's. The writer resolves a bracket's configuration to a seat and
+// stores it (#1149) where the configuration seats one — every role but blue's lanes — so the seat
+// is READ rather than re-derived, and a bracket whose configuration seats several carries none,
+// leaving blue's register load-bearing rather than guessed at.
+//
+// THE RULE IS THE agent_binding VIEW'S, asked for one agent. It carries no windows, so the lookup
+// every seat call and the sitting hook make does not rank the record's events.
 func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	if agentID == "" {
 		return "", false, nil
 	}
-	seat, found, err := RegisteredSeatOfAgent(run, agentID)
-	if err != nil {
-		return "", false, err
-	}
-	if found {
-		return seat, true, nil
-	}
-	// THE HARNESS BRACKET BINDS TOO, and without it the free sitting cannot be taken.
-	//
-	// A seat that has not registered has no identity here, so the CLI hands it the OPERATOR
-	// surface — on which `show work` does not exist. It could therefore only skip `register` by
-	// never looking, and could only know it need not look BY looking. Measured: 8 of 9 sittings
-	// with nothing owed registered anyway, which is the tool's answer rather than the seat's.
-	//
-	// SubagentStart writes sitting_open with the agent's id and configuration, and the WRITER
-	// resolves that configuration to a seat and stores it (#1149) — one seat for every role but
-	// blue's lanes. So the seat is READ here rather than re-derived: the roster join has exactly
-	// one caller, at the one moment it is knowable, and a bracket whose configuration seats
-	// several carries no seat, leaving blue's register load-bearing rather than guessed at.
 	var seatID string
-	found, err = queryRow(run, []any{&seatID},
-		`SELECT COALESCE("seat_id", '') FROM "sitting_open"
-		  WHERE "agent_id" = ? ORDER BY "event_id" DESC LIMIT 1`, agentID)
-	if err != nil || !found || seatID == "" {
+	found, err := queryRow(run, []any{&seatID}, `SELECT "seat_id" FROM "agent_binding" WHERE "agent_id" = ?`, agentID)
+	if err != nil || !found {
 		return "", false, err
 	}
 	return seatID, true, nil
+}
+
+// SeatBinding is what the record says about one harness agent: the seat it is bound to, and the
+// two windows of the act that bound it — the EPOCH (chair sittings at or before it) and the SITTING
+// (that seat's own sitting count, the opening that began it included).
+type SeatBinding struct {
+	SeatID  string
+	Epoch   int
+	Sitting int
+	// Occasion is WHAT THE SITTING WAS CONVENED TO DO, where the seat id does not say — the bench,
+	// whose four sittings share one id. EMPTY for every other seat, whose id already answers it,
+	// for an agent bound by its bracket, which states none, and for a bench sitting no register
+	// named an occasion for: that is NOT MEASURED, and a reader must not read it as a docket ruling.
+	Occasion string
+}
+
+// SeatBindings is every bound agent's binding, agent_id → binding, off the seat_of_agent view: the
+// agent_binding rule with each binding act's windows as the record stores them. A run with no record
+// yet binds nothing and is not an error; an unreachable record is.
+func SeatBindings(run Run) (map[string]SeatBinding, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT "agent_id", "seat_id", "registered_epoch", "sitting", COALESCE("occasion", '') FROM "seat_of_agent"`)
+	if err != nil {
+		return nil, fmt.Errorf("reading the agent bindings: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]SeatBinding{}
+	for rows.Next() {
+		var agent string
+		var b SeatBinding
+		if err := rows.Scan(&agent, &b.SeatID, &b.Epoch, &b.Sitting, &b.Occasion); err != nil {
+			return nil, fmt.Errorf("scanning an agent binding: %w", err)
+		}
+		out[agent] = b
+	}
+	return out, rows.Err()
 }
 
 // RegisteredSeatOfAgent is the STRICT half: only a register event answers it, never the harness

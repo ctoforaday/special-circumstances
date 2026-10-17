@@ -78,7 +78,7 @@ var (
 		Finding.about_ref Observe.label Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Log.estopped_by Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
+		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids Dispatch.remand_owed
 		Gate.migration_admitted_gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor

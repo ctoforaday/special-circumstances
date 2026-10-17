@@ -153,7 +153,7 @@ func TestAJSONRefusalFailsTheCallAndIsLogged(t *testing.T) {
 	}
 }
 
-// A --seat-id THAT DISAGREES WITH THE REGISTRATION IS LOGGED UNDER THE REGISTRATION.
+// A --seat-id THAT DISAGREES WITH THE BINDING IS LOGGED UNDER THE BOUND SEAT.
 //
 // The disagreement is the refusal, and Run refuses with it — so a logger reading the run through
 // Run recorded nothing. The act was the registered seat's, typing a wrong id.

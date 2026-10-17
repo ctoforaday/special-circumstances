@@ -78,7 +78,8 @@ func Limit(runDir, agentID, agentType string, sitting, limit int) error {
 }
 
 // Refusal hands a call the PreToolUse hook denied a seat to the writer, and Failure a call of the
-// seat's that failed; the writer logs each as the tool's entry under the seat the agent registered as.
+// seat's that failed; the writer logs each as the tool's entry under the seat the record binds the
+// agent to — its latest register, or else its latest bracket where that names a seat.
 func Refusal(runDir, agentID, text string) error {
 	return toolEntry(runDir, phaseRefusal, agentID, text)
 }

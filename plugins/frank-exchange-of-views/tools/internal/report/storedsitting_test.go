@@ -7,7 +7,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -191,9 +190,12 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		contains("fact box", factBox(fam), "**Epochs** | 2")
 	})
 
-	t.Run("cost's seat bindings", func(t *testing.T) {
-		b := cost.SeatBindingsOf(fam.Events, fam.At)
-		for agent, want := range map[string]cost.SeatBinding{
+	t.Run("the seat bindings", func(t *testing.T) {
+		b, err := record.SeatBindings(run)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for agent, want := range map[string]record.SeatBinding{
 			"C1": {SeatID: "red-chair", Epoch: 1, Sitting: 1},
 			"V2": {SeatID: "red-lens-voice", Epoch: 1, Sitting: 2},
 			// The bracket-only sittings bind by their bracket: no register names these agents.

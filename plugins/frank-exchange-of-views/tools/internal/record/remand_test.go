@@ -364,6 +364,102 @@ func TestAMovingRemandExchangeLeavesAKMaxImpasse(t *testing.T) {
 	})
 }
 
+// THE ROWS RECORD WHAT THE PLAN OWES. The verb writes each remand-owed gap on the rows of the two
+// seats its exchange readies — the minting lens and blue — and on no other, so capture can hold the
+// relayed remand_owed to the record and not only to the printed plan.
+func TestTheRemandOwedIsRecordedOnTheRowsTheRemandReadies(t *testing.T) {
+	run := remandedAtImpasse(t).register("red-chair").seed()
+	plan, standing, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
+	if err != nil || standing {
+		t.Fatalf("dispatch next = (standing %v, %v)", standing, err)
+	}
+	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) {
+		t.Fatalf("setup: remand_owed = %+v, want %+v", plan.RemandOwed, want)
+	}
+	fam, err := FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := DispatchGroups(fam.Events, fam.At)
+	g := groups[len(groups)-1]
+	for _, seat := range g.Parties {
+		want := []string(nil)
+		if seat == evLens || seat == "blue-respond" {
+			want = []string{"G1"}
+		}
+		if got := g.PartyRows[seat].RemandOwed; !slices.Equal(got, want) && !(len(got) == 0 && len(want) == 0) {
+			t.Errorf("%s's row records remand_owed %v, want %v", seat, got, want)
+		}
+	}
+	if len(g.PartyRows[evLens].RemandOwed) == 0 || len(g.PartyRows["blue-respond"].RemandOwed) == 0 {
+		t.Errorf("the minting lens and blue are both dispatched on the remand's exchange: rows %+v", g.PartyRows)
+	}
+}
+
+// A ROW IS OWED A REMAND EXCHANGE ONLY ON A GAP IT ENGAGES, AND ONLY BLUE'S ROW AND A LENS'S ARE.
+// The write checks the row against itself; which lens minted the gap is the verb's to get right.
+func TestADispatchRowsRemandIsRefusedOffItsGapsOrOnTheBench(t *testing.T) {
+	run := remandedAtImpasse(t).seed()
+	chair := sit(t, run, "red-chair")
+	for _, c := range []struct {
+		name string
+		row  *recordpb.Dispatch
+		want string
+	}{
+		{"on the bench's row", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"},
+			Occasions: []recordpb.Occasion{recordpb.Occasion_OCCASION_DOCKET}, RemandOwed: []string{"G1"}}, `"judge" is owed no remand exchange`},
+		{"on a gap the row does not engage", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("blue-respond"),
+			RemandOwed: []string{"G1"}}, "owed a remand exchange on G1 and engages its seat on []"},
+		{"twice", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"},
+			RemandOwed: []string{"G1", "G1"}}, "names G1's remand exchange twice"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := Append(chair, c.row); err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Errorf("a row owed a remand exchange %s = %v, want a refusal naming %q", c.name, err, c.want)
+			}
+		})
+	}
+	mustAppend(t, chair, &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String(evLens), GapIds: []string{"G1"}, RemandOwed: []string{"G1"}})
+}
+
+// THE DIRECTION AT A POINT IS THE LATEST REMAND WRITTEN BY THEN. Capture holds a relayed remand's
+// direction to the record as it stood when the chair's sitting ended, so a relay quoting a remand
+// the bench has since replaced — or one written after the sitting — departs.
+func TestAPlanFactsRemandDirectionIsTheLatestRemandAtThePoint(t *testing.T) {
+	const second = "count the table's rows by hand"
+	run := remandedAtImpasse(t).exchangeOn("G1").register("red-chair").docketMotion("red-chair", "M2", "G1").
+		dispatch(2, "judge", "G1").register("judge").add("judge", remandRuling("M2", second)).register("red-chair").seed()
+	fam, err := FamilyOf(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := PlanFactsOf(run, fam.Events, fam.At)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var remands []int // stream lengths just past each remand
+	for i, e := range fam.Events {
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket() != nil {
+			remands = append(remands, i+1)
+		}
+	}
+	if len(remands) != 2 {
+		t.Fatalf("setup: %d remands on the record, want 2", len(remands))
+	}
+	if _, ok := facts.At(remands[0] - 1).RemandDirection("G1"); ok {
+		t.Errorf("before the first remand G1 has a direction")
+	}
+	if d, _ := facts.At(remands[0]).RemandDirection("G1"); d != remandDirection {
+		t.Errorf("after the first remand the direction is %q, want %q", d, remandDirection)
+	}
+	if d, _ := facts.At(remands[1] - 1).RemandDirection("G1"); d != remandDirection {
+		t.Errorf("just before the second remand the direction is %q, want the first's %q", d, remandDirection)
+	}
+	if d, _ := facts.At(len(fam.Events)).RemandDirection("G1"); d != second {
+		t.Errorf("at the end the direction is %q, want the latest remand's %q", d, second)
+	}
+}
+
 // AT ITS LIMIT IS A ROUTE, NOT A COUNT: a gap the bench remanded twice that then moves is below its
 // limits, and the chair's row says what the dispatch does — readies its parties — not "at its limit".
 func TestAGapRemandedTwiceThatMovesIsNotAtItsLimit(t *testing.T) {

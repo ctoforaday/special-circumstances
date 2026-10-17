@@ -21,9 +21,9 @@ import (
 //
 // The two halves were each fine on their own and had never been driven together. FEOV_SEAT had
 // READERS AND NO WRITER: the tool resolved an injected seat id that nothing on earth produced,
-// because nothing upstream of `register` knows which agent holds which seat — the dispatcher does
-// not learn the id (Workflow's agent() returns a result, not a handle), and recovering one from
-// the seat's own command would be a fact read back out of prose.
+// because the dispatcher does not learn which agent holds which seat (Workflow's agent() returns a
+// result, not a handle), and recovering one from the seat's own command would be a fact read back
+// out of prose.
 //
 // So the hook exports the fact it HAS — agent_id, the only payload field that discriminates one
 // seat from another (session_id and prompt_id are byte-identical across every concurrent
@@ -112,7 +112,7 @@ func TestConcurrentSeatsRecordDistinctAgents(t *testing.T) {
 			t.Fatalf("register %s: %v", seat, err)
 		}
 	}
-	// THE LATEST REGISTER PER SEAT, which is what the binding IS. seatRun already registered
+	// THE LATEST REGISTER PER SEAT, which is what binds an agent that registered. seatRun already registered
 	// red-lens-evidence with no agent, and this loop asserted over EVERY register event — so it
 	// failed on the fixture's own earlier sitting rather than on the binding under test.
 	//
@@ -302,8 +302,8 @@ func TestASurfaceWhoseRegisterCarriesMoreStillRefuses(t *testing.T) {
 }
 
 // AND REGISTER ITSELF MUST RUN UNBOUND, or the mechanism cannot start. This is the bootstrap and
-// the one asymmetry in it: register is what CREATES the binding, so it is the single verb that
-// may act on a claim.
+// the one asymmetry in it: register is what CREATES the binding the write gate checks, so it is the
+// single verb that may act on a claim.
 func TestRegisterIsTheOneVerbThatMayRunUnbound(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_bootstrapping")

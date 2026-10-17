@@ -34,8 +34,8 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	if err == nil || cmd == nil || record.IsToolLogged(err) {
 		return
 	}
-	// THE REGISTERED SEAT, not Run's: a --seat-id disagreeing with the registration is itself a
-	// refusal, Run refuses with it, and the act is the registered seat's.
+	// THE BOUND SEAT, not Run's: a --seat-id disagreeing with the seat the record binds this agent
+	// to is itself a refusal, Run refuses with it, and the act is the bound seat's.
 	run, seatID, rerr := seat.Of(cmd).RefusalSeat()
 	if rerr != nil || seatID == "" || seatID == record.OperatorRole {
 		return

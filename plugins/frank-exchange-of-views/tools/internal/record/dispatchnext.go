@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/proto"
 
@@ -119,6 +120,7 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		}
 		if err := write(&recordpb.Dispatch{
 			Pin: proto.Int64(plan.Head), SeatId: proto.String(p.SeatID), GapIds: p.GapIDs, Occasions: occasions,
+			RemandOwed: remandOwedOn(plan, p),
 		}); err != nil {
 			return emptyPlan(), false, err
 		}
@@ -127,6 +129,24 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 		return emptyPlan(), false, err
 	}
 	return plan, false, nil
+}
+
+// remandOwedOn is the gaps of plan.RemandOwed whose exchange party p's row readies: those it is
+// engaged on, on blue's row and a lens's. A remand-owed gap engages exactly its minting lens and
+// blue (foldPlan's routeRemandOwed), so the gap is recorded on both rows and on no other. THE ROWS
+// RECORD IT, NOT ONLY THE PRINT: the workflow tells blue the remand's duty and quotes its direction
+// off the plan's copy, and capture holds that copy to these rows.
+func remandOwedOn(plan Plan, p Party) []string {
+	if SeatOwesOccasion(p.SeatID) {
+		return nil
+	}
+	var out []string
+	for _, o := range plan.RemandOwed {
+		if slices.Contains(p.GapIDs, o.GapID) {
+			out = append(out, o.GapID)
+		}
+	}
+	return out
 }
 
 // planAt is PlanDispatch asked of q, the writing transaction DispatchNext holds.

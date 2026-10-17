@@ -54,8 +54,9 @@ func recognized(m string) bool { return modeltier.Recognized(m) }
 // Row is one agent's summed, priced usage.
 //
 // Epoch is the dispatch cycle the agent's sitting belongs to — the chair's sitting count at the
-// seat's own register (plans/roundless.md §III.A.0) — and it comes from the RECORD, never from
-// the transcript: ScanTranscript leaves it 0 and the caller binds it through SeatBindings. 0 is
+// act that binds the agent, its latest register or else its seat-naming bracket (plans/roundless.md
+// §III.A.0) — and it comes from the RECORD, never from the transcript: ScanTranscript leaves it 0
+// and the caller binds it through record.SeatBindings. 0 is
 // also what a bookend seat (frontier, lanes, synthesis: before the first chair sitting) and an
 // agent the record never bound both carry, and the report prints it as a dash.
 type Row struct {
@@ -133,72 +134,11 @@ func ScanTranscript(txt string) Row {
 	return Row{Seat: c.Seat, T: t, Turns: turns, Inp: inp, Out: out, Cr: cr, Cw: cw, Cost: cost}
 }
 
-// SeatBinding is what the record says about one harness agent: the seat it is bound to, and the
-// two windows of the act that bound it — the EPOCH (chair sittings at or before it) and the SITTING
-// (that seat's own sitting count, the opening that began it included).
-type SeatBinding struct {
-	SeatID  string
-	Epoch   int
-	Sitting int
-	// Occasion is WHAT THE SITTING WAS CONVENED TO DO, where the seat id does not say — the bench,
-	// whose four sittings share one id. EMPTY for every other seat, whose id already answers it,
-	// and empty for a bench sitting no register named an occasion for: that is NOT MEASURED, and
-	// a reader must not read it as a docket ruling.
-	Occasion string
-}
-
-// SeatBindingsOf folds the record once into agent_id → binding. It is the join the seat_of_agent
-// view performs, read here off the event slice a caller already holds, with each binding act's
-// window the one the record stores it in (win):
-//   - THE LAST REGISTER WINS, because a resumed seat arrives under a new agent id claiming a seat
-//     already bound. A repair's register is labelled with the sitting it completes.
-//   - AN AGENT NO REGISTER NAMES is bound by its latest hook bracket (sitting_open) that names a
-//     seat. A seat woken with nothing to do need not register; the SubagentStart hook opened its
-//     sitting and the writer resolved the configuration to a seat. Left unbound, that sitting's
-//     cost reads as the dash in epoch 0 and the dashboard labels it with no seat.
-//
-// A register or bracket carrying no agent_id (a run whose hook never fired), or a bracket whose
-// configuration seats several (blue's lanes, which name no seat), binds nothing, and that absence
-// stays legible downstream as epoch 0, the dash.
-func SeatBindingsOf(evs []*record.Event, win record.WindowIndex) map[string]SeatBinding {
-	out := map[string]SeatBinding{}
-	registered := map[string]bool{}
-	for _, e := range evs {
-		body, _ := recordpb.Body(e)
-		switch b := body.(type) {
-		case *recordpb.Register:
-			if b.GetAgentId() == "" {
-				continue
-			}
-			w := win.Of(e)
-			registered[b.GetAgentId()] = true
-			out[b.GetAgentId()] = SeatBinding{SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
-				Occasion: recordpb.Word(b.GetOccasion())}
-		case *recordpb.SittingOpen:
-			if b.GetAgentId() == "" || b.GetSeatId() == "" || registered[b.GetAgentId()] {
-				continue
-			}
-			w := win.Of(e)
-			out[b.GetAgentId()] = SeatBinding{SeatID: b.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting}
-		}
-	}
-	return out
-}
-
-// SeatBindings is SeatBindingsOf over the run's record. A run with no record yet binds nothing
-// and is not an error; an unreachable record is.
-func SeatBindings(run record.Run) (map[string]SeatBinding, error) {
-	m, err := record.MergedEvents(run)
-	if err != nil {
-		return nil, err
-	}
-	return SeatBindingsOf(m.Events, m.At), nil
-}
-
 // AgentIDOfTranscript is the harness handle a per-agent transcript is filed under: the harness
 // writes `agent-<id>.jsonl`, and the dashboard composes that same name forward from the journal's
 // agentId. This is the inverse of the harness's own layout, not a fact recovered from the record —
-// the record holds the id itself, on the register event, and that is what the name is joined to.
+// the record holds the id itself, on the register or the seat-naming hook bracket that binds the
+// agent, and that is what the name is joined to.
 // A name of another shape yields "", which binds nothing.
 func AgentIDOfTranscript(name string) string {
 	if !strings.HasPrefix(name, "agent-") || !strings.HasSuffix(name, ".jsonl") {
@@ -363,9 +303,12 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	// seat; which dispatch cycle it sat in is the count of the chair's stored sittings at its
 	// binding act, which only the record holds. Without a record every row is epoch 0 and the table
 	// shows a dash, which is the honest answer rather than a number scraped from a heading.
-	var bindings map[string]SeatBinding
+	var bindings map[string]record.SeatBinding
 	if run.Dir() != "" {
-		bindings, _ = SeatBindings(run)
+		var err error
+		if bindings, err = record.SeatBindings(run); err != nil {
+			return fmt.Errorf("binding the transcripts to their seats: %w", err)
+		}
 	}
 	var rows []Row
 	for _, f := range files {
@@ -449,8 +392,9 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 // adapt, never perform the metric at the expense of the duty it measures — and a seat handed its
 // own throughput is being invited to do exactly that, for a number that is none of its business.
 //
-// NOT MEASURED IS PRINTED AS SUCH. A seat whose turns carried no timestamps has no span and a
-// seat that never registered has no seat id; both render as an em dash rather than 0 or blank,
+// NOT MEASURED IS PRINTED AS SUCH. A seat whose turns carried no timestamps has no span and an
+// agent nothing binds — no register and no seat-naming bracket — has no seat id; both render as an
+// em dash rather than 0 or blank,
 // because a twenty-minute seat shown as instantaneous is worse than one shown as unknown.
 func reportSeatMeasurements(run record.Run, p func(string)) {
 	metrics, err := record.SeatMetrics(run)
@@ -528,8 +472,9 @@ func secondsPerTurn(ms *int64, turns int) string {
 	return fmt.Sprintf("%.1f", float64(*ms)/1000.0/float64(turns))
 }
 
-// orDash renders an absent seat id as a dash. An agent with no register event is a REAL row —
-// a seat that crashed before registering still cost what it cost — and blanking the cell would
+// orDash renders an absent seat id as a dash. An agent nothing binds — no register and no
+// seat-naming bracket — is a REAL row — a seat that crashed before anything bound it still cost what
+// it cost — and blanking the cell would
 // make it look like a formatting slip rather than a fact about the run.
 func orDash(s *string) string {
 	if s == nil || *s == "" {

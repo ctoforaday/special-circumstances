@@ -19,7 +19,7 @@ import (
 // and the ones that only read.
 //
 // Two things a call can say about who is asking that the record or the dispatch contradicts: a
-// --seat-id that is not the seat this agent registered as, and a --run that is not the run the
+// --seat-id that is not the seat the record binds this agent to, and a --run that is not the run the
 // seat was dispatched into. A recording verb that ignores either writes under the wrong name or
 // into the wrong run. A READ that ignores either does something quieter: it answers, from another
 // seat's surface or another run's record, in bytes that look exactly like the right answer.
@@ -81,7 +81,7 @@ func TestEveryLeafRefusesBothIdentityDisagreements(t *testing.T) {
 				if err == nil {
 					t.Fatalf("ran as %s for an agent the record binds to %s, and answered:\n%s", surface, bound, clipTo(out, 300))
 				}
-				if got := feov.CodeOf(err); got != string(feov.Conflict) || !strings.Contains(err.Error(), "disagrees with the seat this agent registered as") {
+				if got := feov.CodeOf(err); got != string(feov.Conflict) || !strings.Contains(err.Error(), "disagrees with the seat the record binds this agent to") {
 					t.Errorf("refused for another reason (code %q): %v", got, err)
 				}
 			})
