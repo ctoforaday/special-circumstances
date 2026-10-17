@@ -12,8 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
-// newCapture is the operator command that runs /research's post-hoc capture step — ported from
-// capture-research-run.mjs. Like setup/cost/scorecard/dashboard it is not a seat verb; /research's
+// newCapture is the operator command that runs /research's post-hoc capture step. Like setup/cost/scorecard/dashboard it is not a seat verb; /research's
 // capture step spawns it (the record binary IS the tool — no --bin) to write run-record-audit.md,
 // cost.md, the transcript tarball, the appended scorecards, and the precedent harvest, and to
 // remove the run-live marker. The three record-backed audits read the record IN-PROCESS. Exit 2
@@ -21,8 +20,8 @@ import (
 func newCapture() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "capture <runDir> <transcriptDir>",
-		Short:         "run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)",
-		Long:          "capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the journal, packs the agent transcripts, writes cost.md, runs the nine integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each card's scorecard, harvests judicial rulings into law/proposed/, and removes the run-live marker — writing run-record-audit.md and exiting 2 on any audit FAIL. The record-backed audits read the record in-process. Ported from capture-research-run.mjs.",
+		Short:         "run /research's post-hoc capture auditor (operator; integrity audits + cost.md/tarball/scorecards)",
+		Long:          "capture is the mechanical half of /research's run-record step plus the mechanized post-hoc auditor: it copies the journal, packs the agent transcripts, writes cost.md, re-assembles the run's documents from the record, runs the integrity audits (recomputing counts from the git-tracked files and diffing them against the envelopes' self-reports), appends each card's scorecard, harvests judicial rulings into law/proposed/, and removes the run-live marker — writing run-record-audit.md, folding the cost, tier check, board telemetry and audits into run.md, and exiting 2 on any audit FAIL. The record-backed audits read the record in-process.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

@@ -1,5 +1,5 @@
-// Package capture is the Go port of capture-research-run.mjs: the mechanical half of
-// /research's run-record step plus the mechanized post-hoc auditor. It recomputes counts from
+// Package capture is `feov-record capture`: the mechanical half of /research's run-record step
+// plus the mechanized post-hoc auditor. It recomputes counts from
 // the git-tracked FILES and diffs them against the envelopes' self-reports, writes cost.md and
 // the transcript tarball, appends each card's scorecard, harvests precedents into law/proposed,
 // removes the run-live marker, and writes run-record-audit.md — exit 2 on any audit FAIL.
@@ -234,14 +234,16 @@ func plural(n int, one, many string) string {
 
 // ---- AUDIT 4: context-use ----
 
-var reHaiku = regexp.MustCompile(`haiku`)
-
 type peak struct {
 	agent  string
 	peak   int
 	window int
 }
 
+// ContextUse is each seat's largest prompt against its model's context window. The prompt is a
+// REQUEST's — read by seatturn.Parse, the reader seat_turn and cost.md share — and the window is the
+// model's own, from the cost package's model table: Haiku 5.5's is 1M where Haiku 4.5's was 200K, and
+// a window guessed from the tier name put a 118K Haiku 5.5 seat at 59% of a window it does not have.
 func ContextUse(transcriptDir string, agentFiles []string) Audit {
 	var peaks []peak
 	for _, f := range agentFiles {
@@ -250,38 +252,17 @@ func ContextUse(transcriptDir string, agentFiles []string) Audit {
 			continue
 		}
 		pk, model := 0, ""
-		for _, line := range strings.Split(string(b), "\n") {
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			dec := json.NewDecoder(strings.NewReader(line))
-			dec.UseNumber()
-			var j map[string]any
-			if dec.Decode(&j) != nil {
-				continue
-			}
-			m, _ := j["message"].(map[string]any)
-			if m == nil {
-				continue
-			}
-			u, _ := m["usage"].(map[string]any)
-			if u == nil {
-				continue
-			}
-			ctx := intField(u, "input_tokens") + intField(u, "cache_read_input_tokens") + intField(u, "cache_creation_input_tokens")
-			if ctx > pk {
-				pk = ctx
-				if mm, ok := m["model"].(string); ok && mm != "" {
-					model = mm
+		_, turns := seatturn.Parse(string(b))
+		for _, t := range turns {
+			if t.Prompt() > pk {
+				pk = t.Prompt()
+				if t.Model != "" {
+					model = t.Model
 				}
 			}
 		}
 		if pk > 0 {
-			window := 1_000_000
-			if reHaiku.MatchString(model) {
-				window = 200_000
-			}
-			peaks = append(peaks, peak{agent: stripAgent(f), peak: pk, window: window})
+			peaks = append(peaks, peak{agent: stripAgent(f), peak: pk, window: cost.WindowOf(model)})
 		}
 	}
 	if len(peaks) == 0 {
@@ -311,13 +292,6 @@ func ContextUse(transcriptDir string, agentFiles []string) Audit {
 		jsToFixed0(float64(top.peak)/1000), jsToFixed0(float64(top.peak)/float64(top.window)*100), top.window/1000, top.agent,
 		len(peaks), len(flagged), tail)
 	return Audit{Check: "context-use", Verdict: v, Detail: detail}
-}
-
-func intField(m map[string]any, k string) int {
-	if f, ok := numOf(m[k]); ok {
-		return int(f)
-	}
-	return 0
 }
 
 var reAgentStrip = regexp.MustCompile(`^agent-|\.jsonl$`)
@@ -1789,13 +1763,20 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	} else {
 		costF.Close()
 		lines = append(lines, "cost.md: written (telemetry join included)")
-		// Fold the per-seat-epoch cost table into run.md as a ## Cost section — what the run
-		// cost is a fact about the RUN, and run.md is the document whose subject that is. The
-		// set is assembled mid-run WITHOUT transcript access (the transcript dir reaches only
-		// capture), so this is the one stage that can. Slices the already-rendered cost.md
-		// (kept byte-identical) rather than re-generate.
-		if msg := foldCaptureArtifacts(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md"), filepath.Join(run.Dir(), "run-record-audit.md")); msg != "" {
-			lines = append(lines, msg)
+	}
+
+	// THE DOCUMENTS ARE RE-ASSEMBLED FROM THE RECORD AS IT STANDS AT THE CLOSE. The bench assembles
+	// inside its own sitting, and the run document's tier table reads each seat's turns: the bench's
+	// own are not on the record until its sitting stops, and a seat whose trajectory cannot be opened
+	// from where capture runs is measured from those turns alone. Re-assembling here, after the turns
+	// are ingested, is what makes that table the run's and not the moment's. The audits below then
+	// screen the documents that ship. A run that never reached assembly has no run.md and is not
+	// assembled here: the bench's act is what makes a run's documents exist.
+	if _, serr := os.Stat(filepath.Join(run.Dir(), reportdoc.FileRun)); serr == nil {
+		if a, aerr := reportdoc.Assemble(run); aerr != nil {
+			lines = append(lines, "documents: re-assembly FAILED — "+jsSlice(aerr.Error(), 200)+"; they stand as the bench assembled them")
+		} else {
+			lines = append(lines, fmt.Sprintf("documents: %d re-assembled from the record at the close", a.Documents))
 		}
 	}
 
@@ -1874,7 +1855,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 
 	var out []string
 	out = append(out,
-		"# capture-audit — mechanized post-hoc checks (capture-research-run.mjs)",
+		"# capture-audit — mechanized post-hoc checks (feov-record capture)",
 		"",
 		"Presence/consistency tier only: these checks catch a missing line and a self-inconsistent",
 		"self-report; a plausible-but-wrong value is vacuity, whose auditor is the next run/",
@@ -1890,8 +1871,19 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	}
 	out = append(out, "")
 	report = strings.Join(out, "\n")
-	if werr := os.WriteFile(filepath.Join(run.Dir(), "run-record-audit.md"), []byte(report), 0o644); werr != nil {
+	auditPath := filepath.Join(run.Dir(), "run-record-audit.md")
+	if werr := os.WriteFile(auditPath, []byte(report), 0o644); werr != nil {
 		return nil, "", false, werr
+	}
+	// THE FOLD COMES AFTER THE AUDIT FILE IS WRITTEN, because the audits are one of the sections it
+	// folds. Run before it, it read the file the PREVIOUS capture left: a first capture's run
+	// document had no integrity audits at all, and a second carried the first one's. What run.md
+	// was given is then said in the audit file and the report, which the fold has already read.
+	if msg := foldCaptureArtifacts(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md"), auditPath); msg != "" {
+		report = strings.TrimRight(report, "\n") + "\n- " + msg + "\n"
+		if werr := os.WriteFile(auditPath, []byte(report), 0o644); werr != nil {
+			return nil, "", false, werr
+		}
 	}
 	for _, a := range audits {
 		if a.Verdict == "FAIL" {
