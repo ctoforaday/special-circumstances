@@ -312,6 +312,26 @@ char *tessocr_grid_lines(const unsigned char *png, size_t len, int sel) {
 	return buf;
 }
 
+// tessocr_ink counts the page's ink: the pixels that are dark after the same normalization and the
+// same binarization at 180 the grid detector sees. It asks tesseract nothing, so a recognition that
+// returns nothing leaves this count standing — that independence is the whole of its use (#1029).
+int tessocr_ink(const unsigned char *png, size_t len, long long *dark, long long *total) {
+	PIX *pix = read_png(png, len);
+	if (pix == nullptr) return 1;
+	PIX *bin = pixConvertTo1(pix, 180);
+	pixDestroy(&pix);
+	if (bin == nullptr) return 2;
+	l_int32 d = 0;
+	if (pixCountPixels(bin, &d, nullptr) != 0) {
+		pixDestroy(&bin);
+		return 3;
+	}
+	*dark = d;
+	*total = static_cast<long long>(pixGetWidth(bin)) * pixGetHeight(bin);
+	pixDestroy(&bin);
+	return 0;
+}
+
 void tessocr_free_text(char *t) {
 	delete[] t;
 }
