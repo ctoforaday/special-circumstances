@@ -197,6 +197,14 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 					"moment one of them is edited alone.", filepath.Base(p), w)
 			}
 		}
+		// THE DUTY IS STATED ONCE. The role fragments add what only the role holds — red's "never a
+		// gap", blue's and the bench's naming of the shape the work wanted — and log-what-it-is-for
+		// states the duty. A role fragment that opens on the duty again is a paraphrase no sentence
+		// gate sees.
+		if n := strings.Count(text, "COST YOU A CALL"); n != 1 {
+			t.Errorf("%s states the log duty %d times, want 1: the role fragment restates what "+
+				"log-what-it-is-for already says.", filepath.Base(p), n)
+		}
 		for _, w := range banned {
 			if strings.Contains(text, normalizeWS(w)) {
 				t.Errorf("%s restates %q, which `log --help` says on the page a seat opens when it "+
