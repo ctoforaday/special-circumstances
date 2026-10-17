@@ -1043,7 +1043,7 @@ take a claim out of the report, when it cannot stand and no edit will save it
 
 A claim leaves the report only through this verb — never by quietly not being there any more. `edit` refuses a replacement that drops an anchor, so the anchors a claim rested on leave here, named on the record.
 
-An anchored claim leaves in two steps: `edit` it down to its bare anchor (an edit may carry an anchor but never drop one), then retire it here, quoting the WHOLE of what the edit cut, or whole sentences of it. The retire takes every bare anchor its claim held out with it, whatever its kind — no orphan footnote, no empty bullet — so an edit that cut several claims lets each leave with its own reason. A fragment of a sentence takes nothing out, and while that sentence's anchors stand bare it is refused, naming them and the sentence to quote. An anchor inside a sentence — the claim was a clause, and the rest of the sentence still stands before it — does not count as bare: name it, and the tool checks it against the edit that left it alone. The result says which anchors left and which stayed.
+An anchored claim leaves in two steps: `edit` the claim out — the edit carries its anchors, because an edit may carry an anchor but never drop one — then retire it here, quoting the WHOLE of what the edit cut, or whole sentences of it. The anchors that stood on those sentences in that edit are the claim's. Each that stands bare now — no prose before it in its sentence — leaves with it, whatever its kind: no orphan footnote, no empty bullet, and an edit that cut several claims lets each leave with its own reason. One the edit left on prose that still stands — the rest of its sentence, or text the edit wrote — stays unless you name it: name it when it backed only this claim, and the tool checks it against the edit that took the claim out. A fragment of a sentence takes nothing out, and while that sentence's anchors stand bare it is refused, naming them and the sentence to quote. The result says which anchors left and which stayed.
 
 Name what replaces it where something does.
 
@@ -1052,9 +1052,9 @@ Name what replaces it where something does.
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §4
 
 Flags:
-      --anchor list     an anchor id of any kind the edit left inside a sentence that backed only this claim (comma-separated) — it leaves with the claim
+      --anchor list     an anchor id of any kind that stood on this claim and still stands on prose after the edit, when it backed only this claim (comma-separated) — it leaves with the claim
       --new string      the claim that replaces it, when one does
-      --quote string    REQUIRED — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
+      --quote string    REQUIRED — the claim being removed, verbatim as it stood in the report BEFORE the edit that took it out — a sub-span of what that edit cut. It must be ABSENT from the report now (edit it out first, then retire; the retire is refused while the text still stands). Found inside a recorded edit's old span, anchors read past, the removal is recorded as verified; found in none, the retire is still recorded, with its removal basis recorded as asserted rather than verified — a removal the record cannot show
       --reason string   → SHARED §8
 ========
 $ feov-record show --help
