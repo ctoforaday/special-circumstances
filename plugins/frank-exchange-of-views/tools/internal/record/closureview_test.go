@@ -243,6 +243,15 @@ func TestAGapsClosureIsItsLastStandingClosingAct(t *testing.T) {
 			case !w.estopped && len(wj.Estopped) != 0:
 				t.Errorf("work: estopped = %+v, want none — the bench's is not G1's last closing act", wj.Estopped)
 			}
+			// The near-match screen answers the estoppel's question — reopen it, or name it in a
+			// successor's supersedes — so its closed_by is "bench" exactly where G1 is estopped.
+			wantBy := map[bool]string{true: "bench", false: "red"}[w.estopped]
+			if w.open {
+				wantBy = ""
+			}
+			if nm := NearMatch(fam, g.Mint.GetProblem(), "", 0); len(nm) != 1 || nm[0].ClosedBy != wantBy {
+				t.Errorf("near-match: %+v, want G1 closed_by %q — the screen and the estoppel must agree", nm, wantBy)
+			}
 		})
 	}
 }
