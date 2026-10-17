@@ -31,6 +31,7 @@ import (
 	"fmt"
 	neturl "net/url"
 	"os"
+	"slices"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"path/filepath"
@@ -299,9 +300,9 @@ func (r *Refusal) Error() string {
 // decides, and it takes the bytes rather than the route they arrived by.
 func Classify(entry *Entry, body []byte) {
 	// HTML ONLY, and the answer is recorded either way — "we looked and it is a document" is the
-	// fact that makes the flag's ABSENCE mean something. DefaultExtractor is a PDF extractor and
-	// reports Attempted=false for HTML deliberately, so this cannot live inside the extraction
-	// block: it would be dead code on precisely the content type it is about.
+	// fact that makes the flag's ABSENCE mean something. It reads the raw page rather than the
+	// extraction: a wall is decided by markup the extraction drops (a challenge title, a mount
+	// point, a script marker).
 	if strings.Contains(entry.ContentType, "html") {
 		shell := ShellReason(entry.ContentType, body)
 		notRenderable := shell != ""
@@ -723,15 +724,18 @@ func URLsSharingBody(run record.Run, sha, exceptURL string) ([]string, error) {
 	}
 	defer f.Close()
 	var out []string
-	seen := map[string]bool{exceptURL: true}
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
 	for sc.Scan() {
 		var got Entry
-		if json.Unmarshal(sc.Bytes(), &got) != nil || got.Sha != sha || seen[got.URL] {
+		if json.Unmarshal(sc.Bytes(), &got) != nil || got.Sha != sha {
 			continue
 		}
-		seen[got.URL] = true
+		// ONE RESOURCE SPELLED TWICE IS NOT TWO SOURCES ANSWERING ALIKE: `%7E` and `~` name the
+		// same path, and the warning below exists for the second case only.
+		if SameResource(got.URL, exceptURL) || slices.ContainsFunc(out, func(u string) bool { return SameResource(u, got.URL) }) {
+			continue
+		}
 		out = append(out, got.URL)
 	}
 	return out, sc.Err()
@@ -915,7 +919,7 @@ func TextBearing(contentType string) bool {
 		return true
 	}
 	// POSTSCRIPT AND RTF ARE NOT ON THAT LIST, and the first draft of it had them. They carry
-	// text in a sense no reader here can act on: DefaultExtractor handles pdf alone, and a seat
+	// text in a sense no reader here can act on: DefaultExtractor reads pdf and html alone, and a seat
 	// handed a .ps has the document and no way to quote it. Listing a format nothing reads
 	// recreates the exact claim this function exists to withdraw.
 	// A type that declines to say. SniffedMediaType has already looked at the magic bytes and

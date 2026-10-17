@@ -626,7 +626,7 @@ func TestFollowingAPublishersOwnPointerIsNotASecondAsking(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	start := time.Now()
+	waits := recordedWaits(t)
 	e, body, _, err := Resolve(runtest.New(t, t.TempDir()), srv.URL+"/abs", NewHTTPFetcher())
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -634,9 +634,10 @@ func TestFollowingAPublishersOwnPointerIsNotASecondAsking(t *testing.T) {
 	if !strings.HasPrefix(string(body), "%PDF") {
 		t.Fatalf("the walk did not reach the pdf: %q", e.ContentType)
 	}
-	// Derived from the floor for the same reason as above: under the published delay proves the
-	// hop was free, and does not also assert how fast this machine is today.
-	if elapsed := time.Since(start); elapsed > published/2 {
-		t.Errorf("following the publisher's own pointer took %v against a published delay of %v — it was charged as a new asking", elapsed, published)
+	// Read from the waits the fetcher asked for, not from a clock, for the same reason as above: a
+	// total under the published delay proves the hop was free, on any box at any load. Measured with
+	// a clock this failed at 34-57s on a box running other sessions' race suites, with no hop charged.
+	if asked := total(*waits); asked > published/2 {
+		t.Errorf("following the publisher's own pointer asked to wait %v (%v) against a published delay of %v — it was charged as a new asking", asked, *waits, published)
 	}
 }

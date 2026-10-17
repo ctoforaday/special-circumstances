@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/scripts/internal/testjson"
 	"github.com/ctoforaday/special-circumstances/scripts/internal/testsplit"
 )
 
@@ -203,34 +204,24 @@ func TestTestNamesKeepsTestsFuzzAndExamplesOnly(t *testing.T) {
 	}
 }
 
-// A VERDICT IS THE EVENT, NOT A LINE. The second test's output has no trailing newline, so the
-// `--- PASS` text that follows it is glued to it; the event still names the test.
-func TestFoldReadsVerdictsFromEvents(t *testing.T) {
-	stream := strings.Join([]string{
-		`{"Action":"output","Package":"p","Test":"TestA","Output":"--- FAIL: TestA (0.00s)\n"}`,
-		`{"Action":"pass","Package":"p","Test":"TestA"}`,
-		`{"Action":"output","Package":"p","Test":"TestB","Output":"no newline--- PASS: TestB (0.00s)\n"}`,
-		`{"Action":"pass","Package":"p","Test":"TestB"}`,
-		`{"Action":"pass","Package":"p","Test":"TestB/sub"}`,
-		`{"Action":"skip","Package":"p","Test":"TestC"}`,
-		`{"Action":"fail","Package":"q","Test":"TestD"}`,
-		`{"Action":"fail","Package":"q","Elapsed":1.5}`,
-		`{"Action":"pass","Package":"p","Elapsed":0.25}`,
-		`# q [build failed]`,
-	}, "\n")
-	byPkg, stray := fold([]byte(stream))
-	p, q := byPkg["p"], byPkg["q"]
-	if p == nil || q == nil {
-		t.Fatalf("packages = %v", byPkg)
+// The plain path's tally counts every top-level verdict; reading them is testjson's.
+func TestTallyCountsEveryVerdict(t *testing.T) {
+	p := &testjson.Package{Tests: map[string]string{"TestA": "pass", "TestB": "pass", "TestC": "skip", "TestD": "fail"}}
+	if got := tallyOf(p); got != (tally{pass: 2, skip: 1, fail: 1}) {
+		t.Errorf("tally = %+v", got)
 	}
-	if got := p.tally(); got != (tally{pass: 2, skip: 1}) || p.verdict != "pass" {
-		t.Errorf("p: tally %+v verdict %q — a printed FAIL line is not a verdict, and a subtest's is not its parent's", got, p.verdict)
+}
+
+// A process that died before it printed anything the stream claims still shows what it said.
+func TestOutputFallsBackToTheRawBytes(t *testing.T) {
+	if got := outputOr(nil, []byte("raw")); got != "raw" {
+		t.Errorf("no package: %q", got)
 	}
-	if q.verdict != "fail" || q.tests["TestD"] != "fail" || q.elapsed.Seconds() != 1.5 {
-		t.Errorf("q = %+v", q)
+	if got := outputOr(&testjson.Package{Output: " \n"}, []byte("raw")); got != "raw" {
+		t.Errorf("blank output: %q", got)
 	}
-	if !strings.Contains(stray, "[build failed]") {
-		t.Errorf("a line that is not an event was dropped: %q", stray)
+	if got := outputOr(&testjson.Package{Output: "said"}, []byte("raw")); got != "said" {
+		t.Errorf("package output: %q", got)
 	}
 }
 

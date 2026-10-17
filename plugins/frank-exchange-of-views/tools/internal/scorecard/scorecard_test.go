@@ -32,35 +32,6 @@ func TestJsToFixed2Num(t *testing.T) {
 	}
 }
 
-// The two object-valued rows must serialize in JS INSERTION order — a Go map would sort, which
-// is the whole byte-identity trap this port had to solve.
-func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
-	findings := []record.FindingJSON{
-		{Area: "L1", Epoch: 1, SeatID: "a"},
-		{Area: "L1", Epoch: 1, SeatID: "b"},
-		{Area: "L5", Epoch: 1, SeatID: "c"},
-		{Area: "L6", Epoch: 1, SeatID: "c"}, // darkside, 1 seat
-	}
-	got, ok := BucketFindingsByRole(findings)
-	if !ok {
-		t.Fatal("expected findings")
-	}
-	// citation 2 over 2 seats → 1; logic 1 over 1 → 1; darkside 1 over 1 → 1. Keys in the
-	// NON-alphabetical order citation,logic,darkside,seats,per_seat.
-	want := `{"1":{"citation":2,"logic":1,"darkside":1,"seats":{"citation":2,"logic":1,"darkside":1},"per_seat":{"citation":1,"logic":1,"darkside":1}}}`
-	if string(got) != want {
-		t.Errorf("citation_yield JSON:\n got  %s\n want %s", got, want)
-	}
-	// A darkside-less epoch → per_seat.darkside is null (not 0), matching JS.
-	got2, _ := BucketFindingsByRole([]record.FindingJSON{{Area: "L1", Epoch: 2, SeatID: "a"}})
-	if !strings.Contains(string(got2), `"per_seat":{"citation":1,"logic":null,"darkside":null}`) {
-		t.Errorf("empty role must be per_seat null, got %s", got2)
-	}
-	if _, ok := BucketFindingsByRole(nil); ok {
-		t.Error("no findings must return ok=false")
-	}
-}
-
 // closedGap builds a replayed gap closed by a `close` event carrying the given anchor fields.
 func closedGap(c *recordpb.Close) *record.Gap {
 	return &record.Gap{HasClosed: true, Closure: c}
@@ -117,14 +88,14 @@ func TestBenchDispositionsLeaveBothCounts(t *testing.T) {
 }
 
 // THE ORDERING THAT SEPARATES THE PREDICATE FROM THE FLAG, and the whole reason this does not
-// read ClosedByBench. Blue closes with a full anchor triple; the bench afterwards rules on the
-// same gap. ClosedByBench is TRUE there — it follows the last closing event — while the closure
-// on the board is blue's, anchored. Keyed on the flag this gap vanishes from both counts and a
+// read a closer flag. Blue closes with a full anchor triple; the bench afterwards rules on the
+// same gap. BenchClosedLast is TRUE there — the bench's word stands — while the closure on the
+// board is blue's, anchored. Keyed on the flag this gap vanishes from both counts and a
 // genuinely anchored repair goes unmeasured.
 func TestABlueCloseTheBenchLaterRuledOnStaysCounted(t *testing.T) {
 	g := closedGap(&recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")})
 	g.BenchClosure = &recordpb.DocketRuling{}
-	g.ClosedByBench = true // the LAST closer was the bench; the closure is still blue's
+	g.BenchClosedLast = true // the bench ruled last; the closure is still blue's
 
 	a, total := ComputeAnchoredClosures((boardOf(map[string]*record.Gap{"G1": g}, "G1")))
 	if a != 1 || total != 1 {

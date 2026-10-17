@@ -127,13 +127,10 @@ var rootDivOnly = regexp.MustCompile(`(?is)<body[^>]*>\s*(<div[^>]*>\s*</div>\s*
 // visibleText strips markup and the two elements that carry no prose, so the ratio measures what
 // a READER would get rather than what the parser was handed.
 //
-// IT STRIPS ITS OWN TEXT RATHER THAN TAKING THE EXTRACTOR'S, and that is not a duplicated
-// responsibility: there is no HTML extractor. DefaultExtractor is a PDF extractor and returns
-// Attempted=false for HTML on purpose ("for an HTML page [an empty result] would be a lie about a
-// document that is entirely text"). A first cut of this keyed on that extraction and would have
-// flagged EVERY HTML page as a skeleton — measured on two real captures, both yielding 0
-// characters, one of them a page dense with prose. The synthetic tests passed it because they
-// handed the text in directly.
+// IT STRIPS ITS OWN TEXT RATHER THAN TAKING THE EXTRACTOR'S. The floors and ratios below were
+// measured against exactly this stripping over the captured corpus; the extraction (htmlText)
+// drops the head and decodes entities, which moves both counts, so judging a wall by it would be
+// judging by thresholds nobody measured.
 var (
 	markupTag   = regexp.MustCompile(`(?s)<[^>]*>`)
 	scriptStyle = regexp.MustCompile(`(?is)<(script|style)[^>]*>.*?</(script|style)>`)
