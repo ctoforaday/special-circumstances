@@ -81,14 +81,13 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 	if err != nil || !found {
 		return err // no seat for this agent
 	}
-	// THE ANNOTATION LAYER IS NOT TEXT: an error can quote an anchor, and a live `<!--fx:…-->` in a
-	// log entry is a marker in every document that renders it. Stripped here, in the writer, so the
-	// hooks that hand these over link nothing more than they did.
+	// AN ERROR CAN NAME AN ANCHOR, and the entry names it by its id (anchortext.LogLine) — here, in
+	// the writer, so the hooks that hand these over link nothing more than they did.
 	//
 	// A RUN THAT IS OVER takes nothing: its record is closed to seats. Asked as the entry is written
 	// (record.UntilTheOutcome), so an outcome committed in between is seen.
 	_, err = record.Append(record.Identity{Run: run, SeatID: seat}, &recordpb.Log{
-		Text:   proto.String(anchortext.Visible(text)),
+		Text:   proto.String(anchortext.LogLine(text)),
 		Type:   typ.Enum(),
 		Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum(),
 	}, record.UntilTheOutcome)

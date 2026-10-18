@@ -284,48 +284,79 @@ func contains(haystack []string, needle string) bool {
 }
 
 // A READ VERB'S PAGE STATES THE JSON IT EMITS, and the keys are held to the ones that arrive — the
-// envelope's and each class row's. m27's architecture lens asked `class list --json` for a `class`
-// key, found none, and logged that the verb printed the human table: the key is `slug`, and no page
-// said so.
-func TestClassListDocumentsTheJSONItEmits(t *testing.T) {
-	runDir := seatRun(t)
-	registerLensOnce(t, runDir)
-	out, err := run(t, "class", "list", "--run", runDir, "--seat-id", lensSeat, "--json")
-	if err != nil {
-		t.Fatal(err)
+// envelope's, and those of the result's first row (or of the result, for a verb that answers with one
+// object). m27's architecture lens asked `class list --json` for a `class` key, found none, and
+// logged that the verb printed the human table: the key is `slug`, and no page said so. near-match
+// and render-page record nothing either, and carried no tree until m28.
+func TestEveryReadVerbDocumentsTheJSONItEmits(t *testing.T) {
+	cases := []struct {
+		verb []string
+		rows string // the result's list whose first row is checked; "" checks the result itself
+		call func(t *testing.T) (string, error)
+	}{
+		{[]string{"class", "list"}, "classes", func(t *testing.T) (string, error) {
+			runDir := seatRun(t)
+			registerLensOnce(t, runDir)
+			return run(t, "class", "list", "--run", runDir, "--seat-id", lensSeat, "--json")
+		}},
+		{[]string{"near-match"}, "matches", func(t *testing.T) (string, error) {
+			runDir := seatRun(t)
+			mintGap(t, runDir, "read-shape", "read-surface")
+			return run(t, "near-match", "--run", runDir, "--seat-id", lensSeat, "--problem", "the defect", "--json")
+		}},
+		{[]string{"render-page"}, "", func(t *testing.T) (string, error) {
+			runDir, sha := ocrRun(t, threePages)
+			return run(t, "render-page", "--run", runDir, "--seat-id", lensSeat, "--sha", sha, "--page", "2", "--json")
+		}},
 	}
-	help, err := run(t, "class", "list", "--seat-id", lensSeat, "--help")
-	if err != nil {
-		t.Fatal(err)
-	}
-	documented := outputLine.FindStringSubmatch(help)
-	if documented == nil {
-		t.Fatalf("class list emits JSON under --json and its page carries no OUTPUT tree:\n%s", help)
-	}
-	tree := documented[1]
-	var env struct {
-		Result struct {
-			Classes []map[string]json.RawMessage `json:"classes"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil || len(env.Result.Classes) == 0 {
-		t.Fatalf("class list --json: %v\n%s", err, out)
-	}
-	emitted := topLevelKeys(t, "class list", strings.TrimSpace(out))
-	documentedTop := treeTopLevelKeys(tree)
-	for _, k := range emitted {
-		if !contains(documentedTop, k) {
-			t.Errorf("class list emits %q, which its OUTPUT tree does not name:\n  %s", k, tree)
-		}
-	}
-	for _, k := range documentedTop {
-		if !contains(emitted, k) {
-			t.Errorf("class list documents %q, which it does not emit:\n  %s", k, tree)
-		}
-	}
-	for k := range env.Result.Classes[0] {
-		if !strings.Contains(tree, "{"+k+",") && !strings.Contains(tree, ","+k+",") && !strings.Contains(tree, ","+k+"}") {
-			t.Errorf("a class row carries %q, which the OUTPUT tree does not name:\n  %s", k, tree)
-		}
+	for _, c := range cases {
+		name := strings.Join(c.verb, " ")
+		t.Run(name, func(t *testing.T) {
+			out, err := c.call(t)
+			if err != nil {
+				t.Fatalf("%s --json: %v\n%s", name, err, out)
+			}
+			help, err := run(t, append(append([]string{}, c.verb...), "--seat-id", lensSeat, "--help")...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			documented := outputLine.FindStringSubmatch(help)
+			if documented == nil {
+				t.Fatalf("%s emits JSON under --json and its page carries no OUTPUT tree:\n%s", name, help)
+			}
+			tree := documented[1]
+			emitted := topLevelKeys(t, name, strings.TrimSpace(out))
+			documentedTop := treeTopLevelKeys(tree)
+			for _, k := range emitted {
+				if !contains(documentedTop, k) {
+					t.Errorf("%s emits %q, which its OUTPUT tree does not name:\n  %s", name, k, tree)
+				}
+			}
+			for _, k := range documentedTop {
+				if !contains(emitted, k) {
+					t.Errorf("%s documents %q, which it does not emit:\n  %s", name, k, tree)
+				}
+			}
+			var env struct {
+				Result map[string]json.RawMessage `json:"result"`
+			}
+			if err := json.Unmarshal([]byte(out), &env); err != nil || len(env.Result) == 0 {
+				t.Fatalf("%s --json carries no result: %v\n%s", name, err, out)
+			}
+			row := env.Result
+			if c.rows != "" {
+				var rows []map[string]json.RawMessage
+				if err := json.Unmarshal(env.Result[c.rows], &rows); err != nil || len(rows) == 0 {
+					t.Fatalf("%s --json: no %s rows to check: %v\n%s", name, c.rows, err, out)
+				}
+				row = rows[0]
+			}
+			for k := range row {
+				if !strings.Contains(tree, "{"+k+",") && !strings.Contains(tree, ","+k+",") && !strings.Contains(tree, ","+k+"}") &&
+					!strings.Contains(tree, "{"+k+":") && !strings.Contains(tree, ","+k+":") {
+					t.Errorf("%s: a row carries %q, which the OUTPUT tree does not name:\n  %s", name, k, tree)
+				}
+			}
+		})
 	}
 }

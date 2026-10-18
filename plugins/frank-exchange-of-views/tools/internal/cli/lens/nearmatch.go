@@ -26,7 +26,7 @@ const nearMatchTopN = 5
 func init() { seat.HelpValues["NearMatchTopN"] = nearMatchTopN }
 
 func newNearMatch() *cobra.Command {
-	c := seat.New("near-match", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.NewRead("near-match", nearMatchResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err

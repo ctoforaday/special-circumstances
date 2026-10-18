@@ -17,6 +17,7 @@
   with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
   read what each one marks on the record before you place it. The record lists each anchor
   whose sentence an edit changed. A citation or proof among them is REOPENED — the reference
-  stands, its referent moved, so its check is stale rather than refuted. The evidence lens owes
-  the new check and is readied for it; a check by any lens from a sitting opened after the edit
-  clears it, and a PASS waits until one does.
+  stands, its referent moved, so its check is stale rather than refuted. Its owning lens owes
+  the new check and is readied for it — the evidence lens for a citation; for a proof the
+  computation lens, or the evidence lens where the cast seats none. A check by any lens from a
+  sitting opened after the edit clears it, and a PASS waits until one does.

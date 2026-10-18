@@ -50,8 +50,8 @@ func TestTheOperatorRecordsTheEnginesStop(t *testing.T) {
 		if got[0].GetType() != recordpb.LogType_LOG_TYPE_FAILURE || got[0].GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL {
 			t.Errorf("the stop is (%s, %s), want (tool, failure)", recordpb.Word(got[0].GetSource()), recordpb.Word(got[0].GetType()))
 		}
-		if got[0].GetText() != stop {
-			t.Errorf("the entry does not carry the error as given, less the annotation layer:\n got %q\nwant %q", got[0].GetText(), stop)
+		if want := stop + " F-1234abcd"; got[0].GetText() != want {
+			t.Errorf("the entry does not carry the error as given, its anchor named by id:\n got %q\nwant %q", got[0].GetText(), want)
 		}
 	})
 

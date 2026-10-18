@@ -22,7 +22,7 @@ import (
 // image goes beside the cache, outside the reading's directory, which a render or a re-read
 // clears.
 func newRenderPage() *cobra.Command {
-	c := seat.New("render-page", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.NewRead("render-page", renderPageResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
 		if err != nil {
 			return nil, err
