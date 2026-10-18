@@ -139,6 +139,13 @@ func mintsGap(t *testing.T, lens, gap string) *Event {
 	return recordtest.Event(t, lens, corrMint(gap))
 }
 
+// inquiryMint is corrMint anchored on an inquiry instead of report text.
+func inquiryMint(gap, inquiry string) *recordpb.Mint {
+	m := corrMint(gap)
+	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_INQUIRY.Enum(), proto.String(inquiry)
+	return m
+}
+
 func blueEditOf(t *testing.T, answers, old, new string) *Event {
 	t.Helper()
 	return recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{
@@ -156,7 +163,8 @@ func TestAGapAnchoredOnAnInquiryIsAnsweredByItsFate(t *testing.T) {
 		evs := []*Event{
 			recordtest.Event(t, "frontier", &recordpb.Inquiry{InquiryId: proto.String("Q-1"), Question: proto.String("q"),
 				Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED)}),
-			mintsGap(t, lens, "G1"), dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"),
+			// THE MINT CARRIES THE ANCHOR, as the gap view's about columns are the mint's.
+			recordtest.Event(t, lens, inquiryMint("G1", "Q-1")), dispatchBlue(t, "G1"), registersAs(t, "blue-respond", "blue-a"),
 		}
 		if fatedOn != "" {
 			evs = append(evs, recordtest.Event(t, "blue-respond", &recordpb.Inquiry{InquiryId: proto.String(fatedOn),

@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // foldOf is the gate's fold for seat, asked of the record.
@@ -26,11 +28,11 @@ func foldOf(t *testing.T, run Run, seat string) lensFold {
 	return lensFold{}
 }
 
-// A LENS THAT OWES IS NOT RETIRED (retirement.go). Each row is one thing a lens's work list names as
-// its own to clear, staged on a lens that then sits three times at the head minting nothing: with the
-// debt standing it is not retired and the moved head readies it, the reason naming what it owes; the
-// same board without the debt retires it. universe-m23's voice lens retired holding an open gap
-// that is not material, and a computation lens retired with a proof it alone is offered unjudged.
+// A LENS THAT OWES IS NOT RETIRED (retirement.go). Each row is a debt that stands until the lens acts
+// on it, staged on a lens that then sits three times at the head minting nothing: with the debt
+// standing it is not retired and the moved head readies it, the reason naming what it owes; the same
+// board without the debt retires it. A computation lens retired with a proof it alone is offered
+// unjudged. What is new on a gap of its own is owed until it sits (TestNewsOnItsGapIsOwedUntilItSits).
 func TestALensThatOwesIsNotRetired(t *testing.T) {
 	for _, c := range []struct {
 		name string
@@ -39,8 +41,6 @@ func TestALensThatOwesIsNotRetired(t *testing.T) {
 		debt func(b *stage)
 		owes string
 	}{
-		{"an open gap it minted that is not material", evLens, []string{evLens},
-			func(b *stage) { b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")) }, "open gap G1"},
 		{"a proof it owns that nobody judged", compLens, []string{compLens, evLens},
 			func(b *stage) { b.proof("P-1", "s1") }, "unjudged proof P-1"},
 		{"a citation it owns reopened since its check", evLens, []string{evLens},
@@ -206,19 +206,19 @@ func TestAReopenedAnchorReadiesItsOwner(t *testing.T) {
 	}
 }
 
-// A DEBT BELOW THE BARREN LIMIT IS NOT WHAT HOLDS THE LENS. A lens that minted a gap still open and
-// has sat once since is ready because the head moved; its reason says it retires at the limit only
+// A DEBT BELOW THE BARREN LIMIT IS NOT WHAT HOLDS THE LENS. A lens whose gap blue answered after its
+// one sitting is ready because the head moved; its reason says it retires at the limit only
 // owing nothing, and names the debt, rather than claiming the debt is what keeps it from retiring.
 func TestALensBelowItsLimitSaysWhenItRetires(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
 	b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
 	b.sit(2, evLens)
-	b.ingest()
+	blueAnswersGap(b, "G1")
 	f := foldOf(t, b.register("red-chair").seed(), evLens)
 	if !f.ready || f.barren >= retiresAfter {
 		t.Fatalf("fixture: want a ready lens below its barren limit: %+v", f)
 	}
-	if want := "it retires at 3 owing nothing, and it owes open gap G1"; !strings.Contains(f.why, want) || strings.Contains(f.why, "does not retire while") {
+	if want := "it retires at 3 owing nothing, and it owes blue's answer to G1"; !strings.Contains(f.why, want) || strings.Contains(f.why, "does not retire while") {
 		t.Errorf("why = %q, want it to say %q", f.why, want)
 	}
 }
@@ -230,5 +230,134 @@ func TestAProofWithNoScriptIsRefused(t *testing.T) {
 	_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Proof{ProofId: proto.String("P-00000001"), Script: proto.String("s.py")})
 	if err == nil || !strings.Contains(err.Error(), "names no script") {
 		t.Fatalf("a proof with no sha was not refused: %v", err)
+	}
+}
+
+// blueAnswersGap is blue dispatched on gap, sitting, answering it with an edit — which moves the
+// report head — and returning.
+func blueAnswersGap(b *stage, gap string) *stage {
+	agent := fmt.Sprintf("blue-agent-%d", b.n+1)
+	return b.dispatch(b.at(), "blue-respond", gap).registerAs("blue-respond", agent).edit(gap, "a", "b").stop(agent)
+}
+
+// A GAP A LENS HOLDS WITH NOTHING NEW ON IT OWES NOTHING (gblock, 2026-10-18). universe-m28's
+// architecture and voice lenses each held a gap of their own that is not material, which readies
+// nobody and which blue never answered, and sat after every edit to the epoch limit: lens sittings
+// went from 29–30 to 50. A lens holding only its own unanswered gap retires at its third barren
+// sitting and the moved head does not ready it; a material gap still engages it as a party to its
+// own dispute, on that gap, as the debate readies any minter (foldPlan).
+func TestALensHoldingOnlyItsOwnUnansweredGapRetires(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		cm       recordpb.ClassMaterial
+		material bool
+	}{
+		{"not material", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, false},
+		{"material", recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
+			b.add(evLens, cmMint("G1", c.cm, "high"))
+			b.sit(2, evLens).sit(2, evLens).sit(2, evLens)
+			run := b.ingest().register("red-chair").seed()
+			f := foldOf(t, run, evLens)
+			if f.barren != retiresAfter || !f.retired() || f.ready || len(f.owes) != 0 {
+				t.Fatalf("a lens holding only its own unanswered G1 retires at its third barren sitting, owing nothing, and the moved head does not ready it: %+v", f)
+			}
+			plan, err := PlanDispatch(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p, party := partyOf(plan, evLens)
+			if want := c.material; party != want || (party && !slices.Equal(p.GapIDs, []string{"G1"})) {
+				t.Errorf("a party = %v on %v, want a party only on its material gap (%v): %+v", party, p.GapIDs, want, plan.Parties)
+			}
+		})
+	}
+}
+
+// WHAT IS NEW ON A GAP OF ITS OWN IS OWED UNTIL IT SITS. Each row stages, after the lens's third
+// barren sitting, one thing its work list names about the gap it minted — blue's answer, an accepted
+// grade motion awaiting its regrade, the bench's remand, another lens's finding — and then a head
+// move. The lens is not retired and the moved head readies it, the reason naming the debt; it is
+// kept, and not ready, at an unmoved head (blue's answer moves the head itself); and once it has sat at the moved head it owes nothing and
+// is retired again, whether or not that sitting acted on the item, which stays on its list.
+func TestNewsOnItsGapIsOwedUntilItSits(t *testing.T) {
+	const critic = "red-lens-logic"
+	never, always := recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS
+	for _, c := range []struct {
+		name string
+		cm   recordpb.ClassMaterial
+		news func(b *stage)
+		owes string
+		item string // the work list's item it is owed for
+	}{
+		{"blue answered it", never, func(b *stage) { blueAnswersGap(b, "G1") }, "blue's answer to G1", "gap G1 has been ANSWERED by an edit"},
+		{"a grade motion on it was accepted", never, func(b *stage) {
+			b.add("blue-respond", gradeMotionFiled(b.t, "M1", "G1").GetMotion())
+			b.add("red-chair", gradeMotionRuled(b.t, "M1", recordpb.GradeRuling_GRADE_RULING_ACCEPTED).GetMotionRule())
+		}, "the accepted grade motion on G1", regradeOwed},
+		// At impasse, as the dispatch dockets a gap: two stalled exchanges under the default terms. Blue's
+		// silence in the second is an answer it owes too.
+		{"the bench remanded it", always, func(b *stage) {
+			b.exchangeOn("G1").exchangeOn("G1").docketAndRemand("M1", "G1")
+		}, "the bench's remand of G1", "gap G1, which you minted, was REMANDED by the bench"},
+		{"another lens filed a finding about it", never, func(b *stage) {
+			b.add(critic, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("G1 overstates the defect"),
+				Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW),
+				AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")})
+		}, critic + "'s finding about G1", critic + " filed a finding about your gap G1"},
+	} {
+		// board is the gap, three barren sittings, the news (when staged), a head move (when moved), and —
+		// satAgain — a sitting of the lens at the head.
+		board := func(t *testing.T, news, moved, satAgain bool) Run {
+			b := newStage(t).cast(evLens, critic, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
+			b.add(evLens, cmMint("G1", c.cm, "high"))
+			for range retiresAfter {
+				b.sit(2, evLens)
+			}
+			b.sit(2, critic)
+			if news {
+				c.news(b)
+			}
+			if moved {
+				b.ingest()
+			}
+			if satAgain {
+				b.sit(b.at(), evLens)
+			}
+			return b.register("red-chair").seed()
+		}
+		t.Run(c.name, func(t *testing.T) {
+			if f := foldOf(t, board(t, false, true, false), evLens); !f.retired() || f.ready {
+				t.Fatalf("fixture: without the news the lens is retired and the moved head does not ready it: %+v", f)
+			}
+			run := board(t, true, true, false)
+			f := foldOf(t, run, evLens)
+			if f.retired() || !f.ready || !slices.Contains(f.owes, c.owes) || !strings.Contains(f.why, "it does not retire while it owes ") || !strings.Contains(f.why, c.owes) {
+				t.Fatalf("a lens owing %q is not retired, the moved head readies it, and the reason names the debt: %+v", c.owes, f)
+			}
+			plan, err := PlanDispatch(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, party := partyOf(plan, evLens); !party {
+				t.Errorf("the plan does not ready the lens owing %q: %+v", c.owes, plan.Parties)
+			}
+			if c.item != "" && !mentions(sittingOfRunT(t, run, "lens", evLens).Open, c.item) {
+				t.Errorf("the lens owes %q and its work list does not name it (%q): %v", c.owes, c.item, hows(sittingOfRunT(t, run, "lens", evLens).Open))
+			}
+			// Blue's answer is an edit, so it moves the head itself.
+			if f := foldOf(t, board(t, true, false, false), evLens); c.owes != "blue's answer to G1" && (f.retired() || f.ready || !strings.Contains(f.why, "ready when the head moves; it does not retire while it owes ") || !strings.Contains(f.why, c.owes)) {
+				t.Errorf("at an unmoved head the lens owing %q is kept, not ready, and says so: %+v", c.owes, f)
+			}
+			sat := board(t, true, true, true)
+			if f := foldOf(t, sat, evLens); !f.retired() || f.ready || len(f.owes) != 0 {
+				t.Errorf("once it has sat since %q it owes nothing and is retired again: %+v", c.owes, f)
+			}
+			if c.item != "" && !mentions(sittingOfRunT(t, sat, "lens", evLens).Open, c.item) {
+				t.Errorf("the item %q left the lens's work list with the debt; only the debt ends at its sitting", c.item)
+			}
+		})
 	}
 }
