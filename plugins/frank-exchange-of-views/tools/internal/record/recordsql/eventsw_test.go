@@ -19,13 +19,13 @@ import (
 func TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat(t *testing.T) {
 	dir := t.TempDir()
 	reg := &recordpb.Register{}
-	obs := &recordpb.Observe{Text: recordtest.P("x")}
+	entry := &recordpb.Log{Text: recordtest.P("x"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:register:#1", reg),
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:observe:#1", obs),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:log:#1", entry),
 		recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", reg),
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:register:#2", reg),
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:observe:#2", obs),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:log:#2", entry),
 	)
 	db, err := recordsql.Open(runtest.Open(t, dir).Dir() + "/records/record.db")
 	if err != nil {
@@ -43,10 +43,10 @@ func TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat(t *testing.T) {
 		sitting   int
 	}{
 		{"red-lens-evidence", "register", 1},
-		{"red-lens-evidence", "observe", 1},
+		{"red-lens-evidence", "log", 1},
 		{"red-lens-logic", "register", 1}, // its own first, unmoved by evidence's
 		{"red-lens-evidence", "register", 2},
-		{"red-lens-evidence", "observe", 2},
+		{"red-lens-evidence", "log", 2},
 	}
 	i := 0
 	for rows.Next() {
@@ -78,13 +78,13 @@ func TestTheSittingOrdinalIsOpeningInclusiveAndPerSeat(t *testing.T) {
 func TestTheEpochCountsChairSittingsForEveryRow(t *testing.T) {
 	dir := t.TempDir()
 	reg := &recordpb.Register{}
-	obs := &recordpb.Observe{Text: recordtest.P("x")}
+	entry := &recordpb.Log{Text: recordtest.P("x"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", reg),
-		recordtest.At(t, "blue-lane-1", "blue-lane-1:observe:#1", obs),
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:log:#1", entry),
 		recordtest.At(t, "red-chair", "red-chair:register:#1", reg),
 		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:register:#1", reg),
-		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:observe:#1", obs),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:log:#1", entry),
 		recordtest.At(t, "red-chair", "red-chair:register:#2", reg),
 		recordtest.At(t, "judge", "judge:register:#1", reg),
 	)

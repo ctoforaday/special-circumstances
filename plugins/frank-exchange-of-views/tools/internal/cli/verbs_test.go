@@ -13,10 +13,10 @@ import (
 // are the record format, and a verb that writes the right message with the wrong
 // key is a verb whose events no projection will find.
 
-// seedReferents creates the entities these cases NAME: two gaps and an observation.
+// seedReferents creates the entities these cases NAME: two gaps and two motions.
 //
 // Every cross-reference is checked at write time now, so a case that rules
-// on G1 must have an O1 and an G1 to point at. Before the checks landed these were
+// on G1 must have a G1 to point at. Before the checks landed these were
 // invented ids that resolved to nothing, which is exactly the state the checks exist to
 // refuse — the fixtures were demonstrating the bug.
 func seedReferents(t *testing.T, runDir string) {

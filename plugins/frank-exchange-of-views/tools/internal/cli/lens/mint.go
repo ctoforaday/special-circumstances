@@ -229,10 +229,9 @@ func newMint() *cobra.Command {
 			lt := recordpb.LogType_LOG_TYPE_ESTOPPEL
 			src := recordpb.LogSource_LOG_SOURCE_TOOL
 			fr := &recordpb.Log{
-				Text:       proto.String(msg),
-				Type:       &lt,
-				Source:     &src,
-				EstoppedBy: proto.String(prior),
+				Text:   proto.String(msg),
+				Type:   &lt,
+				Source: &src,
 			}
 			if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
 				return nil, ferr

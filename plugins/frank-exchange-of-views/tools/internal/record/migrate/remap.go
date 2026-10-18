@@ -75,15 +75,15 @@ var (
 var (
 	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by Mint.distinct_from
 		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
-		Finding.about_ref Observe.label Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
+		Finding.about_ref Anchor.id Cite.label Verify.anchor Verify.label Proof.proof_id
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
-		ManifestRow.gap_id Log.estopped_by Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
+		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
 		Gate.migration_admitted_gap_ids`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
 		ClassNew.distinguisher Close.prose Close.anchor_tool Close.anchor_target Closing.text
-		Regrade.basis SpotCheck.reason Finding.text Observe.text Observe.observation Cite.text
+		Regrade.basis SpotCheck.reason Finding.text Cite.text
 		Verify.text Proof.text Proof.drift Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryReview.reason BlueEdit.text Retire.reason ManifestRow.row
 		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
@@ -100,10 +100,8 @@ var (
 		Register.hook_version Register.run_via Register.tool_version
 		Reproduce.observed_output Reproduce.proof_sha Reproduce.recorded_output Retire.claim
 		Retire.removal_basis Retire.superseded_by SittingClose.agent_id
-		SittingClose.agent_transcript_path SittingClose.agent_type SittingClose.prompt_id
-		SittingClose.session_id SittingLimit.agent_id SittingLimit.agent_type SittingLimit.seat_id
-		SittingOpen.agent_id SittingOpen.agent_type SittingOpen.prompt_id SittingOpen.seat_id
-		SittingOpen.session_id SpotCheck.areas Verify.access_date Verify.claim Verify.page_render_sha
+		SittingClose.agent_transcript_path SittingLimit.seat_id SittingOpen.agent_id
+		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.access_date Verify.claim Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url`)
 	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
 		"Verify.label": "citation", "Proof.proof_id": "proof", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion"}

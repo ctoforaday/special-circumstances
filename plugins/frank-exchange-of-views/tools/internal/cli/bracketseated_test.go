@@ -64,7 +64,7 @@ func TestASecondRegisterInABracketedSittingCountsInThatSitting(t *testing.T) {
 	if sittings != 1 || h.Sitting != sittings {
 		t.Errorf("the count is for sitting %d and the seat has %d stored sitting(s), want both 1 — the bracket opened the sitting and both registers joined it", h.Sitting, sittings)
 	}
-	if err := sittingwrite.WriteLimit(runDir, "agent_bracketed", bracketedConfig, h.Sitting, 150); err != nil {
+	if err := sittingwrite.WriteLimit(runDir, "agent_bracketed", h.Sitting, 150); err != nil {
 		t.Errorf("the limit of the sitting the count was keyed to was refused: %v", err)
 	}
 }

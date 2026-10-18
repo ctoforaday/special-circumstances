@@ -234,7 +234,7 @@ func TestATurnLimitTheRecordCannotHoldIsSaid(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	cwd, runDir, _ := limitRun(t, 1)
 	sit(t, runDir, "agent_x", "red-lens-evidence", 1)
-	recordLimit = func(string, string, string, int, int) error {
+	recordLimit = func(string, string, int, int) error {
 		return errors.New("feov-sitting-write is not beside this hook, so agent_x sitting 1 reaching the limit of 1 is not on the record")
 	}
 

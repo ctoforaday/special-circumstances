@@ -21,7 +21,6 @@ import (
 
 type handoffArgs struct {
 	writer, runDir, phase, agentID, agentType, transcript string
-	sessionID, promptID                                   string
 }
 
 // capture swaps the spawn seam and records what the hook decided to hand over. It also puts a
@@ -41,8 +40,8 @@ func capture(t *testing.T) *[]handoffArgs {
 
 	var got []handoffArgs
 	prev := spawn
-	spawn = func(w, r, p, id, ty, tr, sid, pid string) ([]byte, error) {
-		got = append(got, handoffArgs{w, r, p, id, ty, tr, sid, pid})
+	spawn = func(w, r, p, id, ty, tr string) ([]byte, error) {
+		got = append(got, handoffArgs{w, r, p, id, ty, tr})
 		return nil, nil
 	}
 	t.Cleanup(func() { spawn = prev })
@@ -84,8 +83,8 @@ func TestSubagentStopEmitsNothing(t *testing.T) {
 	// THE WRITER HANDS BACK A PAYLOAD, which is the only version of this test that holds anything: a
 	// stub returning nothing passes whatever Stop does with it.
 	prev := spawn
-	spawn = func(w, r, p, id, ty, tr, sid, pid string) ([]byte, error) {
-		*got = append(*got, handoffArgs{w, r, p, id, ty, tr, sid, pid})
+	spawn = func(w, r, p, id, ty, tr string) ([]byte, error) {
+		*got = append(*got, handoffArgs{w, r, p, id, ty, tr})
 		return []byte(`{"sitting":{"seat":"red-lens-evidence"}}`), nil
 	}
 	t.Cleanup(func() { spawn = prev })
@@ -275,7 +274,7 @@ func TestStartSpeaksTheSeatsWorkListAndNothingElse(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			prev := spawn
-			spawn = func(string, string, string, string, string, string, string, string) ([]byte, error) {
+			spawn = func(string, string, string, string, string, string) ([]byte, error) {
 				return []byte(tc.stdout), nil
 			}
 			t.Cleanup(func() { spawn = prev })
@@ -323,39 +322,12 @@ func TestOnlyTheWritersStdoutReachesTheSeat(t *testing.T) {
 	if err := os.WriteFile(writer, []byte("#!/bin/sh\necho 'for the seat'\necho 'a diagnostic' >&2\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	forSeat, err := spawn(writer, dir, phaseOpen, "a1", "t", "", "", "")
+	forSeat, err := spawn(writer, dir, phaseOpen, "a1", "t", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := strings.TrimSpace(string(forSeat))
 	if got != "for the seat" {
 		t.Errorf("the seat's channel carried %q — a diagnostic that reaches it arrives as the seat's work", got)
-	}
-}
-
-// THE CONVERSATION FIELDS SURVIVE THE PAYLOAD AND REACH THE WRITER (#1122 follow-up).
-//
-// Both are on every SubagentStart and SubagentStop payload — measured against a live one — and were
-// parsed by nothing. This drives the real parse rather than a constructed struct, because the defect
-// it guards against is a json tag that does not match the wire name, which a struct literal hides.
-func TestTheHandoffCarriesTheConversationAndTheDispatch(t *testing.T) {
-	got := capture(t)
-	cwd, _ := liveRun(t)
-	raw, err := json.Marshal(map[string]string{
-		"agent_id": "a5280059b8b60e1f7", "agent_type": "frank-exchange-of-views:red-lens-voice",
-		"cwd": cwd, "session_id": "ab802afa-997d", "prompt_id": "e353381b-5bfa",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	if err := Start(strings.NewReader(string(raw)), &out, testRecorder()); err != nil {
-		t.Fatal(err)
-	}
-	if len(*got) != 1 {
-		t.Fatalf("want one handoff, got %d", len(*got))
-	}
-	if a := (*got)[0]; a.sessionID != "ab802afa-997d" || a.promptID != "e353381b-5bfa" {
-		t.Errorf("the handoff dropped the conversation: session=%q prompt=%q", a.sessionID, a.promptID)
 	}
 }

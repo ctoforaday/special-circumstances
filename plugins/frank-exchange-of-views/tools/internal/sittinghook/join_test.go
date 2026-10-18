@@ -35,8 +35,8 @@ func TestAStopTheHookRecordsClosesTheSittingItsAgentRegistered(t *testing.T) {
 	got := capture(t) // places the writer beside the test binary, which the handoff checks for
 	cwd, runDir := liveRun(t)
 	t.Cleanup(func() { _ = recordsql.CloseUnder(runDir) })
-	spawn = func(_, run, phase, agentID, agentType, transcript, sid, pid string) ([]byte, error) {
-		*got = append(*got, handoffArgs{"", run, phase, agentID, agentType, transcript, sid, pid})
+	spawn = func(_, run, phase, agentID, agentType, transcript string) ([]byte, error) {
+		*got = append(*got, handoffArgs{"", run, phase, agentID, agentType, transcript})
 		var forSeat bytes.Buffer
 		err := sittingwrite.Write(sittingwrite.Sitting{
 			RunDir: run, Phase: sittingwrite.Phase(phase),

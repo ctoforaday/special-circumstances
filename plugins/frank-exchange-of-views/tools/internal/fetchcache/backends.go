@@ -73,7 +73,7 @@ func AutoOrder() []string {
 
 // Attempt is one backend's answer: the bytes it got, and what a citation is entitled to say
 // about them. TextRetrieved false means NO TEXT WAS FETCHED — a record that the source exists,
-// which is `source_text_read: unread` and must never be cited as a reading.
+// which must never be cited as a reading.
 type Attempt struct {
 	Body        []byte
 	ContentType string
@@ -611,10 +611,9 @@ func pmcOpenAccessPDF(f Fetcher, pmcid string) (string, error) {
 
 // MetadataRecord fetches the bibliographic record: what the source IS, without its text.
 //
-// THIS IS THE BACKEND THAT MAKES "UNREAD" HONEST. A run that cannot get an article can still
-// establish that it exists, in which venue, at which pages — which is a real finding and the
-// exact thing `source_text_read: unread` was added to carry. The run proved the route by hand:
-// when five full-text hosts refused, Crossref and ERIC returned registered records.
+// A run that cannot get an article can still establish that it exists, in which venue, at which
+// pages — which is a real finding. The run proved the route by hand: when five full-text hosts
+// refused, Crossref and ERIC returned registered records.
 func MetadataRecord(f Fetcher, doi string) (*Attempt, error) {
 	if doi == "" {
 		return nil, nil

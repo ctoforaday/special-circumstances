@@ -39,7 +39,7 @@ func TestAStoppedSittingIsNamedByCapture(t *testing.T) {
 		t.Errorf("a run with no stopped sitting: %s %s, want PASS", a.Verdict, a.Detail)
 	}
 	if _, err := record.Append(record.Identity{Run: r, SeatID: record.HarnessSeat}, &recordpb.SittingLimit{
-		AgentId: proto.String("a1"), SeatId: proto.String("red-lens-evidence-L1"),
+		SeatId:  proto.String("red-lens-evidence-L1"),
 		Sitting: proto.Int32(3), Limit: proto.Int32(150),
 	}); err != nil {
 		t.Fatal(err)

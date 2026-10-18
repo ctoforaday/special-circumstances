@@ -3,7 +3,7 @@
 // imports this — patterns are defined exactly once. No public SDK ships these
 // canonically (gitleaks/trufflehog carry their own databases as tool config),
 // so this package is our source of truth: a hand table, and the rows generated
-// from gitleaks' ruleset that are accurate as bare regexes (see Patterns).
+// from gitleaks' ruleset whose secret carries a vendor literal (see Patterns).
 //
 // Precision beats recall: a false block on legitimate work is a bug.
 package secrets
@@ -27,11 +27,106 @@ import (
 //
 // Fold marks a row whose regex matches its literals case-insensitively. Its literals are
 // lowercase, and the prefilter looks for them in the text folded by foldText.
+//
+// Placeholder, when set, makes the row skip a match whose secret is an obvious placeholder.
 type Pattern struct {
-	Class    string
+	Class       string
+	Literals    []string
+	Fold        bool
+	Placeholder *Placeholder
+	Re          *regexp.Regexp
+}
+
+// Placeholder locates a match's secret and its vendor literal, for a row whose gitleaks rule
+// is gated by an entropy threshold. The gate scores no entropy: the vendor literal carries the
+// row's precision, and the one thing the threshold would still drop that a person types is a
+// placeholder — `glpat-xxxxxxxxxxxxxxxxxxxx`, `sk_live_0000…`.
+//
+// Group is the capture group holding the secret (0: the whole match). Literals are the vendor
+// literals one of which every secret contains, lowercase when Fold.
+type Placeholder struct {
+	Group    int
 	Literals []string
 	Fold     bool
-	Re       *regexp.Regexp
+}
+
+// skips reports whether secret is an obvious placeholder: its body — the secret with its
+// longest vendor literal removed once — has ASCII letters and digits that are all one
+// character, or all drawn from x, X and 0. Every other byte of the body is a separator of the
+// format (`-`, `_`, `.`) and is not counted. A body with no letter or digit is not a
+// placeholder: a rule whose secret is all literal (gitleaks' short-lived Bedrock key marker)
+// is refused on the literal. A Fold literal is found ASCII-case-insensitively; one
+// spelled with a non-ASCII fold (U+017F, U+212A) is not removed, so its letters stay in the
+// body and the match is refused — the safe side.
+//
+// This is a fixed test, not an entropy score: `xxxxxxxxxxxxxxxxxxxy` is refused.
+func (p *Placeholder) skips(secret string) bool {
+	at, n := -1, 0
+	for _, l := range p.Literals {
+		if len(l) <= n {
+			continue
+		}
+		i := strings.Index(secret, l)
+		if p.Fold {
+			i = indexASCIIFold(secret, l)
+		}
+		if i >= 0 {
+			at, n = i, len(l)
+		}
+	}
+	body := secret
+	if at >= 0 {
+		body = secret[:at] + secret[at+n:]
+	}
+	var first byte
+	one, xs := true, true
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9') {
+			continue
+		}
+		if first == 0 {
+			first = c
+		}
+		one = one && c == first
+		xs = xs && (c == 'x' || c == 'X' || c == '0')
+	}
+	return first != 0 && (one || xs)
+}
+
+// indexASCIIFold is strings.Index with ASCII letters compared case-insensitively; lower is
+// lowercase.
+func indexASCIIFold(s, lower string) int {
+	for i := 0; i+len(lower) <= len(s); i++ {
+		j := 0
+		for ; j < len(lower); j++ {
+			c := s[i+j]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != lower[j] {
+				break
+			}
+		}
+		if j == len(lower) {
+			return i
+		}
+	}
+	return -1
+}
+
+// matches reports whether text holds a match of p that is not a skipped placeholder.
+func (p *Pattern) matches(text string) bool {
+	if p.Placeholder == nil {
+		return p.Re.MatchString(text)
+	}
+	g := p.Placeholder.Group
+	for _, m := range p.Re.FindAllStringSubmatchIndex(text, -1) {
+		if m[2*g] < 0 || !p.Placeholder.skips(text[m[2*g]:m[2*g+1]]) {
+			return true
+		}
+	}
+	return false
 }
 
 // Patterns is the shared high-precision set, and the module's one table of secret patterns:
@@ -51,13 +146,14 @@ var Patterns = append(handPatterns[:len(handPatterns):len(handPatterns)], gitlea
 // patterns_test.go builds its fixtures from each format's real alphabet, so a narrowed class
 // fails the suite.
 //
-// Most of gitleaks' rules are not taken as rows. Measured against gitleaks v8.30.1 on
-// 2026-10-18: 130 of its 222 rules are meaningful only behind an entropy threshold and 9
-// behind allowlists (the AWS rule allowlists every id ending EXAMPLE), so taken as bare
-// regexes they refuse other things than gitleaks does; and generic-api-key matched 42 of the
-// 803 text files in this repository. The hand rows are also broader than gitleaks' rule for
-// the same vendor where a gate needs it: gitleaks' Anthropic rule needs an exact-length body,
-// and its private-key rule needs 64 characters of key after the header.
+// Not every gitleaks rule is taken as a row. Measured against gitleaks v8.30.1 on 2026-10-18:
+// of its 222 rules, 77 find a generic token behind a context word (`twitter … = <hex>`) and 37
+// more lean on an entropy threshold with no vendor literal, so taken as regexes they refuse
+// other things than gitleaks does; generic-api-key matched 42 of the 803 text files in this
+// repository. 3 need allowlists (the AWS rule allowlists every id ending EXAMPLE). The hand
+// rows are also broader than gitleaks' rule for the same vendor where a gate needs it:
+// gitleaks' Anthropic rule needs an exact-length body, and its private-key rule needs 64
+// characters of key after the header.
 var handPatterns = []Pattern{
 	// AKIA long-term, ASIA STS temporary, ABIA STS service bearer, ACCA context-specific.
 	// The body is base32 ([A-Z2-7]); the class is a superset of it.
@@ -121,10 +217,11 @@ func Scan(text string) []string {
 		}
 		return present[li] == 1
 	}
-	for i, p := range Patterns {
+	for i := range Patterns {
+		p := &Patterns[i]
 		for _, li := range prefilter.rows[i] {
 			if has(li) {
-				if p.Re.MatchString(text) {
+				if p.matches(text) {
 					found = append(found, p.Class)
 				}
 				break

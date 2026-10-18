@@ -358,7 +358,7 @@ var defines = map[recordpb.EventType]bool{
 // earlier here. A name the schema no
 // longer has is skipped — which is the same silent staleness the paragraph above warns about, and
 // the reason a name is only ever REMOVED from this list deliberately.
-var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}
+var keyFields = []protoreflect.Name{"gap_id", "label", "id", "anchor", "url"}
 
 // requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
 func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMotion) error {
@@ -1480,8 +1480,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// skips.
 		//
 		// The ANCHOR case is the verb's own, because it needs the record to answer it (does that
-		// citation exist?) and because "--anchor or --independent" is a shape this table cannot
-		// express. What is enforced here is that the row says something: which claim, what the
+		// citation exist?) and because "`verify` names an anchor, `corroborate` names none" is a
+		// shape this table cannot express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
 			return fmt.Errorf("requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point: a citation that does NOT hold is recorded here, not left as prose)")

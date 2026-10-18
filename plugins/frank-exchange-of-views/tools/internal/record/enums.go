@@ -262,14 +262,6 @@ var EnumFields = map[string][]EnumField{
 		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
 		Why: "an absence has no sentence to quote, and borrowing an innocent one as a handle points a reader of the gap list at prose the finding itself calls fine. These targets are references the record can CHECK: an inquiry id either names an inquiry this run proposed or it does not",
 	}},
-	// `cite`, and the READING is the half a citation could not previously state. A citation says
-	// a source backs a sentence; it never said whether anyone had read the source. That gap was
-	// the load-bearing caveat of a whole run, carried as the prose substring "unreachable from
-	// this container" and miscounted twice by grep.
-	"cite": {{
-		Key: "source_text_read", Flag: flags.SourceText, Optional: true, Values: evsOf(recordpb.SourceTextRead(0).Descriptor()),
-		Why: "a claim about what a source SAYS rests on having read it; without this the report cannot distinguish a source read at the leaf from one known only through the summary of the party whose case depends on it",
-	}},
 	// `inquiry`, the event type whose body holds the status set.
 	"inquiry": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,

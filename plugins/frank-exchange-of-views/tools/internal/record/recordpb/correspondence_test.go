@@ -75,7 +75,9 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	// report's change is its edits, and a wrong act is answered by a new act.
 	//
 	// And one more for `plan`: the plan the chair's dispatch printed, stored whole.
-	const wantBodies = 35
+	//
+	// And one fewer for `observe`, a type no verb wrote.
+	const wantBodies = 34
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)
@@ -89,7 +91,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 // to the same bytes under EmitUnpopulated=false. That collapse is fatal in three measured places
 // — `seq = 0` is the register event's real sequence number and difftest's rank key reads it;
 // an unset grade must differ from a zero one, which is what half these readers rest on; and
-// `applied_verbatim`/`independent`/`none` carry meaning by PRESENCE, never being written false.
+// `applied_verbatim` carries meaning by PRESENCE, never being written false.
 //
 // A single forgotten `optional` reintroduces the plausible zero this schema exists to delete,
 // and it does so invisibly: the code compiles and the field simply stops appearing.

@@ -98,11 +98,6 @@ func AboutKindOf(word string) (recordpb.AboutKind, bool) {
 	return enumOf[recordpb.AboutKind](recordpb.AboutKind(0).Descriptor(), word)
 }
 
-// SourceTextReadOf resolves the word a seat types for how much of a source it read.
-func SourceTextReadOf(word string) (recordpb.SourceTextRead, bool) {
-	return enumOf[recordpb.SourceTextRead](recordpb.SourceTextRead(0).Descriptor(), word)
-}
-
 // LogTypeOf resolves the word a seat types on the log verb. Derived from the descriptor, so the
 // allowed set is the schema's and there is no second list to keep in step.
 func LogTypeOf(word string) (recordpb.LogType, bool) {
