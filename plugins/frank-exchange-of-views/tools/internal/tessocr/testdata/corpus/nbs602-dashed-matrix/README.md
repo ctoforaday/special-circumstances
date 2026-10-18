@@ -27,5 +27,10 @@ A 6x6 numeric matrix whose rules are typewriter dashes of 19-21 px with 4-6 px g
 - the reading contains "5.4", which is printed on the page
 - the reading contains "(5-6)", which is printed on the page
 - the reading contains "one axis", which is printed on the page
+- the reading contains "4.4 (4-6)", which is printed on the page
+- the reading contains "2.4 (1-3)", which is printed on the page
+- the reading contains "1.8 (1-2)", which is printed on the page
+- the reading contains "3.8 (3-5)", which is printed on the page
+- the reading contains "2.6 (2-4)", which is printed on the page
 
 This file is GENERATED from provenance.json. Edit the record, not this.

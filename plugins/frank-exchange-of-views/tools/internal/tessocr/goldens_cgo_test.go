@@ -99,8 +99,8 @@ func renderGolden(res PageResult) string {
 			st.MarksPlaced, st.MarksTotal, st.ColumnsFound, st.SubColumnsFound, st.RowsFound, st.LevelsRead, st.LevelsUnread)
 	case res.TextCells != nil:
 		st := *res.TextCells
-		fmt.Fprintf(&b, "path: text cells (%d columns, %d ruled bands, %d rows, %d cells, %d words placed, %d from the sparse pass, %d around the table, %d loose)\n",
-			st.Columns, st.Bands, st.Rows, st.Cells, st.WordsPlaced, st.WordsFromSparse, st.WordsAround, st.WordsLoose)
+		fmt.Fprintf(&b, "path: text cells (%d columns, %d ruled bands, %d rows, %d cells, %d words placed, %d read, %d from the sparse pass, %d around the table, %d loose)\n",
+			st.Columns, st.Bands, st.Rows, st.Cells, st.WordsPlaced, st.WordsRead, st.WordsFromSparse, st.WordsAround, st.WordsLoose)
 	default:
 		fmt.Fprintf(&b, "path: plain text\n")
 	}
@@ -109,6 +109,12 @@ func renderGolden(res PageResult) string {
 	}
 	if res.TextCellFallback != "" {
 		fmt.Fprintf(&b, "cells fell back: %s\n", res.TextCellFallback)
+	}
+	// What the reading removed is pinned with it (#1030), so a line of print removed by a change to
+	// spread.go shows in the diff as a line moving here.
+	fmt.Fprintf(&b, "removed lines: %d\n", len(res.RemovedLines))
+	for _, ln := range res.RemovedLines {
+		fmt.Fprintf(&b, "removed: %s\n", ln)
 	}
 	if res.Evidence.RefusedTable != "" {
 		b.WriteString("--- the reconstruction the dropout gate refused (evidence, not the reading)\n")

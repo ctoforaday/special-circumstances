@@ -73,6 +73,13 @@ type PageResult struct {
 	// TextCellFallback states why the rules' cells were not used either, after the mark
 	// reconstruction had already fallen back. Empty when they were used or never tried.
 	TextCellFallback string
+	// RemovedLines is every line the recognizer read and the reading does not carry, in reading
+	// order, as it was read: a line whose letters and digits sit in boxes far wider than they can
+	// fill — a rule, a leader, a script the language data does not hold (#1030, spread.go). Kept
+	// so the removal is on the record rather than silent, and so a quote of one is refused as
+	// removed rather than as absent. A grid page whose reading drew on both segmentation passes
+	// lists the lines removed from each, so one rule can appear once from each pass.
+	RemovedLines []string
 	// Diagnostics is what tesseract printed while reading this page — its resolution
 	// estimate among it, which exists nowhere else. Captured, never printed (#644), and
 	// kept for debugging: none of it is part of the reading or changes a byte it hashes.
@@ -231,11 +238,11 @@ func (en *Engine) readPageBranch(pagePNG []byte, thr GridThresholds) (PageResult
 		if repaired {
 			return en.readGridPage(pagePNG, grid, thr, RuleSourceRepair)
 		}
-		text, terr := en.PageText(pagePNG)
+		tsv, terr := en.PageTSV(pagePNG, PSMAuto)
 		if terr != nil {
 			return PageResult{}, terr
 		}
-		return PageResult{Text: text, Grid: grid}, nil
+		return proseResult(tsv, grid), nil
 	}
 	return en.readGridPage(pagePNG, grid, thr, RuleSourceDetector)
 }
@@ -303,9 +310,21 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	// page it otherwise helps or harms, and the geometric union of the two is named
 	// future work in the Wave 0 record, not silently attempted here.
 	marksAuto, marksSparse := MarkTokenCount(tsvAuto), MarkTokenCount(tsvSparse)
+	marksFromSparse := marksAuto == 0 && marksSparse > 0
 	tsv := tsvAuto
-	if marksAuto == 0 && marksSparse > 0 {
+	if marksFromSparse {
 		tsv = tsvSparse
+	}
+
+	// Each pass loses its spread lines before anything reads its words (#1030): a rule read as
+	// characters lands in a cell, a row or the prose around a table exactly as it lands in plain
+	// text. What each pass lost is kept to be put on the result by whichever reading stands.
+	autoRead, sparseRead := parseTSVWords(tsvAuto), parseTSVWords(tsvSparse)
+	autoWords, autoRemoved := removeSpreadLines(autoRead)
+	sparseKept, sparseRemoved := removeSpreadLines(sparseRead)
+	markWords, removed, markRead := autoWords, autoRemoved, len(autoRead)
+	if marksFromSparse {
+		markWords, removed, markRead = sparseKept, sparseRemoved, len(sparseRead)
 	}
 
 	var headers []string
@@ -341,8 +360,8 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 		lat, _ = RepairedTable(lat)
 		out.RepairedCrossings = RepairedCrossings(lat)
 	}
-	words := normalizeWords(parseTSVWords(tsv), scale)
-	sparseWords := normalizeWords(parseTSVWords(tsvSparse), scale)
+	words := normalizeWords(markWords, scale)
+	sparseWords := normalizeWords(sparseKept, scale)
 
 	levels, verr := en.readLevels(pagePNG, lat, words, scale)
 	if verr != nil {
@@ -369,6 +388,7 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	}, st)
 	if out.Fallback == "" {
 		out.Text = table
+		out.RemovedLines = removed
 		return out, nil
 	}
 	if rerr == nil {
@@ -381,11 +401,35 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	// read off the same two openings the detector measured, so it explains those counts rather
 	// than being a second opinion about the page. Tried only here: a page whose marks
 	// reconstructed keeps that reading byte for byte.
-	cellText, cst, why := TextCells(lat, words, sparseWords)
+	// THE BETTER WITNESS FILLS FIRST. Layout analysis reads a dense page best and drops words on a
+	// sparse one — measured on the generated two-table page, where it read 22 words and the sparse
+	// pass read the rest. Whichever pass read more words fills the cells; the other fills the cells
+	// it left empty, so neither pass's dropout decides what the page says.
+	//
+	// "Read more" is counted over everything each pass SEGMENTED, before its spread lines went
+	// (#1030): the question is which segmentation dropped less of the page, and removing a rule's
+	// reading afterwards does not change what either pass found. Counted after, nbs602-dashed-
+	// matrix's sparse pass falls from 420 words to 203 against the auto pass's 287, and the auto
+	// pass fills first: three ranges the sparse pass reads correctly, "(1-2)", "(1-3)" and "(1-2)",
+	// come out "¢€i-2)", "¢€1-3)" and "¢€1-2)".
+	readMark, readSparse := normalizeWords(autoRead, scale), normalizeWords(sparseRead, scale)
+	if marksFromSparse {
+		readMark = readSparse
+	}
+	first, second, readFirst, readSecond := words, sparseWords, readMark, readSparse
+	if len(sparseRead) > markRead {
+		first, second, readFirst, readSecond = sparseWords, words, readSparse, readMark
+	}
+	cellText, cst, why := TextCells(lat, first, second, readFirst, readSecond)
 	switch {
 	case why == "":
 		out.TextCells = &cst
 		out.Text = cellText
+		// The cells were filled from both passes, so both passes' removals are this reading's.
+		out.RemovedLines = removed
+		if !marksFromSparse {
+			out.RemovedLines = append(append([]string(nil), autoRemoved...), sparseRemoved...)
+		}
 		return out, nil
 	case cst.Cells > 0:
 		out.TextCells = nil
@@ -394,12 +438,25 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 		out.TextCellFallback = why
 	}
 
-	text, terr := en.PageText(pagePNG)
-	if terr != nil {
-		return PageResult{}, terr
-	}
-	out.Text = text
+	// The plain reading of the pixels the words were read off — which the auto pass above already
+	// recognized, so it is written from that pass rather than read a second time.
+	out.Text, out.RemovedLines = plainReading(tsvAuto)
 	return out, nil
+}
+
+// proseResult is a page with no grid, read from its PSMAuto TSV. It is the whole of the no-grid
+// path after recognition, and pure, so the test that pins it pins the path: the engine call that
+// precedes it cannot be driven without the C stack and a page whose rules reach the prose path.
+func proseResult(tsv string, grid GridStats) PageResult {
+	text, removed := plainReading(tsv)
+	return PageResult{Text: text, Grid: grid, RemovedLines: removed}
+}
+
+// plainReading is a PSMAuto TSV as the page's plain text, its spread lines removed and returned —
+// the one derivation both the no-grid path and the grid branch's last fallback use.
+func plainReading(tsv string) (string, []string) {
+	kept, removed := removeSpreadLines(parseTSVWords(tsv))
+	return proseText(kept), removed
 }
 
 // ruleGeometry fetches the page's rules from the path that found them. Both return page-pixel

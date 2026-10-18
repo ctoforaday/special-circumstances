@@ -28,5 +28,15 @@ A ruled landscape table laid sideways on a portrait page (/Rotate 270): every he
 - the reading contains "Susquehanna River", which is printed on the page
 - the reading contains "Horse-power", which is printed on the page
 - the reading contains "1,746,303", which is printed on the page
+- the reading contains "District of Columbia", which is printed on the page
+- the reading contains "Connecticut River", which is printed on the page
+- the reading contains "Blackstone River", which is printed on the page
+- the reading contains "Housatonic River", which is printed on the page
+- the reading contains "40,173", which is printed on the page
+- the reading contains "40,165", which is printed on the page
+- the reading contains "59,129", which is printed on the page
+- the reading contains "3,247", which is printed on the page
+- the reading contains "2,890", which is printed on the page
+- the reading contains "1,881", which is printed on the page
 
 This file is GENERATED from provenance.json. Edit the record, not this.

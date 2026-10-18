@@ -19,10 +19,9 @@ tessocr_engine *tessocr_new(const unsigned char *traineddata, int len);
 
 void tessocr_free(tessocr_engine *e);
 
-/* OCR a PNG to UTF-8 text under the given page-segmentation mode. NULL on failure. */
-char *tessocr_text(tessocr_engine *e, const unsigned char *png, size_t len, int psm);
-
-/* OCR a PNG to level-5 word TSV (geometry + confidence per word). NULL on failure. */
+/* OCR a PNG to level-5 word TSV (geometry + confidence per word). NULL on failure. The plain
+ * reading of a page is written from it too (page.go, readProse): the boxes are what tell a line
+ * of print from a rule read as characters. */
 char *tessocr_tsv(tessocr_engine *e, const unsigned char *png, size_t len, int psm);
 
 /* Crop (x,y,w,h), rotate the crop 90 degrees CLOCKWISE, OCR it — the rotated-header

@@ -301,6 +301,50 @@ func TestAZeroInkFractionIsWritten(t *testing.T) {
 	}
 }
 
+// WHAT THE ENGINE REMOVED IS ON THE RECEIPT AND THE RECORD'S ROW, AND SO IS "NOTHING" (#1030). A
+// page that lost two rule lines states both as they were read; a page that lost none states an
+// empty list, because an absent key is what a receipt written by nobody would also say.
+func TestRemovedLinesReachTheReceiptAndTheRecord(t *testing.T) {
+	removed := []string{"9S SS SSS SS 9539", "rer oe [orem fr f rr rr sf errr ferret eer"}
+	withEngine(t, &fakeEngine{perCall: func(n int) (tessocr.PageResult, error) {
+		if n == 1 {
+			return tessocr.PageResult{Text: "Machine Tool 2.8 3.4", RemovedLines: removed}, nil
+		}
+		return tessocr.PageResult{Text: "prose"}, nil
+	}})
+	run := runtest.New(t, t.TempDir())
+	sha := "doc-under-test"
+	rd := fakeRender(t, run, sha, [][]byte{[]byte("ruled page"), []byte("prose page")}, tessocr.RenderDPI)
+	rec, err := ReadRenderedPages(run, sha, rd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for page, want := range map[int][]string{1: removed, 2: {}} {
+		b, err := os.ReadFile(receiptPath(run, sha, page))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var receipt map[string]json.RawMessage
+		if err := json.Unmarshal(b, &receipt); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		if err := json.Unmarshal(receipt["removed_lines"], &got); err != nil || got == nil || fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Errorf("page %d receipt removed_lines = %s (%v), want %q", page, receipt["removed_lines"], err, want)
+		}
+		if got := rec.Pages[page-1].RemovedLines; fmt.Sprint(got) != fmt.Sprint(want) || got == nil {
+			t.Errorf("page %d record row removed_lines = %#v, want %#v", page, got, want)
+		}
+	}
+	b, err := os.ReadFile(readingRecordPath(run, sha))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"removed_lines": []`) || !strings.Contains(string(b), removed[1]) {
+		t.Errorf("reading.json does not carry both pages' removed_lines:\n%s", b)
+	}
+}
+
 // THE STORED TEXT IS TIDIED AT ITS EDGES AND UNTOUCHED IN ITS MIDDLE.
 //
 // Line endings and trailing whitespace are noise in an artifact about to be cited from.

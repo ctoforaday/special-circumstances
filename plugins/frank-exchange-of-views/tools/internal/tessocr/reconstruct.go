@@ -155,13 +155,21 @@ type tsvWord struct {
 	x, y, w, h int
 	conf       float64
 	text       string
+	// line is the block, paragraph and line tesseract placed the word in. The plain reading is
+	// written from it (proseText), and a line is what removeSpreadLines judges as a whole.
+	line lineKey
 }
+
+// lineKey is a word's place in tesseract's layout: block, paragraph within the block, line within
+// the paragraph.
+type lineKey struct{ block, par, line int }
 
 func (wd tsvWord) cx() float64 { return float64(wd.x) + float64(wd.w)/2 }
 func (wd tsvWord) cy() float64 { return float64(wd.y) + float64(wd.h)/2 }
 
-// parseTSVWords keeps level-5 (word) rows with non-empty text and drops everything else;
-// page/block/line geometry is re-derived from the words rather than trusted.
+// parseTSVWords keeps level-5 (word) rows with non-empty text and drops everything else. The
+// geometry of a table is re-derived from the words rather than trusted; the layout's line numbers
+// are kept, because the plain reading is written line by line from them.
 func parseTSVWords(tsv string) []tsvWord {
 	var out []tsvWord
 	sc := bufio.NewScanner(strings.NewReader(tsv))
@@ -177,7 +185,8 @@ func parseTSVWords(tsv string) []tsvWord {
 		}
 		atoi := func(s string) int { n, _ := strconv.Atoi(s); return n }
 		conf, _ := strconv.ParseFloat(fld[10], 64)
-		out = append(out, tsvWord{atoi(fld[6]), atoi(fld[7]), atoi(fld[8]), atoi(fld[9]), conf, txt})
+		out = append(out, tsvWord{atoi(fld[6]), atoi(fld[7]), atoi(fld[8]), atoi(fld[9]), conf, txt,
+			lineKey{atoi(fld[2]), atoi(fld[3]), atoi(fld[4])}})
 	}
 	return out
 }

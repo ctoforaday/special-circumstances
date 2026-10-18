@@ -14,9 +14,6 @@ func TestStubRefusesLoudly(t *testing.T) {
 		t.Errorf("New() = %v, want ErrNotCompiledIn", err)
 	}
 	var en Engine
-	if _, err := en.PageText(nil); !errors.Is(err, ErrNotCompiledIn) {
-		t.Errorf("PageText = %v, want ErrNotCompiledIn", err)
-	}
 	if _, err := en.PageTSV(nil, PSMAuto); !errors.Is(err, ErrNotCompiledIn) {
 		t.Errorf("PageTSV = %v, want ErrNotCompiledIn", err)
 	}

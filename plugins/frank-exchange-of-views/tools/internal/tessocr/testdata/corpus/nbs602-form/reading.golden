@@ -1,12 +1,13 @@
-nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@d8eb3103c7a4 · rendered at 350.37 DPI (native 350.37), 2645x3526 px
+nbs602-form · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@c9ec3d9a9ccd · rendered at 350.37 DPI (native 350.37), 2645x3526 px
 table: true · rules: detector · rotated: false · grid intersections: 351 · repaired crossings: 0 · length: 2573 · ink: 7.365%
 marks: 1 columns, 1 subcolumns, 3 rows, 2 of 5 placed, psm disagreement 0.00
-text cells: 1 tables, 11 bands, 18 rows, 2 columns, 15 cells, 353 words placed
+text cells: 1 tables, 11 bands, 18 rows, 2 columns, 15 cells, 353 words placed, 353 read
 fell back: reconstruction placed 2 of 5 marks, below the 0.80 placement threshold; page kept as plain text
+removed lines: 0
 ---
 NBS-I14A (REV. 2-8)
 
-| U.S. DEPT. OF COMM. 1, PUBLICATION OR 2. Performing Organ. Report No. 3. Publication Date BIBLIOGRAPHIC DATA REPORT NO. SHEET ; (See instructions) NBS SP 602 April 1981 ||
+| U.S. DEPT. OF COMM. 1, PUBLICATION OR 2. Performing Organ. Report No. 3. Publication Date REPORT NO. BIBLIOGRAPHIC DATA ; SHEET (See instructions) NBS SP 602 April 1981 ||
 |---|---|
 | 4. TITLE AND SUBTITLE NBS/RIA Robotics Research Workshop Proceedings of a Workshop Held at the National Bureau of Standards, Gaithersburg, MD, November 13-15, 1979 ||
 | ‘Editors: James S. Albus, G.J. VanderBrug, Anthony J. Barbera, M.L. Fitzgerald. Thoma Wheat! ||

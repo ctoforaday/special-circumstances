@@ -22,9 +22,6 @@ func New() (*Engine, error) { return nil, ErrNotCompiledIn }
 // Close is a no-op on the stub.
 func (en *Engine) Close() {}
 
-// PageText reports the engine absent.
-func (en *Engine) PageText(png []byte) (string, error) { return "", ErrNotCompiledIn }
-
 // PageTSV reports the engine absent.
 func (en *Engine) PageTSV(png []byte, psm PSM) (string, error) { return "", ErrNotCompiledIn }
 

@@ -187,6 +187,14 @@ type PageReading struct {
 	TextCells *tessocr.CellStats `json:"text_cells,omitempty"`
 	// TextCellFallback states why the rules' cells were not used as the page text either.
 	TextCellFallback string `json:"text_cell_fallback,omitempty"`
+
+	// RemovedLines is every line the engine read and this page's text does not carry, as it was
+	// read: letters and digits in boxes far wider than they can fill — a rule, a leader, a script
+	// the language data does not hold, read as characters (tessocr.PageResult.RemovedLines,
+	// #1030). Their count is the removal's size; their text is what lets a quote of one be
+	// refused as removed (LocateSpan) rather than as a misquote. Never omitted: an empty list is
+	// the engine saying it removed nothing.
+	RemovedLines []string `json:"removed_lines"`
 }
 
 // pageReceipt is one page's provenance row: what was rendered, what read it, and what
@@ -216,6 +224,9 @@ type pageReceipt struct {
 
 	TextCells        *tessocr.CellStats `json:"text_cells,omitempty"`
 	TextCellFallback string             `json:"text_cell_fallback,omitempty"`
+
+	// RemovedLines is PageReading.RemovedLines; written as [] when the page lost nothing.
+	RemovedLines []string `json:"removed_lines"`
 }
 
 // pageReading projects the receipt's page-level facts into the record's row — one
@@ -227,6 +238,7 @@ func (r pageReceipt) pageReading() PageReading {
 		GridIntersections: r.GridIntersections, RepairedCrossings: r.RepairedCrossings,
 		Reconstruction: r.Reconstruction, ReconstructionFallback: r.ReconstructionFallback,
 		TextCells: r.TextCells, TextCellFallback: r.TextCellFallback,
+		RemovedLines: r.RemovedLines,
 	}
 }
 
@@ -321,6 +333,7 @@ func readPageStep(run record.Run, sha string, page int, png []byte, dpi float64)
 		Table:       res.Table, RotatedPage: res.RotatedPage,
 		Reconstruction: res.Reconstruction, ReconstructionFallback: res.Fallback,
 		TextCells: res.TextCells, TextCellFallback: res.TextCellFallback,
+		RemovedLines: append([]string{}, res.RemovedLines...),
 	}
 	if res.Table {
 		r.GridIntersections = res.Grid.Intersections

@@ -72,18 +72,119 @@ type Cell struct {
 // Text is the cell's words in reading order, joined with a space: a line break inside a cell is
 // layout, not content (gblock, 2026-09-16), so a row is one line of the reading.
 func (c Cell) Text() string {
-	ws := append([]tsvWord(nil), c.words...)
-	sort.Slice(ws, func(i, j int) bool {
-		if abs(ws[i].cy()-ws[j].cy()) > float64(ws[i].h) {
-			return ws[i].cy() < ws[j].cy()
+	var parts []string
+	for _, ln := range readingLines(c.words) {
+		for _, w := range ln {
+			parts = append(parts, w.text)
 		}
-		return ws[i].x < ws[j].x
-	})
-	parts := make([]string, 0, len(ws))
-	for _, w := range ws {
-		parts = append(parts, w.text)
 	}
 	return strings.Join(parts, " ")
+}
+
+// readingLines puts words into lines, top to bottom, each line left to right.
+//
+// TESSERACT'S OWN LINES ARE THE UNIT, AND GEOMETRY ONLY ORDERS THEM. A layout line keeps its words
+// in the order the recognizer wrote them. Lines whose boxes overlap vertically by more than a third
+// of the taller are one visual line; inside it, lines that overlap horizontally are one column, read
+// top to bottom, and the columns are read left to right. So "District of" over "Columbia." beside a
+// "Total." centred against both reads "District of Columbia. Total.", and a 276 px box read off an
+// emblem overlaps no line of print by a third of its height and stays out of theirs.
+//
+// Ordering WORDS by a tolerance instead is not an order — two words are "on one line" when their
+// centres sit within one of their heights, which is not transitive — and a sort handed that
+// comparison answers differently depending on which other words are present: removing one rule read
+// as "ee" from a cell moved that emblem's "a" inside "LIBERTY LOAN COMMITTEE" (#1030).
+func readingLines(words []tsvWord) [][]tsvWord {
+	type run struct {
+		ws             []tsvWord
+		x0, y0, x1, y1 int
+	}
+	var runs []*run
+	at := map[lineKey]*run{}
+	for _, w := range words {
+		r, ok := at[w.line]
+		if !ok {
+			r = &run{x0: w.x, y0: w.y, x1: w.x + w.w, y1: w.y + w.h}
+			at[w.line] = r
+			runs = append(runs, r)
+		}
+		r.ws = append(r.ws, w)
+		r.x0, r.y0 = mini(r.x0, w.x), mini(r.y0, w.y)
+		r.x1, r.y1 = maxi(r.x1, w.x+w.w), maxi(r.y1, w.y+w.h)
+	}
+	centre := func(r *run) float64 { return float64(r.y0+r.y1) / 2 }
+	// groups joins runs that pass the test into connected sets, keeping each set in run order.
+	groups := func(rs []*run, join func(a, b *run) bool) [][]*run {
+		parent := make([]int, len(rs))
+		for i := range parent {
+			parent[i] = i
+		}
+		var find func(int) int
+		find = func(i int) int {
+			if parent[i] != i {
+				parent[i] = find(parent[i])
+			}
+			return parent[i]
+		}
+		for i := range rs {
+			for j := i + 1; j < len(rs); j++ {
+				if join(rs[i], rs[j]) {
+					parent[find(j)] = find(i)
+				}
+			}
+		}
+		idx := map[int]int{}
+		var out [][]*run
+		for i, r := range rs {
+			root := find(i)
+			k, ok := idx[root]
+			if !ok {
+				k = len(out)
+				idx[root] = k
+				out = append(out, nil)
+			}
+			out[k] = append(out[k], r)
+		}
+		return out
+	}
+	visual := groups(runs, func(a, b *run) bool {
+		overlap := mini(a.y1, b.y1) - maxi(a.y0, b.y0)
+		return 3*overlap > maxi(a.y1-a.y0, b.y1-b.y0)
+	})
+	top := func(g []*run) float64 {
+		c := centre(g[0])
+		for _, r := range g[1:] {
+			c = minf(c, centre(r))
+		}
+		return c
+	}
+	left := func(g []*run) int {
+		x := g[0].x0
+		for _, r := range g[1:] {
+			x = mini(x, r.x0)
+		}
+		return x
+	}
+	sort.SliceStable(visual, func(i, j int) bool {
+		if top(visual[i]) != top(visual[j]) {
+			return top(visual[i]) < top(visual[j])
+		}
+		return left(visual[i]) < left(visual[j])
+	})
+	lines := make([][]tsvWord, 0, len(visual))
+	for _, v := range visual {
+		cols := groups(v, func(a, b *run) bool { return mini(a.x1, b.x1) > maxi(a.x0, b.x0) })
+		sort.SliceStable(cols, func(i, j int) bool { return left(cols[i]) < left(cols[j]) })
+		var ln []tsvWord
+		for _, col := range cols {
+			sort.SliceStable(col, func(i, j int) bool { return centre(col[i]) < centre(col[j]) })
+			for _, r := range col {
+				ln = append(ln, r.ws...)
+			}
+		}
+		lines = append(lines, ln)
+	}
+	return lines
 }
 
 // Table is the lattice's cells, in reading order.
@@ -346,6 +447,13 @@ type CellStats struct {
 	// cell (a word straddling a rule); WordsAround sat outside the table and are kept as the
 	// page's prose, before or after the rows.
 	WordsPlaced int `json:"words_placed"`
+	// WordsRead is WordsPlaced counted over the two passes as they were READ, before #1030 removed
+	// their spread lines. It is what MinWordsPerCell judges: which reading a page gets is decided on
+	// what the passes found, and removing a rule's reading afterwards edits that reading without
+	// choosing a different one. Judged after removal, usgs-landscape-table falls from 4.23 words a
+	// cell to 1.59 and is read as plain text, losing values its cells hold ("40,173", "2,890",
+	// "3,247") and the header "District of Columbia".
+	WordsRead   int `json:"words_read"`
 	WordsLoose  int `json:"words_loose,omitempty"`
 	WordsAround int `json:"words_around,omitempty"`
 	// WordsFromSparse were read by the sparse pass into cells the layout pass left EMPTY. Page
@@ -356,12 +464,13 @@ type CellStats struct {
 
 // WordsPerCell is the measure that separates a table of TEXT cells from a table of marks: a mark
 // cell holds one glyph or none (measured 0.43-0.96 over this corpus's mark grids), a text cell
-// holds a phrase (4.3 and up). Zero cells is zero, never a division by zero.
+// holds a phrase (4.3 and up). It is taken over WordsRead. Zero cells is zero, never a division by
+// zero.
 func (s CellStats) WordsPerCell() float64 {
 	if s.Cells == 0 {
 		return 0
 	}
-	return float64(s.WordsPlaced) / float64(s.Cells)
+	return float64(s.WordsRead) / float64(s.Cells)
 }
 
 // Text-cell acceptance, measured over the 35 grid pages of IEEE 1012 (plans/ocr-text-cell-rows.md
@@ -552,33 +661,13 @@ func (t Table) render() string {
 	return b.String()
 }
 
-// lines renders loose words as the page's own prose, in reading order: words whose baselines sit
-// within one line height of each other are one line.
+// linesOf renders loose words as the page's own prose, one readingLines line per line.
 func linesOf(words []tsvWord) string {
-	if len(words) == 0 {
-		return ""
+	var out []string
+	for _, ln := range readingLines(words) {
+		out = append(out, lineText(ln))
 	}
-	ws := append([]tsvWord(nil), words...)
-	sort.Slice(ws, func(i, j int) bool {
-		if abs(ws[i].cy()-ws[j].cy()) > float64(ws[i].h) {
-			return ws[i].cy() < ws[j].cy()
-		}
-		return ws[i].x < ws[j].x
-	})
-	var b strings.Builder
-	prev := ws[0]
-	for i, w := range ws {
-		switch {
-		case i == 0:
-		case abs(w.cy()-prev.cy()) > float64(w.h):
-			b.WriteString("\n")
-		default:
-			b.WriteString(" ")
-		}
-		b.WriteString(w.text)
-		prev = w
-	}
-	return b.String()
+	return strings.Join(out, "\n")
 }
 
 // TextCells reconstructs a ruled table whose cells hold TEXT: the lattice says where the cells
@@ -587,26 +676,24 @@ func linesOf(words []tsvWord) string {
 // table in it). It returns the reading, what it measured, and the reason it is not acceptable,
 // which is "" when it is.
 //
-// THE SPARSE PASS IS THE SECOND WITNESS, AND ONLY FOR EMPTY CELLS. Layout analysis drops a short
-// word alone in a narrow column — measured on the generated fixture, where "High" and "Major" are
-// absent from the auto TSV and present in the sparse one — exactly as it drops isolated marks.
-// Filling only cells the first pass left empty takes those words back without letting the two
-// passes each contribute their own reading of the same cell.
+// THE SECOND WITNESS FILLS ONLY EMPTY CELLS. Layout analysis drops a short word alone in a narrow
+// column — measured on the generated fixture, where "High" and "Major" are absent from the auto TSV
+// and present in the sparse one — exactly as it drops isolated marks. Filling only cells the first
+// pass left empty takes those words back without letting the two passes each contribute their own
+// reading of the same cell. Which pass is first is the caller's to decide (readGridPage).
 // The words arrive PARSED AND NORMALIZED — the caller put them in the 300-DPI space every constant
 // below was fitted in (#1074, normalize.go), so nothing here re-parses a TSV or asks what the page
 // rendered at.
-func TextCells(lat Lattice, words, sparseWords []tsvWord) (string, CellStats, string) {
+//
+// readWords and readSparse are the same two passes as they were read, before their spread lines
+// were removed (CellStats.WordsRead): they decide nothing but the words-per-cell floor, and supply
+// no word to the reading.
+func TextCells(lat Lattice, words, sparseWords, readWords, readSparse []tsvWord) (string, CellStats, string) {
 	tables := lat.Tables()
 	if len(tables) == 0 {
 		return "", CellStats{}, "the page's rules bound no cells, so there is no row to recover"
 	}
-	// THE BETTER WITNESS FILLS FIRST. Layout analysis reads a dense page best and drops words on a
-	// sparse one — measured on the generated two-table page, where it read 22 words and the sparse
-	// pass read the rest. Whichever pass read more words fills the cells; the other fills the cells
-	// it left empty, so neither pass's dropout decides what the page says.
-	if len(sparseWords) > len(words) {
-		words, sparseWords = sparseWords, words
-	}
+	read := lat.Tables()
 	var st CellStats
 	// Each table takes the words inside it; what no table claims is the page's own prose, and it
 	// is written where it sits — before, between or after the tables, in reading order.
@@ -626,6 +713,8 @@ func TextCells(lat Lattice, words, sparseWords []tsvWord) (string, CellStats, st
 		_, _, one := t.fill(words)
 		one.WordsFromSparse = t.fillEmpty(sparseWords)
 		one.WordsPlaced += one.WordsFromSparse
+		_, _, asRead := read[i].fill(readWords)
+		one.WordsRead = asRead.WordsPlaced + read[i].fillEmpty(readSparse)
 		t.splitBands()
 		one.Rows = t.Cells[len(t.Cells)-1].Row + 1
 		st = st.add(one)
@@ -694,6 +783,7 @@ func (s CellStats) add(o CellStats) CellStats {
 	s.Bands += o.Bands
 	s.Rows += o.Rows
 	s.WordsPlaced += o.WordsPlaced
+	s.WordsRead += o.WordsRead
 	s.WordsLoose += o.WordsLoose
 	s.WordsFromSparse += o.WordsFromSparse
 	s.Columns = maxi(s.Columns, o.Columns)
@@ -710,7 +800,7 @@ func (s CellStats) refuse() string {
 	case s.Rows < MinTextCellRows:
 		return fmt.Sprintf("the page's rules bound %d row(s), and a table needs at least %d", s.Rows, MinTextCellRows)
 	case s.WordsPerCell() < MinWordsPerCell:
-		return fmt.Sprintf("the rules bound %d cells holding %d words (%.2f per cell, under %.2f): these cells carry marks rather than text, and reading them as text would drop what they mean", s.Cells, s.WordsPlaced, s.WordsPerCell(), MinWordsPerCell)
+		return fmt.Sprintf("the rules bound %d cells holding %d words (%.2f per cell, under %.2f): these cells carry marks rather than text, and reading them as text would drop what they mean", s.Cells, s.WordsRead, s.WordsPerCell(), MinWordsPerCell)
 	}
 	return ""
 }
