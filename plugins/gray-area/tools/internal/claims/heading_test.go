@@ -125,3 +125,22 @@ func TestTheSurfaceEndsAtTheClauseSeparator(t *testing.T) {
 		t.Errorf("surface = %q", cs[0].Surface)
 	}
 }
+
+// A lettered label after a blank line is its own paragraph, outside any list
+// item: still refused.
+func TestALetteredLabelInItsOwnParagraphIsRefused(t *testing.T) {
+	_, err := Parse(strings.NewReader("## Validation loop\n1. `go test ./a`\n\n7b. `go test ./b`\n"), "N.md")
+	if err == nil || !strings.Contains(err.Error(), `"7b."`) || !strings.Contains(err.Error(), "N.md:4") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+// Frontmatter is not markdown: a YAML comment line in it is not a heading, so
+// it can neither open nor nearly name the loop.
+func TestFrontmatterIsNotReadAsMarkdown(t *testing.T) {
+	note := "---\nschema: 3\n# validation-loop: see below\n---\n## Validation loop\n1. `go test ./a`\n"
+	cs, err := Parse(strings.NewReader(note), "N.md")
+	if err != nil || len(cs) != 1 || cs[0].Line != 6 {
+		t.Errorf("claims %+v, err %v", cs, err)
+	}
+}
