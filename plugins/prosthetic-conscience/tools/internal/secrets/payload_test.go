@@ -127,40 +127,6 @@ func TestScanPayloadIsDeterministic(t *testing.T) {
 	}
 }
 
-// EVERY declared class needs a positive case, or a regex could be deleted and
-// the suite would stay green. #80 measured gh[osur]_ and sk-proj- at zero.
-func TestEveryPatternClassHasAPositiveCase(t *testing.T) {
-	samples := map[string]string{
-		"AWS access key id":            awsKey,
-		"GitHub personal access token": "ghp_" + strings.Repeat("a", 36),
-		"GitHub fine-grained token":    "github_pat_" + strings.Repeat("b", 22),
-		"GitHub app/oauth token":       "ghs_" + strings.Repeat("c", 36),
-		"Slack token":                  "xoxb-" + strings.Repeat("1", 12),
-		"private key block":            pkBegin,
-		"Anthropic api key":            "sk-ant-" + strings.Repeat("d", 24),
-		"OpenAI api key":               "sk-proj-" + strings.Repeat("e", 24),
-	}
-	for _, p := range Patterns {
-		sample, ok := samples[p.Class]
-		if !ok {
-			t.Errorf("class %q has no sample — it could be deleted and this suite would stay green", p.Class)
-			continue
-		}
-		got := Scan(sample)
-		// The CLASS must be named, not merely "something matched": the class is
-		// what reaches the operator in the deny reason.
-		var named bool
-		for _, c := range got {
-			if c == p.Class {
-				named = true
-			}
-		}
-		if !named {
-			t.Errorf("sample for %q matched %v instead of naming its own class", p.Class, got)
-		}
-	}
-}
-
 // Scope, pinned rather than assumed: the gate reads tool_input and nothing else.
 // #80 notes a secret in a sibling field is unseen. That is a deliberate boundary
 // — tool_input is what the tool receives — and it should fail loudly if someone

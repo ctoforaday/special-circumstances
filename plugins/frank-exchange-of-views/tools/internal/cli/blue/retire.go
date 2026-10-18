@@ -75,6 +75,12 @@ func newRetire() *cobra.Command {
 		// claim that left the report: one naming a claim that was never there is a removal
 		// the record asserts and the report never had.
 		claim := seat.Str(cmd, flags.Quote)
+		// A BLANK CLAIM IS A MISSING ONE, refused before the guard reads it as text: every report
+		// contains the empty string, so universe-m29's `retire --quote ""` was told `"" is still in
+		// the report` and sent to edit out a claim it never named.
+		if strings.TrimSpace(claim) == "" {
+			return nil, feov.Errorf(feov.MissingField, "requires --quote: the claim being removed, verbatim as it stood in the report before the edit that took it out")
+		}
 		// ASKED OF THE REPORT AND THE EDITS THE RETIRE LANDS ON. Blue's own edits and a lens's
 		// anchor commit in parallel with it, and a retire checked against the report before them can
 		// name an anchor another write has since put back into prose, or explain the removal of a
