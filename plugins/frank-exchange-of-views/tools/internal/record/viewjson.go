@@ -154,9 +154,13 @@ type GapJSON struct {
 	// from whether fix_old/fix_new validated against the live report — never self-reported —
 	// so blue can tell a remedy red actually checked from one it guessed, and weight its
 	// response accordingly. Blue is NEVER obliged to apply: it may counter-edit or dispute.
-	FixBasis   string   `json:"fix_basis"`
-	FixOld     string   `json:"fix_old"`
-	FixNew     string   `json:"fix_new"`
+	FixBasis string `json:"fix_basis"`
+	FixOld   string `json:"fix_old"`
+	FixNew   string `json:"fix_new"`
+	// MintedBy is the seat that minted the gap, as a seat id — the one seat that may close or regrade
+	// it, and the same column the work list's row reads. FoundBy carries finding ids, which name the
+	// lens that FOUND a defect and not the seat that minted the gap.
+	MintedBy   string   `json:"minted_by"`
 	FoundBy    []string `json:"found_by"`
 	Supersedes []string `json:"supersedes"`
 
@@ -399,7 +403,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
-	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event",
+	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_by", "minted_event",
 	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
@@ -411,18 +415,18 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var id string
 		var round int
 		var open, awaiting bool
-		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew, mintedBy sql.NullString
 		var mintedEvent int64
 		var closeEvent, benchEvent sql.NullInt64
 		var closedByBench, benchClosedLast bool
 		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
-			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent,
+			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedBy, &mintedEvent,
 			&closeEvent, &benchEvent, &closedByBench, &benchClosedLast); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
 			ID: id, Epoch: round, Open: open,
-			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
+			MintedBy: mintedBy.String, FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
 			Class:     class.String,
