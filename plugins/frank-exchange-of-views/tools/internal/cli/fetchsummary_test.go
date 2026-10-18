@@ -92,20 +92,28 @@ func TestARetractionIsRenderedFromTheStoredRecord(t *testing.T) {
 		Work: &fetchcache.WorkFacts{Retracted: &yes, WorkType: "article", OAStatus: "bronze", License: "cc-by"},
 	}
 	got := summarize(record.Run{}, e, 4096, false).render()
-	for _, want := range []string{"retracted: true", "THIS WORK IS RETRACTED", "AS RETRACTED",
+	for _, want := range []string{"work_status: retracted", "THIS WORK IS RETRACTED", "AS RETRACTED",
 		"work_type: article", "oa_status: bronze", "copy_version: publishedVersion"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the summary does not carry %q:\n%s", want, got)
 		}
 	}
 
-	// AND A WORK NOBODY ASKED AN INDEX ABOUT SAYS NOTHING. A plain live fetch of a url with no doi
-	// consults no index, and printing `retracted: false` there would be a reassurance nobody
-	// earned — the difference between "checked, sound" and "never checked" is the whole reason
-	// the field is a pointer.
+	// AND A WORK NOBODY ASKED AN INDEX ABOUT SAYS SO. A plain live fetch of a url with no doi
+	// consults no index; printing nothing there read exactly like a work checked and found sound,
+	// and printing `standing` would be a reassurance nobody earned. The record's own word is
+	// not_checked, and the summary says it with the reason.
 	quiet := summarize(record.Run{}, fetchcache.Entry{URL: "https://ex.org/p", TextRetrieved: true}, 10, false).render()
-	if strings.Contains(quiet, "retracted") || strings.Contains(quiet, "oa_status") {
-		t.Errorf("a fetch that consulted no index reports on retraction anyway:\n%s", quiet)
+	if !strings.Contains(quiet, "work_status: not_checked") || !strings.Contains(quiet, "no DOI was found") {
+		t.Errorf("a fetch that consulted no index does not say the work was not checked:\n%s", quiet)
+	}
+	if strings.Contains(quiet, "standing") || strings.Contains(quiet, "RETRACTED") || strings.Contains(quiet, "oa_status") {
+		t.Errorf("a fetch that consulted no index reports on the work anyway:\n%s", quiet)
+	}
+	// A DOI THE INDEX DID NOT ANSWER FOR is not_checked too, and names the DOI that was asked.
+	asked := summarize(record.Run{}, fetchcache.Entry{URL: "https://doi.org/10.1/x", DOI: "10.1/x", TextRetrieved: true}, 10, false).render()
+	if !strings.Contains(asked, "doi: 10.1/x") || !strings.Contains(asked, "work_status: not_checked") || !strings.Contains(asked, "NO ANSWER about doi 10.1/x") {
+		t.Errorf("a doi no index answered for is not reported as not checked:\n%s", asked)
 	}
 }
 

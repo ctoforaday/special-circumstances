@@ -2,7 +2,9 @@ package fetchcache
 
 import (
 	"errors"
+	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -571,6 +573,9 @@ func TestARetractionReachesTheRecordFromANonIndexBackend(t *testing.T) {
 	if e.Work.OAStatus != "green" || e.Work.WorkType != "article" {
 		t.Errorf("the rest of the work record did not travel with it: %+v", e.Work)
 	}
+	if e.DOI != "10.1234/retracted" {
+		t.Errorf("the doi the backends were asked about did not reach the entry: %q", e.DOI)
+	}
 }
 
 // THE PUBLISHED COPY IS PREFERRED OVER A DRAFT OF IT. Both are pdfs and both answer, so nothing
@@ -1016,5 +1021,48 @@ func TestAPMCIdentifierIsExpandedIntoRoutesThatServeAMachine(t *testing.T) {
 	}
 	if !askedBucket {
 		t.Error("the open-access bucket was never asked, though it is the route that needs no challenge")
+	}
+}
+
+// THE BUCKET'S LISTING IS READ AS XML, AND A KEY IS TAKEN ONLY UNDER THIS WORK'S PREFIX. A listing
+// by `PMC1234` also lists PMC12345; where PMC1234 holds no pdf, the neighbour's must not be
+// recorded as this work's copy. The positive path is pinned beside it, against S3's real
+// namespaced envelope, so a listing nothing can read does not pass as "no pdf here".
+func TestTheOpenAccessBucketTakesOnlyThisWorksPDF(t *testing.T) {
+	const ns = `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">`
+	listing := func(keys ...string) []byte {
+		var b strings.Builder
+		b.WriteString(ns)
+		fmt.Fprintf(&b, "<KeyCount>%d</KeyCount>", len(keys))
+		for _, k := range keys {
+			fmt.Fprintf(&b, "<Contents><Key>%s</Key><Size>1</Size></Contents>", k)
+		}
+		b.WriteString("</ListBucketResult>")
+		return []byte(b.String())
+	}
+	cases := []struct {
+		name string
+		keys []string
+		want string
+	}{
+		{"its own pdf", []string{"PMC1234.1/PMC1234.1.xml", "PMC1234.1/PMC1234.1.pdf"},
+			"https://pmc-oa-opendata.s3.amazonaws.com/PMC1234.1/PMC1234.1.pdf"},
+		// What a bucket answering the wider prefix returns: this work has only its xml, and the
+		// first pdf listed belongs to PMC12345.
+		{"a neighbour's pdf", []string{"PMC1234.1/PMC1234.1.xml", "PMC12345.1/PMC12345.1.pdf"}, ""},
+		{"nothing held", nil, ""},
+	}
+	for _, c := range cases {
+		var asked string
+		f := fake(func(u string) (*Response, error) {
+			asked = u
+			return &Response{Body: listing(c.keys...), ContentType: "application/xml"}, nil
+		})
+		if got := pmcOpenAccessPDF(f, "PMC1234"); got != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		}
+		if !strings.HasSuffix(asked, "prefix="+url.QueryEscape("PMC1234.")) {
+			t.Errorf("%s: the listing was asked as %q; its prefix must end at the version dot", c.name, asked)
+		}
 	}
 }

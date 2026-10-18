@@ -196,7 +196,7 @@ func TestBlueCiteKeyIsIdempotent(t *testing.T) {
 // THE RETRACTION REACHES THE CITATION, driven through the real cite command.
 //
 // The Wakefield MMR paper is the case this whole axis came from, and it is the one to drive:
-// `fetch` on it live returns `retracted: true`, and Crossref's own title carries the word. What
+// `fetch` on it live returns `work_status: retracted`, and Crossref's own title carries the word. What
 // that proves is that the SUMMARY is right. The summary is not the deliverable — the citation is,
 // and until this test the last link was unchecked.
 //
