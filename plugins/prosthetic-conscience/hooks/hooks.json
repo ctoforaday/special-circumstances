@@ -3,7 +3,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "WebFetch|WebSearch|Bash",
+        "matcher": "WebFetch|WebSearch|Bash|mcp__.*",
         "hooks": [
           {
             "type": "command",

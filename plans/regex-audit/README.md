@@ -1,0 +1,91 @@
+# Regex audit of the shipped tools (#1466)
+
+Owner ruling, 2026-10-18: *"All the regexes are to be questioned. Using them in tests is one thing; relying on them in the tool is another."*
+
+A regex in shipped code usually recovers a fact from text rather than reading it where it is held. When it misses, it returns a plausible zero, and rewording the text defeats it without any error. `facts-are-fields` names this failure.
+
+## Scope and method
+
+- **Production** means a package linked into a shipped binary: `go list -deps ./cmd/...` for each plugin's tools module, at origin/main 61107ba4. Test files and `tools/devcmd/` are excluded.
+- Five directories that use regexes are not linked into any binary, so they are out: `consistency`, `debatejs`, `record/planguard`, `repotree`, `seatprobe`.
+- The audit covers 164 Go sites in 38 files, plus 16 non-Go shipped sites: `debate.js`, `site.js`, `fetch-bin.sh` and `hooks.json` matchers.
+- Each site was read with its callers and given one class. `sites.tsv` holds one row per site: what the regex recovers, its input, its class, the better answer, effort, behaviour on a miss today, and risk. The rows were written by four auditors, one per area.
+
+## What the regexes are for
+
+| Class | Meaning | Sites | Fate |
+|---|---|---|---|
+| 1 FIELD | Recovers a fact the record or a typed value already holds, often by re-parsing our own output | 54 | Read the field or carry the value, then delete the regex |
+| 2 PARSER | Parses a format with a real grammar: HTML (about 30 sites), markdown, JSON, XML, shell | 78 | Use a parser |
+| 3 TYPED | Checks a value's shape when it is written | 15 | Use an enum, a typed value or a constructor. Keep the pattern only for truly free-form text |
+| 4 USER | A pattern the seat or user supplies (`--match`) | 4 | Stays |
+| 5 PROSE | Judges free text: voice tells, secrets, sentences | 29 | Mostly to be replaced. Secret formats are the honest exception |
+
+About three in four sites (classes 1 and 2) have a better answer than a pattern.
+
+## Silent misses on a correctness path (v2.0.0 blockers)
+
+| Issue | Where | What goes wrong silently |
+|---|---|---|
+| #1475 | `fetchcache/completeness.go:130/132` | A missing reference-list marker turns an abstract into FULL |
+| #1475 | `fetchcache/backends.go:453` | `PMC1234` matches `PMC12345`, so a neighbour's PDF is stored as the work's copy |
+| #1475 | `fetchcache/backends.go:97` | A missed DOI means no retraction check runs |
+| #1476 | `record/declarations.go:69` | Gap ids in a holding are found by regex, so another spelling reads as "names none" |
+| #1476 | `capture.go:985` | The closure audit pulls anchor ids from seat-typed text, and can PASS on an unrelated long word |
+| #1476 | `capture.go:416-419` | The footnote audit re-parses our own output, a fence blanks prose, and a dangling footnote passes |
+| #1476 | `setup/hookprovenance.go:65` | An unreadable or changed hooks.json reads as "nothing missing" |
+| #1476 | `migrate/jsonlsource.go:21`, `remap.go:252` | A misnamed shard's events drop; archived ids are rewritten inside seat prose |
+| #1477 | `secrets/secrets.go:31` and the hook's tool list | 56% of Anthropic-format keys pass (the `_` character is missing from the class), several formats are not covered, and MCP tool calls are never scanned |
+| #1478 | gray-area `claims.go:64/51` | STALE never fires, and a heading with a suffix reads as "no validation loop" |
+| #1465 | `reportvoice/tells.go` | Voice tells, already ruled: fix them structurally and retire red's refusals |
+
+## Recurring shapes
+
+- **Several patterns for one grammar.** Code fences have three readers that disagree, headings three, footnote labels four different grammars, and the table delimiter two copies. A parser, or one shared reader, removes the disagreement.
+- **Re-parsing what we rendered.** `report/md.go` (9 sites), the capture footnote audit, help pages (`cli/manual.go`) and display labels in `debate.js`. Carry the structure out of the code that renders it instead.
+- **The DOI and PMC id recovered from URLs** that the caller already resolved. Carry them as values.
+- **Fixtures built from a convenient alphabet** hide coverage defects; that is how the secrets `_` defect survived. A fixture should come from the format's real alphabet.
+
+## New dependencies (approved by the owner, 2026-10-18)
+
+The owner is "fully supportive of new dependencies". Each swap below adds its dependency directly in the PR that replaces the patterns.
+
+| Dependency | Replaces | Current state |
+|---|---|---|
+| `golang.org/x/net/html` | About 30 HTML sites | Already in FEOV's go.sum through test dependencies; needs a direct require |
+| `mvdan.cc/sh/v3/syntax` | gray-area heredoc and shell splitting | Pure Go, BSD-3; new |
+| A markdown parser such as goldmark | `report/md.go`, `anchor/sentences.go` | Approved, which overturns the rejection in `md.go`'s header comment |
+| gitleaks rules (MIT) | Adds to the hand-kept secrets table | Ruled 2026-10-18: rows generated by `scripts/secretsgen` from a vendored, pinned `gitleaks.toml`, only rules with a vendor literal and no entropy threshold or allowlist; `secretsgen -check` gates staleness. Hand rows stay where stronger |
+
+## Our own small grammars: consider Participle (owner, 2026-10-18)
+
+For keys, arguments and similar small grammars, consider [Participle](https://github.com/alecthomas/participle) (`github.com/alecthomas/participle/v2`, MIT). It declares the grammar once as annotated Go structs, gives a typed result, and reports a parse error with its position, so a miss is loud by construction.
+
+Candidates from `sites.tsv`:
+- the anchor token `<!--kind:ID-->` and the id shapes. The id grammar has one regex definition today, and a hand-scanner has to be kept in step with it;
+- footnote labels, where four grammars disagree today;
+- the archived id grammar that migrate translates (`Q1`, `R1-2`, `L6-F9`, seat ids);
+- the checkpoint note's structured lines in gray-area and prosthetic-conscience: loop entries, `last run:`, `re-armed by:`;
+- the `e<epoch> <fate>` path entries, and other key/value or argument strings the tools read back.
+
+A real external format keeps its own parser: HTML, markdown, shell, JSON and XML. Participle is for the grammars we define ourselves. Each candidate is weighed in the PR that touches it, against whether the fact should not be text at all (class 1), which comes first.
+
+## Prevention (#1479)
+
+One package per tools module may import `regexp` in production code. Every pattern is declared there once, in a table that gives:
+- the pattern;
+- its class (only 3, 4 and 5 remain legitimate);
+- why a pattern is honest for it;
+- the test that shows its miss is loud.
+
+A `scripts/check` gate fails any other production package that imports `regexp`, using the same `go list -deps` reachability as this audit. `pluginparity` is the precedent: it already refuses `repotree` imports outside `devcmd/`.
+
+A new regex then becomes a reviewed edit to that one table, and the census is generated rather than kept by hand. Land the class 1 deletions and the parser swaps first, so the table starts small.
+
+## Order of work
+
+1. The blockers' fixes, all small and independent: #1475, #1477 and #1478 first; #1476 needs an epoch bump.
+2. Class 1 deletions, area by area.
+3. The parser swaps, each adding its approved dependency.
+4. The gate in #1479.
+5. The voice work in #1465, which follows its own diagnosis.

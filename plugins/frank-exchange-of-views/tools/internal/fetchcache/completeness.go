@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/net/html"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -65,12 +67,16 @@ func Completeness(contentType string, body []byte, reachedForAWork bool) (verdic
 		return CompletenessNotTheWork, "a sign-in form carrying no scholarly metadata: the source answered with its login page, not the work"
 	}
 	for _, w := range abstractWalls {
-		if w.re.Match(body) {
+		if w.match(body) {
 			return CompletenessAbstract, w.reason
 		}
 	}
 	for _, p := range bodyMarkers {
-		if n := p.sections(body); n > 0 {
+		n, unknown := p.sections(body)
+		if unknown != "" {
+			return CompletenessUnverified, unknown
+		}
+		if n > 0 {
 			return CompletenessFull, p.reason
 		}
 	}
@@ -86,42 +92,106 @@ var (
 // abstractWalls are what a platform prints IN PLACE OF the body. Each was read on a ground-truth
 // page labelled abstract and is absent from every page labelled full.
 var abstractWalls = []struct {
-	re     *regexp.Regexp
+	match  func([]byte) bool
 	reason string
 }{
-	// Springer Nature's platform (nature.com, link.springer.com) — on all three paywalled pages in
-	// the corpus, the article's abstract followed by this notice in place of the body.
-	{regexp.MustCompile(`(?i)preview of subscription content`),
+	// Springer Nature's platform names its paywall in its markup on nature.com: the notice that
+	// stands in place of the body is the element carrying data-test="institution-access-preview".
+	// The element, not its English: a markup attribute does not move when the wording does.
+	{func(b []byte) bool { return springerPreview(b).element },
+		"Springer Nature's platform rendered its institution-access preview (data-test=\"institution-access-preview\") in place of the body"},
+	// link.springer.com prints the same notice in a generic notes element that names nothing, so
+	// there the notice's own words are the signal — read in the page's VISIBLE text, where a copy
+	// of the phrase in a script or a translation table cannot fire it.
+	{func(b []byte) bool { return springerPreview(b).notice },
 		"Springer Nature's platform printed 'preview of subscription content' in place of the body"},
 	// HighWire (BMJ and its hosted journals) names the abstract rendering by its view: the full
 	// text is `fulltext-view`, the abstract `extract-view`.
-	{regexp.MustCompile(`class\s*=\s*["'][^"']*\bextract-view\b`),
+	{regexp.MustCompile(`class\s*=\s*["'][^"']*\bextract-view\b`).Match,
 		"HighWire rendered its extract view (the abstract), not its full-text view"},
 	// PubMed Central serves pre-digital articles as page IMAGES: the text is in the scan pdf, and
 	// the page carries none of it.
-	{regexp.MustCompile(`class\s*=\s*["']scanned-pages["']`),
+	{regexp.MustCompile(`class\s*=\s*["']scanned-pages["']`).Match,
 		"PubMed Central renders this article as scanned page images; the page carries none of its text"},
 }
+
+// preview is what one tokenizer pass finds of Springer Nature's paywall: the element its markup
+// names, and the notice in the page's visible text.
+type preview struct{ element, notice bool }
+
+// springerPreview reads the page once with an HTML tokenizer. Text inside script, style,
+// template and noscript is not the page's visible text and is not read.
+func springerPreview(b []byte) preview {
+	var p preview
+	var text strings.Builder
+	hidden := 0
+	z := html.NewTokenizer(bytes.NewReader(b))
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			p.notice = strings.Contains(strings.Join(strings.Fields(strings.ToLower(text.String())), " "), "preview of subscription content")
+			return p
+		case html.StartTagToken, html.SelfClosingTagToken:
+			name, more := z.TagName()
+			if invisible[string(name)] {
+				hidden++
+			}
+			for more {
+				var k, v []byte
+				k, v, more = z.TagAttr()
+				if string(k) == "data-test" && string(v) == "institution-access-preview" {
+					p.element = true
+				}
+			}
+		case html.EndTagToken:
+			if name, _ := z.TagName(); invisible[string(name)] && hidden > 0 {
+				hidden--
+			}
+		case html.TextToken:
+			if hidden == 0 {
+				text.Write(z.Text())
+				text.WriteByte(' ')
+			}
+		}
+	}
+}
+
+// invisible are the elements whose text a reader of the page never sees.
+var invisible = map[string]bool{"script": true, "style": true, "template": true, "noscript": true}
 
 // bodyMarkers count the body section headings a platform renders BEFORE its reference list.
 // Counting before the references is what makes a stray section not count: nature.com numbers its
 // supplementary-information section in the body series, and places it after the references.
+//
+// WHERE THE REFERENCE LIST CANNOT BE FOUND, NOTHING IS COUNTED. A platform's page with no marker
+// for its references is a page whose body cannot be told from what follows it, and counting the
+// whole page there is the unsafe direction: nature.com's paywalled abstract carries a numbered
+// supplementary section after its references, so one renamed attribute would turn the abstract
+// into a full paper. The answer there is `unverified`, with that reason.
 var bodyMarkers = []struct {
-	sections func([]byte) int
+	sections func([]byte) (n int, unknown string)
 	reason   string
 }{
-	{func(b []byte) int {
+	{func(b []byte) (int, string) {
 		if !bytes.Contains(b, []byte("c-article-body")) {
-			return 0
+			return 0, ""
 		}
-		return len(springerNatureSection.FindAll(beforeRefs(b, springerNatureRefs), -1))
+		body, ok := beforeRefs(b, springerNatureRefs)
+		if !ok {
+			return 0, "Springer Nature's platform rendered this page, and its reference-list marker (id=\"Bib1\") is absent, so where the body ends cannot be told; it is kept, and a fuller copy is looked for"
+		}
+		return len(springerNatureSection.FindAll(body, -1)), ""
 	}, "Springer Nature's platform rendered numbered body sections before the reference list"},
-	{func(b []byte) int {
+	{func(b []byte) (int, string) {
 		i := bytes.Index(b, []byte("main-article-body"))
 		if i < 0 {
-			return 0
+			return 0, ""
 		}
-		return len(pmcSection.FindAll(beforeRefs(b[i:], pmcRefs), -1))
+		body, ok := beforeRefs(b[i:], pmcRefs)
+		if !ok {
+			return 0, "PubMed Central rendered this page, and its reference-list marker (id=\"ref-list\") is absent, so where the body ends cannot be told; it is kept, and a fuller copy is looked for"
+		}
+		return len(pmcSection.FindAll(body, -1)), ""
 	}, "PubMed Central rendered body section headings before the reference list"},
 }
 
@@ -132,12 +202,12 @@ var (
 	pmcRefs               = regexp.MustCompile(`id\s*=\s*["']ref-list`)
 )
 
-// beforeRefs is the page up to its reference list, or all of it where there is none.
-func beforeRefs(b []byte, refs *regexp.Regexp) []byte {
+// beforeRefs is the page up to its reference list; ok is false where the list's marker is absent.
+func beforeRefs(b []byte, refs *regexp.Regexp) (body []byte, ok bool) {
 	if loc := refs.FindIndex(b); loc != nil {
-		return b[:loc[0]]
+		return b[:loc[0]], true
 	}
-	return b
+	return nil, false
 }
 
 // pdfCompleteness judges a pdf by its page count against the span the index declares for the

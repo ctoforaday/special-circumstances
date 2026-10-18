@@ -263,6 +263,11 @@ type Entry struct {
 	// no other way to learn it. Nil where no index was consulted — a plain live fetch of a url
 	// with no doi asks nobody, and an empty WorkFacts there would read as "asked, nothing found".
 	Work *WorkFacts `json:"work,omitempty"`
+	// DOI is the work's identifier as this fetch resolved it, once, at the url it was asked for.
+	// Everything after that point reads it here — the completeness question, the search for a
+	// fuller copy — rather than recovering it from the url again. Empty where none was found,
+	// and then no index was asked about the work: Work is nil, and the summary says not_checked.
+	DOI string `json:"doi,omitempty"`
 
 	// CopyVersion and CopyLicense describe THESE BYTES, not the work: which of its copies this is
 	// (publishedVersion, acceptedVersion, submittedVersion) and under what licence that copy sits.
@@ -309,7 +314,7 @@ func Classify(entry *Entry, body []byte) {
 		entry.NotRenderable = &notRenderable
 		entry.NotRenderableReason = shell
 	}
-	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, DOIOf(entry.URL) != "")
+	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, entry.DOI != "")
 	if MediaType(entry.ContentType) == "application/pdf" && entry.Work != nil {
 		entry.Completeness, entry.CompletenessReason = pdfCompleteness(entry.Pages, entry.Work.DeclaredPages, entry.Work.WorkType)
 	}
@@ -610,7 +615,7 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		}
 	}
 
-	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body)}
+	entry := Entry{URL: url, ContentType: SniffedMediaType(resp.ContentType, resp.Body), DOI: DOIOf(url)}
 	entry.Sha = Sha(resp.Body)
 	// THE HOP IS PROVENANCE, NOT A RECOVERY. RetrievedVia means "these bytes did not come from
 	// the url you asked for and may be a different artifact" — an archive snapshot, another
@@ -648,8 +653,8 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	//
 	// One request, to a host with a 500ms floor, on a path whose median is tens of seconds. It is
 	// the cheapest thing here and it is the one that can void a citation.
-	if doi := DOIOf(url); doi != "" {
-		if facts, _, ok := openAlexWork(f, doi); ok && facts != (WorkFacts{}) {
+	if entry.DOI != "" {
+		if facts, _, ok := openAlexWork(f, entry.DOI); ok && facts != (WorkFacts{}) {
 			entry.Work = &facts
 		}
 	}
@@ -805,7 +810,7 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 	entry := Entry{
 		URL: url, ContentType: att.ContentType,
 		RetrievedVia: att.Via, Backend: att.Backend, TextRetrieved: att.TextRetrieved,
-		CopyVersion: att.Version, CopyLicense: att.License,
+		CopyVersion: att.Version, CopyLicense: att.License, DOI: att.DOI,
 	}
 	if att.Facts != (WorkFacts{}) {
 		facts := att.Facts
@@ -856,7 +861,7 @@ func EntryFor(run record.Run, url string, att *Attempt) Entry {
 // with no text layer replaces only a page KNOWN not to be the body — a scan needs reading by OCR,
 // and an unverified page may already be the full text a scan would only reproduce.
 func fullerCopy(run record.Run, f Fetcher, url string, page Entry) (Entry, *Attempt) {
-	doi := DOIOf(url)
+	doi := page.DOI
 	var partial Entry
 	var partialAtt *Attempt
 	for _, via := range []string{ViaArxiv, ViaOA} {
