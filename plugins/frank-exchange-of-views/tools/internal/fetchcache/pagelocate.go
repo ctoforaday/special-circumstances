@@ -79,6 +79,7 @@ func CarriesText(mt string) bool {
 var (
 	ErrSpanStraddles = errors.New("span straddles a page boundary")
 	ErrSpanHyphen    = errors.New("span found only across a line-end hyphen")
+	ErrSpanRemoved   = errors.New("span found only in a line the reading removed")
 	ErrSpanAbsent    = errors.New("span not in the reading")
 )
 
@@ -129,6 +130,17 @@ func LocateSpan(run record.Run, rec ReadingRecord, span string) (SpanLocation, e
 		if frag, ok := hyphenOnlyMatch(t, want); ok {
 			return SpanLocation{}, fmt.Errorf("%w: found on page %d only as %q across a line break; quote it as the reading has it",
 				ErrSpanHyphen, rec.Pages[i].Page, frag)
+		}
+	}
+	// A LINE THE ENGINE READ AND REMOVED IS NOT A MISQUOTE (#1030). Its text was produced by the
+	// recognizer from a rule, a leader or an unread script, and the page record keeps it; a quote
+	// of it is refused with that said, never with the sentence a misquote earns.
+	for _, p := range rec.Pages {
+		for _, ln := range p.RemovedLines {
+			if strings.Contains(normalizeSpace(ln), want) {
+				return SpanLocation{}, fmt.Errorf("%w: page %d's engine read %q and removed it — its letters sit in boxes far wider than print fills, which is a rule, a leader or a script the engine does not read, read as characters; it is not text the page carries, so quote what the reading holds",
+					ErrSpanRemoved, p.Page, ln)
+			}
 		}
 	}
 	return SpanLocation{}, fmt.Errorf("%w: not in the reading at %s (compared with runs of whitespace as one space; case, hyphens and punctuation must match)",

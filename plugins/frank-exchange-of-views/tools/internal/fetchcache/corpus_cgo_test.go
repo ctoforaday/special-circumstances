@@ -180,6 +180,12 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	if p.TextCellFallback != "" {
 		fmt.Fprintf(&b, "text cells fell back: %s\n", p.TextCellFallback)
 	}
+	// WHAT THE READING REMOVED IS PINNED WITH IT (#1030): the count, and each line as the engine
+	// read it, so a change that removes a line of print shows in the diff as that line moving here.
+	fmt.Fprintf(&b, "removed lines: %d\n", len(p.RemovedLines))
+	for _, ln := range p.RemovedLines {
+		fmt.Fprintf(&b, "removed: %s\n", ln)
+	}
 	b.WriteString("---\n")
 	b.Write(text)
 	return b.String(), observed
