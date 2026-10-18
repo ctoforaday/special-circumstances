@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/url"
-	"regexp"
+	"path"
 	"sort"
 	"strings"
 )
@@ -97,39 +97,158 @@ type Attempt struct {
 
 // ---------- identifiers ----------
 
-var (
-	doiRe = regexp.MustCompile(`10\.\d{4,9}/[^\s"'<>&?#]+`)
-	// BOTH arXiv SCHEMES, and the old one is the one that carries the literature. `YYMM.NNNNN`
-	// dates from April 2007; before it, identifiers were `archive/YYMMNNN` with an optional
-	// subject class — `hep-th/9711200`, `cond-mat.stat-mech/0605194`. Measured on INSPIRE, 75 of
-	// the 100 most-cited hep-th papers carry an old-scheme identifier and the top nine are all
-	// old, so a pattern that knows only the new scheme answers "no arXiv id here" for the most
-	// cited paper in the field and the `arxiv` backend returns nothing for it. Defunct archives
-	// (`q-alg`, `alg-geom`) still resolve, hence `[a-z-]+` rather than a list. Lowercasing the
-	// url first is safe because arxiv.org serves `math.ag/0611800` and `math.AG/0611800` alike.
-	arxivRe = regexp.MustCompile(`arxiv\.org/(?:abs|pdf|e-print)/([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?|[a-z-]+(?:\.[a-z-]+)?/[0-9]{7}(?:v[0-9]+)?)`)
-)
-
-// DOIOf pulls a DOI out of a url — doi.org links, and publisher urls that embed one. Empty when
+// DOIOf reads a DOI out of a url — doi.org links, and publisher urls that embed one. Empty when
 // there is none, which is an ordinary answer: most web pages are not articles.
+//
+// THE URL IS PARSED, NOT SEARCHED. A DOI is looked for in three places and nowhere else: the whole
+// path of a resolver url (doi.org, dx.doi.org), the path segments of any other url — from the
+// segment that is a DOI prefix (`10.` and four to nine digits) to the end — and the query keys a
+// platform names a work by (`doi`, and PLOS's `id`). A DOI inside some other query value — a
+// viewer's `?file=10.…` — is that viewer's argument, not the page's work, and is not taken. Each
+// is percent-decoded until it stops changing, so a doubly escaped `%252F` reads as `/` rather than
+// leaving an escape inside the DOI that the next lookup escapes again. A trailing viewer segment
+// (Springer's `/fulltext.html`, Frontiers' `/full`, Wiley's `/abstract`) and a `.pdf` suffix are
+// the platform's, not the DOI's, and are dropped.
 func DOIOf(rawURL string) string {
-	m := doiRe.FindString(rawURL)
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
 	// NOT CASE-NORMALISED, AND THAT WAS TRIED. A doi's suffix is case-insensitive by the handbook,
 	// so lowercasing looks free — but a report from ground-truth checking on 2026-09-24 said
 	// Semantic Scholar answered for `10.1016/0021-9991(92)90240-Y` and not the lowercase form,
 	// which is the opposite direction, and the service was rate-limiting too hard to verify it.
 	// An unverified normalisation that could silently lose an index's only answer is worse than
 	// the inconsistency it tidies. Pass the doi as the source wrote it.
-	return strings.TrimRight(m, ".,;)")
-}
-
-// ArxivIDOf pulls an arXiv identifier out of a url.
-func ArxivIDOf(rawURL string) string {
-	if m := arxivRe.FindStringSubmatch(strings.ToLower(rawURL)); m != nil {
-		return m[1]
+	if strings.EqualFold(u.Scheme, "doi") {
+		return doiFrom(strings.Split(unescapeFully(u.Opaque), "/"))
+	}
+	segs := strings.Split(strings.Trim(unescapeFully(u.EscapedPath()), "/"), "/")
+	if d := doiFrom(segs); d != "" {
+		return d
+	}
+	if doiResolverHosts[strings.ToLower(u.Hostname())] {
+		return ""
+	}
+	q := u.Query()
+	for _, key := range doiQueryKeys {
+		for _, v := range q[key] {
+			if d := doiFrom(strings.Split(unescapeFully(v), "/")); d != "" {
+				return d
+			}
+		}
 	}
 	return ""
 }
+
+// doiQueryKeys are the query keys a platform names its work by.
+var doiQueryKeys = []string{"doi", "id"}
+
+// doiViewerTails are path segments a platform appends after a DOI to choose a view of the work.
+var doiViewerTails = map[string]bool{
+	"fulltext.html": true, "fulltext": true, "full": true, "abstract": true, "summary": true,
+	"pdf": true, "epdf": true, "html": true, "references": true, "figures": true,
+}
+
+// doiFrom reads a DOI from path segments: from the first segment that is a DOI prefix — `10.`
+// and four to nine digits — to the end, less a trailing viewer segment, a `.pdf` suffix and
+// trailing punctuation a sentence put there.
+func doiFrom(segs []string) string {
+	for i, seg := range segs {
+		reg, ok := strings.CutPrefix(seg, "10.")
+		if !ok || len(reg) < 4 || len(reg) > 9 || strings.Trim(reg, "0123456789") != "" {
+			continue
+		}
+		suffix := segs[i+1:]
+		for len(suffix) > 1 && doiViewerTails[strings.ToLower(suffix[len(suffix)-1])] {
+			suffix = suffix[:len(suffix)-1]
+		}
+		d := strings.TrimSuffix(strings.Join(suffix, "/"), ".pdf")
+		d = strings.TrimRight(d, ".,;")
+		// A closing parenthesis is the DOI's when it closes one the DOI opened —
+		// `10.1016/0021-9991(92)90240-Y` — and the prose's otherwise.
+		for strings.HasSuffix(d, ")") && strings.Count(d, ")") > strings.Count(d, "(") {
+			d = strings.TrimRight(strings.TrimSuffix(d, ")"), ".,;")
+		}
+		if d == "" {
+			return ""
+		}
+		return seg + "/" + d
+	}
+	return ""
+}
+
+// unescapeFully percent-decodes s until it stops changing, so a doubly escaped DOI reads as the
+// DOI. A string that does not decode is returned as far as it decoded.
+func unescapeFully(s string) string {
+	for range 3 {
+		if !strings.Contains(s, "%") {
+			return s
+		}
+		d, err := url.PathUnescape(s)
+		if err != nil || d == s {
+			return s
+		}
+		s = d
+	}
+	return s
+}
+
+// ArxivIDOf reads an arXiv identifier out of an arxiv.org url: the path after `abs/`, `pdf/` or
+// `e-print/`, in either scheme.
+//
+// BOTH arXiv SCHEMES, and the old one is the one that carries the literature. `YYMM.NNNNN` dates
+// from April 2007; before it, identifiers were `archive/YYMMNNN` with an optional subject class —
+// `hep-th/9711200`, `cond-mat.stat-mech/0605194`. Measured on INSPIRE, 75 of the 100 most-cited
+// hep-th papers carry an old-scheme identifier and the top nine are all old, so a reader that
+// knows only the new scheme answers "no arXiv id here" for the most cited paper in the field and
+// the `arxiv` backend returns nothing for it. Defunct archives (`q-alg`, `alg-geom`) still
+// resolve, so the archive is any run of letters and hyphens rather than a list. Lowercasing is
+// safe because arxiv.org serves `math.ag/0611800` and `math.AG/0611800` alike.
+func ArxivIDOf(rawURL string) string {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || !hostWithin(strings.ToLower(u.Hostname()), "arxiv.org") {
+		return ""
+	}
+	segs := strings.Split(strings.Trim(strings.ToLower(u.Path), "/"), "/")
+	if len(segs) < 2 || (segs[0] != "abs" && segs[0] != "pdf" && segs[0] != "e-print") {
+		return ""
+	}
+	id := strings.TrimSuffix(strings.Join(segs[1:], "/"), ".pdf")
+	if arxivNewID(id) || arxivOldID(id) {
+		return id
+	}
+	return ""
+}
+
+// arxivNewID: `YYMM.NNNN` or `YYMM.NNNNN`, with an optional version.
+func arxivNewID(id string) bool {
+	yymm, num, ok := strings.Cut(stripArxivVersion(id), ".")
+	return ok && len(yymm) == 4 && digits(yymm) && (len(num) == 4 || len(num) == 5) && digits(num)
+}
+
+// arxivOldID: `archive[.class]/YYMMNNN`, with an optional version.
+func arxivOldID(id string) bool {
+	archive, num, ok := strings.Cut(stripArxivVersion(id), "/")
+	if !ok || len(num) != 7 || !digits(num) {
+		return false
+	}
+	name, class, hasClass := strings.Cut(archive, ".")
+	return letters(name) && (!hasClass || letters(class))
+}
+
+// stripArxivVersion drops a trailing `v<digits>`.
+func stripArxivVersion(id string) string {
+	if i := strings.LastIndexByte(id, 'v'); i > 0 && digits(id[i+1:]) {
+		return id[:i]
+	}
+	return id
+}
+
+func digits(s string) bool { return s != "" && strings.Trim(s, "0123456789") == "" }
+
+// letters: one or more of a-z and '-'.
+func letters(s string) bool { return s != "" && strings.Trim(s, "abcdefghijklmnopqrstuvwxyz-") == "" }
 
 // ---------- archive (CDX) ----------
 
@@ -268,7 +387,11 @@ func OpenAccessCandidates(f Fetcher, doi string) (locs []string, facts WorkFacts
 		u = strings.TrimSpace(u)
 		if id, routes := PMCRoutes(u); id != "" && !pmcSeen[id] {
 			pmcSeen[id] = true
-			if k := pmcOpenAccessPDF(f, id); k != "" {
+			// A LISTING NOBODY COULD READ IS NOT "NO PDF HELD": the determinate claim below is
+			// withdrawn, exactly as for an index that did not answer.
+			if k, err := pmcOpenAccessPDF(f, id); err != nil {
+				indexFailed = true
+			} else if k != "" {
 				add2(k, true)
 			}
 			for _, r := range routes {
@@ -391,8 +514,13 @@ func europePMCCandidates(f Fetcher, doi string) (locs []OALocation, answered boo
 	}
 	rec := r.ResultList.Result[0]
 	var out []OALocation
+	answered = true
 	if rec.PMCID != "" {
-		if k := pmcOpenAccessPDF(f, rec.PMCID); k != "" {
+		// The bucket not answering is Europe PMC's lookup not finished: what it found is kept, and
+		// the answer is reported as incomplete so no "no open copy anywhere" rests on it.
+		if k, err := pmcOpenAccessPDF(f, rec.PMCID); err != nil {
+			answered = false
+		} else if k != "" {
 			out = append(out, OALocation{URL: k, IsDocument: true})
 		}
 		// EUROPE PMC SERVES ITS OWN FULL TEXT ON THE API HOST, AND THAT IS THE ONLY ROUTE INTO IT
@@ -436,38 +564,47 @@ func europePMCCandidates(f Fetcher, doi string) (locs []OALocation, answered boo
 		// index said a free copy existed and this tool returned none were exactly that url.
 		out = append(out, OALocation{URL: u.URL, IsDocument: u.DocumentStyle == "pdf"})
 	}
-	return out, true
+	return out, answered
 }
 
 // pmcOpenAccessPDF returns the bucket url for a PMCID's pdf, or "" where the open-access subset
-// does not hold one — which the bucket states positively, as a zero key count.
+// does not hold one — which the bucket states positively, as a listing with no pdf key for the
+// work. An error is the bucket NOT answering: the request failed, or the body is not an S3
+// listing (an error envelope, a proxy's page). That is never "no pdf held", which is a claim
+// about the archive a caller would pass on.
 //
 // THE PREFIX ENDS AT THE DOT. The bucket keys a work as `PMC<id>.<version>/…`, and a listing by
 // `PMC1234` alone also lists PMC12345 and every other id it begins: where this work has no pdf,
 // the first pdf in that listing is a NEIGHBOURING article's. So the listing asks for `PMC1234.`,
 // and each key is checked against that prefix again before it is taken — the listing is the
 // bucket's answer, and the key is the fact.
-func pmcOpenAccessPDF(f Fetcher, pmcid string) string {
+func pmcOpenAccessPDF(f Fetcher, pmcid string) (string, error) {
 	prefix := pmcid + "."
 	resp, err := f.Fetch("https://pmc-oa-opendata.s3.amazonaws.com/?list-type=2&max-keys=40&prefix=" +
 		url.QueryEscape(prefix))
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("the PMC open-access bucket was not reached for %s: %w", pmcid, err)
 	}
+	// KeyCount is the discriminator: S3 states it on every listing, a zero included, and an error
+	// envelope or any other body decodes without it.
 	var listing struct {
+		KeyCount *int `xml:"KeyCount"`
 		Contents []struct {
 			Key string `xml:"Key"`
 		} `xml:"Contents"`
 	}
-	if xml.Unmarshal(resp.Body, &listing) != nil {
-		return ""
+	if err := xml.Unmarshal(resp.Body, &listing); err != nil {
+		return "", fmt.Errorf("the PMC open-access bucket's answer for %s is not an XML listing: %w", pmcid, err)
+	}
+	if listing.KeyCount == nil {
+		return "", fmt.Errorf("the PMC open-access bucket's answer for %s is not a listing: it states no key count", pmcid)
 	}
 	for _, c := range listing.Contents {
 		if strings.HasPrefix(c.Key, prefix) && strings.HasSuffix(c.Key, ".pdf") {
-			return "https://pmc-oa-opendata.s3.amazonaws.com/" + c.Key
+			return "https://pmc-oa-opendata.s3.amazonaws.com/" + c.Key, nil
 		}
 	}
-	return ""
+	return "", nil
 }
 
 // ---------- metadata ----------
@@ -897,8 +1034,8 @@ func ericQueryOf(rawURL string) string {
 	if err != nil || u.Host == "" {
 		return ""
 	}
-	if m := ericIDRe.FindStringSubmatch(rawURL); m != nil {
-		return "id:" + m[1]
+	if id := ericIDOf(u); id != "" {
+		return "id:" + id
 	}
 	if DOIOf(rawURL) != "" {
 		return "" // see above: a DOI can only go in as free text, and free text is not identity
@@ -915,8 +1052,22 @@ func ericQueryOf(rawURL string) string {
 	return seg
 }
 
-// ericIDRe recognises an ERIC accession number, the identity this corpus is keyed on.
-var ericIDRe = regexp.MustCompile(`\b(E[JD]\d{6,})\b`)
+// ericIDOf reads an ERIC accession number — `EJ` or `ED` and six or more digits, the identity this
+// corpus is keyed on — from ERIC's own urls: the record page's `id` query key on eric.ed.gov, and
+// the file name on files.eric.ed.gov. Another host's token of the same shape is that host's.
+func ericIDOf(u *url.URL) string {
+	var id string
+	switch strings.ToLower(u.Hostname()) {
+	case "eric.ed.gov", "www.eric.ed.gov":
+		id = u.Query().Get("id")
+	case "files.eric.ed.gov":
+		id = strings.TrimSuffix(path.Base(u.Path), ".pdf")
+	}
+	if len(id) >= 8 && (strings.HasPrefix(id, "EJ") || strings.HasPrefix(id, "ED")) && digits(id[2:]) {
+		return id
+	}
+	return ""
+}
 
 func firstNonEmpty(a, b string) string {
 	if a != "" {

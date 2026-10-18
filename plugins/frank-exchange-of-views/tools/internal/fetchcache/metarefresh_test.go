@@ -1,6 +1,8 @@
 package fetchcache
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -74,5 +76,26 @@ func TestANonBouncerYieldsNoTarget(t *testing.T) {
 				t.Errorf("target = %q, want none", got)
 			}
 		})
+	}
+}
+
+// THE CALL, NOT THE FUNCTION: the fetcher follows a bouncer's refresh to the page it names, and
+// returns that page.
+func TestTheFetcherFollowsABouncersRefresh(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		if r.URL.Path == "/bounce" {
+			_, _ = w.Write([]byte(`<html><head><meta content="0; url='/paper'" http-equiv="refresh"></head><body></body></html>`))
+			return
+		}
+		_, _ = w.Write([]byte(`<html><body>` + strings.Repeat("<p>The paper itself.</p>", 40) + `</body></html>`))
+	}))
+	defer srv.Close()
+	resp, err := NewHTTPFetcher().Fetch(srv.URL + "/bounce")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(resp.Body), "The paper itself.") || resp.FinalURL != srv.URL+"/paper" {
+		t.Errorf("the bouncer was not followed: final %q, body %.80q", resp.FinalURL, resp.Body)
 	}
 }

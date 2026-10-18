@@ -3,7 +3,6 @@ package fetchcache
 import (
 	"encoding/json"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -94,18 +93,10 @@ func doajCandidates(f Fetcher, doi string) (locs []string, answered bool) {
 	return locs, true
 }
 
-// citationMetaRe reads a `citation_*_url` meta tag, in either attribute order, for whichever name
-// it is handed.
-//
 // THE PDF IS NOT THE GOAL — the CONTENT is. A publisher that serves its full text as html and its
-// abstract as another page says both in these tags, and taking only `citation_pdf_url` skipped
-// the case where the readable copy is the html one. The names are Google Scholar's inclusion
-// vocabulary, which is why they are almost universally present.
-func citationMetaRe(name string) *regexp.Regexp {
-	n := regexp.QuoteMeta(name)
-	return regexp.MustCompile(`(?is)<meta[^>]+(?:name\s*=\s*["']?` + n + `["']?[^>]*content\s*=\s*["']([^"']+)["']` +
-		`|content\s*=\s*["']([^"']+)["'][^>]*name\s*=\s*["']?` + n + `["']?)`)
-}
+// abstract as another page says both in its `citation_*_url` meta tags, and taking only
+// `citation_pdf_url` skipped the case where the readable copy is the html one. The names are
+// Google Scholar's inclusion vocabulary, which is why they are almost universally present.
 
 // fullTextMetaNames are the pointers a landing page may carry to its own readable copy, most
 // specific first.
@@ -189,14 +180,7 @@ func LandingPageFullText(contentType string, body []byte, linkHeader string, bas
 
 // metaURL reads one citation meta tag and resolves it against the page it was found on.
 func metaURL(name string, body []byte, base *url.URL) string {
-	m := citationMetaRe(name).FindSubmatch(body)
-	if m == nil {
-		return ""
-	}
-	raw := string(m[1])
-	if raw == "" {
-		raw = string(m[2])
-	}
+	raw, _ := readHTML(body).meta("name", name)
 	return resolveWeb(base, strings.TrimSpace(raw))
 }
 
@@ -400,39 +384,29 @@ func looksLikePDF(u string) bool {
 		strings.HasSuffix(p.Path, "/pdf")
 }
 
-// linkElementRe reads `<link>` elements out of a document head, so a Signposting statement made
-// in the markup is read the same way as one made in the header.
-var linkElementRe = regexp.MustCompile(`(?is)<link\s[^>]*>`)
-
 // linkElements renders a document's <link> elements in the `Link:` header's own grammar, so one
-// parser serves both. A page that states where its full text is has said the same thing whether
+// parser serves both — a Signposting statement made in the markup is read the same way as one
+// made in the header. A page that states where its full text is has said the same thing whether
 // it said it in a header or in its head, and reading only one of the two was reading half.
 func linkElements(body []byte) string {
 	var out []string
-	for _, el := range linkElementRe.FindAll(body, 40) {
-		href := attrRe("href").FindSubmatch(el)
-		rel := attrRe("rel").FindSubmatch(el)
-		if href == nil || rel == nil {
+	for _, el := range readHTML(body).links {
+		href, hok := el["href"]
+		rel, rok := el["rel"]
+		if !hok || !rok {
 			continue
 		}
-		typ := ""
-		if m := attrRe("type").FindSubmatch(el); m != nil {
-			typ = strings.ToLower(string(m[1]))
-		}
-		r := strings.ToLower(string(rel[1]))
+		typ := strings.ToLower(el["type"])
+		r := strings.ToLower(rel)
 		// `item` is Signposting's word for the document itself. `alternate` only counts when the
 		// element says the alternative is a pdf — a page's alternate is usually an rss feed, and
 		// following that would trade a paper for a list of headlines.
 		if r != "item" && !(strings.Contains(r, "alternate") && strings.Contains(typ, "pdf")) {
 			continue
 		}
-		out = append(out, "<"+string(href[1])+`>; rel="item"`)
+		out = append(out, "<"+href+`>; rel="item"`)
 	}
 	return strings.Join(out, ", ")
-}
-
-func attrRe(name string) *regexp.Regexp {
-	return regexp.MustCompile(`(?is)\b` + regexp.QuoteMeta(name) + `\s*=\s*["']([^"']*)["']`)
 }
 
 // samePage reports whether a pointer names the page it was found on.
@@ -462,11 +436,6 @@ func samePage(pointer string, base *url.URL) bool {
 	return p.Scheme == base.Scheme && p.Host == base.Host && p.Path == base.Path
 }
 
-// pmcIDRe lifts a PMC identifier out of any url shape an index hands us: the canonical
-// `pmc.ncbi.nlm.nih.gov/articles/PMC148217/`, the legacy `www.ncbi.nlm.nih.gov/pmc/articles/148217`
-// with no prefix at all, and Europe PMC's `europepmc.org/articles/PMC148217`.
-var pmcIDRe = regexp.MustCompile(`(?i)/(?:pmc/)?articles/(PMC)?(\d{4,9})`)
-
 // PMCRoutes turns ANY PubMed Central url into the routes that actually serve a machine.
 //
 // NINETEEN OF TWENTY-SEVEN. Measured 2026-09-25 across 397 works: of the failures where an
@@ -480,14 +449,53 @@ var pmcIDRe = regexp.MustCompile(`(?i)/(?:pmc/)?articles/(PMC)?(\d{4,9})`)
 // the one behind the challenge — intermittently, which is why it is tried at all rather than
 // dropped. Measured: PMC served one article clean and a captcha for another in the same minute.
 func PMCRoutes(rawURL string) (pmcid string, routes []string) {
-	m := pmcIDRe.FindStringSubmatch(rawURL)
-	if m == nil || !strings.Contains(strings.ToLower(rawURL), "ncbi.nlm.nih.gov") &&
-		!strings.Contains(strings.ToLower(rawURL), "europepmc.org") {
+	pmcid = pmcIDOf(rawURL)
+	if pmcid == "" {
 		return "", nil
 	}
-	pmcid = "PMC" + m[2]
 	return pmcid, []string{
 		"https://www.ebi.ac.uk/europepmc/webservices/rest/" + pmcid + "/fullTextXML",
 		"https://pmc.ncbi.nlm.nih.gov/articles/" + pmcid + "/",
 	}
+}
+
+// pmcIDOf lifts a PMC identifier out of any url shape an index hands us, read from the url's host
+// and path segments: the canonical `pmc.ncbi.nlm.nih.gov/articles/PMC148217/`, the legacy
+// `www.ncbi.nlm.nih.gov/pmc/articles/148217` with no prefix at all, and Europe PMC's
+// `europepmc.org/articles/PMC148217` and `europepmc.org/article/PMC/PMC148217`. "" for any other
+// host: an `/articles/<number>` path elsewhere is some other site's numbering.
+func pmcIDOf(rawURL string) string {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(u.Hostname())
+	if !hostWithin(host, "ncbi.nlm.nih.gov") && !hostWithin(host, "europepmc.org") {
+		return ""
+	}
+	segs := strings.Split(strings.Trim(u.Path, "/"), "/")
+	for i, seg := range segs {
+		var id string
+		switch {
+		case strings.EqualFold(seg, "articles") && i+1 < len(segs):
+			id = segs[i+1]
+		case strings.EqualFold(seg, "article") && i+2 < len(segs) && strings.EqualFold(segs[i+1], "PMC"):
+			id = segs[i+2]
+		default:
+			continue
+		}
+		if len(id) > 3 && strings.EqualFold(id[:3], "PMC") {
+			id = id[3:]
+		}
+		if len(id) >= 4 && len(id) <= 9 && strings.Trim(id, "0123456789") == "" {
+			return "PMC" + id
+		}
+		return ""
+	}
+	return ""
+}
+
+// hostWithin reports whether host is domain or one of its subdomains.
+func hostWithin(host, domain string) bool {
+	return host == domain || strings.HasSuffix(host, "."+domain)
 }

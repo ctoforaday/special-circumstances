@@ -1,8 +1,8 @@
 package fetchcache
 
 import (
+	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -76,7 +76,7 @@ const (
 	shellDenseRatio = 0.25
 )
 
-// challengeTitle and challengeBody name what a challenge SAYS about itself, so the refusal can
+// challengeTitles and the markers below name what a challenge SAYS about itself, so the refusal can
 // state which wall this is.
 //
 // ATTRIBUTION IS A REFINEMENT OVER A SHAPE TEST, NEVER THE TEST ITSELF, and these are consulted
@@ -96,8 +96,8 @@ const (
 // What the name buys is the seat's next act, and it is not cosmetic — an app skeleton means
 // nothing will render without a browser, while a challenge usually means the host publishes a
 // sanctioned machine route to the same text, and those license opposite decisions.
-// challengeTitle and powMarker are DECISIVE: a page carrying either is a wall whatever its shape.
-// weakChallengeMarker is not, and the difference is measured rather than assumed.
+// challengeTitles and powMarkers are DECISIVE: a page carrying either is a wall whatever its shape.
+// weakChallengeMarkers are not, and the difference is measured rather than assumed.
 //
 // A CHALLENGE PAGE CAN BE WORDY. Anubis — the proof-of-work gate now in front of PubMed Central,
 // SciPost and DOAB's book pages — explains itself at length: DOAB's 403 carries 1,459 visible
@@ -105,41 +105,50 @@ const (
 // therefore let a wall through whenever the wall was talkative.
 //
 // So the signals are split by whether they can appear on a page that IS the document. Across the
-// captured corpus challengeTitle fires on all three walls carrying one and on NONE of the five
+// captured corpus challengeTitles fire on all three walls carrying one and on NONE of the five
 // real documents, so a title stands on its own. The Cloudflare script marker cannot: Cloudflare
 // serves `/cdn-cgi/challenge-platform` INSIDE pages it has decided to deliver, which is how
 // bioRxiv's article page — 116,233 bytes, 8,619 characters of real paper — was once flagged as a
 // wall. That marker only ever names a verdict the shape reached first.
 var (
-	challengeTitle = regexp.MustCompile(`(?is)<title[^>]*>[^<]*(client challenge|just a moment|verifying your browser|checking your browser|attention required|human verification|access denied|one moment|making sure you)`)
-	// powMarker names a proof-of-work gate by a token no served document carries: the challenge
-	// variable PubMed Central emits, and the cookie Anubis sets on three unrelated hosts.
-	powMarker = regexp.MustCompile(`(?i)POW_CHALLENGE|techaro\.lol-anubis|Protected by Anubis`)
-	// weakChallengeMarker appears on challenge pages AND on ordinary pages behind the same edge.
-	weakChallengeMarker = regexp.MustCompile(`(?i)/cdn-cgi/challenge-platform|__cf_chl|g-recaptcha|hcaptcha|turnstile`)
+	// challengeTitles are read in the page's own <title>, lower-cased.
+	challengeTitles = []string{"client challenge", "just a moment", "verifying your browser", "checking your browser",
+		"attention required", "human verification", "access denied", "one moment", "making sure you"}
+	// powMarkers name a proof-of-work gate by a token no served document carries: the challenge
+	// variable PubMed Central emits, and the cookie Anubis sets on three unrelated hosts. They are
+	// read in the raw bytes, lower-cased, because they live in scripts and cookie code, which is
+	// not the page's text.
+	powMarkers = []string{"pow_challenge", "techaro.lol-anubis", "protected by anubis"}
+	// weakChallengeMarkers appear on challenge pages AND on ordinary pages behind the same edge.
+	weakChallengeMarkers = []string{"/cdn-cgi/challenge-platform", "__cf_chl", "g-recaptcha", "hcaptcha", "turnstile"}
 )
 
-// rootDivOnly matches a body whose entire content is one empty mount point — the canonical
-// React/Vue/Angular skeleton, which carries no prose at all and is not caught by a ratio when
-// the framework loads its script from elsewhere.
-var rootDivOnly = regexp.MustCompile(`(?is)<body[^>]*>\s*(<div[^>]*>\s*</div>\s*|<noscript>.*?</noscript>\s*|<script[^>]*>.*?</script>\s*)+</body>`)
+// containsAny reports whether lower — bytes already lower-cased — holds any of markers.
+func containsAny(lower []byte, markers []string) bool {
+	for _, m := range markers {
+		if bytes.Contains(lower, []byte(m)) {
+			return true
+		}
+	}
+	return false
+}
 
-// visibleText strips markup and the two elements that carry no prose, so the ratio measures what
-// a READER would get rather than what the parser was handed.
+// THE MOUNT POINT is the parse's mount fact: a body whose entire content is empty <div>s,
+// <noscript> and <script> — the canonical React/Vue/Angular skeleton, which carries no prose at
+// all and is not caught by a ratio when the framework loads its script from elsewhere.
 //
-// IT STRIPS ITS OWN TEXT RATHER THAN TAKING THE EXTRACTOR'S. The floors and ratios below were
-// measured against exactly this stripping over the captured corpus; the extraction (htmlText)
-// drops the head and decodes entities, which moves both counts, so judging a wall by it would be
-// judging by thresholds nobody measured.
-var (
-	markupTag   = regexp.MustCompile(`(?s)<[^>]*>`)
-	scriptStyle = regexp.MustCompile(`(?is)<(script|style)[^>]*>.*?</(script|style)>`)
-)
-
-func visibleText(body []byte) string {
-	s := scriptStyle.ReplaceAllString(string(body), " ")
-	s = markupTag.ReplaceAllString(s, " ")
-	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
+// prose is the text the floors and ratios measure: the page's title and its readable text
+// (htmlText's, on one line) — what a READER gets rather than what the parser was handed. The
+// title counts because a reader sees it; a tiny real page (example.com: 167 characters of body
+// under a 14-character title, 713 bytes) sits at the dense ratio, and its title is what keeps it
+// a document.
+//
+// RE-MEASURED ON THIS TEXT, 2026-10-18, over testdata/walls, testdata/bodies and 737 html pages
+// kept by captured runs. The walls carry 7 (INSPIRE: its prose is all no-script fallback), 165,
+// 228 and 283 characters; the smallest labelled document carries 1,669 (NeurIPS) and CVF's 2,438.
+// No page's verdict moves on a floor or a ratio, and they stand.
+func (p *htmlPage) prose() string {
+	return strings.TrimSpace(p.title + " " + p.flat)
 }
 
 // ShellReason reports why a response looks like an unrendered app skeleton rather than a
@@ -152,17 +161,19 @@ func ShellReason(contentType string, body []byte) string {
 	if !strings.Contains(contentType, "html") || len(body) == 0 {
 		return ""
 	}
-	text := visibleText(body)
+	p := readHTML(body)
+	text := p.prose()
+	lower := bytes.ToLower(body)
 
 	// THE DECISIVE SIGNALS OVERRIDE THE SHAPE, because a wall that explains itself at length is
 	// still a wall and the shape test reads its explanation as prose.
-	if challengeTitle.Match(body) || powMarker.Match(body) {
+	if containsAny([]byte(strings.ToLower(p.title)), challengeTitles) || containsAny(lower, powMarkers) {
 		return challengeReason(len(body), len(text))
 	}
 
 	// OTHERWISE THE SHAPE DECIDES. Three ways a response can fail to be the document
 	// its url names, in the order of how certain each is.
-	mount := rootDivOnly.Match(body)
+	mount := p.mount
 	starved := len(text) < shellProseFloor && float64(len(text))/float64(len(body)) < shellDenseRatio
 	// The ratio only has an opinion between the prose floor and the point where there is plainly
 	// enough prose to read. A page that is almost entirely prose about not being a page passes it,
@@ -173,7 +184,7 @@ func ShellReason(contentType string, body []byte) string {
 	}
 
 	// REFUSED. Now say which wall, where the page says so itself.
-	if weakChallengeMarker.Match(body) {
+	if containsAny(lower, weakChallengeMarkers) {
 		return challengeReason(len(body), len(text))
 	}
 	if mount {
@@ -193,13 +204,6 @@ func ShellReason(contentType string, body []byte) string {
 		"these bytes are a record that the source EXISTS, not its text",
 		len(text), len(body), float64(len(text))/float64(len(body))*100)
 }
-
-// tdmReservationRe and tdmPolicyRe read the W3C TDM Reservation Protocol's two meta tags, which a
-// publisher uses to reserve text-and-data-mining rights machine-readably.
-var (
-	tdmReservationRe = regexp.MustCompile(`(?is)<meta[^>]+name\s*=\s*["']?tdm-reservation["']?[^>]*content\s*=\s*["']?\s*1`)
-	tdmPolicyRe      = regexp.MustCompile(`(?is)<meta[^>]+name\s*=\s*["']?tdm-policy["']?[^>]*content\s*=\s*["']([^"']+)["']`)
-)
 
 // TDMReservation reports whether this page reserves text-and-data-mining rights, and where its
 // policy is stated.
@@ -224,10 +228,12 @@ func TDMReservation(contentType string, body []byte) (reserved bool, policy stri
 	if !strings.Contains(strings.ToLower(contentType), "html") {
 		return false, ""
 	}
-	if m := tdmPolicyRe.FindSubmatch(body); m != nil {
-		policy = strings.TrimSpace(string(m[1]))
-	}
-	return tdmReservationRe.Match(body), policy
+	// The W3C TDM Reservation Protocol's two meta tags: tdm-reservation (1 reserves) and
+	// tdm-policy (where the policy is stated).
+	p := readHTML(body)
+	r, _ := p.meta("name", "tdm-reservation")
+	policy, _ = p.meta("name", "tdm-policy")
+	return strings.TrimSpace(r) == "1", strings.TrimSpace(policy)
 }
 
 func challengeReason(nbytes, nchars int) string {

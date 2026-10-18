@@ -89,8 +89,9 @@ non-200 are rejected, and one is taken with the raw-bytes modifier. Metadata is 
 `--via <rung>` asks one rung by name.
 
 **Storing it.** Bytes live at `<run>/cache/<sha256>`, extracted text beside them at `<sha>.txt` —
-a pdf's text layer, or an html page's readable text (markup, scripts, styles and the head
-stripped, entities decoded, a line break per block; `extractor: feov-html-text@1`) — and the index
+a pdf's text layer, or an html page's readable text (parsed as a browser parses it; markup,
+comments, scripts, styles, the no-script fallback and the head left out, entities decoded, a line
+break per block; `extractor: feov-html-text@2`) — and the index
 maps url → entry, first match winning. A second fetch of a url is a cache hit, so red audits the
 exact bytes blue cited, never a page that drifted since. When the same bytes are cached for two
 urls that do not name one resource, fetch prints `shared_body_with`: that is the shape of a wall,
