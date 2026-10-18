@@ -262,8 +262,9 @@ func contradictingVerify(claim string) *recordpb.Verify {
 // PASS_PERMITTED NEVER STANDS OVER A BLOCKER ANOTHER SEAT MUST CLEAR (#1202). The plan said
 // `"pass_permitted":true,"parties":[]` over an unruled petition, an unanswered contradiction and a
 // docket motion on a gap that had since closed, and the gate refused the PASS the chair then tried.
-// The inquiry review is the chair's own act, always due at the start of its sitting, so a plan that
-// permits PASS over it is the plan saying "once you have done your own items".
+// The inquiry review is the chair's own act, owed from the start of its sitting wherever the report or an
+// inquiry changed since the last one, so a plan that permits PASS over it is the plan saying "once you
+// have done your own items".
 func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	for _, c := range []struct {
 		name          string
@@ -272,7 +273,7 @@ func TestPassPermittedNeverStandsOverAnotherSeatsBlocker(t *testing.T) {
 	}{
 		{"nothing blocks", func(b *stage) {}, true},
 		{"unruled petition", func(b *stage) { b.add("blue-respond", petitionMotion("M1")) }, false},
-		{"inquiry with no review this epoch", func(b *stage) {
+		{"an inquiry no review has read", func(b *stage) {
 			b.add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("Q1"),
 				Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum(), Question: proto.String("a question")})
 		}, true},

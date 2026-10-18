@@ -108,7 +108,11 @@ func (x WindowIndex) LatestSittingOf(seat string) int64 {
 // record, and its hook's own bookkeeping lands in it, but until something is done in it the current
 // one is still the last with work in it — which is what "stale since the current epoch" has to mean
 // for an inquiry pursued in the previous one. Counted, the plan would move the epoch by being
-// stored, and the plan it stores would be one the record had moved past.
+// stored.
+//
+// A DUTY THE CHAIR CLEARS IN ITS OWN SITTING DOES NOT READ THIS. The chair's first act of a sitting
+// moves this epoch, so a duty read off it falls due by that act; the inquiry review reads what it
+// read — the report head and the inquiries (InquiryReviewDueOf).
 //
 // The last work act of a narrowed slice is not the record's, so a narrowed index panics here as it
 // does in LatestSittingOf.
