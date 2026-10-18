@@ -26,8 +26,9 @@ UNITS with OPPOSITE postures — the gate fails CLOSED and can deny, including o
 payload (#211); the freeze guard NEVER blocks, because the freeze is a commitment the human may
 consciously override. The merge keeps both: deny wins and only one permission document is emitted,
 while warnings survive a denial because the operator needs both facts. The matcher is the UNION of
-the units' own (the gate watches WebFetch|WebSearch|Bash, the guard only Bash), and each unit still
-checks its own applicability so merging cannot widen what it acts on.
+the units' own (the gate watches WebFetch|WebSearch|Bash and every MCP tool, `mcp__.*`; the guard
+only Bash), and each unit still checks its own applicability so merging cannot widen what it acts
+on. `pretooluse`'s TestMatcherRoutesWhatTheUnitsWatch fails when the matcher and the units differ.
 
 ## PostToolUse
 

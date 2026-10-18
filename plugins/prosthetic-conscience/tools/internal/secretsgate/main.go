@@ -9,8 +9,8 @@
 //
 // Contract (Design by Contract):
 //
-//	BEFORE an outbound-capable tool call (WebFetch, WebSearch, Bash) runs, its input
-//	MUST NOT contain matchable secrets (keys, tokens, private-key material).
+//	BEFORE an outbound-capable tool call (WebFetch, WebSearch, Bash, or any MCP tool) runs,
+//	its input MUST NOT contain matchable secrets (keys, tokens, private-key material).
 //	When a secret pattern matches, the call is DENIED with a reason; otherwise allow.
 //	This is the deterministic layer of the agent-guardrails rule — the rule itself
 //	remains the semantic layer for what a pattern can't catch.
@@ -77,18 +77,19 @@ func denyReason(toolName string, found []string) string {
 
 // Unit exposes the gate to the merged PreToolUse binary.
 //
-// Applies to the same set the standalone matcher covered — a merged binary registers the
-// UNION of its units' matchers, so widening here would silently scan calls this gate never
-// watched, and narrowing would stop scanning ones it did.
+// Applies to WebFetch, WebSearch, Bash and every MCP tool (mcp__<server>__<tool>). Every MCP
+// call is scanned, whatever its server: an MCP server is a process the call hands its
+// arguments to, and which of them send content off the machine (Slack, a document store, a
+// web reader) is not something a tool name says. hooks.json's PreToolUse matcher must route
+// the same set here; pretooluse's TestMatcherRoutesWhatTheUnitsWatch fails when they differ.
 //
 // It reads Ctx.Raw when the payload did not parse. That is not an optimisation: returning
 // allow on an undecodable payload was the bypass #211 closed, and a merge that handed this
 // unit only the parsed fragment would reintroduce it while every test still passed.
 func Unit() hookunit.Unit {
-	watched := map[string]bool{"WebFetch": true, "WebSearch": true, "Bash": true}
 	return hookunit.Unit{
 		Name:    "sc-secrets-gate",
-		Applies: func(c *hookunit.Ctx) bool { return watched[c.ToolName] || !c.Parsed },
+		Applies: func(c *hookunit.Ctx) bool { return watches(c.ToolName) || !c.Parsed },
 		Run: func(c *hookunit.Ctx) hookunit.Result {
 			payload := c.ToolInput
 			if !c.Parsed {
@@ -102,6 +103,18 @@ func Unit() hookunit.Unit {
 			return hookunit.Result{Name: "sc-secrets-gate", Stdout: string(out) + "\n"}
 		},
 	}
+}
+
+// mcpPrefix opens every MCP tool's name: mcp__<server>__<tool>.
+const mcpPrefix = "mcp__"
+
+// watches reports whether the gate scans a call to the named tool.
+func watches(toolName string) bool {
+	switch toolName {
+	case "WebFetch", "WebSearch", "Bash":
+		return true
+	}
+	return strings.HasPrefix(toolName, mcpPrefix)
 }
 
 func deny(reason string) decision {
