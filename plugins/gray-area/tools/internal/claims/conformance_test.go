@@ -80,3 +80,27 @@ func TestProseInsideAnEntryIsNotRefused(t *testing.T) {
 		t.Errorf("prose inside a check was read as an entry: %v", err)
 	}
 }
+
+// The heading fixture prosthetic-conscience's checkpoint suite holds
+// (heading_test.go there), restated for the same reason as offSpecLoop.
+var loopHeadings = map[string]HeadingMatch{
+	"Validation loop": Loop,
+	"Validation loop (all last run at ed3bc3ae)": Loop,
+	"validation LOOP — per branch":               Loop,
+	"Validation loop        ← load-bearing":      Loop,
+	"Validation loop:":                           Loop,
+	"Validation Loops":                           NearLoop,
+	"validation-loop":                            NearLoop,
+	"ValidationLoop":                             NearLoop,
+	"Validation  loop":                           NearLoop,
+	"Committed; running the validation loop":     NotLoop,
+	"Validator notes":                            NotLoop,
+}
+
+func TestIsLoopHeadingAgreesWithTheSharedFixture(t *testing.T) {
+	for h, want := range loopHeadings {
+		if got := IsLoopHeading(h); got != want {
+			t.Errorf("IsLoopHeading(%q) = %d, want %d", h, got, want)
+		}
+	}
+}

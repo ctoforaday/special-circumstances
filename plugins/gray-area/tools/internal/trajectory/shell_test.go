@@ -80,7 +80,10 @@ func TestFindInvocationsResolvesAliases(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := FindInvocations(tc.command, "feov-record")
+			got, err := FindInvocations(tc.command, "feov-record")
+			if err != nil {
+				t.Fatalf("FindInvocations: %v", err)
+			}
 			if len(got) != len(tc.want) {
 				t.Fatalf("got %d invocations %+v, want %d", len(got), got, len(tc.want))
 			}
@@ -106,7 +109,10 @@ func TestAliasedCallIsInvisibleToNaiveMatching(t *testing.T) {
 	if naive == "finding" {
 		t.Fatal("a naive matcher would have found the verb; the alias case is not what we think")
 	}
-	got := FindInvocations(cmd, "feov-record")
+	got, err := FindInvocations(cmd, "feov-record")
+	if err != nil {
+		t.Fatalf("FindInvocations: %v", err)
+	}
 	if len(got) != 1 || got[0].Verb != "finding" {
 		t.Fatalf("resolver failed the case that motivates it: %+v", got)
 	}
@@ -118,4 +124,36 @@ func regexpMustFind(pattern, s string) string {
 		return ""
 	}
 	return m[1]
+}
+
+// Shapes the line splitter got wrong: export, a quoted value with spaces, a
+// separator inside quotes.
+func TestFindInvocationsReadsShellNotLines(t *testing.T) {
+	cases := map[string][]Invocation{
+		`export REC=./feov-record; "$REC" finding`:           {{Binary: "feov-record", Verb: "finding", Aliased: true, Via: "REC"}},
+		`REC="/opt/my tools/feov-record"; $REC close`:        {{Binary: "feov-record", Verb: "close", Aliased: true, Via: "REC"}},
+		`echo "a | feov-record x ; b"`:                       nil,
+		`out=$(feov-record status --json)`:                   {{Binary: "feov-record", Verb: "status"}},
+		"feov-record mint <<'EOF'\nfeov-record ignored\nEOF": {{Binary: "feov-record", Verb: "mint"}},
+		`"${REC:-./feov-record}" finding`:                    nil,
+	}
+	for cmd, want := range cases {
+		got, err := FindInvocations(cmd, "feov-record")
+		if err != nil {
+			t.Errorf("%q: %v", cmd, err)
+			continue
+		}
+		if len(got) != len(want) {
+			t.Errorf("%q: got %+v, want %+v", cmd, got, want)
+			continue
+		}
+		for i := range got {
+			if got[i].Verb != want[i].Verb || got[i].Aliased != want[i].Aliased || got[i].Via != want[i].Via {
+				t.Errorf("%q [%d]: got %+v, want %+v", cmd, i, got[i], want[i])
+			}
+		}
+	}
+	if _, err := FindInvocations(`feov-record x && (`, "feov-record"); err == nil {
+		t.Error("an unparseable command returned no error — it reads the same as a command that called nothing")
+	}
 }

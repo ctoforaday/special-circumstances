@@ -1,9 +1,10 @@
 package claims
 
 import (
-	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/trajectory"
 )
@@ -46,6 +47,13 @@ type Finding struct {
 	Claimed   string `json:"claimed_outcome,omitempty"`
 	ClaimedAt string `json:"claimed_at,omitempty"`
 
+	// AsOf is the time staleness was measured from, and AsOfFrom says where it
+	// came from: "last run" (the entry's own run time) or "written_at" (the
+	// note's, an upper bound on every run it reports). Empty when staleness was
+	// not measured — Unmeasured then says why.
+	AsOf     string `json:"as_of,omitempty"`
+	AsOfFrom string `json:"as_of_from,omitempty"`
+
 	// The trajectory's side, when there is one.
 	File    string `json:"file,omitempty"`
 	Line    int    `json:"line,omitempty"`
@@ -75,7 +83,8 @@ type Finding struct {
 	Unmeasured []string `json:"unmeasured,omitempty"`
 }
 
-// bashCommand returns a Bash event's command with heredoc BODIES removed, or "".
+// bashCommand returns a Bash event's command with heredoc BODIES removed, "" for
+// any other event, and an error when the command does not parse as shell.
 //
 // The stripping is not tidiness, it is correctness. Matching is token containment
 // over the command string, and a heredoc body is data, not command — so a
@@ -86,42 +95,15 @@ type Finding struct {
 //
 // A false citation is worse than a miss. A miss says "no evidence" and shows its
 // search, so a reader checks; a wrong citation says "here it is" and looks
-// settled. That asymmetry is the whole reason this function is not a one-liner.
-func bashCommand(e trajectory.Event) string {
-	if e.ToolName != "Bash" || len(e.ToolInput) == 0 {
-		return ""
+// settled. So a command whose bodies cannot be told from its command lines is
+// not searched at all, and the miss row counts it.
+func bashCommand(e trajectory.Event) (string, error) {
+	cmd := trajectory.BashCommand(e)
+	if cmd == "" {
+		return "", nil
 	}
-	var in struct {
-		Command string `json:"command"`
-	}
-	_ = json.Unmarshal(e.ToolInput, &in)
-	return stripHeredocs(in.Command)
-}
-
-// stripHeredocs delegates to trajectory, which is where the heredoc grammar now
-// lives — Group needs the same recognition for the opposite reason (see that
-// file), and two copies of it is the drift that makes one silently stop matching.
-func stripHeredocs(cmd string) string { return trajectory.StripHeredocs(cmd) }
-
-// writeTarget returns the path a Write/Edit event acted on, or "".
-func writeTarget(e trajectory.Event) string {
-	switch e.ToolName {
-	case "Write", "Edit", "NotebookEdit", "MultiEdit":
-	default:
-		return ""
-	}
-	if len(e.ToolInput) == 0 {
-		return ""
-	}
-	var in struct {
-		FilePath string `json:"file_path"`
-		Path     string `json:"path"`
-	}
-	_ = json.Unmarshal(e.ToolInput, &in)
-	if in.FilePath != "" {
-		return in.FilePath
-	}
-	return in.Path
+	stripped, _, err := trajectory.StripHeredocs(cmd)
+	return stripped, err
 }
 
 // matches reports whether a trajectory command contains every signature token.
@@ -154,24 +136,60 @@ func matchingLine(cmd string, sig []string) string {
 	return cmd
 }
 
-// underSurface reports whether a written path falls under a claim's trigger
-// surface. Suffix-based rather than filesystem-based on purpose: the trajectory
-// holds absolute paths from the machine that ran, and the surface is written
-// repo-relative, so the two only ever meet as strings. A surface with no `/` and
-// no leading `.` is not treated as a path at all — the same rule the restore
-// hook applies, and for the same reason: bare `scripts` is a word, `scripts/` is
-// a place.
-func underSurface(written, surface string) bool {
-	surface = strings.TrimSpace(surface)
-	if surface == "" || (!strings.Contains(surface, "/") && !strings.HasPrefix(surface, ".")) {
-		return false
+// surfacePaths reads the paths out of a trigger surface written as prose —
+// "agentgen src, scripts/" names one path, `scripts`. A token is a path when it
+// holds a `/` or starts with `.`: bare `scripts` is a word, `scripts/` is a
+// place. A glob keeps its directory part ("tools/**/*.go" is tools). The rule is
+// prosthetic-conscience's checkpoint.WatchTargets token rule, restated across
+// the module boundary; a surface resolving to the root names nothing.
+func surfacePaths(surface string) []string {
+	s := strings.NewReplacer("`", " ", "\"", " ", "'", " ", ",", " ", ";", " ", "(", " ", ")", " ").Replace(surface)
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range strings.Fields(s) {
+		f = strings.TrimRight(f, ".,:;")
+		if f == "" || !(strings.ContainsAny(f, "/*?[") || strings.HasPrefix(f, ".")) {
+			continue
+		}
+		var kept []string
+		for _, seg := range strings.Split(strings.TrimPrefix(f, "./"), "/") {
+			if strings.ContainsAny(seg, "*?[") {
+				break
+			}
+			if seg != "" {
+				kept = append(kept, seg)
+			}
+		}
+		p := strings.Join(kept, "/")
+		if p == "" || p == "." || seen[p] {
+			continue
+		}
+		seen[p] = true
+		out = append(out, p)
 	}
-	surface = strings.TrimSuffix(surface, "/")
+	return out
+}
+
+// underSurface reports whether a written path falls under one path read by
+// surfacePaths. Suffix-based rather than filesystem-based on
+// purpose: the trajectory holds absolute paths from the machine that ran, and
+// the surface is written repo-relative, so the two only ever meet as strings.
+func underSurface(written, surface string) bool {
 	written = strings.ReplaceAll(written, "\\", "/")
 	return strings.Contains(written, "/"+surface+"/") ||
 		strings.HasSuffix(written, "/"+surface) ||
 		strings.HasPrefix(written, surface+"/") ||
 		written == surface
+}
+
+// underAny reports whether a written path falls under any of paths.
+func underAny(written string, paths []string) bool {
+	for _, p := range paths {
+		if underSurface(written, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // Adjudicate puts each claim against the trajectory and returns one finding per
@@ -210,21 +228,34 @@ func Adjudicate(cs []Claim, res trajectory.Result) []Finding {
 
 		// The LAST matching invocation is the one that matters: a check run twice
 		// is current as of the second run.
-		var hit *trajectory.Event
+		var (
+			hit      *trajectory.Event
+			hitCmd   string
+			unparsed int
+		)
 		for i := range citable {
-			if cmd := bashCommand(citable[i]); cmd != "" && matches(cmd, sig) {
-				hit = &citable[i]
+			cmd, err := bashCommand(citable[i])
+			if err != nil {
+				unparsed++
+				continue
+			}
+			if cmd != "" && matches(cmd, sig) {
+				hit, hitCmd = &citable[i], cmd
 			}
 		}
 		if hit == nil {
 			f.Verdict = NoEvidence
 			f.Note = "no Bash invocation in this trajectory contains every token above. That is an ABSENCE OF EVIDENCE, not evidence the check did not run: the command may have been spelled in a form these tokens miss, or run outside this transcript"
+			if unparsed > 0 {
+				f.Unmeasured = append(f.Unmeasured, fmt.Sprintf(
+					"%d Bash command(s) in this trajectory do not parse as shell, so their heredoc bodies cannot be told from their command lines; they were not searched", unparsed))
+			}
 			out = append(out, f)
 			continue
 		}
 
 		f.Verdict, f.File, f.Line, f.UUID, f.At = Cited, hit.File, hit.Line, hit.UUID, hit.Timestamp
-		f.Command = matchingLine(bashCommand(*hit), sig)
+		f.Command = matchingLine(hitCmd, sig)
 
 		// THE ACT/RESULT BOUNDARY, and it belongs HERE rather than in one caller.
 		//
@@ -250,14 +281,10 @@ func Adjudicate(cs []Claim, res trajectory.Result) []Finding {
 		// That issue first claimed the events never fire; withdrawn — they do, but
 		// coverage stops advancing mid-session for reasons still unexplained. This
 		// computation depends on none of it, which is the point.
-		if c.Surface != "" && c.At != "" {
-			if w := lastWriteUnder(citable, c.Surface, c.At); w != nil {
-				f.Verdict = Stale
-				f.File, f.Line, f.UUID, f.At = w.File, w.Line, w.UUID, w.Timestamp
-				f.Command = writeTarget(*w)
-				f.Note = "a write under this check's own trigger surface (" + c.Surface + ") happened AFTER the claimed run time. The pass may have been real; it is not current"
-			}
-		}
+		//
+		// Every input it needs can be missing, and each miss is NAMED: a CITED row
+		// that skipped the check silently reads as a current pass.
+		staleness(&f, c, citable)
 		out = append(out, f)
 	}
 
@@ -265,27 +292,94 @@ func Adjudicate(cs []Claim, res trajectory.Result) []Finding {
 	return out
 }
 
-// lastWriteUnder returns the latest citable write under surface with a timestamp
-// strictly after `after`, or nil.
+// staleness measures one cited claim against later writes under its trigger
+// surface, turning the row STALE when one exists, or names in Unmeasured the
+// input it lacked.
 //
-// String comparison on RFC3339 timestamps is deliberate: they sort lexically when
-// they carry the same offset, which these do (the notes and the transcript both
-// write Z). Parsing them would add a failure mode — an unparseable stamp becoming
-// a silently skipped comparison — for no gain here.
-func lastWriteUnder(events []trajectory.Event, surface, after string) *trajectory.Event {
-	var latest *trajectory.Event
+// The run time is the entry's own "last run" stamp when it has one. Without one
+// it is the note's written_at: every run the note reports happened before the
+// note was written, so a write after written_at is certainly after the run. The
+// bound is one-sided on purpose — a write between the run and the note is
+// missed, never invented.
+func staleness(f *Finding, c Claim, citable []trajectory.Event) {
+	paths := surfacePaths(c.Surface)
+	asOf, from := c.At, "last run"
+	if asOf == "" {
+		// The value up to its first space: the template writes a trailing
+		// "# comment" after it.
+		if v := strings.Fields(c.NoteWrittenAt); len(v) > 0 {
+			asOf = v[0]
+		}
+		from = "written_at"
+	}
+	switch {
+	case strings.TrimSpace(c.Surface) == "":
+		f.Unmeasured = append(f.Unmeasured,
+			"staleness — the entry names no trigger surface (re-armed by:), so no later write can be tied to it")
+		return
+	case len(paths) == 0:
+		f.Unmeasured = append(f.Unmeasured,
+			"staleness — the trigger surface ("+strings.TrimSpace(c.Surface)+") names no path, so no write can be placed under it")
+		return
+	case asOf == "":
+		f.Unmeasured = append(f.Unmeasured,
+			"staleness — the entry states no run time and the note no written_at, so no write can be placed after the run")
+		return
+	}
+	t, ok := ParseTime(asOf)
+	if !ok {
+		f.Unmeasured = append(f.Unmeasured,
+			"staleness — the note's written_at ("+asOf+") is not an RFC 3339 time, and the entry states no run time")
+		return
+	}
+	f.AsOf, f.AsOfFrom = asOf, from
+
+	w, unstamped := lastWriteUnder(citable, paths, t)
+	if unstamped > 0 {
+		f.Unmeasured = append(f.Unmeasured, fmt.Sprintf(
+			"staleness over %d write(s) under %s — their timestamps do not parse, so they cannot be placed before or after the run", unstamped, strings.Join(paths, ", ")))
+	}
+	if w == nil {
+		return
+	}
+	f.Verdict = Stale
+	f.File, f.Line, f.UUID, f.At = w.File, w.Line, w.UUID, w.Timestamp
+	f.Command = trajectory.WriteTarget(*w)
+	if from == "written_at" {
+		f.Note = "a write under this check's own trigger surface (" + c.Surface + ") happened AFTER the note was written (written_at " + asOf + "; the entry states no run time, and every run it reports came before the note). The pass may have been real; it is not current"
+		return
+	}
+	f.Note = "a write under this check's own trigger surface (" + c.Surface + ") happened AFTER the claimed run time. The pass may have been real; it is not current"
+}
+
+// lastWriteUnder returns the latest citable write under surface strictly after
+// `after`, or nil, and how many writes under it carry no parseable timestamp.
+//
+// Times are parsed, not compared as strings: "04:41Z" sorts after "04:41:30Z"
+// lexically, and a note's minute-precision stamp meets a transcript's
+// millisecond one here.
+func lastWriteUnder(events []trajectory.Event, paths []string, after time.Time) (*trajectory.Event, int) {
+	var (
+		latest   *trajectory.Event
+		latestAt time.Time
+		bad      int
+	)
 	for i := range events {
-		p := writeTarget(events[i])
-		if p == "" || !underSurface(p, surface) {
+		p := trajectory.WriteTarget(events[i])
+		if p == "" || !underAny(p, paths) {
 			continue
 		}
-		ts := events[i].Timestamp
-		if ts == "" || ts <= after {
+		ts, ok := ParseTime(events[i].Timestamp)
+		if !ok {
+			bad++
 			continue
 		}
-		if latest == nil || ts > latest.Timestamp {
-			latest = &events[i]
+		if !ts.After(after) {
+			continue
+		}
+		if latest == nil || ts.After(latestAt) {
+			latest, latestAt = &events[i], ts
 		}
 	}
-	return latest
+	return latest, bad
 }

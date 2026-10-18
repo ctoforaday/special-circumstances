@@ -287,7 +287,7 @@ func prBody(bodyPath, tracePath string, stdout, stderr io.Writer, open func(stri
 	for i := range findings {
 		if r, ok := byClaim[fmt.Sprintf("%d\x00%s", findings[i].NoteLine, findings[i].Index)]; ok {
 			findings[i].Unmeasured = append(findings[i].Unmeasured,
-				"the asserted outcome ("+strings.TrimSpace(r)+") — the trajectory records invocations, not their output")
+				"whatever the rest of this sentence asserts ("+strings.TrimSpace(r)+") — the trajectory records invocations, not their output")
 		}
 	}
 

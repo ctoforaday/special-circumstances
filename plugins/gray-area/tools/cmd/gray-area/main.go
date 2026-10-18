@@ -35,7 +35,13 @@ const usage = `gray-area — trajectory evidence
                                       claims against what the session actually ran.
                                       With no transcript, resolves this session's
                                       from gray-area's own manifest and prints
-                                      which row it used
+                                      which row it used. The loop is the section
+                                      under the heading starting "Validation
+                                      loop"; a heading that nearly names it is
+                                      refused. STALE is measured from the entry's
+                                      "last run:" time, else the note's
+                                      written_at; when neither it prints
+                                      NOT MEASURED: staleness
   gray-area rework [transcript.jsonl]  acts done more than once: the same file
                                       written again, the same command re-run
   gray-area stalls [transcript.jsonl]  acts repeated 3+ times BACK-TO-BACK — the
@@ -92,6 +98,10 @@ type row struct {
 	ToolUseID   string                  `json:"tool_use_id,omitempty"`
 	Target      string                  `json:"target,omitempty"`
 	Invocations []trajectory.Invocation `json:"invocations,omitempty"`
+	// Unread says why a Bash command's invocations could not be resolved: it did
+	// not parse as shell. Shown so "no invocations" is never the answer for a
+	// command nothing read.
+	Unread string `json:"invocations_unread,omitempty"`
 }
 
 // target is the single most useful identifier of what a call acted on. It is a
@@ -129,7 +139,11 @@ func rowsFrom(res trajectory.Result, binary string) (rows []row, suppressed int)
 			Target: target(e),
 		}
 		if binary != "" && e.ToolName == "Bash" {
-			r.Invocations = trajectory.FindInvocations(target(e), binary)
+			inv, err := trajectory.FindInvocations(target(e), binary)
+			r.Invocations = inv
+			if err != nil {
+				r.Unread = err.Error()
+			}
 		}
 		rows = append(rows, r)
 	}
@@ -274,6 +288,9 @@ func run(args []string, stdout, stderr io.Writer, open func(string) (io.ReadClos
 				}
 				fmt.Fprintf(stdout, "    -> %s %s%s\n", inv.Binary, inv.Verb, via)
 			}
+			if r.Unread != "" {
+				fmt.Fprintf(stdout, "    -> invocations NOT READ: the command does not parse as shell (%s)\n", r.Unread)
+			}
 		}
 	}
 
@@ -412,6 +429,9 @@ func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(
 			}
 			if f.UUID != "" {
 				fmt.Fprintf(stdout, "    evidence: %s:%d %s %s  %s\n", f.File, f.Line, short(f.UUID), f.At, truncate(f.Command, 70))
+			}
+			if f.AsOf != "" {
+				fmt.Fprintf(stdout, "    staleness measured from: %s (%s)\n", f.AsOf, f.AsOfFrom)
 			}
 			if len(f.Searched) > 0 {
 				fmt.Fprintf(stdout, "    searched: %v across %d citable events\n", f.Searched, f.EventsSeen)
