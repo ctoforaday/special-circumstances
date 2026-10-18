@@ -28,6 +28,24 @@ func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
 	}
 }
 
+// A RETIRE THAT NAMES NO CLAIM IS REFUSED IN THE CLAIM'S OWN WORDS. On universe-m29 `retire --quote ""`
+// was told `"" is still in the report`, since every report contains the empty string, and the seat
+// was sent to edit out a claim it had not named.
+func TestRetireRefusesABlankQuoteAsMissing(t *testing.T) {
+	for _, quote := range [][]string{{"--quote", ""}, {"--quote", "  "}, nil} {
+		runDir := newRun(t)
+		writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
+		args := append([]string{"retire", "--run", runDir, "--seat-id", "blue-respond", "--reason", "overclaim"}, quote...)
+		_, err := run(t, args...)
+		if err == nil || !strings.Contains(err.Error(), "requires --quote") || strings.Contains(err.Error(), "still in the report") {
+			t.Errorf("retire %q: want the missing-quote refusal, got %v", quote, err)
+		}
+		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_RETIRE); n != 0 {
+			t.Errorf("retire %q recorded %d retire(s)", quote, n)
+		}
+	}
+}
+
 // A CLAIM THE RECORD CAN SHOW LEAVING is `verified`: absent now, and present in the old span
 // of a recorded edit.
 func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
