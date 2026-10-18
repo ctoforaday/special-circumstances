@@ -37,9 +37,9 @@ func TestGeometryIsResolutionInvariant(t *testing.T) {
 		"v 100 100 3 203", "v 400 100 3 203", "v 700 100 3 203", "v 1000 100 3 203",
 	}
 
+	baseWords := normalizeWords(parseTSVWords(fakeTSV(words300)), normScale(300))
 	baseText, baseStats, why := TextCells(
-		normalizeLattice(ParseLattice(ruleDump(rules300...)), normScale(300)),
-		normalizeWords(parseTSVWords(fakeTSV(words300)), normScale(300)), nil)
+		normalizeLattice(ParseLattice(ruleDump(rules300...)), normScale(300)), baseWords, nil, baseWords, nil)
 	if why != "" {
 		t.Fatalf("the 300-DPI baseline refused, so there is nothing to compare: %s", why)
 	}
@@ -55,7 +55,7 @@ func TestGeometryIsResolutionInvariant(t *testing.T) {
 			lat := normalizeLattice(scaleLatticeForTest(ParseLattice(ruleDump(rules300...)), up), scale)
 			words := normalizeWords(scaleWordsForTest(parseTSVWords(fakeTSV(words300)), up), scale)
 
-			text, st, why := TextCells(lat, words, nil)
+			text, st, why := TextCells(lat, words, nil, words, nil)
 			if why != "" {
 				t.Fatalf("refused at %d DPI while the same page held at 300: %s", dpi, why)
 			}

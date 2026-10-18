@@ -171,8 +171,8 @@ func readCorpusPage(t *testing.T, c corpus.Case) (string, corpus.Observed) {
 	}
 	if p.TextCells != nil {
 		tc := p.TextCells
-		fmt.Fprintf(&b, "text cells: %d tables, %d bands, %d rows, %d columns, %d cells, %d words placed\n",
-			tc.Tables, tc.Bands, tc.Rows, tc.Columns, tc.Cells, tc.WordsPlaced)
+		fmt.Fprintf(&b, "text cells: %d tables, %d bands, %d rows, %d columns, %d cells, %d words placed, %d read\n",
+			tc.Tables, tc.Bands, tc.Rows, tc.Columns, tc.Cells, tc.WordsPlaced, tc.WordsRead)
 	}
 	if p.ReconstructionFallback != "" {
 		fmt.Fprintf(&b, "fell back: %s\n", p.ReconstructionFallback)

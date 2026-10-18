@@ -238,11 +238,11 @@ func (en *Engine) readPageBranch(pagePNG []byte, thr GridThresholds) (PageResult
 		if repaired {
 			return en.readGridPage(pagePNG, grid, thr, RuleSourceRepair)
 		}
-		text, removed, terr := en.readProse(pagePNG)
+		tsv, terr := en.PageTSV(pagePNG, PSMAuto)
 		if terr != nil {
 			return PageResult{}, terr
 		}
-		return PageResult{Text: text, Grid: grid, RemovedLines: removed}, nil
+		return proseResult(tsv, grid), nil
 	}
 	return en.readGridPage(pagePNG, grid, thr, RuleSourceDetector)
 }
@@ -412,11 +412,15 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	// matrix's sparse pass falls from 420 words to 203 against the auto pass's 287, and the auto
 	// pass fills first: three ranges the sparse pass reads correctly, "(1-2)", "(1-3)" and "(1-2)",
 	// come out "¢€i-2)", "¢€1-3)" and "¢€1-2)".
-	first, second := words, sparseWords
-	if len(sparseRead) > markRead {
-		first, second = sparseWords, words
+	readMark, readSparse := normalizeWords(autoRead, scale), normalizeWords(sparseRead, scale)
+	if marksFromSparse {
+		readMark = readSparse
 	}
-	cellText, cst, why := TextCells(lat, first, second)
+	first, second, readFirst, readSecond := words, sparseWords, readMark, readSparse
+	if len(sparseRead) > markRead {
+		first, second, readFirst, readSecond = sparseWords, words, readSparse, readMark
+	}
+	cellText, cst, why := TextCells(lat, first, second, readFirst, readSecond)
 	switch {
 	case why == "":
 		out.TextCells = &cst
@@ -440,14 +444,12 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 	return out, nil
 }
 
-// readProse reads a page as plain text: one recognition under PSMAuto, then plainReading.
-func (en *Engine) readProse(pagePNG []byte) (string, []string, error) {
-	tsv, err := en.PageTSV(pagePNG, PSMAuto)
-	if err != nil {
-		return "", nil, err
-	}
+// proseResult is a page with no grid, read from its PSMAuto TSV. It is the whole of the no-grid
+// path after recognition, and pure, so the test that pins it pins the path: the engine call that
+// precedes it cannot be driven without the C stack and a page whose rules reach the prose path.
+func proseResult(tsv string, grid GridStats) PageResult {
 	text, removed := plainReading(tsv)
-	return text, removed, nil
+	return PageResult{Text: text, Grid: grid, RemovedLines: removed}
 }
 
 // plainReading is a PSMAuto TSV as the page's plain text, its spread lines removed and returned —

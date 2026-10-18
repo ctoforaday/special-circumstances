@@ -99,8 +99,8 @@ func renderGolden(res PageResult) string {
 			st.MarksPlaced, st.MarksTotal, st.ColumnsFound, st.SubColumnsFound, st.RowsFound, st.LevelsRead, st.LevelsUnread)
 	case res.TextCells != nil:
 		st := *res.TextCells
-		fmt.Fprintf(&b, "path: text cells (%d columns, %d ruled bands, %d rows, %d cells, %d words placed, %d from the sparse pass, %d around the table, %d loose)\n",
-			st.Columns, st.Bands, st.Rows, st.Cells, st.WordsPlaced, st.WordsFromSparse, st.WordsAround, st.WordsLoose)
+		fmt.Fprintf(&b, "path: text cells (%d columns, %d ruled bands, %d rows, %d cells, %d words placed, %d read, %d from the sparse pass, %d around the table, %d loose)\n",
+			st.Columns, st.Bands, st.Rows, st.Cells, st.WordsPlaced, st.WordsRead, st.WordsFromSparse, st.WordsAround, st.WordsLoose)
 	default:
 		fmt.Fprintf(&b, "path: plain text\n")
 	}

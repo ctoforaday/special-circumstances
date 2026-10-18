@@ -1,102 +1,53 @@
-usgs-landscape-table · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@cacd9c98edb7 · rendered at 400.00 DPI (native 400.00), 2176x3550 px
-table: true · rules: repair · rotated: true · grid intersections: 0 · repaired crossings: 179 · length: 1502 · ink: 4.617%
+usgs-landscape-table · tesseract@5.5.3+leptonica@1.87.0+eng@7d4322bd2a77+tessocr@c9ec3d9a9ccd · rendered at 400.00 DPI (native 400.00), 2176x3550 px
+table: true · rules: repair · rotated: true · grid intersections: 0 · repaired crossings: 179 · length: 1806 · ink: 4.617%
+text cells: 1 tables, 10 bands, 10 rows, 16 columns, 152 cells, 242 words placed, 643 read
 fell back: grid detected but the TSV held no mark tokens; page kept as plain text — its words are read, but which row and column each belongs to is not preserved, so check a cell against the page image before relying on it
-text cells fell back: the rules bound 152 cells holding 242 words (1.59 per cell, under 2.00): these cells carry marks rather than text, and reading them as text would drop what they mean
-removed lines: 0
+removed lines: 32
+removed: i | |) | |
+removed: | | | |__| S| ||
+removed: re and Gere Ge Ge ed enn nd i nein’ Dit nr in er ng lin nn Seen eg Dn a Sd
+removed: Ned (eed ee ed Derr ed Gr ed ns fe as Pe ed Se id Bee oe aad Dn ror
+removed: Cee ee i ined ins hin ii. ini ide nites (ini iit ini in i i niet inn iin (iin In i iain nin iii in Gein ine ae inna aan
+removed: ee err ed ed ed Pe ed Ded ee DO en eg i ee ed DS eed ed Ded
+removed: Sees er ad bes Be PS id Dee ind ne ed De eos Dn aed De nn ie i ed ee Sed ee ee]
+removed: Se es eee es ed eee in en Sn i ns a ns bid Gn iS a iii a i nan ne nd ena
+removed: Bs ee rd fe ed 8 ed ed Se dg ed cn cn
+removed: See re ed ne ed ee in iin I in aon in i nn any Genin Gi tS ki ind iin ie an eer an ani
+removed: en ines (ie ni Si ih (ii ii ini ihn it iii i ini ia ini hii i in ii hi ii iii ii ihn i i iti ii ihn ini il ini ii iio ii hi ii ci. iii i i iii
+removed: Si ed errr ied ee ied iene ann in a S| Eien nn i nd Ian in ii inn inn Eien Cid Ein ei ins IO i inne iia in and Deanne ear
+removed: ee rs er rrr as Pe re Pee) Bed i i a nd et ering Wa id en ns en ei ed
+removed: Ree ener wee eee ee
+removed: See eee ee ee i init ini iran ii i rina ae id i a ord ei i iS
+removed: See es
+removed: ee eer red eed 0 re ed Se ee
+removed: eee ee reese ee ese
+removed: ees ee ee ed ed ed Sd ed es Bn a
+removed: en iy
+removed: een i rr ae ny Ge ee ee ed Da es aac
+removed: Sees Pee ed ns i aad
+removed: errs lin ied Beinn Bid ee nd ea ad
+removed: i a ns a ers ed ee eS ed
+removed: Ser ae ee eee eS De ed re Ss ee es
+removed: Sees eee
+removed: Sind ae ey
+removed: ees rer ay
+removed: eed ees bere a ar
+removed: po ce ccc s550c900000e659000"0
+removed: ed
+removed: es ned ay
 ---
 TABLE 2.—Drainage basins in the United States—Continued.
-
 I. NORTHERN ATLANTIC—Continued.
+J
 
-Drainage basins.
-
-St. Johns River................
-St. Croix River............-...
-Penobscot River.............--
-Kennebec River........-.---..-
-Androscoggin River
-Presumpscot River ..........-..
-Saco River..............----...
-
-Thames River...........---.--
-Housatonic River..............
-Hudson River.........-.....--
-Passaic River.........-........
-Raritan River.............-...
-Delaware River..........--...-
-Susquehanna River........-...
-Potomac River................
-James River...............--.-
-Minor streams(Chesapeake Bay)
-mer streams (northern Atlan-
-
-ic
-
-New Jersey.
-
-Horse-
-Wheels. | power.
-
-Maryland.
-
-Delaware.
-Horse-
-Wheels. power.
-277 | 7,976
-— 167 | 5,314
-——— 35| 901.
-75) 1,761
-
-Pennsylvania.
-Horse-
-Wheels. power.
-5,046 | 273, 426
-"1,616 | 47,649
-3,233 | 222, 5380
-197 3, 247
-
-Wheels.
-
-Horse-
-power.
-
-Virginia. West Virginia. et
-Horse- Horse- Horse-
-Wheels. power. Wheels. power. Wheels, power.
-1, 440 | 59,129 143 | 8,928 6 | 1 000
-—— 462 | "11,457 | 142. | 8,920 6) 1,000.
-607 | 40,165 1 8 \.........|.-.....-
-363 1:09
-8 9 £3
-
-Total.
-
-Horse-
-
-Wheels. power.
-21, 864 | 1, 746, 303
-147 13, 681
-89 20, 500
-518 70, 454
-659 63, 936
-683 123, 455
-179 20, 569
-237 25, 332
-1, 466 161, 333
-3,110 292, 899
-338 31, 435
-567 53, 738
-519 46, 350
-2,272 286, 210
-209 13, 580
-204 6, 309
-2,418 74,214
-3, 949 244, 934
-1, 067 29, 390
-608 40, 173
-744 22,719
-1,881 105, 092
-
-9&
-
-“SHOUNOSHY UULVM JO NOLLVAYASNOD
+|  | New Jersey. | Delaware. | Pennsylvania. | Maryland. | Virginia. | West Virginia. | District of Columbia. Total. |||||||||
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Drainage basins. | Wheels, | | Horse- power. | | wheels} | H°r8¢- power. | | wheels. | Horse- power. | | wheeis,| | Horse power. | | wheels,| | H°F8e- power. | | wheels, | Horse-| power. | :heets,| | Horse power. | | wheels. | Horse- power. |
+|  | 902 | | 38, 011 | 277 | 7, 976 | 5, 046 | 273, 426 | 679 | | 21, 403 | 1, 440 | | 59,129 | 143 8, 928 | 6 | 1 000 | 21, 864 | | 1, 746, 303 |
+| St. Johns River |  |  |  |  |  |  |  | SSS | | SS | SS | | SS Se | SS. | _——————— | | 147 | ee 13, 681 |
+| St. Croix River |  |  |  |  |  |  |  |  |  |  |  |  |  | 89 | 20, 500 |
+| Penobscot River Kennebec River |  |  |  |  |  |  |  |  |  |  |  |  |  | 518 659 | 70, 454 63, 936 |
+| Androscoggin River Presumpscot River Saco River |  |  |  |  |  |  |  |  |  |  |  |  |  | 179 237 | 123, 455 20, 569 25, 332 |
+| Connecticut River Blackstone River |  |  |  |  |  |  |  |  |  |  |  |  |  | 3,110 | 292, 899 31, 435 |
+| Thames River Housatonic River |  |  |  |  |  |  |  |  |  |  |  |  |  | 567 519 | 53, 738 46, 350 |
+| Hudson River Passaic River Raritan River Delaware River Susquehanna River Potomac River James River Minor streams(Chesapeake Bay) Minor streams (northern Atilan- ic | 17 179 204 427 75 | 630 12, 805 6, 309 15, 327 2,890 | 167 75 | 5,314 901 1,761 | 1,616 33 4 197 | 47, 649 222, 530 3,247 | 71 260 346 | 2,217 4, 766 14, 389 31 | 462 607 363 | 11, 457 40,165 7, 429 78 | 142 8, 920 1 | 6) | 1, 000 | 2,272 204 2, 418 3, 949 1, 067 744 1,881 | 286, 210 13, 580 74, 214 244, 934 29, 390 40,173 22, 719 105, 092 |

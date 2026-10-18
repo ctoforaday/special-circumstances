@@ -94,6 +94,41 @@ func TestProseTextIsTesseractsOwnTextForTheSameRecognition(t *testing.T) {
 	}
 }
 
+// THE NO-GRID PATH LOSES ITS SPREAD LINES AND SAYS SO. proseResult is everything that path does after
+// recognition; driven with the dashed matrix's own TSV it must remove the three rules the auto pass
+// read, state them, and keep the print.
+func TestAPageWithNoGridLosesItsRuleLinesOnTheRecord(t *testing.T) {
+	res := proseResult(dashedMatrix(t, "auto.tsv"), GridStats{})
+	if len(res.RemovedLines) != 3 || !strings.HasPrefix(res.RemovedLines[1], "9S SS SSS SS 9539") {
+		t.Errorf("removed %q, want the three rule lines", res.RemovedLines)
+	}
+	for _, ln := range res.RemovedLines {
+		if strings.Contains(res.Text, ln) {
+			t.Errorf("a removed line is still in the reading: %q", ln)
+		}
+	}
+	for _, want := range []string{"Spot Welding", "Machine Tool i 2.8", "Complex vision - recognize shapes"} {
+		if !strings.Contains(res.Text, want) {
+			t.Errorf("the reading lost %q:\n%s", want, res.Text)
+		}
+	}
+}
+
+// THE TEXT-CELL FLOOR IS JUDGED ON WHAT THE PASSES READ, NOT ON WHAT WAS KEPT. usgs-landscape-table's
+// cells hold 643 words as read and 242 once its leaders and rules are gone — 4.23 and 1.59 per cell
+// across 152 cells. Judged on the kept count it reads as plain text and loses values its cells
+// hold ("40,173", "2,890", "3,247"); the corpus record now pins those.
+func TestTheTextCellFloorIsJudgedOnTheWordsRead(t *testing.T) {
+	landscape := CellStats{Tables: 1, Bands: 10, Rows: 10, Columns: 16, Cells: 152, WordsPlaced: 242, WordsRead: 643}
+	if why := landscape.refuse(); why != "" {
+		t.Errorf("the landscape table was refused: %s", why)
+	}
+	marks := CellStats{Tables: 1, Bands: 7, Rows: 7, Columns: 17, Cells: 129, WordsPlaced: 81, WordsRead: 95}
+	if why := marks.refuse(); !strings.Contains(why, "95 words") {
+		t.Errorf("a mark grid's refusal should count the 95 words read: %q", why)
+	}
+}
+
 func TestASpreadWordIsWiderPerCharacterThanPrintCanBe(t *testing.T) {
 	for _, tc := range []struct {
 		name string
