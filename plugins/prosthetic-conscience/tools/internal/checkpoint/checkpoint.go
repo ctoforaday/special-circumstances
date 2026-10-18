@@ -13,11 +13,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Exists reports whether a path is a readable regular file. Injected so callers
@@ -74,16 +74,91 @@ type Section struct {
 // Front returns a frontmatter value, or "" when absent.
 func (n Note) Get(key string) string { return n.Front[key] }
 
+// HeadingMatch is how a "## " heading relates to a section name.
+type HeadingMatch int
+
+const (
+	// NotNamed: the heading names another section.
+	NotNamed HeadingMatch = iota
+	// Named: the heading starts with the name (any case), and what follows, if
+	// anything, does not continue its words — "Validation loop (all last run at
+	// ed3bc3ae)" and "Validation loop ← load-bearing" are the loop.
+	Named
+	// NearlyNamed: the heading spells the name's words another way — "Validation
+	// Loops", "validation-loop". Read as absent, it would report a note with no
+	// loop when the note has one nobody can see.
+	NearlyNamed
+)
+
+// MatchHeading classifies a heading against a section name.
+//
+// The rule is restated in gray-area's claims.IsLoopHeading, across the module
+// boundary; both suites carry the same fixture (conformance_test.go).
+func MatchHeading(heading, name string) HeadingMatch {
+	h := strings.TrimSpace(heading)
+	if len(h) >= len(name) && strings.EqualFold(h[:len(name)], name) {
+		rest := h[len(name):]
+		if rest == "" {
+			return Named
+		}
+		r := []rune(rest)[0]
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' {
+			return Named
+		}
+	}
+	if strings.HasPrefix(letters(h), letters(name)) {
+		return NearlyNamed
+	}
+	return NotNamed
+}
+
+// letters is s lowercased with everything but letters removed.
+func letters(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // Section returns the named section's body and whether it was present.
 // Absent and empty are different: an empty validation loop is a note that
 // recorded no checks, and a missing one is a note written before they existed.
 func (n Note) Section(heading string) (string, bool) {
 	for _, s := range n.Sections {
-		if strings.EqualFold(s.Heading, heading) {
+		if MatchHeading(s.Heading, heading) == Named {
 			return s.Body, true
 		}
 	}
 	return "", false
+}
+
+// NearMiss returns the first heading that nearly names a section — see
+// NearlyNamed — when no heading names it.
+func (n Note) NearMiss(heading string) (string, bool) {
+	if _, ok := n.Section(heading); ok {
+		return "", false
+	}
+	for _, s := range n.Sections {
+		if MatchHeading(s.Heading, heading) == NearlyNamed {
+			return s.Heading, true
+		}
+	}
+	return "", false
+}
+
+// LoopHeadingProblem says, when the note has no validation-loop heading but has
+// one that nearly names it, that the loop is read as ABSENT and why. "" when
+// there is nothing to say. Every reader that finds no loop says this rather than
+// "no loop": the note has one, under a heading no reader matches.
+func LoopHeadingProblem(n Note) string {
+	h, ok := n.NearMiss("Validation loop")
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("heading %q reads like the validation-loop heading but is not it — the heading must start with \"Validation loop\". Until it does, this note's loop is read as ABSENT: no check is restored, watched or re-armed", "## "+h)
 }
 
 // NonEmptySection returns the body only when it carries something beyond
@@ -227,10 +302,28 @@ func ParseValidationLoop(body string) []Check {
 	return out
 }
 
-// loopEntry matches a line that a reader would take for a validation-loop entry,
+// loopLabel reads a line that a reader would take for a validation-loop entry,
 // including the malformed spellings ParseValidationLoop declines to open a check
-// for. Detecting what was NOT parsed is the whole point of LoopProblems.
-var loopEntry = regexp.MustCompile(`^(\d+)([a-z]*)\.(\s|$)`)
+// for: digits, then any letters, then "." or ")", then a space or the end.
+// Detecting what was NOT parsed is the whole point of LoopProblems. gray-area's
+// claims reader refuses the same spellings.
+func loopLabel(s string) (num, letters string, delim byte, ok bool) {
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+	}
+	j := i
+	for j < len(s) && (s[j] >= 'a' && s[j] <= 'z' || s[j] >= 'A' && s[j] <= 'Z') {
+		j++
+	}
+	if i == 0 || j >= len(s) || (s[j] != '.' && s[j] != ')') {
+		return "", "", 0, false
+	}
+	if j+1 < len(s) && s[j+1] != ' ' && s[j+1] != '\t' {
+		return "", "", 0, false
+	}
+	return s[:i], s[i:j], s[j], true
+}
 
 // NoteLoopProblems is LoopProblems over a WHOLE note: it extracts the validation
 // loop itself and reports on that.
@@ -244,8 +337,15 @@ var loopEntry = regexp.MustCompile(`^(\d+)([a-z]*)\.(\s|$)`)
 //
 // No loop section means no problems. An absent loop is a different complaint,
 // raised where it can be acted on — see checkpointseal.drift.
+//
+// A heading that nearly names the loop is a problem here too (LoopHeadingProblem):
+// the loop it holds is read by nothing.
 func NoteLoopProblems(note string) []string {
-	loop, ok := Parse(note).NonEmptySection("Validation loop")
+	n := Parse(note)
+	if p := LoopHeadingProblem(n); p != "" {
+		return []string{p}
+	}
+	loop, ok := n.NonEmptySection("Validation loop")
 	if !ok {
 		return nil
 	}
@@ -284,23 +384,30 @@ func LoopProblems(body string) []string {
 	var problems []string
 	ordinal := 0
 	for _, line := range strings.Split(body, "\n") {
-		m := loopEntry.FindStringSubmatch(strings.TrimSpace(line))
-		if m == nil {
+		num, letters, delim, ok := loopLabel(strings.TrimSpace(line))
+		if !ok {
 			continue
 		}
-		if m[2] != "" {
+		label := num + letters + string(delim)
+		if letters != "" {
 			// A lettered label never opens a check, so it does not advance the
 			// ordinal either — it is invisible, which is what makes it dangerous.
 			problems = append(problems, fmt.Sprintf(
 				"entry %q is not an ordinal: labels must be 1, 2, 3 … — this entry opens no check and is neither watched nor adjudicated",
-				m[1]+m[2]+"."))
+				label))
+			continue
+		}
+		if delim != '.' {
+			problems = append(problems, fmt.Sprintf(
+				"entry %q is numbered with %q: labels are written \"1.\", \"2.\" … — this entry opens no check and is neither watched nor adjudicated",
+				label, string(delim)))
 			continue
 		}
 		ordinal++
-		if n, err := strconv.Atoi(m[1]); err == nil && n != ordinal {
+		if n, err := strconv.Atoi(num); err == nil && n != ordinal {
 			problems = append(problems, fmt.Sprintf(
 				"entry %q is in position %d: the written label and the ordinal must be the same number, or state keyed by ordinal will disagree with every reader",
-				m[1]+".", ordinal))
+				label, ordinal))
 		}
 	}
 	return problems
@@ -507,7 +614,10 @@ type RearmState struct {
 // Falls back to the whole line when there is no command span, so a prose check is still
 // keyed by something rather than by nothing.
 func CheckKey(line string) string {
-	line = strings.TrimSpace(loopEntry.ReplaceAllString(strings.TrimSpace(line), ""))
+	line = strings.TrimSpace(line)
+	if num, letters, _, ok := loopLabel(line); ok {
+		line = strings.TrimSpace(line[len(num)+len(letters)+1:])
+	}
 	if cmd := firstCodeSpan(line); cmd != "" {
 		return cmd
 	}

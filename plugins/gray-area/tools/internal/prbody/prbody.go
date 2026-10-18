@@ -36,27 +36,27 @@
 package prbody
 
 import (
-	"bufio"
 	"io"
-	"regexp"
+	"sort"
 	"strings"
+	"unicode"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
 )
 
-var (
-	codeSpan = regexp.MustCompile("`([^`]+)`")
-	fence    = regexp.MustCompile("^\\s*```")
-	// A result assertion: an arrow or a verb of outcome following the span. These
-	// are the shapes bodies in this repository actually use, and the list is
-	// deliberately short — a missed result assertion costs a "not measured" note,
-	// while a false one puts a caveat on a claim that never made a result claim.
-	resultMarker = regexp.MustCompile(`(?i)(→|->|=>|\bpassed\b|\bfailed\b|\bgreen\b|\bclean\b|\bexits? \d|\bok\b|\d+\s*(passed|failed|ok\b))`)
-)
-
 // Claim is a pull request body's claim, in the shape internal/claims adjudicates.
-// Result is the part of the sentence asserting an OUTCOME, which nothing here can
-// check — carried so the finding can name it rather than omit it.
+// Result is the rest of the line after the code span, up to the next one: the
+// part of the sentence that may assert an OUTCOME, which nothing here can check —
+// carried so the finding can name it rather than omit it.
+//
+// ANY text there is carried, not only text that looks like a result. A list of
+// result words ("passed", "green", "→") missed "gave 26/26" and "succeeded", and
+// a missed caveat is the false endorsement this package exists to prevent, while
+// a caveat on a sentence that asserted nothing costs one line of reading.
 type Claim struct {
 	claims.Claim
 	Result string
@@ -90,57 +90,119 @@ func looksLikeCommand(s string) bool {
 
 // Parse extracts every adjudicable claim from a pull request body.
 //
-// Fenced blocks are skipped: they hold OUTPUT as often as commands, and a pasted
-// result line read as a command produces a search for something nobody claimed to
-// run. Skipping them misses real claims — stated rather than hidden, because a
-// reader needs to know the body was read selectively.
+// The body is read as CommonMark (goldmark), so a code span is what a renderer
+// would show as one — a double-backtick span included — and fenced and indented
+// code blocks are skipped by construction: they hold OUTPUT as often as
+// commands, and a pasted result line read as a command produces a search for
+// something nobody claimed to run. Skipping them misses real claims — stated
+// rather than hidden, because a reader needs to know the body was read
+// selectively.
 func Parse(r io.Reader, file string) ([]Claim, error) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-
-	var out []Claim
-	lineNo, inFence := 0, false
-	seen := map[string]bool{}
-	for sc.Scan() {
-		lineNo++
-		line := sc.Text()
-		if fence.MatchString(line) {
-			inFence = !inFence
-			continue
-		}
-		if inFence {
-			continue
-		}
-		spans := codeSpan.FindAllStringSubmatchIndex(line, -1)
-		for i, m := range spans {
-			cmd := line[m[2]:m[3]]
-			if !looksLikeCommand(cmd) || seen[cmd] {
-				continue
-			}
-			seen[cmd] = true
-			c := Claim{Claim: claims.Claim{
-				File: file, Line: lineNo, Index: strings.TrimSpace(cmd),
-				Text: strings.TrimSpace(line), Cmd: cmd,
-			}}
-			// THE TAIL STOPS AT THE NEXT SPAN, and the first version did not.
-			// Measured on a real body: a line reading
-			//
-			//	`gray-area checkpoint` -> 12/12 CITED. `rulesweep …` -> nothing to
-			//	sweep. `versionguard …` -> 4 checked, clean.
-			//
-			// gave all THREE claims the outcome "4 checked, clean" — the last one
-			// on the line. That is misattribution inside the tool built to catch
-			// it: a caveat naming the wrong number is worse than no caveat, because
-			// a reader checks the number and finds the tool wrong.
-			end := len(line)
-			if i+1 < len(spans) {
-				end = spans[i+1][0]
-			}
-			if tail := strings.TrimSpace(line[m[1]:end]); resultMarker.MatchString(tail) {
-				c.Result = tail
-			}
-			out = append(out, c)
+	src, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	starts := []int{0}
+	for i, b := range src {
+		if b == '\n' {
+			starts = append(starts, i+1)
 		}
 	}
-	return out, sc.Err()
+	lineOf := func(off int) int {
+		return sort.Search(len(starts), func(i int) bool { return starts[i] > off })
+	}
+	lineEnd := func(line int) int {
+		if line < len(starts) {
+			return starts[line] - 1
+		}
+		return len(src)
+	}
+
+	type span struct {
+		cmd        string
+		start, end int // content start; offset just past the closing backticks
+	}
+	var spans []span
+	doc := goldmark.DefaultParser().Parse(text.NewReader(src))
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		cs, ok := n.(*ast.CodeSpan)
+		if !entering || !ok {
+			return ast.WalkContinue, nil
+		}
+		var b strings.Builder
+		start, stop := -1, -1
+		for c := cs.FirstChild(); c != nil; c = c.NextSibling() {
+			if t, ok := c.(*ast.Text); ok {
+				if start < 0 {
+					start = t.Segment.Start
+				}
+				stop = t.Segment.Stop
+				b.Write(t.Segment.Value(src))
+			}
+		}
+		if start < 0 {
+			return ast.WalkSkipChildren, nil
+		}
+		// Past the content: the padding space, if any, and the closing run.
+		end := stop
+		for end < len(src) && src[end] == ' ' {
+			end++
+		}
+		for end < len(src) && src[end] == '`' {
+			end++
+		}
+		spans = append(spans, span{cmd: b.String(), start: start, end: end})
+		return ast.WalkSkipChildren, nil
+	})
+
+	var out []Claim
+	seen := map[string]bool{}
+	for i, sp := range spans {
+		if !looksLikeCommand(sp.cmd) || seen[sp.cmd] {
+			continue
+		}
+		seen[sp.cmd] = true
+		line := lineOf(sp.start)
+		lineText := strings.TrimSpace(strings.TrimRight(string(src[starts[line-1]:lineEnd(line)]), "\r"))
+		c := Claim{Claim: claims.Claim{
+			File: file, Line: line, Index: strings.TrimSpace(sp.cmd),
+			Text: lineText, Cmd: sp.cmd,
+		}}
+		// THE TAIL STOPS AT THE NEXT SPAN, and the first version did not.
+		// Measured on a real body: a line reading
+		//
+		//	`gray-area checkpoint` -> 12/12 CITED. `rulesweep …` -> nothing to
+		//	sweep. `versionguard …` -> 4 checked, clean.
+		//
+		// gave all THREE claims the outcome "4 checked, clean" — the last one
+		// on the line. That is misattribution inside the tool built to catch
+		// it: a caveat naming the wrong number is worse than no caveat, because
+		// a reader checks the number and finds the tool wrong.
+		end := lineEnd(line)
+		if i+1 < len(spans) && spans[i+1].start < end {
+			// The next span's opening backticks precede its content.
+			end = spans[i+1].start
+			for end > sp.end && src[end-1] == '`' {
+				end--
+			}
+		}
+		if sp.end < end {
+			if tail := strings.TrimSpace(strings.TrimRight(string(src[sp.end:end]), "\r")); asserts(tail) {
+				c.Result = tail
+			}
+		}
+		out = append(out, c)
+	}
+	return out, nil
+}
+
+// asserts reports whether a tail holds anything a sentence could assert with:
+// a letter, a digit, or a symbol such as an arrow. Bare punctuation does not.
+func asserts(tail string) bool {
+	for _, r := range tail {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSymbol(r) {
+			return true
+		}
+	}
+	return false
 }
