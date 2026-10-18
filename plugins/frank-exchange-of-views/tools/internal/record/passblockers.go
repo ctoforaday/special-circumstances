@@ -298,16 +298,17 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: motion (%s) filed and never ruled — %s", b.Subject, b.Detail, planHold(b, "PASS is not permitted while it stands"))
 		},
 	},
-	// THE INQUIRIES ARE READ ONCE, EVERY EPOCH. One statement per epoch, not one per inquiry: presence is
-	// not the question, because the inquiries are generated onto the page from the record. What the
-	// read owes is a judgement on whether the BODY delivered them, and where it did not, a gap. The
-	// report is regenerated each epoch, so a review recorded before this epoch's edits answers a
-	// question about a document that no longer exists.
+	// THE INQUIRIES ARE READ ONCE FOR EACH CHANGE TO WHAT THE READ READS. One statement per read, not
+	// one per inquiry: presence is not the question, because the inquiries are generated onto the page
+	// from the record. What the read owes is a judgement on whether the BODY delivered them, and where
+	// it did not, a gap. A review recorded before an edit, or before an inquiry's proposal or fate,
+	// answers a question about a document that no longer exists; one recorded after both still stands,
+	// so re-reading an unchanged report owes nothing (InquiryReviewDueOf).
 	{
 		kind:  BlockerInquiryReview,
-		gloss: "no inquiry review this epoch",
+		gloss: "no inquiry review since the report or its inquiries last changed",
 		item: func(Blocker) string {
-			return "the report's account of its own research has not been read this epoch — PASS is refused until one `inquiry review` says what the read found"
+			return "the report's account of its own research has not been read since the report or its inquiries last changed — PASS is refused until one `inquiry review` says what the read found"
 		},
 		// THE SHORTFALL IS A DEFECT THE CHAIR FOUND, and the chair mints nothing: this refusal told
 		// it to "MINT A GAP" and to "issue `--as FAIL`" otherwise, and the chair reads it alone. It
@@ -315,7 +316,7 @@ var blockerKinds = []blockerKind{
 		// is refused too (requireFailIsNotConvergent). Where a shortfall stops the chair, it weighs it
 		// like any defect it finds; the stopping judgment in its constitution says where that goes.
 		refusal: func([]Blocker) string {
-			return "this epoch has no inquiry review. " +
+			return "no inquiry review is recorded since the report or its inquiries last changed. " +
 				"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
 				"`show inquiries`, and answer in one act: `inquiry review --reason \"<what the report " +
 				"says at those inquiries>\"`. Where an inquiry's research is thin, missing or unsupported by the text, " +
@@ -325,7 +326,7 @@ var blockerKinds = []blockerKind{
 				"of the report; record the review before a PASS"
 		},
 		why: func(b Blocker) string {
-			return "this epoch has no inquiry review — " + planHold(b, "PASS is not permitted until one is recorded")
+			return "no inquiry review since the report or its inquiries last changed — " + planHold(b, "PASS is not permitted until one is recorded")
 		},
 	},
 }
@@ -419,12 +420,11 @@ func kindRank(k BlockerKind) int {
 
 // eventBlockersOf is the arms of the gate's list that the stream alone answers, in table order: a
 // contradiction no finding raises, a citation or proof unchecked since its sentence changed, no
-// ingested report, an unruled motion, an inquiry review not yet recorded this epoch. ids is evs's
-// places, aligned with it.
+// ingested report, an unruled motion, no inquiry review since the report or its inquiries last
+// changed. ids is evs's places, aligned with it.
 //
 // IT ANSWERS FOR THE STREAM IT IS HANDED. Asked of a prefix of the record, it says what held a PASS
-// when the record ended there: no arm asks the index for a seat's newest sitting, and the epoch is
-// the last one the prefix holds work in.
+// when the record ended there: no arm asks the index for a seat's newest sitting.
 func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	var out []Blocker
 	// ids IS evs's events.id, aligned with it — the place dispatchLedger and benchOccasionSittings read

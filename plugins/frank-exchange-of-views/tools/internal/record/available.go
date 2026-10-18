@@ -247,8 +247,8 @@ func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, m
 // gapFinding is a finding another seat anchored to an open gap, standing until the gap's minter acts
 // on the gap after it.
 type gapFinding struct {
-	gap, minter, filer, text string
-	at                       int64 // the finding's events.id
+	id, gap, minter, filer, text string
+	at                           int64 // the finding's events.id
 }
 
 // findingsAboutGapsOf is every finding a seat anchored to an open gap of open it did not mint, that
@@ -266,7 +266,7 @@ func findingsAboutGapsOf(evs []*Event, win WindowIndex, open map[string]bool, mi
 		if !open[gap] || minter == "" || e.GetSeatId() == minter || actedOnGapAfter(evs[i+1:], minter, gap) {
 			continue
 		}
-		out = append(out, gapFinding{gap: gap, minter: minter, filer: e.GetSeatId(), text: f.GetText(), at: win.Of(e).ID})
+		out = append(out, gapFinding{id: f.GetId(), gap: gap, minter: minter, filer: e.GetSeatId(), text: f.GetText(), at: win.Of(e).ID})
 	}
 	return out
 }

@@ -89,8 +89,31 @@ func Visible(s string) string { return normalizeQuote(s) }
 // finding's or a gap's token and weaves a citation's or a proof's into a note, so a refusal naming
 // one read "anchor G-ec5568ed () is not in the report" on universe-m28. The bare id is how every
 // shipped document names an anchor, and nothing that reads the annotation layer takes it for one.
+//
+// AN ID STANDS APART FROM THE WORD OR ID BESIDE IT. A token touches the text it marks, and a run of
+// tokens touches itself, so the bare ids alone read "recorded scriptG-bde527ebF-01be5d5a" on
+// universe-m29: a space separates an id from a letter or digit on either side of it.
 func LogLine(s string) string {
-	return Visible(anchor.Replace(s, func(_, id string) string { return id }))
+	var b strings.Builder
+	last := 0
+	anchor.Each(s, func(start, end int, id string) {
+		b.WriteString(s[last:start])
+		if out := b.String(); out != "" && isWordByte(out[len(out)-1]) {
+			b.WriteByte(' ')
+		}
+		b.WriteString(id)
+		if end < len(s) && isWordByte(s[end]) {
+			b.WriteByte(' ')
+		}
+		last = end
+	})
+	b.WriteString(s[last:])
+	return Visible(b.String())
+}
+
+// isWordByte is a letter or a digit, the bytes an id would run into.
+func isWordByte(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
 // Tokenize lowercases and splits on any non-alphanumeric rune, dropping empties and

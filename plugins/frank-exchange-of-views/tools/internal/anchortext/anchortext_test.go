@@ -384,3 +384,19 @@ func TestALogLineNamesEveryAnchorKindByItsID(t *testing.T) {
 		}
 	}
 }
+
+// Each id of a run of tokens, and the id of a token touching a word, reads as its own word: on
+// universe-m29 the log read "recorded scriptG-bde527ebF-01be5d5aF-16662ce7".
+func TestALogLineSeparatesAnIDFromTheWordOrIDBesideIt(t *testing.T) {
+	g, f, p := anchor.ID("gap", [4]byte{0xbd, 0xe5, 0x27, 0xeb}), anchor.ID("finding", [4]byte{0x01, 0xbe, 0x5d, 0x5a}), anchor.ID("proof", [4]byte{0x16, 0x66, 0x2c, 0xe7})
+	for _, c := range []struct{ msg, want string }{
+		{"a recorded script" + anchor.Token(g) + anchor.Token(f) + anchor.Token(p) + " EOF", "a recorded script " + g + " " + f + " " + p + " EOF"},
+		{"a recorded script" + anchor.Token(g) + anchor.Token(f) + ".", "a recorded script " + g + " " + f},
+		{anchor.Token(g) + "and " + anchor.Token(f), g + " and " + f},
+		{"anchor (" + anchor.Token(g) + ") is gone", "anchor (" + g + ") is gone"},
+	} {
+		if got := LogLine(c.msg); got != c.want {
+			t.Errorf("LogLine(%q):\n got %q\nwant %q", c.msg, got, c.want)
+		}
+	}
+}

@@ -702,7 +702,7 @@ func inquiries(a *assembly, s Section) string {
 		// The board with an id, a grade and a PASS gate. record.Inquiry's own header states the
 		// same decision from the projection's side.
 		//
-		// The one per-epoch read is `InquiryReview`, read by record.InquiryReviewDue. Whether the
+		// The one per-epoch read is `InquiryReview`, read by record.InquiryReviewDueOf. Whether the
 		// report should carry a line saying that read happened — and where — is a composition
 		// decision, not a conversion, so nothing is invented here.
 		rows = append(rows, row)

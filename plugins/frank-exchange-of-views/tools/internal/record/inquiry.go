@@ -240,24 +240,41 @@ func InquiryRuling(run Run, inquiryID string) (string, error) {
 	return word.String, nil
 }
 
-// InquiryReviewDueOf reports whether the chair's inquiry review is owed: inquiries exist and none
-// of the review events falls in the current epoch.
+// InquiryReviewDueOf reports whether the chair's inquiry review is owed: a report exists, inquiries
+// exist, and no review is recorded after the report head (reportHeadOf, the head every lens's
+// readiness reads) and after the last inquiry event — the two things the review reads.
+//
+// WHAT THE REVIEW READ IS WHAT MAKES IT STALE, AND THE CHAIR MOVES NEITHER. The report head moves on
+// an ingest or an edit and the inquiries on a proposal or a fate, none of them a chair act, so
+// nothing the chair files in its sitting makes the review owed or settles it, except the review.
+// Read off an epoch instead — the last one with work in it — the review was owed from the chair's
+// first act of a sitting: a plan readying nobody said PASS permitted with nothing to clear, the work
+// list agreed, and the chair's position then put the review on the work list and the gate over a
+// report unchanged since the last read (a smoke run's last sitting, 2026-10-18); a PASS issued as
+// the sitting's first act passed over a review filed before the last epoch's edits.
 func InquiryReviewDueOf(evs []*Event, win WindowIndex) bool {
 	if len(InquiriesOf(evs, win)) == 0 {
 		return false
 	}
-	now := win.CurrentEpoch(evs)
+	moved := reportHeadOf(evs, win.IDs(evs))
+	if moved == 0 {
+		return false // no report yet: there is nothing to read, and no_report holds the PASS
+	}
+	var read int64
 	for _, e := range evs {
-		w := win.Of(e)
+		id := win.Of(e).ID
 		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
-		// stale against the enum. No field is read — the event's existence in this epoch IS the
-		// fact — but the type test still goes through the body so a renamed enum value fails to
-		// compile rather than silently matching nothing.
-		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && w.Epoch == now {
-			return false
+		// stale against the enum. No field is read — the event's place on the record IS the fact —
+		// but the type test still goes through the body so a renamed enum value fails to compile
+		// rather than silently matching nothing.
+		if _, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok && id > moved {
+			moved = id
+		}
+		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && id > read {
+			read = id
 		}
 	}
-	return true
+	return read < moved
 }
 
 // InquiryJSON is one inquiry as a machine reads it — the same fields the rendered
