@@ -24,7 +24,9 @@ func TestChooseAppliesEachClause(t *testing.T) {
 		{"case-insensitive prefix", rule{ID: "a", Regex: `(?i)\b(ACME_[a-z0-9]{32})\b`, Keywords: []string{"acme_"}}, "", []string{"acme_"}, true},
 		{"alternative prefixes", rule{ID: "a", Regex: `\b((?:acme|acmo)_x[a-z]{9})\b`, Keywords: []string{"acm"}}, "", []string{"acme_x", "acmo_x"}, false},
 		{"path only", rule{ID: "a", Path: `\.pem$`}, rNoRegex, nil, false},
-		{"entropy", rule{ID: "a", Regex: prefixed, Entropy: 3, Keywords: []string{"acme_"}}, rEntropy, nil, false},
+		{"entropy with a vendor literal", rule{ID: "a", Regex: prefixed, Entropy: 3, Keywords: []string{"acme_"}}, "", []string{"acme_"}, false},
+		{"entropy, generic token", rule{ID: "a", Regex: `(?i)(?:acme)(?:[ \t\w.-]{0,20})[=:]\s*([a-f0-9]{32})\b`, Entropy: 3, Keywords: []string{"acme"}}, rEntropy, nil, false},
+		{"entropy, literal not a keyword", rule{ID: "a", Regex: `\b(key-[a-z]{32})\b`, Entropy: 3, Keywords: []string{"acme"}}, rEntropy, nil, false},
 		{"allowlist", rule{ID: "a", Regex: prefixed, Keywords: []string{"acme_"}, Allowlists: []map[string]any{{"regexes": []string{"x"}}}}, rAllowlist, nil, false},
 		{"context keyword, generic token", rule{ID: "a", Regex: `(?i)(?:acme)(?:[ \t\w.-]{0,20})[=:]\s*([a-f0-9]{32})\b`, Keywords: []string{"acme"}}, rNoLiteral, nil, false},
 		{"literal too short", rule{ID: "a", Regex: `\b(a_[a-z]{32})\b`, Keywords: []string{"a_"}}, rNoLiteral, nil, false},
@@ -90,19 +92,36 @@ func TestClassifyThePinnedRuleset(t *testing.T) {
 
 // A handCovered entry for a rule the criterion already refuses is an error, not a no-op.
 func TestClassifyRefusesADeadHandEntry(t *testing.T) {
-	ruleset := func(entropy string) []byte {
+	ruleset := func(allowlist string) []byte {
 		var b strings.Builder
-		for _, id := range []string{"anthropic-api-key", "anthropic-admin-api-key"} {
+		for id := range handCovered {
 			b.WriteString("[[rules]]\nid = \"" + id + "\"\n" +
 				"regex = '''\\b(sk-ant-x-[a-zA-Z0-9_\\-]{93}AA)\\b'''\n" +
-				entropy + "keywords = [\"sk-ant-x\"]\n")
+				"keywords = [\"sk-ant-x\"]\n" + allowlist)
 		}
 		return []byte(b.String())
 	}
 	if _, _, err := classify(ruleset("")); err != nil {
 		t.Fatalf("both entries are live, yet classify refused: %v", err)
 	}
-	if _, _, err := classify(ruleset("entropy = 3.0\n")); err == nil {
-		t.Error("handCovered entries for entropy rules were accepted")
+	if _, _, err := classify(ruleset("[[rules.allowlists]]\nregexes = ['x']\n")); err == nil {
+		t.Error("handCovered entries for allowlisted rules were accepted")
+	}
+}
+
+// A rule gitleaks gates by entropy carries its secret's group and literals for the placeholder
+// skip; a rule without a threshold does not skip.
+func TestChooseGivesEntropyRulesAPlaceholderSkip(t *testing.T) {
+	r := rule{ID: "a", Regex: `(?i)\b(acme_[a-z0-9]{32})(?:[\x60'"\s;]|$)`, Keywords: []string{"acme_"}}
+	if s, reason := choose(r); reason != "" || s.placeholder != nil {
+		t.Fatalf("no threshold: placeholder %+v (%s); want none", s.placeholder, reason)
+	}
+	r.Entropy = 3
+	s, reason := choose(r)
+	if reason != "" || s.placeholder == nil {
+		t.Fatalf("threshold: no placeholder (%s)", reason)
+	}
+	if want := (placeholder{group: 1, literals: []string{"acme_"}, fold: true}); !reflect.DeepEqual(*s.placeholder, want) {
+		t.Errorf("placeholder %+v; want %+v", *s.placeholder, want)
 	}
 }
