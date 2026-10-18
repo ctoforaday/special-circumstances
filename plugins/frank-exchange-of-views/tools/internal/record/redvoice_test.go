@@ -103,13 +103,12 @@ func TestMigratingReplayKeepsAVoicedCorroborationTitle(t *testing.T) {
 	Migrating = true
 	defer func() { Migrating = false }()
 	appendOK(t, lens, &recordpb.Verify{
-		Independent: proto.Bool(true),
-		Url:         proto.String("https://example.org/voiced"),
-		Title:       proto.String("Standard found by red-lens-evidence"),
-		Label:       proto.String("c-0123456789ab"),
-		Claim:       proto.String("The bound holds."),
-		Outcome:     recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
-		Confidence:  recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
-		Text:        proto.String("the standard states it"),
+		Url:        proto.String("https://example.org/voiced"),
+		Title:      proto.String("Standard found by red-lens-evidence"),
+		Label:      proto.String("c-0123456789ab"),
+		Claim:      proto.String("The bound holds."),
+		Outcome:    recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(),
+		Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum(),
+		Text:       proto.String("the standard states it"),
 	})
 }

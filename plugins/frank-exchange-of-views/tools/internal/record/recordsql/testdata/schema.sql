@@ -107,7 +107,6 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one ro
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or an inquiry proposed');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('observe', 'an observation recorded without a claim attached to it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('plan', 'the plan the chair''s dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into its sitting');
@@ -249,14 +248,6 @@ CREATE TABLE "enum_class_material" (
 INSERT INTO "enum_class_material" ("value", "means") VALUES ('always', 'every gap of this class is material, whatever its grade — it changes a conclusion or a figure a reader relies on');
 INSERT INTO "enum_class_material" ("value", "means") VALUES ('by_grade', 'a gap of this class is material when its current severity is medium or above');
 INSERT INTO "enum_class_material" ("value", "means") VALUES ('never', 'no gap of this class is material, whatever its grade — it stays on the board and never holds the gate');
-
-CREATE TABLE "enum_source_text_read" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('leaf', 'the source''s own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS');
-INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('summary_only', 'read only through someone else''s account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source');
-INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('unread', 'the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says');
 
 CREATE TABLE "enum_source_text_origin" (
   "value" TEXT PRIMARY KEY,
@@ -630,13 +621,6 @@ CREATE TABLE "finding" (
   FOREIGN KEY ("about_kind") REFERENCES "enum_about_kind"("value")
 ) STRICT;
 
-CREATE TABLE "observe" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "label" TEXT,
-  "text" TEXT,
-  "observation" TEXT
-) STRICT;
-
 CREATE TABLE "anchor" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "id" TEXT UNIQUE,
@@ -653,14 +637,12 @@ CREATE TABLE "cite" (
   "access_date" TEXT,
   "cite_key" TEXT,
   "text" TEXT,
-  "source_text_read" TEXT,
   "source_text_origin" TEXT,
   "ocr_quote" TEXT,
   "ocr_engine" TEXT,
   "ocr_text_sha" TEXT,
   "work_status" TEXT,
   "source_completeness" TEXT,
-  FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value"),
   FOREIGN KEY ("source_text_origin") REFERENCES "enum_source_text_origin"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
   FOREIGN KEY ("source_completeness") REFERENCES "enum_source_completeness"("value")
@@ -679,7 +661,6 @@ CREATE TABLE "verify" (
   "url" TEXT,
   "title" TEXT,
   "anchor" TEXT,
-  "independent" INTEGER,
   "access_date" TEXT,
   "outcome" TEXT NOT NULL,
   "confidence" TEXT NOT NULL,
@@ -690,7 +671,6 @@ CREATE TABLE "verify" (
   "reading_render_sha" TEXT,
   "work_status" TEXT,
   "source_completeness" TEXT,
-  CHECK ("independent" IS NULL OR "independent" IN (0, 1)),
   FOREIGN KEY ("outcome") REFERENCES "enum_source_outcome"("value"),
   FOREIGN KEY ("confidence") REFERENCES "enum_confidence"("value"),
   FOREIGN KEY ("work_status") REFERENCES "enum_work_status"("value"),
@@ -786,7 +766,6 @@ CREATE TABLE "log" (
   "text" TEXT,
   "type" TEXT NOT NULL,
   "source" TEXT,
-  "estopped_by" TEXT,
   FOREIGN KEY ("type") REFERENCES "enum_log_type"("value"),
   FOREIGN KEY ("source") REFERENCES "enum_log_source"("value")
 ) STRICT;
@@ -805,18 +784,13 @@ CREATE TABLE "sitting_open" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
   "agent_type" TEXT,
-  "seat_id" TEXT,
-  "session_id" TEXT,
-  "prompt_id" TEXT
+  "seat_id" TEXT
 ) STRICT;
 
 CREATE TABLE "sitting_close" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "agent_id" TEXT,
-  "agent_type" TEXT,
-  "agent_transcript_path" TEXT,
-  "session_id" TEXT,
-  "prompt_id" TEXT
+  "agent_transcript_path" TEXT
 ) STRICT;
 
 CREATE TABLE "cast" (
@@ -859,8 +833,6 @@ CREATE TABLE "dispatch_occasions" (
 
 CREATE TABLE "sitting_limit" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "agent_id" TEXT,
-  "agent_type" TEXT,
   "seat_id" TEXT,
   "sitting" INTEGER,
   "limit" INTEGER

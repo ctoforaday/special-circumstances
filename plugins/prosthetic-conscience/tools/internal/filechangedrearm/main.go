@@ -170,8 +170,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 	rec.OKIn(StageNoteRead, projectDir)
-	loop, ok := checkpoint.Parse(string(body)).NonEmptySection("Validation loop")
+	note := checkpoint.Parse(string(body))
+	loop, ok := note.NonEmptySection("Validation loop")
 	if !ok {
+		if p := checkpoint.LoopHeadingProblem(note); p != "" {
+			rec.FailIn(StageLoopOpensNoChecks, projectDir,
+				"this note's validation loop opens NO checks, so no file change re-arms anything — "+p)
+		}
 		return 0
 	}
 	checks := checkpoint.ParseValidationLoop(loop)

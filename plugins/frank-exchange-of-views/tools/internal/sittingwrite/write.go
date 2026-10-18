@@ -104,7 +104,7 @@ func WriteToolEntry(runDir string, phase Phase, agentID, text string) error {
 // register, or the bracket that named its seat). The sitting is the number the hook's count was
 // keyed by — the seat's stored sitting count when `register` started it — so it names a sitting the
 // record already holds, and nothing here counts sittings a second way.
-func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
+func WriteLimit(runDir, agentID string, sitting, limit int) error {
 	if agentID == "" {
 		return fmt.Errorf("sittingwrite: refusing a sitting limit with no agent id")
 	}
@@ -123,13 +123,9 @@ func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
 		return fmt.Errorf("sittingwrite: agent %s is bound to no seat on this record, so no sitting of it was counted", agentID)
 	}
 	body := &recordpb.SittingLimit{
-		AgentId: proto.String(agentID),
 		SeatId:  proto.String(seat),
 		Sitting: proto.Int32(int32(sitting)),
 		Limit:   proto.Int32(int32(limit)),
-	}
-	if agentType != "" {
-		body.AgentType = proto.String(agentType)
 	}
 	_, err = record.Append(record.Identity{Run: run, SeatID: HookSeat}, body)
 	return err
@@ -161,9 +157,8 @@ func WriteLimit(runDir, agentID, agentType string, sitting, limit int) error {
 // excuses the log channel, so the list is only correct once it is on the record.
 // Sitting is one end of a span as the hook observed it.
 //
-// A STRUCT BECAUSE THE FIELDS ARE ALL STRINGS. This was six positional parameters and the harness
-// facts made it eight; at that width a transposed pair type-checks, writes a wrong record, and is
-// found by nobody. Every field here is named at the call site.
+// A STRUCT BECAUSE THE FIELDS ARE ALL STRINGS: a transposed pair of positional strings type-checks,
+// writes a wrong record, and is found by nobody. Every field here is named at the call site.
 type Sitting struct {
 	RunDir string
 	Phase  Phase
@@ -171,9 +166,6 @@ type Sitting struct {
 	AgentID, AgentType string
 	// TranscriptPath is the SEAT's own conversation, present on the closing end only.
 	TranscriptPath string
-	// SessionID and PromptID are the conversation and the dispatch. Empty means the payload did not
-	// carry one, which is a real answer and is stored as absent rather than as "".
-	SessionID, PromptID string
 }
 
 func Write(s Sitting, seat io.Writer) error {
@@ -197,29 +189,14 @@ func Write(s Sitting, seat io.Writer) error {
 		if seat, ok := record.SeatOfAgentType(agentType); ok {
 			open.SeatId = proto.String(seat)
 		}
-		// WHERE THE SEAT SPOKE. Set only when the payload carried it: an empty string written as a
-		// value would make "the harness did not tell us" indistinguishable from "the conversation
-		// has no id", and this field exists to answer the first question honestly.
-		if s.SessionID != "" {
-			open.SessionId = proto.String(s.SessionID)
-		}
-		if s.PromptID != "" {
-			open.PromptId = proto.String(s.PromptID)
-		}
 		body = open
 	case Close:
-		cl := &recordpb.SittingClose{AgentId: proto.String(agentID), AgentType: proto.String(agentType)}
+		cl := &recordpb.SittingClose{AgentId: proto.String(agentID)}
 		// THE PATH THIS PROCESS ALREADY HELD. It is parsed just below for the turn ingest and was
 		// then discarded, so the one end that is TOLD where the seat's trajectory lives was the one
 		// place it went unrecorded.
 		if transcriptPath != "" {
 			cl.AgentTranscriptPath = proto.String(transcriptPath)
-		}
-		if s.SessionID != "" {
-			cl.SessionId = proto.String(s.SessionID)
-		}
-		if s.PromptID != "" {
-			cl.PromptId = proto.String(s.PromptID)
 		}
 		body = cl
 	default:

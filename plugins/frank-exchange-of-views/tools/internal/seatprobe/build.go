@@ -319,7 +319,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 					return fmt.Errorf("board %s: %w", b.Name, err)
 				}
 				args = append(args[:len(args)-6], "--title", "the pinned standard", "--url", scan,
-					"--source-text", "leaf", "--ocr-quote", pc.Span, "--reason", "the standard this claim rests on")
+					"--ocr-quote", pc.Span, "--reason", "the standard this claim rests on")
 			}
 			if _, err := exec(args...); err != nil {
 				return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)

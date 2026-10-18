@@ -30,6 +30,8 @@ package fuzz
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -420,6 +422,14 @@ type runner struct {
 	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
 	// VERIFIED falls with every gap a run mints: seven lenses mint about seven.
 	forceVerified bool
+	// forceReopenedProof drives one proof through judgement and reopening on a reopenedProofSeeds
+	// run: blue proves the sentence the edit drive rewrites, the owner judges the proof when its
+	// work list offers it, blue rewrites the sentence, and the next plan readies the owner for the
+	// reopened proof. Each step reads the record, never a count of sittings, so the chain holds on
+	// every interleaving. reopenStage is the last step it reached, which the run's error names
+	// when no plan readied the owner.
+	forceReopenedProof bool
+	reopenStage        string
 	// provedExpectedError fires the --expect-error drive once per run. A proof whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering proof beside it, and the sweep had never passed the flag that says so.
@@ -1378,6 +1388,117 @@ func (r *runner) answerContradictions(seatID string) {
 		}
 		_, _ = r.exec("finding", "--seat-id", seatID, "--about-kind", "contradiction", "--about", c.ID,
 			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise")
+	}
+}
+
+// forcedProofs is the anchors of the proofs on the record whose script is reopenedProofScript.
+func (r *runner) forcedProofs() []string {
+	b, ok := r.board()
+	if !ok {
+		return nil
+	}
+	sum := sha256.Sum256([]byte(reopenedProofScript))
+	sha := hex.EncodeToString(sum[:])
+	var out []string
+	for _, p := range record.EvidenceJSONOf(b.Events, b.At).Proofs {
+		if p.Sha256 == sha {
+			out = append(out, p.Anchor)
+		}
+	}
+	return out
+}
+
+// reopenReadied is whether a plan of this run has readied the proof owner for a reopened proof,
+// which ends the forced chain.
+func (r *runner) reopenReadied() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.proofReopenedReadied[r.proofOwner] > 0
+}
+
+func (r *runner) reachedStage(s string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.reopenStage = s
+}
+
+// proveToReopen is blue's half of the forced chain: it proves the sentence the edit drive rewrites
+// while no forced proof stands, and rewrites that sentence once the owner has judged one — a
+// forced proof its owner is no longer offered and that is not already reopened.
+func (r *runner) proveToReopen(seatID string) {
+	if !r.forceReopenedProof || r.reopenReadied() {
+		return
+	}
+	anchors := r.forcedProofs()
+	if len(anchors) == 0 {
+		name := "fuzz-reopened-proof.js"
+		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(reopenedProofScript), 0o644); err != nil {
+			r.reachedStage("could not write the script: " + err.Error())
+			return
+		}
+		if _, err := r.exec("prove", "--seat-id", seatID, "--quote", "across the whole sampled corpus",
+			"--script", name, "--reason", "fuzz: the computation a later edit reopens"); err != nil {
+			r.reachedStage("prove refused: " + firstLine(err.Error()))
+			return
+		}
+		r.reachedStage("proved")
+		return
+	}
+	offered, err := proofItemsOn(r.run(), r.proofOwner)
+	if err != nil {
+		return
+	}
+	reopened := map[string]bool{}
+	for _, it := range r.reopened() {
+		reopened[it.Anchor] = true
+	}
+	for _, a := range anchors {
+		if slices.Contains(offered, a) || reopened[a] {
+			continue
+		}
+		cur, err := reportproj.RenderFromRecord(r.run())
+		if err != nil {
+			return
+		}
+		oldSpan, newSpan := "rising over time", "climbing sharply"
+		if !strings.Contains(cur, oldSpan) {
+			oldSpan, newSpan = newSpan, oldSpan
+		}
+		if !strings.Contains(cur, oldSpan) {
+			r.reachedStage("judged, and neither phrasing of the edit target is on the page")
+			return
+		}
+		run := r.edgeRun(cur, oldSpan)
+		if _, err := r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
+			set("--reason", "fuzz: rewording the sentence a judged proof backs").run(); err != nil {
+			r.reachedStage("edit refused: " + firstLine(err.Error()))
+			return
+		}
+		r.reachedStage("judged and edited")
+		return
+	}
+}
+
+// judgeToReopen is the owner's half of the forced chain: it judges every forced proof its work list
+// offers.
+func (r *runner) judgeToReopen(seatID string) {
+	if !r.forceReopenedProof || seatID != r.proofOwner || r.reopenReadied() {
+		return
+	}
+	offered, err := proofItemsOn(r.run(), seatID)
+	if err != nil {
+		return
+	}
+	for _, a := range r.forcedProofs() {
+		if !slices.Contains(offered, a) {
+			continue
+		}
+		if _, err := r.do("reproduce", seatID).set("--anchor", a).set("--as", "sound").
+			set("--reason", "fuzz: read the script against the sentence it backs").run(); err != nil {
+			r.reachedStage("reproduce refused: " + firstLine(err.Error()))
+			return
+		}
+		r.reachedStage("judged")
 	}
 }
 
@@ -2353,6 +2474,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// BEFORE minting (roundless §III.B.3), so it sits beside the mint it precedes — see the
 		// fresh-mint loop in envelopeFor's chair branch.
 	case "blue":
+		// Before any draw, so a run that is not forced draws exactly what it drew without it.
+		r.proveToReopen(seatID)
 		r.maybe(45, func() { inquiry("blue") })
 		// NO RANDOM FATE HERE. answerInquiryRulings owns the fates: it answers red's ruling,
 		// comply or contest, one decision per inquiry. A second writer recording fates at random
@@ -2369,15 +2492,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(50) {
 				url = sourceURL("/" + seatID)
 			}
-			// HOW MUCH OF IT WAS READ, and all three answers. The flag was never passed at all,
-			// so every citation this sweep ever wrote took the DEFAULT — `unread` — and the two
-			// stronger readings were unreachable. That is the worst shape for this particular
-			// field: `leaf` is the only value that licenses a claim about what a source SAYS, so
-			// the sweep exercised the citation axis exclusively through the one reading that
-			// licenses nothing.
-			//
-			// Omitting the flag stays in the rotation, because the DEFAULT is a distinct path
-			// from passing `unread` explicitly and it is the one a real seat hits most.
 			cite := r.do("cite", seatID).
 				set("--quote", "§ fuzz sentence").
 				set("--url", url).
@@ -2390,9 +2504,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(25, "--quote", "across the whole sampled corpus").
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
 				on(50, "--reason", "fuzz: why this source backs the claim")
-			if r.coin(75) {
-				cite = cite.set("--source-text", pick(r.rng, []string{"leaf", "summary_only", "unread"}))
-			}
 			// AN OCR QUOTE ON A SOURCE WITH NO OCR READING IS REFUSED. The sweep's sources are
 			// synthetic text, so the happy path (a scan read by the engine) is internal/cli's; this
 			// drives the flag and its refusal, and proves the refusal never wedges the run.
@@ -2939,7 +3050,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				}
 				// THE PROOF OWNER JUDGES ONE PROOF IT IS OFFERED, ON A COIN — so a judged proof can be
 				// reopened by a later edit of its sentence, and so a run still ends with proofs it was
-				// offered and left, which hold it from retiring while they stand.
+				// offered and left, which hold it from retiring while they stand. A reopenedProofSeeds
+				// run judges its forced proof first, and draws nothing doing it.
+				r.judgeToReopen(seatID)
 				if seatID == r.proofOwner && r.coin(35) {
 					if offered, err := proofItemsOn(r.run(), seatID); err == nil && len(offered) > 0 {
 						r.do("reproduce", seatID).set("--anchor", pick(r.rng, offered)).set("--as", pick(r.rng, []string{"sound", "unsound"})).
@@ -2948,8 +3061,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
 				// adjudicating a citation blue authored, and red corroborating a source it found
-				// itself. Falling back to --independent when blue has cited nothing keeps the
-				// verb driven from round 0 rather than only after the first cite lands.
+				// itself.
 				// TWO VERBS, because they are two acts: `verify` adjudicates a citation BLUE
 				// authored and requires its anchor, `corroborate` records a source RED found
 				// and requires the url and title that are the only thing identifying it.
@@ -3548,6 +3660,26 @@ const limitSeed = 7
 // forcedEpochLimit is the epoch limit limitSeed's run is set up with.
 const forcedEpochLimit = 2
 
+// reopenedProofSeeds are the seeds whose runs are FORCED through a reopened proof, one per cast
+// class, each with the owner its cast gives the proofs (proofOwnerOf): seed 4 casts no computation
+// lens (castAreasFor), so its proofs fall to the evidence lens, and seed 5 casts every lens. The
+// sweep gates a plan readying each owner for a reopened proof, and runOne refuses a seed whose
+// cast names a different owner than this table, so the two cannot drift apart.
+//
+// Left to the draw it is a chain of coins: blue proves the sentence the edit drive rewrites (35%,
+// then 25%), the owner judges an offered proof (35%, picking one of several), blue rewrites that
+// sentence (45%), and a plan follows. Only one run in five casts no computation lens, so the
+// evidence owner rests on eight runs, and mostly on one of them. MEASURED on main 61107ba4 across
+// five interleaved sweeps, the evidence owner was readied for a reopened proof 9, 0, 5, 6 and 11
+// times — red once — and seed 9 alone carried it in four. A branch that drew one or two fewer
+// numbers per cite read 0, 0, 1, 0, 1, red three times; the same branch drawing those numbers and
+// discarding them read 5, 9, 2, 2, 5. The path was intact throughout; the draw moved.
+var reopenedProofSeeds = map[int64]string{4: "red-lens-evidence", 5: "red-lens-computation"}
+
+// reopenedProofScript is the forced proof's script. Its sha256 is what identifies the forced proof
+// on the record (EvidenceProofJSON.Sha256), so the chain never recovers it from report text.
+const reopenedProofScript = "console.log('fuzz: the proof a later edit reopens');"
+
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel, forceVerified bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
@@ -3602,6 +3734,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
 	r.forceVerified = forceVerified
+	if owner, ok := reopenedProofSeeds[seed]; ok {
+		if owner != r.proofOwner {
+			return outcome{seed: seed, runDir: runDir, err: fmt.Sprintf("reopenedProofSeeds gives seed %d the proof owner %s, and its cast gives the proofs to %s", seed, owner, r.proofOwner)}
+		}
+		r.forceReopenedProof = true
+	}
 	if seed == limitSeed {
 		r.maxEpochs = forcedEpochLimit
 	}
@@ -4324,6 +4462,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if r.reopenedOwnerErr != "" && res.err == "" {
 		res.err = r.reopenedOwnerErr
 	}
+	if r.forceReopenedProof && r.proofReopenedReadied[r.proofOwner] == 0 && res.err == "" {
+		stage := r.reopenStage
+		if stage == "" {
+			stage = "nothing: no blue sitting reached the prove"
+		}
+		res.err = fmt.Sprintf("forced reopened proof: no plan readied %s for a reopened proof; the chain reached %s", r.proofOwner, stage)
+	}
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
 	res.budgetRefused = r.budgetRefused
@@ -4500,19 +4645,9 @@ var verbsWithEvents = []string{
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
 var coverExempt = map[string]bool{
 	"halt": true, // terminal — covered by TestFuzzHaltPath
-	// NO VERB WRITES `observe`. The event type is in the schema and nothing in the command tree
-	// produces it: `lens observe` does not exist, and the only Appends of a recordpb.Observe are
-	// in record's own tests. It is exempted rather than driven, because a drive would have to
-	// invent a verb — and named here rather than dropped from the list, so the type's homelessness
-	// is a line somebody has to read instead of a silence.
-	//
-	// The `Observation` a board carries is built from FINDING events, not from this type.
-	"observe": true,
-	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS, which is a different kind of
-	// homelessness from `observe`'s and is exempted for a different reason. `observe` has no
-	// writer at all; these two have a real one the FUZZ cannot invoke — the harness execs the
-	// binary with no client to fire SubagentStart or SubagentStop, so no seed could ever produce
-	// them however long it ran.
+	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS. These two have a real writer the FUZZ
+	// cannot invoke — the harness execs the binary with no client to fire SubagentStart or
+	// SubagentStop, so no seed could ever produce them however long it ran.
 	//
 	// They are driven, just not here: internal/hookcmd/sitting_test.go asserts both ends land,
 	// that a main-agent turn end does not, and that neither hook writes to stdout. Named rather

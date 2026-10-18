@@ -72,7 +72,6 @@ const (
 	EventType_EVENT_TYPE_MINT           EventType = 16
 	EventType_EVENT_TYPE_MOTION         EventType = 17
 	EventType_EVENT_TYPE_MOTION_RULE    EventType = 19
-	EventType_EVENT_TYPE_OBSERVE        EventType = 20
 	EventType_EVENT_TYPE_OUTCOME        EventType = 22
 	EventType_EVENT_TYPE_POSITION       EventType = 23
 	EventType_EVENT_TYPE_PROOF          EventType = 24
@@ -113,7 +112,6 @@ var (
 		16: "EVENT_TYPE_MINT",
 		17: "EVENT_TYPE_MOTION",
 		19: "EVENT_TYPE_MOTION_RULE",
-		20: "EVENT_TYPE_OBSERVE",
 		22: "EVENT_TYPE_OUTCOME",
 		23: "EVENT_TYPE_POSITION",
 		24: "EVENT_TYPE_PROOF",
@@ -151,7 +149,6 @@ var (
 		"EVENT_TYPE_MINT":           16,
 		"EVENT_TYPE_MOTION":         17,
 		"EVENT_TYPE_MOTION_RULE":    19,
-		"EVENT_TYPE_OBSERVE":        20,
 		"EVENT_TYPE_OUTCOME":        22,
 		"EVENT_TYPE_POSITION":       23,
 		"EVENT_TYPE_PROOF":          24,
@@ -1192,72 +1189,8 @@ func (AboutKind) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{16}
 }
 
-// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
-// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
-// disable that check for the row.
-// SourceTextRead is HOW MUCH OF THE SOURCE THIS SEAT ACTUALLY READ, and it is the blue-side twin
-// of red's SourceOutcome. It exists because the distinction it carries was the load-bearing caveat
-// of a whole run and lived only as a PROSE SUBSTRING: "unreachable from this container". The run
-// then counted that phrase by grep and got it wrong twice — once counting a sentence that was
-// counting itself — because a grep cannot tell a source DISCUSSED from one merely LISTED.
-//
-// The default is the honest one. A citation nobody has asserted a reading for is UNREAD, so the
-// weak claim is what you get for free and the strong one has to be made on purpose.
-type SourceTextRead int32
-
-const (
-	SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED  SourceTextRead = 0
-	SourceTextRead_SOURCE_TEXT_READ_UNREAD       SourceTextRead = 1
-	SourceTextRead_SOURCE_TEXT_READ_SUMMARY_ONLY SourceTextRead = 2
-	SourceTextRead_SOURCE_TEXT_READ_LEAF         SourceTextRead = 3
-)
-
-// Enum value maps for SourceTextRead.
-var (
-	SourceTextRead_name = map[int32]string{
-		0: "SOURCE_TEXT_READ_UNSPECIFIED",
-		1: "SOURCE_TEXT_READ_UNREAD",
-		2: "SOURCE_TEXT_READ_SUMMARY_ONLY",
-		3: "SOURCE_TEXT_READ_LEAF",
-	}
-	SourceTextRead_value = map[string]int32{
-		"SOURCE_TEXT_READ_UNSPECIFIED":  0,
-		"SOURCE_TEXT_READ_UNREAD":       1,
-		"SOURCE_TEXT_READ_SUMMARY_ONLY": 2,
-		"SOURCE_TEXT_READ_LEAF":         3,
-	}
-)
-
-func (x SourceTextRead) Enum() *SourceTextRead {
-	p := new(SourceTextRead)
-	*p = x
-	return p
-}
-
-func (x SourceTextRead) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (SourceTextRead) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[17].Descriptor()
-}
-
-func (SourceTextRead) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[17]
-}
-
-func (x SourceTextRead) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use SourceTextRead.Descriptor instead.
-func (SourceTextRead) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{17}
-}
-
 // SourceTextOrigin is WHERE THE CITED TEXT CAME FROM, and the tool stamps it; a seat never types
-// it. It is the twin of SourceTextRead: that one is how much the seat read, this one is whether
-// what it read is the author's text or the local engine's reading of page images. A bool
+// it: whether the text is the author's or the local engine's reading of page images. A bool
 // `ocr_derived` would fold a scan nobody read and an author's own text into one `false`, and
 // "false" on an unread scan claims the text is trustworthy.
 type SourceTextOrigin int32
@@ -1299,11 +1232,11 @@ func (x SourceTextOrigin) String() string {
 }
 
 func (SourceTextOrigin) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[18].Descriptor()
+	return file_record_proto_enumTypes[17].Descriptor()
 }
 
 func (SourceTextOrigin) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[18]
+	return &file_record_proto_enumTypes[17]
 }
 
 func (x SourceTextOrigin) Number() protoreflect.EnumNumber {
@@ -1312,13 +1245,12 @@ func (x SourceTextOrigin) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SourceTextOrigin.Descriptor instead.
 func (SourceTextOrigin) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{18}
+	return file_record_proto_rawDescGZIP(), []int{17}
 }
 
 // WorkStatus is WHAT THE LITERATURE NOW SAYS ABOUT THE CITED WORK, stamped by the tool; a seat
-// never types it. It is a third axis, distinct from the two beside it: SourceTextRead says how
-// much this seat read, SourceTextOrigin says whose reading the text is, and both describe THIS
-// RETRIEVAL. A retraction survives a flawless one. The pdf of a withdrawn paper is byte-identical
+// never types it. It is a second axis, distinct from the one beside it: SourceTextOrigin says whose
+// reading the text is, and describes THIS RETRIEVAL. A retraction survives a flawless one. The pdf of a withdrawn paper is byte-identical
 // to what it was before the notice, the notice is a separate document nobody fetched, and so no
 // amount of fetch quality discovers it — only a maintained index does.
 //
@@ -1366,11 +1298,11 @@ func (x WorkStatus) String() string {
 }
 
 func (WorkStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[19].Descriptor()
+	return file_record_proto_enumTypes[18].Descriptor()
 }
 
 func (WorkStatus) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[19]
+	return &file_record_proto_enumTypes[18]
 }
 
 func (x WorkStatus) Number() protoreflect.EnumNumber {
@@ -1379,13 +1311,12 @@ func (x WorkStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WorkStatus.Descriptor instead.
 func (WorkStatus) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{19}
+	return file_record_proto_rawDescGZIP(), []int{18}
 }
 
 // SourceCompleteness is WHICH PART OF THE WORK THE RUN'S COPY IS, stamped by the tool from what the
-// fetch recorded; a seat never types it. A fourth axis beside the three above: SourceTextRead is
-// how much of the copy this seat read, SourceTextOrigin whose reading its text is, WorkStatus what
-// the literature says of the work — and none of them says whether the copy is the paper or only its
+// fetch recorded; a seat never types it. A third axis beside the two above: SourceTextOrigin is
+// whose reading its text is, WorkStatus what the literature says of the work — and neither says whether the copy is the paper or only its
 // abstract, which is the difference between confirming a study and confirming its summary.
 //
 // AN ENUM AND NOT A BOOL, for WorkStatus's reason: NOT_ASKED folds nothing into FULL. Only FULL
@@ -1435,11 +1366,11 @@ func (x SourceCompleteness) String() string {
 }
 
 func (SourceCompleteness) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[20].Descriptor()
+	return file_record_proto_enumTypes[19].Descriptor()
 }
 
 func (SourceCompleteness) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[20]
+	return &file_record_proto_enumTypes[19]
 }
 
 func (x SourceCompleteness) Number() protoreflect.EnumNumber {
@@ -1448,7 +1379,7 @@ func (x SourceCompleteness) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SourceCompleteness.Descriptor instead.
 func (SourceCompleteness) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{20}
+	return file_record_proto_rawDescGZIP(), []int{19}
 }
 
 // LogSource is WHO recorded the entry, and LogType is WHAT IT ASSERTS. They are two axes and were
@@ -1494,11 +1425,11 @@ func (x LogSource) String() string {
 }
 
 func (LogSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[21].Descriptor()
+	return file_record_proto_enumTypes[20].Descriptor()
 }
 
 func (LogSource) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[21]
+	return &file_record_proto_enumTypes[20]
 }
 
 func (x LogSource) Number() protoreflect.EnumNumber {
@@ -1507,7 +1438,7 @@ func (x LogSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogSource.Descriptor instead.
 func (LogSource) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{21}
+	return file_record_proto_rawDescGZIP(), []int{20}
 }
 
 // LogType is WHAT THE ENTRY ASSERTS, and it is a FIELD rather than something a reader infers from
@@ -1568,11 +1499,11 @@ func (x LogType) String() string {
 }
 
 func (LogType) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[22].Descriptor()
+	return file_record_proto_enumTypes[21].Descriptor()
 }
 
 func (LogType) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[22]
+	return &file_record_proto_enumTypes[21]
 }
 
 func (x LogType) Number() protoreflect.EnumNumber {
@@ -1581,7 +1512,7 @@ func (x LogType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogType.Descriptor instead.
 func (LogType) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{22}
+	return file_record_proto_rawDescGZIP(), []int{21}
 }
 
 // GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
@@ -1632,11 +1563,11 @@ func (x GradeDimension) String() string {
 }
 
 func (GradeDimension) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[23].Descriptor()
+	return file_record_proto_enumTypes[22].Descriptor()
 }
 
 func (GradeDimension) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[23]
+	return &file_record_proto_enumTypes[22]
 }
 
 func (x GradeDimension) Number() protoreflect.EnumNumber {
@@ -1645,7 +1576,7 @@ func (x GradeDimension) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GradeDimension.Descriptor instead.
 func (GradeDimension) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{23}
+	return file_record_proto_rawDescGZIP(), []int{22}
 }
 
 // THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
@@ -1699,11 +1630,11 @@ func (x PetitionClass) String() string {
 }
 
 func (PetitionClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[24].Descriptor()
+	return file_record_proto_enumTypes[23].Descriptor()
 }
 
 func (PetitionClass) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[24]
+	return &file_record_proto_enumTypes[23]
 }
 
 func (x PetitionClass) Number() protoreflect.EnumNumber {
@@ -1712,7 +1643,7 @@ func (x PetitionClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PetitionClass.Descriptor instead.
 func (PetitionClass) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{24}
+	return file_record_proto_rawDescGZIP(), []int{23}
 }
 
 // WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
@@ -1767,11 +1698,11 @@ func (x RulingBinds) String() string {
 }
 
 func (RulingBinds) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[25].Descriptor()
+	return file_record_proto_enumTypes[24].Descriptor()
 }
 
 func (RulingBinds) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[25]
+	return &file_record_proto_enumTypes[24]
 }
 
 func (x RulingBinds) Number() protoreflect.EnumNumber {
@@ -1780,7 +1711,7 @@ func (x RulingBinds) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RulingBinds.Descriptor instead.
 func (RulingBinds) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{25}
+	return file_record_proto_rawDescGZIP(), []int{24}
 }
 
 // Occasion is WHAT A SITTING WAS CONVENED TO DO — the question put to the seat, as against the
@@ -1837,11 +1768,11 @@ func (x Occasion) String() string {
 }
 
 func (Occasion) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[26].Descriptor()
+	return file_record_proto_enumTypes[25].Descriptor()
 }
 
 func (Occasion) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[26]
+	return &file_record_proto_enumTypes[25]
 }
 
 func (x Occasion) Number() protoreflect.EnumNumber {
@@ -1850,7 +1781,7 @@ func (x Occasion) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Occasion.Descriptor instead.
 func (Occasion) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{26}
+	return file_record_proto_rawDescGZIP(), []int{25}
 }
 
 // SqlCheck is one table-level rule and what it protects.
@@ -2078,7 +2009,6 @@ type Event struct {
 	//	*Event_Regrade
 	//	*Event_SpotCheck
 	//	*Event_Finding
-	//	*Event_Observe
 	//	*Event_Anchor
 	//	*Event_Cite
 	//	*Event_Verify
@@ -2306,15 +2236,6 @@ func (x *Event) GetFinding() *Finding {
 	if x != nil {
 		if x, ok := x.Body.(*Event_Finding); ok {
 			return x.Finding
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetObserve() *Observe {
-	if x != nil {
-		if x, ok := x.Body.(*Event_Observe); ok {
-			return x.Observe
 		}
 	}
 	return nil
@@ -2550,10 +2471,6 @@ type Event_Finding struct {
 	Finding *Finding `protobuf:"bytes,37,opt,name=finding,proto3,oneof"`
 }
 
-type Event_Observe struct {
-	Observe *Observe `protobuf:"bytes,38,opt,name=observe,proto3,oneof"`
-}
-
 type Event_Anchor struct {
 	Anchor *Anchor `protobuf:"bytes,39,opt,name=anchor,proto3,oneof"`
 }
@@ -2657,8 +2574,6 @@ func (*Event_Regrade) isEvent_Body() {}
 func (*Event_SpotCheck) isEvent_Body() {}
 
 func (*Event_Finding) isEvent_Body() {}
-
-func (*Event_Observe) isEvent_Body() {}
 
 func (*Event_Anchor) isEvent_Body() {}
 
@@ -3897,67 +3812,6 @@ func (x *Finding) GetAboutRef() string {
 	return ""
 }
 
-// Observe is a seat-labelled observation, disposed of by the chair.
-type Observe struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Label         *string                `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Text          *string                `protobuf:"bytes,2,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	Observation   *string                `protobuf:"bytes,3,opt,name=observation,proto3,oneof" json:"observation,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Observe) Reset() {
-	*x = Observe{}
-	mi := &file_record_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Observe) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Observe) ProtoMessage() {}
-
-func (x *Observe) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Observe.ProtoReflect.Descriptor instead.
-func (*Observe) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *Observe) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
-	}
-	return ""
-}
-
-func (x *Observe) GetText() string {
-	if x != nil && x.Text != nil {
-		return *x.Text
-	}
-	return ""
-}
-
-func (x *Observe) GetObservation() string {
-	if x != nil && x.Observation != nil {
-		return *x.Observation
-	}
-	return ""
-}
-
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
 // quote `location`. It is the one event that places a marker, of any kind, so an id is placed once
 // on a run: a second Anchor for it would be a second marker for one act.
@@ -3971,7 +3825,7 @@ type Anchor struct {
 
 func (x *Anchor) Reset() {
 	*x = Anchor{}
-	mi := &file_record_proto_msgTypes[16]
+	mi := &file_record_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3983,7 +3837,7 @@ func (x *Anchor) String() string {
 func (*Anchor) ProtoMessage() {}
 
 func (x *Anchor) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[16]
+	mi := &file_record_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3996,7 +3850,7 @@ func (x *Anchor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Anchor.ProtoReflect.Descriptor instead.
 func (*Anchor) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{16}
+	return file_record_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Anchor) GetId() string {
@@ -4013,6 +3867,9 @@ func (x *Anchor) GetLocation() string {
 	return ""
 }
 
+// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
+// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
+// disable that check for the row.
 type Cite struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Label  *string                `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
@@ -4023,13 +3880,9 @@ type Cite struct {
 	Title      *string `protobuf:"bytes,4,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	Location   *string `protobuf:"bytes,5,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	AccessDate *string `protobuf:"bytes,6,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
-	// cite_key and source_text_read are typed --key and --source-text: the flag word is declared so
-	// a refusal names what a seat can type.
+	// cite_key is typed --key: the flag word is declared so a refusal names what a seat can type.
 	CiteKey *string `protobuf:"bytes,7,opt,name=cite_key,json=citeKey,proto3,oneof" json:"cite_key,omitempty"`
 	Text    *string `protobuf:"bytes,9,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	// HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
-	// claim costs a seat nothing and only a stronger one is asserted.
-	SourceTextRead *SourceTextRead `protobuf:"varint,10,opt,name=source_text_read,json=sourceTextRead,proto3,enum=feov.record.v1.SourceTextRead,oneof" json:"source_text_read,omitempty"`
 	// WHERE THE QUOTE SITS, stamped by the tool. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
 	// validate refuses an unstamped origin instead.
 	//
@@ -4055,7 +3908,7 @@ type Cite struct {
 
 func (x *Cite) Reset() {
 	*x = Cite{}
-	mi := &file_record_proto_msgTypes[17]
+	mi := &file_record_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4067,7 +3920,7 @@ func (x *Cite) String() string {
 func (*Cite) ProtoMessage() {}
 
 func (x *Cite) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[17]
+	mi := &file_record_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4080,7 +3933,7 @@ func (x *Cite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cite.ProtoReflect.Descriptor instead.
 func (*Cite) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{17}
+	return file_record_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Cite) GetLabel() string {
@@ -4137,13 +3990,6 @@ func (x *Cite) GetText() string {
 		return *x.Text
 	}
 	return ""
-}
-
-func (x *Cite) GetSourceTextRead() SourceTextRead {
-	if x != nil && x.SourceTextRead != nil {
-		return *x.SourceTextRead
-	}
-	return SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED
 }
 
 func (x *Cite) GetSourceTextOrigin() SourceTextOrigin {
@@ -4204,14 +4050,13 @@ type Verify struct {
 	// rests on was identified less precisely than the citations it audits.
 	Url   *string `protobuf:"bytes,9,opt,name=url,proto3,oneof" json:"url,omitempty"`
 	Title *string `protobuf:"bytes,10,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	// anchor names the citation checked; independent marks a source red found itself. One or the
-	// other — a verification of nothing was recordable before this verb required them.
-	Anchor      *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
-	Independent *bool          `protobuf:"varint,4,opt,name=independent,proto3,oneof" json:"independent,omitempty"`
-	AccessDate  *string        `protobuf:"bytes,5,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
-	Outcome     *SourceOutcome `protobuf:"varint,6,opt,name=outcome,proto3,enum=feov.record.v1.SourceOutcome,oneof" json:"outcome,omitempty"`
-	Confidence  *Confidence    `protobuf:"varint,7,opt,name=confidence,proto3,enum=feov.record.v1.Confidence,oneof" json:"confidence,omitempty"`
-	Text        *string        `protobuf:"bytes,8,opt,name=text,proto3,oneof" json:"text,omitempty"`
+	// anchor names the citation checked, and `verify` requires it. A corroboration — a source red
+	// found itself — names none: the empty anchor IS the corroboration, and every reader splits on it.
+	Anchor     *string        `protobuf:"bytes,3,opt,name=anchor,proto3,oneof" json:"anchor,omitempty"`
+	AccessDate *string        `protobuf:"bytes,5,opt,name=access_date,json=accessDate,proto3,oneof" json:"access_date,omitempty"`
+	Outcome    *SourceOutcome `protobuf:"varint,6,opt,name=outcome,proto3,enum=feov.record.v1.SourceOutcome,oneof" json:"outcome,omitempty"`
+	Confidence *Confidence    `protobuf:"varint,7,opt,name=confidence,proto3,enum=feov.record.v1.Confidence,oneof" json:"confidence,omitempty"`
+	Text       *string        `protobuf:"bytes,8,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	// label IS THE FOOTNOTE, and it is what moves this event's key off the source.
 	//
 	// Set ONLY by `corroborate`, and only when the outcome supports: a source red found itself,
@@ -4251,7 +4096,7 @@ type Verify struct {
 
 func (x *Verify) Reset() {
 	*x = Verify{}
-	mi := &file_record_proto_msgTypes[18]
+	mi := &file_record_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4263,7 +4108,7 @@ func (x *Verify) String() string {
 func (*Verify) ProtoMessage() {}
 
 func (x *Verify) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[18]
+	mi := &file_record_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4276,7 +4121,7 @@ func (x *Verify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Verify.ProtoReflect.Descriptor instead.
 func (*Verify) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{18}
+	return file_record_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Verify) GetClaim() string {
@@ -4305,13 +4150,6 @@ func (x *Verify) GetAnchor() string {
 		return *x.Anchor
 	}
 	return ""
-}
-
-func (x *Verify) GetIndependent() bool {
-	if x != nil && x.Independent != nil {
-		return *x.Independent
-	}
-	return false
 }
 
 func (x *Verify) GetAccessDate() string {
@@ -4425,7 +4263,7 @@ type Proof struct {
 
 func (x *Proof) Reset() {
 	*x = Proof{}
-	mi := &file_record_proto_msgTypes[19]
+	mi := &file_record_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4437,7 +4275,7 @@ func (x *Proof) String() string {
 func (*Proof) ProtoMessage() {}
 
 func (x *Proof) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[19]
+	mi := &file_record_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4450,7 +4288,7 @@ func (x *Proof) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Proof.ProtoReflect.Descriptor instead.
 func (*Proof) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{19}
+	return file_record_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Proof) GetProofId() string {
@@ -4563,7 +4401,7 @@ type Reproduce struct {
 
 func (x *Reproduce) Reset() {
 	*x = Reproduce{}
-	mi := &file_record_proto_msgTypes[20]
+	mi := &file_record_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4575,7 +4413,7 @@ func (x *Reproduce) String() string {
 func (*Reproduce) ProtoMessage() {}
 
 func (x *Reproduce) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[20]
+	mi := &file_record_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4588,7 +4426,7 @@ func (x *Reproduce) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reproduce.ProtoReflect.Descriptor instead.
 func (*Reproduce) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{20}
+	return file_record_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Reproduce) GetProofSha() string {
@@ -4673,7 +4511,7 @@ type InquiryReview struct {
 
 func (x *InquiryReview) Reset() {
 	*x = InquiryReview{}
-	mi := &file_record_proto_msgTypes[21]
+	mi := &file_record_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4685,7 +4523,7 @@ func (x *InquiryReview) String() string {
 func (*InquiryReview) ProtoMessage() {}
 
 func (x *InquiryReview) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[21]
+	mi := &file_record_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4698,7 +4536,7 @@ func (x *InquiryReview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InquiryReview.ProtoReflect.Descriptor instead.
 func (*InquiryReview) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{21}
+	return file_record_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *InquiryReview) GetReason() string {
@@ -4737,7 +4575,7 @@ type Inquiry struct {
 
 func (x *Inquiry) Reset() {
 	*x = Inquiry{}
-	mi := &file_record_proto_msgTypes[22]
+	mi := &file_record_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4749,7 +4587,7 @@ func (x *Inquiry) String() string {
 func (*Inquiry) ProtoMessage() {}
 
 func (x *Inquiry) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[22]
+	mi := &file_record_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4762,7 +4600,7 @@ func (x *Inquiry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Inquiry.ProtoReflect.Descriptor instead.
 func (*Inquiry) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{22}
+	return file_record_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Inquiry) GetInquiryId() string {
@@ -4832,7 +4670,7 @@ type BaseIngest struct {
 
 func (x *BaseIngest) Reset() {
 	*x = BaseIngest{}
-	mi := &file_record_proto_msgTypes[23]
+	mi := &file_record_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4844,7 +4682,7 @@ func (x *BaseIngest) String() string {
 func (*BaseIngest) ProtoMessage() {}
 
 func (x *BaseIngest) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[23]
+	mi := &file_record_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4857,7 +4695,7 @@ func (x *BaseIngest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaseIngest.ProtoReflect.Descriptor instead.
 func (*BaseIngest) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{23}
+	return file_record_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *BaseIngest) GetText() string {
@@ -4922,7 +4760,7 @@ type BlueEdit struct {
 
 func (x *BlueEdit) Reset() {
 	*x = BlueEdit{}
-	mi := &file_record_proto_msgTypes[24]
+	mi := &file_record_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4934,7 +4772,7 @@ func (x *BlueEdit) String() string {
 func (*BlueEdit) ProtoMessage() {}
 
 func (x *BlueEdit) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[24]
+	mi := &file_record_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4947,7 +4785,7 @@ func (x *BlueEdit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlueEdit.ProtoReflect.Descriptor instead.
 func (*BlueEdit) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{24}
+	return file_record_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BlueEdit) GetEditKey() string {
@@ -5045,7 +4883,7 @@ type Retire struct {
 
 func (x *Retire) Reset() {
 	*x = Retire{}
-	mi := &file_record_proto_msgTypes[25]
+	mi := &file_record_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5057,7 +4895,7 @@ func (x *Retire) String() string {
 func (*Retire) ProtoMessage() {}
 
 func (x *Retire) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[25]
+	mi := &file_record_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5070,7 +4908,7 @@ func (x *Retire) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Retire.ProtoReflect.Descriptor instead.
 func (*Retire) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{25}
+	return file_record_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Retire) GetClaim() string {
@@ -5118,7 +4956,7 @@ type ManifestRow struct {
 
 func (x *ManifestRow) Reset() {
 	*x = ManifestRow{}
-	mi := &file_record_proto_msgTypes[26]
+	mi := &file_record_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5130,7 +4968,7 @@ func (x *ManifestRow) String() string {
 func (*ManifestRow) ProtoMessage() {}
 
 func (x *ManifestRow) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[26]
+	mi := &file_record_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5143,7 +4981,7 @@ func (x *ManifestRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManifestRow.ProtoReflect.Descriptor instead.
 func (*ManifestRow) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{26}
+	return file_record_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ManifestRow) GetGapId() string {
@@ -5175,16 +5013,14 @@ type Log struct {
 	// annotation means "a flag the seat supplies", and vocabulary_test enforces exactly that
 	// mapping. A seat cannot honestly claim to be the tool, so the seat verb sets SEAT and the
 	// tool's own writes set TOOL, at every call site.
-	Source *LogSource `protobuf:"varint,4,opt,name=source,proto3,enum=feov.record.v1.LogSource,oneof" json:"source,omitempty"`
-	// estopped_by names the gap whose own --fix-new the refused mint was attacking.
-	EstoppedBy    *string `protobuf:"bytes,3,opt,name=estopped_by,json=estoppedBy,proto3,oneof" json:"estopped_by,omitempty"`
+	Source        *LogSource `protobuf:"varint,4,opt,name=source,proto3,enum=feov.record.v1.LogSource,oneof" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Log) Reset() {
 	*x = Log{}
-	mi := &file_record_proto_msgTypes[27]
+	mi := &file_record_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5196,7 +5032,7 @@ func (x *Log) String() string {
 func (*Log) ProtoMessage() {}
 
 func (x *Log) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[27]
+	mi := &file_record_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5209,7 +5045,7 @@ func (x *Log) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Log.ProtoReflect.Descriptor instead.
 func (*Log) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{27}
+	return file_record_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Log) GetText() string {
@@ -5231,13 +5067,6 @@ func (x *Log) GetSource() LogSource {
 		return *x.Source
 	}
 	return LogSource_LOG_SOURCE_UNSPECIFIED
-}
-
-func (x *Log) GetEstoppedBy() string {
-	if x != nil && x.EstoppedBy != nil {
-		return *x.EstoppedBy
-	}
-	return ""
 }
 
 // Motion, and the SECOND oneof is the whole point.
@@ -5276,7 +5105,7 @@ type Motion struct {
 
 func (x *Motion) Reset() {
 	*x = Motion{}
-	mi := &file_record_proto_msgTypes[28]
+	mi := &file_record_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5288,7 +5117,7 @@ func (x *Motion) String() string {
 func (*Motion) ProtoMessage() {}
 
 func (x *Motion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[28]
+	mi := &file_record_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5301,7 +5130,7 @@ func (x *Motion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Motion.ProtoReflect.Descriptor instead.
 func (*Motion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{28}
+	return file_record_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *Motion) GetMotionId() string {
@@ -5413,7 +5242,7 @@ type GradeMotion struct {
 
 func (x *GradeMotion) Reset() {
 	*x = GradeMotion{}
-	mi := &file_record_proto_msgTypes[29]
+	mi := &file_record_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5425,7 +5254,7 @@ func (x *GradeMotion) String() string {
 func (*GradeMotion) ProtoMessage() {}
 
 func (x *GradeMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[29]
+	mi := &file_record_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5438,7 +5267,7 @@ func (x *GradeMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GradeMotion.ProtoReflect.Descriptor instead.
 func (*GradeMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{29}
+	return file_record_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GradeMotion) GetGapId() string {
@@ -5472,7 +5301,7 @@ type PetitionMotion struct {
 
 func (x *PetitionMotion) Reset() {
 	*x = PetitionMotion{}
-	mi := &file_record_proto_msgTypes[30]
+	mi := &file_record_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5484,7 +5313,7 @@ func (x *PetitionMotion) String() string {
 func (*PetitionMotion) ProtoMessage() {}
 
 func (x *PetitionMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[30]
+	mi := &file_record_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5497,7 +5326,7 @@ func (x *PetitionMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PetitionMotion.ProtoReflect.Descriptor instead.
 func (*PetitionMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{30}
+	return file_record_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PetitionMotion) GetClass() PetitionClass {
@@ -5523,7 +5352,7 @@ type DocketMotion struct {
 
 func (x *DocketMotion) Reset() {
 	*x = DocketMotion{}
-	mi := &file_record_proto_msgTypes[31]
+	mi := &file_record_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5535,7 +5364,7 @@ func (x *DocketMotion) String() string {
 func (*DocketMotion) ProtoMessage() {}
 
 func (x *DocketMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[31]
+	mi := &file_record_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5548,7 +5377,7 @@ func (x *DocketMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DocketMotion.ProtoReflect.Descriptor instead.
 func (*DocketMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{31}
+	return file_record_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DocketMotion) GetGapId() string {
@@ -5596,7 +5425,7 @@ type DocketRuling struct {
 
 func (x *DocketRuling) Reset() {
 	*x = DocketRuling{}
-	mi := &file_record_proto_msgTypes[32]
+	mi := &file_record_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5608,7 +5437,7 @@ func (x *DocketRuling) String() string {
 func (*DocketRuling) ProtoMessage() {}
 
 func (x *DocketRuling) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[32]
+	mi := &file_record_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5621,7 +5450,7 @@ func (x *DocketRuling) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DocketRuling.ProtoReflect.Descriptor instead.
 func (*DocketRuling) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{32}
+	return file_record_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *DocketRuling) GetDisposition() Disposition {
@@ -5691,7 +5520,7 @@ type InquiryMotion struct {
 
 func (x *InquiryMotion) Reset() {
 	*x = InquiryMotion{}
-	mi := &file_record_proto_msgTypes[33]
+	mi := &file_record_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5703,7 +5532,7 @@ func (x *InquiryMotion) String() string {
 func (*InquiryMotion) ProtoMessage() {}
 
 func (x *InquiryMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[33]
+	mi := &file_record_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5716,7 +5545,7 @@ func (x *InquiryMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InquiryMotion.ProtoReflect.Descriptor instead.
 func (*InquiryMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{33}
+	return file_record_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *InquiryMotion) GetInquiryId() string {
@@ -5765,7 +5594,7 @@ type MotionRule struct {
 
 func (x *MotionRule) Reset() {
 	*x = MotionRule{}
-	mi := &file_record_proto_msgTypes[34]
+	mi := &file_record_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5777,7 +5606,7 @@ func (x *MotionRule) String() string {
 func (*MotionRule) ProtoMessage() {}
 
 func (x *MotionRule) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[34]
+	mi := &file_record_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5790,7 +5619,7 @@ func (x *MotionRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MotionRule.ProtoReflect.Descriptor instead.
 func (*MotionRule) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{34}
+	return file_record_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *MotionRule) GetMotionId() string {
@@ -5974,7 +5803,7 @@ type Register struct {
 
 func (x *Register) Reset() {
 	*x = Register{}
-	mi := &file_record_proto_msgTypes[35]
+	mi := &file_record_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5986,7 +5815,7 @@ func (x *Register) String() string {
 func (*Register) ProtoMessage() {}
 
 func (x *Register) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[35]
+	mi := &file_record_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5999,7 +5828,7 @@ func (x *Register) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Register.ProtoReflect.Descriptor instead.
 func (*Register) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{35}
+	return file_record_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *Register) GetToolVersion() string {
@@ -6087,34 +5916,14 @@ type SittingOpen struct {
 	// the sitting; it did not sit. Recording who sat is a different statement from claiming to be
 	// them, and a reader that needs the binding should not have to join through a register the seat
 	// may never write.
-	SeatId *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
-	// WHERE THIS SEAT SPOKE. session_id and prompt_id come off the SubagentStart payload, which has
-	// carried both all along; nothing recorded them, so "which conversation was this sitting in" was
-	// answerable only by globbing the filesystem.
-	//
-	// PER SITTING AND NOT ON THE CAST, and the difference is a resumed run. A run outlives the
-	// session that started it — the run directory survives a resume, the session does not — so a
-	// session id written once at setup would be silently wrong for every sitting after the resume,
-	// which is the case that already bites hardest (#1111). Repeated per sitting it costs a short
-	// string ~38 times and cannot go stale.
-	//
-	// WHAT IT BUYS: the bench's integrity inspection reads seat trajectories, and the path reaches it
-	// today only as prose interpolated into its prompt from an argument THE OPERATOR MUST SUPPLY —
-	// so the duty silently does nothing on every run where they did not. With this the trajectory is
-	// a join on the record instead of a path in a sentence.
-	SessionId *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
-	// prompt_id is the DISPATCH's identity, and it is the one thing here the record could not
-	// already express. agent_id names the agent, and a re-prompted agent keeps it; prompt_id changes.
-	// So "how many times was this seat asked" is answerable, which is exactly what a resumed dispatch
-	// makes ambiguous today.
-	PromptId      *string `protobuf:"bytes,5,opt,name=prompt_id,json=promptId,proto3,oneof" json:"prompt_id,omitempty"`
+	SeatId        *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SittingOpen) Reset() {
 	*x = SittingOpen{}
-	mi := &file_record_proto_msgTypes[36]
+	mi := &file_record_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6126,7 +5935,7 @@ func (x *SittingOpen) String() string {
 func (*SittingOpen) ProtoMessage() {}
 
 func (x *SittingOpen) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[36]
+	mi := &file_record_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6139,7 +5948,7 @@ func (x *SittingOpen) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SittingOpen.ProtoReflect.Descriptor instead.
 func (*SittingOpen) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{36}
+	return file_record_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SittingOpen) GetAgentId() string {
@@ -6163,24 +5972,9 @@ func (x *SittingOpen) GetSeatId() string {
 	return ""
 }
 
-func (x *SittingOpen) GetSessionId() string {
-	if x != nil && x.SessionId != nil {
-		return *x.SessionId
-	}
-	return ""
-}
-
-func (x *SittingOpen) GetPromptId() string {
-	if x != nil && x.PromptId != nil {
-		return *x.PromptId
-	}
-	return ""
-}
-
 type SittingClose struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	AgentId   *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
-	AgentType *string                `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	AgentId *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
 	// THE SEAT'S OWN TRANSCRIPT, WHICH ONLY THIS END IS TOLD. SubagentStop carries
 	// agent_transcript_path — the child conversation, at
 	// <projects>/<slug>/<session>/subagents/[workflows/wf_*/]agent-<agent_id>.jsonl — and this
@@ -6194,18 +5988,13 @@ type SittingClose struct {
 	// must guess which, and a guess that misses returns "no trajectory", which reads exactly like a
 	// seat that never ran.
 	AgentTranscriptPath *string `protobuf:"bytes,3,opt,name=agent_transcript_path,json=agentTranscriptPath,proto3,oneof" json:"agent_transcript_path,omitempty"`
-	// The same two, for the same reason as on the opening end: a sitting whose ends fall in different
-	// sessions is a resumed run, and the record should be able to say so rather than leave a reader
-	// to infer it.
-	SessionId     *string `protobuf:"bytes,4,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
-	PromptId      *string `protobuf:"bytes,5,opt,name=prompt_id,json=promptId,proto3,oneof" json:"prompt_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SittingClose) Reset() {
 	*x = SittingClose{}
-	mi := &file_record_proto_msgTypes[37]
+	mi := &file_record_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6217,7 +6006,7 @@ func (x *SittingClose) String() string {
 func (*SittingClose) ProtoMessage() {}
 
 func (x *SittingClose) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[37]
+	mi := &file_record_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6230,7 +6019,7 @@ func (x *SittingClose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SittingClose.ProtoReflect.Descriptor instead.
 func (*SittingClose) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{37}
+	return file_record_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SittingClose) GetAgentId() string {
@@ -6240,30 +6029,9 @@ func (x *SittingClose) GetAgentId() string {
 	return ""
 }
 
-func (x *SittingClose) GetAgentType() string {
-	if x != nil && x.AgentType != nil {
-		return *x.AgentType
-	}
-	return ""
-}
-
 func (x *SittingClose) GetAgentTranscriptPath() string {
 	if x != nil && x.AgentTranscriptPath != nil {
 		return *x.AgentTranscriptPath
-	}
-	return ""
-}
-
-func (x *SittingClose) GetSessionId() string {
-	if x != nil && x.SessionId != nil {
-		return *x.SessionId
-	}
-	return ""
-}
-
-func (x *SittingClose) GetPromptId() string {
-	if x != nil && x.PromptId != nil {
-		return *x.PromptId
 	}
 	return ""
 }
@@ -6280,8 +6048,6 @@ func (x *SittingClose) GetPromptId() string {
 // none.
 type SittingLimit struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       *string                `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
-	AgentType     *string                `protobuf:"bytes,2,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
 	SeatId        *string                `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
 	Sitting       *int32                 `protobuf:"varint,4,opt,name=sitting,proto3,oneof" json:"sitting,omitempty"`
 	Limit         *int32                 `protobuf:"varint,5,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
@@ -6291,7 +6057,7 @@ type SittingLimit struct {
 
 func (x *SittingLimit) Reset() {
 	*x = SittingLimit{}
-	mi := &file_record_proto_msgTypes[38]
+	mi := &file_record_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6303,7 +6069,7 @@ func (x *SittingLimit) String() string {
 func (*SittingLimit) ProtoMessage() {}
 
 func (x *SittingLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[38]
+	mi := &file_record_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6316,21 +6082,7 @@ func (x *SittingLimit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SittingLimit.ProtoReflect.Descriptor instead.
 func (*SittingLimit) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *SittingLimit) GetAgentId() string {
-	if x != nil && x.AgentId != nil {
-		return *x.AgentId
-	}
-	return ""
-}
-
-func (x *SittingLimit) GetAgentType() string {
-	if x != nil && x.AgentType != nil {
-		return *x.AgentType
-	}
-	return ""
+	return file_record_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SittingLimit) GetSeatId() string {
@@ -6380,7 +6132,7 @@ type Cast struct {
 
 func (x *Cast) Reset() {
 	*x = Cast{}
-	mi := &file_record_proto_msgTypes[39]
+	mi := &file_record_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6392,7 +6144,7 @@ func (x *Cast) String() string {
 func (*Cast) ProtoMessage() {}
 
 func (x *Cast) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[39]
+	mi := &file_record_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6405,7 +6157,7 @@ func (x *Cast) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cast.ProtoReflect.Descriptor instead.
 func (*Cast) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{39}
+	return file_record_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *Cast) GetSeatIds() []string {
@@ -6448,7 +6200,7 @@ type Dispatch struct {
 
 func (x *Dispatch) Reset() {
 	*x = Dispatch{}
-	mi := &file_record_proto_msgTypes[40]
+	mi := &file_record_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6460,7 +6212,7 @@ func (x *Dispatch) String() string {
 func (*Dispatch) ProtoMessage() {}
 
 func (x *Dispatch) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[40]
+	mi := &file_record_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6473,7 +6225,7 @@ func (x *Dispatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Dispatch.ProtoReflect.Descriptor instead.
 func (*Dispatch) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{40}
+	return file_record_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *Dispatch) GetPin() int64 {
@@ -6523,7 +6275,7 @@ type Plan struct {
 
 func (x *Plan) Reset() {
 	*x = Plan{}
-	mi := &file_record_proto_msgTypes[41]
+	mi := &file_record_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6535,7 +6287,7 @@ func (x *Plan) String() string {
 func (*Plan) ProtoMessage() {}
 
 func (x *Plan) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[41]
+	mi := &file_record_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6548,7 +6300,7 @@ func (x *Plan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plan.ProtoReflect.Descriptor instead.
 func (*Plan) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{41}
+	return file_record_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *Plan) GetPrinted() string {
@@ -6589,7 +6341,7 @@ type Gate struct {
 
 func (x *Gate) Reset() {
 	*x = Gate{}
-	mi := &file_record_proto_msgTypes[42]
+	mi := &file_record_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6601,7 +6353,7 @@ func (x *Gate) String() string {
 func (*Gate) ProtoMessage() {}
 
 func (x *Gate) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[42]
+	mi := &file_record_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6614,7 +6366,7 @@ func (x *Gate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Gate.ProtoReflect.Descriptor instead.
 func (*Gate) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{42}
+	return file_record_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Gate) GetVerdict() Verdict {
@@ -6659,7 +6411,7 @@ type Outcome struct {
 
 func (x *Outcome) Reset() {
 	*x = Outcome{}
-	mi := &file_record_proto_msgTypes[43]
+	mi := &file_record_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6671,7 +6423,7 @@ func (x *Outcome) String() string {
 func (*Outcome) ProtoMessage() {}
 
 func (x *Outcome) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[43]
+	mi := &file_record_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6684,7 +6436,7 @@ func (x *Outcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Outcome.ProtoReflect.Descriptor instead.
 func (*Outcome) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{43}
+	return file_record_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *Outcome) GetVerdict() RunOutcome {
@@ -6724,7 +6476,7 @@ type Position struct {
 
 func (x *Position) Reset() {
 	*x = Position{}
-	mi := &file_record_proto_msgTypes[44]
+	mi := &file_record_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6736,7 +6488,7 @@ func (x *Position) String() string {
 func (*Position) ProtoMessage() {}
 
 func (x *Position) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[44]
+	mi := &file_record_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6749,7 +6501,7 @@ func (x *Position) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Position.ProtoReflect.Descriptor instead.
 func (*Position) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{44}
+	return file_record_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *Position) GetText() string {
@@ -6770,7 +6522,7 @@ type Halt struct {
 
 func (x *Halt) Reset() {
 	*x = Halt{}
-	mi := &file_record_proto_msgTypes[45]
+	mi := &file_record_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6782,7 +6534,7 @@ func (x *Halt) String() string {
 func (*Halt) ProtoMessage() {}
 
 func (x *Halt) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[45]
+	mi := &file_record_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6795,7 +6547,7 @@ func (x *Halt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Halt.ProtoReflect.Descriptor instead.
 func (*Halt) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{45}
+	return file_record_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Halt) GetOpinion() string {
@@ -6816,7 +6568,7 @@ type Certify struct {
 
 func (x *Certify) Reset() {
 	*x = Certify{}
-	mi := &file_record_proto_msgTypes[46]
+	mi := &file_record_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6828,7 +6580,7 @@ func (x *Certify) String() string {
 func (*Certify) ProtoMessage() {}
 
 func (x *Certify) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[46]
+	mi := &file_record_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6841,7 +6593,7 @@ func (x *Certify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Certify.ProtoReflect.Descriptor instead.
 func (*Certify) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{46}
+	return file_record_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *Certify) GetStatement() string {
@@ -6864,7 +6616,7 @@ type Declare struct {
 
 func (x *Declare) Reset() {
 	*x = Declare{}
-	mi := &file_record_proto_msgTypes[47]
+	mi := &file_record_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6876,7 +6628,7 @@ func (x *Declare) String() string {
 func (*Declare) ProtoMessage() {}
 
 func (x *Declare) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[47]
+	mi := &file_record_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6889,7 +6641,7 @@ func (x *Declare) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Declare.ProtoReflect.Descriptor instead.
 func (*Declare) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{47}
+	return file_record_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *Declare) GetHolding() string {
@@ -7115,7 +6867,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\x96\x11\n" +
+	"\a_unique\"\xf0\x10\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x122\n" +
@@ -7138,8 +6890,7 @@ const file_record_proto_rawDesc = "" +
 	"\aregrade\x18\" \x01(\v2\x17.feov.record.v1.RegradeH\x00R\aregrade\x12:\n" +
 	"\n" +
 	"spot_check\x18# \x01(\v2\x19.feov.record.v1.SpotCheckH\x00R\tspotCheck\x123\n" +
-	"\afinding\x18% \x01(\v2\x17.feov.record.v1.FindingH\x00R\afinding\x123\n" +
-	"\aobserve\x18& \x01(\v2\x17.feov.record.v1.ObserveH\x00R\aobserve\x120\n" +
+	"\afinding\x18% \x01(\v2\x17.feov.record.v1.FindingH\x00R\afinding\x120\n" +
 	"\x06anchor\x18' \x01(\v2\x16.feov.record.v1.AnchorH\x00R\x06anchor\x12*\n" +
 	"\x04cite\x18( \x01(\v2\x14.feov.record.v1.CiteH\x00R\x04cite\x120\n" +
 	"\x06verify\x18) \x01(\v2\x16.feov.record.v1.VerifyH\x00R\x06verify\x12-\n" +
@@ -7165,7 +6916,7 @@ const file_record_proto_rawDesc = "" +
 	"\b_seat_idB\a\n" +
 	"\x05_typeB\x06\n" +
 	"\x04_keyJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
-	"J\x04\b<\x10QJ\x04\b\x1d\x10\x1eJ\x04\b.\x10/J\x04\b:\x10;J\x04\b$\x10%R\x05roundR\x04roleR\x0eschema_versionR\rmotion_appealR\brevisionR\n" +
+	"J\x04\b<\x10QJ\x04\b\x1d\x10\x1eJ\x04\b&\x10'J\x04\b.\x10/J\x04\b:\x10;J\x04\b$\x10%R\x05roundR\x04roleR\x0eschema_versionR\rmotion_appealR\aobserveR\brevisionR\n" +
 	"correctionR\aopinion\"\xf0\x04\n" +
 	"\rTelemetryLine\x12\x19\n" +
 	"\x05epoch\x18\x01 \x01(\x05H\x00R\x05epoch\x88\x01\x01\x12,\n" +
@@ -7371,20 +7122,13 @@ const file_record_proto_rawDesc = "" +
 	"\v_about_kindB\f\n" +
 	"\n" +
 	"_about_refJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\n" +
-	"finding_idR\x05label\"\x87\x01\n" +
-	"\aObserve\x12\x19\n" +
-	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x17\n" +
-	"\x04text\x18\x02 \x01(\tH\x01R\x04text\x88\x01\x01\x12%\n" +
-	"\vobservation\x18\x03 \x01(\tH\x02R\vobservation\x88\x01\x01B\b\n" +
-	"\x06_labelB\a\n" +
-	"\x05_textB\x0e\n" +
-	"\f_observation\"\x86\x01\n" +
+	"finding_idR\x05label\"\x86\x01\n" +
 	"\x06Anchor\x12\x1b\n" +
 	"\x02id\x18\x01 \x01(\tB\x06\x82\xb5\x18\x02(\x01H\x00R\x02id\x88\x01\x01\x12\x1f\n" +
 	"\blocation\x18\x02 \x01(\tH\x01R\blocation\x88\x01\x01B\x05\n" +
 	"\x03_idB\v\n" +
 	"\t_locationJ\x04\b\x03\x10\aR\n" +
-	"finding_idR\vfinding_keyR\x05labelR\x04text\"\x8d\b\n" +
+	"finding_idR\vfinding_keyR\x05labelR\x04text\"\xae\a\n" +
 	"\x04Cite\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\x02 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x1b\n" +
@@ -7394,20 +7138,18 @@ const file_record_proto_rawDesc = "" +
 	"\vaccess_date\x18\x06 \x01(\tH\x05R\n" +
 	"accessDate\x88\x01\x01\x12)\n" +
 	"\bcite_key\x18\a \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x06R\aciteKey\x88\x01\x01\x12)\n" +
-	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12`\n" +
-	"\x10source_text_read\x18\n" +
-	" \x01(\x0e2\x1e.feov.record.v1.SourceTextReadB\x11\x82\xb5\x18\r\x12\vsource-textH\bR\x0esourceTextRead\x88\x01\x01\x12Y\n" +
-	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\tR\x10sourceTextOrigin\x88\x01\x01\x12&\n" +
-	"\tocr_quote\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\n" +
-	"R\bocrQuote\x88\x01\x01\x12\x1a\n" +
+	"\x04text\x18\t \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\aR\x04text\x88\x01\x01\x12Y\n" +
+	"\x12source_text_origin\x18\v \x01(\x0e2 .feov.record.v1.SourceTextOriginB\x04\xc0\xb5\x18\x00H\bR\x10sourceTextOrigin\x88\x01\x01\x12&\n" +
+	"\tocr_quote\x18\f \x01(\tB\x04\xc0\xb5\x18\x00H\tR\bocrQuote\x88\x01\x01\x12\x1a\n" +
 	"\x05pages\x18\r \x03(\x05B\x04\xc0\xb5\x18\x00R\x05pages\x12(\n" +
 	"\n" +
-	"ocr_engine\x18\x0e \x01(\tB\x04\xc0\xb5\x18\x00H\vR\tocrEngine\x88\x01\x01\x12+\n" +
-	"\focr_text_sha\x18\x0f \x01(\tB\x04\xc0\xb5\x18\x00H\fR\n" +
+	"ocr_engine\x18\x0e \x01(\tB\x04\xc0\xb5\x18\x00H\n" +
+	"R\tocrEngine\x88\x01\x01\x12+\n" +
+	"\focr_text_sha\x18\x0f \x01(\tB\x04\xc0\xb5\x18\x00H\vR\n" +
 	"ocrTextSha\x88\x01\x01\x12F\n" +
-	"\vwork_status\x18\x10 \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\rR\n" +
+	"\vwork_status\x18\x10 \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\fR\n" +
 	"workStatus\x88\x01\x01\x12^\n" +
-	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\x0eR\x12sourceCompleteness\x88\x01\x01B\b\n" +
+	"\x13source_completeness\x18\x11 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01B\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_urlB\t\n" +
 	"\a_sha256B\b\n" +
@@ -7415,42 +7157,40 @@ const file_record_proto_rawDesc = "" +
 	"\t_locationB\x0e\n" +
 	"\f_access_dateB\v\n" +
 	"\t_cite_keyB\a\n" +
-	"\x05_textB\x13\n" +
-	"\x11_source_text_readB\x15\n" +
+	"\x05_textB\x15\n" +
 	"\x13_source_text_originB\f\n" +
 	"\n" +
 	"_ocr_quoteB\r\n" +
 	"\v_ocr_engineB\x0f\n" +
 	"\r_ocr_text_shaB\x0e\n" +
 	"\f_work_statusB\x16\n" +
-	"\x14_source_completenessJ\x04\b\b\x10\tR\x05claim\"\xf4\v\n" +
+	"\x14_source_completenessJ\x04\b\b\x10\tJ\x04\b\n" +
+	"\x10\vR\x05claimR\x10source_text_read\"\xd0\v\n" +
 	"\x06Verify\x12\xbd\x01\n" +
 	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
 	"\x05title\x18\n" +
 	" \x01(\tH\x02R\x05title\x88\x01\x01\x12\x1b\n" +
-	"\x06anchor\x18\x03 \x01(\tH\x03R\x06anchor\x88\x01\x01\x12%\n" +
-	"\vindependent\x18\x04 \x01(\bH\x04R\vindependent\x88\x01\x01\x12$\n" +
-	"\vaccess_date\x18\x05 \x01(\tH\x05R\n" +
+	"\x06anchor\x18\x03 \x01(\tH\x03R\x06anchor\x88\x01\x01\x12$\n" +
+	"\vaccess_date\x18\x05 \x01(\tH\x04R\n" +
 	"accessDate\x88\x01\x01\x12\xc5\x01\n" +
-	"\aoutcome\x18\x06 \x01(\x0e2\x1d.feov.record.v1.SourceOutcomeB\x86\x01\x82\xb5\x18\x81\x01\b\x01\x12\x02as\x1aywhat the source ACTUALLY DID for the claim — the negative half is the point, and until 0.60.0 there was no field for itH\x06R\aoutcome\x88\x01\x01\x12\x81\x02\n" +
+	"\aoutcome\x18\x06 \x01(\x0e2\x1d.feov.record.v1.SourceOutcomeB\x86\x01\x82\xb5\x18\x81\x01\b\x01\x12\x02as\x1aywhat the source ACTUALLY DID for the claim — the negative half is the point, and until 0.60.0 there was no field for itH\x05R\aoutcome\x88\x01\x01\x12\x81\x02\n" +
 	"\n" +
-	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceB\xbf\x01\x82\xb5\x18\xba\x01\b\x01\x1a\xb5\x01how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different factsH\aR\n" +
+	"confidence\x18\a \x01(\x0e2\x1a.feov.record.v1.ConfidenceB\xbf\x01\x82\xb5\x18\xba\x01\b\x01\x1a\xb5\x01how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different factsH\x06R\n" +
 	"confidence\x88\x01\x01\x12\xa3\x01\n" +
-	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\bR\x04text\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\v \x01(\tH\tR\x05label\x88\x01\x01\x12\x17\n" +
-	"\x04page\x18\f \x01(\x05H\n" +
-	"R\x04page\x88\x01\x01\x12+\n" +
-	"\x0fpage_render_sha\x18\r \x01(\tH\vR\rpageRenderSha\x88\x01\x01\x121\n" +
-	"\x12reading_render_sha\x18\x0e \x01(\tH\fR\x10readingRenderSha\x88\x01\x01\x12F\n" +
-	"\vwork_status\x18\x0f \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\rR\n" +
+	"\x04text\x18\b \x01(\tB\x89\x01\x82\xb5\x18\x84\x01\b\x01\x12\x06reason\x1axwhat the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replaceH\aR\x04text\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\v \x01(\tH\bR\x05label\x88\x01\x01\x12\x17\n" +
+	"\x04page\x18\f \x01(\x05H\tR\x04page\x88\x01\x01\x12+\n" +
+	"\x0fpage_render_sha\x18\r \x01(\tH\n" +
+	"R\rpageRenderSha\x88\x01\x01\x121\n" +
+	"\x12reading_render_sha\x18\x0e \x01(\tH\vR\x10readingRenderSha\x88\x01\x01\x12F\n" +
+	"\vwork_status\x18\x0f \x01(\x0e2\x1a.feov.record.v1.WorkStatusB\x04\xc0\xb5\x18\x00H\fR\n" +
 	"workStatus\x88\x01\x01\x12^\n" +
-	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\x0eR\x12sourceCompleteness\x88\x01\x01B\b\n" +
+	"\x13source_completeness\x18\x10 \x01(\x0e2\".feov.record.v1.SourceCompletenessB\x04\xc0\xb5\x18\x00H\rR\x12sourceCompleteness\x88\x01\x01B\b\n" +
 	"\x06_claimB\x06\n" +
 	"\x04_urlB\b\n" +
 	"\x06_titleB\t\n" +
 	"\a_anchorB\x0e\n" +
-	"\f_independentB\x0e\n" +
 	"\f_access_dateB\n" +
 	"\n" +
 	"\b_outcomeB\r\n" +
@@ -7461,7 +7201,7 @@ const file_record_proto_rawDesc = "" +
 	"\x10_page_render_shaB\x15\n" +
 	"\x13_reading_render_shaB\x0e\n" +
 	"\f_work_statusB\x16\n" +
-	"\x14_source_completenessJ\x04\b\x02\x10\x03R\treference\"\x87\x04\n" +
+	"\x14_source_completenessJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\treferenceR\vindependent\"\x87\x04\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12+\n" +
 	"\tproof_key\x18\x02 \x01(\tB\t\x82\xb5\x18\x05\x12\x03keyH\x01R\bproofKey\x88\x01\x01\x12 \n" +
@@ -7568,17 +7308,14 @@ const file_record_proto_rawDesc = "" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12'\n" +
 	"\x03row\x18\x02 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x01R\x03row\x88\x01\x01B\t\n" +
 	"\a_gap_idB\x06\n" +
-	"\x04_row\"\xb4\x03\n" +
+	"\x04_row\"\x91\x03\n" +
 	"\x03Log\x12)\n" +
 	"\x04text\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\x04text\x88\x01\x01\x12\xf6\x01\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.feov.record.v1.LogTypeB\xc3\x01\x82\xb5\x18\xbe\x01\b\x01\x1a\xb9\x01the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace — measured at 142,891 characters on one runH\x01R\x04type\x88\x01\x01\x126\n" +
-	"\x06source\x18\x04 \x01(\x0e2\x19.feov.record.v1.LogSourceH\x02R\x06source\x88\x01\x01\x12$\n" +
-	"\vestopped_by\x18\x03 \x01(\tH\x03R\n" +
-	"estoppedBy\x88\x01\x01B\a\n" +
+	"\x06source\x18\x04 \x01(\x0e2\x19.feov.record.v1.LogSourceH\x02R\x06source\x88\x01\x01B\a\n" +
 	"\x05_textB\a\n" +
 	"\x05_typeB\t\n" +
-	"\a_sourceB\x0e\n" +
-	"\f_estopped_by\"\xfe\x03\n" +
+	"\a_sourceJ\x04\b\x03\x10\x04R\vestopped_by\"\xfe\x03\n" +
 	"\x06Motion\x12\x99\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tBw\x82\xb5\x18s\b\x01\x1amthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12\x19\n" +
 	"\x05basis\x18\x03 \x01(\tH\x02R\x05basis\x88\x01\x01\x12\x1b\n" +
@@ -7669,50 +7406,33 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"\b_run_viaB\r\n" +
 	"\v_agent_typeB\v\n" +
-	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\b\x10\tR\fserved_modelR\x0frequested_modelR\x0frepairs_sitting\"\xfa\x01\n" +
+	"\t_occasionJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\b\x10\tR\fserved_modelR\x0frequested_modelR\x0frepairs_sitting\"\x97\x01\n" +
 	"\vSittingOpen\x12\x1e\n" +
 	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x12\x1c\n" +
-	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"session_id\x18\x04 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12 \n" +
-	"\tprompt_id\x18\x05 \x01(\tH\x04R\bpromptId\x88\x01\x01B\v\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01B\v\n" +
 	"\t_agent_idB\r\n" +
 	"\v_agent_typeB\n" +
 	"\n" +
-	"\b_seat_idB\r\n" +
-	"\v_session_idB\f\n" +
-	"\n" +
-	"_prompt_id\"\xa4\x02\n" +
+	"\b_seat_id\"\xc3\x01\n" +
 	"\fSittingClose\x12\x1e\n" +
-	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x127\n" +
-	"\x15agent_transcript_path\x18\x03 \x01(\tH\x02R\x13agentTranscriptPath\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"session_id\x18\x04 \x01(\tH\x03R\tsessionId\x88\x01\x01\x12 \n" +
-	"\tprompt_id\x18\x05 \x01(\tH\x04R\bpromptId\x88\x01\x01B\v\n" +
-	"\t_agent_idB\r\n" +
-	"\v_agent_typeB\x18\n" +
-	"\x16_agent_transcript_pathB\r\n" +
-	"\v_session_idB\f\n" +
-	"\n" +
-	"_prompt_id\"\xe8\x01\n" +
-	"\fSittingLimit\x12\x1e\n" +
-	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01\x12\x1c\n" +
-	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x1d\n" +
-	"\asitting\x18\x04 \x01(\x05H\x03R\asitting\x88\x01\x01\x12\x19\n" +
-	"\x05limit\x18\x05 \x01(\x05H\x04R\x05limit\x88\x01\x01B\v\n" +
-	"\t_agent_idB\r\n" +
-	"\v_agent_typeB\n" +
+	"\bagent_id\x18\x01 \x01(\tH\x00R\aagentId\x88\x01\x01\x127\n" +
+	"\x15agent_transcript_path\x18\x03 \x01(\tH\x01R\x13agentTranscriptPath\x88\x01\x01B\v\n" +
+	"\t_agent_idB\x18\n" +
+	"\x16_agent_transcript_pathJ\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\n" +
+	"agent_typeR\n" +
+	"session_idR\tprompt_id\"\xaa\x01\n" +
+	"\fSittingLimit\x12\x1c\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x00R\x06seatId\x88\x01\x01\x12\x1d\n" +
+	"\asitting\x18\x04 \x01(\x05H\x01R\asitting\x88\x01\x01\x12\x19\n" +
+	"\x05limit\x18\x05 \x01(\x05H\x02R\x05limit\x88\x01\x01B\n" +
 	"\n" +
 	"\b_seat_idB\n" +
 	"\n" +
 	"\b_sittingB\b\n" +
-	"\x06_limit\"E\n" +
+	"\x06_limitJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\bagent_idR\n" +
+	"agent_type\"E\n" +
 	"\x04Cast\x12\x19\n" +
 	"\bseat_ids\x18\x01 \x03(\tR\aseatIds\x12\"\n" +
 	"\rlane_seat_ids\x18\x02 \x03(\tR\vlaneSeatIds\"\xb4\x03\n" +
@@ -7760,7 +7480,7 @@ const file_record_proto_rawDesc = "" +
 	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
 	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
-	"\b_holding*\x86!\n" +
+	"\b_holding*\xcc \n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x128\n" +
@@ -7780,8 +7500,7 @@ const file_record_proto_rawDesc = "" +
 	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aE\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\x12m\n" +
 	"\x0fEVENT_TYPE_MINT\x10\x10\x1aX\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\x12m\n" +
 	"\x11EVENT_TYPE_MOTION\x10\x11\x1aV\x8a\xb5\x18Ra motion filed: a grade contested, a petition to the bench, or an inquiry proposed\x12W\n" +
-	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a;\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\x12R\n" +
-	"\x12EVENT_TYPE_OBSERVE\x10\x14\x1a:\x8a\xb5\x186an observation recorded without a claim attached to it\x12f\n" +
+	"\x16EVENT_TYPE_MOTION_RULE\x10\x13\x1a;\x8a\xb5\x187the bench's ruling on a filed motion, and whom it binds\x12f\n" +
 	"\x12EVENT_TYPE_OUTCOME\x10\x16\x1aN\x8a\xb5\x18Jthe run's terminal act: how it ended and whether the question was answered\x12L\n" +
 	"\x13EVENT_TYPE_POSITION\x10\x17\x1a3\x8a\xb5\x18/a seat's stated position going into its sitting\x12y\n" +
 	"\x10EVENT_TYPE_PROOF\x10\x18\x1ac\x8a\xb5\x18_a script that was RUN, with its hash and exit status — the answer a computation check demands\x12P\n" +
@@ -7798,7 +7517,7 @@ const file_record_proto_rawDesc = "" +
 	"\x0fEVENT_TYPE_CAST\x10$\x1a\x90\x01\x8a\xb5\x18\x8b\x01the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against\x12\xbf\x01\n" +
 	"\x13EVENT_TYPE_DISPATCH\x10%\x1a\xa5\x01\x8a\xb5\x18\xa0\x01the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch\x12\xcd\x01\n" +
 	"\x18EVENT_TYPE_SITTING_LIMIT\x10&\x1a\xae\x01\x8a\xb5\x18\xa9\x01a seat's sitting stopped at the run's per-sitting tool-call limit — the hook refuses every further call in it, and this records which seat, which sitting and the limit\x12\xa5\x01\n" +
-	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b'\x10'\"\x04\b\x15\x10\x15*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x12EVENT_TYPE_OPINION*\x9e\x06\n" +
+	"\x0fEVENT_TYPE_PLAN\x10(\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the plan the chair's dispatch printed, whole — what the chair relays and the workflow dispatches; one per decision, with parties or none\"\x04\b\x12\x10\x12\"\x04\b\x1c\x10\x1c\"\x04\b'\x10'\"\x04\b\x14\x10\x14\"\x04\b\x15\x10\x15*\x18EVENT_TYPE_MOTION_APPEAL*\x13EVENT_TYPE_REVISION*\x15EVENT_TYPE_CORRECTION*\x12EVENT_TYPE_OBSERVE*\x12EVENT_TYPE_OPINION*\x9e\x06\n" +
 	"\x05Grade\x12\"\n" +
 	"\x11GRADE_UNSPECIFIED\x10\x00\x1a\v\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00\x12U\n" +
 	"\rGRADE_TRIVIAL\x10\x01\x1aB\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xe0?\x12#\n" +
@@ -7898,12 +7617,7 @@ const file_record_proto_rawDesc = "" +
 	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x98\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not thereе\x18\x01\x12\xae\x02\n" +
 	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x95\x02\x8a\xb5\x18\x8c\x02an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's own text or a proof contradicts. The steelman duty's own anchorе\x18\x01\x12z\n" +
 	"\x0eABOUT_KIND_GAP\x10\x03\x1af\x8a\xb5\x18^a gap already on the board, by its id: a dispute with its grade, its fix, or whether it standsе\x18\x01\x12\xec\x02\n" +
-	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xcd\x02\x8a\xb5\x18\xc4\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00*\x90\x05\n" +
-	"\x0eSourceTextRead\x12 \n" +
-	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +
-	"\x17SOURCE_TEXT_READ_UNREAD\x10\x01\x1a\x98\x01\x8a\xb5\x18\x93\x01the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says\x12\xf6\x01\n" +
-	"\x1dSOURCE_TEXT_READ_SUMMARY_ONLY\x10\x02\x1a\xd2\x01\x8a\xb5\x18\xcd\x01read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source\x12\xa9\x01\n" +
-	"\x15SOURCE_TEXT_READ_LEAF\x10\x03\x1a\x8d\x01\x8a\xb5\x18\x88\x01the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS*\xb3\x04\n" +
+	"\x18ABOUT_KIND_CONTRADICTION\x10\x04\x1a\xcd\x02\x8a\xb5\x18\xc4\x02a contradiction red recorded, by its id from `show evidence` (a source red read refutes or is silent on a sentence of the report): the finding raises it, and it answers it even when the sentence has since been edited away. A finding only — a gap is minted from that finding. Not the report contradicting itself: quote thatе\x18\x00*\xb3\x04\n" +
 	"\x10SourceTextOrigin\x12\"\n" +
 	"\x1eSOURCE_TEXT_ORIGIN_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x1bSOURCE_TEXT_ORIGIN_EMBEDDED\x10\x01\x1aU\x8a\xb5\x18Qthe retrieved bytes carry the text: markup, plain text, or a PDF's own text layer\x12\xb1\x01\n" +
@@ -7984,8 +7698,8 @@ func file_record_proto_rawDescGZIP() []byte {
 	return file_record_proto_rawDescData
 }
 
-var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 27)
-var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 26)
+var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_record_proto_goTypes = []any{
 	(EventType)(0),                        // 0: feov.record.v1.EventType
 	(Grade)(0),                            // 1: feov.record.v1.Grade
@@ -8004,177 +7718,173 @@ var file_record_proto_goTypes = []any{
 	(PetitionRuling)(0),                   // 14: feov.record.v1.PetitionRuling
 	(InquiryRuling)(0),                    // 15: feov.record.v1.InquiryRuling
 	(AboutKind)(0),                        // 16: feov.record.v1.AboutKind
-	(SourceTextRead)(0),                   // 17: feov.record.v1.SourceTextRead
-	(SourceTextOrigin)(0),                 // 18: feov.record.v1.SourceTextOrigin
-	(WorkStatus)(0),                       // 19: feov.record.v1.WorkStatus
-	(SourceCompleteness)(0),               // 20: feov.record.v1.SourceCompleteness
-	(LogSource)(0),                        // 21: feov.record.v1.LogSource
-	(LogType)(0),                          // 22: feov.record.v1.LogType
-	(GradeDimension)(0),                   // 23: feov.record.v1.GradeDimension
-	(PetitionClass)(0),                    // 24: feov.record.v1.PetitionClass
-	(RulingBinds)(0),                      // 25: feov.record.v1.RulingBinds
-	(Occasion)(0),                         // 26: feov.record.v1.Occasion
-	(*SqlCheck)(nil),                      // 27: feov.record.v1.SqlCheck
-	(*Sql)(nil),                           // 28: feov.record.v1.Sql
-	(*Event)(nil),                         // 29: feov.record.v1.Event
-	(*TelemetryLine)(nil),                 // 30: feov.record.v1.TelemetryLine
-	(*NewMint)(nil),                       // 31: feov.record.v1.NewMint
-	(*SeverityTally)(nil),                 // 32: feov.record.v1.SeverityTally
-	(*RepairRegression)(nil),              // 33: feov.record.v1.RepairRegression
-	(*EdgeDeltas)(nil),                    // 34: feov.record.v1.EdgeDeltas
-	(*Mint)(nil),                          // 35: feov.record.v1.Mint
-	(*ClassNew)(nil),                      // 36: feov.record.v1.ClassNew
-	(*Close)(nil),                         // 37: feov.record.v1.Close
-	(*Closing)(nil),                       // 38: feov.record.v1.Closing
-	(*Regrade)(nil),                       // 39: feov.record.v1.Regrade
-	(*SpotCheck)(nil),                     // 40: feov.record.v1.SpotCheck
-	(*Finding)(nil),                       // 41: feov.record.v1.Finding
-	(*Observe)(nil),                       // 42: feov.record.v1.Observe
-	(*Anchor)(nil),                        // 43: feov.record.v1.Anchor
-	(*Cite)(nil),                          // 44: feov.record.v1.Cite
-	(*Verify)(nil),                        // 45: feov.record.v1.Verify
-	(*Proof)(nil),                         // 46: feov.record.v1.Proof
-	(*Reproduce)(nil),                     // 47: feov.record.v1.Reproduce
-	(*InquiryReview)(nil),                 // 48: feov.record.v1.InquiryReview
-	(*Inquiry)(nil),                       // 49: feov.record.v1.Inquiry
-	(*BaseIngest)(nil),                    // 50: feov.record.v1.BaseIngest
-	(*BlueEdit)(nil),                      // 51: feov.record.v1.BlueEdit
-	(*Retire)(nil),                        // 52: feov.record.v1.Retire
-	(*ManifestRow)(nil),                   // 53: feov.record.v1.ManifestRow
-	(*Log)(nil),                           // 54: feov.record.v1.Log
-	(*Motion)(nil),                        // 55: feov.record.v1.Motion
-	(*GradeMotion)(nil),                   // 56: feov.record.v1.GradeMotion
-	(*PetitionMotion)(nil),                // 57: feov.record.v1.PetitionMotion
-	(*DocketMotion)(nil),                  // 58: feov.record.v1.DocketMotion
-	(*DocketRuling)(nil),                  // 59: feov.record.v1.DocketRuling
-	(*InquiryMotion)(nil),                 // 60: feov.record.v1.InquiryMotion
-	(*MotionRule)(nil),                    // 61: feov.record.v1.MotionRule
-	(*Register)(nil),                      // 62: feov.record.v1.Register
-	(*SittingOpen)(nil),                   // 63: feov.record.v1.SittingOpen
-	(*SittingClose)(nil),                  // 64: feov.record.v1.SittingClose
-	(*SittingLimit)(nil),                  // 65: feov.record.v1.SittingLimit
-	(*Cast)(nil),                          // 66: feov.record.v1.Cast
-	(*Dispatch)(nil),                      // 67: feov.record.v1.Dispatch
-	(*Plan)(nil),                          // 68: feov.record.v1.Plan
-	(*Gate)(nil),                          // 69: feov.record.v1.Gate
-	(*Outcome)(nil),                       // 70: feov.record.v1.Outcome
-	(*Position)(nil),                      // 71: feov.record.v1.Position
-	(*Halt)(nil),                          // 72: feov.record.v1.Halt
-	(*Certify)(nil),                       // 73: feov.record.v1.Certify
-	(*Declare)(nil),                       // 74: feov.record.v1.Declare
-	nil,                                   // 75: feov.record.v1.NewMint.ByClassEntry
-	(*descriptorpb.FieldOptions)(nil),     // 76: google.protobuf.FieldOptions
-	(*descriptorpb.EnumValueOptions)(nil), // 77: google.protobuf.EnumValueOptions
-	(*descriptorpb.MessageOptions)(nil),   // 78: google.protobuf.MessageOptions
+	(SourceTextOrigin)(0),                 // 17: feov.record.v1.SourceTextOrigin
+	(WorkStatus)(0),                       // 18: feov.record.v1.WorkStatus
+	(SourceCompleteness)(0),               // 19: feov.record.v1.SourceCompleteness
+	(LogSource)(0),                        // 20: feov.record.v1.LogSource
+	(LogType)(0),                          // 21: feov.record.v1.LogType
+	(GradeDimension)(0),                   // 22: feov.record.v1.GradeDimension
+	(PetitionClass)(0),                    // 23: feov.record.v1.PetitionClass
+	(RulingBinds)(0),                      // 24: feov.record.v1.RulingBinds
+	(Occasion)(0),                         // 25: feov.record.v1.Occasion
+	(*SqlCheck)(nil),                      // 26: feov.record.v1.SqlCheck
+	(*Sql)(nil),                           // 27: feov.record.v1.Sql
+	(*Event)(nil),                         // 28: feov.record.v1.Event
+	(*TelemetryLine)(nil),                 // 29: feov.record.v1.TelemetryLine
+	(*NewMint)(nil),                       // 30: feov.record.v1.NewMint
+	(*SeverityTally)(nil),                 // 31: feov.record.v1.SeverityTally
+	(*RepairRegression)(nil),              // 32: feov.record.v1.RepairRegression
+	(*EdgeDeltas)(nil),                    // 33: feov.record.v1.EdgeDeltas
+	(*Mint)(nil),                          // 34: feov.record.v1.Mint
+	(*ClassNew)(nil),                      // 35: feov.record.v1.ClassNew
+	(*Close)(nil),                         // 36: feov.record.v1.Close
+	(*Closing)(nil),                       // 37: feov.record.v1.Closing
+	(*Regrade)(nil),                       // 38: feov.record.v1.Regrade
+	(*SpotCheck)(nil),                     // 39: feov.record.v1.SpotCheck
+	(*Finding)(nil),                       // 40: feov.record.v1.Finding
+	(*Anchor)(nil),                        // 41: feov.record.v1.Anchor
+	(*Cite)(nil),                          // 42: feov.record.v1.Cite
+	(*Verify)(nil),                        // 43: feov.record.v1.Verify
+	(*Proof)(nil),                         // 44: feov.record.v1.Proof
+	(*Reproduce)(nil),                     // 45: feov.record.v1.Reproduce
+	(*InquiryReview)(nil),                 // 46: feov.record.v1.InquiryReview
+	(*Inquiry)(nil),                       // 47: feov.record.v1.Inquiry
+	(*BaseIngest)(nil),                    // 48: feov.record.v1.BaseIngest
+	(*BlueEdit)(nil),                      // 49: feov.record.v1.BlueEdit
+	(*Retire)(nil),                        // 50: feov.record.v1.Retire
+	(*ManifestRow)(nil),                   // 51: feov.record.v1.ManifestRow
+	(*Log)(nil),                           // 52: feov.record.v1.Log
+	(*Motion)(nil),                        // 53: feov.record.v1.Motion
+	(*GradeMotion)(nil),                   // 54: feov.record.v1.GradeMotion
+	(*PetitionMotion)(nil),                // 55: feov.record.v1.PetitionMotion
+	(*DocketMotion)(nil),                  // 56: feov.record.v1.DocketMotion
+	(*DocketRuling)(nil),                  // 57: feov.record.v1.DocketRuling
+	(*InquiryMotion)(nil),                 // 58: feov.record.v1.InquiryMotion
+	(*MotionRule)(nil),                    // 59: feov.record.v1.MotionRule
+	(*Register)(nil),                      // 60: feov.record.v1.Register
+	(*SittingOpen)(nil),                   // 61: feov.record.v1.SittingOpen
+	(*SittingClose)(nil),                  // 62: feov.record.v1.SittingClose
+	(*SittingLimit)(nil),                  // 63: feov.record.v1.SittingLimit
+	(*Cast)(nil),                          // 64: feov.record.v1.Cast
+	(*Dispatch)(nil),                      // 65: feov.record.v1.Dispatch
+	(*Plan)(nil),                          // 66: feov.record.v1.Plan
+	(*Gate)(nil),                          // 67: feov.record.v1.Gate
+	(*Outcome)(nil),                       // 68: feov.record.v1.Outcome
+	(*Position)(nil),                      // 69: feov.record.v1.Position
+	(*Halt)(nil),                          // 70: feov.record.v1.Halt
+	(*Certify)(nil),                       // 71: feov.record.v1.Certify
+	(*Declare)(nil),                       // 72: feov.record.v1.Declare
+	nil,                                   // 73: feov.record.v1.NewMint.ByClassEntry
+	(*descriptorpb.FieldOptions)(nil),     // 74: google.protobuf.FieldOptions
+	(*descriptorpb.EnumValueOptions)(nil), // 75: google.protobuf.EnumValueOptions
+	(*descriptorpb.MessageOptions)(nil),   // 76: google.protobuf.MessageOptions
 }
 var file_record_proto_depIdxs = []int32{
 	0,   // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
-	62,  // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	69,  // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
-	70,  // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
-	71,  // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
-	72,  // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
-	73,  // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
-	74,  // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
-	55,  // 8: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
-	61,  // 9: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
-	35,  // 10: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
-	36,  // 11: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
-	37,  // 12: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
-	38,  // 13: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
-	39,  // 14: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
-	40,  // 15: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
-	41,  // 16: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
-	42,  // 17: feov.record.v1.Event.observe:type_name -> feov.record.v1.Observe
-	43,  // 18: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
-	44,  // 19: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
-	45,  // 20: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
-	46,  // 21: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
-	47,  // 22: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
-	49,  // 23: feov.record.v1.Event.inquiry:type_name -> feov.record.v1.Inquiry
-	51,  // 24: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
-	52,  // 25: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
-	53,  // 26: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
-	54,  // 27: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
-	48,  // 28: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
-	50,  // 29: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
-	63,  // 30: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
-	64,  // 31: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
-	66,  // 32: feov.record.v1.Event.cast:type_name -> feov.record.v1.Cast
-	67,  // 33: feov.record.v1.Event.dispatch:type_name -> feov.record.v1.Dispatch
-	65,  // 34: feov.record.v1.Event.sitting_limit:type_name -> feov.record.v1.SittingLimit
-	68,  // 35: feov.record.v1.Event.plan:type_name -> feov.record.v1.Plan
-	1,   // 36: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
-	31,  // 37: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
-	33,  // 38: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
-	34,  // 39: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
-	32,  // 40: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
-	75,  // 41: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
-	1,   // 42: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
-	16,  // 43: feov.record.v1.Mint.about_kind:type_name -> feov.record.v1.AboutKind
-	4,   // 44: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
-	1,   // 45: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
-	1,   // 46: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 47: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
-	1,   // 48: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
-	5,   // 49: feov.record.v1.Mint.class_material:type_name -> feov.record.v1.ClassMaterial
-	5,   // 50: feov.record.v1.ClassNew.material_default:type_name -> feov.record.v1.ClassMaterial
-	6,   // 51: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
-	1,   // 52: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
-	1,   // 53: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 54: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
-	1,   // 55: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	1,   // 56: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	1,   // 57: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	1,   // 58: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	16,  // 59: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
-	17,  // 60: feov.record.v1.Cite.source_text_read:type_name -> feov.record.v1.SourceTextRead
-	18,  // 61: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
-	19,  // 62: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
-	20,  // 63: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	7,   // 64: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	8,   // 65: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	19,  // 66: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
-	20,  // 67: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
-	9,   // 68: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	10,  // 69: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
-	11,  // 70: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
-	22,  // 71: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	21,  // 72: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	56,  // 73: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	57,  // 74: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	60,  // 75: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
-	58,  // 76: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	23,  // 77: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,   // 78: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	24,  // 79: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	6,   // 80: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	13,  // 81: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	14,  // 82: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	15,  // 83: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
-	59,  // 84: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	25,  // 85: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	26,  // 86: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
-	26,  // 87: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
-	2,   // 88: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
-	3,   // 89: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	76,  // 90: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	76,  // 91: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
-	77,  // 92: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	77,  // 93: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
-	77,  // 94: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	77,  // 95: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	77,  // 96: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
-	77,  // 97: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	77,  // 98: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
-	78,  // 99: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	28,  // 100: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	27,  // 101: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	102, // [102:102] is the sub-list for method output_type
-	102, // [102:102] is the sub-list for method input_type
-	100, // [100:102] is the sub-list for extension type_name
-	90,  // [90:100] is the sub-list for extension extendee
-	0,   // [0:90] is the sub-list for field type_name
+	60,  // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
+	67,  // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
+	68,  // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
+	69,  // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
+	70,  // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
+	71,  // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
+	72,  // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
+	53,  // 8: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
+	59,  // 9: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
+	34,  // 10: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
+	35,  // 11: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
+	36,  // 12: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
+	37,  // 13: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
+	38,  // 14: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
+	39,  // 15: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
+	40,  // 16: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
+	41,  // 17: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
+	42,  // 18: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
+	43,  // 19: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
+	44,  // 20: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
+	45,  // 21: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
+	47,  // 22: feov.record.v1.Event.inquiry:type_name -> feov.record.v1.Inquiry
+	49,  // 23: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
+	50,  // 24: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
+	51,  // 25: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
+	52,  // 26: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
+	46,  // 27: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
+	48,  // 28: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
+	61,  // 29: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
+	62,  // 30: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
+	64,  // 31: feov.record.v1.Event.cast:type_name -> feov.record.v1.Cast
+	65,  // 32: feov.record.v1.Event.dispatch:type_name -> feov.record.v1.Dispatch
+	63,  // 33: feov.record.v1.Event.sitting_limit:type_name -> feov.record.v1.SittingLimit
+	66,  // 34: feov.record.v1.Event.plan:type_name -> feov.record.v1.Plan
+	1,   // 35: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
+	30,  // 36: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
+	32,  // 37: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
+	33,  // 38: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
+	31,  // 39: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
+	73,  // 40: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
+	1,   // 41: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
+	16,  // 42: feov.record.v1.Mint.about_kind:type_name -> feov.record.v1.AboutKind
+	4,   // 43: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
+	1,   // 44: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
+	1,   // 45: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 46: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
+	1,   // 47: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
+	5,   // 48: feov.record.v1.Mint.class_material:type_name -> feov.record.v1.ClassMaterial
+	5,   // 49: feov.record.v1.ClassNew.material_default:type_name -> feov.record.v1.ClassMaterial
+	6,   // 50: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
+	1,   // 51: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
+	1,   // 52: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 53: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
+	1,   // 54: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
+	1,   // 55: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	1,   // 56: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	1,   // 57: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	16,  // 58: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
+	17,  // 59: feov.record.v1.Cite.source_text_origin:type_name -> feov.record.v1.SourceTextOrigin
+	18,  // 60: feov.record.v1.Cite.work_status:type_name -> feov.record.v1.WorkStatus
+	19,  // 61: feov.record.v1.Cite.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	7,   // 62: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	8,   // 63: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	18,  // 64: feov.record.v1.Verify.work_status:type_name -> feov.record.v1.WorkStatus
+	19,  // 65: feov.record.v1.Verify.source_completeness:type_name -> feov.record.v1.SourceCompleteness
+	9,   // 66: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	10,  // 67: feov.record.v1.Reproduce.rerun:type_name -> feov.record.v1.Rerun
+	11,  // 68: feov.record.v1.Inquiry.status:type_name -> feov.record.v1.InquiryStatus
+	21,  // 69: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	20,  // 70: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	54,  // 71: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	55,  // 72: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	58,  // 73: feov.record.v1.Motion.inquiry:type_name -> feov.record.v1.InquiryMotion
+	56,  // 74: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	22,  // 75: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,   // 76: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	23,  // 77: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	6,   // 78: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	13,  // 79: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	14,  // 80: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	15,  // 81: feov.record.v1.MotionRule.inquiry:type_name -> feov.record.v1.InquiryRuling
+	57,  // 82: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	24,  // 83: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	25,  // 84: feov.record.v1.Register.occasion:type_name -> feov.record.v1.Occasion
+	25,  // 85: feov.record.v1.Dispatch.occasions:type_name -> feov.record.v1.Occasion
+	2,   // 86: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
+	3,   // 87: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	74,  // 88: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	74,  // 89: feov.record.v1.prose:extendee -> google.protobuf.FieldOptions
+	75,  // 90: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	75,  // 91: feov.record.v1.defined_term:extendee -> google.protobuf.EnumValueOptions
+	75,  // 92: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	75,  // 93: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	75,  // 94: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	75,  // 95: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	75,  // 96: feov.record.v1.gap_may_name:extendee -> google.protobuf.EnumValueOptions
+	76,  // 97: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	27,  // 98: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	26,  // 99: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	100, // [100:100] is the sub-list for method output_type
+	100, // [100:100] is the sub-list for method input_type
+	98,  // [98:100] is the sub-list for extension type_name
+	88,  // [88:98] is the sub-list for extension extendee
+	0,   // [0:88] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -8201,7 +7911,6 @@ func file_record_proto_init() {
 		(*Event_Regrade)(nil),
 		(*Event_SpotCheck)(nil),
 		(*Event_Finding)(nil),
-		(*Event_Observe)(nil),
 		(*Event_Anchor)(nil),
 		(*Event_Cite)(nil),
 		(*Event_Verify)(nil),
@@ -8245,28 +7954,28 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[24].OneofWrappers = []any{}
 	file_record_proto_msgTypes[25].OneofWrappers = []any{}
 	file_record_proto_msgTypes[26].OneofWrappers = []any{}
-	file_record_proto_msgTypes[27].OneofWrappers = []any{}
-	file_record_proto_msgTypes[28].OneofWrappers = []any{
+	file_record_proto_msgTypes[27].OneofWrappers = []any{
 		(*Motion_Grade)(nil),
 		(*Motion_Petition)(nil),
 		(*Motion_Inquiry)(nil),
 		(*Motion_Docket)(nil),
 	}
+	file_record_proto_msgTypes[28].OneofWrappers = []any{}
 	file_record_proto_msgTypes[29].OneofWrappers = []any{}
 	file_record_proto_msgTypes[30].OneofWrappers = []any{}
 	file_record_proto_msgTypes[31].OneofWrappers = []any{}
 	file_record_proto_msgTypes[32].OneofWrappers = []any{}
-	file_record_proto_msgTypes[33].OneofWrappers = []any{}
-	file_record_proto_msgTypes[34].OneofWrappers = []any{
+	file_record_proto_msgTypes[33].OneofWrappers = []any{
 		(*MotionRule_Grade)(nil),
 		(*MotionRule_Petition)(nil),
 		(*MotionRule_Inquiry)(nil),
 		(*MotionRule_Docket)(nil),
 	}
+	file_record_proto_msgTypes[34].OneofWrappers = []any{}
 	file_record_proto_msgTypes[35].OneofWrappers = []any{}
 	file_record_proto_msgTypes[36].OneofWrappers = []any{}
 	file_record_proto_msgTypes[37].OneofWrappers = []any{}
-	file_record_proto_msgTypes[38].OneofWrappers = []any{}
+	file_record_proto_msgTypes[39].OneofWrappers = []any{}
 	file_record_proto_msgTypes[40].OneofWrappers = []any{}
 	file_record_proto_msgTypes[41].OneofWrappers = []any{}
 	file_record_proto_msgTypes[42].OneofWrappers = []any{}
@@ -8274,14 +7983,13 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[44].OneofWrappers = []any{}
 	file_record_proto_msgTypes[45].OneofWrappers = []any{}
 	file_record_proto_msgTypes[46].OneofWrappers = []any{}
-	file_record_proto_msgTypes[47].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
-			NumEnums:      27,
-			NumMessages:   49,
+			NumEnums:      26,
+			NumMessages:   48,
 			NumExtensions: 10,
 			NumServices:   0,
 		},

@@ -70,7 +70,7 @@ const (
 	New = "new"
 
 	// The citation axis. --url is the source a `fetch` reads, a `blue cite` anchors and a
-	// `lens verify --independent` corroborates from; --title is the human name it carries
+	// `lens corroborate` corroborates from; --title is the human name it carries
 	// into the composed bibliography. A source is named by these two, everywhere.
 	URL   = "url"
 	Title = "title"
@@ -180,11 +180,6 @@ const (
 	// Type is what a log entry ASSERTS — defect, request, friction. The operator
 	// triages by filtering on it instead of reading every entry to find out which it was.
 	Type = "type"
-
-	// SourceText says how much of the cited source this seat actually READ. Its absence is the
-	// weak claim, not a missing answer: the verb records UNREAD, which is what a citation resting
-	// on a bibliographic record deserves.
-	SourceText = "source-text"
 
 	// OCRQuote is the span a citation of OCR-derived text quotes FROM THE READING — not --quote,
 	// which is the report's sentence. The tool finds the span's page in the reading and records
@@ -333,7 +328,7 @@ func All() []string {
 		As, Confidence, Occasion,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher, MaterialDefault,
-		Problem, Fix, Check, CheckKind, Type, SourceText, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, OCRQuote, Page, Via, At, About, AboutKind, Question, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, DistinctFrom, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Assembled, Match,
 		Principle, Tension, ReviewFlag, Relief, Binds,

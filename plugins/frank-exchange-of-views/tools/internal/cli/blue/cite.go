@@ -10,7 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -67,11 +66,6 @@ func newCite() *cobra.Command {
 			return nil, err
 		}
 
-		read, err := sourceTextRead(cmd)
-		if err != nil {
-			return nil, err
-		}
-
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
 		// second fetch AND no second anchor (BEFORE any effect). A cite on the record without its
 		// anchor — one migrate brought forward from an archive whose run crashed between the two — is finished by the retry, at the location it stored.
@@ -99,20 +93,10 @@ func newCite() *cobra.Command {
 			return nil, record.ToolLogged(unloaded)
 		}
 
-		// A LEAF READING OF AN ABSTRACT IS A CLAIM TO HAVE READ THE STUDY. The fetch has already
-		// looked for a copy carrying the body; where the copy it kept is known not to be one, the
-		// reading the record can carry is `summary_only` — which the vocabulary defines to include
-		// an abstract — or `unread` for a page that is not the work at all.
-		if read == recordpb.SourceTextRead_SOURCE_TEXT_READ_LEAF && entry.WithoutBody() {
-			return nil, feov.Errorf(feov.Conflict, "the copy of %s this run holds is %s — %s. A leaf reading claims "+
-				"you read the work itself; cite it with --%s summary_only for an abstract, or unread for a page "+
-				"that is not the work, or cite a source whose text you read", url, entry.Completeness, entry.CompletenessReason, flags.SourceText)
-		}
-
 		// WHERE THE CITED TEXT CAME FROM, and for OCR text, WHICH PAGE THE QUOTE SITS ON. The
 		// binary finds the page from the span; a seat never types one. Refused before the label is
 		// minted, so a refusal leaves nothing on the record.
-		ocr, err := locateOCRQuote(run, entry, url, ocrQuote, read)
+		ocr, err := locateOCRQuote(run, entry, url, ocrQuote)
 		if err != nil {
 			return nil, err
 		}
@@ -148,37 +132,20 @@ func newCite() *cobra.Command {
 			body.OcrEngine = proto.String(ocr.loc.Engine)
 			body.OcrTextSha = proto.String(ocr.loc.TextSha)
 		}
-		citeFields(cmd, body, read, why)
+		citeFields(cmd, body, why)
 		if err := seat.AppendPlaced(s, body, label, quote, citeRefusal); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha, Pages: ocr.pages(), VoiceTells: tells}, nil
 	}))
 
-	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
-		"how much of the source you actually READ; omitted records `unread`. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work")
 	flags.Text(c, flags.Quote, flags.DescQuote+". A mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	flags.Text(c, flags.Title, flags.DescTitle)
 	seat.Require(c, flags.Quote, flags.URL, flags.Title)
-	flags.Text(c, flags.OCRQuote, "for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf")
+	flags.Text(c, flags.OCRQuote, "for OCR-derived text, and required there: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on")
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL mints the citation's id")
 	return c
-}
-
-// sourceTextRead is the reading the seat asserts for the source. THE DEFAULT IS THE WEAK CLAIM: a
-// citation nobody has asserted a reading for is UNREAD — the honest state costs the seat nothing,
-// and only a stronger one is stated on purpose.
-func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
-	w := seat.Str(cmd, flags.SourceText)
-	if w == "" {
-		return recordpb.SourceTextRead_SOURCE_TEXT_READ_UNREAD, nil
-	}
-	v, known := record.SourceTextReadOf(w)
-	if !known || v == recordpb.SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED {
-		return v, feov.Errorf(feov.Validation, "%q is not a reading this record can carry (leaf | summary_only | unread)", w)
-	}
-	return v, nil
 }
 
 // citeFields sets every field of a cite that the SEAT types.
@@ -188,12 +155,11 @@ func sourceTextRead(cmd *cobra.Command) (recordpb.SourceTextRead, error) {
 // seat's argument there is exactly the run-voice the report refuses); the `evidence` view shows it
 // beside the source, where red decides what to verify. Set only when given, so "no argument
 // offered" stays distinct from an empty one.
-func citeFields(cmd *cobra.Command, body *recordpb.Cite, read recordpb.SourceTextRead, why string) {
+func citeFields(cmd *cobra.Command, body *recordpb.Cite, why string) {
 	body.Location = proto.String(seat.Location(cmd))
 	body.Url = proto.String(seat.Str(cmd, flags.URL))
 	body.Title = proto.String(seat.Str(cmd, flags.Title))
 	body.CiteKey = proto.String(seat.Str(cmd, flags.Key))
-	body.SourceTextRead = read.Enum()
 	if seat.Given(cmd, flags.Reason) {
 		body.Text = proto.String(why)
 	}
@@ -225,11 +191,11 @@ func (o ocrCite) pages() []int32 {
 }
 
 // locateOCRQuote stamps a cite's text origin and, for a quote from an OCR reading, the pages it
-// sits on. A leaf citation of OCR text must name its span: a leaf reading is the claim that the
-// source SAYS this, and OCR text can misread, so the page is what lets red check the pixels. On a
+// sits on. A citation of OCR text must name its span: a citation is the claim that the source
+// SAYS this, and OCR text can misread, so the page is what lets red check the pixels. On a
 // source with no OCR reading the span is refused rather than dropped — a flag accepted and
 // recorded nowhere reads as a page check that will never be owed.
-func locateOCRQuote(run record.Run, entry fetchcache.Entry, url, span string, read recordpb.SourceTextRead) (ocrCite, error) {
+func locateOCRQuote(run record.Run, entry fetchcache.Entry, url, span string) (ocrCite, error) {
 	origin, rec, err := fetchcache.TextOrigin(run, entry)
 	if err != nil {
 		return ocrCite{}, err
@@ -239,10 +205,7 @@ func locateOCRQuote(run record.Run, entry fetchcache.Entry, url, span string, re
 	switch origin {
 	case recordpb.SourceTextOrigin_SOURCE_TEXT_ORIGIN_OCR:
 		if !given {
-			if read == recordpb.SourceTextRead_SOURCE_TEXT_READ_LEAF {
-				return ocrCite{}, feov.Errorf(feov.Validation, "a leaf citation of OCR-derived text names the span it quotes from the reading, with --%s, so the tool can record its page — the reading is at %s", flags.OCRQuote, fetchcache.OCRTextPath(run, entry.Sha))
-			}
-			return out, nil
+			return ocrCite{}, feov.Errorf(feov.Validation, "a citation of OCR-derived text names the span it quotes from the reading, with --%s, so the tool can record its page — the reading is at %s", flags.OCRQuote, fetchcache.OCRTextPath(run, entry.Sha))
 		}
 		loc, lerr := fetchcache.LocateSpan(run, rec, span)
 		switch {

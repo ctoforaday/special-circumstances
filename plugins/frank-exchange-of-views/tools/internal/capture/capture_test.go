@@ -277,7 +277,7 @@ func blueSittingRun(t *testing.T, closedFirst, returned bool, acts ...proto.Mess
 		evs = append(evs, at("blue-respond", a))
 	}
 	if returned {
-		evs = append(evs, at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")}))
+		evs = append(evs, at(record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent")}))
 	}
 	dir := t.TempDir()
 	recordtest.Seed(t, dir, evs...)

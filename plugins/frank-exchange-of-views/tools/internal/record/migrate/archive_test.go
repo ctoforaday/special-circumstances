@@ -224,15 +224,13 @@ func untar(t *testing.T, tarball, into string) {
 
 // A RUN FROM BEFORE EPOCH 14 KEEPS ITS SILENCE ABOUT WHERE ITS SEATS SPOKE.
 //
-// Epoch 14 put session_id and prompt_id on sitting_open and the seat's own transcript path on
-// sitting_close. No run before it could record any of them, and `sitting_open` has no registry
-// entry — it translates by IDENTITY, fields matched by name — so the correctness of this bump rests
-// entirely on identity doing the right thing with fields that are not there.
+// Epoch 14 put the seat's own transcript path on sitting_close. No run before it could record one,
+// so the correctness of the translation rests on it doing the right thing with a field that is not
+// there.
 //
-// THE FAILURE THIS FORBIDS IS A FILLED-IN ZERO. A migration that wrote "" for the missing session
-// would make every archived sitting claim a conversation id nobody recorded, and the field exists
-// precisely to tell "the harness did not say" from "there is no id". Absent must stay absent.
-func TestAnArchivedRunRecordsNoConversationItNeverHad(t *testing.T) {
+// THE FAILURE THIS FORBIDS IS A FILLED-IN ZERO. A migration that wrote "" for the missing path
+// would make every archived sitting claim a trajectory nobody recorded. Absent must stay absent.
+func TestAnArchivedRunRecordsNoTrajectoryItNeverHad(t *testing.T) {
 	// B3 IS THE FIXTURE BECAUSE IT HAS SPANS. The later archives carry none — the span landed in
 	// #265 and b7/b9 predate it — so migrating them would exercise nothing and pass. Checked: b3
 	// holds 13 sitting_* events, b7 and b9 hold zero.
@@ -255,16 +253,11 @@ func TestAnArchivedRunRecordsNoConversationItNeverHad(t *testing.T) {
 	for _, e := range m.Events {
 		if o := e.GetSittingOpen(); o != nil {
 			opens++
-			if o.SessionId != nil || o.PromptId != nil {
-				t.Errorf("a pre-epoch-14 sitting_open came forward claiming a conversation: session=%v prompt=%v",
-					o.SessionId, o.PromptId)
-			}
 		}
 		if c := e.GetSittingClose(); c != nil {
 			closes++
-			if c.AgentTranscriptPath != nil || c.SessionId != nil || c.PromptId != nil {
-				t.Errorf("a pre-epoch-14 sitting_close came forward claiming a trajectory: path=%v session=%v",
-					c.AgentTranscriptPath, c.SessionId)
+			if c.AgentTranscriptPath != nil {
+				t.Errorf("a pre-epoch-14 sitting_close came forward claiming a trajectory: path=%v", c.AgentTranscriptPath)
 			}
 		}
 	}
@@ -276,7 +269,7 @@ func TestAnArchivedRunRecordsNoConversationItNeverHad(t *testing.T) {
 	if opens == 0 || closes == 0 {
 		t.Fatalf("this fixture carries no spans (%d open, %d close), so identity was never exercised — pick an archive that has them", opens, closes)
 	}
-	t.Logf("identity carried %d opening and %d closing span(s) forward with no invented conversation", opens, closes)
+	t.Logf("%d opening and %d closing span(s) came forward with no invented trajectory", opens, closes)
 }
 
 // A MINT RECORDED BEFORE THE DUPLICATE SCREEN EXISTED IS A DECISION ALREADY MADE.

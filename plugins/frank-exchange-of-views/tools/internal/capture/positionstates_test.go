@@ -40,7 +40,7 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 		body proto.Message
 	}
 	chairSat := []act{{"red-chair", &recordpb.Register{AgentId: proto.String("chair-agent")}}, {"red-chair", position},
-		{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("chair-agent"), AgentType: proto.String("frank-exchange-of-views:red-chair")}}}
+		{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("chair-agent")}}}
 	mint := act{"red-lens-logic", &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"),
 		RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -49,7 +49,7 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 	closeG1 := act{"red-lens-logic", &recordpb.Close{GapId: proto.String("G1"),
 		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}}
 	blueSits := act{"blue-respond", &recordpb.Register{AgentId: proto.String("blue-agent")}}
-	blueStops := act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")}}
+	blueStops := act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent")}}
 	// The chair sits, files and returns; a lens mints G1; the chair's dispatch engages blue on it.
 	// The dispatch row is the returned chair's, written before its stop in a real run; its place
 	// after it here changes nothing a sitting's bounds read.
@@ -91,7 +91,7 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 		},
 		"the chair closed a sitting with none": {
 			acts: append(append([]act{}, chairSat...), act{"red-chair", &recordpb.Register{AgentId: proto.String("chair-2")}},
-				act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("chair-2"), AgentType: proto.String("frank-exchange-of-views:red-chair")}}),
+				act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("chair-2")}}),
 			running: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",
 				detail: []string{"red-chair sitting 2 filed no position"}},
 			after: want{states: []record.PositionState{record.PositionFiled, record.PositionMissing}, verdict: "FAIL",
@@ -106,9 +106,9 @@ func TestThePositionStatesAreReadInOnePlace(t *testing.T) {
 		},
 		"a lane, the frontier and the synthesizer sat and filed none": {
 			acts: append(append([]act{}, chairSat...),
-				act{"blue-lane-1", &recordpb.Register{AgentId: proto.String("lane")}}, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("lane"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")}},
-				act{"frontier", &recordpb.Register{AgentId: proto.String("frontier")}}, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("frontier"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")}},
-				act{"blue-synthesize", &recordpb.Register{AgentId: proto.String("synth")}}, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("synth"), AgentType: proto.String("frank-exchange-of-views:blue-synthesizer")}}),
+				act{"blue-lane-1", &recordpb.Register{AgentId: proto.String("lane")}}, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("lane")}},
+				act{"frontier", &recordpb.Register{AgentId: proto.String("frontier")}}, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("frontier")}},
+				act{"blue-synthesize", &recordpb.Register{AgentId: proto.String("synth")}}, act{record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("synth")}}),
 			running: want{states: []record.PositionState{record.PositionFiled}, verdict: "PASS"},
 			after:   want{states: []record.PositionState{record.PositionFiled}, verdict: "PASS"},
 		},

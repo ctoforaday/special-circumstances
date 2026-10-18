@@ -26,7 +26,7 @@ func TestASittingLimitLandsNamingTheSeatSittingAndLimit(t *testing.T) {
 	run := newRun(t)
 	registerAs(t, run, "agent_07", "red-chair")
 	registerAs(t, run, "agent_07", "red-chair")
-	if err := WriteLimit(run, "agent_07", "frank-exchange-of-views:red-chair", 2, 150); err != nil {
+	if err := WriteLimit(run, "agent_07", 2, 150); err != nil {
 		t.Fatal(err)
 	}
 	m, err := record.MergedEvents(mustRun(t, run))
@@ -45,9 +45,8 @@ func TestASittingLimitLandsNamingTheSeatSittingAndLimit(t *testing.T) {
 	if found == nil {
 		t.Fatal("no sitting_limit event on the record")
 	}
-	if found.GetSeatId() != "red-chair" || found.GetSitting() != 2 || found.GetLimit() != 150 ||
-		found.GetAgentId() != "agent_07" || found.GetAgentType() != "frank-exchange-of-views:red-chair" {
-		t.Errorf("sitting_limit = %v, want red-chair sitting 2 limit 150 for agent_07", found)
+	if found.GetSeatId() != "red-chair" || found.GetSitting() != 2 || found.GetLimit() != 150 {
+		t.Errorf("sitting_limit = %v, want red-chair sitting 2 limit 150 — the seat agent_07 is bound to", found)
 	}
 }
 
@@ -55,14 +54,14 @@ func TestASittingLimitLandsNamingTheSeatSittingAndLimit(t *testing.T) {
 // seat, a sitting below 1, a limit below 1.
 func TestASittingLimitTheRecordCannotAccountForIsRefused(t *testing.T) {
 	run := newRun(t)
-	if err := WriteLimit(run, "agent_ghost", "", 1, 150); err == nil || !strings.Contains(err.Error(), "bound to no seat") {
+	if err := WriteLimit(run, "agent_ghost", 1, 150); err == nil || !strings.Contains(err.Error(), "bound to no seat") {
 		t.Errorf("an agent bound to no seat: %v, want a refusal naming the missing binding", err)
 	}
 	registerAs(t, run, "agent_07", "red-chair")
-	if err := WriteLimit(run, "agent_07", "", 0, 150); err == nil {
+	if err := WriteLimit(run, "agent_07", 0, 150); err == nil {
 		t.Error("sitting 0 was written")
 	}
-	if err := WriteLimit(run, "agent_07", "", 1, 0); err == nil {
+	if err := WriteLimit(run, "agent_07", 1, 0); err == nil {
 		t.Error("a limit of 0 was written")
 	}
 }

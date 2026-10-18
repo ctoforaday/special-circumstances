@@ -100,16 +100,11 @@ do not trip it.
 
 ## 2. Cite — putting it on the record
 
-`blue cite --url --quote --title [--source-text leaf|summary_only|unread]` resolves the url
-through the same cache. It records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker
-at the quoted sentence.
+`blue cite --url --quote --title [--ocr-quote]` resolves the url through the same cache. It
+records a `cite` event and inserts an invisible `<!--cite:C-…-->` marker at the quoted sentence.
 
-- **The reading is the seat's claim**, and it defaults to the weak one, `unread`. Two refusals keep
-  it honest where the tool knows better:
-  - `leaf` is refused on a copy recorded as the work's abstract or as not the work. `summary_only` is
-    the reading an abstract can carry.
-  - A `leaf` citation of OCR-derived text must name its span (`--ocr-quote`). The tool then records
-    the pdf pages the span sits on.
+- A citation of OCR-derived text must name its span (`--ocr-quote`). The tool then records the pdf
+  pages the span sits on.
 - **The tool stamps the facts the seat cannot be asked to remember**, and a cite write missing one
   is refused:
   - `source_text_origin`: embedded, ocr or none.
@@ -206,9 +201,8 @@ from here.**
   of record. Fetch records `copy_version`, but the citation record does not carry it.
 
 **Readings — what the record can and cannot vouch for.**
-- `source_text_read` is the seat's assertion. The tool refuses it only where it knows better (a
-  `leaf` of an abstract, an OCR `leaf` without a span); otherwise `leaf` is taken on trust, and red's
-  audit is the check.
+- What a citation says about its source is the seat's claim, and red's audit is the check. What the
+  tool knows it stamps: an abstract copy is marked ABSTRACT ONLY in the note and the Bibliography.
 - Citations are audited for **support, not trustworthiness**: any source that says the thing counts
   (#247).
 - A retraction is known only where OpenAlex knows it, and only for sources with a doi. Everything

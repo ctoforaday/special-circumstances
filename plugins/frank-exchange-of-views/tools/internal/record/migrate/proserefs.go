@@ -11,7 +11,7 @@ import (
 
 // THE IDS A RECORD ONCE HELD ONLY IN PROSE BECOME FIELDS, ONCE, HERE.
 //
-// Before epoch 32 the gaps a declaration was about were read out of its holding's text, and the
+// Before epoch 33 the gaps a declaration was about were read out of its holding's text, and the
 // anchors a closure was verified with out of its --verified-with words, each by the id's shape at
 // every read. Both are fields now — Declare.gap_ids and Close.anchors — refused at the write unless
 // the record holds each id. A source whose schema has no table for the field predates it, and its
