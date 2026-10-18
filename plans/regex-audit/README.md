@@ -46,13 +46,15 @@ About three in four sites (classes 1 and 2) have a better answer than a pattern.
 - **The DOI and PMC id recovered from URLs** that the caller already resolved. Carry them as values.
 - **Fixtures built from a convenient alphabet** hide coverage defects; that is how the secrets `_` defect survived. A fixture should come from the format's real alphabet.
 
-## New dependencies these fixes would need
+## New dependencies (approved by the owner, 2026-10-18)
+
+The owner is "fully supportive of new dependencies". Each swap below adds its dependency directly in the PR that replaces the patterns.
 
 | Dependency | Replaces | Current state |
 |---|---|---|
 | `golang.org/x/net/html` | About 30 HTML sites | Already in FEOV's go.sum through test dependencies; needs a direct require |
 | `mvdan.cc/sh/v3/syntax` | gray-area heredoc and shell splitting | Pure Go, BSD-3; new |
-| A markdown parser such as goldmark | `report/md.go`, `anchor/sentences.go` | `md.go`'s header comment rejects one on purpose, and the owner's ruling reopens that |
+| A markdown parser such as goldmark | `report/md.go`, `anchor/sentences.go` | Approved, which overturns the rejection in `md.go`'s header comment |
 | gitleaks rules (MIT) | The hand-kept secrets table | Optional: generate the table from them, with a staleness gate |
 
 ## Prevention (#1479)
@@ -71,6 +73,6 @@ A new regex then becomes a reviewed edit to that one table, and the census is ge
 
 1. The blockers' fixes, all small and independent: #1475, #1477 and #1478 first; #1476 needs an epoch bump.
 2. Class 1 deletions, area by area.
-3. The parser swaps, each one a dependency decision for the owner.
+3. The parser swaps, each adding its approved dependency.
 4. The gate in #1479.
 5. The voice work in #1465, which follows its own diagnosis.
