@@ -136,9 +136,10 @@ already failed your own standard.
   with its claim: a run of anchors at a sentence's end does not say which part each one marks, so
   read what each one marks on the record before you place it. The record lists each anchor
   whose sentence an edit changed. A citation or proof among them is REOPENED — the reference
-  stands, its referent moved, so its check is stale rather than refuted. The evidence lens owes
-  the new check and is readied for it; a check by any lens from a sitting opened after the edit
-  clears it, and a PASS waits until one does.
+  stands, its referent moved, so its check is stale rather than refuted. Its owning lens owes
+  the new check and is readied for it — the evidence lens for a citation; for a proof the
+  computation lens, or the evidence lens where the cast seats none. A check by any lens from a
+  sitting opened after the edit clears it, and a PASS waits until one does.
 - Citing OCR-derived text that you read at the leaf names the exact span you are quoting from the
   reading, so the tool can record its page.
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
@@ -789,7 +790,7 @@ A PROOF'S VERDICT IS FLAT ON ITS ROW, IN TWO HALVES. `rerun` is the SCRIPT's: `r
 
 `unanswered_contradictions` IS EVERY CONTRADICTION RED RECORDED THAT NOTHING HAS ANSWERED: a source a lens read refutes, or is silent on, a sentence of the report. Each row carries its `id`, the `claim` the reading was of, the `reader` who owes the finding, and the citation `anchor` the reading checked (empty for a corroboration). A finding about it — `--about-kind contradiction --about <id>` — answers it whether or not the report still holds the sentence, and a finding whose quote contains the claim answers it too; a source read against the claim after the answer opens a new one. A row with an `anchor` is answered as well when blue retires that citation, or once a lens has verified the citation's sentence as it now stands and every lens's latest verify of it backs it: the reading stops counting when its lens reads the citation's source again or an edit changes the sentence after its sitting opened, and another lens's backing verify while it counts is a disagreement that answers nothing. A PASS waits while a row stands.
 
-A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. The evidence lens owes that check and is the seat readied for it. A PASS waits while a row stands.
+A `reopened` ROW IS A CITATION OR PROOF WHOSE SENTENCE AN EDIT CHANGED and that no sitting opened since has checked. `edit` and `last_check` are event ids: the edit, and the anchor's latest check, which does not clear it. A `verify` of the citation or a `reproduce` naming the proof's anchor, from a sitting opened after `edit`, removes the row, whichever lens records it; a verify `--as unreachable` does not. Its owning lens owes that check and is the seat readied for it: a citation is the evidence lens's; a proof is the computation lens's, or the evidence lens's where the cast seats none. A PASS waits while a row stands.
 
 TO READ ONE ENTRY IN FULL, add --anchor <id>. On a proof's `<!--proof:P-…-->` id that is the proof's row WITH THE COMPUTATION ITSELF: `script` is the stored script — the bytes the lens's `reproduce` executes — `script_file` is the name it is stored under, and `recorded_output` is what blue's run printed. The table carries no script, so THIS IS HOW A SCRIPT IS READ BEFORE IT IS JUDGED. A script or output the proof store does not hold is refused, never shown empty. On a source's `<!--cite:C-…-->` id it is that source's one row. Either carries the anchor's `reopened` row while one stands.
 
