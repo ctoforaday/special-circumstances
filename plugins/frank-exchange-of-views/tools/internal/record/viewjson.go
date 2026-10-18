@@ -163,6 +163,14 @@ type GapJSON struct {
 	MintedBy   string   `json:"minted_by"`
 	FoundBy    []string `json:"found_by"`
 	Supersedes []string `json:"supersedes"`
+	// Material, Remanded and DocketDirection are the gap view's columns the work list's row reads,
+	// read off the same columns: universe-m29's chair and bench asked the board for them eight
+	// times and jq returned null. Material is the class's answer (else graded medium or above)
+	// whether or not the gap is open; Remanded is true only while it is open, remanded and nothing
+	// is pending; the direction is the latest remand's, "" when the bench never remanded it.
+	Material        bool   `json:"material"`
+	Remanded        bool   `json:"remanded"`
+	DocketDirection string `json:"docket_direction"`
 
 	ClosedEpoch   int  `json:"closed_epoch"`
 	ClosedByBench bool `json:"closed_by_bench"`
@@ -404,7 +412,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
 	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_by", "minted_event",
-	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last"
+	    "close_event", "bench_close_event", "closed_by_bench", "bench_closed_last",
+	    "material", "remanded", "docket_direction"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return out, fmt.Errorf("asking the record for its board: %w", err)
@@ -418,15 +427,18 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew, mintedBy sql.NullString
 		var mintedEvent int64
 		var closeEvent, benchEvent sql.NullInt64
-		var closedByBench, benchClosedLast bool
+		var closedByBench, benchClosedLast, material, remanded bool
+		var direction sql.NullString
 		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedBy, &mintedEvent,
-			&closeEvent, &benchEvent, &closedByBench, &benchClosedLast); err != nil {
+			&closeEvent, &benchEvent, &closedByBench, &benchClosedLast,
+			&material, &remanded, &direction); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
 			ID: id, Epoch: round, Open: open,
 			MintedBy: mintedBy.String, FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
+			Material: material, Remanded: remanded, DocketDirection: direction.String,
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
 			Class:     class.String,
