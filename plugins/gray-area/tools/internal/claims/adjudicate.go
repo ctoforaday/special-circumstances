@@ -136,20 +136,42 @@ func matchingLine(cmd string, sig []string) string {
 	return cmd
 }
 
-// pathSurface returns a trigger surface as a path, and whether it is one. A
-// surface with no `/` and no leading `.` is not treated as a path at all — the
-// same rule the restore hook applies, and for the same reason: bare `scripts` is
-// a word, `scripts/` is a place.
-func pathSurface(surface string) (string, bool) {
-	surface = strings.TrimSpace(surface)
-	if surface == "" || (!strings.Contains(surface, "/") && !strings.HasPrefix(surface, ".")) {
-		return "", false
+// surfacePaths reads the paths out of a trigger surface written as prose —
+// "agentgen src, scripts/" names one path, `scripts`. A token is a path when it
+// holds a `/` or starts with `.`: bare `scripts` is a word, `scripts/` is a
+// place. A glob keeps its directory part ("tools/**/*.go" is tools). The rule is
+// prosthetic-conscience's checkpoint.WatchTargets token rule, restated across
+// the module boundary; a surface resolving to the root names nothing.
+func surfacePaths(surface string) []string {
+	s := strings.NewReplacer("`", " ", "\"", " ", "'", " ", ",", " ", ";", " ", "(", " ", ")", " ").Replace(surface)
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range strings.Fields(s) {
+		f = strings.TrimRight(f, ".,:;")
+		if f == "" || !(strings.ContainsAny(f, "/*?[") || strings.HasPrefix(f, ".")) {
+			continue
+		}
+		var kept []string
+		for _, seg := range strings.Split(strings.TrimPrefix(f, "./"), "/") {
+			if strings.ContainsAny(seg, "*?[") {
+				break
+			}
+			if seg != "" {
+				kept = append(kept, seg)
+			}
+		}
+		p := strings.Join(kept, "/")
+		if p == "" || p == "." || seen[p] {
+			continue
+		}
+		seen[p] = true
+		out = append(out, p)
 	}
-	return strings.TrimSuffix(surface, "/"), true
+	return out
 }
 
-// underSurface reports whether a written path falls under a trigger surface
-// already read by pathSurface. Suffix-based rather than filesystem-based on
+// underSurface reports whether a written path falls under one path read by
+// surfacePaths. Suffix-based rather than filesystem-based on
 // purpose: the trajectory holds absolute paths from the machine that ran, and
 // the surface is written repo-relative, so the two only ever meet as strings.
 func underSurface(written, surface string) bool {
@@ -158,6 +180,16 @@ func underSurface(written, surface string) bool {
 		strings.HasSuffix(written, "/"+surface) ||
 		strings.HasPrefix(written, surface+"/") ||
 		written == surface
+}
+
+// underAny reports whether a written path falls under any of paths.
+func underAny(written string, paths []string) bool {
+	for _, p := range paths {
+		if underSurface(written, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // Adjudicate puts each claim against the trajectory and returns one finding per
@@ -270,7 +302,7 @@ func Adjudicate(cs []Claim, res trajectory.Result) []Finding {
 // bound is one-sided on purpose — a write between the run and the note is
 // missed, never invented.
 func staleness(f *Finding, c Claim, citable []trajectory.Event) {
-	surface, isPath := pathSurface(c.Surface)
+	paths := surfacePaths(c.Surface)
 	asOf, from := c.At, "last run"
 	if asOf == "" {
 		// The value up to its first space: the template writes a trailing
@@ -285,7 +317,7 @@ func staleness(f *Finding, c Claim, citable []trajectory.Event) {
 		f.Unmeasured = append(f.Unmeasured,
 			"staleness — the entry names no trigger surface (re-armed by:), so no later write can be tied to it")
 		return
-	case !isPath:
+	case len(paths) == 0:
 		f.Unmeasured = append(f.Unmeasured,
 			"staleness — the trigger surface ("+strings.TrimSpace(c.Surface)+") names no path, so no write can be placed under it")
 		return
@@ -302,10 +334,10 @@ func staleness(f *Finding, c Claim, citable []trajectory.Event) {
 	}
 	f.AsOf, f.AsOfFrom = asOf, from
 
-	w, unstamped := lastWriteUnder(citable, surface, t)
+	w, unstamped := lastWriteUnder(citable, paths, t)
 	if unstamped > 0 {
 		f.Unmeasured = append(f.Unmeasured, fmt.Sprintf(
-			"staleness over %d write(s) under %s — their timestamps do not parse, so they cannot be placed before or after the run", unstamped, surface))
+			"staleness over %d write(s) under %s — their timestamps do not parse, so they cannot be placed before or after the run", unstamped, strings.Join(paths, ", ")))
 	}
 	if w == nil {
 		return
@@ -326,7 +358,7 @@ func staleness(f *Finding, c Claim, citable []trajectory.Event) {
 // Times are parsed, not compared as strings: "04:41Z" sorts after "04:41:30Z"
 // lexically, and a note's minute-precision stamp meets a transcript's
 // millisecond one here.
-func lastWriteUnder(events []trajectory.Event, surface string, after time.Time) (*trajectory.Event, int) {
+func lastWriteUnder(events []trajectory.Event, paths []string, after time.Time) (*trajectory.Event, int) {
 	var (
 		latest   *trajectory.Event
 		latestAt time.Time
@@ -334,7 +366,7 @@ func lastWriteUnder(events []trajectory.Event, surface string, after time.Time) 
 	)
 	for i := range events {
 		p := trajectory.WriteTarget(events[i])
-		if p == "" || !underSurface(p, surface) {
+		if p == "" || !underAny(p, paths) {
 			continue
 		}
 		ts, ok := ParseTime(events[i].Timestamp)

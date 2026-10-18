@@ -212,10 +212,7 @@ func TestFindingsComeBackInTheNotesOwnOrder(t *testing.T) {
 // A surface that is not path-shaped is not treated as a path — the same rule the
 // restore hook applies. `scripts` is a word; `scripts/` is a place.
 func TestABareWordSurfaceIsNotTreatedAsAPath(t *testing.T) {
-	on := func(written, surface string) bool {
-		p, ok := pathSurface(surface)
-		return ok && underSurface(written, p)
-	}
+	on := func(written, surface string) bool { return underAny(written, surfacePaths(surface)) }
 	if on("/repo/plugins/scripts/x.go", "scripts") {
 		t.Error("a bare word was matched as a directory")
 	}
@@ -417,5 +414,25 @@ func TestAnUnparseableCommandIsCountedNotSearched(t *testing.T) {
 	}
 	if len(f.Unmeasured) != 1 || !strings.Contains(f.Unmeasured[0], "1 Bash command(s)") {
 		t.Errorf("Unmeasured = %q", f.Unmeasured)
+	}
+}
+
+// A surface written as prose names its paths among other words. Read whole, the
+// prose was one "path" no write could fall under, so staleness was reported
+// measured and could never fire.
+func TestAProseSurfaceIsReadForThePathsInIt(t *testing.T) {
+	if got := surfacePaths("agentgen src, `scripts/`, tools/**/*.go and .qlty/qlty.toml."); strings.Join(got, " ") != "scripts tools .qlty/qlty.toml" {
+		t.Errorf("paths = %q", got)
+	}
+	if got := surfacePaths("**/*.go"); len(got) != 0 {
+		t.Errorf("a root surface named %q", got)
+	}
+	note := "## Validation loop\n1. `go test ./a` · re-armed by: agentgen src, scripts/\n   last run: pass 2026-07-30T04:00Z\n"
+	f := one(t, note, trace(t,
+		bash("ran", "2026-07-30T03:50:00Z", "go test ./a"),
+		write("edit", "2026-07-30T05:00:00Z", "/r/scripts/x.go"),
+	))
+	if f.Verdict != Stale {
+		t.Errorf("verdict = %s, want STALE", f.Verdict)
 	}
 }
