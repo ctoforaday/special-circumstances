@@ -254,6 +254,8 @@ var tools = []gate{
 		why: "one authored failure record, copied into every plugin whose hooks exit 0 — the copies must be identical or a plugin's failures go somewhere else"},
 	{id: "marketplacegen", kind: kindTool, dir: "scripts", args: []string{"run", "./marketplacegen", "-check"}, ciJob: "debate-sim",
 		why: "a plugin with binaries is installed from its release tag; a version bump that left the ref behind ships main's hooks against the old release's binaries"},
+	{id: "secretsgen", kind: kindTool, dir: "scripts", args: []string{"run", "./secretsgen", "-check"}, ciJob: "debate-sim",
+		why: "the secrets gate's gitleaks rows are written from the pinned ruleset; a stale or hand-edited row refuses what the pinned rule does not, or misses what it catches"},
 	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
 		why: "the binary and the plugin must read the same event-schema epoch"},
 	{id: "vocabdoc", kind: kindTool, dir: "scripts", args: []string{"run", "./vocabdoc", "-check"}, ciJob: "debate-sim",
