@@ -187,8 +187,9 @@ func decide(st runlive.State, command string) (say string, freezeUnreadable bool
 // Unit exposes the guard to the merged PreToolUse binary.
 //
 // Applies to Bash ONLY. The merged binary registers the union of its units' matchers
-// (WebFetch|WebSearch|Bash, widened by sc-secrets-gate), so without this the guard would
-// start warning about web calls it has never watched — merging must not widen a matcher.
+// (WebFetch|WebSearch|Bash|mcp__.*, widened by sc-secrets-gate), so without this the guard
+// would start warning about web and MCP calls it has never watched — merging must not widen
+// a matcher.
 //
 // It NEVER blocks, and that posture is preserved unit-by-unit rather than centrally: the
 // freeze is a commitment the human may consciously override, and this guard's job is making
