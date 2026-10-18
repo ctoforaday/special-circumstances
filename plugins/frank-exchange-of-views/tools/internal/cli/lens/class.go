@@ -47,10 +47,9 @@ func newClass() *cobra.Command {
 //
 // READ-ONLY, and it records nothing: a seat asking what the words are has not yet done anything.
 //
-// TWO KINDS OF ROW, AND THE PAGE STATES ONLY WHAT EACH CARRIES. They carry different columns because
-// the record holds different things about them: a coined class has its definition and neighbour
-// because the coining recorded them, so a coined row prints what it has and a staged row prints no
-// blank standing in for what was never staged.
+// EACH ROW PRINTS WHAT ITS SOURCE HOLDS. A coined class has its definition, neighbour and
+// distinguisher because the coining recorded them; a staged class has them where the registry states
+// them. A row prints what it has, and no blank standing in for what nothing holds.
 func newClassList() *cobra.Command {
 	return seat.NewRead("list", classListResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -89,10 +88,8 @@ func (r classListResult) Human() string {
 			origin = "  (coined on this run)"
 		}
 		fmt.Fprintf(&sb, "\n  %-42s %-9s%s", c.Slug, md, origin)
-		// THE COINED ROWS CARRY WHAT A NEIGHBOUR CHOICE NEEDS, and the shipped rows do not — setup
-		// stages only the slug and the default. Printing the definition where it exists, and
-		// nothing where it does not, is the honest shape; a blank line under every shipped class
-		// would read as missing data rather than as data the registry never staged.
+		// THE DEFINITION WHERE ONE EXISTS, AND NOTHING WHERE NONE DOES: a blank line under every
+		// class the registry states only by slug would read as missing data.
 		if c.Definition != "" {
 			fmt.Fprintf(&sb, "\n      %s", c.Definition)
 		}
