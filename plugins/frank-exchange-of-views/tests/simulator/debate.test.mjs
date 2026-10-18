@@ -1166,16 +1166,24 @@ test('the schema refuses what the plan check refuses: a bench with no occasion, 
 // every value in the pool — and deleted — and each resulting relay the schema accepts is run
 // through the engine. A check added to the engine with no shape for it in the schema fails here,
 // naming the relay; so does a shape loosened in the schema that a check still throws on.
-// THE CHAIR'S ENVELOPE DECLARES ONLY WHAT THE ENGINE READS. A field the schema offers and nothing
-// reads is an invitation to compose into it: the 2026-10-17 smoke's chair wrapped its whole relay in
-// `plan` beside a `notes` it had written, and the retry dropped both. Each declared key is read
-// below as `chairEnv.<key>`; a key added to the schema must be read there, or named here as read.
+// THE CHAIR'S ENVELOPE DECLARES ONLY WHAT THE ENGINE READS: a field the schema offers is one the
+// seat composes into, so nothing it writes there goes unread. Each declared key is read below as
+// `chairEnv.<key>`; a key added to the schema must be read there.
 test('the chair envelope declares no field the engine does not read', async () => {
   const schema = await chairSchema()
   const src = readFileSync(new URL('../../skills/research-protocol/scripts/debate.js', import.meta.url), 'utf8')
   for (const key of Object.keys(schema.properties)) {
     assert.ok(src.includes(`chairEnv.${key}`), `CHAIR_ENVELOPE declares \`${key}\`, which the engine never reads as chairEnv.${key}`)
   }
+})
+
+// THE ENVELOPE KEEPS A FREE FIELD BESIDE `plan`, UNDESCRIBED. Replaying an m28 chair at its return
+// (2026-10-18), an envelope of `plan` and `verdict` alone had it wrap the whole envelope inside `plan`
+// on 4 of 9 first returns — m28 itself did so in 11 of 12 sittings — against 0 of 16 with a bare
+// `notes`; a described `notes` drew 2 of 12. Cutting or describing it is a measured regression.
+test('the chair envelope keeps its bare notes field', async () => {
+  const schema = await chairSchema()
+  assert.deepEqual(schema.properties.notes, { type: 'string' }, 'CHAIR_ENVELOPE.notes is a bare string: removed or described, the chair wraps its envelope inside `plan`')
 })
 
 test('a relay the envelope schema accepts is never one the engine throws on', async () => {

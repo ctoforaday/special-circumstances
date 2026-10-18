@@ -580,7 +580,7 @@ const BLUE_ENVELOPE = {
 // drop, add or alter any field of it on the way, which is why capture's dispatch-parity audit compares
 // each relayed plan with the plan the record stored, whole, and why requirePlan below type-checks
 // every field read. The
-// verdict is what the chair RECORDED this sitting, if it recorded one. Nothing else the old envelope carried
+// verdict is what the chair RECORDED this sitting, if it recorded one, and notes its line to the operator. Nothing else the old envelope carried
 // (gaps, closures, dispute responses, citation counts) is here: the record holds them and every seat reads
 // them through the tool.
 //
@@ -647,6 +647,11 @@ const CHAIR_ENVELOPE = {
     // m14's chair then logged the refusal as the schema forcing a verdict it could not give. Every
     // reader below treats a missing verdict and null alike.
     verdict: { ...VERDICT, description: 'the verdict you RECORDED this sitting, restated — the record is the original; null or absent if you recorded none' },
+    // NOTES IS THE CHAIR'S LINE TO THE OPERATOR, printed on its progress line below, and the envelope
+    // needs a free field beside `plan`: replaying an m28 chair at its return (2026-10-18), an envelope
+    // of `plan` and `verdict` alone had it wrap the whole envelope inside `plan` on 4 of 9 first
+    // returns, and 0 of 16 with this field. Described, the field drew 2 of 12, so it carries none.
+    notes: { type: 'string' },
   },
 }
 const JUDGE_ENVELOPE = {
@@ -1018,7 +1023,7 @@ while (!halted) {
   const plan = chairEnv.plan
   requirePlan(plan, epoch)
   lastPlan = plan
-  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${chairEnv.verdict ? `, chair recorded ${chairEnv.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}`)
+  log(`epoch ${epoch}: head ${plan.head} — ${plan.parties.length} party(ies) ready${plan.docket.length ? `, docketed ${plan.docket.join(', ')}` : ''}${chairEnv.verdict ? `, chair recorded ${chairEnv.verdict}` : ''}${plan.pass_permitted ? ' — PASS permitted' : ''}${plan.ceiling ? ' — at the ceiling' : ''}${chairEnv.notes ? ` — chair: ${chairEnv.notes}` : ''}`)
   if (chairEnv.verdict === 'PASS') break
   // THE EPOCH LIMIT is the record's word, like the ceiling: the plan at the last epoch readies
   // nobody. A relayed plan that says the limit is reached ends the debate whatever parties it lists.
