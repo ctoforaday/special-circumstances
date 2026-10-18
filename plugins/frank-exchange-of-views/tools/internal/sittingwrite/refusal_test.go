@@ -46,6 +46,10 @@ func TestAHookRefusalIsLoggedUnderTheRefusedSeat(t *testing.T) {
 			t.Errorf("a live anchor reached the log: %q", l.GetText())
 		}
 	}
+	// The anchor the failure named is still named, by its id.
+	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[1]); !strings.HasSuffix(l.GetText(), "File does not exist F-1234abcd") {
+		t.Errorf("the failure's entry lost the anchor it named: %q", l.GetText())
+	}
 }
 
 // otherSeat is another seat's own connection on runDir's record, as a seat in another process holds.
