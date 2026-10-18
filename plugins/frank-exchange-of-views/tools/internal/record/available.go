@@ -213,7 +213,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		//
 		// It stays until the minter acts on that gap after the finding — a regrade, a close, a
 		// closing argument — so it asks for an answer, not for the finding to be acknowledged.
-		for _, w := range findingsAboutYourGaps(evs, gaps, minted, seatID) {
+		for _, w := range findingsAboutYourGaps(evs, win, gaps, minted, seatID) {
 			add(w)
 		}
 	}
@@ -222,7 +222,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 
 // findingsAboutYourGaps is each finding another seat anchored to an open gap this seat minted, that
 // this seat has not acted on since.
-func findingsAboutYourGaps(evs []*Event, gaps []WorkGapState, minted map[string]string, seatID string) []string {
+func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []string {
 	open := map[string]bool{}
 	for _, g := range gaps {
 		if g.Open {
@@ -230,21 +230,43 @@ func findingsAboutYourGaps(evs []*Event, gaps []WorkGapState, minted map[string]
 		}
 	}
 	var out []string
-	for i, e := range evs {
-		f := e.GetFinding()
-		if f == nil || f.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_GAP || e.GetSeatId() == seatID {
+	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
+		if f.minter != seatID {
 			continue
 		}
-		gap := f.GetAboutRef()
-		if !open[gap] || minted[gap] != seatID || actedOnGapAfter(evs[i+1:], seatID, gap) {
-			continue
-		}
-		what := f.GetText()
+		what := f.text
 		if r := []rune(what); len(r) > 160 {
 			what = string(r[:160]) + "…"
 		}
-		out = append(out, e.GetSeatId()+" filed a finding about your gap "+gap+" — "+what+
-			" — only you can act on "+gap+", so answer it: regrade it, close it, or record in a closing argument why it stands")
+		out = append(out, f.filer+" filed a finding about your gap "+f.gap+" — "+what+
+			" — only you can act on "+f.gap+", so answer it: regrade it, close it, or record in a closing argument why it stands")
+	}
+	return out
+}
+
+// gapFinding is a finding another seat anchored to an open gap, standing until the gap's minter acts
+// on the gap after it.
+type gapFinding struct {
+	gap, minter, filer, text string
+	at                       int64 // the finding's events.id
+}
+
+// findingsAboutGapsOf is every finding a seat anchored to an open gap of open it did not mint, that
+// the minter has not acted on since: the one reading of it, which the minter is handed
+// (findingsAboutYourGaps) and owes while it has not sat since the finding (lensOwesOf).
+func findingsAboutGapsOf(evs []*Event, win WindowIndex, open map[string]bool, minted map[string]string) []gapFinding {
+	var out []gapFinding
+	for i, e := range evs {
+		f := e.GetFinding()
+		if f == nil || f.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_GAP {
+			continue
+		}
+		gap := f.GetAboutRef()
+		minter := minted[gap]
+		if !open[gap] || minter == "" || e.GetSeatId() == minter || actedOnGapAfter(evs[i+1:], minter, gap) {
+			continue
+		}
+		out = append(out, gapFinding{gap: gap, minter: minter, filer: e.GetSeatId(), text: f.GetText(), at: win.Of(e).ID})
 	}
 	return out
 }
@@ -297,6 +319,7 @@ type OwedRegradeJSON struct {
 type owedRegrade struct {
 	GapID   string
 	Motions []OwedRegradeJSON
+	ruled   int64 // the events.id of the latest of their rulings
 }
 
 // accepted states each waiting motion's axis and grade for the work item's sentence. A filing that
@@ -317,8 +340,9 @@ func (o owedRegrade) accepted() string {
 
 // regradesAfforded is each gap whose accepted grade motion still waits for its regrade, and whose
 // regrade record.Append admits from seatID now, with every such motion's axis and accepted grade.
-// It is the one reader of "which regrade does a ruling still wait for": the work item's sentence
-// (availableOf) and the gap's `regrades_owed` field (WorkOfSeat) both come from here.
+// It reads "which regrade does a ruling still wait for" off regradesAwaitedOf and adds the write
+// path's filters: the work item's sentence (availableOf) and the gap's `regrades_owed` field
+// (WorkOfSeat) both come from here.
 //
 // THE DEBT IS THE REGRADE AFTER THE RULING. An accepted grade motion asks the minting lens to move
 // the grade, and a regrade recorded before the ruling answers nothing the ruling said. Any regrade
@@ -352,20 +376,14 @@ func (o owedRegrade) accepted() string {
 //
 // THE JOIN IS motionsAt, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
 // RULING, and motion.go's projection is the one that pairs them and says WHICH ruling a motion
-// carries and WHERE it sits — the first, in the place it was made. This function asks it for the verdict and the place together,
-// so the regrade is weighed against the ruling whose verdict is read.
+// carries and WHERE it sits — the first, in the place it was made. regradesAwaitedOf asks it for the
+// verdict and the place together, so the regrade is weighed against the ruling whose verdict is read.
 func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []owedRegrade {
 	latest := win.LatestSittingOf(seatID)
-	lastRegrade := map[string]int64{}    // gap → position of its last regrade, by any seat
 	heldThisSitting := map[string]bool{} // gap → the seat's current sitting holds a regrade of it
-	places := make([]int64, len(evs))    // evs's stream positions, which motionsAt places a ruling by
-	for i, e := range evs {
-		places[i] = int64(i)
-		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" {
-			lastRegrade[r.GetGapId()] = int64(i)
-			if e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
-				heldThisSitting[r.GetGapId()] = true
-			}
+	for _, e := range evs {
+		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" && e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
+			heldThisSitting[r.GetGapId()] = true
 		}
 	}
 	open := map[string]bool{}
@@ -375,13 +393,35 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 		}
 	}
 	var out []owedRegrade
+	for _, o := range regradesAwaitedOf(evs, win, open) {
+		if minted[o.GapID] == seatID && !heldThisSitting[o.GapID] {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// regradesAwaitedOf is each open gap of open whose accepted grade motion no regrade has followed,
+// with every such motion's axis and accepted grade and the events.id of the latest ruling among
+// them. It is the one reading of "which regrade does a ruling still wait for" before the write
+// path's filters: the minting lens is offered it (regradesAfforded), and owes it while it has not
+// sat since the ruling (lensOwesOf).
+func regradesAwaitedOf(evs []*Event, win WindowIndex, open map[string]bool) []owedRegrade {
+	ids := win.IDs(evs)
+	lastRegrade := map[string]int64{} // gap → events.id of its last regrade, by any seat
+	for i, e := range evs {
+		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" {
+			lastRegrade[r.GetGapId()] = ids[i]
+		}
+	}
+	var out []owedRegrade
 	row := map[string]int{} // gap → its row of out
-	for _, m := range motionsAt(evs, places, win) {
+	for _, m := range motionsAt(evs, ids, win) {
 		if m.Subject != "grade" || m.Ruling != "accepted" {
 			continue
 		}
 		id := m.GapID
-		if id == "" || minted[id] != seatID || !open[id] || heldThisSitting[id] {
+		if id == "" || !open[id] {
 			continue
 		}
 		if at, regraded := lastRegrade[id]; regraded && at > m.ruled {
@@ -393,6 +433,7 @@ func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted
 			out = append(out, owedRegrade{GapID: id})
 		}
 		out[k].Motions = append(out[k].Motions, OwedRegradeJSON{MotionID: m.ID, Dimension: m.Fields["dimension"], Proposed: m.Fields["proposed"]})
+		out[k].ruled = max(out[k].ruled, m.ruled)
 	}
 	return out
 }

@@ -31,36 +31,100 @@ import (
 func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []string {
 	minted := mintedBy(evs)
 	var mine []string
-	gone := map[string]bool{}
-	inquiryOf := map[string]string{} // gap -> the inquiry it is anchored on
+	open, gone := map[string]bool{}, map[string]bool{}
 	for _, g := range gaps {
 		if g.Open && minted[g.ID] == seatID {
 			mine = append(mine, g.ID)
+			open[g.ID] = true
 			gone[g.ID] = g.LocationState == LocationGone
-			if g.AboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_INQUIRY) {
-				inquiryOf[g.ID] = g.AboutRef
-			}
 		}
 	}
 	if len(mine) == 0 {
 		return nil
 	}
+	answers := blueAnswersOf(evs, win, open)
+	var out []string
+	for _, g := range mine {
+		a := answers[g]
+		switch {
+		case a.edited:
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an edit — re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g))
+		case a.fate != "":
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, the inquiry the gap is anchored on; re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g, a.fate, a.inquiry))
+		case a.pending:
+			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
+		case a.engaged && gone[g]:
+			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it or say what still fails", g))
+		case a.engaged && a.inquiry != "":
+			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without recording a fate on %s; that is a fact to state rather than a gap to re-argue", g, a.inquiry, a.inquiry))
+		case a.engaged:
+			out = append(out, fmt.Sprintf("gap %s is open and NO edit answers it — blue has been engaged on it and its sitting closed without one, which is a fact to state rather than a gap to re-argue", g))
+		}
+		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
+		// waiting for a dispatch, which is the chair's business and not news about blue.
+	}
+	return out
+}
+
+// blueAnswer is what the record says of blue's answer to one gap: what blueAnswers words for the
+// gap's lens, and when it last arrived, which its debt reads (lensOwesOf).
+type blueAnswer struct {
+	edited  bool   // an edit answered it, old != new
+	fate    string // the latest fate blue recorded on the inquiry it is anchored on, while engaged on it
+	inquiry string // the inquiry it is anchored on; "" for a gap anchored on report text
+	pending bool   // a blue sitting engaged on it is open on the record
+	engaged bool   // a blue sitting was engaged on it
+	// at is the events.id of blue's latest answer to it: an edit answering it, a fate on its inquiry,
+	// or the latest act of a closed sitting engaged on it — the rebuttal, or the silence its lens
+	// states. 0 when blue has given none.
+	at int64
+}
+
+// answered is whether blue has given an answer the record can state — an edit, a fate, or a closed
+// sitting engaged on it. A sitting still open is no answer yet: whether it answers is not measured.
+func (a blueAnswer) answered() bool { return a.at != 0 }
+
+// blueAnswersOf is blue's answer to each gap of open, by gap: the one reading of it, which the gap's
+// lens is handed (blueAnswers) and owes while it has not sat since (lensOwesOf). The inquiry a gap is
+// anchored on is its mint's, as the gap view's about columns are.
+func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool) map[string]blueAnswer {
+	out := map[string]blueAnswer{}
+	inquiryOf := map[string]string{} // gap -> the inquiry it is anchored on
+	for _, e := range evs {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && open[m.GetGapId()] && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_INQUIRY {
+			inquiryOf[m.GetGapId()] = m.GetAboutRef()
+		}
+	}
+	at := func(g string, e *Event) {
+		a := out[g]
+		if id := win.Of(e).ID; id > a.at {
+			a.at = id
+		}
+		out[g] = a
+	}
 	// WhileRunning, because this list is read by a seat that is sitting: a later reading is not the
 	// question, and the latest blue sitting is exactly the one that may still be answering.
-	answered, engaged, pending := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	fated := map[string]string{} // inquiry-anchored gap -> the latest fate blue recorded on its inquiry while engaged on it
 	for _, s := range BlueSittings(evs, win, WhileRunning) {
 		for _, g := range s.Engaged {
-			engaged[g] = true
-			if s.Unresolved {
-				pending[g] = true
+			if !open[g] {
+				continue
+			}
+			a := out[g]
+			a.engaged, a.inquiry = true, inquiryOf[g]
+			a.pending = a.pending || s.Unresolved
+			out[g] = a
+			if !s.Unresolved && len(s.Acts) > 0 {
+				at(g, s.Acts[len(s.Acts)-1])
 			}
 		}
 		for _, e := range s.Acts {
 			if in, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
 				for _, g := range s.Engaged {
-					if q, anchored := inquiryOf[g]; anchored && q == in.GetInquiryId() {
-						fated[g] = recordpb.Word(in.GetStatus())
+					if q, anchored := inquiryOf[g]; anchored && open[g] && q == in.GetInquiryId() {
+						a := out[g]
+						a.fate = recordpb.Word(in.GetStatus())
+						out[g] = a
+						at(g, e)
 					}
 				}
 				continue
@@ -71,29 +135,13 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			}
 			// old != new is the same substantive-movement test exchangesOf applies: an edit that
 			// replaced a span with itself is an act and not an answer.
-			if g := be.GetAnswers(); g != "" && be.GetOld() != be.GetNew() {
-				answered[g] = true
+			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() {
+				a := out[g]
+				a.edited, a.inquiry = true, inquiryOf[g]
+				out[g] = a
+				at(g, e)
 			}
 		}
-	}
-	var out []string
-	for _, g := range mine {
-		switch {
-		case answered[g]:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an edit — re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g))
-		case fated[g] != "":
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, the inquiry the gap is anchored on; re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g, fated[g], inquiryOf[g]))
-		case pending[g]:
-			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
-		case engaged[g] && gone[g]:
-			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it or say what still fails", g))
-		case engaged[g] && inquiryOf[g] != "":
-			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without recording a fate on %s; that is a fact to state rather than a gap to re-argue", g, inquiryOf[g], inquiryOf[g]))
-		case engaged[g]:
-			out = append(out, fmt.Sprintf("gap %s is open and NO edit answers it — blue has been engaged on it and its sitting closed without one, which is a fact to state rather than a gap to re-argue", g))
-		}
-		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
-		// waiting for a dispatch, which is the chair's business and not news about blue.
 	}
 	return out
 }
