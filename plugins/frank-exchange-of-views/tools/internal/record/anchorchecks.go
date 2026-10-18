@@ -38,7 +38,7 @@ import (
 // An edit answers every check of the anchor at once: they are of a sentence the report no longer
 // carries, so none stands, and the anchor is REOPENED — owed a fresh check from a sitting opened
 // after the edit. Blue cannot dissolve red's verdict by rewording: the reopened anchor is owed,
-// and holds a PASS where the evidence lens sits (passBlockersOf).
+// and holds a PASS where the cast seats the lens that owns it (passBlockersOf).
 
 // anchorCheck is one check of one anchor's sentence: a `verify` naming a citation, or a
 // `reproduce` naming a proof.
@@ -63,6 +63,8 @@ type anchorCheck struct {
 // anchorStanding is one anchor and every check of it, in record order.
 type anchorStanding struct {
 	anchor string
+	// proof is whether the anchor is a proof's; a citation's otherwise.
+	proof bool
 	// sha is a proof's proof_sha — the script every proof anchor on it shares; "" for a citation.
 	sha string
 	// edit is the latest blue edit naming the anchor in its `reopened`, and 0 while none has since
@@ -140,11 +142,11 @@ func (l *anchorLedger) at(anchor string) *anchorStanding { return l.byAnchor[anc
 // sitting.
 func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 	l := &anchorLedger{byAnchor: map[string]*anchorStanding{}}
-	hold := func(anchor, sha string) {
+	hold := func(anchor string, proof bool, sha string) {
 		if anchor == "" || l.byAnchor[anchor] != nil {
 			return
 		}
-		s := &anchorStanding{anchor: anchor, sha: sha}
+		s := &anchorStanding{anchor: anchor, proof: proof, sha: sha}
 		l.byAnchor[anchor] = s
 		l.order = append(l.order, s)
 	}
@@ -153,13 +155,13 @@ func anchorChecksOf(evs []*Event, win WindowIndex) *anchorLedger {
 		body, _ := recordpb.Body(e)
 		switch b := body.(type) {
 		case *recordpb.Cite:
-			hold(b.GetLabel(), "")
+			hold(b.GetLabel(), false, "")
 		case *recordpb.Verify:
 			if b.GetClaim() != "" { // red's own corroboration: a source of the report, as EvidenceJSONOf lists it
-				hold(b.GetLabel(), "")
+				hold(b.GetLabel(), false, "")
 			}
 		case *recordpb.Proof:
-			hold(b.GetProofId(), b.GetProofSha())
+			hold(b.GetProofId(), true, b.GetProofSha())
 		}
 	}
 	for _, e := range evs {

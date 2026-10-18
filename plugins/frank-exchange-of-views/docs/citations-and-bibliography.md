@@ -117,9 +117,10 @@ at the quoted sentence.
   events and the anchors in the text stay in one-to-one correspondence; the scorecard's
   `unbacked_citations` flags any divergence. When blue rewrites the sentence around an anchor, the
   anchor stays. A citation or proof red has checked is then **reopened**: the evidence view lists it
-  under `reopened` with the edit and its last check, the evidence lens is readied to check it again,
-  and a PASS waits until a lens — that one or another — has checked it from a sitting opened after
-  the edit.
+  under `reopened` with the edit and its last check, its owning lens — the evidence lens for a
+  citation; for a proof the computation lens, or the evidence lens where the cast seats none — owes
+  the check and is not retired while it does, so the edit's head move readies it, and a PASS waits
+  until a lens — that one or another — has checked it from a sitting opened after the edit.
 - **The id** is `C-` plus 8 random hex digits, minted by the tool.
 
 ## 3. Red — checking it

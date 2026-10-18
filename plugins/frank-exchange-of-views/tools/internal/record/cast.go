@@ -20,7 +20,7 @@ const HarnessSeat = "harness"
 
 // DefaultCastAreas are the lens areas a run dispatches when the operator names none: every area
 // (debate.js DEFAULT_AREAS). An operator narrows the cast only with a reason; a lens that finds
-// nothing sits once per report head and retires at its third such sitting.
+// nothing sits once per report head and, owing nothing, retires at its third such sitting.
 var DefaultCastAreas = LensAreas
 
 // CastFor is the run's admissible seats for a lens-area selection and a lane count

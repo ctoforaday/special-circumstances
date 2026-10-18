@@ -109,7 +109,7 @@ func (s *shapeSource) cite(id, quote string) *record.Event {
 
 func (s *shapeSource) proof(id, quote string) {
 	s.t.Helper()
-	s.add(shapeBlue, &recordpb.Proof{ProofId: proto.String(id), Location: proto.String(quote)})
+	s.add(shapeBlue, &recordpb.Proof{ProofId: proto.String(id), ProofSha: proto.String("sha-" + id), Location: proto.String(quote)})
 }
 
 func (s *shapeSource) corroboration(id, quote string) {

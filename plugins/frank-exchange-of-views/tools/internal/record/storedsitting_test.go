@@ -324,7 +324,7 @@ func TestAChairSpotCheckBeforeItsPairedRegisterIsInItsSitting(t *testing.T) {
 	b.add("red-chair", &recordpb.SpotCheck{Areas: []string{"red-lens-logic"}, Ids: []string{"G1"}, Reason: proto.String("the anchor still resolves")})
 	b.add("red-chair", &recordpb.Register{AgentId: proto.String("chair-a")})
 	m := loadedT(t, b.evs...)
-	if g := passLensGateOf(m.Events, m.At.IDs(m.Events), m.At, nil); !g.covered["red-lens-logic"] {
+	if g := passLensGateOf(m.Events, m.At.IDs(m.Events), m.At, nil, nil); !g.covered["red-lens-logic"] {
 		t.Error("the chair's sitting reads as not covering red-lens-logic, but its spot-check is in that sitting")
 	}
 }

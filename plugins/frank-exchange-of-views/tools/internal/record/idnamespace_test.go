@@ -231,7 +231,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, corroboration(id, "https://example.org/"+id, "the claim "+id+" bears on", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS))
 		return err
 	case "proof":
-		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Proof{ProofId: proto.String(id), Script: proto.String("s.py")})
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Proof{ProofId: proto.String(id), ProofSha: proto.String("sha-" + id), Script: proto.String("s.py")})
 		return err
 	}
 	return fmt.Errorf("no recorder for id kind %q — add one, or the write path is never shown an id of this kind", kind)

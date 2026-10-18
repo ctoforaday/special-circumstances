@@ -34,7 +34,7 @@ func (b *stage) benchDispatch(pin int64, gaps []string, occ ...recordpb.Occasion
 // petition filed on the record by any party seat convenes the bench at the next chair sitting, as a
 // petition sitting; a docket motion whose gap has since closed convenes it for that docket; a
 // contradiction no finding raises readies the lens that read it; a citation or proof unchecked since
-// its sentence changed readies the evidence lens. Each edge the definition
+// its sentence changed readies its owner (reopenedOwnerOf; TestAReopenedAnchorReadiesItsOwner). Each edge the definition
 // distinguishes is a row: an owner that has sat for the cause since it arose is not readied again,
 // and only a sitting OF THE RIGHT OCCASION counts for a petition.
 func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
@@ -100,13 +100,14 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 		{"a contradiction its lens has sat since is not readied again", func(b *stage) {
 			b.add(evLens, contradictingVerify("the sky is green")).dispatch(2, evLens).register(evLens)
 		}, want{evLens, false, nil, nil, evLens + " has sat since it read a source contradicting"}},
+		// A reopened anchor's owner owes its check, so it is not retired, and the edit moved the head.
 		{"a reopened citation readies the evidence lens", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
-		}, want{evLens, true, nil, nil, evLens + " has not sat since edit 10, which left a citation or proof unchecked since its sentence changed — ready, to check each as it now stands"}},
+		}, want{evLens, true, nil, nil, evLens + ": head 10 moved past its last sitting's pin 2 — audits the report (2 sitting(s) in a row with no fresh material mint; it retires at 3 owing nothing, and it owes reopened C-1)"}},
 		{"a reopened citation its lens has sat since is not readied again", func(b *stage) {
 			b.cite("C-1").supports(evLens, "C-1").reopen("C-1")
 			b.sit(b.at(), evLens)
-		}, want{evLens, false, nil, nil, evLens + " has sat since edit 10 and a citation or proof it reopened is still unchecked — readied once per reopening, so not again"}},
+		}, want{evLens, false, nil, nil, evLens + ": sat at the head (pin 10) — ready when the head moves"}},
 	}
 	for _, c := range rows {
 		t.Run(c.name, func(t *testing.T) {

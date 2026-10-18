@@ -238,6 +238,8 @@ type runner struct {
 	maxEpochs int
 
 	registered map[string]bool
+	// lensSittings is each lens's sittings this run, by seat: the cost the retirement rule bounds.
+	lensSittings map[string]int
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
 	// next write — kept here so the driver can name a prior epoch to --carried-from without reading
@@ -283,10 +285,17 @@ type runner struct {
 	// the tool recorded, or refused without naming the order; it fails the run.
 	ordersRefused    int
 	orderAdmittedErr string
-	// reopenedReadied counts the plans that readied the evidence lens for a reopened citation or
-	// proof and for nothing else (readiedForReopened). The sweep gates it at zero. reopenedPlans
-	// counts the plans holding a reopened blocker, whoever they readied.
+	// reopenedReadied counts the plans that readied the owner of every reopened blocker they hold
+	// (readiedForReopened), and reopenedPlans the plans holding one, whoever they readied.
+	// proofReopenedReadied counts, by owner, the reopened PROOFS whose owner a plan readied; the
+	// sweep gates both owners at zero. owedKept counts the lenses a plan's fold kept from retiring
+	// because they owed work (three barren sittings or more, and a debt), and proofOwedKept those
+	// whose debt held an unjudged proof; the sweep gates each at zero. reopenedOwnerErr is the first
+	// reopened proof a plan gave an owner other than the run's proof owner; it fails the run.
 	reopenedReadied, reopenedPlans int
+	proofReopenedReadied           map[string]int
+	owedKept, proofOwedKept        int
+	reopenedOwnerErr               string
 	// quotesRefused counts the corroborations the tool REFUSED for a quote the report does not
 	// hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
 	// the first such act the tool recorded, or refused without saying whose sentence the quote
@@ -1119,6 +1128,12 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	done := make(chan struct{})
 	r.registering[seatID] = done
 	r.registered[seatID] = true
+	if strings.HasPrefix(seatID, "red-lens-") {
+		if r.lensSittings == nil {
+			r.lensSittings = map[string]int{}
+		}
+		r.lensSittings[seatID]++
+	}
 	if seatID == "red-chair" {
 		r.chairRegisters++
 	}
@@ -1382,37 +1397,90 @@ func (r *runner) reopened() []record.ProofRef {
 }
 
 // readiedForReopened reports whether plan holds a reopened blocker, and whether it readies the
-// evidence lens for that AND FOR NOTHING ELSE: the lens is a party on no gap, and neither a head
-// moved past its last sitting (a lens_ready blocker) nor a contradiction it read readies it. Read off the
-// plan's own fields, so the tally counts the reopened arm and never a lens that would have sat
-// anyway.
-func readiedForReopened(plan map[string]any) (held, alone bool) {
-	const lens = "red-lens-evidence"
-	party := false
+// owner of every one it holds. Read off the plan's own fields.
+func readiedForReopened(plan map[string]any) (held, readied bool) {
+	party := map[any]bool{}
 	parties, _ := plan["parties"].([]any)
 	for _, p := range parties {
 		m, _ := p.(map[string]any)
-		gaps, _ := m["gap_ids"].([]any)
-		party = party || (m["seat_id"] == lens && len(gaps) == 0)
+		party[m["seat_id"]] = true
 	}
-	reopened, otherwise := false, false
+	readied = true
 	blockers, _ := plan["blockers"].([]any)
 	for _, b := range blockers {
 		m, _ := b.(map[string]any)
-		switch record.BlockerKind(fmt.Sprint(m["kind"])) {
-		case record.BlockerReopened:
-			reopened = true
-		case record.BlockerLensReady:
-			otherwise = otherwise || m["subject"] == lens
-		case record.BlockerContradiction:
-			otherwise = otherwise || m["owner"] == lens
+		if record.BlockerKind(fmt.Sprint(m["kind"])) == record.BlockerReopened {
+			held = true
+			readied = readied && party[m["owner"]]
 		}
 	}
-	return reopened, party && reopened && !otherwise
+	return held, held && readied
+}
+
+// keptByDebt reads one reason of a plan's lens fold: a lens readied with retiresAfter or more barren
+// sittings because it owes, and what it owes. The reason's wording is the fold's
+// (record.lensStates); a fold that stops saying it leaves owedKept at zero, which the sweep gates.
+var keptByDebt = regexp.MustCompile(`^red-lens-[a-z-]+: head \d+ moved past its last sitting's pin \d+ — audits the report \((\d+) sitting\(s\) in a row with no fresh material mint; it does not retire while it owes (.*)\)$`)
+
+// tallyOwed counts what this chair sitting's plan readies its lenses for: the owner of each
+// reopened blocker, by owner for a reopened proof, and each lens kept from retiring by a debt. A
+// reopened proof's owner is the run's proof owner (proofOwnerOf), or the run fails.
+func (r *runner) tallyOwed(plan map[string]any) {
+	held, readied := readiedForReopened(plan)
+	proofs := map[string]bool{}
+	if b, ok := r.board(); ok {
+		for _, p := range record.EvidenceJSONOf(b.Events, b.At).Proofs {
+			proofs[p.Anchor] = true
+		}
+	}
+	party := map[any]bool{}
+	parties, _ := plan["parties"].([]any)
+	for _, p := range parties {
+		m, _ := p.(map[string]any)
+		party[m["seat_id"]] = true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if held {
+		r.reopenedPlans++
+		if readied {
+			r.reopenedReadied++
+		}
+	}
+	blockers, _ := plan["blockers"].([]any)
+	for _, b := range blockers {
+		m, _ := b.(map[string]any)
+		if record.BlockerKind(fmt.Sprint(m["kind"])) != record.BlockerReopened || !proofs[fmt.Sprint(m["subject"])] {
+			continue
+		}
+		owner := fmt.Sprint(m["owner"])
+		if owner != r.proofOwner && r.reopenedOwnerErr == "" {
+			r.reopenedOwnerErr = fmt.Sprintf("reopened proof %v is owned by %s, and the proofs are %s's", m["subject"], owner, r.proofOwner)
+		}
+		if party[owner] {
+			if r.proofReopenedReadied == nil {
+				r.proofReopenedReadied = map[string]int{}
+			}
+			r.proofReopenedReadied[owner]++
+		}
+	}
+	whys, _ := plan["why"].([]any)
+	for _, w := range whys {
+		g := keptByDebt.FindStringSubmatch(fmt.Sprint(w))
+		if g == nil {
+			continue
+		}
+		if n, _ := strconv.Atoi(g[1]); n >= 3 {
+			r.owedKept++
+			if strings.Contains(g[2], "unjudged proof ") {
+				r.proofOwedKept++
+			}
+		}
+	}
 }
 
 // proofItemsOn is the proofs seatID's work list offers for judgement ("proof P-…"). A reopened
-// proof is not among them: it is the evidence lens's blocker whatever the cast.
+// proof is not among them: it is its owner's reopened blocker (reopenedOwnerOf).
 func proofItemsOn(run record.Run, seatID string) ([]string, error) {
 	w, err := record.WorkOfSeat(run, "lens", seatID)
 	if err != nil {
@@ -2353,8 +2421,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
 				return
 			}
+			// SOME PROOFS BACK THE SENTENCE THE EDIT DRIVE REWRITES, as some citations do: anchored
+			// only in the sentence no edit touches, no judged proof is ever reopened, and the
+			// routing of a reopened proof to its owner (reopenedOwnerOf) is unreached.
 			pv := r.do("prove", seatID).
 				set("--quote", "§ fuzz sentence").
+				on(25, "--quote", "across the whole sampled corpus").
 				set("--script", name).
 				set("--reason", "fuzz: computing rather than arguing").
 				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2)))
@@ -2446,14 +2518,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("chair", seatID)
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
-		if held, alone := readiedForReopened(plan); held {
-			r.mu.Lock()
-			r.reopenedPlans++
-			if alone {
-				r.reopenedReadied++
-			}
-			r.mu.Unlock()
-		}
+		r.tallyOwed(plan)
 		// THE CHAIR RUNS THE DEBATE AND MINTS NOTHING (plans/roundless.md §III.B.3). Every act
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
@@ -2788,17 +2853,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// holds both ends: an anchor a later sitting clears, and one a lens sat for and left,
 				// which holds the PASS and ends the run naming it. A citation is verified at its
 				// anchor — read, or found `unreachable`, which clears nothing; a proof is re-run by
-				// the sha256 its row carries. The evidence lens alone drives it, as the seat whose
-				// work list holds the item: seven lenses each re-running a proof per sitting put
-				// the longest runs at the sweep's ten-minute limit.
+				// the sha256 its row carries. The anchor's owner alone drives it, as the seat whose
+				// work list holds the item — the evidence lens a citation, the run's proof owner a
+				// proof: seven lenses each re-running a proof per sitting put the longest runs at
+				// the sweep's ten-minute limit.
 				//
-				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The lens is readied once
-				// per reopening, so an item its one sitting leaves holds the PASS for the rest of the
-				// run, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
+				// THE FORCED-VERIFIED RUN CHECKS EVERY ONE, AND READS EACH. The owner is readied once
+				// per head move, so an item its sitting leaves holds the PASS until the report moves
+				// again, and the run that exists to write VERIFIED ends UNVERIFIED on a coin.
 				// A CONTRADICTION THIS LENS LEFT OPEN IN AN EARLIER SITTING IS ANSWERED NOW, by its id.
 				r.answerContradictions(seatID)
-				if seatID == "red-lens-evidence" {
-					owed, results := r.reopened(), []string{"supports", "unreachable"}
+				if seatID == "red-lens-evidence" || seatID == r.proofOwner {
+					var owed []record.ProofRef
+					for _, it := range r.reopened() {
+						if it.Sha != "" && seatID == r.proofOwner || it.Sha == "" && seatID == "red-lens-evidence" {
+							owed = append(owed, it)
+						}
+					}
+					results := []string{"supports", "unreachable"}
 					if r.forceVerified {
 						results = results[:1]
 					} else if len(owed) > 0 {
@@ -2813,6 +2885,15 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
 								set("--reason", "fuzz: read the sentence as it now stands against its source").run()
 						}
+					}
+				}
+				// THE PROOF OWNER JUDGES ONE PROOF IT IS OFFERED, ON A COIN — so a judged proof can be
+				// reopened by a later edit of its sentence, and so a run still ends with proofs it was
+				// offered and left, which hold it from retiring while they stand.
+				if seatID == r.proofOwner && r.coin(35) {
+					if offered, err := proofItemsOn(r.run(), seatID); err == nil && len(offered) > 0 {
+						r.do("reproduce", seatID).set("--anchor", pick(r.rng, offered)).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+							set("--reason", "fuzz: read the script against the sentence it backs").run()
 					}
 				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
@@ -2992,6 +3073,8 @@ type outcome struct {
 	// epochLimit is the debate ending at the run's epoch limit — the last plan's
 	// epoch_limit_reached, as debate.js returns it — which is CEILING by the run's term.
 	epochLimit bool
+	// lensSittings is the runner's.
+	lensSittings map[string]int
 
 	// #256 citation axis: the fetch -> cache -> cite -> anchor chain leaves TWO artifacts a
 	// `cite` event alone does not prove — a cached source file and an INVISIBLE anchor spliced
@@ -3040,10 +3123,12 @@ type outcome struct {
 	// quotesRefused is the corroborations the tool refused for a quote the report does not hold
 	// (runner.quotesRefused).
 	quotesRefused int
-	// reopenedReadied is the plans that readied the evidence lens for a reopened citation or proof
-	// alone (runner.reopenedReadied), and reopenedPlans the plans that held a reopened blocker at
-	// all — what the zero of the first is read against.
+	// reopenedReadied is the plans that readied the owner of every reopened blocker they held
+	// (runner.reopenedReadied), and reopenedPlans the plans that held one at all.
+	// proofReopenedReadied, owedKept and proofOwedKept are the runner's.
 	reopenedReadied, reopenedPlans int
+	proofReopenedReadied           map[string]int
+	owedKept, proofOwedKept        int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
 	// ownerOffered is the proofs nobody judged that the run ended with, each offered on its owner's
@@ -4127,9 +4212,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
 		// the contradiction worth catching.
 		//
-		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. The evidence lens is readied once
-		// per reopening; one it sat for and left holds the PASS over a board with every gap
-		// closed, and the run ends UNVERIFIED naming it — the outcome the rule exists to give.
+		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. Its owner is readied once per head
+		// move; one it sat for and left holds the PASS over a board with every gap closed, and the
+		// run ends UNVERIFIED naming it — the outcome the rule exists to give.
 		reopenedStands := slices.ContainsFunc(plan.Blockers, func(b record.PlanBlocker) bool { return b.Kind == record.BlockerReopened })
 		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 && !reopenedStands {
 			benchClosed := 0
@@ -4191,7 +4276,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.ordersRefused = r.ordersRefused
 	res.quotesRefused = r.quotesRefused
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
+	res.proofReopenedReadied, res.owedKept, res.proofOwedKept = r.proofReopenedReadied, r.owedKept, r.proofOwedKept
+	if r.reopenedOwnerErr != "" && res.err == "" {
+		res.err = r.reopenedOwnerErr
+	}
 	res.repeatsRefused = r.repeatsRefused
+	res.lensSittings = r.lensSittings
 	res.budgetRefused = r.budgetRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
 	r.mu.Unlock()
@@ -4894,7 +4984,9 @@ func TestFuzzDebate(t *testing.T) {
 	quotesRefused := 0                            // corroborations refused for a quote the report does not hold
 	ordersRefused := 0                            // edits refused for a section out of the order the report ships in
 	positionsRefused := 0                         // positions refused a lane, the frontier or the synthesizer
-	reopenedReadied, reopenedPlans := 0, 0        // plans that readied the evidence lens for a reopened citation or proof alone, of those holding one
+	reopenedReadied, reopenedPlans := 0, 0        // plans that readied every reopened blocker's owner, of those holding one
+	proofReopenedReadied := map[string]int{}      // reopened proofs whose owner a plan readied, by owner
+	owedKept, proofOwedKept := 0, 0               // lenses a plan kept from retiring by a debt; of them, by an unjudged proof
 	ownerOfferedRuns, fallbackOfferedRuns := 0, 0 // runs ending with an unjudged proof offered to its owner alone; of them, owned by the evidence lens
 	repeatsRefused := 0                           // second acts refused in a sitting that holds one, naming the answering act
 	budgetRefused := 0                            // mints refused a lens holding its whole mint budget open
@@ -4912,7 +5004,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed)
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns)
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -4973,6 +5065,11 @@ func TestFuzzDebate(t *testing.T) {
 			quotesRefused += o.quotesRefused
 			reopenedReadied += o.reopenedReadied
 			reopenedPlans += o.reopenedPlans
+			for k, v := range o.proofReopenedReadied {
+				proofReopenedReadied[k] += v
+			}
+			owedKept += o.owedKept
+			proofOwedKept += o.proofOwedKept
 			if o.ownerOffered > 0 {
 				ownerOfferedRuns++
 				if o.fallback {
@@ -5016,7 +5113,8 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("epoch limit: %d of %d runs ended at their epoch limit (%d; seed %d is forced to it at %d)", limitExits, completed, record.DefaultParams.MaxEpochs, limitSeed, forcedEpochLimit)
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", inquiryRecords, dcov["inquiry"])
 	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone, %d of them owned by the evidence lens in a cast with no computation lens", ownerOfferedRuns, fallbackOfferedRuns)
-	t.Logf("reopened readied: %d plan(s) readied the evidence lens for a reopened citation or proof alone (of %d holding a reopened blocker)", reopenedReadied, reopenedPlans)
+	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", reopenedReadied, reopenedPlans, proofReopenedReadied)
+	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof", owedKept, proofOwedKept)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -5091,12 +5189,18 @@ func TestFuzzDebate(t *testing.T) {
 			t.Errorf("fuzz recorded ZERO fates by an id read from `inquiry propose` across %d runs (with %d inquiry events) — "+
 				"the propose result named no id the harness reads, or the tool refused every record; the inquiry lifecycle past `proposed` is unexercised by the proposing seat (false green)", completed, dcov["inquiry"])
 		}
-		// THE REOPENED GATE. A citation or proof whose sentence changed after its check readies the
-		// evidence lens through its own arm of the plan. The lens is also readied by a head moved
-		// past its last sitting, so a drive that never left a checked anchor reopened behind a lens
-		// that has sat at the head, or retired, would leave the arm unreached behind a green sweep.
-		if reopenedReadied == 0 {
-			t.Errorf("fuzz readied the evidence lens for a reopened citation or proof ZERO times across %d runs (%d plan(s) held a reopened blocker) — no plan readied the lens for that alone, so the plan's reopened arm is unexercised (false green)", completed, reopenedPlans)
+		// THE REOPENED GATE. A citation or proof whose sentence changed after its check is owed by
+		// its owner, which is then not retired, and the edit moved the head: the plan readies it. A
+		// reopened proof is the computation lens's where the cast seats it and the evidence lens's
+		// where it does not, so a sweep that readied either owner for one zero times leaves that arm
+		// of reopenedOwnerOf unexercised.
+		if reopenedReadied == 0 || proofReopenedReadied["red-lens-computation"] == 0 || proofReopenedReadied["red-lens-evidence"] == 0 {
+			t.Errorf("fuzz readied the owner of every reopened blocker in %d plan(s) (of %d holding one), and the owner of a reopened proof %v times by owner, across %d runs — a reopened proof's routing to the computation lens, or its fallback to the evidence lens, is unexercised (false green)", reopenedReadied, reopenedPlans, proofReopenedReadied, completed)
+		}
+		// THE DEBT GATE. A lens that owes is not retired; a sweep where no fold kept a lens with three
+		// barren sittings from retiring — or none for an unjudged proof — leaves the rule unexercised.
+		if owedKept == 0 || proofOwedKept == 0 {
+			t.Errorf("fuzz kept %d lens fold(s) from retiring by a debt, %d of them by an unjudged proof, across %d runs — the rule that a lens that owes does not retire is unexercised (false green)", owedKept, proofOwedKept, completed)
 		}
 		// THE PROOF-OWNER GATE. proofOffersAgree reads every lens's list at each run's end; a run that
 		// ended with no unjudged proof asks it nothing, so a sweep where none did — or where no
@@ -6299,4 +6403,20 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 		}
 	}
 	return ""
+}
+
+// sumSittings and maxSittings are the RUNSTAT line's lens-sitting cost: the run's total, and the
+// most any one lens sat.
+func sumSittings(m map[string]int) (n int) {
+	for _, v := range m {
+		n += v
+	}
+	return n
+}
+
+func maxSittings(m map[string]int) (n int) {
+	for _, v := range m {
+		n = max(n, v)
+	}
+	return n
 }

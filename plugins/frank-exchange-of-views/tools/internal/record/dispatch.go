@@ -15,11 +15,10 @@ import (
 
 // Party is one seat the chair engages and the gaps it is engaged on. A lens engaged with no gaps
 // has never sat or last sat behind the report head (retirement.go), or owes a finding on a
-// contradiction it read, or — the evidence lens — the check of a citation or proof reopened since
-// its last one, and sits to audit the current report.
+// contradiction it read, and sits to audit the current report.
 type Party struct {
 	SeatID string   `json:"seat_id"`
-	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head has moved since its last sitting — or by a contradiction it read, or by a reopened citation or proof" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
+	GapIDs []string `json:"gap_ids" desc:"the gaps this party is engaged on; empty for a lens readied to audit the report — it has never sat, or the report head has moved since its last sitting — or by a contradiction it read" bench:"the gaps docketed for the bench; empty when it is convened for a petition alone"`
 	// Occasions is what the bench is convened for this epoch, in the Occasion enum's words: `docket`
 	// (the gap_ids, after blue sits) and `petition` (the unruled petitions, before any party sits).
 	// The bench's one id cannot say which question it is asked, so the plan says it as a field and
@@ -159,9 +158,8 @@ type openGap struct {
 
 // PlanDispatch computes readiness from four sources — each cast lens the report head has moved past, each
 // open material gap below its limits, each docketed gap awaiting the bench, and the owner of each
-// blocker another seat must clear (the bench for a motion, a lens for a contradiction it read,
-// the evidence lens for a reopened citation or proof) — and the two derived facts the termination turns on. It writes
-// nothing.
+// blocker another seat must clear (the bench for a motion, a lens for a contradiction it read) — and
+// the two derived facts the termination turns on. It writes nothing.
 //
 // ONE READ TRANSACTION, as a narrowed view reads (readSnapshot). The plan folds the events and reads
 // each gap's openness, docket and materiality off the `gap` view; asked of the record at two moments,
@@ -256,12 +254,13 @@ func foldPlan(params Params, r planReads) Plan {
 	evs, win, fresh := r.evs, r.win, r.fresh
 
 	// Source 1: each cast lens that has never sat, or whose last sitting the head has moved past,
-	// until it retires (retirement.go) — the same fold the PASS gate refuses from. A lens engaged
-	// that has opened no sitting since has not sat, so its pin has not moved and it stays ready.
+	// until it retires owing nothing (retirement.go) — the same fold the PASS gate refuses from. A
+	// lens engaged that has opened no sitting since has not sat, so its pin has not moved and it
+	// stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh)
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, win, blockerGapsOfOpen(r.gaps), eventBlockersOf(evs, ids, win)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
 	occasions := map[string][]string{}
@@ -372,18 +371,18 @@ func foldPlan(params Params, r planReads) Plan {
 	}
 	// Source 4: THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER SITS. A blocker on the gate's list that
 	// the chair cannot clear — an unruled petition, a docket motion on a gap that has since closed,
-	// a contradiction no finding raises, a citation or proof unchecked since its sentence changed
-	// — holds the PASS until its owner acts, and an owner nobody
+	// a contradiction no finding raises — holds the PASS until its owner acts, and an owner nobody
 	// readies never acts: the run ended UNVERIFIED with the one seat that could clear it never asked
 	// (#1202, #1203). Each owner is readied ONCE PER CAUSE: an owner that has sat since the blocker
 	// arose and left it is not readied again, the reason says so, and the blocker still holds the
 	// PASS — the precedent benchSatFor set for the docket.
+	//
+	// A CITATION OR PROOF UNCHECKED SINCE ITS SENTENCE CHANGED NEEDS NO ARM HERE. Its owner owes the
+	// check, so it is not retired (lensOwesOf), and the edit that reopened the anchor moved the head
+	// past its last sitting: Source 1 readies it, once per head move, saying what it owes.
 	blockers := passBlockersOf(evs, ids, win, blockerGapsOfOpen(gaps), fresh)
-	var reopenedSince int64 // the latest edit among the reopened blockers, all the evidence lens's
 	for _, b := range blockers {
 		switch {
-		case b.Kind == BlockerReopened:
-			reopenedSince = max(reopenedSince, b.since)
 		case b.Kind == BlockerUnruledMotion && b.Owner == benchSeat:
 			if statedMotion[b.Subject] {
 				continue // a docket on an open gap: the gap's own reason above readied the bench
@@ -397,19 +396,6 @@ func foldPlan(params Params, r planReads) Plan {
 			}
 			engage(b.Owner, "")
 			plan.Why = append(plan.Why, fmt.Sprintf("%s read a source contradicting %q (%s) and it is unanswered — ready, to raise it", b.Owner, b.Detail, contradictionFact(b)))
-		}
-	}
-	// ONE SITTING FOR EVERY REOPENED ANCHOR, ONCE PER REOPENING. "Sat" is a sitting the lens opened
-	// after the latest edit — the same opening a clearing check must come from (reopenedEvidence),
-	// so a sitting that could not have cleared the item never spends the readying. What the lens
-	// does in that sitting is not read: one that opens and checks nothing has still sat, the
-	// blocker stands, and the run ends naming the anchor rather than readying the lens for ever.
-	if reopenedSince > 0 {
-		if _, sat := firstAfter(openings[evidenceSeat], reopenedSince); sat {
-			plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since edit %d and a citation or proof it reopened is still unchecked — readied once per reopening, so not again", evidenceSeat, reopenedSince))
-		} else {
-			engage(evidenceSeat, "")
-			plan.Why = append(plan.Why, fmt.Sprintf("%s has not sat since edit %d, which left a citation or proof unchecked since its sentence changed — ready, to check each as it now stands", evidenceSeat, reopenedSince))
 		}
 	}
 	for _, s := range order {
@@ -880,9 +866,9 @@ const chairSeat = "red-chair"
 // the bench.
 const benchSeat = "judge"
 
-// evidenceSeat is the evidence lens's seat — the one that owes the check of a reopened citation or
-// proof and is readied for it. Another lens's check from a sitting opened after the edit clears
-// the anchor as well (reopenedEvidence).
+// evidenceSeat is the evidence lens's seat — the one that owes the check of a reopened citation and
+// is readied for it (reopenedOwnerOf). Another lens's check from a sitting opened after the edit
+// clears the anchor as well (reopenedEvidence).
 const evidenceSeat = "red-lens-evidence"
 
 // blueRespondSeat is blue's responding seat — the one the chair dispatches onto gaps.
