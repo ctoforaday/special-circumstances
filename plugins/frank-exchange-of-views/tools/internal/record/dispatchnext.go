@@ -121,8 +121,7 @@ func DispatchNext(id Identity) (plan Plan, standing bool, err error) {
 	}
 	// THE BLOCKERS RETURNED, AND THE REASONS THAT STATE THEM, ARE THE RECORD'S ONCE THE VERB HAS
 	// WRITTEN. The plan above was folded before its docket motions and its rows: its list lacks the
-	// motions just filed, each an unruled motion whose gavel is the bench's, and the chair's inquiry
-	// review falls due in the epoch its rows are the first work of. The workflow convenes the
+	// motions just filed, each an unruled motion whose gavel is the bench's. The workflow convenes the
 	// terminal bench off the relayed blockers, and the plan asked again in the sitting is folded on
 	// the record with them: a plan stored with the list folded before would be one the record had
 	// already moved past, by the verb's own act, and asked again it would never stand.
