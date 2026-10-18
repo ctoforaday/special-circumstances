@@ -2,8 +2,8 @@
 // Every consumer (sc-secrets-gate, future telemetry redaction, any scrubber)
 // imports this — patterns are defined exactly once. No public SDK ships these
 // canonically (gitleaks/trufflehog carry their own databases as tool config),
-// so this package is our source of truth; why it is not generated from
-// gitleaks' ruleset is written on Patterns.
+// so this package is our source of truth: a hand table, and the rows generated
+// from gitleaks' ruleset that are accurate as bare regexes (see Patterns).
 //
 // Precision beats recall: a false block on legitimate work is a bug.
 package secrets
@@ -24,15 +24,25 @@ import (
 // prefilter cannot change a verdict as long as every match contains one of the literals —
 // which patterns_test.go's generated fixtures enforce, since a sample whose literal is missing
 // is a sample the row misses.
+//
+// Fold marks a row whose regex matches its literals case-insensitively. Its literals are
+// lowercase, and the prefilter looks for them in the text folded by foldText.
 type Pattern struct {
 	Class    string
 	Literals []string
+	Fold     bool
 	Re       *regexp.Regexp
 }
 
-// Patterns is the shared high-precision set, and the module's one declared table of secret
-// patterns. A pattern is the honest tool here: the payload is free text, and each row is a
-// vendor format published so that scanners can find it.
+// Patterns is the shared high-precision set, and the module's one table of secret patterns:
+// the hand rows below, then gitleaksPatterns, which scripts/secretsgen writes from a pinned
+// gitleaks ruleset. A pattern is the honest tool here: the payload is free text, and each row
+// is a vendor format published so that scanners can find it. A refusal names the row's Class;
+// for a generated row that is the gitleaks rule id.
+var Patterns = append(handPatterns[:len(handPatterns):len(handPatterns)], gitleaksPatterns...)
+
+// handPatterns are the rows kept by hand, where they are stronger than gitleaks' own rule for
+// the vendor; secretsgen's handCovered names each gitleaks rule set aside for one, and why.
 //
 // Every body class is the vendor's WHOLE alphabet, never a subset of it. A class narrower
 // than the alphabet fails silently and often, because of the \b anchors: once a character
@@ -41,76 +51,144 @@ type Pattern struct {
 // patterns_test.go builds its fixtures from each format's real alphabet, so a narrowed class
 // fails the suite.
 //
-// The table is kept by hand rather than generated from gitleaks' ruleset. Measured against
-// gitleaks v8.30.1 on 2026-10-18 (box at load ~60, so the times are relative):
-//   - 221 regex rules, all of which compile under RE2. 130 are meaningful only behind an
-//     entropy threshold and 9 behind allowlists (the AWS rule allowlists every id ending
-//     EXAMPLE), so taken as bare regexes they refuse other things than gitleaks does; and
-//     generic-api-key matched 42 of the 803 text files in this repository.
-//   - On a 1 MiB payload of this repository's text the 221 rules took ~30 s to MatchString,
-//     ~1.5 s behind gitleaks' own keyword prefilter. This table, which runs before every
-//     watched call, takes ~40 ms on 1 MiB holding none of its literals and ~1.5 s on 1 MiB
-//     with a literal on every line (BenchmarkScanPayload).
-//   - Its vendor rows are narrower than a gate wants: an exact-length Anthropic body, and a
-//     private-key rule that needs 64 characters of key after the header. Gitleaks scans
-//     files and filters afterwards; this gate refuses on the match.
-var Patterns = []Pattern{
+// Most of gitleaks' rules are not taken as rows. Measured against gitleaks v8.30.1 on
+// 2026-10-18: 130 of its 222 rules are meaningful only behind an entropy threshold and 9
+// behind allowlists (the AWS rule allowlists every id ending EXAMPLE), so taken as bare
+// regexes they refuse other things than gitleaks does; and generic-api-key matched 42 of the
+// 803 text files in this repository. The hand rows are also broader than gitleaks' rule for
+// the same vendor where a gate needs it: gitleaks' Anthropic rule needs an exact-length body,
+// and its private-key rule needs 64 characters of key after the header.
+var handPatterns = []Pattern{
 	// AKIA long-term, ASIA STS temporary, ABIA STS service bearer, ACCA context-specific.
 	// The body is base32 ([A-Z2-7]); the class is a superset of it.
-	{"AWS access key id", []string{"AKIA", "ASIA", "ABIA", "ACCA"},
-		regexp.MustCompile(`\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b`)},
+	{Class: "AWS access key id", Literals: []string{"AKIA", "ASIA", "ABIA", "ACCA"},
+		Re: regexp.MustCompile(`\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b`)},
 	// GitHub tokens are a prefix + 36 base62 characters, the last six a CRC32 checksum.
-	{"GitHub personal access token", []string{"ghp_"},
-		regexp.MustCompile(`\bghp_[A-Za-z0-9]{36}\b`)},
+	{Class: "GitHub personal access token", Literals: []string{"ghp_"},
+		Re: regexp.MustCompile(`\bghp_[A-Za-z0-9]{36}\b`)},
 	// github_pat_ + 22 base62 + `_` + 59 base62.
-	{"GitHub fine-grained token", []string{"github_pat_"},
-		regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{22,}\b`)},
-	{"GitHub app/oauth token", []string{"gho_", "ghs_", "ghu_", "ghr_"},
-		regexp.MustCompile(`\bgh[osur]_[A-Za-z0-9]{36}\b`)},
+	{Class: "GitHub fine-grained token", Literals: []string{"github_pat_"},
+		Re: regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{22,}\b`)},
+	{Class: "GitHub app/oauth token", Literals: []string{"gho_", "ghs_", "ghu_", "ghr_"},
+		Re: regexp.MustCompile(`\bgh[osur]_[A-Za-z0-9]{36}\b`)},
 	// xoxb bot, xoxp user, xoxa/xoxr workspace and refresh, xoxs/xoxo legacy, xoxe rotating
 	// refresh (an xoxe.xoxp- config token carries an xoxp- this row also sees), xapp
 	// app-level. Bodies are alphanumeric segments joined by `-`.
-	{"Slack token", []string{"xox", "xapp-"},
-		regexp.MustCompile(`\b(?:xox[abeoprs]|xapp)-[A-Za-z0-9-]{10,}\b`)},
+	{Class: "Slack token", Literals: []string{"xox", "xapp-"},
+		Re: regexp.MustCompile(`\b(?:xox[abeoprs]|xapp)-[A-Za-z0-9-]{10,}\b`)},
 	// hooks.slack.com/services/T…/B…/<secret>; workflows/ and triggers/ URLs post as well.
-	{"Slack webhook url", []string{"hooks.slack.com/"},
-		regexp.MustCompile(`\bhooks\.slack\.com/(?:services|workflows|triggers)/[A-Za-z0-9/]{20,}`)},
+	{Class: "Slack webhook url", Literals: []string{"hooks.slack.com/"},
+		Re: regexp.MustCompile(`\bhooks\.slack\.com/(?:services|workflows|triggers)/[A-Za-z0-9/]{20,}`)},
 	// PEM and OpenSSH armor (five dashes), PGP armor (… PRIVATE KEY BLOCK-----), and SSH2
 	// armor (four dashes and a space: ---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----).
-	{"private key block", []string{"PRIVATE KEY"},
-		regexp.MustCompile(`-{4,5} ?BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)? ?-{4,5}`)},
+	{Class: "private key block", Literals: []string{"PRIVATE KEY"},
+		Re: regexp.MustCompile(`-{4,5} ?BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)? ?-{4,5}`)},
 	// A PuTTY .ppk file opens with its version line; its Private-Lines follow.
-	{"PuTTY private key file", []string{"PuTTY-User-Key-File-"},
-		regexp.MustCompile(`\bPuTTY-User-Key-File-[0-9]+:`)},
+	{Class: "PuTTY private key file", Literals: []string{"PuTTY-User-Key-File-"},
+		Re: regexp.MustCompile(`\bPuTTY-User-Key-File-[0-9]+:`)},
 	// sk-ant-api03-, sk-ant-admin01-, sk-ant-oat01- …: a base64url body.
-	{"Anthropic api key", []string{"sk-ant-"},
-		regexp.MustCompile(`\bsk-ant-[A-Za-z0-9_-]{20,}\b`)},
+	{Class: "Anthropic api key", Literals: []string{"sk-ant-"},
+		Re: regexp.MustCompile(`\bsk-ant-[A-Za-z0-9_-]{20,}\b`)},
 	// Project, service-account and admin keys: a base64url body.
-	{"OpenAI api key", []string{"sk-proj-", "sk-svcacct-", "sk-admin-"},
-		regexp.MustCompile(`\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}\b`)},
+	{Class: "OpenAI api key", Literals: []string{"sk-proj-", "sk-svcacct-", "sk-admin-"},
+		Re: regexp.MustCompile(`\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}\b`)},
 	// The legacy user key: sk- + 20 base62 + T3BlbkFJ ("OpenAI" in base64) + 20 base62.
-	{"OpenAI legacy api key", []string{"T3BlbkFJ"},
-		regexp.MustCompile(`\bsk-[A-Za-z0-9]{20}T3BlbkFJ[A-Za-z0-9]{20}\b`)},
+	{Class: "OpenAI legacy api key", Literals: []string{"T3BlbkFJ"},
+		Re: regexp.MustCompile(`\bsk-[A-Za-z0-9]{20}T3BlbkFJ[A-Za-z0-9]{20}\b`)},
 }
 
 // Scan returns the classes of every secret pattern found in text.
 func Scan(text string) []string {
 	var found []string
-	for _, p := range Patterns {
-		if containsAny(text, p.Literals) && p.Re.MatchString(text) {
-			found = append(found, p.Class)
+	var folded *string // built once, for the first Fold literal searched
+	// Each distinct literal is searched for at most once: rows share them (gitleaks' three
+	// New Relic rules have the same three), and on 1 MiB a search is the scan's main cost.
+	present := make([]int8, len(prefilter.lits)) // 0 not yet searched, 1 present, -1 absent
+	has := func(li int) bool {
+		if present[li] == 0 {
+			l, in := prefilter.lits[li], text
+			if l.fold {
+				if folded == nil {
+					f := foldText(text)
+					folded = &f
+				}
+				in = *folded
+			}
+			present[li] = -1
+			if strings.Contains(in, l.s) {
+				present[li] = 1
+			}
+		}
+		return present[li] == 1
+	}
+	for i, p := range Patterns {
+		for _, li := range prefilter.rows[i] {
+			if has(li) {
+				if p.Re.MatchString(text) {
+					found = append(found, p.Class)
+				}
+				break
+			}
 		}
 	}
 	return found
 }
 
-func containsAny(text string, literals []string) bool {
-	for _, l := range literals {
-		if strings.Contains(text, l) {
-			return true
+// literal is one distinct prefilter string; fold marks one searched for in folded text.
+type literal struct {
+	s    string
+	fold bool
+}
+
+// prefilter holds every distinct literal of Patterns, and each row's literals as indices
+// into it, in Patterns' order.
+var prefilter = buildPrefilter(Patterns)
+
+func buildPrefilter(ps []Pattern) (pf struct {
+	lits []literal
+	rows [][]int
+}) {
+	index := map[literal]int{}
+	for _, p := range ps {
+		var row []int
+		for _, s := range p.Literals {
+			l := literal{s, p.Fold}
+			li, ok := index[l]
+			if !ok {
+				li = len(pf.lits)
+				index[l] = li
+				pf.lits = append(pf.lits, l)
+			}
+			row = append(row, li)
 		}
+		pf.rows = append(pf.rows, row)
 	}
-	return false
+	return pf
+}
+
+// foldText maps every character a case-insensitive regex treats as an ASCII letter onto that
+// lowercase letter: A-Z, and the two non-ASCII runes in an ASCII letter's case-fold orbit,
+// U+017F (long s, UTF-8 C5 BF) and U+212A (Kelvin sign, E2 84 AA). A (?i) literal matches
+// exactly the strings that fold to its lowercase form, so the prefilter on folded text cannot
+// change a verdict. strings.ToLower alone would not do: it leaves U+017F as it is. Bytes, not
+// runes: a valid UTF-8 sequence cannot be misread at a byte offset inside another, and this
+// runs over every payload a Fold row sees.
+func foldText(text string) string {
+	var b strings.Builder
+	b.Grow(len(text))
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		switch {
+		case 'A' <= c && c <= 'Z':
+			c += 'a' - 'A'
+		case c == 0xC5 && i+1 < len(text) && text[i+1] == 0xBF:
+			c, i = 's', i+1
+		case c == 0xE2 && i+2 < len(text) && text[i+1] == 0x84 && text[i+2] == 0xAA:
+			c, i = 'k', i+2
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // ScanPayload scans a JSON tool payload for secrets — decoded, not as wire bytes.

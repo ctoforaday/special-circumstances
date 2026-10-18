@@ -1516,6 +1516,9 @@ jobs:
       - name: Every plugin with binaries is pinned to the release tag its plugin.json names
         run: go run ./marketplacegen -check
         working-directory: scripts
+      - name: The secrets gate's gitleaks rows match the pinned gitleaks ruleset (a stale or hand-edited row refuses what the pinned rule does not)
+        run: go run ./secretsgen -check
+        working-directory: scripts
       - name: The record binary and the plugin read the same event schema
         run: go run ./schemagen -check
         working-directory: scripts
