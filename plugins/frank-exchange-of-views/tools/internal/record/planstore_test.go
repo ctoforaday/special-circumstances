@@ -92,22 +92,22 @@ func TestAPlanAskedAgainStandsAndOneChangedInItsBlockersAloneWritesNoRows(t *tes
 	}
 }
 
-// THE PLAN STORED IS THE RECORD AS THE VERB LEFT IT. Its rows are the first work of the chair's new
-// epoch, so the inquiry review reviewed last epoch falls due by the verb's own act: the plan carries
-// that, and asked again in the sitting it stands.
-func TestThePlanStoredCarriesWhatItsOwnRowsMadeDue(t *testing.T) {
+// THE PLAN STORED IS THE RECORD AS THE VERB LEFT IT, and its own rows move nothing that holds the
+// PASS: the report changed after the chair's last inquiry review, so the review is owed before the
+// rows are written and after them alike, and asked again in the sitting the plan stands.
+func TestThePlanStoredCarriesTheReviewTheReportsChangeOwes(t *testing.T) {
 	chair := func(run Run) Identity { return Identity{Run: run, SeatID: "red-chair"} }
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
 		add("blue-respond", &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}).
 		register("red-chair").add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).dispatch(2, evLens).
-		register(evLens).mint(evLens, "G1", "high").register("red-chair").seed()
+		register(evLens).mint(evLens, "G1", "high").ingest().register("red-chair").seed()
 	before, err := PlanDispatch(run)
-	if err != nil || len(before.Parties) == 0 || slices.ContainsFunc(before.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
-		t.Fatalf("fixture: %d parties, blockers %+v, %v; want parties and the review not yet due", len(before.Parties), before.Blockers, err)
+	if err != nil || len(before.Parties) == 0 || !slices.ContainsFunc(before.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
+		t.Fatalf("fixture: %d parties, blockers %+v, %v; want parties and the review the report's change owes", len(before.Parties), before.Blockers, err)
 	}
 	plan, _, err := DispatchNext(chair(run))
-	if err != nil || !slices.ContainsFunc(plan.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
-		t.Fatalf("the stored plan's blockers %+v, %v; want the review its rows made due", plan.Blockers, err)
+	if err != nil || !reflect.DeepEqual(plan.Blockers, before.Blockers) {
+		t.Fatalf("the stored plan's blockers %+v, %v; want the ones folded before its rows, %+v", plan.Blockers, err, before.Blockers)
 	}
 	if again, standing, err := DispatchNext(chair(run)); err != nil || !standing {
 		t.Fatalf("asked again = standing %v, %v; want the plan standing: %s then %s", standing, err, plan.Printed(), again.Printed())
@@ -118,8 +118,9 @@ func TestThePlanStoredCarriesWhatItsOwnRowsMadeDue(t *testing.T) {
 }
 
 // A STORED PLAN IS NOT WORK IN THE EPOCH. A chair sitting whose plan readies nobody does nothing in
-// its epoch by asking, so the inquiry review of the last epoch with work in it still answers: stored
-// and asked again, the plan is the same, and it holds no review.
+// its epoch by asking: stored and asked again, the plan is the same, the current epoch is still the
+// last one with work in it, and the sitting reads as having recorded nothing. The report has not
+// changed since the last inquiry review, so the plan holds no review.
 func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 	chair := func(run Run) Identity { return Identity{Run: run, SeatID: "red-chair"} }
 	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -131,16 +132,126 @@ func TestAStoredPlanMovesNoEpoch(t *testing.T) {
 		t.Fatalf("fixture: %d parties, %v; want nobody ready", len(plan.Parties), err)
 	}
 	again, standing, err := DispatchNext(chair(run))
-	if err != nil || !standing || slices.ContainsFunc(again.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
-		t.Fatalf("asked again: standing %v, blockers %+v, %v; want the plan standing with no review owed", standing, again.Blockers, err)
+	if err != nil || !standing || again.Printed() != plan.Printed() || slices.ContainsFunc(again.Blockers, func(b PlanBlocker) bool { return b.Kind == BlockerInquiryReview }) {
+		t.Fatalf("asked again: standing %v, blockers %+v, %v; want the plan standing with no review owed:\n%s\n%s", standing, again.Blockers, err, plan.Printed(), again.Printed())
 	}
-	// Nor is it an act of the sitting: the chair recorded nothing, so no log is asked of it.
 	evs, win, err := eventsAt(recordOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := win.CurrentEpoch(evs); got != 1 {
+		t.Errorf("CurrentEpoch = %d after the chair stored a plan and did nothing else; want 1, the last epoch with work in it", got)
+	}
+	// Nor is it an act of the sitting: the chair recorded nothing, so no log is asked of it.
 	if !sittingRecordedNothing(evs, win, "red-chair") {
 		t.Errorf("the chair's sitting, whose only event is its stored plan, reads as having recorded something")
+	}
+}
+
+// THE CHAIR'S OWN ACTS MOVE NOTHING THAT HOLDS THE PASS. Seen on a smoke run (2026-10-18): a plan
+// readying nobody said pass_permitted with no blocker over a report unchanged since the chair's last
+// inquiry review, the chair's work list agreed, and the chair's position then put the review on the
+// work list and the gate. The other order passed over a review that predated the report's last
+// change: a PASS issued as the sitting's first act was admitted. Here the plan, the work list after
+// every act of the sitting, and the gate are one judgment: whatever the chair files that is not the
+// review, the gate's list and the blocking items are the plan's; the gate admits the PASS exactly
+// where the plan named nothing, and refuses it on the review the plan named, which the review then
+// clears.
+func TestTheChairsOwnActsMoveNothingThatHoldsThePass(t *testing.T) {
+	position := &recordpb.Position{Text: proto.String("ask the bench to hold the PASS")}
+	logged := &recordpb.Log{Text: proto.String("nothing cost a call"),
+		Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}
+	inquiry := &recordpb.Inquiry{InquiryId: proto.String("I-00000001"), Question: proto.String("a question"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED.Enum()}
+	boards := []struct {
+		name string
+		// build is the record the chair's new sitting opens on: inquiries, the chair's last review,
+		// and a lens that has sat at the head, so nobody is ready.
+		build      func(b *stage) *stage
+		wantReview bool
+	}{
+		{"the report unchanged since the last review", func(b *stage) *stage {
+			return b.ingest().add("blue-respond", inquiry).register("red-chair").
+				add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).
+				dispatch(2, evLens).register(evLens)
+		}, false},
+		{"the report changed after the last review", func(b *stage) *stage {
+			b.ingest().add("blue-respond", inquiry).register("red-chair").
+				add("red-chair", &recordpb.InquiryReview{Reason: proto.String("read")}).ingest()
+			return b.dispatch(b.at(), evLens).register(evLens)
+		}, true},
+	}
+	acts := []struct {
+		name string
+		acts []proto.Message
+	}{
+		{"the verdict first", nil},
+		{"a position, then the verdict", []proto.Message{position}},
+		{"a log, then the verdict", []proto.Message{logged}},
+		{"a position and a log, then the verdict", []proto.Message{position, logged}},
+	}
+	for _, bd := range boards {
+		for _, c := range acts {
+			t.Run(bd.name+"/"+c.name, func(t *testing.T) {
+				run := bd.build(newStage(t).cast(evLens, "red-chair", "blue-respond", "judge")).register("red-chair").seed()
+				chair := Identity{Run: run, SeatID: "red-chair"}
+				plan, _, err := DispatchNext(chair)
+				if err != nil || len(plan.Parties) != 0 || !plan.PassPermitted {
+					t.Fatalf("fixture: %d parties, pass_permitted %v, %v; want nobody ready and PASS permitted", len(plan.Parties), plan.PassPermitted, err)
+				}
+				// The rule: a review recorded after the report and the inquiries last changed answers,
+				// and one recorded before does not; the plan names the review owed as the chair's own.
+				want := []PlanBlocker{}
+				if bd.wantReview {
+					want = []PlanBlocker{{Kind: BlockerInquiryReview, Owner: chairSeat}}
+				}
+				if !reflect.DeepEqual(plan.Blockers, want) {
+					t.Errorf("the plan's blockers = %+v; want %+v", plan.Blockers, want)
+				}
+				atDispatch := blockingItems(sittingOfRunT(t, run, "chair", "red-chair"))
+				blockersNow := func() []PlanBlocker {
+					t.Helper()
+					bs, err := PassBlockers(run)
+					if err != nil {
+						t.Fatal(err)
+					}
+					out := []PlanBlocker{}
+					for _, b := range bs {
+						out = append(out, PlanBlocker{Kind: b.Kind, Subject: b.Subject, Owner: b.Owner})
+					}
+					return out
+				}
+				for i, act := range c.acts {
+					if _, err := Append(chair, act); err != nil {
+						t.Fatalf("act %d: %v", i+1, err)
+					}
+					if got := blockersNow(); !reflect.DeepEqual(got, plan.Blockers) {
+						t.Errorf("after act %d (%T) the gate's list is %+v; the plan said %+v", i+1, act, got, plan.Blockers)
+					}
+					if got := blockingItems(sittingOfRunT(t, run, "chair", "red-chair")); strings.Join(got, "\n") != strings.Join(atDispatch, "\n") {
+						t.Errorf("after act %d (%T) the work list blocks on\n  %q\nand at the dispatch it blocked on\n  %q", i+1, act, got, atDispatch)
+					}
+				}
+				_, gerr := Append(chair, passGate)
+				if len(plan.Blockers) == 0 {
+					if gerr != nil {
+						t.Fatalf("the plan named no blocker and the gate refused the PASS: %v", gerr)
+					}
+					return
+				}
+				if gerr == nil || !strings.Contains(gerr.Error(), "no inquiry review is recorded since the report or its inquiries last changed") {
+					t.Fatalf("PASS over the plan's blocker = %v; want it refused on the inquiry review the plan named", gerr)
+				}
+				if _, err := Append(chair, &recordpb.InquiryReview{Reason: proto.String("read the report as it now stands")}); err != nil {
+					t.Fatal(err)
+				}
+				if got := blockersNow(); len(got) != 0 {
+					t.Fatalf("after the review the gate's list is %+v; want it empty", got)
+				}
+				if _, err := Append(chair, passGate); err != nil {
+					t.Fatalf("PASS after the review: %v", err)
+				}
+			})
+		}
 	}
 }
 

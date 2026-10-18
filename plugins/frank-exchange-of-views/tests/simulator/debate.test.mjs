@@ -363,7 +363,7 @@ test('the chair runs the debate: relays the plan verbatim, mints nothing, closes
   assert.ok(/you mint nothing and you close nothing/.test(p) && /ASK THE RECORD WHO SITS — the dispatch/.test(p) && /Relay the plan object it prints, copied whole, VERBATIM as `plan`/.test(p))
   assert.ok(/THE STOPPING JUDGMENT IS YOURS/.test(p) && /record a PASS verdict/.test(p) && /or a FAIL if the board as it stands still stops you, which it does until it converges/.test(p))
   assert.ok(!/for its lens to mint|raise something material/i.test(p), 'the chair mints nothing, so its stopping judgment names no lens act for a defect it finds')
-  assert.ok(/VOTE EVERY INQUIRY/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
+  assert.ok(/ANSWER EVERY INQUIRY ON ONE READ/.test(p) && /where neither has changed, your last read stands/.test(p) && /RULE ON BLUE'S INQUIRIES/.test(p) && /RULE THE GRADE MOTIONS/.test(p))
   // THE POSITION, THE CLOSINGS AND THE SPOT-CHECK ARE UNCONDITIONAL DUTIES, so the constitution is
   // their one carrier and the prompt, which every chair sitting receives unchanged, restates none.
   const chairMd = readFileSync(new URL('../../agents/red-chair.md', import.meta.url), 'utf8')

@@ -1496,7 +1496,7 @@ func owedKinds(clause string) map[string]bool {
 		kind := "unnamed"
 		for _, k := range []struct{ word, kind string }{
 			{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
-			{"the bench's remand of ", "remand"}, {"'s finding about ", "finding"},
+			{"the bench's remand of ", "remand"}, {"'s finding ", "finding"},
 			{"unjudged proof ", "unjudged proof"}, {"reopened ", "reopened"}, {"contradiction ", "contradiction"},
 			{"open gap ", "open gap"},
 		} {
@@ -4672,14 +4672,14 @@ var reportExemptions = map[string]string{
 	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] with its note, and the source a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
 	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	// The per-round review of the report against the inquiries on the record. Its READER IS A GATE,
-	// not the document: record.InquiryReviewDue asks whether this round's review exists and
-	// refuses the sitting until it does. Rendering it in the report would put a process check
+	// The review of the report against the inquiries on the record. Its READER IS A GATE, not the
+	// document: record.InquiryReviewDueOf asks whether a review is recorded since the report or an
+	// inquiry last changed, and the PASS is refused until it is. Rendering it in the report would put a process check
 	// where the debate goes — the review says "I read the report against the record", and what
 	// a reader wants is the outcome of that reading, which arrives as an ordinary GAP when the
 	// treatment falls short. Named here rather than left silent, because the gate is right that
 	// an unclassified event type is how a report loses a whole exchange.
-	"inquiry_review": "read by record.InquiryReviewDue as a per-round duty gate, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
+	"inquiry_review": "read by record.InquiryReviewDueOf as a PASS gate owed when the report or an inquiry changes, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
 	"outcome":        "composed into the outcome stamp by outcomeStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
 	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
