@@ -45,3 +45,42 @@ func TestTheBoardNamesEachGapsMinter(t *testing.T) {
 		t.Errorf("the board and the work list name different minters: board %+v, work %+v", board.Open, list.Open)
 	}
 }
+
+// THE BOARD STATES WHAT THE WORK LIST STATES ABOUT A GAP, off the same gap-view columns: universe-m29's
+// chair and bench asked `show board` for `material`, `remanded` and `docket_direction` and jq returned
+// null. Each key is on the board's row, and its value is the work list's.
+func TestTheBoardStatesTheGapFactsTheWorkListStates(t *testing.T) {
+	runDir := seatRun(t)
+	id := mintGap(t, runDir, "board-material", "read-surface")
+	row := func(args ...string) map[string]json.RawMessage {
+		out, err := run(t, append([]string{"show"}, append(args, "--run", runDir)...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var v struct {
+			Open []map[string]json.RawMessage `json:"open"`
+		}
+		if err := json.Unmarshal([]byte(out), &v); err != nil || len(v.Open) != 1 {
+			t.Fatalf("show %v: %v\n%s", args, err, out)
+		}
+		return v.Open[0]
+	}
+	board, work := row("board", "--seat-id", "red-chair"), row("work", "--seat-id", lensSeat)
+	if string(board["id"]) != `"`+id+`"` || string(board["material"]) != "true" {
+		t.Fatalf("the board's row for %s, graded medium, is not material: %s", id, board["material"])
+	}
+	for _, k := range []string{"minted_by", "material", "remanded", "docket_direction"} {
+		b, ok := board[k]
+		if !ok {
+			t.Errorf("the board's row has no %q", k)
+			continue
+		}
+		w, listed := work[k]
+		if !listed { // the work list omits an empty direction
+			w = json.RawMessage(`""`)
+		}
+		if string(b) != string(w) {
+			t.Errorf("%s: the board says %s and the work list %s", k, b, w)
+		}
+	}
+}
