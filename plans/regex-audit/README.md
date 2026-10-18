@@ -57,6 +57,19 @@ The owner is "fully supportive of new dependencies". Each swap below adds its de
 | A markdown parser such as goldmark | `report/md.go`, `anchor/sentences.go` | Approved, which overturns the rejection in `md.go`'s header comment |
 | gitleaks rules (MIT) | The hand-kept secrets table | Optional: generate the table from them, with a staleness gate |
 
+## Our own small grammars: consider Participle (owner, 2026-10-18)
+
+For keys, arguments and similar small grammars, consider [Participle](https://github.com/alecthomas/participle) (`github.com/alecthomas/participle/v2`, MIT). It declares the grammar once as annotated Go structs, gives a typed result, and reports a parse error with its position, so a miss is loud by construction.
+
+Candidates from `sites.tsv`:
+- the anchor token `<!--kind:ID-->` and the id shapes. The id grammar has one regex definition today, and a hand-scanner has to be kept in step with it;
+- footnote labels, where four grammars disagree today;
+- the archived id grammar that migrate translates (`Q1`, `R1-2`, `L6-F9`, seat ids);
+- the checkpoint note's structured lines in gray-area and prosthetic-conscience: loop entries, `last run:`, `re-armed by:`;
+- the `e<epoch> <fate>` path entries, and other key/value or argument strings the tools read back.
+
+A real external format keeps its own parser: HTML, markdown, shell, JSON and XML. Participle is for the grammars we define ourselves. Each candidate is weighed in the PR that touches it, against whether the fact should not be text at all (class 1), which comes first.
+
 ## Prevention (#1479)
 
 One package per tools module may import `regexp` in production code. Every pattern is declared there once, in a table that gives:
