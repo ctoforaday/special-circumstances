@@ -39,7 +39,7 @@ func TestATerminalSeatActsInTheEpochTheChairHasReached(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("closing")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Log{Text: proto.String("closing"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastWindow(t, runDir).Epoch; got != 3 {
@@ -53,7 +53,7 @@ func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: s}, &recordpb.Observe{Text: proto.String("x")}); err != nil {
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: s}, &recordpb.Log{Text: proto.String("x"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastWindow(t, runDir).Epoch; got != 0 {
@@ -73,7 +73,7 @@ func TestAnEmptyRunIsEpochZeroNotUnknown(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("x")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, &recordpb.Log{Text: proto.String("x"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	if got := lastWindow(t, runDir).Epoch; got != 0 {

@@ -13,13 +13,12 @@ import (
 // corroboration builds a supporting corroboration of one claim from one source.
 func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *recordpb.Verify {
 	v := &recordpb.Verify{
-		Independent: proto.Bool(true),
-		Url:         proto.String(url),
-		Title:       proto.String("a source red found"),
-		Claim:       proto.String(claim),
-		Outcome:     &outcome,
-		Confidence:  recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
-		Text:        proto.String("what the source says, in red's words"),
+		Url:        proto.String(url),
+		Title:      proto.String("a source red found"),
+		Claim:      proto.String(claim),
+		Outcome:    &outcome,
+		Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
+		Text:       proto.String("what the source says, in red's words"),
 	}
 	if label != "" {
 		v.Label = proto.String(label)

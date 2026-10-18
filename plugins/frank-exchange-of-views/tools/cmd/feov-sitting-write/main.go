@@ -20,10 +20,8 @@ func main() {
 	run := flag.String("run", "", "the run directory whose record to append to")
 	phase := flag.String("phase", "", "open or close (an end of the span), limit (the sitting reached the tool-call limit), refusal (the PreToolUse hook denied a call) or failure (a call failed)")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
-	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as")
+	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as (open and close)")
 	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested and whose path is recorded (SubagentStop only)")
-	sessionID := flag.String("session-id", "", "the conversation this sitting happened in, from the hook payload")
-	promptID := flag.String("prompt-id", "", "the dispatch's own id, from the hook payload — it changes when an agent is re-prompted and its agent id does not")
 	sitting := flag.Int("sitting", 0, "the seat's sitting that reached the limit (limit only)")
 	limit := flag.Int("limit", 0, "the per-sitting tool-call limit it reached (limit only)")
 	entry := flag.String("entry", "", "what a hook saw happen to the seat's call — refused, or failed (refusal and failure only)")
@@ -32,7 +30,7 @@ func main() {
 	var err error
 	switch sittingwrite.Phase(*phase) {
 	case sittingwrite.Limit:
-		err = sittingwrite.WriteLimit(*run, *agentID, *agentType, *sitting, *limit)
+		err = sittingwrite.WriteLimit(*run, *agentID, *sitting, *limit)
 	case sittingwrite.Refusal, sittingwrite.Failure:
 		err = sittingwrite.WriteToolEntry(*run, sittingwrite.Phase(*phase), *agentID, *entry)
 	default:
@@ -42,7 +40,6 @@ func main() {
 		err = sittingwrite.Write(sittingwrite.Sitting{
 			RunDir: *run, Phase: sittingwrite.Phase(*phase),
 			AgentID: *agentID, AgentType: *agentType, TranscriptPath: *transcript,
-			SessionID: *sessionID, PromptID: *promptID,
 		}, os.Stdout)
 	}
 	if err != nil {

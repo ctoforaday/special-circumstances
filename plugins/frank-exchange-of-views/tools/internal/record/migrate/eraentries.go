@@ -32,7 +32,9 @@ func eraEntries() Registry {
 	return Registry{
 		// The era's universal `reason` column, renamed onto each body's own prose field.
 		"blue_edit": mapped("blue_edit", ren{"reason": "text"}, nil, nil),
-		"verify":    mapped("verify", ren{"reason": "text"}, nil, nil),
+		"verify": mapped("verify", ren{"reason": "text"}, drops{
+			"independent": "a corroboration is the verification that names no anchor; the bool restated the empty anchor, and every archived row that set it has none",
+		}, nil),
 		// The finding's two names are one: its id. The remap gives the archived label the finding's id.
 		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
 			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),

@@ -153,7 +153,7 @@ func registersAs(t *testing.T, seat, agent string) *Event {
 
 // agentStops is the sitting_close the SubagentStop hook writes when that agent returns.
 func agentStops(t *testing.T, agent string) *Event {
-	return recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:blue-researcher")})
+	return recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent)})
 }
 
 func chairDispatches(t *testing.T, seat string, gaps ...string) *Event {

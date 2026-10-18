@@ -250,7 +250,9 @@ enum EventType {
   reserved 18, 28, 39;
   reserved "EVENT_TYPE_MOTION_APPEAL", "EVENT_TYPE_REVISION", "EVENT_TYPE_CORRECTION";
   EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
-  EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
+  // 20 was EVENT_TYPE_OBSERVE, a type no verb wrote. Reserved for the reason 21 is.
+  reserved 20;
+  reserved "EVENT_TYPE_OBSERVE";
   // 21 was EVENT_TYPE_OPINION. Reserved rather than left free: a stored event carries its type
   // as an integer, so a new type given 21 would silently inherit every pre-#681 bench ruling —
   // and `Body` dispatches on this enum, so those events would be handed to the wrong arm.
@@ -582,7 +584,6 @@ message Event {
     Regrade regrade = 34;
     SpotCheck spot_check = 35;
     Finding finding = 37;
-    Observe observe = 38;
     Anchor anchor = 39;
     Cite cite = 40;
     Verify verify = 41;
@@ -610,10 +611,10 @@ message Event {
   // plan, which is what the reserve is for — the block shrinks and nothing is renumbered.
   reserved 60 to 80;
 
-  // 29 held `motion_appeal`, 46 `revision` and 58 `correction`, whose types are reserved above for
-  // the same reason: a stored event carries the bytes.
-  reserved 29, 46, 58;
-  reserved "motion_appeal", "revision", "correction";
+  // 29 held `motion_appeal`, 38 `observe`, 46 `revision` and 58 `correction`, whose types are
+  // reserved above for the same reason: a stored event carries the bytes.
+  reserved 29, 38, 46, 58;
+  reserved "motion_appeal", "observe", "revision", "correction";
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -1020,13 +1021,6 @@ message Finding {
   optional string about_ref = 10;
 }
 
-// Observe is a seat-labelled observation, disposed of by the chair.
-message Observe {
-  optional string label = 1;
-  optional string text = 2;
-  optional string observation = 3;
-}
-
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
 // quote `location`. It is the one event that places a marker, of any kind, so an id is placed once
 // on a run: a second Anchor for it would be a second marker for one act.
@@ -1037,27 +1031,8 @@ message Anchor {
   reserved "finding_id", "finding_key", "label", "text";
 }
 
-// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
-// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
-// disable that check for the row.
-// SourceTextRead is HOW MUCH OF THE SOURCE THIS SEAT ACTUALLY READ, and it is the blue-side twin
-// of red's SourceOutcome. It exists because the distinction it carries was the load-bearing caveat
-// of a whole run and lived only as a PROSE SUBSTRING: "unreachable from this container". The run
-// then counted that phrase by grep and got it wrong twice — once counting a sentence that was
-// counting itself — because a grep cannot tell a source DISCUSSED from one merely LISTED.
-//
-// The default is the honest one. A citation nobody has asserted a reading for is UNREAD, so the
-// weak claim is what you get for free and the strong one has to be made on purpose.
-enum SourceTextRead {
-  SOURCE_TEXT_READ_UNSPECIFIED = 0;
-  SOURCE_TEXT_READ_UNREAD = 1 [(means) = "the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says"];
-  SOURCE_TEXT_READ_SUMMARY_ONLY = 2 [(means) = "read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source"];
-  SOURCE_TEXT_READ_LEAF = 3 [(means) = "the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS"];
-}
-
 // SourceTextOrigin is WHERE THE CITED TEXT CAME FROM, and the tool stamps it; a seat never types
-// it. It is the twin of SourceTextRead: that one is how much the seat read, this one is whether
-// what it read is the author's text or the local engine's reading of page images. A bool
+// it: whether the text is the author's or the local engine's reading of page images. A bool
 // `ocr_derived` would fold a scan nobody read and an author's own text into one `false`, and
 // "false" on an unread scan claims the text is trustworthy.
 enum SourceTextOrigin {
@@ -1069,9 +1044,8 @@ enum SourceTextOrigin {
 }
 
 // WorkStatus is WHAT THE LITERATURE NOW SAYS ABOUT THE CITED WORK, stamped by the tool; a seat
-// never types it. It is a third axis, distinct from the two beside it: SourceTextRead says how
-// much this seat read, SourceTextOrigin says whose reading the text is, and both describe THIS
-// RETRIEVAL. A retraction survives a flawless one. The pdf of a withdrawn paper is byte-identical
+// never types it. It is a second axis, distinct from the one beside it: SourceTextOrigin says whose
+// reading the text is, and describes THIS RETRIEVAL. A retraction survives a flawless one. The pdf of a withdrawn paper is byte-identical
 // to what it was before the notice, the notice is a separate document nobody fetched, and so no
 // amount of fetch quality discovers it — only a maintained index does.
 //
@@ -1089,9 +1063,8 @@ enum WorkStatus {
 }
 
 // SourceCompleteness is WHICH PART OF THE WORK THE RUN'S COPY IS, stamped by the tool from what the
-// fetch recorded; a seat never types it. A fourth axis beside the three above: SourceTextRead is
-// how much of the copy this seat read, SourceTextOrigin whose reading its text is, WorkStatus what
-// the literature says of the work — and none of them says whether the copy is the paper or only its
+// fetch recorded; a seat never types it. A third axis beside the two above: SourceTextOrigin is
+// whose reading its text is, WorkStatus what the literature says of the work — and neither says whether the copy is the paper or only its
 // abstract, which is the difference between confirming a study and confirming its summary.
 //
 // AN ENUM AND NOT A BOOL, for WorkStatus's reason: NOT_ASKED folds nothing into FULL. Only FULL
@@ -1106,6 +1079,9 @@ enum SourceCompleteness {
   SOURCE_COMPLETENESS_NOT_RECORDED = 6 [(means) = "this citation predates the field; written only by migrate"];
 }
 
+// Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
+// seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
+// disable that check for the row.
 message Cite {
   optional string label = 1;
   optional string url = 2;
@@ -1115,14 +1091,9 @@ message Cite {
   optional string title = 4 [(prose) = true];
   optional string location = 5 [(prose) = false, (sql) = { flag: "quote" }];
   optional string access_date = 6;
-  // cite_key and source_text_read are typed --key and --source-text: the flag word is declared so
-  // a refusal names what a seat can type.
+  // cite_key is typed --key: the flag word is declared so a refusal names what a seat can type.
   optional string cite_key = 7 [(sql) = { flag: "key" }];
   optional string text = 9 [(prose) = true, (sql) = { flag: "reason" }];
-
-  // HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
-  // claim costs a seat nothing and only a stronger one is asserted.
-  optional SourceTextRead source_text_read = 10 [(sql) = { flag: "source-text" }];
 
   // WHERE THE QUOTE SITS, stamped by the tool. Not `(sql).required`: that annotation teaches a flag, and no seat types these —
   // validate refuses an unstamped origin instead.
@@ -1147,9 +1118,10 @@ message Cite {
   optional SourceCompleteness source_completeness = 17 [(prose) = false];
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
-  // anchor. One span, one field.
-  reserved 8;
-  reserved "claim";
+  // anchor. One span, one field. `source_text_read` was the seat's assertion of how much of the
+  // source it read, which nothing read back.
+  reserved 8, 10;
+  reserved "claim", "source_text_read";
 }
 
 // Verify is red reading a source at the leaf.
@@ -1166,10 +1138,9 @@ message Verify {
   optional string url = 9;
   optional string title = 10;
 
-  // anchor names the citation checked; independent marks a source red found itself. One or the
-  // other — a verification of nothing was recordable before this verb required them.
+  // anchor names the citation checked, and `verify` requires it. A corroboration — a source red
+  // found itself — names none: the empty anchor IS the corroboration, and every reader splits on it.
   optional string anchor = 3;
-  optional bool independent = 4;
 
   optional string access_date = 5;
   optional SourceOutcome outcome = 6 [(sql) = {
@@ -1224,8 +1195,9 @@ message Verify {
   // says; this is what lets a reader of the record tell that from a verdict on the study.
   optional SourceCompleteness source_completeness = 16 [(prose) = false];
 
-  reserved 2;
-  reserved "reference";
+  // `independent` restated the empty anchor as a bool.
+  reserved 2, 4;
+  reserved "reference", "independent";
 }
 
 // Proof is a computation blue ran to settle a claim. The tool executes it twice and caches;
@@ -1536,8 +1508,10 @@ message Log {
   // mapping. A seat cannot honestly claim to be the tool, so the seat verb sets SEAT and the
   // tool's own writes set TOOL, at every call site.
   optional LogSource source = 4;
-  // estopped_by names the gap whose own --fix-new the refused mint was attacking.
-  optional string estopped_by = 3;
+  // `estopped_by` named the prescribing gap beside a count that reads only the type; the text says
+  // which gap.
+  reserved 3;
+  reserved "estopped_by";
 }
 
 // Motion, and the SECOND oneof is the whole point.
@@ -2038,33 +2012,10 @@ message SittingOpen {
   // them, and a reader that needs the binding should not have to join through a register the seat
   // may never write.
   optional string seat_id = 3;
-
-  // WHERE THIS SEAT SPOKE. session_id and prompt_id come off the SubagentStart payload, which has
-  // carried both all along; nothing recorded them, so "which conversation was this sitting in" was
-  // answerable only by globbing the filesystem.
-  //
-  // PER SITTING AND NOT ON THE CAST, and the difference is a resumed run. A run outlives the
-  // session that started it — the run directory survives a resume, the session does not — so a
-  // session id written once at setup would be silently wrong for every sitting after the resume,
-  // which is the case that already bites hardest (#1111). Repeated per sitting it costs a short
-  // string ~38 times and cannot go stale.
-  //
-  // WHAT IT BUYS: the bench's integrity inspection reads seat trajectories, and the path reaches it
-  // today only as prose interpolated into its prompt from an argument THE OPERATOR MUST SUPPLY —
-  // so the duty silently does nothing on every run where they did not. With this the trajectory is
-  // a join on the record instead of a path in a sentence.
-  optional string session_id = 4;
-
-  // prompt_id is the DISPATCH's identity, and it is the one thing here the record could not
-  // already express. agent_id names the agent, and a re-prompted agent keeps it; prompt_id changes.
-  // So "how many times was this seat asked" is answerable, which is exactly what a resumed dispatch
-  // makes ambiguous today.
-  optional string prompt_id = 5;
 }
 
 message SittingClose {
   optional string agent_id = 1;
-  optional string agent_type = 2;
 
   // THE SEAT'S OWN TRANSCRIPT, WHICH ONLY THIS END IS TOLD. SubagentStop carries
   // agent_transcript_path — the child conversation, at
@@ -2080,11 +2031,10 @@ message SittingClose {
   // seat that never ran.
   optional string agent_transcript_path = 3;
 
-  // The same two, for the same reason as on the opening end: a sitting whose ends fall in different
-  // sessions is a resumed run, and the record should be able to say so rather than leave a reader
-  // to infer it.
-  optional string session_id = 4;
-  optional string prompt_id = 5;
+  // agent_type, session_id and prompt_id were the hook payload copied as it came. The hook filters
+  // on the payload's type before it writes; the opening end records the configuration.
+  reserved 2, 4, 5;
+  reserved "agent_type", "session_id", "prompt_id";
 }
 
 // SittingLimit is a seat's sitting stopped at the run's per-sitting tool-call limit (the run term
@@ -2098,8 +2048,10 @@ message SittingClose {
 // — a register of its own, or a harness bracket that names it — and a sitting-record repair opens
 // none.
 message SittingLimit {
-  optional string agent_id = 1;
-  optional string agent_type = 2;
+  // agent_id and agent_type were the hook payload copied as it came; the agent is the input the
+  // writer resolves seat_id from, and is not stored.
+  reserved 1, 2;
+  reserved "agent_id", "agent_type";
   optional string seat_id = 3;
   optional int32 sitting = 4;
   optional int32 limit = 5;
