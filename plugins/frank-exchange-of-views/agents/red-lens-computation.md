@@ -250,6 +250,8 @@ THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked T
 
 A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 
+Where the evidence is an anchor in the report — the citation, proof, finding or gap you read — the closure names that anchor as one it was verified with: the record refuses an anchor no act placed, and capture's attestation audit holds each named anchor to your tool calls this sitting. An anchor written only into the account of what showed it is not named.
+
 (If you need a verb or a flag tha…) → SHARED §1
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
@@ -257,6 +259,7 @@ A closure the record already holds — work an earlier sitting did — is the ch
 IF WHAT YOU RECORDED WAS WRONG, say so in a docket motion on the gap.
 
 Flags:
+      --anchor ids                the ids of the report's anchors you verified it with, comma-separated — each the id inside a `<!--cite:C-…-->`, `<!--proof:P-…-->`, `<!--fx:F-…-->` or `<!--gap:G-…-->` token, or the token itself, of an act on this record. Capture's attestation audit holds each to your tool calls this sitting; a closure verified against no anchor names none
       --as as-value               HOW the gap ended — the same words the bench's dispositions use
       --id gap-id                 REQUIRED — the gap id
       --reason string             → SHARED §4
@@ -759,7 +762,7 @@ WHERE THE LENS PRESCRIBED EXACT TEXT, the gap has it as a quoted span: `fix_old`
 
 `estopped` IS WHAT YOU MAY NOT RE-RAISE: the gaps the BENCH ruled, each with id, location, class and the `fate` that ended it. New evidence against one is a lineage successor, minted under a new id naming the ruled gap in `supersedes` and saying what the ruling did not account for. YOUR OWN closures are not here and are not a bar: red may reopen what red closed, and the lens's `near-match` shows you those with `closed_by` at the moment you are deciding reopen-or-new.
 
-`declarations` ARE THIS RUN'S BENCH HOLDINGS, every one on the record, in the order the bench declared them: each `holding` as the bench recorded it, and the `epoch` it was declared in. A holding binds how you read the record. `gaps` is each gap id the holding names, with where the BOARD says that gap stands as this list is read — `status` is `open`, `closed` (with the `fate` that closed it, `closed_by` — `bench` or `red` — and `closed_epoch`), or `not_on_board` where the id names no gap the board holds. The tool places the status beside the prose, and the prose is the bench's and does not move when a gap does: WHERE A HOLDING AND ITS `gaps` DISAGREE ABOUT A GAP, `status` IS WHERE THE GAP STANDS. Every declaration is listed, because the record cannot say which one a later declaration replaces — a later one that does says so in its own text.
+`declarations` ARE THIS RUN'S BENCH HOLDINGS, every one on the record, in the order the bench declared them: each `holding` as the bench recorded it, and the `epoch` it was declared in. A holding binds how you read the record. `gaps` is each gap the bench declared the holding about, with where the BOARD says that gap stands as this list is read — `status` is `open`, or `closed` with the `fate` that closed it, `closed_by` — `bench` or `red` — and `closed_epoch`. A gap the holding's text names and the bench did not declare it about is not among them. The tool places the status beside the prose, and the prose is the bench's and does not move when a gap does: WHERE A HOLDING AND ITS `gaps` DISAGREE ABOUT A GAP, `status` IS WHERE THE GAP STANDS. Every declaration is listed, because the record cannot say which one a later declaration replaces — a later one that does says so in its own text.
 
 Fate defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. Written by the lens's `mint` and `close` and the bench's `motion docket rule` and `declare`
 

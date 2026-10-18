@@ -3465,7 +3465,13 @@ type Close struct {
 	//
 	// An annotation cannot say "unless this other field is set", which is the split validate's
 	// header states: unconditional requirements on the field, everything conditional below.
-	Prose         *string `protobuf:"bytes,8,opt,name=prose,proto3,oneof" json:"prose,omitempty"`
+	Prose *string `protobuf:"bytes,8,opt,name=prose,proto3,oneof" json:"prose,omitempty"`
+	// anchors are the report's anchors the closure was verified with — each the id of an anchor the
+	// record holds, refused at the write otherwise. Capture's attestation audit joins each to the tool
+	// calls of the closing seat's trajectory: a closure naming an anchor it never read is the
+	// dishonesty that audit exists to find. Empty is "verified with no anchor", and the audit then
+	// reads anchor_target's prose.
+	Anchors       []string `protobuf:"bytes,9,rep,name=anchors,proto3" json:"anchors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3554,6 +3560,13 @@ func (x *Close) GetProse() string {
 		return *x.Prose
 	}
 	return ""
+}
+
+func (x *Close) GetAnchors() []string {
+	if x != nil {
+		return x.Anchors
+	}
+	return nil
 }
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
@@ -6839,8 +6852,12 @@ func (x *Certify) GetStatement() string {
 }
 
 type Declare struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Holding       *string                `protobuf:"bytes,1,opt,name=holding,proto3,oneof" json:"holding,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Holding *string                `protobuf:"bytes,1,opt,name=holding,proto3,oneof" json:"holding,omitempty"`
+	// gap_ids are the gaps the holding is about, each a gap the board holds, refused at the write
+	// otherwise. Every seat's work list sets each beside where the board says it stands now, so a
+	// status the holding's prose states cannot outlive the gap's move. Empty is "names none".
+	GapIds        []string `protobuf:"bytes,2,rep,name=gap_ids,json=gapIds,proto3" json:"gap_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6880,6 +6897,13 @@ func (x *Declare) GetHolding() string {
 		return *x.Holding
 	}
 	return ""
+}
+
+func (x *Declare) GetGapIds() []string {
+	if x != nil {
+		return x.GapIds
+	}
+	return nil
 }
 
 var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
@@ -7273,7 +7297,7 @@ const file_record_proto_rawDesc = "" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
 	"\x0e_distinguisherB\x13\n" +
-	"\x11_material_default\"\x99\t\n" +
+	"\x11_material_default\"\xb3\t\n" +
 	"\x05Close\x12J\n" +
 	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xd4\x01\n" +
 	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionB\x8c\x01\x82\xb5\x18\x87\x01\x1a}a red close asserts a repair; `remanded` sends the gap back to the debate instead of closing it and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
@@ -7284,7 +7308,8 @@ const file_record_proto_rawDesc = "" +
 	"\ranchor_target\x18\x05 \x01(\tH\x04R\fanchorTarget\x88\x01\x01\x12&\n" +
 	"\fcarried_from\x18\x06 \x01(\tH\x05R\vcarriedFrom\x88\x01\x01\x124\n" +
 	"\tsuccessor\x18\a \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x06R\tsuccessor\x88\x01\x01\x12\x9c\x01\n" +
-	"\x05prose\x18\b \x01(\tB\x80\x01\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it\xc0\xb5\x18\x01H\aR\x05prose\x88\x01\x01:\xe8\x02\x92\xb5\x18\xad\x01\n" +
+	"\x05prose\x18\b \x01(\tB\x80\x01\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it\xc0\xb5\x18\x01H\aR\x05prose\x88\x01\x01\x12\x18\n" +
+	"\aanchors\x18\t \x03(\tR\aanchors:\xe8\x02\x92\xb5\x18\xad\x01\n" +
 	"H\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never drops\x92\xb5\x18\xb1\x01\n" +
 	"1\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL\x12|a closure states what was verified and why it holds; only a carry is exempt, because the epoch it restates already argued itB\t\n" +
 	"\a_gap_idB\x10\n" +
@@ -7730,9 +7755,10 @@ const file_record_proto_rawDesc = "" +
 	"\aCertify\x12\xb2\x01\n" +
 	"\tstatement\x18\x01 \x01(\tB\x8e\x01\x82\xb5\x18\x85\x01\b\x01\x12\x06reason\x1aywhat you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity\xc0\xb5\x18\x01H\x00R\tstatement\x88\x01\x01B\f\n" +
 	"\n" +
-	"_statement\"F\n" +
+	"_statement\"_\n" +
 	"\aDeclare\x12/\n" +
-	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01B\n" +
+	"\aholding\x18\x01 \x01(\tB\x10\x82\xb5\x18\b\x12\x06reason\xc0\xb5\x18\x01H\x00R\aholding\x88\x01\x01\x12\x17\n" +
+	"\agap_ids\x18\x02 \x03(\tR\x06gapIdsB\n" +
 	"\n" +
 	"\b_holding*\x86!\n" +
 	"\tEventType\x12\x1a\n" +

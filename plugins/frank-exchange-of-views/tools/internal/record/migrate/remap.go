@@ -79,7 +79,7 @@ var (
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Log.estopped_by Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Gate.migration_admitted_gap_ids`)
+		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
 		ClassNew.distinguisher Close.prose Close.anchor_tool Close.anchor_target Closing.text

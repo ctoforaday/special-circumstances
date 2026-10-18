@@ -3,6 +3,7 @@ package record
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -21,22 +22,22 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 	const (
 		byLens  = "G-0000000a" // the lens closes it
 		byBench = "G-0000000b" // the bench rules it closed
-		notAGap = "G-0000ffff" // named in the holding, minted by nobody
-		// byBench is named by its report token, the form a bench copies out of the report.
-		holding  = byLens + " remains open and is material; " + "<!--gap:" + byBench + "--> is construed with it, and " + notAGap + " is cited. " + byLens + " again; G-0000eeee1 is no id."
+		// The holding's text names a third gap the bench did not declare it about: prose is not read.
+		inProse  = "G-0000000c"
+		holding  = byLens + " remains open and is material; " + byBench + " is construed with it, and " + inProse + " is cited."
 		laterOne = "the later holding names no gap"
 	)
 	run := corrRun(t)
 	chair := sit(t, run, "red-chair")
 	lens := sit(t, run, evLens)
-	for _, id := range []string{byLens, byBench} {
+	for _, id := range []string{byLens, byBench, inProse} {
 		m := corrMint(id)
-		m.Problem = proto.String(map[string]string{byLens: "the sample size is overstated", byBench: "a quoted figure has no source"}[id])
+		m.Problem = proto.String(map[string]string{byLens: "the sample size is overstated", byBench: "a quoted figure has no source", inProse: "a third defect"}[id])
 		mustAppend(t, lens, m)
 	}
 	sit(t, run, "blue-respond")
 	bench := sit(t, run, "judge")
-	mustAppend(t, bench, &recordpb.Declare{Holding: proto.String(holding)})
+	mustAppend(t, bench, &recordpb.Declare{Holding: proto.String(holding), GapIds: []string{byLens, byBench, byLens}})
 
 	seats := []struct{ role, seat string }{{"lens", evLens}, {"blue", "blue-respond"}, {"chair", "red-chair"}, {"bench", "judge"}}
 	read := func(role, seat string) []DeclarationJSON {
@@ -53,7 +54,7 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		return w.Declarations
 	}
 
-	before := []DeclaredGapJSON{{ID: byLens, Status: "open"}, {ID: byBench, Status: "open"}, {ID: notAGap, Status: "not_on_board"}}
+	before := []DeclaredGapJSON{{ID: byLens, Status: "open"}, {ID: byBench, Status: "open"}}
 	for _, s := range seats {
 		got := read(s.role, s.seat)
 		if len(got) != 1 {
@@ -83,8 +84,8 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 			t.Fatalf("%s's list does not carry both declarations in record order, prose unchanged: %+v", s.seat, got)
 		}
 		g := got[0].Gaps
-		if len(g) != 3 {
-			t.Fatalf("%s: the first declaration names %d gaps, want 3: %+v", s.seat, len(g), g)
+		if len(g) != 2 {
+			t.Fatalf("%s: the first declaration names %d gaps, want 2: %+v", s.seat, len(g), g)
 		}
 		if g[0].ID != byLens || g[0].Status != "closed" || g[0].Fate != "repaired" || g[0].ClosedBy != "red" || g[0].ClosedEpoch < 1 {
 			t.Errorf("%s: the gap its lens closed reads %+v — the holding says it remains open, and the board must say otherwise", s.seat, g[0])
@@ -92,12 +93,21 @@ func TestADeclaredGapCarriesTheBoardsStatusOnEverySeatsList(t *testing.T) {
 		if g[1].ID != byBench || g[1].Status != "closed" || g[1].Fate != "not_a_defect" || g[1].ClosedBy != "bench" {
 			t.Errorf("%s: the gap the bench ruled closed reads %+v", s.seat, g[1])
 		}
-		if g[2] != (DeclaredGapJSON{ID: notAGap, Status: "not_on_board"}) {
-			t.Errorf("%s: the id no gap holds reads %+v", s.seat, g[2])
-		}
 		if len(got[1].Gaps) != 0 || got[1].Gaps == nil {
 			t.Errorf("%s: a holding naming no gap carries gaps %#v, want []", s.seat, got[1].Gaps)
 		}
+	}
+}
+
+// A DECLARATION IS ABOUT GAPS THE BOARD HOLDS, refused at the write otherwise: a gap id the board
+// has never held would reach every seat's list as a gap with no status to set beside it.
+func TestADeclarationAboutAGapTheBoardDoesNotHoldIsRefused(t *testing.T) {
+	run := corrRun(t)
+	sit(t, run, "blue-respond")
+	bench := sit(t, run, "judge")
+	_, err := Append(bench, &recordpb.Declare{Holding: proto.String("a holding"), GapIds: []string{"G-0000ffff"}})
+	if err == nil || !strings.Contains(err.Error(), "--ids names gap G-0000ffff") {
+		t.Fatalf("a declaration about a gap no mint created must be refused naming --ids and the id; got %v", err)
 	}
 }
 

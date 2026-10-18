@@ -956,7 +956,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return fmt.Errorf("--reason names gap %s but --answers is empty — say it with --answers %s so the edit joins to the fix red asked for; --reason is the argument, not the key", named, named)
 			}
 		}
+	case *recordpb.Declare:
+		if err := requireGaps(q, b.GetGapIds(), "--"+flags.IDs); err != nil {
+			return err
+		}
 	case *recordpb.Close:
+		if err := requireAnchors(q, b.GetAnchors(), "--"+flags.Anchor); err != nil {
+			return err
+		}
 		if b.CarriedFrom == nil {
 			if err := requireOriginator(q, b.GetGapId(), seatID, "close"); err != nil {
 				return err

@@ -116,6 +116,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	if err != nil {
 		return nil, err
 	}
+	source := src // the loop below names each act's own source event src
 	res := &Result{
 		In:             map[string]int{},
 		Out:            map[string]int{},
@@ -322,6 +323,9 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 						Where: fmt.Sprintf("class_new event %d", old.ID), Slug: cn.GetSlug(),
 						Value: recordpb.Word(v), Why: byGradeFillWhy})
 				}
+			}
+			if err := proseRefs(source, batch.Querier(), body); err != nil {
+				return nil, err
 			}
 			anchorAfter, err := place.step(body)
 			if err != nil {

@@ -1378,7 +1378,9 @@ func WorkOfSeat(run Run, role, seatID string) (WorkJSON, error) {
 	}
 	w.Counterparty = counterpartyOf(evs, win, role, epoch)
 	w.Engaged = engagedOf(evs, win, seatID)
-	w.Declarations = declarationsOf(evs, win, gaps)
+	if w.Declarations, err = declarationsOf(evs, win, gaps); err != nil {
+		return WorkJSON{}, err
+	}
 	return w, nil
 }
 

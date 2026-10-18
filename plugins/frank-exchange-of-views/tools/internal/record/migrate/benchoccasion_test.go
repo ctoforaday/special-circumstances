@@ -9,7 +9,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // A BENCH ROW WRITTEN BEFORE EPOCH 19 CONVENED THE BENCH FOR ITS DOCKET, and migrated it says so.
@@ -86,20 +85,26 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		// THE SOURCE'S OWN PLANS, read with this binary — which opens only a record of its epoch;
-		// an older one stores none.
+		// THE SOURCE'S OWN PLANS, read as the source holds them — the old-record reader opens a
+		// record of any epoch; one older than 31 stores none.
 		var want []string
 		if res.SourceEpoch != nil && *res.SourceEpoch >= 31 {
-			src, err := record.FamilyOf(runtest.Open(t, recordtest.ExtractArchive(t, name)))
+			src, err := migrate.OpenSQLite(filepath.Join(recordtest.ExtractArchive(t, name), "records"), t.TempDir())
 			if err != nil {
 				t.Fatalf("%s: the source does not open: %v", name, err)
 			}
-			sp, err := record.StoredPlans(src.Events)
+			evs, err := src.Events()
 			if err != nil {
 				t.Fatalf("%s: %v", name, err)
 			}
-			for _, p := range sp {
-				want = append(want, p.Printed)
+			for _, ev := range evs {
+				if ev.Word == "plan" {
+					printed, _ := ev.Fields["printed"].(string)
+					want = append(want, printed)
+				}
+			}
+			if err := src.Close(); err != nil {
+				t.Fatal(err)
 			}
 		}
 		var got []string

@@ -406,6 +406,13 @@ CREATE TABLE "declare" (
   "holding" TEXT
 ) STRICT;
 
+CREATE TABLE "declare_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "declare"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "motion" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL UNIQUE,
@@ -556,6 +563,13 @@ CREATE TABLE "close" (
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("closure_class") REFERENCES "enum_disposition"("value"),
   FOREIGN KEY ("successor") REFERENCES "mint"("gap_id")
+) STRICT;
+
+CREATE TABLE "close_anchors" (
+  "event_id" INTEGER NOT NULL REFERENCES "close"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
 ) STRICT;
 
 CREATE TABLE "closing" (

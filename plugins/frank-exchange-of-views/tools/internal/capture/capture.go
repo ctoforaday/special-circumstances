@@ -31,7 +31,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -817,6 +816,8 @@ func BackfillAudit(run record.Run) Audit {
 // Claim is one anchored closure (seat|tool|target) spot-checked against tool calls.
 type Claim struct {
 	ID, Seat, Tool, Target, Why string
+	// Anchors are the report anchors the closure names as verified with (Close.anchors).
+	Anchors []string
 }
 
 // AttestationAudit spot-checks anchored closures against actual tool-call inputs.
@@ -847,7 +848,7 @@ func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string,
 		}
 		seat, tool, target := g.Closure.GetAnchorSeat(), g.Closure.GetAnchorTool(), g.Closure.GetAnchorTarget()
 		if seat != "" && tool != "" && target != "" {
-			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target})
+			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target, Anchors: g.Closure.GetAnchors()})
 		}
 	}
 	if len(claims) == 0 {
@@ -895,7 +896,7 @@ func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string,
 		if len(needles) == 0 {
 			// NOT MEASURED IS NOT A FINDING, and folding it into one is how this audit came to
 			// accuse honest seats. See needlesFor.
-			c.Why = "no anchor id in the tool and no distinctive fragment in the target — nothing to reconcile AGAINST"
+			c.Why = "no anchor named and no distinctive fragment in the target — nothing to reconcile AGAINST"
 			unmeasured = append(unmeasured, c)
 			continue
 		}
@@ -967,22 +968,19 @@ func ceilDiv(a, b int) int { return (a + b - 1) / b }
 
 var reNonToken = regexp.MustCompile(`[\s|]+`)
 
-// anchorID matches the record's OWN identifiers — the id of an anchor of any kind, each
-// unique by construction rather than assembled from words.
+// THE ANCHORS ARE A FIELD, AND THE AUDIT JOINS ON IT.
 //
 // MEASURED 2026-08-22, and it is the whole reason needlesFor exists. Two closures anchored
 // `report text at line 103` and `report text at line 62` — precise, human-meaningful, naming the
 // exact line. mostDistinctive found no fragment longer than six characters in either (`report` is
 // exactly six), returned "", and both were filed as claims with no matching tool call, under an
-// audit whose own message says "This rules on whether the RECORD IS HONEST". The third sampled
-// closure reconciled only because its target happened to contain the ten-letter word
-// `projection`. Honesty was being decided by word length.
+// audit whose own message says "This rules on whether the RECORD IS HONEST". Honesty was being
+// decided by word length.
 //
-// The record was carrying the answer the whole time: anchor_tool reads
-// `show report --anchor` and an id, and that id is exact. Prose is what a human reads; the id is
-// what a machine joins on — see [[facts-are-fields]] clause 5, "never re-derive from the assembled
-// form what the record could simply carry".
-var anchorID = regexp.MustCompile(`\b` + anchor.IDPattern() + `\b`)
+// An anchor id is exact, and the closure now carries the ones it was verified with as a field the
+// write refused unless the record holds each (Close.anchors). Prose is what a human reads; the id
+// is what a machine joins on — never re-derived from --verified-with's words, where an id typed in
+// another shape fell through to the prose path and could pass on an unrelated long word.
 
 // needlesFor returns the tokens a claim can be reconciled by, and whether they came from the
 // record's identifiers or from prose.
@@ -996,8 +994,8 @@ var anchorID = regexp.MustCompile(`\b` + anchor.IDPattern() + `\b`)
 // false PASS, which is the worse direction for an honesty check. Prose that yields no needle is
 // reported as NOT MEASURED instead.
 func needlesFor(c Claim) (needles []string, fromID bool) {
-	if ids := anchorID.FindAllString(c.Tool, -1); len(ids) > 0 {
-		return ids, true
+	if len(c.Anchors) > 0 {
+		return c.Anchors, true
 	}
 	if n := mostDistinctive(c.Target); n != "" {
 		return []string{n}, false
