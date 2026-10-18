@@ -69,9 +69,8 @@ func newEngineStopped() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// THE ANNOTATION LAYER IS NOT TEXT: an error can quote an anchor, and a live marker in a
-			// log entry is a marker in every document that renders it.
-			if text = strings.TrimSpace(anchortext.Visible(text)); text == "" {
+			// AN ERROR CAN NAME AN ANCHOR, and the entry names it by its id (anchortext.LogLine).
+			if text = strings.TrimSpace(anchortext.LogLine(text)); text == "" {
 				return feov.Errorf(feov.MissingField, "requires --reason: the error the engine stopped on, verbatim — an entry without it says a run stopped and not why")
 			}
 			if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat}, &recordpb.Log{
