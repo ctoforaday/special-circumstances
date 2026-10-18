@@ -51,7 +51,7 @@ type Tell struct {
 	Pattern  *regexp.Regexp
 	Redirect string
 	// Refuse marks a tell that has NO READING AS SUBJECT PROSE: a seat or lens id, a finding or gap id,
-	// a lane tag. `lens mint` refuses these in the two fields the
+	// a lane tag, a file in the run's scratch/. `lens mint` refuses these in the two fields the
 	// report's risk matrix prints (gblock's ruling, plans/feov-lens-bar.md §III.9). Every other
 	// tell has an innocent reading — "the red team exercise" is a security report's subject, "this
 	// report" may quote a source — so it stays advice for every writer.
@@ -90,6 +90,12 @@ var tells = []Tell{
 		"the change stack holds what the report used to say", false},
 	{Apparatus, regexp.MustCompile(`(?i)the checking (program|script)|measurement apparatus`),
 		"the proof store holds the program; the report carries what it SHOWED", false},
+	// A FILE IN THE RUN'S SCRATCH. Every seat's working files live under the run's scratch/, which is
+	// never shipped and backs no claim: a path into it names the run's machinery and nothing a reader
+	// can open. universe-m29's refuted fate named `scratch/blue-respond-verify-91.py`, and report.md
+	// and inquiries.md shipped it. A file name is required, so "from scratch/by hand" is prose.
+	{Apparatus, regexp.MustCompile(`(?:\./|\b)scratch/(?:[\w-]+/)*[\w-]+\.[A-Za-z0-9]+\b`),
+		"the run's scratch/ is a seat's working copy, never shipped and backing no claim; say what was done and what it showed — a computation a claim rests on is a recorded proof, and its footnote is how the report names it", true},
 	{Apparatus, regexp.MustCompile(`\bPDF pp?\. ?\d`),
 		"the tool renders a citation's PDF page at its marker from the record; a typed page is a second copy that nothing keeps true", false},
 }

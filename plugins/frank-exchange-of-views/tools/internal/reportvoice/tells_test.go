@@ -68,6 +68,9 @@ func TestOrdinarySubjectProseIsClean(t *testing.T) {
 		"the chair of the committee",
 		"a sitting judge",
 		"a gap 2 metres wide",
+		"the table was rebuilt from scratch",
+		"written from scratch/by hand",
+		"recomputed in an independent scratch script",
 	} {
 		if got := Find(s); len(got) != 0 {
 			t.Errorf("subject prose flagged as process voice: %q matched %v", s, got[0].Match)
@@ -102,6 +105,8 @@ func TestRefusedTellsAreUnambiguous(t *testing.T) {
 		"F-7cdcd115",                                      // an id and nothing else
 		"the count is 27 [minority: lane-2/practitioner]", // lane tag
 		"a single witness [lane-1]",                       // lane tag
+		"recomputed in scratch/blue-respond-verify-91.py", // a file in the run's scratch
+		"(./scratch/residues.py prints them)",             // the same, from the run directory
 	}
 	ambiguous := []string{
 		"this run reached the ceiling",
