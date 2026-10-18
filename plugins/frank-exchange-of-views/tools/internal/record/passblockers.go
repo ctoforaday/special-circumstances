@@ -61,7 +61,7 @@ type Blocker struct {
 	motionSubject string
 	// since is the events.id the blocker arose at — a motion's filing, the contradicting verify,
 	// the edit that reopened a citation or proof — so dispatch can ask whether its owner has sat
-	// since; 0 for the kinds dispatch does not ready.
+	// since, and a reopened anchor's wording can name its edit; 0 for the other kinds.
 	since int64
 	// lastCheck is the events.id of a reopened anchor's latest check, which does not clear it.
 	lastCheck int64
@@ -125,9 +125,14 @@ func reopenedFact(b Blocker) string {
 }
 
 // reopenedOwed is the other sentence every wording of a reopened blocker states: whose the check
-// is. The evidence lens owes it — dispatch readies that seat and its work list blocks on the
-// anchor — and it is not the only seat whose check clears: the fold reads no seat.
-const reopenedOwed = evidenceSeat + " owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
+// is. Its owner owes it (reopenedOwnerOf) — dispatch readies that seat and its work list blocks on
+// the anchor — and it is not the only seat whose check clears: the fold reads no seat.
+func reopenedOwed(b Blocker) string {
+	return ownerOr(b, reopenedOwner) + " owes that check and is the seat readied for it; another lens's check from such a sitting clears it as well"
+}
+
+// reopenedOwner is who owes a reopened anchor's check when the record names no seat.
+const reopenedOwner = "the lens that owns it"
 
 // planHold is the plan's verdict on a blocker, by its owner: the chair's own is cleared in its
 // sitting and leaves pass_permitted standing, so its line must not say a PASS is not permitted;
@@ -199,9 +204,10 @@ var blockerKinds = []blockerKind{
 			return fmt.Sprintf("%s: a source %s read contradicts or does not support %q and it is unanswered — %s", contradictionFact(b), ownerOr(b, contradictionReader), b.Detail, planHold(b, "PASS is not permitted until it is answered"))
 		},
 	},
-	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the evidence
-	// lens whichever lens made the outdated check: leaf-node verification is its area, and one
-	// owner is what lets dispatch ready one seat for every reopened anchor at once.
+	// A CHECK IS OF A SENTENCE, AND THE SENTENCE MOVED (reopened.go). The owner is the anchor's
+	// (reopenedOwnerOf) whichever lens made the outdated check: a citation's is the evidence lens, a
+	// proof's the lens that owns proofs. The owner owes the check, so it is not retired, and the
+	// edit that reopened the anchor moved the head past its last sitting: dispatch readies it.
 	//
 	// THE OWNER IS WHO IS READIED, NOT WHO ALONE MAY CLEAR. Any lens's check from a sitting opened
 	// after the edit clears the blocker (reopenedEvidence), so each wording says both: the check
@@ -215,21 +221,21 @@ var blockerKinds = []blockerKind{
 				act = "judging whether its script establishes the sentence as it now stands (`reproduce --anchor " + b.Subject + "`, which re-runs nothing once the script has a re-run)"
 			}
 			return fmt.Sprintf("%s — PASS is refused until a lens checks it from a sitting opened after the edit, by %s. %s",
-				reopenedFact(b), act, reopenedOwed)
+				reopenedFact(b), act, reopenedOwed(b))
 		},
 		refusal: func(bs []Blocker) string {
 			var named []string
 			for _, b := range bs {
-				named = append(named, reopenedFact(b))
+				named = append(named, reopenedFact(b)+" — "+ownerOr(b, reopenedOwner)+" owes the check and is the seat readied for it")
 			}
 			return fmt.Sprintf("%d citation(s) or proof(s) are unchecked since their sentence changed:\n  %s\n"+
 				"Each check on the record is of a sentence the report no longer carries. `show evidence --anchor <id>` reads each as it now stands. "+
-				"A `verify` of the citation (any result but `unreachable`) or a `reproduce` naming the proof's anchor, from a sitting opened after the edit, clears it, whichever lens records it. "+
-				"%s; PASS waits for the check, and `--as FAIL` does not",
-				len(bs), strings.Join(named, "\n  "), reopenedOwed)
+				"A `verify` of the citation (any result but `unreachable`) or a `reproduce` naming the proof's anchor, from a sitting opened after the edit, clears it, whichever lens records it; "+
+				"PASS waits for the check, and `--as FAIL` does not",
+				len(bs), strings.Join(named, "\n  "))
 		},
 		why: func(b Blocker) string {
-			return fmt.Sprintf("%s — %s", reopenedFact(b), planHold(b, "PASS is not permitted until a lens checks it from a sitting opened after the edit. "+reopenedOwed))
+			return fmt.Sprintf("%s — %s", reopenedFact(b), planHold(b, "PASS is not permitted until a lens checks it from a sitting opened after the edit. "+reopenedOwed(b)))
 		},
 	},
 	{
@@ -251,7 +257,7 @@ var blockerKinds = []blockerKind{
 			for _, b := range bs {
 				why = append(why, b.foldWhy)
 			}
-			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or the report head has moved since its last sitting, until three sittings in a row with no fresh material mint retire it; `dispatch next` readies them",
+			return fmt.Sprintf("%d cast lens(es) are ready: %s. A lens is ready when it has never sat or the report head has moved since its last sitting, until three sittings in a row with no fresh material mint retire it — and a lens whose work list still owes anything is not retired; `dispatch next` readies them",
 				len(bs), strings.Join(why, "; "))
 		},
 	},
@@ -392,8 +398,9 @@ func passBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGa
 			out = append(out, Blocker{Kind: BlockerMaterialGap, Subject: g.id, Owner: g.mintedBy})
 		}
 	}
-	out = append(out, eventBlockersOf(evs, ids, win)...)
-	if lg := passLensGateOf(evs, ids, win, fresh); lg.cast && lg.head != 0 {
+	events := eventBlockersOf(evs, ids, win)
+	out = append(out, events...)
+	if lg := passLensGateOf(evs, ids, win, fresh, lensOwesOf(evs, win, gaps, events)); lg.cast && lg.head != 0 {
 		for _, f := range lg.ready() {
 			out = append(out, Blocker{Kind: BlockerLensReady, Subject: f.seat, Owner: f.seat, foldWhy: f.why})
 		}
@@ -426,13 +433,13 @@ func eventBlockersOf(evs []*Event, ids []int64, win WindowIndex) []Blocker {
 	for _, c := range unansweredContradictions(evs, win) {
 		out = append(out, Blocker{Kind: BlockerContradiction, Subject: c.idWord(), Detail: c.claim, Owner: c.reader, since: c.since})
 	}
-	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE EVIDENCE LENS IS IN THE CAST. A blocker whose
-	// owner cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence`
-	// lists the anchor either way.
+	// A REOPENED ANCHOR HOLDS THE PASS ONLY WHERE THE CAST SEATS ITS OWNER. A blocker whose owner
+	// cannot be dispatched holds the run UNVERIFIED with nobody to ask; `show evidence` lists the
+	// anchor either way.
 	cast := castOfEvents(evs)
-	if slices.Contains(cast, evidenceSeat) {
-		for _, r := range reopenedEvidence(evs, win) {
-			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: evidenceSeat, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
+	for _, r := range reopenedEvidence(evs, win) {
+		if owner := reopenedOwnerOf(cast, r); owner != "" {
+			out = append(out, Blocker{Kind: BlockerReopened, Subject: r.anchor, Owner: owner, Detail: r.sha, since: r.edit, lastCheck: r.lastCheck})
 		}
 	}
 	if cast != nil && reportHeadOf(evs, ids) == 0 {

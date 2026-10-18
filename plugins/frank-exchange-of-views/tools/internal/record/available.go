@@ -470,10 +470,10 @@ func citedClaimsWithoutVerify(evs []*Event) []string {
 // with the first anchor's re-run, and its sentence shipped judged by a verdict on another.
 //
 // A reopened anchor — judged, then edited — is not an item here: it is the reopened row, owed by
-// the evidence lens and holding a PASS (reopenedEvidence).
+// the same owner and holding a PASS (reopenedEvidence, reopenedOwnerOf).
 //
-// A PROOF WITH NO SHA cannot be re-run at all, so it cannot be discharged: it is reported, rather
-// than dropped into a silence that would read as audited.
+// Every proof carries its script's sha: the write refuses one without (validate), because no act
+// could discharge the item it would put here.
 func proofChecksOwed(evs []*Event, win WindowIndex) []proofOwed {
 	ledger := anchorChecksOf(evs, win)
 	reruns := scriptRerunsOf(evs)

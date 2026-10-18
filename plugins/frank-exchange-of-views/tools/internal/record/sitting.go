@@ -290,10 +290,10 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
-	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, AND — THE EVIDENCE
-	// LENS — CHECKING A REOPENED CITATION OR PROOF. Beyond the two duties every seat holds above
+	// THE LENS OWES THE PASS BLOCKERS IT OWNS: RAISING A CONTRADICTION IT READ, AND CHECKING A
+	// REOPENED CITATION OR PROOF IT OWNS (reopenedOwnerOf). Beyond the two duties every seat holds above
 	// this switch (the log channel, and the sitting it was dispatched for), each is a PASS blocker
-	// whose owner is that lens (passBlockersOf), and dispatch readies the lens for it once — so it
+	// whose owner is that lens (passBlockersOf), and dispatch readies the lens for it — so it
 	// qualifies under the rule at the top of this file, and it is the kind table's own sentence.
 	//
 	// A REOPENED ITEM IS LISTED ONLY IN A SITTING THAT OPENED AFTER ITS EDIT. A sitting already open

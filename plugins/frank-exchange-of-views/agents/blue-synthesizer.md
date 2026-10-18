@@ -168,7 +168,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
   - An inquiry is one question the research could take up — proposed by blue with the hypothesis that would be true if it paid off, recorded with what became of it, ruled on by the chair, and reviewed against the report once per epoch.
-  - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; the evidence lens owes the check and is the seat readied for it, a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
+  - A citation or proof is reopened when an edit changes its sentence and no sitting opened since has checked it; its owning lens owes the check and is the seat readied for it — the evidence lens for a citation, the lens that owns proofs for a proof — a check by any lens from a sitting opened after the edit clears it, and a PASS waits until one does.
 
 LEFT OFF EVERY PAGE BELOW, because each page would say the same: the `Usage:` block wherever it is exactly the command in the page's header followed by `[flags]`, so a page that prints a Usage is saying something more; and the flag `-h, --help`, which every command takes and which prints that command's page, so a page with no `Flags:` section has no flag of its own.
 
@@ -343,7 +343,7 @@ An anchor your quote carries, at its start or its end, or one in the middle of t
 
 A RUN AT A SENTENCE'S END DOES NOT SAY WHICH PART OF THE SENTENCE EACH ANCHOR MARKS. When your replacement holds more sentences than the text it replaces, write each anchor your quote carries after the sentence that now holds its claim. A replacement that carries two or more anchors from the end of that text to the end of its own last sentence is refused, and the refusal prints what the record says each one marks beside your sentences, numbered. Where every one of them does belong on the last sentence, make the change in two edits: reword that sentence, its anchors kept, in one, and add the other sentences in a second that keeps it word for word.
 
-Either way the record lists each anchor whose sentence your edit changed. A citation or proof among them is reopened: the evidence lens owes a check of it as it now stands and is readied for one, a check by any lens from a sitting opened after your edit clears it, and a PASS waits until one does.
+Either way the record lists each anchor whose sentence your edit changed. A citation or proof among them is reopened: its owning lens owes a check of it as it now stands and is readied for one, a check by any lens from a sitting opened after your edit clears it, and a PASS waits until one does.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 

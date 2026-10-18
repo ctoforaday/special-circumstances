@@ -371,7 +371,7 @@ func TestALensSittingOpenedBeforeTheEditIsNotHeldByIt(t *testing.T) {
 	}
 	b := board()
 	edit := b.at()
-	if plan := planOf(t, board().register("red-chair")); !lensReady(plan) || !strings.Contains(whyOf(plan), evLens+" has not sat since edit") {
+	if plan := planOf(t, board().register("red-chair")); !lensReady(plan) || !strings.Contains(whyOf(plan), "it owes reopened C-1") {
 		t.Fatalf("the plan after the edit does not ready the lens for it: parties %+v, why %q", plan.Parties, plan.Why)
 	}
 	next := b.register("red-chair").sit(edit, evLens).logEntry(evLens).seed()
@@ -429,8 +429,9 @@ func TestACeilingReasonNamesOnlyAStandingReopenedAnchor(t *testing.T) {
 }
 
 // F6, F11: ONE READYING PER REOPENING. The hook opens the lens's sitting and the lens does nothing
-// in it: it has sat, the next plan does not ready it again, and the blocker still holds the PASS.
-// A second edit of the sentence is a second reopening, and readies it again.
+// in it: it has sat at the head, the next plan does not ready it again, and the blocker still holds
+// the PASS. A second edit of the sentence is a second reopening and a head move, and readies it
+// again: the owner owes the check, so it is not retired (lensOwesOf).
 func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	// It has sat at the moved head, so only a reopened anchor readies the lens.
 	board := func() *stage {
@@ -449,7 +450,7 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lensReady(second) || !strings.Contains(whyOf(second), "readied once per reopening, so not again") {
+	if lensReady(second) || !strings.Contains(whyOf(second), evLens+": sat at the head") {
 		t.Errorf("the plan after a sitting that did nothing: parties %+v, why %q — want the lens left alone and told why", second.Parties, second.Why)
 	}
 	if got := reopenedOf(t, run); len(got) != 1 || second.PassPermitted {

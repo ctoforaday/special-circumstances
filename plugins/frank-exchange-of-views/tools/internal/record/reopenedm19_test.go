@@ -28,7 +28,16 @@ const m19Archive = "2026-10-10_is-91-prime-m19.tar.gz"
 var m19Reopened = []reopened{
 	{anchor: "C-706fda63", edit: 406, lastCheck: 178},
 	{anchor: "C-4dae2507", edit: 375, lastCheck: 337},
-	{anchor: "P-cd9f4c5a", sha: "10ef5e650b99c5143a5741c500fe37554e061653830365b71518d4f8fcc1dab7", edit: 375, lastCheck: 336},
+	{anchor: "P-cd9f4c5a", proof: true, sha: "10ef5e650b99c5143a5741c500fe37554e061653830365b71518d4f8fcc1dab7", edit: 375, lastCheck: 336},
+}
+
+// m19Owner is who owes each reopened anchor's check in m19's cast, which seats every lens: the
+// evidence lens a citation's, the computation lens the proof's (reopenedOwnerOf).
+func m19Owner(r reopened) string {
+	if r.proof {
+		return computationSeat
+	}
+	return evLens
 }
 
 // m19At is m19 as it stood after event n: the archive's first n events replayed, in order, into a
@@ -87,7 +96,8 @@ func archiveAt(t *testing.T, archive string, whole []*Event, n int) Run {
 // M19 PASSED OVER THREE CHECKS OF SENTENCES IT NO LONGER CARRIED. Its evidence lens found against
 // C-706fda63 (event 111); blue rewrote the sentence to answer it (edit 406); no seat read the new
 // sentence against the source, and the chair's PASS at 498 was admitted. Under this rule the plans
-// that followed the edits ready the evidence lens, and the PASS is refused naming all three.
+// that followed the edits ready each anchor's owner — the evidence lens for the citations, the
+// computation lens for the proof — and the PASS is refused naming all three.
 func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	whole := archivedEvents(t, m19Archive)
 	if len(whole) != 504 || whole[497].GetType() != recordpb.EventType_EVENT_TYPE_VERDICT {
@@ -103,16 +113,33 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// AND EACH OWNER IS READY: it owes the check, so it is not retired, and the head has moved past
+	// its last sitting (retirement.go).
 	var got []reopened
+	var ready []string
 	for _, b := range blockers {
-		if b.Kind != BlockerReopened || b.Owner != evLens {
-			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors, owned by %s", b.Kind, b.Subject, b.Owner, evLens)
+		if b.Kind == BlockerLensReady {
+			if !strings.Contains(b.foldWhy, "it does not retire while it owes") || !strings.Contains(b.foldWhy, "reopened ") {
+				t.Errorf("%s is ready for %q, want it ready because it owes a reopened check", b.Subject, b.foldWhy)
+			}
+			ready = append(ready, b.Subject)
 			continue
 		}
-		got = append(got, reopened{anchor: b.Subject, sha: b.Detail, edit: b.since, lastCheck: b.lastCheck})
+		if b.Kind != BlockerReopened {
+			t.Errorf("%s (%q, owned by %q) holds the PASS as well, want only the reopened anchors and their owners' readiness", b.Kind, b.Subject, b.Owner)
+			continue
+		}
+		r := reopened{anchor: b.Subject, proof: b.Detail != "", sha: b.Detail, edit: b.since, lastCheck: b.lastCheck}
+		if b.Owner != m19Owner(r) {
+			t.Errorf("reopened %s is owned by %q, want %s", b.Subject, b.Owner, m19Owner(r))
+		}
+		got = append(got, r)
 	}
 	if !slices.Equal(got, m19Reopened) {
 		t.Fatalf("reopened blockers = %+v\nwant %+v", got, m19Reopened)
+	}
+	if slices.Sort(ready); !slices.Equal(ready, []string{computationSeat, evLens}) {
+		t.Errorf("ready lenses = %q, want the two owners", ready)
 	}
 	refusal := validateRun(run, "red-chair", recordpb.EventType_EVENT_TYPE_VERDICT, passGate)
 	if refusal == nil {
@@ -127,13 +154,14 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 	chair := strings.Join(blockingItems(sittingOfRunT(t, run, "chair", "red-chair")), "\n")
 	for _, r := range m19Reopened {
-		if !strings.Contains(refusal.Error(), fact(r)) || !strings.Contains(refusal.Error(), "clears it, whichever lens records it. "+reopenedOwed) {
+		owed := reopenedOwed(Blocker{Owner: m19Owner(r)})
+		if !strings.Contains(refusal.Error(), fact(r)+" — "+m19Owner(r)+" owes the check and is the seat readied for it") || !strings.Contains(refusal.Error(), "clears it, whichever lens records it; ") {
 			t.Errorf("the PASS refusal does not state %q:\n%v", fact(r), refusal)
 		}
-		if !strings.Contains(chair, fact(r)+" — PASS is refused until a lens checks it from a sitting opened after the edit, by ") || !strings.Contains(chair, reopenedOwed) {
+		if !strings.Contains(chair, fact(r)+" — PASS is refused until a lens checks it from a sitting opened after the edit, by ") || !strings.Contains(chair, owed) {
 			t.Errorf("the chair's work list does not hold %q:\n%s", fact(r), chair)
 		}
-		if !slices.Contains(plan.Why, fact(r)+" — PASS is not permitted until a lens checks it from a sitting opened after the edit. "+reopenedOwed) {
+		if !slices.Contains(plan.Why, fact(r)+" — PASS is not permitted until a lens checks it from a sitting opened after the edit. "+owed) {
 			t.Errorf("the plan's reasons do not state %q: %q", fact(r), plan.Why)
 		}
 		at, err := EvidenceAt(run, r.anchor)
@@ -157,14 +185,14 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 	}
 
 	// The two plans that followed the edits: the chair's dispatches at events 385 and 414 readied
-	// architecture, voice and blue, then architecture alone. Each now readies the evidence lens.
+	// architecture, voice and blue, then architecture alone. Each now readies the evidence lens for
+	// the citations and the computation lens for the proof.
 	for _, c := range []struct {
 		before int
-		edit   int64
 		owed   []string
 	}{
-		{385, 375, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
-		{414, 406, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
+		{385, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
+		{414, []string{"C-706fda63", "C-4dae2507", "P-cd9f4c5a"}},
 	} {
 		plan, err := PlanDispatch(m19At(t, whole, c.before-1))
 		if err != nil {
@@ -173,8 +201,16 @@ func TestM19ReopenedEvidenceHoldsThePass(t *testing.T) {
 		if _, ready := partyOf(plan, evLens); !ready || plan.PassPermitted {
 			t.Errorf("the plan at event %d: parties %+v, pass_permitted %v — want %s readied and no PASS", c.before, plan.Parties, plan.PassPermitted, evLens)
 		}
-		if want := fmt.Sprintf("%s has not sat since edit %d,", evLens, c.edit); !strings.Contains(whyOf(plan), want) {
-			t.Errorf("the plan at event %d does not say %q: %q", c.before, want, plan.Why)
+		if _, ready := partyOf(plan, computationSeat); !ready {
+			t.Errorf("the plan at event %d: parties %+v — want %s readied for the proof it owns", c.before, plan.Parties, computationSeat)
+		}
+		// Each owner is readied because it owes the anchors' checks: its reason names every one it owns.
+		for _, r := range m19Reopened {
+			if !slices.ContainsFunc(plan.Why, func(w string) bool {
+				return strings.HasPrefix(w, m19Owner(r)+": head ") && strings.Contains(w, "it does not retire while it owes ") && strings.Contains(w, "reopened "+r.anchor)
+			}) {
+				t.Errorf("the plan at event %d does not ready %s for %s: %q", c.before, m19Owner(r), r.anchor, plan.Why)
+			}
 		}
 		var owed []string
 		for _, b := range plan.Blockers {
