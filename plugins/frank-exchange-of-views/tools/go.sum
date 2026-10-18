@@ -68,6 +68,8 @@ github.com/thediveo/enumflag/v2 v2.2.1 h1:sB6zJBA7G5Qk5tcCK5f25H8Rfern7idwTASdBx
 github.com/thediveo/enumflag/v2 v2.2.1/go.mod h1:Fa35DiSMi7oIXNc1VJPktJVlsk4NPW8dYY3Zjvhx+S4=
 github.com/thediveo/success v1.3.1 h1:SQ/ICN55yYxyEpgh0XGQwG+A4mMLGa2MYp+fxnIKoYs=
 github.com/thediveo/success v1.3.1/go.mod h1:Wlj+S4i3x4pLZEO/OY/cEDfpChUoxw02BRYjcGjH+Zw=
+github.com/yuin/goldmark v1.8.6 h1:d0VcaP1sx9GkFVkoW+KtggpGi2KZ965i14b0+bDQST4=
+github.com/yuin/goldmark v1.8.6/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=

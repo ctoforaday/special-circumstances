@@ -93,3 +93,33 @@ func TestHyphenatedEraWordsNormalize(t *testing.T) {
 		t.Fatalf("separator normalization: got %q", evs[0].Word)
 	}
 }
+
+// THE SITTING IS WHAT THE LINES SAY, NOT WHAT THE FILE IS CALLED. Every shard line carries its seat
+// and its nonce, and a shard whose name does not spell them was skipped as "not a shard": its
+// events vanished from the migration while the run still migrated. A shard named otherwise than
+// its lines is refused, naming the file its lines belong in.
+func TestAShardNamedOtherwiseThanItsLinesRefuses(t *testing.T) {
+	dir := t.TempDir()
+	writeShard(t, dir, "blue-lane-1", "aaaaaaaa",
+		line("blue-lane-1", "aaaaaaaa", 0, ts1, "register", "k1", `{"tool_version":"x"}`))
+	body := line("blue-lane-2", "bbbbbbbb", 0, ts2, "register", "k2", `{"tool_version":"x"}`) + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "events-blue-lane-2.jsonl"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := migrate.OpenJSONL(dir)
+	if err == nil || !strings.Contains(err.Error(), "events-blue-lane-2-bbbbbbbb.jsonl") {
+		t.Fatalf("a shard whose name disagrees with its lines must refuse, naming where its lines belong; got %v", err)
+	}
+}
+
+// ONE SHARD IS ONE SITTING. A shard whose lines name two sittings cannot be filed under either
+// without misattributing the other's acts, so it is refused naming the line that disagrees.
+func TestAShardMixingSittingsRefuses(t *testing.T) {
+	dir := t.TempDir()
+	writeShard(t, dir, "blue-lane-1", "aaaaaaaa",
+		line("blue-lane-1", "aaaaaaaa", 0, ts1, "register", "k1", `{"tool_version":"x"}`),
+		line("blue-lane-1", "bbbbbbbb", 1, ts2, "friction_none", "k2", `{"reason":"clean"}`))
+	if _, err := migrate.OpenJSONL(dir); err == nil || !strings.Contains(err.Error(), "line 2") {
+		t.Fatalf("a shard mixing sittings must refuse naming the line, got %v", err)
+	}
+}

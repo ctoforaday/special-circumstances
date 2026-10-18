@@ -334,10 +334,9 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 // the DELIVERABLE was broken. This audit reads the assembled artifact, which is the only
 // surface where the weave's output can be judged.
 //
-// The rule is markdown's own and needs no heuristic: a definition is `[^id]:` at the start of a
-// line; every other `[^id]` is a reference; a reference with no definition renders as its own
-// source text. That precision matters — a reference may legitimately be followed by a colon in
-// prose ("…artifacts exist[^P1]: `skills/…`"), which is a reference, not a definition.
+// The rule is markdown's own, so a markdown parser reads it (report.FootnotesIn): a reference
+// with no definition renders as its own source text, code is no footnote, and a reference may
+// legitimately be followed by a colon in prose ("…artifacts exist[^P1]: `skills/…`").
 // PER DOCUMENT, AND THAT IS NOT A DETAIL. A footnote definition cannot cross a file boundary,
 // so once the report is a set, a definition in evidence.md does nothing for a reference in
 // report.md — and an audit that concatenated the set before scanning would report a clean
@@ -352,7 +351,7 @@ func FootnoteIntegrity(run record.Run) Audit {
 			continue
 		}
 		read++
-		r, d, bad := footnotesIn(string(body))
+		r, d, bad := reportdoc.FootnotesIn(string(body))
 		refs += r
 		defs += d
 		for _, id := range bad {
@@ -373,66 +372,6 @@ func FootnoteIntegrity(run record.Run) Audit {
 	}
 	return Audit{Check: "footnote-integrity", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d document(s) scanned; %d footnote(s) referenced, %d defined, none dangling", read, refs, defs)}
-}
-
-// footnotesIn counts one document's references and definitions and returns the ids referenced
-// in it with no definition in it.
-func footnotesIn(body string) (refs, defs int, dangling []string) {
-	// CODE IS NOT PROSE, and a renderer does not look for footnotes inside it. A report that
-	// quotes a proof's output in a fenced block, or writes `[^P…]` inline while DESCRIBING the
-	// footnote surface, is not referencing anything — scanning those would report a dangling
-	// footnote at exactly the sites that talk about footnotes.
-	scanned := stripCode(body)
-	defined := map[string]bool{}
-	for _, m := range footnoteDef.FindAllStringSubmatch(scanned, -1) {
-		defined[m[1]] = true
-	}
-	referenced := map[string]bool{}
-	for _, loc := range footnoteRef.FindAllStringSubmatchIndex(scanned, -1) {
-		id := scanned[loc[2]:loc[3]]
-		// AN ESCAPED `[^` IS TEXT, to a markdown reader and so to this one: assembly escapes what
-		// it composes, so a seat's words quoting a label or a regex open nothing.
-		if reportdoc.NoteEscapedAt(scanned, loc[0]) {
-			continue
-		}
-		// A definition matches the reference pattern too; tell them apart by position, exactly
-		// as a markdown renderer does — line start, immediately followed by a colon.
-		atLineStart := loc[0] == 0 || scanned[loc[0]-1] == '\n'
-		followedByColon := loc[1] < len(scanned) && scanned[loc[1]] == ':'
-		if atLineStart && followedByColon {
-			continue
-		}
-		referenced[id] = true
-	}
-	for id := range referenced {
-		if !defined[id] {
-			dangling = append(dangling, id)
-		}
-	}
-	return len(referenced), len(defined), dangling
-}
-
-var (
-	footnoteDef = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:`)
-	footnoteRef = regexp.MustCompile(`\[\^([^\]]+)\]`)
-	fencedBlock = regexp.MustCompile("(?s)```.*?```")
-	inlineCode  = regexp.MustCompile("`[^`\n]*`")
-)
-
-// stripCode blanks fenced and inline code, preserving newlines so line-start positions (which
-// separate a definition from a reference) still mean what they meant.
-func stripCode(s string) string {
-	blank := func(m string) string {
-		out := []rune(m)
-		for i, r := range out {
-			if r != '\n' {
-				out[i] = ' '
-			}
-		}
-		return string(out)
-	}
-	s = fencedBlock.ReplaceAllStringFunc(s, blank)
-	return inlineCode.ReplaceAllStringFunc(s, blank)
 }
 
 func AssemblyScreen(run record.Run) Audit {

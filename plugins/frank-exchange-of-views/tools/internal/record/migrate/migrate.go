@@ -198,7 +198,7 @@ func copyChannels(fromDir, toDir string) error {
 		// The era's shards are the old record, and the new record replaces them — copied
 		// beside the fresh database they would be two records claiming one run, the exact
 		// shape the db-file exclusion exists for. The archive keeps the originals.
-		if filepath.Dir(path) == filepath.Join(fromDir, "records") && jsonlShardName.MatchString(d.Name()) {
+		if filepath.Dir(path) == filepath.Join(fromDir, "records") && !d.IsDir() && isShard(d.Name()) {
 			return nil
 		}
 		rel, err := filepath.Rel(fromDir, path)
