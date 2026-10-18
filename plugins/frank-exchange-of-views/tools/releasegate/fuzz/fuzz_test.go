@@ -1496,7 +1496,7 @@ func owedKinds(clause string) map[string]bool {
 		kind := "unnamed"
 		for _, k := range []struct{ word, kind string }{
 			{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
-			{"the bench's remand of ", "remand"}, {"'s finding about ", "finding"},
+			{"the bench's remand of ", "remand"}, {"'s finding ", "finding"},
 			{"unjudged proof ", "unjudged proof"}, {"reopened ", "reopened"}, {"contradiction ", "contradiction"},
 			{"open gap ", "open gap"},
 		} {
