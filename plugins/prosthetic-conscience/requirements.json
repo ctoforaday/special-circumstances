@@ -68,7 +68,7 @@
     "binaries": [
       {
         "name": "sc-pretooluse",
-        "event": "PreToolUse(WebFetch|WebSearch|Bash)",
+        "event": "PreToolUse(WebFetch|WebSearch|Bash|mcp__.*)",
         "purpose": "ONE hook for the event: the secrets gate (fails CLOSED, can deny) and the push-freeze guard (never blocks) as units over one shared context, each keeping its own matcher and its own posture. Separate binaries until #201 step 3."
       },
       {
