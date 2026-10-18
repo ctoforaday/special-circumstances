@@ -72,18 +72,74 @@ type Cell struct {
 // Text is the cell's words in reading order, joined with a space: a line break inside a cell is
 // layout, not content (gblock, 2026-09-16), so a row is one line of the reading.
 func (c Cell) Text() string {
-	ws := append([]tsvWord(nil), c.words...)
-	sort.Slice(ws, func(i, j int) bool {
-		if abs(ws[i].cy()-ws[j].cy()) > float64(ws[i].h) {
-			return ws[i].cy() < ws[j].cy()
+	var parts []string
+	for _, ln := range readingLines(c.words) {
+		for _, w := range ln {
+			parts = append(parts, w.text)
 		}
-		return ws[i].x < ws[j].x
-	})
-	parts := make([]string, 0, len(ws))
-	for _, w := range ws {
-		parts = append(parts, w.text)
 	}
 	return strings.Join(parts, " ")
+}
+
+// readingLines puts words into lines, top to bottom, each line left to right.
+//
+// TESSERACT'S OWN LINES ARE THE UNIT, AND GEOMETRY ONLY ORDERS THEM. A layout line keeps its words
+// in the order the recognizer wrote them; the lines are then taken top to bottom by their mean
+// centre, and a line whose centre is within half the words' median height of the visual line above
+// joins it, left to right by its first word. Ordering WORDS by a tolerance instead is not an order —
+// two words are "on one line" when their centres sit within one of their heights, which is not
+// transitive — and a sort handed that comparison answers differently depending on which other words
+// are present: removing one rule read as "ee" from a cell moved a stray "a" from after "COMMITTEE"
+// to inside "LIBERTY LOAN COMMITTEE" (#1030). Placing every word by its own box instead puts a speck
+// that sits inside "April" between "April" and "1981"; its layout line keeps it where tesseract
+// read it.
+func readingLines(words []tsvWord) [][]tsvWord {
+	type run struct {
+		ws     []tsvWord
+		centre float64
+	}
+	var runs []*run
+	at := map[lineKey]*run{}
+	hs := make([]float64, 0, len(words))
+	for _, w := range words {
+		hs = append(hs, float64(w.h))
+		r, ok := at[w.line]
+		if !ok {
+			r = &run{}
+			at[w.line] = r
+			runs = append(runs, r)
+		}
+		r.ws = append(r.ws, w)
+	}
+	for _, r := range runs {
+		for _, w := range r.ws {
+			r.centre += w.cy()
+		}
+		r.centre /= float64(len(r.ws))
+	}
+	sort.SliceStable(runs, func(i, j int) bool { return runs[i].centre < runs[j].centre })
+	tol := median(hs) / 2
+	var visual [][]*run
+	var sum float64 // the sum of the current visual line's run centres
+	for _, r := range runs {
+		if n := len(visual); n > 0 && abs(r.centre-sum/float64(len(visual[n-1]))) <= tol {
+			visual[n-1] = append(visual[n-1], r)
+			sum += r.centre
+			continue
+		}
+		visual = append(visual, []*run{r})
+		sum = r.centre
+	}
+	lines := make([][]tsvWord, 0, len(visual))
+	for _, v := range visual {
+		sort.SliceStable(v, func(i, j int) bool { return v[i].ws[0].x < v[j].ws[0].x })
+		var ln []tsvWord
+		for _, r := range v {
+			ln = append(ln, r.ws...)
+		}
+		lines = append(lines, ln)
+	}
+	return lines
 }
 
 // Table is the lattice's cells, in reading order.
@@ -552,33 +608,13 @@ func (t Table) render() string {
 	return b.String()
 }
 
-// lines renders loose words as the page's own prose, in reading order: words whose baselines sit
-// within one line height of each other are one line.
+// linesOf renders loose words as the page's own prose, one readingLines line per line.
 func linesOf(words []tsvWord) string {
-	if len(words) == 0 {
-		return ""
+	var out []string
+	for _, ln := range readingLines(words) {
+		out = append(out, lineText(ln))
 	}
-	ws := append([]tsvWord(nil), words...)
-	sort.Slice(ws, func(i, j int) bool {
-		if abs(ws[i].cy()-ws[j].cy()) > float64(ws[i].h) {
-			return ws[i].cy() < ws[j].cy()
-		}
-		return ws[i].x < ws[j].x
-	})
-	var b strings.Builder
-	prev := ws[0]
-	for i, w := range ws {
-		switch {
-		case i == 0:
-		case abs(w.cy()-prev.cy()) > float64(w.h):
-			b.WriteString("\n")
-		default:
-			b.WriteString(" ")
-		}
-		b.WriteString(w.text)
-		prev = w
-	}
-	return b.String()
+	return strings.Join(out, "\n")
 }
 
 // TextCells reconstructs a ruled table whose cells hold TEXT: the lattice says where the cells
@@ -587,11 +623,11 @@ func linesOf(words []tsvWord) string {
 // table in it). It returns the reading, what it measured, and the reason it is not acceptable,
 // which is "" when it is.
 //
-// THE SPARSE PASS IS THE SECOND WITNESS, AND ONLY FOR EMPTY CELLS. Layout analysis drops a short
-// word alone in a narrow column — measured on the generated fixture, where "High" and "Major" are
-// absent from the auto TSV and present in the sparse one — exactly as it drops isolated marks.
-// Filling only cells the first pass left empty takes those words back without letting the two
-// passes each contribute their own reading of the same cell.
+// THE SECOND WITNESS FILLS ONLY EMPTY CELLS. Layout analysis drops a short word alone in a narrow
+// column — measured on the generated fixture, where "High" and "Major" are absent from the auto TSV
+// and present in the sparse one — exactly as it drops isolated marks. Filling only cells the first
+// pass left empty takes those words back without letting the two passes each contribute their own
+// reading of the same cell. Which pass is first is the caller's to decide (readGridPage).
 // The words arrive PARSED AND NORMALIZED — the caller put them in the 300-DPI space every constant
 // below was fitted in (#1074, normalize.go), so nothing here re-parses a TSV or asks what the page
 // rendered at.
@@ -599,13 +635,6 @@ func TextCells(lat Lattice, words, sparseWords []tsvWord) (string, CellStats, st
 	tables := lat.Tables()
 	if len(tables) == 0 {
 		return "", CellStats{}, "the page's rules bound no cells, so there is no row to recover"
-	}
-	// THE BETTER WITNESS FILLS FIRST. Layout analysis reads a dense page best and drops words on a
-	// sparse one — measured on the generated two-table page, where it read 22 words and the sparse
-	// pass read the rest. Whichever pass read more words fills the cells; the other fills the cells
-	// it left empty, so neither pass's dropout decides what the page says.
-	if len(sparseWords) > len(words) {
-		words, sparseWords = sparseWords, words
 	}
 	var st CellStats
 	// Each table takes the words inside it; what no table claims is the page's own prose, and it

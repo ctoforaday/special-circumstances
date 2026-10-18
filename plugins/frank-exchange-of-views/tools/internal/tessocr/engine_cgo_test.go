@@ -86,16 +86,16 @@ func TestEngineOCRRealCrop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	text, err := en.PageText(png)
+	text, _, err := en.readProse(png)
 	if err != nil {
-		t.Fatalf("PageText: %v", err)
+		t.Fatalf("readProse: %v", err)
 	}
 	if len(text) < 100 {
-		t.Fatalf("PageText returned %d bytes — the crop carries a header band and rows", len(text))
+		t.Fatalf("readProse returned %d bytes — the crop carries a header band and rows", len(text))
 	}
 	for _, wantWord := range []string{"Database", "Analysis"} {
 		if !strings.Contains(text, wantWord) {
-			t.Errorf("PageText output lacks %q; got:\n%s", wantWord, text)
+			t.Errorf("readProse output lacks %q; got:\n%s", wantWord, text)
 		}
 	}
 
@@ -115,8 +115,8 @@ func TestEngineRefusalsAfterClose(t *testing.T) {
 	}
 	en.Close()
 	en.Close() // double-close is safe by contract
-	if _, err := en.PageText([]byte{1}); err == nil {
-		t.Fatal("PageText on a closed engine returned no error")
+	if _, err := en.PageTSV([]byte{1}, PSMAuto); err == nil {
+		t.Fatal("PageTSV on a closed engine returned no error")
 	}
 }
 
@@ -196,7 +196,7 @@ func TestEndToEndCorpus(t *testing.T) {
 	if Grid300.Table(gs) {
 		t.Errorf("p0010 measured %+v — the prose page must not fire", gs)
 	}
-	text, err := en.PageText(prose)
+	text, _, err := en.readProse(prose)
 	if err != nil {
 		t.Fatal(err)
 	}

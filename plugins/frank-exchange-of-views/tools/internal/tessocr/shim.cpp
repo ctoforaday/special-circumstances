@@ -157,12 +157,6 @@ void tessocr_free(tessocr_engine *e) {
 	delete e;
 }
 
-char *tessocr_text(tessocr_engine *e, const unsigned char *png, size_t len, int psm) {
-	PIX *pix = read_png(png, len);
-	if (pix == nullptr) return nullptr;
-	return ocr_pix(&e->api, pix, psm, false);
-}
-
 char *tessocr_tsv(tessocr_engine *e, const unsigned char *png, size_t len, int psm) {
 	PIX *pix = read_png(png, len);
 	if (pix == nullptr) return nullptr;

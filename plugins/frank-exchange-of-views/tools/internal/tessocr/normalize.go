@@ -70,7 +70,8 @@ func scaleRule(r Rule, scale float64) Rule {
 	return Rule{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}
 }
 
-// normalizeWords puts TSV word boxes into the 300-DPI space, leaving confidence and text alone.
+// normalizeWords puts TSV word boxes into the 300-DPI space, leaving confidence, text and layout
+// line alone.
 func normalizeWords(words []tsvWord, scale float64) []tsvWord {
 	if scale == 1.0 {
 		return words
@@ -79,7 +80,7 @@ func normalizeWords(words []tsvWord, scale float64) []tsvWord {
 	for i, w := range words {
 		x0, y0 := round(float64(w.x)*scale), round(float64(w.y)*scale)
 		x1, y1 := round(float64(w.x+w.w)*scale), round(float64(w.y+w.h)*scale)
-		out[i] = tsvWord{x: x0, y: y0, w: x1 - x0, h: y1 - y0, conf: w.conf, text: w.text}
+		out[i] = tsvWord{x: x0, y: y0, w: x1 - x0, h: y1 - y0, conf: w.conf, text: w.text, line: w.line}
 	}
 	return out
 }

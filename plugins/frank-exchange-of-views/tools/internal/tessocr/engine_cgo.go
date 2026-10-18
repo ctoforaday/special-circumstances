@@ -77,14 +77,6 @@ func (en *Engine) Close() {
 	}
 }
 
-// PageText OCRs a PNG page to UTF-8 text under PSMAuto — the whole no-grid branch of the
-// pipeline.
-func (en *Engine) PageText(png []byte) (string, error) {
-	return en.collect("text", func(p *C.uchar, n C.size_t) *C.char {
-		return C.tessocr_text(en.e, p, n, C.int(PSMAuto))
-	}, png)
-}
-
 // PageTSV OCRs a PNG page to level-5 word TSV under the given segmentation mode. Callers
 // wanting the dropout signal run it under both PSMAuto and PSMSparseText and compare
 // MarkTokenCount (see PSMDisagreement).
