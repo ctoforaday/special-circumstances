@@ -24,7 +24,7 @@ import (
 // reproduce becomes exactly the expected run of migrated reproduces.
 func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 	type carried struct{ sha, rerun, soundness string }
-	fanned, shared := 0, 0
+	fanned, shared, kept := 0, 0, 0
 	for _, name := range archivedRuns(t) {
 		t.Run(name, func(t *testing.T) {
 			evs, err := archivedSource(t, recordtest.ExtractArchive(t, name)).Events()
@@ -33,6 +33,7 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 			}
 			proofsOn := map[string]int{} // sha -> proofs written so far
 			var want []carried
+			var named []string // per want: the anchor a reproduce names as written, "" for one carried
 			for _, old := range evs {
 				switch old.Word {
 				case "proof":
@@ -48,6 +49,7 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 						rerun, _ := old.Fields["rerun"].(string)
 						snd, _ := old.Fields["soundness"].(string)
 						want = append(want, carried{sha, rerun, snd})
+						named = append(named, id)
 						continue
 					}
 					rerun := recordpb.Word(recordpb.Rerun_RERUN_DIFFERS)
@@ -61,6 +63,7 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 							shared++
 						}
 						want = append(want, carried{sha, rerun, snd})
+						named = append(named, "")
 					}
 				}
 			}
@@ -82,6 +85,15 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 					continue
 				}
 				got = append(got, carried{r.GetProofSha(), recordpb.Word(r.GetRerun()), recordpb.Word(r.GetSoundness())})
+				// A REPRODUCE THAT NAMED ITS ANCHOR KEEPS IT. A lens re-runs whichever proof on a shared
+				// script it is judging, so its anchor is not the script's next in order.
+				if j := len(got) - 1; j < len(named) && named[j] != "" {
+					if r.GetProofId() != named[j] {
+						t.Errorf("reproduce %d names %q; its source named %q", m.At.Of(e).ID, r.GetProofId(), named[j])
+					}
+					kept++
+					continue
+				}
 				// The anchors of one carried run are the proofs on the script, in the order written.
 				if r.GetRerun() != recordpb.Rerun_RERUN_NOT_RUN || lastSrc != r.GetProofSha() {
 					used[r.GetProofSha()] = 0
@@ -103,6 +115,9 @@ func TestEveryArchivedReproduceIsCarriedToTheAnchorsOnItsScript(t *testing.T) {
 	// is carried to more than one anchor. Without the carry this test reads the same either way.
 	if shared == 0 || fanned == 0 {
 		t.Errorf("no archived reproduce was carried to a second anchor (%d carried, %d shared) — the test checks nothing", fanned, shared)
+	}
+	if kept == 0 {
+		t.Error("no archived reproduce named its anchor as written — the check that it keeps it checks nothing")
 	}
 }
 
