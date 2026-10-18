@@ -110,6 +110,12 @@ func renderGolden(res PageResult) string {
 	if res.TextCellFallback != "" {
 		fmt.Fprintf(&b, "cells fell back: %s\n", res.TextCellFallback)
 	}
+	// What the reading removed is pinned with it (#1030), so a line of print removed by a change to
+	// spread.go shows in the diff as a line moving here.
+	fmt.Fprintf(&b, "removed lines: %d\n", len(res.RemovedLines))
+	for _, ln := range res.RemovedLines {
+		fmt.Fprintf(&b, "removed: %s\n", ln)
+	}
 	if res.Evidence.RefusedTable != "" {
 		b.WriteString("--- the reconstruction the dropout gate refused (evidence, not the reading)\n")
 		b.WriteString(res.Evidence.RefusedTable)

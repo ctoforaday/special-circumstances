@@ -436,20 +436,25 @@ func (en *Engine) readGridPage(pagePNG []byte, grid GridStats, thr GridThreshold
 
 	// The plain reading of the pixels the words were read off — which the auto pass above already
 	// recognized, so it is written from that pass rather than read a second time.
-	out.Text = proseText(autoWords)
-	out.RemovedLines = autoRemoved
+	out.Text, out.RemovedLines = plainReading(tsvAuto)
 	return out, nil
 }
 
-// readProse reads a page as plain text: one recognition under PSMAuto, its spread lines removed,
-// written line by line from the TSV (proseText).
+// readProse reads a page as plain text: one recognition under PSMAuto, then plainReading.
 func (en *Engine) readProse(pagePNG []byte) (string, []string, error) {
 	tsv, err := en.PageTSV(pagePNG, PSMAuto)
 	if err != nil {
 		return "", nil, err
 	}
+	text, removed := plainReading(tsv)
+	return text, removed, nil
+}
+
+// plainReading is a PSMAuto TSV as the page's plain text, its spread lines removed and returned —
+// the one derivation both the no-grid path and the grid branch's last fallback use.
+func plainReading(tsv string) (string, []string) {
 	kept, removed := removeSpreadLines(parseTSVWords(tsv))
-	return proseText(kept), removed, nil
+	return proseText(kept), removed
 }
 
 // ruleGeometry fetches the page's rules from the path that found them. Both return page-pixel
