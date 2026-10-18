@@ -75,7 +75,8 @@ func (f lensFold) retiresWhy() string {
 }
 
 // lensOwesOf is what each lens owes, by seat, each named: an item its work list names as its own to
-// clear that is still undone.
+// clear that is still undone. Each name is that item's alone — a finding and a remand by their own
+// ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
 //
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
 //     (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
@@ -121,11 +122,11 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	}
 	for _, m := range motionsAt(evs, ids, win) {
 		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
-			owe(minted[m.GapID], m.ruled, "the bench's remand of "+m.GapID)
+			owe(minted[m.GapID], m.ruled, "the bench's remand of "+m.GapID+" in "+m.ID)
 		}
 	}
 	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
-		owe(f.minter, f.at, f.filer+"'s finding about "+f.gap)
+		owe(f.minter, f.at, f.filer+"'s finding "+f.id+" about "+f.gap)
 	}
 	for _, b := range events {
 		if b.Owner != "" {
