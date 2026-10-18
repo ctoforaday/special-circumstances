@@ -44,6 +44,7 @@ type Result struct {
 	StatedFills    []StatedFill      // values supplied where the source predates the field
 	GapAnchors     GapPlacement      // what bringing the run's gaps onto anchors did (F-c)
 	ReportOrder    string            // what became of the order of the report's text (order.go)
+	ProseRewrites  []ProseRewrite    // every archived id rewritten inside a seat's wording, in order
 
 	base string // the report's base as the source wrote it
 }
@@ -193,6 +194,8 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 			rm.apply(body, old.Fields["label"])
 		}
 	}
+	// The learning pass writes nothing, so what it rewrote is not what the record holds.
+	rm.prose = nil
 	place := newPlacer(batch.Querier(), evs, rm.ids)
 	// THE EVENTS.ID A DISPATCH PINS IS TRANSLATED AS AN ID IS. The cast written first, an anchor
 	// placed after an act and a source event that writes nothing each move every later row, so a
@@ -362,7 +365,7 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 	if err := batch.Err(); err != nil {
 		return nil, err
 	}
-	res.IDs, res.GapAnchors = rm.ids, place.census
+	res.IDs, res.GapAnchors, res.ProseRewrites = rm.ids, place.census, rm.prose
 	return res, nil
 }
 
