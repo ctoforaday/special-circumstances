@@ -260,7 +260,7 @@ func foldPlan(params Params, r planReads) Plan {
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	benchOn := benchOccasionSittings(evs, ids, win)
-	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, win, blockerGapsOfOpen(r.gaps), eventBlockersOf(evs, ids, win)))
+	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps), eventBlockersOf(evs, ids, win)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
 	parties := map[string][]string{}
 	occasions := map[string][]string{}

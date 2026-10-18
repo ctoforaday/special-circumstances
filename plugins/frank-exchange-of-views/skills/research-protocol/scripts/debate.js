@@ -729,8 +729,9 @@ const TERMINAL_ENVELOPE = {
 // in one wave. The Workflow tool's concurrency defaults to min(16, CPUs-2) — two on a four-core box,
 // which #753 measured as four waves — and CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS raises it;
 // scripts/universe.sh sets 16 for every run it launches. A lens that finds nothing sits once per report head and, owing
-// nothing, retires at its third such sitting (the record's lens fold); while its work list owes anything it sits once per head
-// move instead, so seating an area costs three sittings plus one per head move it owes through. An operator narrows the cast only with a
+// nothing, retires at its third such sitting (the record's lens fold); while it owes — something new on a gap it minted since it
+// last sat, a contradiction it read, a check it owns — it sits once per head move instead, so seating an area costs three
+// sittings plus one per head move it owes through. An operator narrows the cast only with a
 // reason. record.DefaultCastAreas says the same, and the cast setup writes is read from it.
 const DEFAULT_AREAS = RED_AREAS.slice()
 

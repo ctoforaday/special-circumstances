@@ -248,17 +248,25 @@ func TestPassIsPermittedOnceEveryLensHasSatAtTheHead(t *testing.T) {
 	}
 }
 
-// A LENS AT ITS BUDGET MINTS NOTHING, so its sittings are barren — and it holds the gaps that spent
-// the budget, which only it can close, so it does not retire while it holds them.
-func TestBudgetExhaustedLensDoesNotRetireWhileItHoldsItsGaps(t *testing.T) {
+// A LENS AT ITS BUDGET MINTS NOTHING, so its sittings are barren, and holding the gaps that spent the
+// budget is not a debt: with nothing new on them it retires. Its material gap still engages it as a
+// party to that gap's dispute, which is what a held gap needs of it.
+func TestBudgetExhaustedLensRetiresAndIsStillAPartyToItsGap(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).sit(2, evLens).sit(2, evLens).sit(2, evLens)
 	writeRunConfig(t, b.runDir, `{"mintBudget":1}`)
 	run := b.seed()
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, liveMint("G2", "x", recordpb.Grade_GRADE_HIGH)); err == nil || !strings.Contains(err.Error(), "budget") {
 		t.Fatalf("fixture: the lens is not at its budget: %v", err)
 	}
-	if f := lensStateOf(t, run); f.barren != retiresAfter || f.retired() || !slices.Equal(f.owes, []string{"open gap G1"}) {
-		t.Fatalf("a lens at its budget sits barren and does not retire while it holds G1: %+v", f)
+	if f := lensStateOf(t, run); f.barren != retiresAfter || !f.retired() || len(f.owes) != 0 {
+		t.Fatalf("a lens at its budget sits barren, owes nothing for holding G1, and retires: %+v", f)
+	}
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(gapsOf(plan, evLens), []string{"G1"}) {
+		t.Errorf("the retired lens is not a party to its material G1: %+v", plan.Parties)
 	}
 }
 

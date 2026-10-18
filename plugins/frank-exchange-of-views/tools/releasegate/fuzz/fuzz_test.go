@@ -292,9 +292,11 @@ type runner struct {
 	// because they owed work (three barren sittings or more, and a debt), and proofOwedKept those
 	// whose debt held an unjudged proof; the sweep gates each at zero. reopenedOwnerErr is the first
 	// reopened proof a plan gave an owner other than the run's proof owner; it fails the run.
+	// owedKeptBy counts those folds by each kind of debt they held (owedKind).
 	reopenedReadied, reopenedPlans int
 	proofReopenedReadied           map[string]int
 	owedKept, proofOwedKept        int
+	owedKeptBy                     map[string]int
 	reopenedOwnerErr               string
 	// quotesRefused counts the corroborations the tool REFUSED for a quote the report does not
 	// hold (sourceQuoteRefused). The sweep gates it at zero. quoteAdmittedErr is
@@ -1475,8 +1477,37 @@ func (r *runner) tallyOwed(plan map[string]any) {
 			if strings.Contains(g[2], "unjudged proof ") {
 				r.proofOwedKept++
 			}
+			if r.owedKeptBy == nil {
+				r.owedKeptBy = map[string]int{}
+			}
+			for k := range owedKinds(g[2]) {
+				r.owedKeptBy[k]++
+			}
 		}
 	}
+}
+
+// owedKinds is the kinds of debt a fold's "it owes" clause names, each once: the fold names each item
+// by its kind's words (record.lensOwesOf). An item no kind matches is "unnamed", so a reworded debt
+// shows up in the tally rather than vanishing from it.
+func owedKinds(clause string) map[string]bool {
+	out := map[string]bool{}
+	for _, item := range strings.Split(clause, ", ") {
+		kind := "unnamed"
+		for _, k := range []struct{ word, kind string }{
+			{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
+			{"the bench's remand of ", "remand"}, {"'s finding about ", "finding"},
+			{"unjudged proof ", "unjudged proof"}, {"reopened ", "reopened"}, {"contradiction ", "contradiction"},
+			{"open gap ", "open gap"},
+		} {
+			if strings.Contains(item, k.word) {
+				kind = k.kind
+				break
+			}
+		}
+		out[kind] = true
+	}
+	return out
 }
 
 // proofItemsOn is the proofs seatID's work list offers for judgement ("proof P-…"). A reopened
@@ -3125,10 +3156,11 @@ type outcome struct {
 	quotesRefused int
 	// reopenedReadied is the plans that readied the owner of every reopened blocker they held
 	// (runner.reopenedReadied), and reopenedPlans the plans that held one at all.
-	// proofReopenedReadied, owedKept and proofOwedKept are the runner's.
+	// proofReopenedReadied, owedKept, proofOwedKept and owedKeptBy are the runner's.
 	reopenedReadied, reopenedPlans int
 	proofReopenedReadied           map[string]int
 	owedKept, proofOwedKept        int
+	owedKeptBy                     map[string]int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
 	// ownerOffered is the proofs nobody judged that the run ended with, each offered on its owner's
@@ -4210,24 +4242,17 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		//
 		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
 		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
-		// the contradiction worth catching.
-		//
-		// AND ONLY WHERE NO REOPENED CITATION OR PROOF STANDS. Its owner is readied once per head
-		// move; one it sat for and left holds the PASS over a board with every gap closed, and the
-		// run ends UNVERIFIED naming it — the outcome the rule exists to give.
-		reopenedStands := slices.ContainsFunc(plan.Blockers, func(b record.PlanBlocker) bool { return b.Kind == record.BlockerReopened })
-		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 && !reopenedStands {
-			benchClosed := 0
-			for _, gOrd := range board.Gaps {
-				id := gOrd.ID
-				if g := board.Gap(id); g != nil && g.ClosedByBench {
-					benchClosed++
-				}
+		// the contradiction worth catching — and only where no blocker another seat owns stands
+		// (unfinishedOverRedsWork).
+		benchClosed := 0
+		for _, gOrd := range board.Gaps {
+			if g := board.Gap(gOrd.ID); g != nil && g.ClosedByBench {
+				benchClosed++
 			}
-			if benchClosed == 0 {
-				res.err = "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED — an unfinished verdict over work red itself finished"
-				return res
-			}
+		}
+		if unfinishedOverRedsWork(recorded, len(board.Gaps), openCount, benchClosed, plan.Blockers) {
+			res.err = "verdict oracle: the run recorded " + recorded + " with every gap closed BY RED — an unfinished verdict over work red itself finished"
+			return res
 		}
 	}
 
@@ -4276,7 +4301,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.ordersRefused = r.ordersRefused
 	res.quotesRefused = r.quotesRefused
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
-	res.proofReopenedReadied, res.owedKept, res.proofOwedKept = r.proofReopenedReadied, r.owedKept, r.proofOwedKept
+	res.proofReopenedReadied, res.owedKept, res.proofOwedKept, res.owedKeptBy = r.proofReopenedReadied, r.owedKept, r.proofOwedKept, r.owedKeptBy
 	if r.reopenedOwnerErr != "" && res.err == "" {
 		res.err = r.reopenedOwnerErr
 	}
@@ -4986,6 +5011,7 @@ func TestFuzzDebate(t *testing.T) {
 	positionsRefused := 0                         // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0        // plans that readied every reopened blocker's owner, of those holding one
 	proofReopenedReadied := map[string]int{}      // reopened proofs whose owner a plan readied, by owner
+	owedKeptBy := map[string]int{}                // those folds, by each kind of debt they held
 	owedKept, proofOwedKept := 0, 0               // lenses a plan kept from retiring by a debt; of them, by an unjudged proof
 	ownerOfferedRuns, fallbackOfferedRuns := 0, 0 // runs ending with an unjudged proof offered to its owner alone; of them, owned by the evidence lens
 	repeatsRefused := 0                           // second acts refused in a sitting that holds one, naming the answering act
@@ -5070,6 +5096,9 @@ func TestFuzzDebate(t *testing.T) {
 			}
 			owedKept += o.owedKept
 			proofOwedKept += o.proofOwedKept
+			for k, v := range o.owedKeptBy {
+				owedKeptBy[k] += v
+			}
 			if o.ownerOffered > 0 {
 				ownerOfferedRuns++
 				if o.fallback {
@@ -5114,7 +5143,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("inquiry lifecycle: %d fates recorded on an id read from `inquiry propose` (of %d inquiry events)", inquiryRecords, dcov["inquiry"])
 	t.Logf("proof owner: %d run(s) ended with an unjudged proof offered to its owner alone, %d of them owned by the evidence lens in a cast with no computation lens", ownerOfferedRuns, fallbackOfferedRuns)
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", reopenedReadied, reopenedPlans, proofReopenedReadied)
-	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof", owedKept, proofOwedKept)
+	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", owedKept, proofOwedKept, owedKeptBy)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -6419,4 +6448,52 @@ func maxSittings(m map[string]int) (n int) {
 		n = max(n, v)
 	}
 	return n
+}
+
+// unfinishedOverRedsWork is the verdict oracle's converse check: a run that ended neither VERIFIED nor
+// HALTED over a board red itself emptied — every gap closed, none by the bench — while nothing on the
+// record's plan holds the PASS that another seat must clear.
+//
+// ONLY WHERE NO BLOCKER ANOTHER SEAT OWNS STANDS. A blocker the chair cannot clear is work red has not
+// finished, whatever the gaps say: a reopened citation or proof its owner sat for and left, and a lens
+// still ready at the epoch limit — readied by a head move it has not sat at, owing an unjudged proof
+// or below its barren limit. The final sitting dispatches nobody and the run ends CEILING over that
+// ready lens, which is the limit's meaning. Seed 26 (fuzz on #1446's pre-merge head) ended CEILING at
+// epoch 12 of 12 with every gap closed by red and one blocker, "lens red-lens-computation is ready":
+// it held eleven proofs nobody had judged and the last edit had moved the head past its pin.
+func unfinishedOverRedsWork(recorded string, gaps, open, benchClosed int, blockers []record.PlanBlocker) bool {
+	if recorded == "" || recorded == "VERIFIED" || recorded == "HALTED" || gaps == 0 || open > 0 || benchClosed > 0 {
+		return false
+	}
+	return !slices.ContainsFunc(blockers, func(b record.PlanBlocker) bool { return b.Owner != "red-chair" })
+}
+
+// THE CONVERSE VERDICT ORACLE FIRES ON A BOARD RED EMPTIED AND ON NO OTHER. Seed 26's board — CEILING
+// at the epoch limit, every gap closed by red, a lens ready — is work red had not finished, and so is a
+// reopened anchor its owner left; a board whose only blockers are the chair's own is the contradiction.
+func TestTheConverseVerdictOracleFiresOnlyOverWorkRedFinished(t *testing.T) {
+	ready := record.PlanBlocker{Kind: record.BlockerLensReady, Subject: "red-lens-computation", Owner: "red-lens-computation"}
+	reopened := record.PlanBlocker{Kind: record.BlockerReopened, Subject: "P-1", Owner: "red-lens-computation"}
+	stale := record.PlanBlocker{Kind: record.BlockerStaleArea, Subject: "red-lens-voice", Owner: "red-chair"}
+	for _, c := range []struct {
+		name                    string
+		recorded                string
+		gaps, open, benchClosed int
+		blockers                []record.PlanBlocker
+		fires                   bool
+	}{
+		{"seed 26: CEILING at the limit with a lens ready", "CEILING", 9, 0, 0, []record.PlanBlocker{ready}, false},
+		{"a reopened anchor its owner left", "UNVERIFIED", 3, 0, 0, []record.PlanBlocker{reopened}, false},
+		{"only the chair's own blockers", "CEILING", 3, 0, 0, []record.PlanBlocker{stale}, true},
+		{"no blockers at all", "UNVERIFIED", 3, 0, 0, nil, true},
+		{"a gap still open", "CEILING", 3, 1, 0, nil, false},
+		{"a gap the bench closed", "CEILING", 3, 0, 1, nil, false},
+		{"no gaps", "CEILING", 0, 0, 0, nil, false},
+		{"VERIFIED", "VERIFIED", 3, 0, 0, nil, false},
+		{"HALTED", "HALTED", 3, 0, 0, nil, false},
+	} {
+		if got := unfinishedOverRedsWork(c.recorded, c.gaps, c.open, c.benchClosed, c.blockers); got != c.fires {
+			t.Errorf("%s: fires = %v, want %v", c.name, got, c.fires)
+		}
+	}
 }

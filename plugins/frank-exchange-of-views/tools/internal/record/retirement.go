@@ -26,11 +26,13 @@ import (
 // A LENS THAT OWES IS NOT RETIRED. Judging a proof and closing a gap mint nothing, so a lens could
 // retire holding work no other seat may do: universe-m23's voice lens retired with its gap open and
 // answered by blue, and nobody was readied to close it; a computation lens that only judges proofs
-// retired, and every proof recorded after shipped "not judged". What a lens owes is what its work
-// list names as its own to clear (lensOwesOf) — an open gap it minted, a blocker whose owner it is,
-// a proof it owns that nobody has judged — and while it owes any of it, the head readies it as it
-// readies an unretired lens. That is the bound: it sits at most once per head move, the head moves
-// only by blue's edits, which the gaps' limits and the run's epoch limit bound, and an item it never
+// retired, and every proof recorded after shipped "not judged". What a lens owes is each item its
+// work list names as its own to clear that is still undone (lensOwesOf) — on a gap it minted, what is
+// new since it last sat; a blocker whose owner it is; a proof it owns that nobody has judged — and
+// while it owes any of it, the head readies it as it readies an unretired lens. That is the bound: it
+// sits at most once per head move, and the head moves only by blue's edits, which the gaps' limits and
+// the run's epoch limit bound. What is new on a gap is owed only until its next sitting, so past its
+// limit it costs at most one sitting per head move that finds it unsat-on; an item it never
 // discharges keeps it ready only when the report has changed.
 //
 //   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
@@ -72,18 +74,58 @@ func (f lensFold) retiresWhy() string {
 	return fmt.Sprintf("it retires at %d", retiresAfter)
 }
 
-// lensOwesOf is what each lens owes, by seat: every item its work list names as its own to clear,
-// each named — an open gap it minted (gaps is the open gaps), a blocker on the stream whose owner it
-// is (events is eventBlockersOf: a contradiction it read, an anchor reopened since its check), and,
-// for the lens that owns proofs (proofOwnerOf), each proof nobody has judged. The work list's other
-// items about its gaps — blue's answer, a remand, an accepted grade motion, another lens's finding —
-// are about an open gap it minted, which is owed already.
-func lensOwesOf(evs []*Event, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
+// lensOwesOf is what each lens owes, by seat, each named: an item its work list names as its own to
+// clear that is still undone.
+//
+//   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
+//     (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
+//     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
+//     opens a sitting after it arrived, whether or not that sitting acts on it. A gap it holds with
+//     nothing new on it owes nothing: every act a lens has on its own gap waits on another seat's act,
+//     or is a judgement it could make at mint, so a later sitting with nothing new gives it nothing to
+//     act on. universe-m28's architecture and voice lenses held their own gaps that are not material,
+//     which ready nobody and which blue never answers, and sat after every edit to the epoch limit.
+//   - A blocker on the stream whose owner it is (events is eventBlockersOf): a contradiction it read,
+//     an anchor reopened since its check.
+//   - For the lens that owns proofs (proofOwnerOf), each proof nobody has judged.
+//
+// The work list keeps offering an item after the lens has sat on it; only the debt ends there.
+func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
 	out := map[string][]string{}
+	_, openings := dispatchLedger(evs, ids, win)
+	open, minted := map[string]bool{}, map[string]string{}
 	for _, g := range gaps {
-		if g.mintedBy != "" {
-			out[g.mintedBy] = append(out[g.mintedBy], "open gap "+g.id)
+		open[g.id], minted[g.id] = true, g.mintedBy
+	}
+	// owe names item for lens while it has opened no sitting since at.
+	owe := func(lens string, at int64, item string) {
+		if _, sat := firstAfter(openings[lens], at); lens != "" && !sat {
+			out[lens] = append(out[lens], item)
 		}
+	}
+	answers := blueAnswersOf(evs, win, open)
+	for _, g := range gaps {
+		if a := answers[g.id]; a.answered() {
+			owe(g.mintedBy, a.at, "blue's answer to "+g.id)
+		}
+	}
+	for _, o := range regradesAwaitedOf(evs, win, open) {
+		owe(minted[o.GapID], o.ruled, "the accepted grade motion on "+o.GapID)
+	}
+	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
+	// gap that is material or stranded carries one back into the debate (routeOf); the bench's ruling
+	// on any other leaves it where it was, readying nobody.
+	held := map[string]bool{}
+	for _, g := range gaps {
+		held[g.id] = g.material || g.supersededBy != ""
+	}
+	for _, m := range motionsAt(evs, ids, win) {
+		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
+			owe(minted[m.GapID], m.ruled, "the bench's remand of "+m.GapID)
+		}
+	}
+	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
+		owe(f.minter, f.at, f.filer+"'s finding about "+f.gap)
 	}
 	for _, b := range events {
 		if b.Owner != "" {
@@ -309,7 +351,7 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 		return passLensGate{}, false, err
 	}
 	ids := r.win.IDs(r.evs)
-	owes := lensOwesOf(r.evs, r.win, blockerGapsOfOpen(r.gaps), eventBlockersOf(r.evs, ids, r.win))
+	owes := lensOwesOf(r.evs, ids, r.win, blockerGapsOfOpen(r.gaps), eventBlockersOf(r.evs, ids, r.win))
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
 }
 

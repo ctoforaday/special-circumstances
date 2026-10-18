@@ -446,7 +446,7 @@ To retire a claim is to take it out of the report with the retire verb, on the r
 
 ## lens retirement
 
-Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire a lens that owes nothing on its work list, and a head move does not ready a retired lens.
+Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens.
 
 **Delivered to:** lens, chair, operator
 
