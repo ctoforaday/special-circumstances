@@ -419,6 +419,11 @@ func ExistingProposalByText(run Run, seatID, question, hypothesis string) (strin
 type registryClass struct {
 	Slug            string  `json:"slug"`
 	MaterialDefault *string `json:"material_default"`
+	// What a promoted class was given with it, where the registry states it: the same three fields a
+	// coining records.
+	Definition    string `json:"definition"`
+	Neighbor      string `json:"neighbor"`
+	Distinguisher string `json:"distinguisher"`
 }
 
 type classRegistry struct {

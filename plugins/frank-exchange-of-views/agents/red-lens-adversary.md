@@ -207,8 +207,9 @@ The material default decides whether a gap of that class holds the PASS gate —
 class whose defects change a conclusion or a figure, `never` for one whose defects change none,
 `by_grade` to take it from the grades. Choosing a class is choosing this too.
 
-Two kinds of row. A class the registry staged carries its slug and its default. A class THIS RUN
-coined carries its definition and the class it sits nearest as well.
+A class THIS RUN coined carries its definition, the class it sits nearest and the question that
+tells the two apart. A class the registry staged carries them where the registry states them, and
+its slug and default alone where it does not.
 
 This is the vocabulary, not a suggestion. A class outside it is refused, so the nearest one here
 is the one to name; and where none of them is close, that is the argument for coining. A class
