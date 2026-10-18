@@ -82,6 +82,17 @@ func annotationLen(s string, i int) int {
 // `--match "negligible[.]"` is a pattern that names the punctuation this would remove.
 func Visible(s string) string { return normalizeQuote(s) }
 
+// LogLine is a message as one line of the run's log holds it: every anchor token written as the id
+// it holds, and the rest of the invisible layer and the line breaks out (Visible).
+//
+// A TOKEN IN A LOG ENTRY IS A MARKER, NOT A MENTION. Every document that renders the log strips a
+// finding's or a gap's token and weaves a citation's or a proof's into a note, so a refusal naming
+// one read "anchor G-ec5568ed () is not in the report" on universe-m28. The bare id is how every
+// shipped document names an anchor, and nothing that reads the annotation layer takes it for one.
+func LogLine(s string) string {
+	return Visible(anchor.Replace(s, func(_, id string) string { return id }))
+}
+
 // Tokenize lowercases and splits on any non-alphanumeric rune, dropping empties and
 // single-character tokens (punctuation noise, stray letters). Deterministic, unicode-aware.
 func Tokenize(s string) map[string]bool {

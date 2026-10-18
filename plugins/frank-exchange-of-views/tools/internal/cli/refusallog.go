@@ -62,13 +62,11 @@ func noteRefusal(cmd *cobra.Command, err error) {
 	if len(given) > 0 {
 		with = " with " + strings.Join(given, " ")
 	}
-	// THE ANNOTATION LAYER IS NOT TEXT. A refusal may quote an anchor it could not resolve, and a live
-	// `<!--fx:…-->` in a log entry is a marker in a document that renders it.
-	// THE FIRST LINE, THEN the annotation layer out of it — in that order, because the reading that
-	// takes the layer out also folds line breaks, and a diagnosis several lines long would otherwise
-	// run on into its second paragraph.
+	// A REFUSAL MAY NAME AN ANCHOR, and the entry names it by its id (anchortext.LogLine).
+	// THE FIRST LINE, THEN the log's reading of it — in that order, because that reading folds line
+	// breaks, and a diagnosis several lines long would otherwise run on into its second paragraph.
 	why, _, _ := strings.Cut(strings.TrimSpace(seat.Diagnosis(err)), "\n")
-	why = anchortext.Visible(why)
+	why = anchortext.LogLine(why)
 	if r := []rune(why); len(r) > 300 {
 		why = string(r[:300]) + "…"
 	}

@@ -371,3 +371,16 @@ func TestLocateOnceRefusesInItsOrder(t *testing.T) {
 		}
 	}
 }
+
+// A LOG LINE NAMES EVERY KIND OF ANCHOR BY ITS ID. A token in a log entry is a marker every document
+// rendering the log strips or weaves, so it must leave as the id it holds — never as nothing.
+func TestALogLineNamesEveryAnchorKindByItsID(t *testing.T) {
+	for _, k := range anchor.Kinds() {
+		id := anchor.ID(k, [4]byte{0x0e, 0x00, 0x4c, 0x80})
+		msg := "your replacement carries " + anchor.Token(id) + ", and\nyour quote stops just before it."
+		want := "your replacement carries " + id + ", and your quote stops just before it"
+		if got := LogLine(msg); got != want {
+			t.Errorf("%s:\n got %q\nwant %q", k, got, want)
+		}
+	}
+}

@@ -77,6 +77,24 @@ func TestTheToolLogsTheRefusalsItGivesASeat(t *testing.T) {
 			t.Fatalf("an operator refusal was logged as a seat's: %q", got)
 		}
 	})
+	// THE ENTRY NAMES THE ANCHOR THE REFUSAL NAMED. universe-m28 logged "anchor G-ec5568ed () is not in
+	// the report" and "your replacement carries , and …": the writer took the token out, and with it
+	// the anchor. Each kind is refused here through the real path, and the entry must still say which.
+	t.Run("an anchor the refusal names is in the entry, as its id and never as a token", func(t *testing.T) {
+		for _, id := range []string{"F-0e004c80", "C-0e004c80", "P-0e004c80", "G-ec5568ed"} {
+			runDir := seatRun(t)
+			if _, err := runAt(t, "show", "report", "--run", runDir, "--seat-id", "blue-respond", "--anchor", id); err == nil {
+				t.Fatalf("show report --anchor %s on a report without it was accepted", id)
+			}
+			got := refusals(t, runDir)
+			if len(got) != 1 {
+				t.Fatalf("%s: want one refusal entry, got %d: %q", id, len(got), got)
+			}
+			if !strings.Contains(got[0], "anchor "+id+" ("+id+")") || strings.Contains(got[0], "<!--") {
+				t.Errorf("%s: the entry does not name the anchor as its id, or carries a token: %s", id, got[0])
+			}
+		}
+	})
 	t.Run("a refusal the tool already logged is not logged twice", func(t *testing.T) {
 		runDir := seatRun(t)
 		cmd := NewRootFor("blue-respond")
