@@ -10,7 +10,7 @@ import (
 //
 // Keyed by class: statement coverage cannot see a dead row, because Scan loops over Patterns
 // and so every row "executes". A row nobody's fixture names was deletable with the suite green
-// (gh[osur]_ and sk-proj- both were). TestEveryPatternHasAFormat makes a row without a format
+// (gh[osur]_ and sk-proj- both were). TestEveryHandPatternHasAFormat makes a row without a format
 // fail here instead.
 //
 // Generated: a hand-written fixture is one sample, and one sample drawn from a convenient
@@ -166,8 +166,8 @@ var contexts = []func(string) string{
 
 const samplesPerFormat = 2000
 
-func TestEveryPatternHasAFormat(t *testing.T) {
-	for _, p := range Patterns {
+func TestEveryHandPatternHasAFormat(t *testing.T) {
+	for _, p := range handPatterns {
 		if len(formats[p.Class]) == 0 {
 			t.Errorf("pattern %q has no format — write down its published shape in formats, or the row ships unverified", p.Class)
 		}
@@ -177,18 +177,18 @@ func TestEveryPatternHasAFormat(t *testing.T) {
 	}
 	for class := range formats {
 		if !hasClass(class) {
-			t.Errorf("formats names %q, which no pattern in Patterns carries — a renamed class leaves its formats testing nothing", class)
+			t.Errorf("formats names %q, which no row in handPatterns carries — a renamed class leaves its formats testing nothing", class)
 		}
 	}
 	for class := range nearMisses {
 		if !hasClass(class) {
-			t.Errorf("nearMisses names %q, which no pattern in Patterns carries", class)
+			t.Errorf("nearMisses names %q, which no row in handPatterns carries", class)
 		}
 	}
 }
 
 func hasClass(class string) bool {
-	for _, p := range Patterns {
+	for _, p := range handPatterns {
 		if p.Class == class {
 			return true
 		}
@@ -295,12 +295,16 @@ func escapeRune(r rune) string {
 
 // BenchmarkScanPayload measures the gate on 1 MiB payloads with no secret in them, the worst
 // case for a row, which then runs to the end of the input. "ordinary" holds none of the
-// rows' literals, as most payloads do; "prefix-dense" puts a literal on every line, so the
-// prefilter passes and the regexes run.
+// rows' literals, as most payloads do; "literal-dense" puts every row's every literal on
+// every line, so each prefilter passes and every regex runs.
 func BenchmarkScanPayload(b *testing.B) {
+	var lits []string
+	for _, p := range Patterns {
+		lits = append(lits, p.Literals...)
+	}
 	for _, c := range []struct{ name, line string }{
 		{"ordinary", `git -C /home/u/p log --oneline -n 20 && go test -count=1 ./internal/... # a token, a key, a secret\n`},
-		{"prefix-dense", `git log -n 20 # AKIA ASIA sk-ant- ghp_ xox PRIVATE KEY hooks.slack.com/ T3BlbkFJ sk-proj-\n`},
+		{"literal-dense", `git log -n 20 # ` + strings.Join(lits, " ") + `\n`},
 	} {
 		b.Run(c.name, func(b *testing.B) {
 			var body strings.Builder

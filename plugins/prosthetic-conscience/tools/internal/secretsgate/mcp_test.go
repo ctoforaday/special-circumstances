@@ -33,3 +33,21 @@ func TestDeniesSecretInAnMCPCall(t *testing.T) {
 		t.Errorf("Read is not watched; the gate spoke: %q", stdout)
 	}
 }
+
+// A row generated from gitleaks' ruleset refuses the same way, naming the gitleaks rule id.
+// The key is assembled here, so the source holds no scannable value.
+func TestDenyNamesTheGitleaksRuleID(t *testing.T) {
+	key := "AGE-SECRET-" + "KEY-1" + strings.Repeat("QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L", 2)[:58]
+	stdout, _ := call(`{"tool_name":"Bash","tool_input":{"command":"echo ` + key + ` > k.txt"}}`)
+	var d decision
+	if err := json.Unmarshal([]byte(stdout), &d); err != nil {
+		t.Fatalf("an age secret key was not refused: %q", stdout)
+	}
+	reason := d.HookSpecificOutput.PermissionDecisionReason
+	if d.HookSpecificOutput.PermissionDecision != "deny" || !strings.Contains(reason, "Bash") || !strings.Contains(reason, "(age-secret-key)") {
+		t.Errorf("the refusal must deny and name the tool and the rule id: %s", stdout)
+	}
+	if strings.Contains(stdout, key) {
+		t.Fatalf("the gate echoed the secret into its own output: %s", stdout)
+	}
+}

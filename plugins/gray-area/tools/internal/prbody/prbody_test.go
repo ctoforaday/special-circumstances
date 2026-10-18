@@ -33,21 +33,42 @@ func TestAResultAssertionIsCapturedSeparatelyFromTheAct(t *testing.T) {
 	}
 }
 
-// A claim with no outcome asserted must NOT gain a caveat. Attaching one
-// everywhere would make the marker noise, and noise is how a real one gets
-// skipped.
-func TestAnActWithNoAssertedOutcomeCarriesNoResult(t *testing.T) {
-	for _, body := range []string{
-		"I ran `go run ./check` before pushing.\n",
-		"See `git log --oneline -1` for the head.\n",
+// ANY text after the act is carried as unmeasured, whatever its wording: a list
+// of result words missed "gave 26/26" and "succeeded", and a missed caveat lets
+// CITED read as endorsing a number nothing checked. Only an act with nothing
+// after it on its line carries none.
+func TestAnyTextAfterTheActIsCarriedWhateverItsWording(t *testing.T) {
+	for body, want := range map[string]string{
+		"`go run ./check` gave 26/26\n":            "gave 26/26",
+		"`go test ./...` succeeded.\n":             "succeeded.",
+		"I ran `go run ./check` before pushing.\n": "before pushing.",
+		"I ran `go run ./check`.\n":                "",
+		"- `go vet ./...`\n":                       "",
 	} {
 		cs := parse(t, body)
 		if len(cs) != 1 {
 			t.Fatalf("want 1 claim from %q, got %d", body, len(cs))
 		}
-		if cs[0].Result != "" {
-			t.Errorf("invented a result assertion for %q: %q", body, cs[0].Result)
+		if cs[0].Result != want {
+			t.Errorf("%q: result = %q, want %q", body, cs[0].Result, want)
 		}
+	}
+}
+
+// A double-backtick span is a code span; a fenced block opened with ~~~ or a
+// longer fence is a code block. A line pattern read neither.
+func TestCodeSpansAndBlocksAreReadAsCommonMark(t *testing.T) {
+	body := "Ran ``go test ./a`` → ok\n\n~~~\n`go test ./pasted` output\n~~~\n\n````\n```\n`go test ./inner`\n````\n\nthen `go test ./b` → ok\n"
+	cs := parse(t, body)
+	var got []string
+	for _, c := range cs {
+		got = append(got, c.Cmd)
+	}
+	if len(cs) != 2 || cs[0].Cmd != "go test ./a" || cs[1].Cmd != "go test ./b" {
+		t.Fatalf("claims = %q, want the two prose spans only", got)
+	}
+	if cs[1].Line != 12 {
+		t.Errorf("line = %d, want 12", cs[1].Line)
 	}
 }
 
