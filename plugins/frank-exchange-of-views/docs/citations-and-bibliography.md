@@ -51,14 +51,18 @@ That hop is recorded as `followed_to`, not as a substitute copy.
 - **`completeness`**: which part of the work an html page or pdf is:
   - `full` only on **positive evidence**: the platform's own body-section markup before the reference
     list (Springer Nature `SecN`, PubMed Central `pmc_sec_title`), or a pdf at least half the page
-    span the work declares.
+    span the work declares. A platform page whose reference-list marker is absent is `unverified`:
+    nothing says where its body ends.
   - `abstract` where the platform prints its paywall or page images in place of the body.
   - `not_the_work` for a sign-in form or a book's sales page.
   - `unverified` where nothing known could tell.
   - Empty where the question did not apply: a page not about a scholarly work, or a pdf with no
     declared span.
 - **Work facts** from OpenAlex: retracted, paratext, work type, open-access status, licence, and the
-  declared page span. They describe the paper, and no fetch of its bytes can discover them.
+  declared page span. They describe the paper, and no fetch of its bytes can discover them. They
+  are asked about the `doi` found in the url, resolved once and carried on the entry. Every summary
+  prints `work_status` — `standing`, `retracted`, or `not_checked` where no doi was found or no
+  index answered.
 - **`tdm_reserved`**: the page's text-and-data-mining reservation. Reported, never enforced: it
   covers mining, not reading or quoting.
 

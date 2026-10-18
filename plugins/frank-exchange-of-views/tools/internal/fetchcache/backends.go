@@ -2,6 +2,7 @@ package fetchcache
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -89,6 +90,9 @@ type Attempt struct {
 	// where Via is the sentence a seat reads. Recover sets it; a backend never does.
 	Backend       string
 	TextRetrieved bool
+	// DOI is the identifier the backends were asked about — resolved once from the url, by
+	// Recover, and carried on the answer so the entry built from it need not resolve it again.
+	DOI string
 }
 
 // ---------- identifiers ----------
@@ -437,20 +441,34 @@ func europePMCCandidates(f Fetcher, doi string) (locs []OALocation, answered boo
 
 // pmcOpenAccessPDF returns the bucket url for a PMCID's pdf, or "" where the open-access subset
 // does not hold one — which the bucket states positively, as a zero key count.
+//
+// THE PREFIX ENDS AT THE DOT. The bucket keys a work as `PMC<id>.<version>/…`, and a listing by
+// `PMC1234` alone also lists PMC12345 and every other id it begins: where this work has no pdf,
+// the first pdf in that listing is a NEIGHBOURING article's. So the listing asks for `PMC1234.`,
+// and each key is checked against that prefix again before it is taken — the listing is the
+// bucket's answer, and the key is the fact.
 func pmcOpenAccessPDF(f Fetcher, pmcid string) string {
+	prefix := pmcid + "."
 	resp, err := f.Fetch("https://pmc-oa-opendata.s3.amazonaws.com/?list-type=2&max-keys=40&prefix=" +
-		url.QueryEscape(pmcid))
+		url.QueryEscape(prefix))
 	if err != nil {
 		return ""
 	}
-	m := pmcPDFKey.FindSubmatch(resp.Body)
-	if m == nil {
+	var listing struct {
+		Contents []struct {
+			Key string `xml:"Key"`
+		} `xml:"Contents"`
+	}
+	if xml.Unmarshal(resp.Body, &listing) != nil {
 		return ""
 	}
-	return "https://pmc-oa-opendata.s3.amazonaws.com/" + string(m[1])
+	for _, c := range listing.Contents {
+		if strings.HasPrefix(c.Key, prefix) && strings.HasSuffix(c.Key, ".pdf") {
+			return "https://pmc-oa-opendata.s3.amazonaws.com/" + c.Key
+		}
+	}
+	return ""
 }
-
-var pmcPDFKey = regexp.MustCompile(`<Key>([^<]+\.pdf)</Key>`)
 
 // ---------- metadata ----------
 
@@ -757,7 +775,7 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 		if a == nil {
 			return nil
 		}
-		a.Backend = name
+		a.Backend, a.DOI = name, doi
 		if a.Facts == (WorkFacts{}) && doi != "" {
 			if !asked {
 				facts, _, _ = openAlexWork(f, doi)
