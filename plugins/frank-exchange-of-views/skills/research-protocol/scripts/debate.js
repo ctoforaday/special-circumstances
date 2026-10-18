@@ -234,10 +234,9 @@ const steelmanClause = ` STEELMAN DUTY: read the exploration space via the \`inq
 //
 // THE REASON IT IS OPERATOR-SUPPLIED NO LONGER HOLDS. This said the directory is
 // "knowable after launch rather than at dispatch". It is knowable at dispatch:
-// the SubagentStart payload carries session_id and the Stop payload carries
-// agent_transcript_path — the seat's own conversation — and since epoch 14 both
-// are on the record, so the trajectory is a JOIN rather than a path a human has
-// to hand in. Wiring the bench to read it from there is what removes this
+// the Stop payload carries agent_transcript_path — the seat's own conversation —
+// and since epoch 14 it is on the record's sitting_close, so the trajectory is a
+// JOIN rather than a path a human has to hand in. Wiring the bench to read it from there is what removes this
 // argument and this interpolation; until then the clause stays as it is, because
 // a prompt that names a directory nobody supplied points at nothing.
 //

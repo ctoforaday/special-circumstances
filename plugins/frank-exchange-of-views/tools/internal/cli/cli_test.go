@@ -1071,7 +1071,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 			runDir := newRun(t)
 			seedBlueReport(t, runDir)
 			seatID := lensSeat
-			// The referenced gap and observation must EXIST, or the reference check
+			// The referenced gap must EXIST, or the reference check
 			// fires first and this test asserts on the wrong refusal — it is about the
 			// missing REASON, not a missing referent.
 			registerLensOnce(t, runDir)

@@ -68,7 +68,7 @@ func TestAppendedEventCarriesAStamp(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, &recordpb.Observe{Label: proto.String("L1-O1")})
+	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, &recordpb.Log{Text: proto.String("L1-O1"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			var wrote []string
 			for i := 0; i < 6; i++ {
 				label := string(rune('a' + i))
-				if _, err := Append(id, &recordpb.Observe{Label: proto.String(label)}); err != nil {
+				if _, err := Append(id, &recordpb.Log{Text: proto.String(label), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 					t.Fatal(err)
 				}
 				wrote = append(wrote, label)
@@ -132,12 +132,12 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			}
 			var read []string
 			for _, e := range m.Events {
-				if o, ok := recordpb.BodyAs[*recordpb.Observe](e); ok {
-					read = append(read, o.GetLabel())
+				if o, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
+					read = append(read, o.GetText())
 				}
 			}
 			if len(read) != len(wrote) {
-				t.Fatalf("%d observations read, %d written", len(read), len(wrote))
+				t.Fatalf("%d log entries read, %d written", len(read), len(wrote))
 			}
 			for i := range wrote {
 				if read[i] != wrote[i] {
@@ -168,7 +168,7 @@ func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, "", "docket"); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge"}, &recordpb.Observe{Text: proto.String("x")})
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge"}, &recordpb.Log{Text: proto.String("x"), Type: recordpb.LogType_LOG_TYPE_FRICTION.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,7 +19,7 @@ func (b *stage) registerAs(seat, agent string) *stage {
 // stop is the sitting_close the SubagentStop hook writes when that agent returns: attributed to the
 // harness, naming the agent and its configuration and no seat.
 func (b *stage) stop(agent string) *stage {
-	return b.add(HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent), AgentType: proto.String("frank-exchange-of-views:x")})
+	return b.add(HarnessSeat, &recordpb.SittingClose{AgentId: proto.String(agent)})
 }
 
 // boardRun is the board the epoch limit lost a ruling on: a lens mints one high gap at its first

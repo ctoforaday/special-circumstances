@@ -21,8 +21,8 @@ import (
 // THE PER-SITTING TURN LIMIT, driven through Pre as the hook binary runs it.
 
 type limitHandoff struct {
-	runDir, agentID, agentType string
-	sitting, limit             int
+	runDir, agentID string
+	sitting, limit  int
 }
 
 // limitRun is a live run whose run-config states the limit, with the process environment cleared
@@ -45,8 +45,8 @@ func limitRun(t *testing.T, limit int) (cwd, runDir string, handoffs *[]limitHan
 
 	var got []limitHandoff
 	prev := recordLimit
-	recordLimit = func(r, a, ty string, s, l int) error {
-		got = append(got, limitHandoff{r, a, ty, s, l})
+	recordLimit = func(r, a string, s, l int) error {
+		got = append(got, limitHandoff{r, a, s, l})
 		return nil
 	}
 	t.Cleanup(func() { recordLimit = prev })
@@ -127,7 +127,7 @@ func TestTheFirstRefusalHandsTheLimitToTheRecordOnce(t *testing.T) {
 	if len(*got) != 1 {
 		t.Fatalf("the limit was handed to the record %d times, want once", len(*got))
 	}
-	want := limitHandoff{runDir, "agent_01", "frank-exchange-of-views:red-lens-evidence", 2, 1}
+	want := limitHandoff{runDir, "agent_01", 2, 1}
 	if (*got)[0] != want {
 		t.Errorf("handoff %+v, want %+v", (*got)[0], want)
 	}

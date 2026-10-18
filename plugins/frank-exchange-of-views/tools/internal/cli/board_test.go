@@ -205,7 +205,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 		{claimB, "https://example.com/b"},
 	}
 	corroborate := func(claim, url, title string) error {
-		// --independent by construction: these are sources red went and found, not citations blue
+		// Corroborations by construction: these are sources red went and found, not citations blue
 		// authored, so there is no anchor to name.
 		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 			"--quote", claim, "--url", url, "--title", title,

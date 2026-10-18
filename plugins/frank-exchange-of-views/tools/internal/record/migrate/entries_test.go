@@ -148,7 +148,8 @@ func TestOpinionEntryRefusesAColumnItCannotPlace(t *testing.T) {
 }
 
 // The estoppel pairing is structural in the new model, and the translation says it too:
-// the tool recorded its own refusal, so the entry is (TOOL, ESTOPPEL), never a seat filing.
+// the tool recorded its own refusal, so the entry is (TOOL, ESTOPPEL), never a seat filing. The
+// entry's text, which names the prescribing gap, is what carries; estopped_by is not.
 func TestFrictionEstoppelBecomesToolSourced(t *testing.T) {
 	old := migrate.OldEvent{
 		ID: 3, SeatID: "blue-lane-1", Round: 1, TS: ts1, Word: "friction",
@@ -162,8 +163,8 @@ func TestFrictionEstoppelBecomesToolSourced(t *testing.T) {
 	if l.GetType() != recordpb.LogType_LOG_TYPE_ESTOPPEL || l.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL {
 		t.Fatalf("an estoppel is the tool's own act: got type %v source %v", l.GetType(), l.GetSource())
 	}
-	if l.GetEstoppedBy() != "R1-2" {
-		t.Errorf("estopped_by did not carry: %q", l.GetEstoppedBy())
+	if l.GetText() != "mint refused" {
+		t.Errorf("the entry's text did not carry: %q", l.GetText())
 	}
 }
 

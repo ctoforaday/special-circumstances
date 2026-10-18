@@ -390,10 +390,9 @@ func TestTheCurrentEpochSkipsEveryActTheHarnessWrote(t *testing.T) {
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: proto.String("C2"),
 			AgentType: proto.String("frank-exchange-of-views:red-chair"), SeatId: proto.String("red-chair")}),
 		recordtest.Event(t, "red-chair", &recordpb.Register{AgentId: proto.String("C2")}),
-		recordtest.Event(t, HarnessSeat, &recordpb.SittingLimit{AgentId: proto.String("C2"),
+		recordtest.Event(t, HarnessSeat, &recordpb.SittingLimit{
 			SeatId: proto.String("red-chair"), Sitting: proto.Int32(2), Limit: proto.Int32(40)}),
-		recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("C2"),
-			AgentType: proto.String("frank-exchange-of-views:red-chair")}),
+		recordtest.Event(t, HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("C2")}),
 	)
 	if got := m.At.LastEpoch(m.Events); got != 2 {
 		t.Fatalf("the fixture's record reaches epoch %d, want 2", got)

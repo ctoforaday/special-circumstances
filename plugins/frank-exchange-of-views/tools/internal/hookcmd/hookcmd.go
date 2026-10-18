@@ -221,9 +221,9 @@ func Pre(stdin io.Reader, stdout io.Writer, rec *hookfailures.Recorder) error {
 // The one call a limited sitting lets through is a register (hookgate.InvokesRegister), because
 // that is what opens the next sitting's count.
 func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfailures.Recorder) (denied bool, err error) {
-	agentID, agentType := in.AgentID, in.AgentType
+	agentID := in.AgentID
 	if agentID == "" {
-		agentID, agentType = seatenv.AgentID(), seatenv.AgentType()
+		agentID = seatenv.AgentID()
 	}
 	if agentID == "" {
 		return false, nil
@@ -240,7 +240,7 @@ func enforceLimit(in hookgate.Input, cwd string, stdout io.Writer, rec *hookfail
 		err = fmt.Errorf("cannot mark %s's sitting %d as limited, so its limit is not on the record: %w", agentID, d.Sitting, d.MarkErr)
 	}
 	if d.First {
-		err = recordLimit(runDir, agentID, agentType, d.Sitting, d.Limit)
+		err = recordLimit(runDir, agentID, d.Sitting, d.Limit)
 	}
 	emitPreDeny(stdout, hookgate.LimitReason(d.Count, d.Limit))
 	return true, err
