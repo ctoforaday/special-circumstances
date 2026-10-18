@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // cachePlugin writes a plugin cache entry: a version directory with the given bin/ contents and
@@ -181,7 +183,11 @@ func TestAnUnreadableHooksFileIsStatedNotAnEmptyList(t *testing.T) {
 // command form drifts from the one the reader knows, this fails here rather than at a run whose
 // provenance then says nothing.
 func TestTheShippedHooksFileRegistersItsBinaries(t *testing.T) {
-	shipped, err := os.ReadFile(filepath.Join("..", "..", "..", "hooks", "hooks.json"))
+	path, err := repotree.Plugin("hooks", "hooks.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shipped, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
