@@ -301,12 +301,12 @@ func TestNewsOnItsGapIsOwedUntilItSits(t *testing.T) {
 		// silence in the second is an answer it owes too.
 		{"the bench remanded it", always, func(b *stage) {
 			b.exchangeOn("G1").exchangeOn("G1").docketAndRemand("M1", "G1")
-		}, "the bench's remand of G1", "gap G1, which you minted, was REMANDED by the bench"},
+		}, "the bench's remand of G1 in M1", "gap G1, which you minted, was REMANDED by the bench"},
 		{"another lens filed a finding about it", never, func(b *stage) {
 			b.add(critic, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("G1 overstates the defect"),
 				Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW),
 				AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")})
-		}, critic + "'s finding about G1", critic + " filed a finding about your gap G1"},
+		}, critic + "'s finding F-f0000001 about G1", critic + " filed a finding about your gap G1"},
 	} {
 		// board is the gap, three barren sittings, the news (when staged), a head move (when moved), and —
 		// satAgain — a sitting of the lens at the head.
@@ -359,5 +359,24 @@ func TestNewsOnItsGapIsOwedUntilItSits(t *testing.T) {
 				t.Errorf("the item %q left the lens's work list with the debt; only the debt ends at its sitting", c.item)
 			}
 		})
+	}
+}
+
+// Two findings one seat filed about one gap are two debts, each named by its own id: universe-m29's
+// plan read "red-lens-dark-side's finding about G-bde527eb" twice, for F-f919d4a7 and F-1614b1d5.
+func TestEachFindingAboutAGapIsOwedByItsOwnID(t *testing.T) {
+	const critic = "red-lens-logic"
+	b := newStage(t).cast(evLens, critic, "red-chair", "blue-respond", "judge").ingest().register("red-chair")
+	b.add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high"))
+	b.sit(2, critic)
+	for _, id := range []string{"F-f0000001", "F-f0000002"} {
+		b.add(critic, &recordpb.Finding{Id: proto.String(id), Text: proto.String("G1 overstates the defect"),
+			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW),
+			AboutKind: recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), AboutRef: proto.String("G1")})
+	}
+	f := foldOf(t, b.register("red-chair").seed(), evLens)
+	want := []string{critic + "'s finding F-f0000001 about G1", critic + "'s finding F-f0000002 about G1"}
+	if !slices.Equal(f.owes, want) {
+		t.Fatalf("the lens owes %q, want each finding by its id %q", f.owes, want)
 	}
 }

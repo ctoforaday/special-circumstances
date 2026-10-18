@@ -36,6 +36,12 @@
 > constitution figures are restated from the tree; #1255 and #1262 closed; and §IV.7 runs
 > gblock's cutting rule — cut on lack of value, measured across the archives — against §III's
 > own additions, which three of them fail. #1290, #1291, #1292 are unread since filing.
+>
+> STATUS 2026-10-18 (gblock): **post-v2.** The rig stays a plan until v2.0.0 ships; v2 takes bug
+> fixes in the roundless scope only. The §I question is deferred, not pending — nothing here waits
+> on a ruling. #1290 shipped as #1433 (a `plan` event stores the printed bytes, the relay audit is
+> equality, EventSchema 31). #1291 is the design call that reopens with this plan. #1292 is the
+> post-v2 question: the measurement that decides between relay and read.
 
 ## I. Summary & Goals
 
@@ -312,9 +318,9 @@ of a record verb, and item 2 above puts it at the bulk tier with one act. The me
 reopens the ruling is in §V.0, item 5 (#1292). Until it is run, §III.2 is bound by the one-epoch
 latency, and the loop below is an epoch of width one. (3) The no-progress valve is not deleted;
 it is being made honest — plan 06 ruled it keys only on fields the relay audit compares against
-the record, with `why` leaving the key (#1267, open). #1290 proposes the fold that makes the
-audit an equality — store the plan the record rendered on the dispatch event — which is also
-what makes a relay a receipt. Under an item loop the valve is per item:
+the record, with `why` leaving the key (#1267, open). #1290 proposed the fold that makes the
+audit an equality — store the plan the record rendered — and #1433 shipped it as its own `plan`
+event holding the printed bytes [2026-10-18], which is also what makes a relay a receipt. Under an item loop the valve is per item:
 an item re-readied with an unchanged premise is the no-progress condition, which the `as_of`
 refusal of §III.4 states exactly.
 
@@ -330,7 +336,7 @@ plans goes" is wrong as stated: the cut of blockers from the key was tried and r
 lens working through contradictions, a lens readied by a contradiction as it retires — are
 blocker-only changes that are progress. Keyed on `as_of` alone the item valve would stop those
 runs UNVERIFIED. The per-item condition is therefore "same subject, same premise, same
-blockers", and #1290's stored plan is what makes that one comparison. (3) The chair relay is
+blockers", and the stored plan of #1433 is what makes that one comparison. (3) The chair relay is
 closed: the chair envelope refuses unknown properties and its plan schema is generated from the
 Go `Plan` (#1370, #1341), so item 1's "schema'd envelope" exists for the chair and the plan-09
 step this section deferred to is done. #1370 states the remaining limit in the engine's own
