@@ -1,8 +1,9 @@
 package trajectory
 
 import (
-	"regexp"
 	"strings"
+
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // Invocation is one resolved call of a named binary inside a Bash command.
@@ -11,16 +12,8 @@ type Invocation struct {
 	Verb    string `json:"verb,omitempty"`
 	Aliased bool   `json:"aliased"`       // reached through a shell variable
 	Via     string `json:"via,omitempty"` // the variable name, when aliased
-	Raw     string `json:"raw"`           // the segment this was resolved from
+	Raw     string `json:"raw"`           // the simple command this was resolved from
 }
-
-var (
-	// VAR=value at the head of a segment. Deliberately narrow: a real assignment
-	// is an unquoted NAME=, not an argument that happens to contain '='.
-	assignRe = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=(.+)$`)
-	// $VAR, ${VAR}, "$VAR", "${VAR}" at the head of a segment.
-	useRe = regexp.MustCompile(`^"?\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?"?$`)
-)
 
 // FindInvocations resolves calls to binary inside a shell command string.
 //
@@ -29,73 +22,129 @@ var (
 // invisible to a matcher that greps for the binary name followed by a verb. This
 // tracks single-level assignments so the verb is attributed to the right binary.
 //
-// It is NOT a shell. It handles the shapes seats actually produce — plain calls,
-// a variable assigned a literal path then expanded — and deliberately does not
-// attempt command substitution, arrays, functions, or indirect expansion. When it
-// cannot resolve something it returns nothing for that segment rather than
-// guessing, because a wrong attribution is worse than a missed one here: the
-// whole point is that a claim is checked against what was actually run.
-func FindInvocations(command, binary string) []Invocation {
+// The command is read by a shell parser, so `export REC=…`, a quoted value with
+// spaces, and a `|` or `;` inside quotes are read as bash reads them. What is
+// still not modelled is EVALUATION: functions, arrays, indirect expansion, and a
+// value that is itself an expansion. A head it cannot resolve to a literal gives
+// nothing for that call rather than a guess, because a wrong attribution is worse
+// than a missed one here: the whole point is that a claim is checked against what
+// was actually run.
+//
+// A command that does not parse as shell is an error: the caller shows it rather
+// than reporting "no invocations", which reads the same as a command that called
+// nothing.
+func FindInvocations(command, binary string) ([]Invocation, error) {
 	if command == "" || binary == "" {
-		return nil
+		return nil, nil
+	}
+	f, err := parseShell(command)
+	if err != nil {
+		return nil, err
 	}
 	vars := map[string]string{}
-	var out []Invocation
-
-	for _, seg := range splitSegments(command) {
-		fields := strings.Fields(seg)
-		if len(fields) == 0 {
-			continue
-		}
-		// Leading assignments: record them, then consider what follows on the
-		// same segment (VAR=x cmd ... is valid shell).
-		i := 0
-		for i < len(fields) {
-			m := assignRe.FindStringSubmatch(fields[i])
-			if m == nil {
-				break
-			}
-			vars[m[1]] = unquote(m[2])
-			i++
-		}
-		if i >= len(fields) {
-			continue
-		}
-
-		head := fields[i]
-		rest := fields[i+1:]
-
-		if u := useRe.FindStringSubmatch(head); u != nil {
-			name := u[1]
-			target, ok := vars[name]
-			if !ok || !namesBinary(target, binary) {
+	assign := func(as []*syntax.Assign) {
+		for _, a := range as {
+			if a.Name == nil || a.Value == nil || a.Naked {
 				continue
 			}
-			out = append(out, Invocation{
-				Binary: binary, Verb: firstVerb(rest), Aliased: true, Via: name, Raw: strings.TrimSpace(seg),
-			})
-			continue
-		}
-		if namesBinary(unquote(head), binary) {
-			out = append(out, Invocation{
-				Binary: binary, Verb: firstVerb(rest), Raw: strings.TrimSpace(seg),
-			})
+			if v, ok := literal(a.Value); ok {
+				vars[a.Name.Value] = v
+			}
 		}
 	}
-	return out
+	var out []Invocation
+	syntax.Walk(f, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.DeclClause: // export / local / declare / readonly
+			assign(x.Args)
+		case *syntax.CallExpr:
+			// Leading assignments are recorded before the head is read: VAR=x cmd
+			// is valid shell, and the next command may expand VAR.
+			assign(x.Assigns)
+			if len(x.Args) == 0 {
+				return true
+			}
+			raw := command[x.Pos().Offset():x.End().Offset()]
+			rest := words(command, x.Args[1:])
+			if name, ok := soleParam(x.Args[0]); ok {
+				if target, ok := vars[name]; ok && namesBinary(target, binary) {
+					out = append(out, Invocation{Binary: binary, Verb: firstVerb(rest), Aliased: true, Via: name, Raw: strings.TrimSpace(raw)})
+				}
+				return true
+			}
+			if head, ok := literal(x.Args[0]); ok && namesBinary(head, binary) {
+				out = append(out, Invocation{Binary: binary, Verb: firstVerb(rest), Raw: strings.TrimSpace(raw)})
+			}
+		}
+		return true
+	})
+	return out, nil
 }
 
-// splitSegments breaks a command on the separators that start a new simple
-// command. Pipes are included because a binary can be invoked downstream of one.
-func splitSegments(cmd string) []string {
-	repl := strings.NewReplacer("&&", "\n", "||", "\n", ";", "\n", "|", "\n")
-	return strings.Split(repl.Replace(cmd), "\n")
+// literal returns a word's text when every part of it is literal — unquoted,
+// single-quoted, or double-quoted with nothing expanded inside.
+func literal(w *syntax.Word) (string, bool) {
+	var b strings.Builder
+	for _, p := range w.Parts {
+		switch x := p.(type) {
+		case *syntax.Lit:
+			b.WriteString(x.Value)
+		case *syntax.SglQuoted:
+			b.WriteString(x.Value)
+		case *syntax.DblQuoted:
+			for _, q := range x.Parts {
+				l, ok := q.(*syntax.Lit)
+				if !ok {
+					return "", false
+				}
+				b.WriteString(l.Value)
+			}
+		default:
+			return "", false
+		}
+	}
+	return b.String(), true
+}
+
+// soleParam returns the variable name when a word is exactly one plain expansion
+// — $VAR, ${VAR}, "$VAR" or "${VAR}" — with no operator applied to it.
+func soleParam(w *syntax.Word) (string, bool) {
+	if len(w.Parts) != 1 {
+		return "", false
+	}
+	part := w.Parts[0]
+	if dq, ok := part.(*syntax.DblQuoted); ok {
+		if len(dq.Parts) != 1 {
+			return "", false
+		}
+		part = dq.Parts[0]
+	}
+	pe, ok := part.(*syntax.ParamExp)
+	if !ok || pe.Param == nil || pe.Excl || pe.Length || pe.Width || pe.Index != nil ||
+		pe.Slice != nil || pe.Repl != nil || pe.Names != 0 || pe.Exp != nil {
+		return "", false
+	}
+	return pe.Param.Value, true
+}
+
+// words renders arguments for verb-finding: a literal word as its value, any
+// other as its source text, so an expansion is never mistaken for a verb.
+func words(src string, ws []*syntax.Word) []string {
+	out := make([]string, 0, len(ws))
+	for _, w := range ws {
+		if v, ok := literal(w); ok {
+			out = append(out, v)
+			continue
+		}
+		out = append(out, src[w.Pos().Offset():w.End().Offset()])
+	}
+	return out
 }
 
 // namesBinary matches the final path element, so ./feov-record, /usr/bin/feov-record
 // and feov-record.exe all count as the same tool.
 func namesBinary(token, binary string) bool {
-	token = strings.TrimSuffix(unquote(token), ".exe")
+	token = strings.TrimSuffix(token, ".exe")
 	if i := strings.LastIndexAny(token, "/\\"); i >= 0 {
 		token = token[i+1:]
 	}
@@ -105,10 +154,10 @@ func namesBinary(token, binary string) bool {
 // firstVerb is the first argument that is not a flag or a flag's value.
 func firstVerb(args []string) string {
 	for i := 0; i < len(args); i++ {
-		a := unquote(args[i])
+		a := args[i]
 		if strings.HasPrefix(a, "-") {
 			// A flag with a separate value consumes the next token.
-			if !strings.Contains(a, "=") && i+1 < len(args) && !strings.HasPrefix(unquote(args[i+1]), "-") {
+			if !strings.Contains(a, "=") && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				i++
 			}
 			continue
@@ -116,14 +165,4 @@ func firstVerb(args []string) string {
 		return a
 	}
 	return ""
-}
-
-func unquote(s string) string {
-	s = strings.TrimSpace(s)
-	if len(s) >= 2 {
-		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
 }

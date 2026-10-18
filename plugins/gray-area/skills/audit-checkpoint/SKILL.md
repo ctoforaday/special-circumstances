@@ -14,11 +14,11 @@ The check logic lives in the tested binary, not in this prompt. Your job is to r
 **Read the verdicts as written, and do not upgrade them.**
 
 - `CITED` — a matching invocation is in the trajectory, with its uuid.
-- `STALE` — the claim's own trigger surface was written to after the claimed run time. The pass may have been real; it is not current. **Re-run that check and update the note** — that is the whole point of the row.
+- `STALE` — the claim's own trigger surface was written to after the claimed run time (or, when the entry states none, after the note's `written_at`). The pass may have been real; it is not current. **Re-run that check and update the note** — that is the whole point of the row.
 - `NO-EVIDENCE` — nothing matched. This is an ABSENCE, not a finding that the check did not run: the command may have been spelled in a form the tokens miss, or run in a different session. The row prints what was searched and how much was searched so you can tell which. YOU MUST NOT report it as "the check was never run".
 - `UNCHECKABLE` — the claim names no command. Nothing was searched; nothing is being alleged.
 
-**A `CITED` row confirms the ACT, never the OUTCOME.** The trajectory records what was **RUN**; it does not record what the run **SAID** — result bodies are conversation content and this plugin does not copy them. So a claim reading `` `go run ./check` … last run: pass `` splits into an act this record can check and a pass it cannot see. Every such row prints `NOT MEASURED:` naming the claimed outcome. YOU MUST NOT relay a `CITED` row as confirming the check passed; it confirms the command was invoked.
+**A `CITED` row confirms the ACT, never the OUTCOME.** The trajectory records what was **RUN**; it does not record what the run **SAID** — result bodies are conversation content and this plugin does not copy them. So a claim reading `` `go run ./check` … last run: pass `` splits into an act this record can check and a pass it cannot see. Every such row prints `NOT MEASURED:` naming the claimed outcome. YOU MUST NOT relay a `CITED` row as confirming the check passed; it confirms the command was invoked. A row printing `NOT MEASURED: staleness` was not checked for staleness; YOU MUST NOT relay it as current.
 
 **What this establishes, and what it does not.** It establishes what the two records say when placed side by side. The transcript is append-only, not signed, so it is evidence of what was recorded, never proof that the record is authentic. YOU MUST NOT present a clean run as proof the work was done correctly — only that the note's claims and the session's acts agree.
 

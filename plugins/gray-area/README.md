@@ -240,10 +240,10 @@ A pull request body stops being testimony and becomes a record under inspection:
 CITED       body.md:3  `go run ./check` -> 26 passed, 2 failed
     evidence: …/937047bc.jsonl:15484 389b0d59 2026-08-18T07:52:57Z  cd scripts && go run ./check
     searched: [go run ./check] across 3535 citable events
-    NOT MEASURED: the asserted outcome (-> 26 passed, 2 failed) — the trajectory records invocations, not their output
+    NOT MEASURED: whatever the rest of this sentence asserts (-> 26 passed, 2 failed) — the trajectory records invocations, not their output
 ```
 
-Staying silent about the outcome would let `CITED` read as endorsing a number nothing checked. **Exit is 0 even with findings**: a body is read after the fact by a human, and failing on a `NO-EVIDENCE` row would turn "the tokens did not match" into "the pull request is wrong". A body with no backticked command reports that in those words rather than printing an empty list.
+Staying silent about the outcome would let `CITED` read as endorsing a number nothing checked, so any text after a command on its line is carried as `NOT MEASURED`, whatever its wording. The body is read as CommonMark: fenced and indented code blocks are skipped, and a double-backtick span is a span. **Exit is 0 even with findings**: a body is read after the fact by a human, and failing on a `NO-EVIDENCE` row would turn "the tokens did not match" into "the pull request is wrong". A body with no backticked command reports that in those words rather than printing an empty list.
 
 ## Repetition: `rework` and `stalls`
 
@@ -312,11 +312,18 @@ Four verdicts, and the negative one is deliberately weak:
 | | |
 |---|---|
 | `CITED` | a matching invocation is in the trajectory — uuid, file, line, timestamp |
-| `STALE` | a write under the check's own trigger surface happened **after** the claimed run time |
+| `STALE` | a write under the check's own trigger surface happened **after** the claimed run time — or, when the entry states none, after the note's `written_at`, which bounds every run it reports |
 | `NO-EVIDENCE` | nothing matched. **Not** "did not run" — it prints the tokens searched and how many events were searched, so a reader can see whether the note or the matcher is at fault |
 | `UNCHECKABLE` | the claim names no command, so there was nothing to look for |
 
 Exit is non-zero when anything is `STALE` or `NO-EVIDENCE`, so it composes into a gate.
+
+When staleness cannot be measured — the entry names no trigger surface, a surface that is not a
+path, or no run time and no `written_at` — the row says `NOT MEASURED: staleness — …` with the
+reason, so a `CITED` row never reads as current by omission. The loop's heading is any heading
+whose text starts with "Validation loop"; one that nearly names it ("Validation Loops",
+"validation-loop") is refused with its line, as is a loop heading with no entry the reader can
+parse, rather than reported as a note with no loop.
 
 `STALE` is the row this exists for. On 2026-07-30 a note asserted a pass for a check whose
 re-arm mechanism recorded nothing for it ([#165](https://github.com/ctoforaday/special-circumstances/issues/165) — an earlier reading
