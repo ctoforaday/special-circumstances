@@ -6,10 +6,10 @@
 // # Why
 //
 // gitleaks publishes ~220 vendor rules and keeps them current; a hand table covers what its
-// author thought of. Most of those rules are meaningful only behind an entropy threshold or
-// an allowlist, which a PreToolUse gate refusing on a bare match does not have, so only the
-// rules that are accurate as bare regexes are taken: the selection criterion is select below,
-// and every rule it rejects is listed with its reason in the generated file.
+// author thought of. Many of those rules are meaningful only behind an entropy threshold or
+// an allowlist, which a PreToolUse gate does not have, so only the rules whose secret carries
+// a vendor literal and that need no allowlist are taken: the selection criterion is choose
+// below, and every rule it rejects is listed with its reason in the generated file.
 //
 // # The pin
 //
@@ -69,13 +69,31 @@ type config struct {
 // with the hand row kept and why. One row per vendor: two rows for one format refuse the same
 // payload twice and drift apart.
 var handCovered = map[string]string{
-	"anthropic-api-key":       "hand row `Anthropic api key` kept: it takes every sk-ant- key type (api03, admin01, oat01) with a body of 20 or more; this rule takes api03 with exactly 93+2",
-	"anthropic-admin-api-key": "hand row `Anthropic api key` kept: it takes every sk-ant- key type (api03, admin01, oat01) with a body of 20 or more; this rule takes admin01 with exactly 93+2",
+	"anthropic-api-key":            "hand row `Anthropic api key` kept: it takes every sk-ant- key type (api03, admin01, oat01) with a body of 20 or more; this rule takes api03 with exactly 93+2",
+	"anthropic-admin-api-key":      "hand row `Anthropic api key` kept: it takes every sk-ant- key type (api03, admin01, oat01) with a body of 20 or more; this rule takes admin01 with exactly 93+2",
+	"github-fine-grained-pat":      "hand row `GitHub fine-grained token` kept: it takes a body of 22 or more; this rule takes exactly 82",
+	"github-oauth":                 "hand row `GitHub app/oauth token` kept: it takes gho_, ghs_, ghu_ and ghr_ in one row",
+	"github-refresh-token":         "hand row `GitHub app/oauth token` kept: it takes gho_, ghs_, ghu_ and ghr_ in one row",
+	"openai-api-key":               "hand rows `OpenAI api key` and `OpenAI legacy api key` kept: the first takes every project, service-account and admin key with a body of 20 or more; this rule takes two fixed lengths around T3BlbkFJ",
+	"slack-app-token":              "hand row `Slack token` kept: it takes every xox*- and xapp- token with a body of 10 or more in one row",
+	"slack-bot-token":              "hand row `Slack token` kept: it takes every xox*- and xapp- token with a body of 10 or more in one row",
+	"slack-config-refresh-token":   "hand row `Slack token` kept: it takes every xox*- and xapp- token with a body of 10 or more in one row",
+	"slack-legacy-bot-token":       "hand row `Slack token` kept: it takes every xox*- and xapp- token with a body of 10 or more in one row",
+	"slack-legacy-token":           "hand row `Slack token` kept: it takes every xox*- and xapp- token with a body of 10 or more in one row",
+	"slack-legacy-workspace-token": "hand row `Slack token` kept: it takes every xox*- and xapp- token with a body of 10 or more in one row",
 }
 
-// selected is a rule that passed select, with the literals every match of it contains.
+// selected is a rule that passed choose, with the literals every match of it contains.
 type selected struct {
-	rule     rule
+	rule        rule
+	literals    []string
+	fold        bool
+	placeholder *placeholder // set for a rule gitleaks gates by entropy
+}
+
+// placeholder is what a row needs to find a match's secret and its vendor literal.
+type placeholder struct {
+	group    int
 	literals []string
 	fold     bool
 }
@@ -195,16 +213,23 @@ const minLiteral = 3
 // choose applies the selection criterion. A rule is taken only when all hold:
 //
 //  1. it has a regex (a path-only rule matches file names, which a tool payload has none of);
-//  2. it has no entropy threshold — gitleaks reports its match only when the secret is random
-//     enough, and a gate refusing on the bare match would refuse what gitleaks lets through;
-//  3. it has no allowlist, for the same reason: gitleaks discards some of its matches;
-//  4. every match of the SECRET's own span (secretGroup, else the first capture group, else
+//  2. it has no allowlist: gitleaks discards some of its matches, and a gate refusing on the
+//     bare match would refuse what gitleaks lets through. No allowlisted rule in the pin has
+//     an allowlist of stopwords alone, which the placeholder test could stand in for;
+//  3. every match of the SECRET's own span (secretGroup, else the first capture group, else
 //     the whole match) contains one of a set of literals, each at least minLiteral long and
 //     each containing one of the rule's keywords. That is a vendor prefix inside the token.
 //     A rule whose literal is only in the context around the secret (`twitter ... = <hex>`)
 //     fails here: the literal names the vendor, the token itself is generic. The literals
 //     become the row's prefilter, so the regex runs only on text holding one;
-//  5. no hand row covers its vendor (handCovered).
+//  4. no hand row covers its vendor (handCovered).
+//
+// A rule with an entropy threshold is taken under the same clauses, and its row skips a match
+// whose secret is an obvious placeholder (secrets.placeholder): gitleaks reports such a match
+// only when the secret is random enough, and the vendor literal already carries the precision
+// the threshold gives a generic token. The gate scores no entropy; the skip is a fixed test
+// for the placeholders a person types (`glpat-xxxx…`, `sk_live_0000…`). An entropy rule
+// with no vendor literal is excluded: without the literal the threshold is its whole precision.
 //
 // gitleaks' global allowlist is not applied. Its paths name files, which a tool payload has
 // none of; its regexes are anchored whole-secret placeholders (`true`, `$VAR`,
@@ -213,44 +238,58 @@ const minLiteral = 3
 // alphabet in order. A selected-rule token holding either is a hand-typed placeholder, and
 // this gate refuses it where gitleaks would not.
 func choose(r rule) (selected, string) {
-	switch {
-	case r.Regex == "":
+	if r.Regex == "" {
 		return selected{}, rNoRegex + " (path-only rule)"
-	case r.Entropy > 0:
-		return selected{}, fmt.Sprintf("%s %.1f", rEntropy, r.Entropy)
-	case len(r.Allowlists) > 0:
-		return selected{}, rAllowlist
 	}
 	re, err := syntax.Parse(r.Regex, syntax.Perl)
 	if err != nil {
 		return selected{}, "regex does not parse under RE2: " + err.Error()
 	}
-	span := secretSpan(re, r.SecretGroup)
-	set := required(span.Simplify())
-	if set == nil {
-		return selected{}, rNoLiteral + " (the literal is context around a generic token)"
-	}
-	for _, l := range set.strs {
-		if len(l) < minLiteral {
-			return selected{}, fmt.Sprintf("%s (shortest required literal %q is under %d)", rNoLiteral, l, minLiteral)
-		}
-		if !containsKeyword(l, r.Keywords) {
-			return selected{}, fmt.Sprintf("%s (required literal %q holds none of the keywords %v)", rNoLiteral, l, r.Keywords)
-		}
-	}
-	if !ascii(set.strs) {
-		return selected{}, fmt.Sprintf("%s (a required literal in %q is not ASCII)", rNoLiteral, set.strs)
+	group, span := secretSpan(re, r.SecretGroup)
+	set, why := vendorLiterals(span, r.Keywords)
+	switch {
+	case why != "" && r.Entropy > 0:
+		return selected{}, fmt.Sprintf("%s %.1f, and %s", rEntropy, r.Entropy, why)
+	case why != "":
+		return selected{}, rNoLiteral + " " + why
+	case len(r.Allowlists) > 0:
+		return selected{}, rAllowlist
 	}
 	if why, ok := handCovered[r.ID]; ok {
 		return selected{}, rHand + ": " + why
+	}
+	s := selected{rule: r, literals: set.strs, fold: set.fold}
+	if r.Entropy > 0 {
+		s.placeholder = &placeholder{group: group, literals: set.strs, fold: set.fold}
 	}
 	// The prefilter takes the stronger of the secret's literals and the whole match's: a
 	// context rule's vendor name (`gocardless`) is rarer in ordinary text than its token's
 	// prefix (`live_`). Both are required of every match, so either keeps the verdict.
 	if whole := required(re.Simplify()); whole != nil && minLen(whole) > minLen(set) && ascii(whole.strs) {
-		set = whole
+		s.literals, s.fold = whole.strs, whole.fold
 	}
-	return selected{rule: r, literals: set.strs, fold: set.fold}, ""
+	return s, ""
+}
+
+// vendorLiterals returns the literals every match of the secret's span contains, or why the
+// span has no vendor literal (clause 3 of choose).
+func vendorLiterals(span *syntax.Regexp, keywords []string) (*litSet, string) {
+	set := required(span.Simplify())
+	if set == nil {
+		return nil, "(the literal is context around a generic token)"
+	}
+	for _, l := range set.strs {
+		if len(l) < minLiteral {
+			return nil, fmt.Sprintf("(shortest required literal %q is under %d)", l, minLiteral)
+		}
+		if !containsKeyword(l, keywords) {
+			return nil, fmt.Sprintf("(required literal %q holds none of the keywords %v)", l, keywords)
+		}
+	}
+	if !ascii(set.strs) {
+		return nil, fmt.Sprintf("(a required literal in %q is not ASCII)", set.strs)
+	}
+	return set, ""
 }
 
 // ascii reports whether every literal is ASCII. The gate's case fold (secrets.foldText) is
@@ -275,15 +314,16 @@ func containsKeyword(l string, kws []string) bool {
 	return false
 }
 
-// secretSpan returns the subexpression gitleaks reports as the secret.
-func secretSpan(re *syntax.Regexp, group int) *syntax.Regexp {
+// secretSpan returns the subexpression gitleaks reports as the secret, and its capture group
+// (0 for the whole match).
+func secretSpan(re *syntax.Regexp, group int) (int, *syntax.Regexp) {
 	if group == 0 {
 		group = 1
 	}
 	if g := findCap(re, group); g != nil {
-		return g
+		return group, g
 	}
-	return re
+	return 0, re
 }
 
 func findCap(re *syntax.Regexp, n int) *syntax.Regexp {
@@ -490,8 +530,10 @@ func renderRows(sel []selected, exc []excluded) ([]byte, error) {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// Code generated by scripts/secretsgen from gitleaks %s config/gitleaks.toml (MIT, vendored at scripts/secretsgen/gitleaks/); DO NOT EDIT.\n\n", pinVersion)
 	b.WriteString("package secrets\n\nimport \"regexp\"\n\n")
-	fmt.Fprintf(&b, "// gitleaksPatterns are the %d gitleaks %s rules that are accurate as bare regexes; the\n", len(sel), pinVersion)
-	b.WriteString("// criterion is choose in scripts/secretsgen. Each Class is the gitleaks rule id.\n//\n")
+	fmt.Fprintf(&b, "// gitleaksPatterns are the %d gitleaks %s rules taken; the\n", len(sel), pinVersion)
+	b.WriteString("// criterion is choose in scripts/secretsgen. Each Class is the gitleaks rule id. A row with a\n")
+	b.WriteString("// Placeholder is a rule gitleaks gates by entropy: it skips a match whose secret is an obvious\n")
+	b.WriteString("// placeholder.\n//\n")
 	fmt.Fprintf(&b, "// Excluded, %d rules — vendors this gate does NOT cover through gitleaks:\n//\n", len(exc))
 	for _, e := range exc {
 		fmt.Fprintf(&b, "//   - %s: %s\n", e.id, e.reason)
@@ -499,8 +541,12 @@ func renderRows(sel []selected, exc []excluded) ([]byte, error) {
 	b.WriteString("var gitleaksPatterns = []Pattern{\n")
 	for _, s := range sel {
 		fmt.Fprintf(&b, "\t// %s\n", oneLine(s.rule.Description))
-		fmt.Fprintf(&b, "\t{Class: %s, Literals: %s, Fold: %t,\n\t\tRe: regexp.MustCompile(%s)},\n",
-			strconv.Quote(s.rule.ID), goStrings(s.literals), s.fold, goRaw(s.rule.Regex))
+		ph := ""
+		if p := s.placeholder; p != nil {
+			ph = fmt.Sprintf("\n\t\tPlaceholder: &Placeholder{Group: %d, Literals: %s, Fold: %t},", p.group, goStrings(p.literals), p.fold)
+		}
+		fmt.Fprintf(&b, "\t{Class: %s, Literals: %s, Fold: %t,%s\n\t\tRe: regexp.MustCompile(%s)},\n",
+			strconv.Quote(s.rule.ID), goStrings(s.literals), s.fold, ph, goRaw(s.rule.Regex))
 	}
 	b.WriteString("}\n")
 	return format.Source(b.Bytes())

@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // cachePlugin writes a plugin cache entry: a version directory with the given bin/ contents and
@@ -140,5 +142,71 @@ func TestRunConfigCarriesHookProvenance(t *testing.T) {
 	if back.Hooks.State == "" {
 		t.Error("the hook provenance round-trips with an empty state, so a reader cannot tell " +
 			"'nothing was installed' from 'this binary did not look'")
+	}
+}
+
+// A HOOKS.JSON THAT COULD NOT BE READ IS NOT "NOTHING MISSING". An empty Missing list is the
+// answer a stale install is misread as, so a version whose hooks.json is absent, does not decode,
+// or names its binaries in a form this reader does not know gives no list, and State and Why say
+// the registered set was not measured.
+func TestAnUnreadableHooksFileIsStatedNotAnEmptyList(t *testing.T) {
+	for name, hooks := range map[string]string{
+		"absent":          "",
+		"does not decode": `{"hooks":`,
+		"another form":    `{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"exec \"$CLAUDE_PLUGIN_ROOT/bin/feov-pretooluse\""}]}]}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			home := t.TempDir()
+			cachePlugin(t, home, "sc", "frank-exchange-of-views", "1.58.0", []string{"feov-record"}, nil)
+			if hooks != "" {
+				dir := filepath.Join(home, ".claude", "plugins", "cache", "sc", "frank-exchange-of-views", "1.58.0", "hooks")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "hooks.json"), []byte(hooks), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			p := hookProvenanceAt(home, "frank-exchange-of-views")
+			if p.State != "unreadable" || !strings.Contains(p.Why, "1.58.0") {
+				t.Fatalf("state = %q, why = %q; want unreadable, naming the version", p.State, p.Why)
+			}
+			if got, ok := p.Missing["1.58.0"]; ok {
+				t.Errorf("missing[1.58.0] = %v — a list where none was read reads as nothing missing", got)
+			}
+		})
+	}
+}
+
+// THE SHIPPED HOOKS.JSON IS READ AS THE SHIPPED FORM. A cached copy of this plugin's own
+// hooks.json with an empty bin/ must list every binary it registers as missing: if the file's
+// command form drifts from the one the reader knows, this fails here rather than at a run whose
+// provenance then says nothing.
+func TestTheShippedHooksFileRegistersItsBinaries(t *testing.T) {
+	path, err := repotree.Plugin("hooks", "hooks.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shipped, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	cachePlugin(t, home, "sc", "frank-exchange-of-views", "9.9.9", nil, nil)
+	dir := filepath.Join(home, ".claude", "plugins", "cache", "sc", "frank-exchange-of-views", "9.9.9", "hooks")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "hooks.json"), shipped, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p := hookProvenanceAt(home, "frank-exchange-of-views")
+	if p.State != "installed" {
+		t.Fatalf("state = %q (%s), want installed", p.State, p.Why)
+	}
+	for _, want := range []string{"feov-pretooluse", "feov-subagentstart", "feov-subagentstop"} {
+		if !slices.Contains(p.Missing["9.9.9"], want) {
+			t.Errorf("missing = %v, want %s among the binaries the shipped hooks.json registers", p.Missing["9.9.9"], want)
+		}
 	}
 }

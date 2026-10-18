@@ -56,8 +56,16 @@ type Manifest struct {
 	GapAnchors GapPlacement `json:"gap_anchors"`
 	// ReportOrder is what became of the order of the report's text (order.go): no_report, in_order,
 	// reordered, or as_written for a text out of order that reordering the base does not replay.
-	ReportOrder string         `json:"report_order"`
-	Serialized  map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
+	ReportOrder string `json:"report_order"`
+	// ProseRewrites counts, per field, the archived ids rewritten inside a seat's own wording. Such
+	// a rewrite cannot tell a reference from a subject word that spells the same — "Q1 revenue" —
+	// so the count is stated, and zero is stated too: an absent count and a migration that rewrote
+	// no prose would otherwise be the same bytes.
+	ProseRewrites map[string]int `json:"prose_rewrites"`
+	// Rewritten is each of those rewrites with the text around it, for a reader who judges them —
+	// the archive's golden list is read from it.
+	Rewritten  []ProseRewrite `json:"-"`
+	Serialized map[string]int `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`
@@ -80,23 +88,34 @@ type StatedFill struct {
 // NewManifest assembles the manifest for one replay.
 func NewManifest(sourcePath string, files []SourceFile, unclassified []string, res *Result) *Manifest {
 	return &Manifest{
-		SourcePath:   sourcePath,
-		SourceHash:   res.SourceHash,
-		SourceFiles:  files,
-		ToolVersion:  buildid.Revision(),
-		EventSchema:  record.EventSchema,
-		MigratedAt:   record.Now().Format("2006-01-02T15:04:05Z"),
-		In:           res.In,
-		Out:          res.Out,
-		Refusals:     res.Refusals,
-		StatedFills:  res.StatedFills,
-		Accepted:     res.AcceptedLosses,
-		IDs:          res.IDs,
-		Serialized:   res.Serialized,
-		GapAnchors:   res.GapAnchors,
-		ReportOrder:  res.ReportOrder,
-		Unclassified: unclassified,
+		SourcePath:    sourcePath,
+		SourceHash:    res.SourceHash,
+		SourceFiles:   files,
+		ToolVersion:   buildid.Revision(),
+		EventSchema:   record.EventSchema,
+		MigratedAt:    record.Now().Format("2006-01-02T15:04:05Z"),
+		In:            res.In,
+		Out:           res.Out,
+		Refusals:      res.Refusals,
+		StatedFills:   res.StatedFills,
+		Accepted:      res.AcceptedLosses,
+		IDs:           res.IDs,
+		Serialized:    res.Serialized,
+		GapAnchors:    res.GapAnchors,
+		ReportOrder:   res.ReportOrder,
+		ProseRewrites: proseCounts(res.ProseRewrites),
+		Rewritten:     res.ProseRewrites,
+		Unclassified:  unclassified,
 	}
+}
+
+// proseCounts is the rewrites per field, never nil.
+func proseCounts(rw []ProseRewrite) map[string]int {
+	out := map[string]int{}
+	for _, r := range rw {
+		out[r.Field]++
+	}
+	return out
 }
 
 // Write lands the manifest in the migrated run's inputs/.

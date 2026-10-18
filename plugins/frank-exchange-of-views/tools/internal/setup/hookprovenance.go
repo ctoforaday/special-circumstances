@@ -1,10 +1,12 @@
 package setup
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
+	"strings"
 )
 
 // WHICH HOOKS SERVED THIS RUN, recorded at setup because nothing else can say it (#751).
@@ -35,7 +37,8 @@ import (
 // This says what was INSTALLED; it does not claim what RAN.
 type HookProvenance struct {
 	// State is the answer in one word, and it is never empty: "installed", "absent" (no cached
-	// copy of this plugin at all), or "unreadable" (a cache that could not be inspected).
+	// copy of this plugin at all), or "unreadable" (a cache that could not be inspected, or a cached
+	// hooks.json whose registered binaries could not be read — Missing then has no entry for it).
 	//
 	// NOT omitempty, and that is the point rather than a style choice. An absent field and a
 	// field saying "nothing was installed" are different facts — one means a binary that predates
@@ -59,10 +62,20 @@ type HookProvenance struct {
 	Why string `json:"why"`
 }
 
-// hookBinRef matches the one shape hooks.json is allowed to invoke a binary by. The prosthetic
-// conscience's own gate (hookinvocation) holds every hooks.json to it, so reading it here is
-// reading an enforced contract rather than guessing at a command string.
-var hookBinRef = regexp.MustCompile(`\$\{CLAUDE_PLUGIN_ROOT\}/bin/([a-z0-9-]+)`)
+// hookBinRoot is how a hooks.json command names a binary of its plugin. The prosthetic
+// conscience's own gate (hookinvocation) holds every hooks.json command to this form, so reading it
+// out of a decoded command is reading an enforced contract rather than guessing at a string.
+const hookBinRoot = "${CLAUDE_PLUGIN_ROOT}/bin/"
+
+// hooksFile is the part of hooks.json that registers commands: per event, matcher groups, each a
+// list of hooks.
+type hooksFile struct {
+	Hooks map[string][]struct {
+		Hooks []struct {
+			Command string `json:"command"`
+		} `json:"hooks"`
+	} `json:"hooks"`
+}
 
 // hookProvenanceAt inspects the plugin install cache under the given home directory.
 //
@@ -83,6 +96,7 @@ func hookProvenanceAt(home, plugin string) HookProvenance {
 			" — the hooks this run's seats meet are whatever the harness has loaded, and this binary cannot see it"
 		return p
 	}
+	var unread []string
 	for _, dir := range matches {
 		fi, serr := os.Stat(dir)
 		if serr != nil || !fi.IsDir() {
@@ -91,7 +105,14 @@ func hookProvenanceAt(home, plugin string) HookProvenance {
 		v := filepath.Base(dir)
 		p.Versions = append(p.Versions, v)
 		p.Binaries[v] = binariesIn(filepath.Join(dir, "bin"))
-		p.Missing[v] = registeredButAbsent(dir, p.Binaries[v])
+		missing, rerr := registeredButAbsent(dir, p.Binaries[v])
+		if rerr != nil {
+			// NOT AN EMPTY LIST. "Registers nothing it lacks" is the answer a stale install is
+			// misread as; a hooks.json that could not be read has given no answer, and says so.
+			unread = append(unread, v+": "+rerr.Error())
+			continue
+		}
+		p.Missing[v] = missing
 	}
 	if len(p.Versions) == 0 {
 		p.Why = "the cache holds entries for " + plugin + " that are not directories"
@@ -99,6 +120,12 @@ func hookProvenanceAt(home, plugin string) HookProvenance {
 		return p
 	}
 	sort.Strings(p.Versions)
+	if len(unread) > 0 {
+		sort.Strings(unread)
+		p.State = "unreadable"
+		p.Why = "which hook binaries a cached version registers could not be read, so what it lacks is not measured — " + strings.Join(unread, "; ")
+		return p
+	}
 	p.State = "installed"
 	return p
 }
@@ -125,10 +152,15 @@ func binariesIn(dir string) []string {
 // it does not carry. That is the window where the harness fires an entry, the guard finds no
 // binary, and the run proceeds with no identity injection while the fetch runs — which is the
 // 2026-08-23 shape exactly.
-func registeredButAbsent(versionDir string, present []string) []string {
-	b, err := os.ReadFile(filepath.Join(versionDir, "hooks", "hooks.json"))
+func registeredButAbsent(versionDir string, present []string) ([]string, error) {
+	path := filepath.Join(versionDir, "hooks", "hooks.json")
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return []string{}
+		return nil, err
+	}
+	var hf hooksFile
+	if err := json.Unmarshal(b, &hf); err != nil {
+		return nil, fmt.Errorf("%s does not decode: %w", path, err)
 	}
 	have := map[string]bool{}
 	for _, n := range present {
@@ -137,16 +169,49 @@ func registeredButAbsent(versionDir string, present []string) []string {
 	}
 	seen := map[string]bool{}
 	out := []string{}
-	for _, m := range hookBinRef.FindAllSubmatch(b, -1) {
-		name := string(m[1])
-		if have[name] || seen[name] {
-			continue
+	commands, named := 0, 0
+	for _, groups := range hf.Hooks {
+		for _, g := range groups {
+			for _, h := range g.Hooks {
+				commands++
+				name, ok := binaryOf(h.Command)
+				if !ok {
+					continue
+				}
+				named++
+				if have[name] || seen[name] {
+					continue
+				}
+				seen[name] = true
+				out = append(out, name)
+			}
 		}
-		seen[name] = true
-		out = append(out, name)
+	}
+	// A hooks.json whose commands name no binary in the one form is not a version that registers
+	// none: every release has registered its hooks by that form, so this is a shape this reader
+	// does not know, and an empty list would read as nothing missing.
+	if commands > 0 && named == 0 {
+		return nil, fmt.Errorf("%s registers %d command(s) and none names a binary as %sNAME", path, commands, hookBinRoot)
 	}
 	sort.Strings(out)
-	return out
+	return out, nil
+}
+
+// binaryOf is the binary a hook command runs by the one form, "${CLAUDE_PLUGIN_ROOT}/bin/<name>",
+// where a name is lower-case letters, digits and hyphens; ok is false when it names none.
+func binaryOf(command string) (string, bool) {
+	i := strings.Index(command, hookBinRoot)
+	if i < 0 {
+		return "", false
+	}
+	rest := command[i+len(hookBinRoot):]
+	end := strings.IndexFunc(rest, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-')
+	})
+	if end < 0 {
+		end = len(rest)
+	}
+	return rest[:end], end > 0
 }
 
 func trimExe(n string) string {

@@ -10,15 +10,21 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 )
 
-// jsonlShardName is the FORMER format's own naming rule — events-<seat>-<8 hex nonce>.jsonl —
-// re-spelled here because this package is the quarantine: store.go refuses these files by the
-// same shape and must go on refusing them; only the migrator may read one.
-var jsonlShardName = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
+// A shard is named events-<seat>-<nonce>.jsonl, and every line in it carries the seat and the
+// nonce as fields. The fields are the sitting; the name is only how the era's files were found.
+const (
+	shardPrefix = "events-"
+	shardSuffix = ".jsonl"
+)
+
+// isShard is whether a records/ file is one of the era's shards, by the shape every one was named.
+func isShard(name string) bool {
+	return strings.HasPrefix(name, shardPrefix) && strings.HasSuffix(name, shardSuffix)
+}
 
 // jsonlLine is one act as the shard era wrote it: the envelope inline, the body as a loose
 // payload keyed by the era's own field names.
@@ -73,8 +79,7 @@ func OpenJSONL(recordsDir string) (*JSONLSource, error) {
 	var sittings []*sitting
 	s := &JSONLSource{}
 	for _, e := range entries {
-		m := jsonlShardName.FindStringSubmatch(e.Name())
-		if m == nil {
+		if e.IsDir() || !isShard(e.Name()) {
 			continue
 		}
 		lines, sum, size, err := readShard(filepath.Join(recordsDir, e.Name()))
@@ -82,7 +87,13 @@ func OpenJSONL(recordsDir string) (*JSONLSource, error) {
 			return nil, fmt.Errorf("shard %s: %w", e.Name(), err)
 		}
 		s.files = append(s.files, SourceFile{Name: e.Name(), SHA256: sum, Bytes: size})
-		sittings = append(sittings, &sitting{seat: m[1], nonce: m[2], lines: lines})
+		st, err := sittingOf(e.Name(), lines)
+		if err != nil {
+			return nil, fmt.Errorf("shard %s: %w", e.Name(), err)
+		}
+		if st != nil {
+			sittings = append(sittings, st)
+		}
 	}
 	if len(sittings) == 0 {
 		return nil, fmt.Errorf("no event shards in %s", recordsDir)
@@ -146,6 +157,30 @@ func OpenJSONL(recordsDir string) (*JSONLSource, error) {
 type sitting struct {
 	seat, nonce string
 	lines       []jsonlLine
+}
+
+// sittingOf is the sitting a shard's lines are: the seat and the nonce every line carries. A shard
+// whose lines name two sittings, or whose name says another than its lines do, is refused — its
+// events would otherwise be filed under a seat they were not written by, or dropped. An empty
+// shard holds no act and is no sitting: its file is still listed and hashed.
+func sittingOf(name string, lines []jsonlLine) (*sitting, error) {
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	st := &sitting{seat: lines[0].SeatID, nonce: lines[0].Nonce, lines: lines}
+	if st.seat == "" || st.nonce == "" {
+		return nil, fmt.Errorf("line 1 names seat %q and nonce %q — a shard line carries both", st.seat, st.nonce)
+	}
+	for i, l := range lines[1:] {
+		if l.SeatID != st.seat || l.Nonce != st.nonce {
+			return nil, fmt.Errorf("line %d is seat %q nonce %q and line 1 is seat %q nonce %q — one shard is one sitting",
+				i+2, l.SeatID, l.Nonce, st.seat, st.nonce)
+		}
+	}
+	if want := shardPrefix + st.seat + "-" + st.nonce + shardSuffix; name != want {
+		return nil, fmt.Errorf("its lines are seat %q nonce %q, which the era wrote to %s", st.seat, st.nonce, want)
+	}
+	return st, nil
 }
 
 func startOf(st *sitting) string {
