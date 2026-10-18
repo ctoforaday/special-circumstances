@@ -1,6 +1,8 @@
 package record
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -55,9 +57,8 @@ func TestTheRosterListsExactlyWhatTheNeighborCheckAccepts(t *testing.T) {
 	}
 }
 
-// A COINED ROW CARRIES WHAT A NEIGHBOUR CHOICE NEEDS. The staged registry holds only the slug and
-// the default, so the columns differ by origin, and the roster must not flatten that into blanks
-// that read as missing data.
+// A COINED ROW CARRIES WHAT A NEIGHBOUR CHOICE NEEDS, and a staged row whose registry entry states
+// only the slug and the default carries no blank standing in for the rest.
 func TestTheRosterSeparatesCoinedRowsFromStagedOnes(t *testing.T) {
 	run, lens := liveRegistryRun(t, map[string]recordpb.ClassMaterial{
 		"staged-alpha": recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS,
@@ -130,5 +131,41 @@ func TestARunWithNoStagedRegistryIsRefusedRatherThanListedEmpty(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no gap-class registry") {
 		t.Errorf("the refusal does not name what is missing: %v", err)
+	}
+}
+
+// A STAGED ROW CARRIES WHAT THE REGISTRY STATES OF IT. The shipped registry gives two of its classes
+// a definition, a neighbour and a distinguisher, and `class list` printed none of them: m28's lenses
+// spent 22 queries on definitions the staged file held. A row the registry states nothing more of
+// carries nothing more — the roster invents no text.
+func TestAStagedRowCarriesTheDefinitionTheRegistryStates(t *testing.T) {
+	dir := recordtest.TmpRun(t)
+	run := mustRun(t, dir)
+	reg := `{"classes": [
+	  {"slug": "staged-defined", "material_default": "by_grade", "definition": "what it is",
+	   "neighbor": "staged-bare", "distinguisher": "how to tell them apart"},
+	  {"slug": "staged-bare", "material_default": "always"}
+	]}`
+	if err := os.MkdirAll(run.Records(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run.Records(), "class-registry.json"), []byte(reg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ClassRoster(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ClassRow{
+		{Slug: "staged-defined", MaterialDefault: "by_grade", Definition: "what it is", Neighbor: "staged-bare", Distinguisher: "how to tell them apart"},
+		{Slug: "staged-bare", MaterialDefault: "always"},
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("roster = %+v, want %+v", rows, want)
+	}
+	for i := range want {
+		if rows[i] != want[i] {
+			t.Errorf("row %d = %+v, want %+v", i, rows[i], want[i])
+		}
 	}
 }

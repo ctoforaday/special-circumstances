@@ -24,10 +24,9 @@ type ClassRow struct {
 	// a class is picking this too. "" where the staged row carried none — which loadRegistry
 	// refuses, so it cannot reach here from the registry, only from an older coined row.
 	MaterialDefault string `json:"material_default"`
-	// Coined is true for a class this RUN minted with `class new`. The distinction is not
-	// decoration: a coined class carries its definition, neighbour and distinguisher on the record,
-	// while a shipped one carries only the slug and default setup staged — so the columns a seat
-	// can see differ, and it should know why rather than read the blanks as missing data.
+	// Coined is true for a class this RUN minted with `class new`. A coined class carries its
+	// definition, neighbour and distinguisher because the coining recorded them; a staged one carries
+	// them where the registry states them, and omits what the registry does not state.
 	Coined        bool   `json:"coined"`
 	Definition    string `json:"definition,omitempty"`
 	Neighbor      string `json:"neighbor,omitempty"`
@@ -58,7 +57,8 @@ func ClassRoster(run Run) ([]ClassRow, error) {
 		if c.MaterialDefault != nil {
 			md = *c.MaterialDefault
 		}
-		rows = append(rows, ClassRow{Slug: c.Slug, MaterialDefault: md})
+		rows = append(rows, ClassRow{Slug: c.Slug, MaterialDefault: md,
+			Definition: c.Definition, Neighbor: c.Neighbor, Distinguisher: c.Distinguisher})
 		seen[c.Slug] = true
 	}
 
