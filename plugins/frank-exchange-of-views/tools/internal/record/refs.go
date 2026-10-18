@@ -15,7 +15,7 @@ import (
 //
 // This file exists because an audit of the whole surface found TWELVE OF TWELVE
 // cross-references unvalidated. Only `close --id` and `mint --supersedes` were checked;
-// every other field naming another entity — a gap, an observation, a finding, a seat —
+// every other field naming another entity — a gap, a finding, a seat —
 // was accepted on the seat's say-so.
 //
 // That is not a hypothetical. It is the mechanism behind the 2026-07-18 run's worst

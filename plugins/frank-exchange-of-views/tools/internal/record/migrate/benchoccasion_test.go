@@ -9,7 +9,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // A BENCH ROW WRITTEN BEFORE EPOCH 19 CONVENED THE BENCH FOR ITS DOCKET, and migrated it says so.
@@ -61,8 +60,8 @@ func TestAnArchivedBenchDispatchMigratesAsADocket(t *testing.T) {
 // AN ARCHIVED RUN'S STORED PLANS ARE THE ONES IT STORED, AND ITS ROWS NO REMAND EXCHANGE. An archive
 // written before the stored plan (epoch 31) migrates with none: migrate reconstructs none — today's
 // fold over the record's prefix is not what the binary that ran it printed — so the relay audit on
-// such a run reports that it compared nothing. An archive written at this binary's epoch carries the
-// plans it stored, byte for byte. The census reads every archive and fails on a plan the source did
+// such a run reports that it compared nothing. An archive written at epoch 31 or later carries the
+// plans it stored, byte for byte, read off the source the way migrate reads it. The census reads every archive and fails on a plan the source did
 // not store, a stored plan lost or altered, or an archive set holding no dispatch row, because the
 // translation would then be tested by nothing.
 func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
@@ -86,20 +85,24 @@ func TestAnArchivedRunStoresOnlyThePlansItStored(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		// THE SOURCE'S OWN PLANS, read with this binary — which opens only a record of its epoch;
-		// an older one stores none.
+		// THE SOURCE'S OWN PLANS, read off its database by migrate's source reader: this binary
+		// opens only a record of its own epoch, and an archive older than 31 stores none.
 		var want []string
 		if res.SourceEpoch != nil && *res.SourceEpoch >= 31 {
-			src, err := record.FamilyOf(runtest.Open(t, recordtest.ExtractArchive(t, name)))
+			src, err := migrate.OpenSQLite(filepath.Join(recordtest.ExtractArchive(t, name), "records"), t.TempDir())
 			if err != nil {
 				t.Fatalf("%s: the source does not open: %v", name, err)
 			}
-			sp, err := record.StoredPlans(src.Events)
+			evs, err := src.Events()
+			src.Close()
 			if err != nil {
 				t.Fatalf("%s: %v", name, err)
 			}
-			for _, p := range sp {
-				want = append(want, p.Printed)
+			for _, old := range evs {
+				if old.Word == "plan" {
+					printed, _ := old.Fields["printed"].(string)
+					want = append(want, printed)
+				}
 			}
 		}
 		var got []string

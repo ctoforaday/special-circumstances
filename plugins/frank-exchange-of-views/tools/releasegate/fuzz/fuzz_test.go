@@ -2359,15 +2359,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(50) {
 				url = sourceURL("/" + seatID)
 			}
-			// HOW MUCH OF IT WAS READ, and all three answers. The flag was never passed at all,
-			// so every citation this sweep ever wrote took the DEFAULT — `unread` — and the two
-			// stronger readings were unreachable. That is the worst shape for this particular
-			// field: `leaf` is the only value that licenses a claim about what a source SAYS, so
-			// the sweep exercised the citation axis exclusively through the one reading that
-			// licenses nothing.
-			//
-			// Omitting the flag stays in the rotation, because the DEFAULT is a distinct path
-			// from passing `unread` explicitly and it is the one a real seat hits most.
 			cite := r.do("cite", seatID).
 				set("--quote", "§ fuzz sentence").
 				set("--url", url).
@@ -2380,9 +2371,6 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(25, "--quote", "across the whole sampled corpus").
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
 				on(50, "--reason", "fuzz: why this source backs the claim")
-			if r.coin(75) {
-				cite = cite.set("--source-text", pick(r.rng, []string{"leaf", "summary_only", "unread"}))
-			}
 			// AN OCR QUOTE ON A SOURCE WITH NO OCR READING IS REFUSED. The sweep's sources are
 			// synthetic text, so the happy path (a scan read by the engine) is internal/cli's; this
 			// drives the flag and its refusal, and proves the refusal never wedges the run.
@@ -2929,8 +2917,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
 				// adjudicating a citation blue authored, and red corroborating a source it found
-				// itself. Falling back to --independent when blue has cited nothing keeps the
-				// verb driven from round 0 rather than only after the first cite lands.
+				// itself.
 				// TWO VERBS, because they are two acts: `verify` adjudicates a citation BLUE
 				// authored and requires its anchor, `corroborate` records a source RED found
 				// and requires the url and title that are the only thing identifying it.
@@ -4481,19 +4468,9 @@ var verbsWithEvents = []string{
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
 var coverExempt = map[string]bool{
 	"halt": true, // terminal — covered by TestFuzzHaltPath
-	// NO VERB WRITES `observe`. The event type is in the schema and nothing in the command tree
-	// produces it: `lens observe` does not exist, and the only Appends of a recordpb.Observe are
-	// in record's own tests. It is exempted rather than driven, because a drive would have to
-	// invent a verb — and named here rather than dropped from the list, so the type's homelessness
-	// is a line somebody has to read instead of a silence.
-	//
-	// The `Observation` a board carries is built from FINDING events, not from this type.
-	"observe": true,
-	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS, which is a different kind of
-	// homelessness from `observe`'s and is exempted for a different reason. `observe` has no
-	// writer at all; these two have a real one the FUZZ cannot invoke — the harness execs the
-	// binary with no client to fire SubagentStart or SubagentStop, so no seed could ever produce
-	// them however long it ran.
+	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS. These two have a real writer the FUZZ
+	// cannot invoke — the harness execs the binary with no client to fire SubagentStart or
+	// SubagentStop, so no seed could ever produce them however long it ran.
 	//
 	// They are driven, just not here: internal/hookcmd/sitting_test.go asserts both ends land,
 	// that a main-agent turn end does not, and that neither hook writes to stdout. Named rather

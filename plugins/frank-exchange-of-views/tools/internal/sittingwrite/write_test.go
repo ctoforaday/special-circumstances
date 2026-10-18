@@ -184,79 +184,37 @@ func TestCloseWithoutATranscriptIsFine(t *testing.T) {
 	}
 }
 
-// THE RECORD KNOWS WHERE THE SEAT SPOKE.
-//
-// The hook is handed session_id, prompt_id and — at the closing end — the seat's OWN transcript
-// path, and recorded none of them. "Which conversation was this sitting in" was answerable only by
-// globbing the filesystem across two possible layouts, and the bench's integrity inspection got the
-// path as prose interpolated into its prompt from an argument the operator had to supply.
-//
-// ABSENT IS A REAL ANSWER AND IS STORED AS ABSENT. A payload that carried no session id must not be
-// recorded as `""`, because a reader cannot tell an empty conversation id from one nobody sent.
-func TestTheSpanRecordsTheConversationItHappenedIn(t *testing.T) {
+// THE CLOSING END RECORDS THE SEAT'S OWN TRANSCRIPT. The hook is handed the path at SubagentStop,
+// and it is stored as handed rather than reconstructed from the filesystem across two layouts.
+func TestTheClosingEndRecordsTheSeatsOwnTranscript(t *testing.T) {
 	run := newRun(t)
-	const (
-		sess  = "ab802afa-997d-4493-bbd9-5c31685767eb"
-		promp = "e353381b-5bfa-4640-a381-b2b76bdac383"
-		tpath = "/p/-slug/ab802afa/subagents/workflows/wf_6bf981c5-896/agent-a5280059b8b60e1f7.jsonl"
-	)
+	const tpath = "/p/-slug/ab802afa/subagents/workflows/wf_6bf981c5-896/agent-a5280059b8b60e1f7.jsonl"
 	if err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "a5280059b8b60e1f7",
-		AgentType: "frank-exchange-of-views:red-lens-voice", SessionID: sess, PromptID: promp}, nil); err != nil {
+		AgentType: "frank-exchange-of-views:red-lens-voice"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := Write(Sitting{RunDir: run, Phase: Close, AgentID: "a5280059b8b60e1f7",
-		AgentType: "frank-exchange-of-views:red-lens-voice", TranscriptPath: tpath,
-		SessionID: sess, PromptID: promp}, nil); err != nil {
+		AgentType: "frank-exchange-of-views:red-lens-voice", TranscriptPath: tpath}, nil); err != nil {
 		t.Fatal(err)
 	}
 	m, err := record.MergedEvents(mustRun(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var sawOpen, sawClose bool
+	var sawClose bool
 	for _, e := range m.Events {
-		if o := e.GetSittingOpen(); o != nil {
-			sawOpen = true
-			if o.GetSessionId() != sess || o.GetPromptId() != promp {
-				t.Errorf("the opening end lost the conversation: session=%q prompt=%q", o.GetSessionId(), o.GetPromptId())
-			}
-		}
 		if cl := e.GetSittingClose(); cl != nil {
 			sawClose = true
 			// THE EXACT PATH, not a derivation: the two layouts (`subagents/` and
-			// `subagents/workflows/wf_*/`) cannot be told apart from session and agent alone, and a
+			// `subagents/workflows/wf_*/`) cannot be told apart from the agent alone, and a
 			// reconstruction that guesses wrong returns no trajectory — which reads as a seat that
 			// never ran.
 			if cl.GetAgentTranscriptPath() != tpath {
 				t.Errorf("the closing end lost the seat's own transcript: %q", cl.GetAgentTranscriptPath())
 			}
-			if cl.GetSessionId() != sess || cl.GetPromptId() != promp {
-				t.Errorf("the closing end lost the conversation: session=%q prompt=%q", cl.GetSessionId(), cl.GetPromptId())
-			}
 		}
 	}
-	if !sawOpen || !sawClose {
-		t.Fatalf("want both ends on the record, got open=%v close=%v", sawOpen, sawClose)
-	}
-}
-
-// A PAYLOAD THAT CARRIED NOTHING RECORDS NOTHING, so a reader can tell "the harness did not say"
-// from "the conversation has no id". Empty strings written as values would collapse the two.
-func TestAnAbsentConversationIsAbsentAndNotEmpty(t *testing.T) {
-	run := newRun(t)
-	if err := Write(Sitting{RunDir: run, Phase: Open, AgentID: "a1",
-		AgentType: "frank-exchange-of-views:red-lens-voice"}, nil); err != nil {
-		t.Fatal(err)
-	}
-	m, err := record.MergedEvents(mustRun(t, run))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range m.Events {
-		if o := e.GetSittingOpen(); o != nil {
-			if o.SessionId != nil || o.PromptId != nil {
-				t.Errorf("an unsent conversation was recorded as a value: session=%v prompt=%v", o.SessionId, o.PromptId)
-			}
-		}
+	if !sawClose {
+		t.Fatal("no closing end on the record")
 	}
 }

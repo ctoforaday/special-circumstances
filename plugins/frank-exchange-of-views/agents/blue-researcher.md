@@ -140,8 +140,8 @@ already failed your own standard.
   the new check and is readied for it — the evidence lens for a citation; for a proof the
   computation lens, or the evidence lens where the cast seats none. A check by any lens from a
   sitting opened after the edit clears it, and a PASS waits until one does.
-- Citing OCR-derived text that you read at the leaf names the exact span you are quoting from the
-  reading, so the tool can record its page.
+- Citing OCR-derived text names the exact span you are quoting from the reading, so the tool can
+  record its page.
 - During synthesis, YOU MUST merge by inclusion: deduplicate overlapping claims, reorganize
   freely, and YOU MUST NOT drop substantive content — a claim, its evidence, or its qualification.
   Material that answers no question the reader asked may leave the report for the record: retire it
@@ -352,9 +352,9 @@ The tool fetches and caches the source and splices an invisible anchor at the se
 
 To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
 
-OCR-DERIVED TEXT CAN MISREAD. A leaf citation of it names the span you quote from the source's reading, verbatim, and the tool records the PDF page that span sits on — never type a page. The span must sit whole on one page of the reading; the refusal says which fix applies when it does not.
+OCR-DERIVED TEXT CAN MISREAD. A citation of it names the span you quote from the source's reading, verbatim, and the tool records the PDF page that span sits on — never type a page. The span must sit whole on one page of the reading; the refusal says which fix applies when it does not.
 
-THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography entry; the tool adds the PDF page to the note of a quote from OCR text. Give the source's own name — author, work, section — for a reader of the SUBJECT, not an account of how you found or read it: no "this sitting" or "this run", no "re-read at the leaf". How much of the source you read is recorded as its own field, not in the title's words. Where that reading matters to a claim, say it in the report's prose, in the subject's terms: "the source, read in full, states…", "the abstract claims, and the body does not show, …". The tool flags a title that sounds like the run talking about itself; it refuses nothing, because a real source's own title can.
+THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography entry; the tool adds the PDF page to the note of a quote from OCR text. Give the source's own name — author, work, section — for a reader of the SUBJECT, not an account of how you found or read it: no "this sitting" or "this run", no "re-read at the leaf". How much of the source you read is not the title's to say. Where that reading matters to a claim, say it in the report's prose, in the subject's terms: "the source, read in full, states…", "the abstract claims, and the body does not show, …". The tool flags a title that sounds like the run talking about itself; it refuses nothing, because a real source's own title can.
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -363,19 +363,12 @@ THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography en
 IF WHAT YOU RECORDED WAS WRONG, say so in a new citation.
 
 Flags:
-      --key string           your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. Only cite, edit and prove take a handle: no other verb on this surface has this flag
-      --ocr-quote string     for OCR-derived text: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on; required with --source-text leaf
-      --quote string         REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
-      --reason string        why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
-      --source-text unread   how much of the source you actually READ; omitted records unread. A leaf reading is refused on a copy fetch recorded as the work's abstract, or as not the work
-      --title string         REQUIRED — the source's name, as it appears in the composed bibliography
-      --url string           REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it
-
-Enumerated values:
-  --source-text
-    unread        the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says
-    summary_only  read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source
-    leaf          the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS
+      --key string         your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. Only cite, edit and prove take a handle: no other verb on this surface has this flag
+      --ocr-quote string   for OCR-derived text, and required there: the span you quote, verbatim from the source's reading (not the report). The tool records the PDF page it sits on
+      --quote string       REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
+      --reason string      why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
+      --title string       REQUIRED — the source's name, as it appears in the composed bibliography
+      --url string         REQUIRED — the source's http/https URL — fetched once and cached, so both sides read the same bytes. Single-quote it: ( ) & ? and ; are shell syntax unquoted, and the shell refuses or splits the command before this tool sees it
 ========
 $ feov-record closing --help
 your closing argument on one docketed gap, when the bench is about to rule on it

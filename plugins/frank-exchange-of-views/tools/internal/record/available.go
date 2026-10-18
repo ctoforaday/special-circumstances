@@ -471,10 +471,8 @@ func citedClaimsWithoutVerify(evs []*Event) []string {
 			}
 		}
 		if v, isVerify := body.(*recordpb.Verify); isVerify {
-			// An INDEPENDENT verify carries no anchor and discharges nothing, and that stays a
-			// property of the ANCHOR being absent rather than of the `independent` flag being
-			// set — the two are separate fields and the empty-anchor test is the one this
-			// function has always made.
+			// A CORROBORATION carries no anchor and discharges nothing: the empty anchor is what
+			// makes a verification one.
 			if k := v.GetAnchor(); k != "" {
 				verified[k] = true
 			}

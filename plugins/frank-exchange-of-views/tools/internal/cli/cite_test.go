@@ -239,10 +239,11 @@ func TestBlueCiteCarriesTheRetractionOntoTheRecord(t *testing.T) {
 	}
 }
 
-// A LEAF READING OF AN ABSTRACT IS REFUSED, driven through the real cite command on a real
-// paywalled page. The fetch has already looked for a copy carrying the body and found none, so
-// the copy the run holds is the abstract, and `leaf` would claim the study was read.
-func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
+// A CITATION OF AN ABSTRACT SAYS IT IS ONE, driven through the real cite command on a real
+// paywalled page. The fetch has already looked for a copy carrying the body and found none, so the
+// copy the run holds is the abstract — and the record, red's evidence view and the reader's note
+// all say so, with nothing the seat had to assert.
+func TestBlueCiteOfAnAbstractIsMarkedAsOne(t *testing.T) {
 	gz, err := os.ReadFile("../fetchcache/testdata/bodies/nature-paywalled.html.gz")
 	if err != nil {
 		t.Fatal(err)
@@ -260,22 +261,10 @@ func TestBlueCiteRefusesALeafReadingOfAnAbstract(t *testing.T) {
 	writeReport(t, runDir, "# Findings\n\nThe crystals expose reactive facets.\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{contentType: "text/html", resp: map[string][]byte{src: page}})
-	cite := func(reading string) error {
-		_, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
-			"--quote", "The crystals expose reactive facets.",
-			"--url", src, "--title", "Anatase TiO2 single crystals", "--source-text", reading)
-		return err
-	}
-	err = cite("leaf")
-	if err == nil || !strings.Contains(err.Error(), "abstract") || !strings.Contains(err.Error(), "summary_only") {
-		t.Fatalf("a leaf reading of an abstract was not refused with the reading it can carry: %v", err)
-	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 0 {
-		t.Fatalf("the refusal left %d cite events on the record", n)
-	}
-	// The abstract is still citable as what it is — and the record says what it is.
-	if err := cite("summary_only"); err != nil {
-		t.Fatalf("an abstract cited as summary_only was refused: %v", err)
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", citeSeat,
+		"--quote", "The crystals expose reactive facets.",
+		"--url", src, "--title", "Anatase TiO2 single crystals"); err != nil {
+		t.Fatalf("a citation of an abstract was refused: %v", err)
 	}
 	if c := firstCiteEvent(t, runDir); c == nil || c.GetSourceCompleteness() != recordpb.SourceCompleteness_SOURCE_COMPLETENESS_ABSTRACT {
 		t.Errorf("the citation of an abstract does not record it as one: %v", c.GetSourceCompleteness())

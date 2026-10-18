@@ -229,10 +229,9 @@ func pageList(pages []int32) string {
 func newCorroborate() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("corroborate", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		return writeVerify(s, cmd, &recordpb.Verify{
-			Independent: proto.Bool(true),
-			Url:         proto.String(seat.Str(cmd, flags.URL)),
-			Title:       proto.String(seat.Str(cmd, flags.Title)),
-			Claim:       proto.String(seat.Location(cmd)),
+			Url:   proto.String(seat.Str(cmd, flags.URL)),
+			Title: proto.String(seat.Str(cmd, flags.Title)),
+			Claim: proto.String(seat.Location(cmd)),
 		}, cites)
 	}), "verify"))
 

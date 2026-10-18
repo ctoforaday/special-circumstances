@@ -242,8 +242,8 @@ type Entry struct {
 	Backend string `json:"backend,omitempty"`
 
 	// TextRetrieved says whether the bytes are the SOURCE'S TEXT or only a record that it exists.
-	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
-	// unread`. It is not a reading, and nothing may cite it as one.
+	// A metadata answer is a real finding — that the source exists. It is not a reading, and nothing
+	// may cite it as one.
 	TextRetrieved bool `json:"text_retrieved,omitempty"`
 	// FollowedTo names the url this fetch ENDED at, when the page first asked for pointed at its
 	// own full text and that pointer was followed. It is deliberately not RetrievedVia: that one

@@ -19,6 +19,21 @@ func Entries() Registry {
 		"opinion":       {Translate: opinionEntry},
 		"cite":          {Translate: citeEntry},
 		"register":      {Translate: registerEntry},
+		// A SITTING'S ENDS AND ITS LIMIT KEEP WHAT THE RECORD READS. A source before epoch 32 copied
+		// the hook payload onto them; the copies are not carried.
+		"sitting_open": mapped("sitting_open", nil, drops{
+			"session_id": "the conversation id was a copy of the hook payload that no reader joins on",
+			"prompt_id":  "the dispatch id was a copy of the hook payload that no reader joins on",
+		}, nil),
+		"sitting_close": mapped("sitting_close", nil, drops{
+			"agent_type": "the configuration is the opening end's; the closing end's copy of the payload is not read",
+			"session_id": "the conversation id was a copy of the hook payload that no reader joins on",
+			"prompt_id":  "the dispatch id was a copy of the hook payload that no reader joins on",
+		}, nil),
+		"sitting_limit": mapped("sitting_limit", nil, drops{
+			"agent_id":   "the agent is the input the seat was resolved from; the limit names the seat",
+			"agent_type": "the configuration is the opening end's; the limit names the seat",
+		}, nil),
 		// The inquiry and its review, under the word an archive recorded them with: the columns
 		// are the current ones but the proposal's text, which the record calls its question.
 		"avenue":        inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
@@ -56,9 +71,11 @@ func Entries() Registry {
 // keeping the row would restate as data what the record already computes — and the word it carries
 // is no longer in the vocabulary, which is why the identity default refuses it.
 //
-// Every other type passes through by name. A log event is text, type, source and estopped_by; the
-// translation is explicit about all four rather than inheriting the identity path, because a word
-// this entry exists to DROP must not be able to reach that path by another column.
+// Every other type passes through by name. A log event is text, type and source; the translation
+// is explicit about each column rather than inheriting the identity path, because a word this entry
+// exists to DROP must not be able to reach that path by another column. A source before epoch 32
+// may carry `estopped_by`, which is not carried: the estoppel count reads the type, and the entry's
+// text names the gap.
 func logEntry(old OldEvent) ([]proto.Message, error) {
 	l := &recordpb.Log{}
 	for col, v := range old.Fields {
@@ -70,7 +87,6 @@ func logEntry(old OldEvent) ([]proto.Message, error) {
 		case "text", "reason":
 			l.Text = proto.String(s)
 		case "estopped_by":
-			l.EstoppedBy = proto.String(s)
 		case "source":
 			num, err := enumNumberOf(recordpb.LogSource(0).Descriptor(), s)
 			if err != nil {
@@ -96,9 +112,9 @@ func logEntry(old OldEvent) ([]proto.Message, error) {
 	return []proto.Message{l}, nil
 }
 
-// frictionEntry: the friction channel became the typed log (#755). Old columns
-// text/kind/estopped_by carry over by name; `kind` was the old FrictionKind word and the
-// LogType vocabulary kept those words. What the rename ADDED is `source` — the old channel
+// frictionEntry: the friction channel became the typed log (#755). Old columns text/kind carry
+// over by name, and estopped_by is not carried, as on a log; `kind` was the old FrictionKind word
+// and the LogType vocabulary kept those words. What the rename ADDED is `source` — the old channel
 // was seat-filed except for the tool's own estoppel refusals, which is exactly the
 // (TOOL, ESTOPPEL) pairing the new model spells out.
 func frictionEntry(old OldEvent) ([]proto.Message, error) {
@@ -112,7 +128,6 @@ func frictionEntry(old OldEvent) ([]proto.Message, error) {
 		case "text", "reason": // `reason` is the shard era's spelling of the same prose
 			l.Text = proto.String(s)
 		case "estopped_by":
-			l.EstoppedBy = proto.String(s)
 		case "kind":
 			num, err := enumNumberOf(recordpb.LogType(0).Descriptor(), s)
 			if err != nil {
@@ -136,11 +151,21 @@ func frictionEntry(old OldEvent) ([]proto.Message, error) {
 	return []proto.Message{l}, nil
 }
 
-// citeEntry: a cite is kept word for word, and the one thing an old cite cannot say is where its
-// text came from — no run before epoch 7 recorded it. A guessed `embedded` would tell red an OCR
+// citeEntry: a cite is kept word for word but `source_text_read`, a source before epoch 32's
+// assertion of how much of the source the seat read, which nothing reads. And the one thing an old
+// cite cannot say is where its text came from — no run before epoch 7 recorded it. A guessed `embedded` would tell red an OCR
 // quote needs no page check; NOT_RECORDED says the question was never asked. Filled only where
 // absent, so a cite that carries an origin keeps it.
 func citeEntry(old OldEvent) ([]proto.Message, error) {
+	if _, ok := old.Fields["source_text_read"]; ok {
+		fields := map[string]any{}
+		for k, v := range old.Fields {
+			if k != "source_text_read" {
+				fields[k] = v
+			}
+		}
+		old.Fields = fields
+	}
 	body, err := identityBody(old)
 	if err != nil {
 		return nil, err

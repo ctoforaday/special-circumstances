@@ -26,7 +26,7 @@ func blueRegisters(t *testing.T) *record.Event {
 
 // blueReturns is blue's agent's stop, which closes the sitting its register opened.
 func blueReturns(t *testing.T) *record.Event {
-	return recordtest.Event(t, record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent"), AgentType: proto.String("frank-exchange-of-views:blue-researcher")})
+	return recordtest.Event(t, record.HarnessSeat, &recordpb.SittingClose{AgentId: proto.String("blue-agent")})
 }
 
 func blueRepairs(t *testing.T, gap string) *record.Event {
