@@ -123,20 +123,31 @@ Current implementations lag behind this standard:
 
 ---
 
-## 4. Interim Workaround: The Validated Symlink Bridge
+## 4. Verified Production Resolution (`agy 1.4.0` & `claude 2.1.300` — 2026-10-18)
 
-Until upstream runtimes implement Agent Plugins 1.0.0 Section 8, the following layout provides 100% compliance, zero warnings, and concurrent compatibility:
+An audit against `agy 1.4.0` and `claude 2.1.300` (see [`plans/dual-target-claude-antigravity.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/dual-target-claude-antigravity.md) and [`plans/antigravity-hooks-empirical-proof.md`](file:///home/gblock_ctoforaday_com/projects/special-circumstances/plans/antigravity-hooks-empirical-proof.md) §6) established that **no symlink is needed**:
 
-```
+1. **`.antigravity-plugin/plugin.json` Added in `agy 1.3.2+`:** `agy 1.4.0` (`findManifestPath` at `0x8f8fc20`) natively discovers `.antigravity-plugin/plugin.json` alongside `.claude-plugin/plugin.json` without root `plugin.json` clutter.
+2. **Disjoint Hook Manifest Paths:**
+   - Claude Code (`2.1.300`) loads `hooks/hooks.json` in the `hooks/` subdirectory and ignores `<plugin_root>/hooks.json`.
+   - Antigravity (`1.4.0`, `scanHooks` at `0x8f92180`) loads `<plugin_root>/hooks.json` at the plugin root (using the named-hook group schema) and ignores `hooks/hooks.json`.
+3. **Future Agent Plugins `1.1.0+` §8.2 Migration Tracked in [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456):**
+   - `agy 1.4.0` includes `findExtensionDirectory` (`0x8f94240`, gated behind `enable-agent-plugins-spec`), which recognizes `<plugin_root>/com.google/` and `<plugin_root>/com.google.antigravity/`, but `scanHooks` still reads `<plugin_root>/hooks.json`.
+   - Once both `agy` and `claude` load hooks from `<namespace>/hooks/hooks.json`, [#1456](https://github.com/ctoforaday/special-circumstances/issues/1456) tracks migrating to a single root `plugin.json` and reverse-domain extension directories (`com.google.antigravity/hooks/hooks.json` and `com.anthropic.claude-code/hooks/hooks.json`).
+
+```text
 plugins/prosthetic-conscience/
 ├── .claude-plugin/
-│   └── plugin.json                 # Declares "hooks": "./hooks-claude.json"
-├── plugin.json                     # Antigravity & Agent Plugins 1.0.0 root manifest
-├── hooks-claude.json               # Claude-formatted lifecycle hooks
-├── hooks-jetski.json               # Antigravity-formatted lifecycle hooks
-└── hooks.json -> hooks-jetski.json # Relative symlink satisfying agy inspect.go
+│   └── plugin.json                 # Claude Code manifest (loads hooks/hooks.json by default)
+├── .antigravity-plugin/
+│   └── plugin.json                 # Antigravity 1.3.2+ manifest (locked to .claude-plugin/plugin.json)
+├── hooks/
+│   ├── hooks.json                  # Claude Code lifecycle hooks (untouched)
+│   └── fetch-bin.sh                # Dual-harness self-healing binary bootstrap
+└── hooks.json                      # Antigravity named-hook group manifest at plugin root
 ```
 
 ### Verification Matrix
-- `claude plugin validate --strict .` $\rightarrow$ **PASS (Exit 0)**
-- `agy plugin validate .` $\rightarrow$ **PASS (Exit 0)**
+- `claude plugin validate .` $\rightarrow$ **PASS (Exit 0)**
+- `agy plugin validate --strict .` $\rightarrow$ **PASS (Exit 0)**
+
