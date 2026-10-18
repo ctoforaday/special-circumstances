@@ -212,13 +212,17 @@ func TestFindingsComeBackInTheNotesOwnOrder(t *testing.T) {
 // A surface that is not path-shaped is not treated as a path — the same rule the
 // restore hook applies. `scripts` is a word; `scripts/` is a place.
 func TestABareWordSurfaceIsNotTreatedAsAPath(t *testing.T) {
-	if underSurface("/repo/plugins/scripts/x.go", "scripts") {
+	on := func(written, surface string) bool {
+		p, ok := pathSurface(surface)
+		return ok && underSurface(written, p)
+	}
+	if on("/repo/plugins/scripts/x.go", "scripts") {
 		t.Error("a bare word was matched as a directory")
 	}
-	if !underSurface("/repo/scripts/x.mjs", "scripts/") {
+	if !on("/repo/scripts/x.mjs", "scripts/") {
 		t.Error("a trailing-slash surface did not match a path under it")
 	}
-	if !underSurface("/repo/.claude/settings.local.json", ".claude/settings.local.json") {
+	if !on("/repo/.claude/settings.local.json", ".claude/settings.local.json") {
 		t.Error("a dot-prefixed file surface did not match itself")
 	}
 }
@@ -309,8 +313,109 @@ func TestACitedClaimNamesTheOutcomeItCouldNotCheck(t *testing.T) {
 // marker on every row is noise, and noise is how a real one gets skipped.
 func TestAClaimWithNoAssertedOutcomeGetsNoBoundaryNote(t *testing.T) {
 	res := trace(t, `{"type":"assistant","uuid":"u1","timestamp":"2026-08-18T01:00:00Z","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go run ./check"}}]}}`)
-	f := Adjudicate([]Claim{{File: "/w/n.md", Line: 3, Cmd: "go run ./check"}}, res)
+	f := Adjudicate([]Claim{{File: "/w/n.md", Line: 3, Cmd: "go run ./check", Surface: "x/", At: "2026-08-18T00:00Z"}}, res)
 	if len(f[0].Unmeasured) != 0 {
 		t.Errorf("invented a boundary note for a claim that asserted no outcome: %v", f[0].Unmeasured)
+	}
+}
+
+// STALENESS WITHOUT A RUN STAMP. None of the 63 real "last run:" lines on the
+// development box carried a stamp, so STALE never fired and CITED read as
+// current. The note's written_at bounds every run from above: a write after it
+// is after the run.
+func TestWrittenAtBoundsTheRunWhenTheEntryStatesNoTime(t *testing.T) {
+	note := "---\nwritten_at: 2026-07-30T04:00:00Z   # read from a clock\n---\n## Validation loop\n1. `go test ./a` · re-armed by: a/\n   last run: pass\n"
+	stale := one(t, note, trace(t,
+		bash("ran", "2026-07-30T03:50:00Z", "go test ./a"),
+		write("edit", "2026-07-30T04:10:00Z", "/r/a/x.go"),
+	))
+	if stale.Verdict != Stale || stale.UUID != "edit" || stale.AsOfFrom != "written_at" {
+		t.Fatalf("finding = %+v", stale)
+	}
+	if !strings.Contains(stale.Note, "written_at") {
+		t.Errorf("the STALE note does not say the bound was the note's: %q", stale.Note)
+	}
+	// A write before the note was written is not provably after the run.
+	cited := one(t, note, trace(t,
+		bash("ran", "2026-07-30T03:50:00Z", "go test ./a"),
+		write("edit", "2026-07-30T03:55:00Z", "/r/a/x.go"),
+	))
+	if cited.Verdict != Cited || cited.AsOf != "2026-07-30T04:00:00Z" {
+		t.Errorf("finding = %+v", cited)
+	}
+	for _, u := range cited.Unmeasured {
+		if strings.Contains(u, "staleness") {
+			t.Errorf("staleness was measured and still reported unmeasured: %q", u)
+		}
+	}
+}
+
+// With neither a run stamp nor written_at, the row says so — never a silent CITED.
+func TestStalenessWithNoTimeIsNamedNotSkipped(t *testing.T) {
+	cases := map[string]string{
+		"## Validation loop\n1. `go test ./a` · re-armed by: a/\n   last run: pass\n":                             "no written_at",
+		"---\nwritten_at: soon\n---\n## Validation loop\n1. `go test ./a` · re-armed by: a/\n   last run: pass\n": "not an RFC 3339 time",
+		"## Validation loop\n1. `go test ./a`\n   last run: pass 2026-07-30T04:00Z\n":                             "names no trigger surface",
+		"## Validation loop\n1. `go test ./a` · re-armed by: any edit\n   last run: pass 2026-07-30T04:00Z\n":     "names no path",
+	}
+	for note, want := range cases {
+		f := one(t, note, trace(t,
+			bash("ran", "2026-07-30T03:50:00Z", "go test ./a"),
+			write("edit", "2026-07-30T05:00:00Z", "/r/a/x.go"),
+		))
+		if f.Verdict != Cited || f.AsOf != "" {
+			t.Errorf("%q: finding = %+v", want, f)
+		}
+		found := false
+		for _, u := range f.Unmeasured {
+			if strings.HasPrefix(u, "staleness") && strings.Contains(u, want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%q: Unmeasured = %q", want, f.Unmeasured)
+		}
+	}
+}
+
+// Times are compared as times. Lexically "04:41:30Z" sorts BEFORE "04:41Z", so a
+// write thirty seconds after a minute-precision run read as before it.
+func TestAMinutePrecisionRunTimeIsComparedAsATime(t *testing.T) {
+	note := "## Validation loop\n1. `go test ./a` · re-armed by: a/\n   last run: pass 2026-07-30T04:41Z\n"
+	f := one(t, note, trace(t,
+		bash("ran", "2026-07-30T04:40:00Z", "go test ./a"),
+		write("edit", "2026-07-30T04:41:30Z", "/r/a/x.go"),
+	))
+	if f.Verdict != Stale {
+		t.Errorf("verdict = %s, want STALE", f.Verdict)
+	}
+}
+
+// Heredoc spellings the old opener pattern missed: each kept its body in the
+// matched text, and a body that only MENTIONS the command was a false CITED.
+func TestNoHeredocSpellingLeaksItsBodyIntoAMatch(t *testing.T) {
+	note := "## Validation loop\n1. `go test -C plugins/x ./...` · re-armed by: nowhere/\n"
+	for _, cmd := range []string{
+		"cat <<\\EOF\ngo test -C plugins/x ./...\nEOF",
+		"cat <<'END-X' > f\ngo test -C plugins/x ./...\nEND-X",
+		"cat <<-EOF\n\tgo test -C plugins/x ./...\n\tEOF",
+		"cat <<A <<B\nfirst\nA\ngo test -C plugins/x ./...\nB",
+	} {
+		if f := one(t, note, trace(t, bash("h", "2026-07-30T04:00Z", cmd))); f.Verdict != NoEvidence {
+			t.Errorf("%q: verdict = %s, want NO-EVIDENCE (%s)", cmd, f.Verdict, f.Command)
+		}
+	}
+}
+
+// A command that does not parse as shell is not searched, and the miss says how
+// many were left out.
+func TestAnUnparseableCommandIsCountedNotSearched(t *testing.T) {
+	note := "## Validation loop\n1. `go test ./a` · re-armed by: a/\n"
+	f := one(t, note, trace(t, bash("bad", "2026-07-30T04:00Z", "go test ./a && (")))
+	if f.Verdict != NoEvidence {
+		t.Fatalf("verdict = %s", f.Verdict)
+	}
+	if len(f.Unmeasured) != 1 || !strings.Contains(f.Unmeasured[0], "1 Bash command(s)") {
+		t.Errorf("Unmeasured = %q", f.Unmeasured)
 	}
 }

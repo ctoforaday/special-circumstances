@@ -262,3 +262,22 @@ func TestSealReportsAnUnreadableTranscript(t *testing.T) {
 		t.Errorf("an unreadable transcript must be reported, got stderr=%q", stderr)
 	}
 }
+
+// A heading that nearly names the loop is not "no loop": the note has one that
+// nothing reads, and the line says which heading and what it must be.
+func TestDriftNamesANearMissLoopHeading(t *testing.T) {
+	_, within := tree(t, "tools")
+	got := drift("sc-precompact", "---\nschema: 3\n---\n## validation-loop\n1. `go test ./...` · re-armed by: tools/\n", []string{"tools/x.go"}, within)
+	if !strings.Contains(got, `"## validation-loop"`) || !strings.Contains(got, "Validation loop") || strings.Contains(got, "NO validation loop") {
+		t.Errorf("drift = %q", got)
+	}
+}
+
+// The compaction instruction asks for a suffixed section as it asks for an exact
+// one: "## Validation loop (all last run at …)" is the loop.
+func TestSteerNamesASuffixedSection(t *testing.T) {
+	_, named := steer("---\nschema: 3\n---\n## Validation loop (all last run at ed3bc3ae)\n1. `go test ./...`\n", "")
+	if len(named) != 1 || named[0] != "Validation loop" {
+		t.Errorf("named = %q", named)
+	}
+}

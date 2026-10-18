@@ -168,3 +168,16 @@ func TestANoteTheRearmCannotReadIsRecordedAndClears(t *testing.T) {
 		t.Errorf("a readable note left the entry: %+v", rearmRecord(t))
 	}
 }
+
+// A heading that nearly names the loop: the note has a loop and nothing reads it,
+// so no change re-arms anything. Recorded, not read as a note with no loop.
+func TestANearMissLoopHeadingIsRecorded(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	dir := project(t)
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
+		"---\nschema: 3\n---\n## Validation Loops\n1. `a` · re-armed by: tools/\n")
+	fireOut(t, dir, filepath.Join(dir, "tools", "internal", "x.go"))
+	if !recorded(rearmRecord(t), StageLoopOpensNoChecks, dir) {
+		t.Fatalf("a near-miss loop heading was not recorded: %+v", rearmRecord(t))
+	}
+}

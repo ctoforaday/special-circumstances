@@ -218,13 +218,20 @@ func headings(note string) []string { return checkpoint.Headings(note) }
 // hook's stdout becomes the custom instructions and would otherwise silently
 // replace what the human typed.
 func steer(note, userInstructions string) (string, []string) {
-	present := map[string]bool{}
-	for _, h := range headings(note) {
-		present[h] = true
+	// A heading names a section by the rule every section lookup uses
+	// (checkpoint.MatchHeading), so "## Validation loop (all last run at …)" is
+	// the loop here as it is in the restore.
+	present := func(name string) bool {
+		for _, h := range headings(note) {
+			if checkpoint.MatchHeading(h, name) == checkpoint.Named {
+				return true
+			}
+		}
+		return false
 	}
 	var want, named []string
 	for _, sp := range sectionPhrase {
-		if present[sp.heading] {
+		if present(sp.heading) {
 			want = append(want, sp.phrase)
 			named = append(named, sp.heading)
 		}
@@ -355,6 +362,10 @@ func drift(bin, note string, written []string, within checkpoint.WithinRoot) str
 	body, _ := n.NonEmptySection("Validation loop")
 	checks := checkpoint.ParseValidationLoop(body)
 	if len(checks) == 0 {
+		if p := checkpoint.LoopHeadingProblem(n); p != "" {
+			return fmt.Sprintf("%s: the note's validation loop is unread, and this session wrote %d file(s) (%s): %s.",
+				bin, len(written), name(written), p)
+		}
 		return fmt.Sprintf("%s: the note records NO validation loop, and this session wrote %d file(s) (%s). "+
 			"validation-loop says to write the loop BEFORE implementing; a loop written afterwards is the one a compaction loses.",
 			bin, len(written), name(written))

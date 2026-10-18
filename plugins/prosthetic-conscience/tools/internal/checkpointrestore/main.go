@@ -142,6 +142,17 @@ var lowValueSections = map[string]bool{
 	"Open threads":  true,
 }
 
+// lowValue reports whether a heading names one of lowValueSections, by the same
+// rule every section lookup uses (checkpoint.MatchHeading).
+func lowValue(heading string) bool {
+	for name := range lowValueSections {
+		if checkpoint.MatchHeading(heading, name) == checkpoint.Named {
+			return true
+		}
+	}
+	return false
+}
+
 // selectSections picks what the digest carries.
 //
 // The exact headings first, in their priority order. If NOT ONE of them matched,
@@ -161,7 +172,7 @@ func selectSections(n checkpoint.Note) []string {
 		return parts
 	}
 	for _, s := range n.Sections {
-		if lowValueSections[s.Heading] {
+		if lowValue(s.Heading) {
 			continue
 		}
 		if body, ok := n.NonEmptySection(s.Heading); ok {
@@ -501,6 +512,11 @@ func rearmLines(s checkpoint.RearmState) string {
 func watchTargets(n checkpoint.Note, projectDir string) (paths []string, unresolved []string) {
 	loop, ok := n.NonEmptySection("Validation loop")
 	if !ok {
+		// A heading that nearly names the loop is the same gap, louder: the note
+		// HAS a loop and nothing watches it.
+		if p := checkpoint.LoopHeadingProblem(n); p != "" {
+			return nil, []string{p}
+		}
 		return nil, nil
 	}
 	// Containment via os.Root, not path arithmetic: the note is agent-written,

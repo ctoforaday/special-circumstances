@@ -220,14 +220,13 @@ func Group(events []Event) GroupResult {
 // after the body is stripped every such command reads alike, so keying them would
 // merge every inline script in a session. Refusing lands the event in Unkeyed,
 // where the coverage line reports it — visibly not grouped, rather than grouped
-// wrongly.
+// wrongly. A command that does not parse as shell is refused the same way: its
+// act cannot be read, so it is not keyed on a guess.
 func CommandKey(cmd string) string {
-	stripped := StripHeredocs(cmd)
-	// A surviving opener means the act was in the body, which is now gone.
-	for _, line := range strings.Split(stripped, "\n") {
-		if OpensHeredoc(line) {
-			return ""
-		}
+	stripped, heredocs, err := StripHeredocs(cmd)
+	// Any heredoc means the act was in a body, which is now gone.
+	if err != nil || heredocs > 0 {
+		return ""
 	}
 	// Drop comment-only lines: a comment is not part of the act, and keeping it
 	// makes two runs of one command differ because the note above them changed.
