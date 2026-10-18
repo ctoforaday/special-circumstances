@@ -6,6 +6,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // fetchSummary is what `fetch` prints instead of the document (#629 D1, D2).
@@ -111,7 +112,7 @@ type fetchSummary struct {
 	// on it — see fetchcache.TDMReservation.
 	TDMReserved *bool  `json:"tdm_reserved,omitempty"`
 	TDMPolicy   string `json:"tdm_policy,omitempty"`
-	// Retracted, Paratext, WorkType, OAStatus and WorkLicense are what the INDEX says about the
+	// WorkStatus, Paratext, WorkType, OAStatus and WorkLicense are what the INDEX says about the
 	// paper — not about this url, and not about these bytes. They are on the summary because a
 	// perfect fetch cannot discover any of them: the pdf of a retracted paper reads exactly like
 	// the pdf of a sound one, and the retraction notice is a separate document the seat never
@@ -120,7 +121,13 @@ type fetchSummary struct {
 	// REPORTED, NEVER GATED. A retracted paper is a legitimate thing to cite — as retracted — and
 	// so is an editorial, a dataset or a book chapter. The tool's duty is to say what the thing
 	// is; what may be cited is the seat's judgement and the bench's.
-	Retracted   *bool  `json:"retracted,omitempty"`
+	//
+	// WorkStatus IS ALWAYS PRINTED, in the record's own words: standing, retracted, or
+	// not_checked. A url in which no DOI was found asks no index, and saying nothing there read
+	// exactly like a work that was checked and is sound.
+	WorkStatus string `json:"work_status"`
+	// DOI is the identifier the indexes were asked about; empty where none was found in the url.
+	DOI         string `json:"doi,omitempty"`
 	Paratext    *bool  `json:"paratext,omitempty"`
 	WorkType    string `json:"work_type,omitempty"`
 	OAStatus    string `json:"oa_status,omitempty"`
@@ -204,9 +211,10 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		TDMReserved: e.TDMReserved, TDMPolicy: e.TDMPolicy,
 		CopyVersion: e.CopyVersion, CopyLicense: e.CopyLicense,
 		Extractor: e.Extractor,
+		DOI:       e.DOI, WorkStatus: recordpb.Word(record.WorkStatusOf(e.Retraction())),
 	}
 	if e.Work != nil {
-		s.Retracted, s.Paratext = e.Work.Retracted, e.Work.Paratext
+		s.Paratext = e.Work.Paratext
 		s.WorkType, s.OAStatus, s.WorkLicense = e.Work.WorkType, e.Work.OAStatus, e.Work.License
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
@@ -383,8 +391,18 @@ func (s fetchSummary) render() string {
 	// LAST, AND UNMISSABLE. A retraction is the one fact here that can void a citation outright,
 	// and it survives a flawless fetch: the pdf of a retracted paper is byte-identical to what it
 	// was before the retraction, and the notice is a different document nobody asked for.
-	if s.Retracted != nil && *s.Retracted {
-		line("retracted", "true")
+	line("doi", s.DOI)
+	line("work_status", s.WorkStatus)
+	switch s.WorkStatus {
+	case recordpb.Word(recordpb.WorkStatus_WORK_STATUS_NOT_CHECKED):
+		if s.DOI == "" {
+			fmt.Fprintf(&b, "  ^ NOBODY WAS ASKED: no DOI was found in this url, so no index was consulted about the work and\n"+
+				"    nothing says whether it was retracted. not_checked is not reassurance.\n")
+		} else {
+			fmt.Fprintf(&b, "  ^ THE INDEX GAVE NO ANSWER about doi %s, so nothing says whether the work was retracted.\n"+
+				"    not_checked is not reassurance.\n", s.DOI)
+		}
+	case recordpb.Word(recordpb.WorkStatus_WORK_STATUS_RETRACTED):
 		fmt.Fprintf(&b, "  ^ THIS WORK IS RETRACTED. The bytes are genuine and the fetch was sound — retraction is a\n"+
 			"    judgement about the paper, not about this retrieval, so nothing upstream could have caught it.\n"+
 			"    You MAY cite it, and you MUST cite it AS RETRACTED: its findings do not support a claim, and a\n"+

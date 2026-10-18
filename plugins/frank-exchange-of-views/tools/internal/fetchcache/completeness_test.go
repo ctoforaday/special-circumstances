@@ -135,8 +135,7 @@ func TestTheReferenceCutAndTheWallOrderEachHoldAlone(t *testing.T) {
 	// nature.com numbers its supplementary-information section in the body series (Sec10) and
 	// places it after the references. Without its wall, that section alone must not make the
 	// page read as the paper.
-	noWall := bytes.ReplaceAll(page, []byte("preview of subscription content"), []byte("-"))
-	noWall = bytes.ReplaceAll(noWall, []byte("Preview of subscription content"), []byte("-"))
+	noWall := withoutSpringerWall(page)
 	if got, reason := Completeness("text/html", noWall, true); got == CompletenessFull {
 		t.Errorf("a section numbered after the reference list was counted as body: %s", reason)
 	}
@@ -145,6 +144,56 @@ func TestTheReferenceCutAndTheWallOrderEachHoldAlone(t *testing.T) {
 	noRefs := bytes.ReplaceAll(page, []byte(`id="Bib1"`), []byte(`id="x"`))
 	if got, reason := Completeness("text/html", noRefs, true); got != CompletenessAbstract {
 		t.Errorf("a page printing its paywall got %q (%s)", got, reason)
+	}
+}
+
+// withoutSpringerWall removes both of Springer Nature's paywall signals from a page: the element
+// its markup names and the notice's words.
+func withoutSpringerWall(page []byte) []byte {
+	b := bytes.ReplaceAll(page, []byte(`data-test="institution-access-preview"`), []byte(`data-test="x"`))
+	b = bytes.ReplaceAll(b, []byte("preview of subscription content"), []byte("-"))
+	return bytes.ReplaceAll(b, []byte("Preview of subscription content"), []byte("-"))
+}
+
+// A RENAMED REFERENCE-LIST MARKER IS NOT A FULL PAPER. The paywalled abstract with its wall gone
+// AND its Bib1 renamed has nothing left to say where the body ends — and its supplementary Sec10,
+// after the references, would then be counted as a body section. Counting the whole page there
+// turned this abstract into `full`; the answer is `unverified`, with the missing marker named.
+func TestAMissingReferenceMarkerIsUnverifiedNotFull(t *testing.T) {
+	page := withoutSpringerWall(loadBody(t, "nature-paywalled.html.gz"))
+	page = bytes.ReplaceAll(page, []byte(`id="Bib1"`), []byte(`id="x"`))
+	if !springerNatureSection.Match(page) {
+		t.Fatal("the fixture lost the stray section this test is about")
+	}
+	got, reason := Completeness("text/html", page, true)
+	if got != CompletenessUnverified || !strings.Contains(reason, `id="Bib1"`) {
+		t.Errorf("got %q (%s); want unverified naming the absent reference-list marker", got, reason)
+	}
+	// PubMed Central's marker, the same way: body headings with no ref-list to bound them.
+	pmc := []byte(`<html><head><meta name="citation_title" content="t"></head><body><div class="main-article-body">` +
+		`<h2 class="pmc_sec_title">Methods</h2><p>x</p></div></body></html>`)
+	if got, reason := Completeness("text/html", pmc, true); got != CompletenessUnverified || !strings.Contains(reason, `id="ref-list"`) {
+		t.Errorf("a PMC page with no ref-list got %q (%s)", got, reason)
+	}
+}
+
+// THE SPRINGER WALL IS READ FROM THE PAGE A READER SEES. Its element alone answers on nature.com,
+// and its words answer only where they are visible: the same phrase inside a script — a
+// translation table, an analytics blob — is not the page printing its paywall.
+func TestTheSpringerWallIsTheElementOrTheVisibleNotice(t *testing.T) {
+	head := `<html><head><meta name="citation_title" content="t"></head><body>`
+	cases := []struct {
+		name, body, want string
+	}{
+		{"element", `<p data-test="institution-access-preview">Zugang</p>`, CompletenessAbstract},
+		{"visible notice", `<p>This is a preview of
+			subscription content, log in</p>`, CompletenessAbstract},
+		{"phrase in a script", `<script>var i18n={wall:"Preview of subscription content"}</script><p>x</p>`, CompletenessUnverified},
+	}
+	for _, c := range cases {
+		if got, reason := Completeness("text/html", []byte(head+c.body+`</body></html>`), true); got != c.want {
+			t.Errorf("%s: got %q (%s), want %q", c.name, got, reason, c.want)
+		}
 	}
 }
 
@@ -166,6 +215,9 @@ func TestResolveRecordsAnAbstractAsAnAbstract(t *testing.T) {
 	}
 	if entry.Completeness != CompletenessAbstract || entry.CompletenessReason == "" {
 		t.Errorf("completeness = %q (%q), want abstract with its reason", entry.Completeness, entry.CompletenessReason)
+	}
+	if entry.DOI != "10.1038/nature06964" {
+		t.Errorf("the entry does not carry the doi it was resolved for: %q", entry.DOI)
 	}
 	if !strings.Contains(entry.TextRetrievedReason, "ABSTRACT") {
 		t.Errorf("the record does not say why the text was not retrieved: %q", entry.TextRetrievedReason)
@@ -214,11 +266,11 @@ func TestARecoveredAbstractDoesNotClaimItsTextWasRetrieved(t *testing.T) {
 }
 
 // A DOI IS WHAT MAKES A BARE PAGE A QUESTION. Choice's sign-in page declares no scholarly metadata,
-// so only the url it was reached by says a work was asked for — and without that, it is an
-// ordinary page the question does not apply to.
+// so only the doi the fetch resolved — carried on the entry — says a work was asked for; without
+// one, it is an ordinary page the question does not apply to.
 func TestTheDOIAskedForMakesABarePageAQuestion(t *testing.T) {
 	page := loadBody(t, "choice-login-wall.html.gz")
-	viaDOI := Entry{URL: "https://doi.org/10.5860/choice.34-3310", ContentType: "text/html"}
+	viaDOI := Entry{URL: "https://doi.org/10.5860/choice.34-3310", DOI: "10.5860/choice.34-3310", ContentType: "text/html"}
 	Classify(&viaDOI, page)
 	if viaDOI.Completeness != CompletenessNotTheWork {
 		t.Errorf("a sign-in page reached for a doi got %q", viaDOI.Completeness)
@@ -244,5 +296,26 @@ func TestEachVerdictHasItsRecordWord(t *testing.T) {
 		if got := (Entry{Completeness: verdict}).SourceCompleteness(); got != want {
 			t.Errorf("%q maps to %v, want %v", verdict, got, want)
 		}
+	}
+}
+
+// THE DOI IS READ FROM THE ENTRY, where it was resolved once — not recovered from the url again.
+// A recovered copy is filed under the url asked for, and the attempt carries the DOI the backends
+// were asked about; the entry built from it must hold that DOI and ask the completeness question
+// because of it.
+func TestTheDOIIsCarriedNotRederived(t *testing.T) {
+	page := []byte(`<html><body><p>` + strings.Repeat("words ", 200) + `</p></body></html>`)
+	e := Entry{URL: "https://repository.example/item/42", ContentType: "text/html", DOI: "10.1234/x"}
+	Classify(&e, page)
+	if e.Completeness != CompletenessUnverified {
+		t.Errorf("a page reached for the doi on its entry got completeness %q; the entry's doi was not read", e.Completeness)
+	}
+	run := runtest.New(t, t.TempDir())
+	prev := DefaultExtractor
+	DefaultExtractor = fixedExtractor{Extraction{}}
+	t.Cleanup(func() { DefaultExtractor = prev })
+	got := EntryFor(run, e.URL, &Attempt{Body: page, ContentType: "text/html", TextRetrieved: true, DOI: "10.1234/x"})
+	if got.DOI != "10.1234/x" || got.Completeness != CompletenessUnverified {
+		t.Errorf("EntryFor dropped the attempt's doi: doi=%q completeness=%q", got.DOI, got.Completeness)
 	}
 }
