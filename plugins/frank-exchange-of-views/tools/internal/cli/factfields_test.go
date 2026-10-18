@@ -23,7 +23,7 @@ func TestAClosuresAnchorsAreHeldToTheRecord(t *testing.T) {
 			"--verified-against", "blue/report.md", "--anchor", anchors, "--reason", "read at the leaf")
 		return err
 	}
-	if err := closeWith("g-0dd40334"); err == nil || !strings.Contains(err.Error(), "--anchor") {
+	if err := closeWith("g-0dd40334"); err == nil || !strings.Contains(err.Error(), "--anchor") || !strings.Contains(err.Error(), "is not anchor") {
 		t.Fatalf("an anchor in no id's shape must be refused naming --anchor; got %v", err)
 	}
 	if err := closeWith("G2"); err == nil || !strings.Contains(err.Error(), "which no act on this record placed") {
@@ -55,7 +55,7 @@ func TestADeclarationsGapsAreHeldToTheBoard(t *testing.T) {
 			"--reason", "the term is construed this way for the rest of the run")
 		return err
 	}
-	if err := declare("g1"); err == nil || !strings.Contains(err.Error(), "--ids") {
+	if err := declare("g1"); err == nil || !strings.Contains(err.Error(), "--ids") || !strings.Contains(err.Error(), "is not gap-id") {
 		t.Fatalf("a gap id in no gap's shape must be refused naming --ids; got %v", err)
 	}
 	if err := declare("G1,G2"); err == nil || !strings.Contains(err.Error(), "no mint event created") {
