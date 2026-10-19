@@ -1058,11 +1058,102 @@ func TestTheOpenAccessBucketTakesOnlyThisWorksPDF(t *testing.T) {
 			asked = u
 			return &Response{Body: listing(c.keys...), ContentType: "application/xml"}, nil
 		})
-		if got := pmcOpenAccessPDF(f, "PMC1234"); got != c.want {
-			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+		got, err := pmcOpenAccessPDF(f, "PMC1234")
+		if err != nil || got != c.want {
+			t.Errorf("%s: got %q (%v), want %q", c.name, got, err, c.want)
 		}
 		if !strings.HasSuffix(asked, "prefix="+url.QueryEscape("PMC1234.")) {
 			t.Errorf("%s: the listing was asked as %q; its prefix must end at the version dot", c.name, asked)
 		}
+	}
+}
+
+// A LISTING NOTHING CAN READ IS NOT "NO PDF HELD". An error envelope, a proxy's page and a failed
+// request each leave the bucket's answer unknown, and each must come back as an error rather than
+// the "" that means the archive positively holds no pdf for the work.
+func TestAnUnreadableBucketListingIsAnErrorNotAnAbsence(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		body string
+		err  error
+	}{
+		{"an S3 error envelope", `<?xml version="1.0" encoding="UTF-8"?><Error><Code>SlowDown</Code></Error>`, nil},
+		{"a proxy's html page", `<html><body><h1>403 Forbidden</h1></body></html>`, nil},
+		{"not xml at all", `{"message":"rate limited"}`, nil},
+		{"a listing with no key count", `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></ListBucketResult>`, nil},
+		{"a failed request", "", errors.New("connection reset")},
+	} {
+		f := fake(func(string) (*Response, error) {
+			if c.err != nil {
+				return nil, c.err
+			}
+			return &Response{Body: []byte(c.body), ContentType: "application/xml"}, nil
+		})
+		if got, err := pmcOpenAccessPDF(f, "PMC1234"); err == nil {
+			t.Errorf("%s: got %q and no error — an unread listing reads as \"no pdf held\"", c.name, got)
+		}
+	}
+	// AND THE CALLERS WITHDRAW THE DETERMINATE ANSWER. Europe PMC names a PMCID; the bucket does
+	// not answer; the lookup must not report itself complete.
+	f := fake(func(u string) (*Response, error) {
+		if strings.Contains(u, "europepmc/webservices/rest/search") {
+			return &Response{Body: []byte(`{"resultList":{"result":[{"pmcid":"PMC1234","isOpenAccess":"N"}]}}`)}, nil
+		}
+		return &Response{Body: []byte(`<Error><Code>AccessDenied</Code></Error>`)}, nil
+	})
+	if _, answered := europePMCCandidates(f, "10.1234/x"); answered {
+		t.Error("europePMCCandidates reported a complete answer though the bucket's listing was unreadable")
+	}
+}
+
+// THE DOI IS READ FROM THE URL'S PARTS, not found anywhere in its string. A viewer segment is the
+// platform's, an escape is decoded, and a DOI that is some other query's argument is not the work
+// the url names — each of these was a wrong DOI or a missed one, and a missed DOI drops the
+// retraction check without a word.
+func TestTheDOIIsReadFromTheURLsParts(t *testing.T) {
+	for u, want := range map[string]string{
+		"https://doi.org/10.5951/MT.82.1.0033":                                                      "10.5951/MT.82.1.0033",
+		"https://dx.doi.org/10.1016/0021-9991(92)90240-Y":                                           "10.1016/0021-9991(92)90240-Y",
+		"https://link.springer.com/article/10.1007/s00453-017-0386-x/fulltext.html":                 "10.1007/s00453-017-0386-x",
+		"https://www.frontiersin.org/articles/10.3389/fpsyg.2020.01234/full":                        "10.3389/fpsyg.2020.01234",
+		"https://link.springer.com/content/pdf/10.1007/978-3-030-1_5.pdf":                           "10.1007/978-3-030-1_5",
+		"https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-9280.2008.02219.x":                  "10.1111/j.1467-9280.2008.02219.x",
+		"https://onlinelibrary.wiley.com/doi/10.1002%252Fsim.1234":                                  "10.1002/sim.1234",
+		"https://doi.org/10.1002/%28SICI%291097-4636%28199706%2935%3A4%3C1%3A%3AAID%3E3.0.CO%3B2-B": "10.1002/(SICI)1097-4636(199706)35:4<1::AID>3.0.CO;2-B",
+		"https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0012345":                 "10.1371/journal.pone.0012345",
+		"https://example.org/lookup?doi=10.1234%2Fabc":                                              "10.1234/abc",
+		"doi:10.1234/xyz":               "10.1234/xyz",
+		"https://doi.org/10.1234/abc).": "10.1234/abc",
+		"https://pdfviewer.example/web/viewer.html?file=10.1234/other.pdf": "",
+		"https://example.org/files/10.12/short":                            "",
+		"https://example.org/a-page":                                       "",
+	} {
+		if got := DOIOf(u); got != want {
+			t.Errorf("DOIOf(%s) = %q, want %q", u, got, want)
+		}
+	}
+}
+
+// THE OTHER IDENTIFIERS ARE READ THE SAME WAY: an arXiv pdf url's `.pdf` is not the id, Europe
+// PMC's `/article/PMC/<id>` spelling is a PMCID, and an ERIC-shaped token on another host is that
+// host's.
+func TestTheOtherIdentifiersAreReadFromTheURLsParts(t *testing.T) {
+	if got := ArxivIDOf("https://arxiv.org/pdf/1910.06709v2.pdf"); got != "1910.06709v2" {
+		t.Errorf("arxiv pdf url -> %q", got)
+	}
+	if got := ArxivIDOf("https://export.arxiv.org/abs/hep-th/9711200"); got != "hep-th/9711200" {
+		t.Errorf("export host -> %q", got)
+	}
+	if got := ArxivIDOf("https://scholar.example/?q=arxiv.org/abs/1910.06709"); got != "" {
+		t.Errorf("an arXiv url inside another site's query was read as an id: %q", got)
+	}
+	if id, _ := PMCRoutes("https://europepmc.org/article/PMC/PMC3929010"); id != "PMC3929010" {
+		t.Errorf("Europe PMC's article/PMC spelling -> %q", id)
+	}
+	if id, _ := PMCRoutes("https://publisher.example/redirect?to=ncbi.nlm.nih.gov/pmc/articles/3929010"); id != "" {
+		t.Errorf("a PMC url inside another host's query was read as one: %q", id)
+	}
+	if got := ericQueryOf("https://repository.example/items/ED313351/view-record"); strings.HasPrefix(got, "id:") {
+		t.Errorf("another host's ERIC-shaped token became an ERIC id query: %q", got)
 	}
 }

@@ -1,12 +1,8 @@
 package fetchcache
 
 import (
-	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
-
-	"golang.org/x/net/html"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -54,114 +50,68 @@ func Completeness(contentType string, body []byte, reachedForAWork bool) (verdic
 	if !strings.Contains(contentType, "html") || len(body) == 0 {
 		return "", ""
 	}
-	declared := citationTitle.Match(body)
+	p := readHTML(body)
+	_, declared := p.meta("name", "citation_title")
 	if !reachedForAWork && !declared {
 		return "", ""
 	}
 	// NOT THE WORK first: a book's sales page carries the platform's paywall text too, and calling
 	// it the book's abstract would put the publisher's blurb in the author's mouth.
-	if ogBook.Match(body) {
+	if t, ok := p.meta("property", "og:type"); ok && strings.EqualFold(strings.TrimSpace(t), "book") {
 		return CompletenessNotTheWork, "the page declares itself a book's landing page (og:type book): a description and a table of contents, not the work's text"
 	}
-	if !declared && passwordInput.Match(body) {
+	if !declared && p.password {
 		return CompletenessNotTheWork, "a sign-in form carrying no scholarly metadata: the source answered with its login page, not the work"
 	}
 	for _, w := range abstractWalls {
-		if w.match(body) {
+		if w.match(p) {
 			return CompletenessAbstract, w.reason
 		}
 	}
-	for _, p := range bodyMarkers {
-		n, unknown := p.sections(body)
+	for _, m := range bodyMarkers {
+		n, unknown := m.sections(p)
 		if unknown != "" {
 			return CompletenessUnverified, unknown
 		}
 		if n > 0 {
-			return CompletenessFull, p.reason
+			return CompletenessFull, m.reason
 		}
 	}
 	return CompletenessUnverified, "no platform marker this tool knows says whether the body is on this page; it is kept, and a fuller copy is looked for"
 }
 
-var (
-	citationTitle = regexp.MustCompile(`(?i)<meta[^>]+name\s*=\s*["']?citation_title["'\s>]`)
-	ogBook        = regexp.MustCompile(`(?i)<meta[^>]+property\s*=\s*["']og:type["'][^>]*content\s*=\s*["']book["']`)
-	passwordInput = regexp.MustCompile(`(?i)<input[^>]+type\s*=\s*["']?password\b`)
-)
-
 // abstractWalls are what a platform prints IN PLACE OF the body. Each was read on a ground-truth
 // page labelled abstract and is absent from every page labelled full.
 var abstractWalls = []struct {
-	match  func([]byte) bool
+	match  func(*htmlPage) bool
 	reason string
 }{
 	// Springer Nature's platform names its paywall in its markup on nature.com: the notice that
 	// stands in place of the body is the element carrying data-test="institution-access-preview".
 	// The element, not its English: a markup attribute does not move when the wording does.
-	{func(b []byte) bool { return springerPreview(b).element },
+	{func(p *htmlPage) bool { return p.dataTest["institution-access-preview"] },
 		"Springer Nature's platform rendered its institution-access preview (data-test=\"institution-access-preview\") in place of the body"},
 	// link.springer.com prints the same notice in a generic notes element that names nothing, so
 	// there the notice's own words are the signal — read in the page's VISIBLE text, where a copy
 	// of the phrase in a script or a translation table cannot fire it.
-	{func(b []byte) bool { return springerPreview(b).notice },
+	{func(p *htmlPage) bool {
+		return strings.Contains(strings.ToLower(p.flat), "preview of subscription content")
+	},
 		"Springer Nature's platform printed 'preview of subscription content' in place of the body"},
 	// HighWire (BMJ and its hosted journals) names the abstract rendering by its view: the full
 	// text is `fulltext-view`, the abstract `extract-view`.
-	{regexp.MustCompile(`class\s*=\s*["'][^"']*\bextract-view\b`).Match,
+	{func(p *htmlPage) bool { return p.classes["extract-view"] },
 		"HighWire rendered its extract view (the abstract), not its full-text view"},
 	// PubMed Central serves pre-digital articles as page IMAGES: the text is in the scan pdf, and
 	// the page carries none of it.
-	{regexp.MustCompile(`class\s*=\s*["']scanned-pages["']`).Match,
+	{func(p *htmlPage) bool { return p.classes["scanned-pages"] },
 		"PubMed Central renders this article as scanned page images; the page carries none of its text"},
 }
 
-// preview is what one tokenizer pass finds of Springer Nature's paywall: the element its markup
-// names, and the notice in the page's visible text.
-type preview struct{ element, notice bool }
-
-// springerPreview reads the page once with an HTML tokenizer. Text inside script, style,
-// template and noscript is not the page's visible text and is not read.
-func springerPreview(b []byte) preview {
-	var p preview
-	var text strings.Builder
-	hidden := 0
-	z := html.NewTokenizer(bytes.NewReader(b))
-	for {
-		switch z.Next() {
-		case html.ErrorToken:
-			p.notice = strings.Contains(strings.Join(strings.Fields(strings.ToLower(text.String())), " "), "preview of subscription content")
-			return p
-		case html.StartTagToken, html.SelfClosingTagToken:
-			name, more := z.TagName()
-			if invisible[string(name)] {
-				hidden++
-			}
-			for more {
-				var k, v []byte
-				k, v, more = z.TagAttr()
-				if string(k) == "data-test" && string(v) == "institution-access-preview" {
-					p.element = true
-				}
-			}
-		case html.EndTagToken:
-			if name, _ := z.TagName(); invisible[string(name)] && hidden > 0 {
-				hidden--
-			}
-		case html.TextToken:
-			if hidden == 0 {
-				text.Write(z.Text())
-				text.WriteByte(' ')
-			}
-		}
-	}
-}
-
-// invisible are the elements whose text a reader of the page never sees.
-var invisible = map[string]bool{"script": true, "style": true, "template": true, "noscript": true}
-
-// bodyMarkers count the body section headings a platform renders BEFORE its reference list.
-// Counting before the references is what makes a stray section not count: nature.com numbers its
-// supplementary-information section in the body series, and places it after the references.
+// bodyMarkers count the body section headings a platform renders inside its article body BEFORE
+// its reference list. Counting before the references is what makes a stray section not count:
+// nature.com numbers its supplementary-information section in the body series, and places it
+// after the references.
 //
 // WHERE THE REFERENCE LIST CANNOT BE FOUND, NOTHING IS COUNTED. A platform's page with no marker
 // for its references is a page whose body cannot be told from what follows it, and counting the
@@ -169,45 +119,27 @@ var invisible = map[string]bool{"script": true, "style": true, "template": true,
 // supplementary section after its references, so one renamed attribute would turn the abstract
 // into a full paper. The answer there is `unverified`, with that reason.
 var bodyMarkers = []struct {
-	sections func([]byte) (n int, unknown string)
+	sections func(*htmlPage) (n int, unknown string)
 	reason   string
 }{
-	{func(b []byte) (int, string) {
-		if !bytes.Contains(b, []byte("c-article-body")) {
+	{func(p *htmlPage) (int, string) {
+		if !p.snBody {
 			return 0, ""
 		}
-		body, ok := beforeRefs(b, springerNatureRefs)
-		if !ok {
+		if !p.snRefs {
 			return 0, "Springer Nature's platform rendered this page, and its reference-list marker (id=\"Bib1\") is absent, so where the body ends cannot be told; it is kept, and a fuller copy is looked for"
 		}
-		return len(springerNatureSection.FindAll(body, -1)), ""
+		return p.snSections, ""
 	}, "Springer Nature's platform rendered numbered body sections before the reference list"},
-	{func(b []byte) (int, string) {
-		i := bytes.Index(b, []byte("main-article-body"))
-		if i < 0 {
+	{func(p *htmlPage) (int, string) {
+		if !p.pmcBody {
 			return 0, ""
 		}
-		body, ok := beforeRefs(b[i:], pmcRefs)
-		if !ok {
+		if !p.pmcRefs {
 			return 0, "PubMed Central rendered this page, and its reference-list marker (id=\"ref-list\") is absent, so where the body ends cannot be told; it is kept, and a fuller copy is looked for"
 		}
-		return len(pmcSection.FindAll(body, -1)), ""
+		return p.pmcSections, ""
 	}, "PubMed Central rendered body section headings before the reference list"},
-}
-
-var (
-	springerNatureSection = regexp.MustCompile(`<h2[^>]*\bid\s*=\s*["']Sec\d+["']`)
-	springerNatureRefs    = regexp.MustCompile(`id\s*=\s*["']Bib1["']`)
-	pmcSection            = regexp.MustCompile(`<h[2-4][^>]*class\s*=\s*["'][^"']*\bpmc_sec_title\b`)
-	pmcRefs               = regexp.MustCompile(`id\s*=\s*["']ref-list`)
-)
-
-// beforeRefs is the page up to its reference list; ok is false where the list's marker is absent.
-func beforeRefs(b []byte, refs *regexp.Regexp) (body []byte, ok bool) {
-	if loc := refs.FindIndex(b); loc != nil {
-		return b[:loc[0]], true
-	}
-	return nil, false
 }
 
 // pdfCompleteness judges a pdf by its page count against the span the index declares for the

@@ -7,12 +7,10 @@ import (
 	"compress/zlib"
 	"context"
 	"fmt"
-	"html"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -560,22 +558,10 @@ func proxyEnv() string {
 	return ""
 }
 
-// metaRefreshRe matches `<meta http-equiv="refresh" content="2; url=...">`.
-//
-// THE TWO QUOTE STYLES ARE SPELLED OUT because RE2 has no backreference, and a pattern that
-// accepts either quote and closes on either one gets this wrong on the page it was written for:
-// Elsevier sends content="2; url='/retrieve/…'", so a `["']([^"']*)["']` capture stops at the
-// inner apostrophe and yields `2; url=` with the target discarded. It matched, so it looked like
-// a parse rather than a miss.
-var metaRefreshRe = regexp.MustCompile(`(?is)<meta[^>]+http-equiv\s*=\s*["']?refresh["']?[^>]*?content\s*=\s*(?:"([^"]*)"|'([^']*)')`)
-
-// metaRefreshURL pulls the target out of a refresh directive's content value: `2; url=/next`.
-var metaRefreshURL = regexp.MustCompile(`(?is)^\s*[\d.]*\s*;?\s*url\s*=\s*['"]?([^'"\s]+)`)
-
 // metaRefreshTarget returns the absolute url a bouncer page points at, or "" where this response
 // is not one.
 //
-// THREE CONDITIONS, AND EACH REMOVES A WAY TO GO WRONG. It must be HTML, or the pattern is
+// THREE CONDITIONS, AND EACH REMOVES A WAY TO GO WRONG. It must be HTML, or the parse is
 // matching something that merely looks like markup. It must carry no prose of its own, or it is a
 // document that happens to refresh and following it would discard the answer. And the target must
 // resolve to http or https, so a `data:` or `javascript:` refresh cannot move the fetch somewhere
@@ -584,22 +570,19 @@ func metaRefreshTarget(contentType string, body []byte, base *url.URL) string {
 	if !strings.Contains(strings.ToLower(contentType), "html") || base == nil {
 		return ""
 	}
-	if len(visibleText(body)) >= shellProseFloor {
+	p := readHTML(body)
+	if len(p.prose()) >= shellProseFloor {
 		return ""
 	}
-	m := metaRefreshRe.FindSubmatch(body)
-	if m == nil {
+	content, ok := p.meta("http-equiv", "refresh")
+	if !ok {
 		return ""
 	}
-	content := m[1]
-	if len(content) == 0 {
-		content = m[2] // the single-quoted alternative
-	}
-	t := metaRefreshURL.FindSubmatch(content)
-	if t == nil {
+	target := refreshURL(content)
+	if target == "" {
 		return ""
 	}
-	ref, err := url.Parse(strings.TrimSpace(html.UnescapeString(string(t[1]))))
+	ref, err := url.Parse(target)
 	if err != nil {
 		return ""
 	}
@@ -608,6 +591,36 @@ func metaRefreshTarget(contentType string, body []byte, base *url.URL) string {
 		return ""
 	}
 	return abs.String()
+}
+
+// refreshURL is the url in a refresh directive's content value — `2; url=/next`, `0;URL='/next'`,
+// `0, /next` — following the HTML standard's shared declarative refresh steps: a delay of digits
+// and dots, a `;`, `,` or space, optionally `url=`, then the url, to a matching closing quote where it
+// opened with one. The attribute value arrives entity-decoded from the parse. "" where the
+// directive names no url (a plain reload).
+func refreshURL(content string) string {
+	const ws = " \t\n\f\r"
+	s := strings.TrimLeft(strings.TrimLeft(content, ws), "0123456789.")
+	if s == "" || !strings.ContainsRune(";,"+ws, rune(s[0])) {
+		return ""
+	}
+	s = strings.TrimLeft(s, ws)
+	if s != "" && (s[0] == ';' || s[0] == ',') {
+		s = strings.TrimLeft(s[1:], ws)
+	}
+	if len(s) >= 3 && strings.EqualFold(s[:3], "url") {
+		if rest := strings.TrimLeft(s[3:], ws); strings.HasPrefix(rest, "=") {
+			s = strings.TrimLeft(rest[1:], ws)
+		}
+	}
+	if s != "" && (s[0] == '"' || s[0] == '\'') {
+		q := s[0]
+		s = s[1:]
+		if i := strings.IndexByte(s, q); i >= 0 {
+			s = s[:i]
+		}
+	}
+	return strings.TrimSpace(s)
 }
 
 // decodeCoding returns a reader over a content coding the transport did not decode, or an error
