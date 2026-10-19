@@ -1,8 +1,12 @@
-package setup
+// Package hookprovenance is what setup observes of the installed hooks, written into the run's
+// inputs/run-config.json, and the reader that takes it back out for the run's documents.
+package hookprovenance
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -35,7 +39,7 @@ import (
 // its version (#555), which distinguishes absent from stale from current where a filesystem
 // stat cannot — a cache entry that exists says nothing about whether the harness invoked it.
 // This says what was INSTALLED; it does not claim what RAN.
-type HookProvenance struct {
+type Provenance struct {
 	// State is the answer in one word, and it is never empty: "installed", "absent" (no cached
 	// copy of this plugin at all), or "unreadable" (a cache that could not be inspected, or a cached
 	// hooks.json whose registered binaries could not be read — Missing then has no entry for it).
@@ -77,14 +81,14 @@ type hooksFile struct {
 	} `json:"hooks"`
 }
 
-// hookProvenanceAt inspects the plugin install cache under the given home directory.
+// Observe inspects the plugin install cache under the given home directory.
 //
 // The path convention is Claude Code's, not ours — `.claude/plugins/cache/<marketplace>/<plugin>/
 // <version>` — and prosthetic-conscience's doctor reads the same layout from its own module.
 // Two readers of an EXTERNAL convention is not two copies of one of our facts; there is no record
 // here that either could be bypassing, and the modules cannot share code across the boundary.
-func hookProvenanceAt(home, plugin string) HookProvenance {
-	p := HookProvenance{State: "absent", Versions: []string{}, Binaries: map[string][]string{}, Missing: map[string][]string{}}
+func Observe(home, plugin string) Provenance {
+	p := Provenance{State: "absent", Versions: []string{}, Binaries: map[string][]string{}, Missing: map[string][]string{}}
 	cache := filepath.Join(home, ".claude", "plugins", "cache")
 	matches, err := filepath.Glob(filepath.Join(cache, "*", plugin, "*"))
 	if err != nil {
@@ -221,14 +225,31 @@ func trimExe(n string) string {
 	return n
 }
 
-// homeDir is where the plugin cache lives. It reads $HOME rather than os.UserHomeDir so the
-// suite's own HOME sandbox (testbuild) redirects it, which is what makes this testable at all —
-// and what stops a test reading the developer's real plugin cache and reporting a different
-// answer on every machine.
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
+// ConfigKey is the provenance's key in inputs/run-config.json.
+const ConfigKey = "hooks"
+
+// Read is the provenance setup wrote into the run's inputs/run-config.json. ok is false when the
+// file or its key is absent — a run set up by nothing that observed the hooks — and an error is a
+// file or a value that does not decode. Neither is an empty Provenance, whose State "" no setup
+// writes.
+func Read(runDir string) (p Provenance, ok bool, err error) {
+	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return Provenance{}, false, nil
 	}
-	h, _ := os.UserHomeDir()
-	return h
+	if err != nil {
+		return Provenance{}, false, err
+	}
+	var rc map[string]json.RawMessage
+	if err := json.Unmarshal(b, &rc); err != nil {
+		return Provenance{}, false, fmt.Errorf("inputs/run-config.json does not decode: %w", err)
+	}
+	raw, present := rc[ConfigKey]
+	if !present {
+		return Provenance{}, false, nil
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return Provenance{}, false, fmt.Errorf("inputs/run-config.json %q does not decode: %w", ConfigKey, err)
+	}
+	return p, true, nil
 }

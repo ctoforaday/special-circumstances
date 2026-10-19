@@ -130,6 +130,13 @@
                                               reason; this is where how it got there lives. Omitted when the run
                                               recorded no inquiry. -->
 
+## Inquiry reviews                       <!-- [RECORD] each of the chair's reads of the report against the inquiries, in
+                                              record order, with the epoch it was made in and its reason quoted whole:
+                                              the chair's account of where the body delivers each inquiry's research.
+                                              An attestation of the read, not a verdict on an inquiry — a shortfall is
+                                              a gap about the inquiry, on the board. Not in the view a seat reads.
+                                              Omitted when the chair recorded no review. -->
+
 # evidence.md — the computations
 
 ## Proofs                                <!-- [RECORD] every proof on the record, with its script, output, sha256 and red's
@@ -139,7 +146,11 @@
 
 # run.md — how the machinery behaved
 
-## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration -->
+## How this run was conducted            <!-- [RECORD] what ANSWERED each seat, measured; never the configuration. Then the
+                                              build, hook and route to the run directory each seat registered with, in
+                                              one line when every registration agrees, with each one that differs named,
+                                              and setup's account of the installed hooks beside them -->
+
 
 ## The verdict's basis                   <!-- [RECORD] every verdict's gloss, and the ONLY place any of it lives — report.md keeps the stamp and its basis as state; with no outcome, it says the bench never recorded its terminal outcome -->
 
