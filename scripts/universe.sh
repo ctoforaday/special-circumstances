@@ -362,17 +362,25 @@ cmd_build() {
   # the staged marketplace below, which is where ${CLAUDE_PLUGIN_ROOT} resolves. A build in the
   # checkout leaves both roots with no binaries and hooks degrading to a stderr line — which looks,
   # from inside a run, exactly like hooks that are not configured.
+  #
+  # They are COMPILED FROM THE CHECKOUT's source and written into the cache, because Go stamps a
+  # binary with its commit only when it builds inside a git tree, and the cache is a copy with no
+  # .git: compiled there, every register's tool_version and hook_version read `unknown`, so run.md
+  # could not tell one build from another. The checkout is the commit the cache was installed from
+  # (the clean-tree check above).
   local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
   [ -d "$cache_root" ] || die "plugin cache not found at $cache_root"
 
   local first_tools
-  first_tools="$(find "$cache_root" -maxdepth 3 -type d -name tools -print -quit 2>/dev/null)"
+  first_tools="$(find "$REPO/plugins" -maxdepth 2 -type d -name tools -print -quit 2>/dev/null)"
   [ -n "$first_tools" ] && { log "warming the Go module cache"; go build -C "$first_tools" ./... >/dev/null 2>&1; }
 
   local built=0
   for plugin_dir in "$cache_root"/*/*/; do
-    local tools="$plugin_dir/tools"
-    [ -d "$tools/cmd" ] || continue
+    local pname; pname="$(basename "$(dirname "$plugin_dir")")"
+    local tools="$REPO/plugins/$pname/tools"
+    [ -d "$plugin_dir/tools/cmd" ] || continue
+    [ -d "$tools/cmd" ] || die "the cache holds $pname's tools but the checkout has no $tools/cmd"
     mkdir -p "$plugin_dir/bin"
     for cmd_dir in "$tools"/cmd/*/; do
       local name; name="$(basename "$cmd_dir")"
