@@ -34,8 +34,8 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 		// whichever order the render and the append run in, and the assertion below holds nothing.
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
 			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}),
-		// A HOLDING REACHES THE SEAT ON THIS LIST and nowhere else, with the board's word for each gap
-		// it names beside the bench's prose — here a gap the board does not hold.
+		// A HOLDING REACHES THE SEAT ON THIS LIST and nowhere else, with the board's word beside each
+		// gap the bench declared it about — here none, though its prose names one.
 		recordtest.At(t, "judge", "bench:declare", &recordpb.Declare{Holding: proto.String(declared)}))
 
 	var forSeat bytes.Buffer
@@ -53,8 +53,8 @@ func TestTheOpeningEndRendersTheSeatsWorkList(t *testing.T) {
 	}
 	if len(w.Declarations) != 1 || w.Declarations[0].Holding != declared {
 		t.Errorf("the seat was handed declarations %+v, want the bench's one as recorded", w.Declarations)
-	} else if g := w.Declarations[0].Gaps; len(g) != 1 || g[0].ID != "G-00000001" || g[0].Status != "not_on_board" {
-		t.Errorf("the declared gap reads %+v beside the holding, want the board's word that it holds no such gap", g)
+	} else if g := w.Declarations[0].Gaps; g == nil || len(g) != 0 {
+		t.Errorf("the declaration reads gaps %#v, want [] — it was declared about none, and its prose is not read for one", g)
 	}
 	if !strings.Contains(out[:strings.Index(out, "{")], "`declarations`") {
 		t.Errorf("the preamble does not tell the seat where the bench's holdings are:\n%s", out)

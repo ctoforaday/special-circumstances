@@ -151,6 +151,29 @@ func requireGaps(q recordsql.Querier, ids []string, flag string) error {
 	return nil
 }
 
+// requireAnchors refuses a reference to an anchor the record holds no act for.
+func requireAnchors(q recordsql.Querier, ids []string, flag string) error {
+	for _, id := range ids {
+		found, err := HoldsAnchor(q, id)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fmt.Errorf("%s names %s, which no act on this record placed — it takes the id inside an anchor token in the report (%s); `show evidence`, `show findings` and `show board` resolve them", flag, id, anchor.Token("C-…"))
+		}
+	}
+	return nil
+}
+
+// HoldsAnchor is whether an act on q's record carries the anchor id: an anchor id is the id its
+// placing act minted — a finding's, a gap's, a citation's, a proof's or a corroboration's.
+func HoldsAnchor(q recordsql.Querier, id string) (bool, error) {
+	return queryRowAt(q, []any{new(int)},
+		`SELECT 1 FROM (SELECT "id" FROM "finding" UNION ALL SELECT "gap_id" FROM "mint"
+		   UNION ALL SELECT "label" FROM "cite" UNION ALL SELECT "proof_id" FROM "proof"
+		   UNION ALL SELECT "label" FROM "verify") WHERE "id" = ? LIMIT 1`, id)
+}
+
 // requireFindings refuses found_by attribution to a finding that does not exist.
 //
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
