@@ -14,7 +14,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // remap is the STATEFUL half of the translation (plans/roundless.md §III.A.5). The registry
@@ -163,8 +165,21 @@ func lensAreaOfNumber(n int) (string, bool) {
 	return "", false
 }
 
-// seat translates an archived seat id to its roundless form; an id already in that form passes.
+// seat translates an archived seat id to its roundless form; an id already in that form passes. A
+// translation that lands off the roster is refused: an archived spelling the patterns below miss
+// would otherwise pass through unchanged and be attributed to no party.
 func (r *remap) seat(old string) (string, error) {
+	s, err := roundlessSeat(old)
+	if err != nil {
+		return "", err
+	}
+	if s != record.HarnessSeat && seatclass.RoleOfSeat(s) == "" {
+		return "", fmt.Errorf("seat %q translates to %q, which is no seat on the roster — no archived spelling in remap.go's seat translation matches it", old, s)
+	}
+	return s, nil
+}
+
+func roundlessSeat(old string) (string, error) {
 	if m := numberedLens.FindStringSubmatch(old); m != nil {
 		n, _ := strconv.Atoi(m[1])
 		area, ok := lensAreaOfNumber(n)

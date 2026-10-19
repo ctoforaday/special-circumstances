@@ -2,6 +2,8 @@ package setup
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -303,7 +305,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
 		LensAreas: cfg.LensAreas, LensAreaReason: cfg.LensAreaReason,
 		MaxSittingCalls: maxCalls,
-		Hooks:           hookProvenanceAt(homeDir(), "frank-exchange-of-views"),
+		Hooks:           hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
 		Billing:         ReadBillingIdentity()}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
@@ -427,8 +429,9 @@ type runConfig struct {
 	// byte-identical on the record to one whose hooks were current.
 	//
 	// It says what was installed, never what RAN: a cache entry on disk does not prove the
-	// harness invoked it. The liveness half is #555's.
-	Hooks HookProvenance `json:"hooks"`
+	// harness invoked it. The liveness half is #555's. The key is hookprovenance.ConfigKey, and
+	// run.md reads it back through hookprovenance.Read.
+	Hooks hookprovenance.Provenance `json:"hooks"`
 	// EventSchema is the event-shape EPOCH this run's events were written under.
 	//
 	// A run directory is created by `setup` and does not outlive the schema that made it — but
@@ -516,4 +519,16 @@ func orUnknown(s string) string {
 		return "unknown"
 	}
 	return s
+}
+
+// homeDir is the home the plugin cache resolves against when neither CLAUDE_CODE_PLUGIN_CACHE_DIR nor
+// CLAUDE_CONFIG_DIR names it. It reads $HOME rather than os.UserHomeDir so the suite's own HOME
+// sandbox (testbuild) redirects it, which is what makes this testable at all — and what stops a test
+// reading the developer's real plugin cache and reporting a different answer on every machine.
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	h, _ := os.UserHomeDir()
+	return h
 }

@@ -4,26 +4,27 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	st "github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets/secretstest"
 )
 
-// Every literal here is assembled from fragments, so this file never contains a
-// scannable secret itself. That is not fastidiousness: sc-secrets-gate blocks
-// any Bash payload carrying one, including the payload that would write a test
-// OF the gate. Discovered by having exactly that happen, twice.
+// Every key here is drawn at test time (secretstest), so this file holds no scannable value.
 var (
-	awsKey  = "AK" + "IA" + "IOSFODNN7EXAMPLE"
-	dashes  = strings.Repeat("-", 5)
-	pkBegin = dashes + "BEGIN RSA PRIVATE KEY" + dashes
-	// The same header with its "R" written as a JSON \u escape (0x52 == 'R').
-	// Decoded, this is byte-for-byte pkBegin — which the test asserts, so the
-	// fixture cannot quietly stop exercising the escape it exists for.
-	pkEscaped = dashes + `BEGIN ` + "\\" + `u0052SA PRIVATE KEY` + dashes
-	// Likewise the AWS key with its leading "A" as A. Writing a literal "A"
-	// here would silently make the "escaped" case a second copy of the literal
-	// one — which is exactly what happened first time, and was only caught by
-	// reverting the fix and noticing that this case still passed.
+	awsKey = st.Key("aws access key id")
+	pkKey  = st.Key("rsa private key")
+	// The private key with the "R" of its header written as a JSON \u escape (0x52 == 'R').
+	// Decoded, this is byte-for-byte pkKey — which the test asserts, so the fixture cannot
+	// quietly stop exercising the escape it exists for.
+	pkEscaped = strings.Replace(jsonText(pkKey), "BEGIN RSA", "BEGIN "+"\\"+"u0052SA", 1)
+	// Likewise the AWS key with its leading "A" escaped.
 	awsEscaped = "\\" + `u0041` + awsKey[1:]
 )
+
+// jsonText is s as it sits inside a JSON string literal, without the quotes.
+func jsonText(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b[1 : len(b)-1])
+}
 
 // mustDecodeTo fails the test unless raw is valid JSON whose "command" decodes
 // to want. Every escaped fixture goes through this, so a fixture cannot quietly
@@ -44,13 +45,9 @@ func mustDecodeTo(t *testing.T, raw, want string) {
 	}
 }
 
-// THE defect (#80 §0), measured against the shipped binary before this fix:
-// an identical decoded secret evaded the gate purely by being \u-escaped on the
-// wire. Every pattern is ASCII-alphanumeric, which a standard encoder emits
-// literally — so the common case matched, and the gate looked correct.
-//
-//	{"command":"echo AKIA…"}        -> DENY
-//	{"command":"echo AKIA…"}   -> ALLOW   <- same decoded string
+// An identical decoded secret must not evade the gate by being \u-escaped on the wire: a
+// standard encoder writes a key's characters literally, so a gate reading only the wire bytes
+// looks correct on the common case.
 func TestScanPayloadCatchesEscapedSecrets(t *testing.T) {
 	cases := []struct{ name, raw string }{
 		{"literal", `{"command":"echo ` + awsKey + `"}`},
@@ -58,17 +55,15 @@ func TestScanPayloadCatchesEscapedSecrets(t *testing.T) {
 		{"nested one level down", `{"outer":{"command":"` + awsKey + `"}}`},
 		{"inside an array", `{"args":["safe","` + awsKey + `"]}`},
 		{"as an object KEY", `{"` + awsKey + `":"value"}`},
-		{"private key header, escaped", `{"command":"` + pkEscaped + `"}`},
+		{"private key, escaped", `{"command":"` + pkEscaped + `"}`},
 	}
 	// Both escaped fixtures must differ on the wire and agree once decoded, or
-	// the cases above prove nothing. Checked here rather than trusted, because
-	// the first draft of this file got it wrong and only reverting the fix
-	// exposed that the "escaped" AWS case was a second copy of the literal one.
-	mustDecodeTo(t, `{"command":"`+pkEscaped+`"}`, pkBegin)
+	// the cases above prove nothing.
+	mustDecodeTo(t, `{"command":"`+pkEscaped+`"}`, pkKey)
 	mustDecodeTo(t, `{"command":"`+awsEscaped+`"}`, awsKey)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := ScanPayload([]byte(c.raw)); len(got) == 0 {
+			if got, _ := ScanPayload([]byte(c.raw)); len(got) == 0 {
 				t.Errorf("allowed a payload carrying a secret: %s", c.raw)
 			}
 		})
@@ -78,10 +73,10 @@ func TestScanPayloadCatchesEscapedSecrets(t *testing.T) {
 // Malformed JSON must not become a bypass. "We could not parse it" is not "it is
 // safe", so an unparseable payload still gets the raw scan.
 func TestScanPayloadDoesNotAllowOnUnparseableInput(t *testing.T) {
-	if got := ScanPayload([]byte(`{"command":"` + awsKey + `"`)); len(got) == 0 {
+	if got, _ := ScanPayload([]byte(`{"command":"` + awsKey + `"`)); len(got) == 0 {
 		t.Error("truncated JSON carrying a secret was allowed")
 	}
-	if got := ScanPayload([]byte("not json at all " + pkBegin)); len(got) == 0 {
+	if got, _ := ScanPayload([]byte("not json at all " + pkKey)); len(got) == 0 {
 		t.Error("non-JSON carrying a secret was allowed")
 	}
 }
@@ -99,17 +94,17 @@ func TestScanPayloadDoesNotBlockInnocentPayloads(t *testing.T) {
 		`null`,
 		`[]`,
 	} {
-		if got := ScanPayload([]byte(raw)); len(got) != 0 {
+		if got, _ := ScanPayload([]byte(raw)); len(got) != 0 {
 			t.Errorf("false block on %s -> %v", raw, got)
 		}
 	}
 }
 
 // Decoded values are joined by a newline, not concatenated, so two innocent
-// neighbours cannot fuse into something satisfying a \b-anchored pattern.
+// neighbours cannot fuse into something satisfying a \b-anchored rule.
 func TestAdjacentValuesDoNotFuseIntoAMatch(t *testing.T) {
 	raw := `{"a":"AK","b":"IA` + awsKey[4:] + `"}`
-	if got := ScanPayload([]byte(raw)); len(got) != 0 {
+	if got, _ := ScanPayload([]byte(raw)); len(got) != 0 {
 		t.Errorf("two harmless values fused into a match: %v", got)
 	}
 }
@@ -119,9 +114,11 @@ func TestAdjacentValuesDoNotFuseIntoAMatch(t *testing.T) {
 // wrong — the worst kind of security bug to chase.
 func TestScanPayloadIsDeterministic(t *testing.T) {
 	raw := []byte(`{"z":"x","m":"y","a":"` + awsKey + `","k":{"n":"q"}}`)
-	first := strings.Join(ScanPayload(raw), ",")
+	ids, _ := ScanPayload(raw)
+	first := strings.Join(ids, ",")
 	for range 50 {
-		if got := strings.Join(ScanPayload(raw), ","); got != first {
+		again, _ := ScanPayload(raw)
+		if got := strings.Join(again, ","); got != first {
 			t.Fatalf("unstable result: %q then %q", first, got)
 		}
 	}
@@ -134,7 +131,7 @@ func TestScanPayloadIsDeterministic(t *testing.T) {
 func TestScopeIsToolInputOnly(t *testing.T) {
 	// A secret OUTSIDE tool_input is not this function's business; ScanPayload is
 	// handed tool_input alone by its caller.
-	if got := ScanPayload([]byte(`{"command":"safe"}`)); len(got) != 0 {
+	if got, _ := ScanPayload([]byte(`{"command":"safe"}`)); len(got) != 0 {
 		t.Errorf("unexpected match: %v", got)
 	}
 }

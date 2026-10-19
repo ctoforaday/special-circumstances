@@ -64,14 +64,21 @@ func ManualHeader(bin string, path []string) string {
 
 // ManualSharedLabel is the line that opens lifted block id in the SHARED section.
 func ManualSharedLabel(id, pages int) string {
-	return fmt.Sprintf("§%d (on %d pages):", id, pages)
+	return fmt.Sprintf(sharedLabelFormat, id, pages)
 }
+
+// The two label formats are the writer's and the reader's: sharedLabel scans a line with the same
+// format that printed it and accepts it only where printing what it scanned gives the line back.
+const (
+	sharedLabelFormat  = "§%d (on %d pages):"
+	closingLabelFormat = "§%d (the last block of %d pages — every page below that carries no marker for it):"
+)
 
 // ManualClosingLabel opens the one block that CLOSES pages without a marker: it is the last block
 // of every page that carries no marker for it, and closes is how many pages that is. A marker costs
 // a line on every page, and the block every command inherits is on all of them.
 func ManualClosingLabel(id, closes int) string {
-	return fmt.Sprintf("§%d (the last block of %d pages — every page below that carries no marker for it):", id, closes)
+	return fmt.Sprintf(closingLabelFormat, id, closes)
 }
 
 // ManualEntriesLead opens the marker that stands for a lifted block's lines WITHOUT its heading —
@@ -97,10 +104,31 @@ func ManualMarker(lead string, id int) string {
 
 const markerArrow = "→ SHARED §"
 
-var (
-	manualMarkerRe = regexp.MustCompile(`→ SHARED §(\d+)$`)
-	manualLabelRe  = regexp.MustCompile(`^§(\d+) \((on \d+ pages|the last block of \d+ pages — .*)\):$`)
-)
+// markedBlock is the id of the SHARED block a line's marker names, and the lead before its arrow.
+// A line is a marker only where ManualMarker, given that lead and id, prints the line back.
+func markedBlock(l string) (id int, lead string, ok bool) {
+	i := strings.LastIndex(l, markerArrow)
+	if i < 0 {
+		return 0, "", false
+	}
+	id, err := strconv.Atoi(l[i+len(markerArrow):])
+	if err != nil || ManualMarker(l[:i], id) != l {
+		return 0, "", false
+	}
+	return id, l[:i], true
+}
+
+// sharedLabel reads a SHARED section label: the block's id, and whether it is the block that
+// closes the pages that do not mark it.
+func sharedLabel(l string) (id int, closing, ok bool) {
+	for _, f := range []string{sharedLabelFormat, closingLabelFormat} {
+		var pages int
+		if n, _ := fmt.Sscanf(l, f, &id, &pages); n == 2 && fmt.Sprintf(f, id, pages) == l {
+			return id, f == closingLabelFormat, true
+		}
+	}
+	return 0, false, false
+}
 
 // ManualPage is one page of a manual: the command path it names and what that command printed.
 type ManualPage struct {
@@ -162,11 +190,10 @@ func ExpandManual(text, binName string) ([]ManualPage, error) {
 		lines := strings.Split(p.Body, "\n")
 		marksClosing := false
 		for j, l := range lines {
-			m := manualMarkerRe.FindStringSubmatch(l)
-			if m == nil {
+			id, lead, ok := markedBlock(l)
+			if !ok {
 				continue
 			}
-			id, _ := strconv.Atoi(m[1])
 			u, ok := units[id]
 			if !ok {
 				return nil, fmt.Errorf("page %q marks SHARED §%d, which the SHARED section does not hold", strings.Join(p.Path, " "), id)
@@ -182,7 +209,7 @@ func ExpandManual(text, binName string) ([]ManualPage, error) {
 			// Anything else is a flag entry: what precedes the arrow stays — the padded name, and
 			// any sentences of its own — and the block comes back after it.
 			default:
-				lines[j] = l[:strings.LastIndex(l, markerArrow)] + u
+				lines[j] = lead + u
 			}
 		}
 		body := strings.Join(lines, "\n")
@@ -324,22 +351,26 @@ func manualShared(text string) (blocks map[int]string, closing int) {
 		if !in {
 			continue
 		}
-		m := manualLabelRe.FindStringSubmatch(l)
-		if m == nil {
+		id, closes, ok := sharedLabel(l)
+		if !ok {
 			continue
 		}
-		id, _ := strconv.Atoi(m[1])
-		if !strings.HasPrefix(m[2], "on ") {
+		if closes {
 			closing = id
 		}
 		var block []string
-		for i+1 < len(lines) && lines[i+1] != ManualRule && !manualLabelRe.MatchString(lines[i+1]) {
+		for i+1 < len(lines) && lines[i+1] != ManualRule && !isSharedLabel(lines[i+1]) {
 			i++
 			block = append(block, lines[i])
 		}
 		out[id] = strings.TrimRight(strings.Join(block, "\n"), "\n")
 	}
 	return out, closing
+}
+
+func isSharedLabel(l string) bool {
+	_, _, ok := sharedLabel(l)
+	return ok
 }
 
 func parseManualHeader(line, binName string) (bin string, path []string, ok bool) {

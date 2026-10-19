@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	st "github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets/secretstest"
 )
 
 // binRef pulls the binary name out of the shipped command string. The commands are
@@ -248,6 +249,42 @@ func TestTheShippedBinariesHonourTheIOContract(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+// THE SECRETS GATE, as the client runs it: hooks.json's PreToolUse command, through bash, on the
+// built binary. A key of each vendor is refused under its gitleaks rule id, and the key reaches
+// neither stdout nor stderr — gitleaks logs findings, secret included, unless told not to.
+func TestTheShippedSecretsGateRefusesWithoutEchoing(t *testing.T) {
+	root := build(t)
+	var command string
+	for _, e := range load(t).Hooks["PreToolUse"] {
+		for _, h := range e.Hooks {
+			command = h.Command
+		}
+	}
+	if command == "" {
+		t.Fatal("hooks.json registers no PreToolUse command")
+	}
+	for _, f := range st.Vendors {
+		key := st.Key(f.Name)
+		payload, _ := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": "echo " + key}})
+		cmd := exec.Command("bash", "-c", command)
+		cmd.Env = append(os.Environ(), "CLAUDE_PLUGIN_ROOT="+root, "CLAUDE_PROJECT_DIR="+t.TempDir())
+		cmd.Stdin = strings.NewReader(string(payload))
+		var out, errb strings.Builder
+		cmd.Stdout, cmd.Stderr = &out, &errb
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("%s: the hook exited non-zero: %v\n%s", f.Name, err, errb.String())
+		}
+		if !strings.Contains(out.String(), `"permissionDecision":"deny"`) || !strings.Contains(out.String(), f.Rule) {
+			t.Errorf("%s: not refused under %s: %s", f.Name, f.Rule, out.String())
+		}
+		for _, w := range []string{key, key[len(key)-16:]} {
+			if strings.Contains(out.String()+errb.String(), w) {
+				t.Fatalf("%s: the key reached the hook's output", f.Name)
+			}
 		}
 	}
 }

@@ -189,7 +189,7 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 						t.Fatalf("%s declares %q required, but it registers no --%s — the payload key does not map to a real flag, so the requirement is invisible in the contract",
 							path, key, flag)
 					}
-					if !strings.Contains(f.Usage, "REQUIRED") {
+					if !seat.IsMarked(f) {
 						t.Errorf("%s: --%s is required but its flag line does not say so:\n%s", path, flag, f.Usage)
 					}
 				})

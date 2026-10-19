@@ -11,11 +11,13 @@
 //
 //	BEFORE an outbound-capable tool call (WebFetch, WebSearch, Bash, or any MCP tool) runs,
 //	its input MUST NOT contain matchable secrets (keys, tokens, private-key material).
-//	When a secret pattern matches, the call is DENIED with a reason; otherwise allow.
+//	When gitleaks finds a secret, the call is DENIED with a reason naming the tool and the
+//	gitleaks rule id; otherwise allow. A detector that cannot be built denies every call.
 //	This is the deterministic layer of the agent-guardrails rule — the rule itself
 //	remains the semantic layer for what a pattern can't catch.
 //
-// Pattern definitions live in internal/secrets — shared, defined once.
+// Detection lives in internal/secrets: gitleaks' detector, its default configuration extended
+// with the gate's own rules.
 package secretsgate
 
 import (
@@ -75,6 +77,16 @@ func denyReason(toolName string, found []string) string {
 		"Secrets never leave the box (agent-guardrails)."
 }
 
+// unscannedReason refuses a call the gate could not scan: the detector failed to build from
+// the configuration embedded in this binary. That is a defect of the binary, not of the call,
+// so the agent is told to stop and hand it to the human. err names the configuration, never the
+// payload.
+func unscannedReason(toolName string, err error) string {
+	return "sc-secrets-gate: BLOCKED your " + toolName + " call — the secrets detector could not be built (" + err.Error() + "), " +
+		"so the call was not scanned and did NOT run. Every call this gate watches is refused until the binary is fixed. " +
+		"STOP and hand the human this message: the prosthetic-conscience hook binary needs rebuilding (/prosthetic-conscience:doctor)."
+}
+
 // Unit exposes the gate to the merged PreToolUse binary.
 //
 // Applies to WebFetch, WebSearch, Bash and every MCP tool (mcp__<server>__<tool>). Every MCP
@@ -95,11 +107,17 @@ func Unit() hookunit.Unit {
 			if !c.Parsed {
 				payload = c.Raw
 			}
-			found := secrets.ScanPayload(payload)
-			if len(found) == 0 {
+			found, err := secrets.ScanPayload(payload)
+			reason := ""
+			switch {
+			case err != nil:
+				reason = unscannedReason(c.ToolName, err)
+			case len(found) > 0:
+				reason = denyReason(c.ToolName, found)
+			default:
 				return hookunit.Result{Name: "sc-secrets-gate"} // allow
 			}
-			out, _ := json.Marshal(deny(denyReason(c.ToolName, found)))
+			out, _ := json.Marshal(deny(reason))
 			return hookunit.Result{Name: "sc-secrets-gate", Stdout: string(out) + "\n"}
 		},
 	}

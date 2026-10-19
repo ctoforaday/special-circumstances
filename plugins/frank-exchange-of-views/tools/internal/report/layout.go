@@ -173,8 +173,9 @@ var layout = []Section{
 	// FIRST in run.md, because it is the fact about the run a reader of the verdict most needs:
 	// what answered each seat, measured from the seat's own trajectory (#589).
 	{File: FileRun, Heading: "How this run was conducted", Composer: Tool,
-		From:    "what answered each seat, measured from the seat's own trajectory",
-		Path:    noSeatPath + " A seat reads the run's configuration and never what replied to it, so no seat holds this fact.",
+		From: "what answered each seat, measured from the seat's own trajectory, and the build, hook and route to the run directory each seat registered with, beside the hooks setup found installed",
+		Path: "No seat writes it. A seat reads the run's configuration and never what replied to it, so no seat holds the model; " +
+			"the build, the hook and the route are what the engine observed at each seat's `register`, and the seat types none of them.",
 		compose: func(a *assembly, _ Section) string { return conduct(a.run, a.fam) }},
 	// THE ONLY PLACE ANY VERDICT'S GLOSS LIVES, for every outcome and for none: report.md carries
 	// the stamp and its basis as state, and every sentence explaining either is here.

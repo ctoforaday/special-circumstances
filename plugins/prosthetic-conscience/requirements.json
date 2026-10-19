@@ -69,7 +69,7 @@
       {
         "name": "sc-pretooluse",
         "event": "PreToolUse(WebFetch|WebSearch|Bash|mcp__.*)",
-        "purpose": "ONE hook for the event: the secrets gate (fails CLOSED, can deny) and the push-freeze guard (never blocks) as units over one shared context, each keeping its own matcher and its own posture. Separate binaries until #201 step 3."
+        "purpose": "ONE hook for the event: the secrets gate (gitleaks' detector, default configuration extended with the gate's own rules; fails CLOSED, can deny) and the push-freeze guard (never blocks) as units over one shared context, each keeping its own matcher and its own posture. Separate binaries until #201 step 3."
       },
       {
         "name": "sc-sessionstart",

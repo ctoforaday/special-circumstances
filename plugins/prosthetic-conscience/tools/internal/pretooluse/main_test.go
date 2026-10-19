@@ -10,7 +10,11 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	st "github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secrets/secretstest"
 )
+
+// awsKey is drawn at test time, so this file holds no scannable value.
+var awsKey = st.Key("aws access key id")
 
 var noon = time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
 
@@ -68,7 +72,7 @@ func TestWarningSurvivesADenial(t *testing.T) {
 // payload was allowed. A merge that handed units only the PARSED fragment would reintroduce
 // it while every existing test still passed, because the fragment is empty either way.
 func TestUndecodablePayloadStillDenies(t *testing.T) {
-	truncated := `{"tool_name":"Bash","tool_input":{"command":"echo AKIAIOSFODNN7EXAMPLE"`
+	truncated := `{"tool_name":"Bash","tool_input":{"command":"echo ` + awsKey + `"`
 
 	stdout, _, code := fire(t, truncated, Units())
 	if code != 0 {
@@ -85,7 +89,7 @@ func TestUndecodablePayloadStillDenies(t *testing.T) {
 // The real units, end to end: each must act on its own matcher and no other.
 func TestRealUnitsKeepTheirOwnMatchers(t *testing.T) {
 	// A WebFetch carrying a key: the secrets gate watches it, the freeze guard does not.
-	stdout, stderr, _ := fire(t, `{"tool_name":"WebFetch","tool_input":{"url":"https://x/?k=AKIAIOSFODNN7EXAMPLE"}}`, Units())
+	stdout, stderr, _ := fire(t, `{"tool_name":"WebFetch","tool_input":{"url":"https://x/?k=`+awsKey+`"}}`, Units())
 	if !strings.Contains(stdout, `"deny"`) {
 		t.Errorf("the secrets gate must watch WebFetch: %s", stdout)
 	}
@@ -107,7 +111,7 @@ func TestRealUnitsKeepTheirOwnMatchers(t *testing.T) {
 
 // The emitted document must be exactly what the protocol expects — one JSON object.
 func TestDecisionIsOneValidDocument(t *testing.T) {
-	stdout, _, _ := fire(t, `{"tool_name":"Bash","tool_input":{"command":"echo AKIAIOSFODNN7EXAMPLE"}}`, Units())
+	stdout, _, _ := fire(t, `{"tool_name":"Bash","tool_input":{"command":"echo `+awsKey+`"}}`, Units())
 	var d struct {
 		HookSpecificOutput struct {
 			HookEventName      string `json:"hookEventName"`
@@ -140,3 +144,21 @@ func TestPanicIsIsolatedAndReported(t *testing.T) {
 
 // No test in this package may write the developer's own state.
 func TestMain(m *testing.M) { os.Exit(hooktest.Isolated(m)) }
+
+// Positive controls through the event's entry point with its real units: a key of each vendor
+// is refused, the refusal names the gitleaks rule, and neither stdout nor stderr carries the key.
+func TestEveryVendorKeyIsRefusedThroughTheEvent(t *testing.T) {
+	for _, f := range st.Vendors {
+		key := st.Key(f.Name)
+		payload, _ := json.Marshal(map[string]any{"tool_name": "Bash", "tool_input": map[string]string{"command": "echo " + key}})
+		stdout, stderr, code := fire(t, string(payload), Units())
+		if code != 0 || !strings.Contains(stdout, `"permissionDecision":"deny"`) || !strings.Contains(stdout, f.Rule) {
+			t.Errorf("%s: not refused under %s: exit %d %s", f.Name, f.Rule, code, stdout)
+		}
+		for _, w := range []string{key, key[len(key)-16:]} {
+			if strings.Contains(stdout+stderr, w) {
+				t.Fatalf("%s: the key reached the hook's output", f.Name)
+			}
+		}
+	}
+}

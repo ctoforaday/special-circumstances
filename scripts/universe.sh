@@ -30,15 +30,17 @@
 #   --live              install into ~/.claude instead. Use when you want the change in YOUR next
 #                       session. It is shared state: other sessions on this box see it.
 #
-# The plugin content is COPIED into a versioned cache at install time, and the binaries are built
-# there, after install — that ordering is bootstrap-plugins.sh's and is kept here.
+# THE STAGED MARKETPLACE IS THE PLUGIN ROOT A SESSION LOADS. It is a `directory` marketplace
+# source, and Claude Code runs a directory source's plugins IN PLACE: ${CLAUDE_PLUGIN_ROOT}, the
+# skills' base directory, the agent definitions, hooks.json and bin/ all resolve under
+# $WORKDIR.marketplace/plugins/<name>. `claude plugin install` still copies each plugin into the
+# versioned cache and names that copy in installed_plugins.json, but a session does not load it.
 #
-# BUT THE CACHE IS NOT THE ONLY PLUGIN ROOT. The staged marketplace is one too, and an empty bin/
-# in it is filled BY DESIGN: hooks.json execs hooks/fetch-bin.sh when a binary is missing, which
-# downloads that plugin's RELEASE and installs it there. A build that deleted those binaries had
-# them back, from the release, forty seconds later — and the run used them. So the build mirrors
-# what it compiled into the staging tree as well: every feov-record on disk is this checkout's,
-# and which one gets used stops being a question the result depends on.
+# The binaries are built in the cache, after install — bootstrap-plugins.sh's ordering — and then
+# mirrored into the staged marketplace. An empty bin/ there is filled BY DESIGN: hooks.json execs
+# hooks/fetch-bin.sh when a binary is missing, which downloads that plugin's RELEASE and installs
+# it there. With the mirror, every feov-record on disk is this checkout's, and which root a hook or
+# a lead reaches stops being a question the result depends on.
 #
 # Usage:
 #   scripts/universe.sh build                     # make the universe from this checkout
@@ -297,12 +299,8 @@ cmd_build() {
   # THE STAGING DIR LIVES BESIDE THE UNIVERSE AND OUTLIVES THE BUILD, and both halves of that are
   # load-bearing in opposite directions.
   #
-  # OUTSIDE, because it holds a `plugins` symlink into the checkout. It was $WORKDIR/marketplace,
-  # and a run's lead exploring its own WORKDIR with bypassPermissions found it and ran
-  # $WORKDIR/marketplace/plugins/frank-exchange-of-views/bin/feov-record: the CHECKOUT's binaries,
-  # whatever a previous build left there, instead of the cache this script just built. A universe
-  # containing a door back to the working tree is not isolated, and it fails silently — the run
-  # works, with the wrong binary.
+  # OUTSIDE, because a lead exploring its own WORKDIR with bypassPermissions runs whatever
+  # feov-record it finds there, and the staging tree is a plugin root with a bin/ of its own.
   #
   # OUTLIVES, because `extraKnownMarketplaces` in the universe's settings.json records this PATH,
   # and Claude re-reads it at every session start. Staged in `mktemp -d` and deleted on return, the
@@ -360,16 +358,17 @@ cmd_build() {
     ( cd "$WORKDIR" && claude plugin install "$p@$MARKETPLACE_NAME" ) >/dev/null || log "WARNING: install failed: $p"
   done
 
-  # Binaries are written INTO THE CACHE, because that is where ${CLAUDE_PLUGIN_ROOT} resolves. A
-  # binary left in the checkout would leave the installed plugin with no binaries and hooks
-  # degrading to a stderr line — which looks, from inside a run, exactly like hooks that are not
-  # configured.
+  # Binaries are built IN THE CACHE, where the install put each plugin's tools/, and mirrored into
+  # the staged marketplace below, which is where ${CLAUDE_PLUGIN_ROOT} resolves. A build in the
+  # checkout leaves both roots with no binaries and hooks degrading to a stderr line — which looks,
+  # from inside a run, exactly like hooks that are not configured.
   #
-  # They are COMPILED FROM THE CHECKOUT, because Go stamps a binary with its commit only when it
-  # builds inside a git tree, and the cache is a copy with no .git. Built there, every register's
-  # tool_version and hook_version read `unknown`, so run.md could not tell one build from another.
-  # The checkout is the commit the cache was installed from (the clean-tree check above).
-  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-$HOME/.claude/plugins}/cache/$MARKETPLACE_NAME"
+  # They are COMPILED FROM THE CHECKOUT's source and written into the cache, because Go stamps a
+  # binary with its commit only when it builds inside a git tree, and the cache is a copy with no
+  # .git: compiled there, every register's tool_version and hook_version read `unknown`, so run.md
+  # could not tell one build from another. The checkout is the commit the cache was installed from
+  # (the clean-tree check above).
+  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
   [ -d "$cache_root" ] || die "plugin cache not found at $cache_root"
 
   local first_tools
@@ -394,10 +393,10 @@ cmd_build() {
   done
   log "built $built hook binaries into the cache"
 
-  # THE STAGING TREE GETS THE SAME BINARIES, because it is a plugin root too and the hooks will
-  # fill it from the RELEASE if it is empty (see the staging comment above). Copied from what was
-  # just built rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever
-  # one a hook or a curious lead reaches, it is this checkout's code.
+  # THE STAGING TREE GETS THE SAME BINARIES, because it is the root a session loads and the hooks
+  # fill it from the RELEASE if it is empty (see the header). Copied from what was just built
+  # rather than rebuilt, so the two roots cannot diverge even by a recompile: whichever one a hook
+  # or a curious lead reaches, it is this checkout's code.
   local staged=0
   for plugin_dir in "$cache_root"/*/*/; do
     [ -d "$plugin_dir/bin" ] || continue
@@ -493,7 +492,7 @@ PY
 
 cmd_doctor() {
   universe_env; clear_seat_env
-  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-$HOME/.claude/plugins}/cache/$MARKETPLACE_NAME"
+  local cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
   log "cache: $cache_root"
   for plugin_dir in "$cache_root"/*/*/; do
     [ -d "$plugin_dir" ] || continue
