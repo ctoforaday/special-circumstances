@@ -1645,6 +1645,18 @@ type DebateEpochJSON struct {
 	// what it names and what it found. A defect the chair finds in a stale area is stated there,
 	// with no verdict recorded.
 	SpotChecks []string `json:"spot_checks"`
+	// RedKeeps is each regrade a minting lens made this epoch that kept its gap's grade (KeptGrades):
+	// the lens saying, after its re-audit, that the gap stands and what its check still finds
+	// failing. The bench reads it with the closings.
+	RedKeeps []DebateKeepJSON `json:"red_keeps"`
+}
+
+// DebateKeepJSON is one regrade that kept the grade: the gap, the lens that minted it, and its
+// reason.
+type DebateKeepJSON struct {
+	GapID  string `json:"gap_id"`
+	SeatID string `json:"seat_id"`
+	Text   string `json:"text"`
 }
 
 type DebateClosingJSON struct {
@@ -1663,7 +1675,7 @@ type DebateOpinionJSON struct {
 
 // DebateJSONOf groups the record's events by epoch exactly as render.go's debate loop does:
 // position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
-// spot-check→SpotChecks, a docket motion's ruling→Lead. The grouping is
+// spot-check→SpotChecks, a lens's regrade that keeps the grade→RedKeeps, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
@@ -1683,6 +1695,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 	sort.Ints(epochOrder)
 
 	docketGapOf := DocketGapByMotion(evs)
+	kept := KeptGrades(evs, win)
 
 	for _, r := range epochOrder {
 		re := byEpoch[r]
@@ -1696,7 +1709,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			return s
 		}
 		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{},
-			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}}
+			RedClosings: []DebateClosingJSON{}, BlueClosings: []DebateClosingJSON{}, SpotChecks: []string{}, RedKeeps: []DebateKeepJSON{}}
 		for _, e := range re {
 			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())
@@ -1717,6 +1730,11 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 		for _, e := range sec(recordpb.EventType_EVENT_TYPE_SPOT_CHECK, "chair") {
 			if sc, ok := SpotCheckOf(e, win, archive); ok {
 				rj.SpotChecks = append(rj.SpotChecks, sc.Describe())
+			}
+		}
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_REGRADE, "lens") {
+			if kept[e] {
+				rj.RedKeeps = append(rj.RedKeeps, DebateKeepJSON{GapID: e.GetRegrade().GetGapId(), SeatID: e.GetSeatId(), Text: e.GetRegrade().GetBasis()})
 			}
 		}
 		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
@@ -1793,7 +1811,11 @@ var debateView = declareNarrowedView("debate", func(q recordsql.Querier, evs []*
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_VERDICT,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK,
-	recordpb.EventType_EVENT_TYPE_CLOSE)
+	recordpb.EventType_EVENT_TYPE_CLOSE,
+	// A regrade that keeps the grade is judged against the gap's grades at its place: the mint's,
+	// overlaid by every earlier regrade (KeptGrades).
+	recordpb.EventType_EVENT_TYPE_MINT,
+	recordpb.EventType_EVENT_TYPE_REGRADE)
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) { return debateView.jsonBytes(run) }

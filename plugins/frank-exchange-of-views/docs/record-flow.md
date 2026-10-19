@@ -63,6 +63,9 @@ flowchart TB
 - **Two readers of one replay never drift.** `viewjson.go` (the live JSON views) and
   `internal/view` (the markdown projections, rendered just-in-time on read) both derive from
   `BoardState`; neither parses the other's output, and neither materializes to disk.
+- **A regrade that keeps the grade is a lens's statement that its gap stands.** It moves nothing on
+  the board and counts as an exchange that moved nothing; its reason reaches blue's work list beside
+  the gap (until blue answers again) and debate.md as `### RED KEEPS THE GRADE`, which the bench reads.
 - **citations_checked** is the board's `counts.citations` (a tally of `cite` events), not a
   self-report (#70/#71 — the citation half of this same migration).
 

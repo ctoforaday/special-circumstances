@@ -54,7 +54,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
   - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
-  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens.
+  - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
   - A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
   - A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
   - A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
@@ -224,9 +224,9 @@ Usage:
   feov-record dispatch next [flags]
 ========
 $ feov-record inquest debate --help
-the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, the chair's `spot-check`, and the bench's `motion docket rule`
+the transcript epoch by epoch (an epoch is one chair sitting), every seat's sections in order; --json gives the structured form below. Written by blue's and the chair's `position` and `closing`, the chair's `spot-check`, a lens's `regrade` that keeps a gap's grade (`### RED KEEPS THE GRADE`; `red_keeps` in --json), and the bench's `motion docket rule`
 
-OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],spot_checks:[string]}]}
+OUTPUT (JSON, with --json — the bare call is the markdown form): {epochs:[{epoch,verdict,red:[string],blue:[string],lead:[{gap_id,disposition,principle,tension,review_flag,rationale}],red_closings:[{gap_id,text}],blue_closings:[{gap_id,text}],spot_checks:[string],red_keeps:[{gap_id,seat_id,text}]}]}
 
 (FREE TEXT AND THE SHELL. Bash RU…) → SHARED §3
 

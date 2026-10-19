@@ -83,6 +83,13 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 				add(remandOwedItem(g, true))
 			}
 		}
+		// A LENS THAT KEPT ITS GRADE SAID WHAT ITS CHECK STILL FINDS FAILING, and that is what blue's
+		// answer still lacks — the work, not the argument for the gap, which stays on the board with
+		// the mint's reason and every regrade that moved a grade (gblock, 2026-10-18). It stays here
+		// until blue answers the gap again.
+		for _, w := range keptGradeItems(evs, win, gaps) {
+			add(w)
+		}
 	case "chair":
 		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
 		// not be said here at all — the note above used to record that "`closing` wants the
@@ -211,8 +218,9 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// reached anybody. `finding --about-kind gap` already existed for exactly this and was
 		// used zero times, because a finding anchored to a gap went to no one's list.
 		//
-		// It stays until the minter acts on that gap after the finding — a regrade, a close, a
-		// closing argument — so it asks for an answer, not for the finding to be acknowledged.
+		// It stays until the minter acts on that gap after the finding — a regrade, one that keeps the
+		// grade included, or a close — so it asks for an answer, not for the finding to be
+		// acknowledged.
 		for _, w := range findingsAboutYourGaps(evs, win, gaps, minted, seatID) {
 			add(w)
 		}
@@ -239,7 +247,7 @@ func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, m
 			what = string(r[:160]) + "…"
 		}
 		out = append(out, f.filer+" filed a finding about your gap "+f.gap+" — "+what+
-			" — only you can act on "+f.gap+", so answer it: regrade it, close it, or record in a closing argument why it stands")
+			" — only you can act on "+f.gap+", so answer it: regrade it, close it, or keep its grade with a regrade that says why it stands")
 	}
 	return out
 }
@@ -271,7 +279,8 @@ func findingsAboutGapsOf(evs []*Event, win WindowIndex, open map[string]bool, mi
 	return out
 }
 
-// actedOnGapAfter is whether seatID recorded a regrade, close or closing argument on gap among evs.
+// actedOnGapAfter is whether seatID — the gap's minting lens — recorded a regrade or a close on gap
+// among evs. A regrade that keeps the grade is one: it answers the finding with why the gap stands.
 func actedOnGapAfter(evs []*Event, seatID, gap string) bool {
 	for _, e := range evs {
 		if e.GetSeatId() != seatID {
@@ -281,9 +290,6 @@ func actedOnGapAfter(evs []*Event, seatID, gap string) bool {
 			return true
 		}
 		if c := e.GetClose(); c != nil && c.GetGapId() == gap {
-			return true
-		}
-		if c := e.GetClosing(); c != nil && c.GetGapId() == gap {
 			return true
 		}
 	}

@@ -48,17 +48,17 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		a := answers[g]
 		switch {
 		case a.edited:
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an edit — re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g))
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an edit — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.fate != "":
-			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, the inquiry the gap is anchored on; re-audit it against the acceptance check you set at mint, and either close it or state what your own check still fails", g, a.fate, a.inquiry))
+			out = append(out, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, the inquiry the gap is anchored on; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, a.inquiry))
 		case a.pending:
 			out = append(out, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
 		case a.engaged && gone[g]:
-			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it or say what still fails", g))
+			out = append(out, fmt.Sprintf("gap %s is open and its anchor is no longer in the report — judge whether the report as it stands meets your acceptance check, then close it, or keep its grade with a regrade that says what still fails", g))
 		case a.engaged && a.inquiry != "":
-			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without recording a fate on %s; that is a fact to state rather than a gap to re-argue", g, a.inquiry, a.inquiry))
+			out = append(out, fmt.Sprintf("gap %s is open and NO inquiry record answers it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without recording a fate on %s; that is a fact to state in a regrade that keeps the grade, rather than a gap to re-argue", g, a.inquiry, a.inquiry))
 		case a.engaged:
-			out = append(out, fmt.Sprintf("gap %s is open and NO edit answers it — blue has been engaged on it and its sitting closed without one, which is a fact to state rather than a gap to re-argue", g))
+			out = append(out, fmt.Sprintf("gap %s is open and NO edit answers it — blue has been engaged on it and its sitting closed without one, which is a fact to state in a regrade that keeps the grade, rather than a gap to re-argue", g))
 		}
 		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
 		// waiting for a dispatch, which is the chair's business and not news about blue.
