@@ -116,8 +116,16 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 	// inquiries.md — THE INQUIRIES, and the one home of each inquiry's PATH. report.md files an
 	// inquiry by its final fate and carries neither who recorded it, the path it took nor the ruling
 	// beside it, because those are the debate. It is the SAME rendering `show inquiries` prints
-	// (view.InquiryBody), whole, not a section of the table and not a second account.
-	inq := EscapeNotes(view.InquiryBody(evs, fam.At))
+	// (view.InquiryBody), whole, not a section of the table and not a second account, followed by
+	// the chair's reviews of the report against those inquiries (inquiryReviews).
+	inq := view.InquiryBody(evs, fam.At)
+	if reviews := inquiryReviews(evs, fam.At); reviews != "" {
+		if inq != "" {
+			inq = strings.TrimRight(inq, "\n") + "\n\n"
+		}
+		inq += reviews
+	}
+	inq = EscapeNotes(inq)
 
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: body[FileReport].String(),
@@ -134,7 +142,7 @@ func assemble(run record.Run, mark string) ([]Doc, map[string]bool, error) {
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade motions, petitions, and the bench's opinions", Body: body[FileJudgments].String()},
 		{File: FileInquiries, Nav: "Inquiries", Title: "inquiries",
-			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling", Body: inq},
+			Blurb: "every inquiry the research proposed, took, deferred, declined or abandoned: the path each one took, the seat that last recorded it and red's ruling, then each of the chair's reads of the report against them, with its reason", Body: inq},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",

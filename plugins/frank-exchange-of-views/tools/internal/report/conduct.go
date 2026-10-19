@@ -28,7 +28,21 @@ import (
 //
 // AND NOT MEASURED IS ITS OWN ROW. A run where nothing looked must not render as a run that
 // matched its configuration; that collapse is how $379 of spend went to a tier that never ran.
+//
+// Beneath the models, the build, hook and route to the run each seat registered with
+// (registrations).
 func conduct(run record.Run, fam record.Family) string {
+	var parts []string
+	for _, p := range []string{servedModels(run, fam), registrations(run, fam)} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// servedModels is the table of what answered each tier.
+func servedModels(run record.Run, fam record.Family) string {
 	seats := record.SeatModels(run, fam)
 	if len(seats) == 0 {
 		return ""
