@@ -17,7 +17,9 @@ package report
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
@@ -64,10 +66,26 @@ type anchors map[string]string
 // to scroll to. The report's own "## Proofs" and evidence.md's are "proofs" and "proofs-2", and
 // the note each of two documents numbers 1 is "fn-1" in the first and "fn-1-2" in the second
 // (noteIDs).
-func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
+//
+// files is the document set: a link to one of them is a tab switch, written as one here, because
+// in a single page there is no sibling file to open.
+func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[string]bool) string {
+	// The marker byte is a control character with no rendering; one in the text is shown as the
+	// replacement character, so no text can be read as a reference.
+	md = strings.ReplaceAll(md, string(refMarkByte), "\uFFFD")
 	lines := strings.Split(md, "\n")
 	var b strings.Builder
-	var foot []string
+	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where inline meets it and
+	// left in the text as a marker that holds only its index (refMark); each definition is kept as
+	// a note. citations numbers and lists them from these once the document is rendered.
+	var refs []string
+	var notes []footnote
+	in := func(s string) string {
+		return renderInline(s, func(label string) string {
+			refs = append(refs, label)
+			return refMark(len(refs) - 1)
+		}, files)
+	}
 
 	slug := func(text string) string {
 		s := strings.ToLower(strings.TrimSpace(stripInline(text)))
@@ -104,7 +122,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 		// A line ending in two spaces is a markdown hard break, and the composers use it to
 		// keep a gap's location, grades, demanded fix and acceptance check on four lines
 		// instead of fusing them into one sentence.
-		b.WriteString("<p>" + inline(strings.Join(para, "\n")) + "</p>\n")
+		b.WriteString("<p>" + in(strings.Join(para, "\n")) + "</p>\n")
 		para = nil
 	}
 
@@ -162,9 +180,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 			// leave it alone. A label that links away reads as a reference to somewhere else.
 			// The number leads (the <ol> renders it); the slug trails as a muted tag, because
 			// it is the markdown tier's name for this entry and grep must find it here too.
-			foot = append(foot, `<li id="fn-`+escape(m[1])+`">`+inline(m[2])+
-				` <span class="fnlabel" data-nolink>`+escape(m[1])+`</span>`+
-				` <a class="fnback" href="#fnref-`+escape(m[1])+`" aria-label="back to the citing text">&#8617;</a></li>`)
+			notes = append(notes, footnote{label: m[1], html: in(m[2]), scent: scentOf(inline(m[2]))})
 			continue
 		}
 
@@ -174,7 +190,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 			level := len(m[1])
 			id := slug(m[2])
 			define(m[2], id)
-			fmt.Fprintf(&b, "<h%d id=\"%s\">%s</h%d>\n", level, id, inline(m[2]), level)
+			fmt.Fprintf(&b, "<h%d id=\"%s\">%s</h%d>\n", level, id, in(m[2]), level)
 			continue
 		}
 
@@ -194,7 +210,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 				i++
 			}
 			i--
-			b.WriteString("<blockquote>" + inline(strings.Join(quote, " ")) + "</blockquote>\n")
+			b.WriteString("<blockquote>" + in(strings.Join(quote, " ")) + "</blockquote>\n")
 			continue
 		}
 
@@ -208,7 +224,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 			// stretching the whole page and dragging every paragraph with it.
 			b.WriteString("<div class=\"tblwrap\"><table><thead><tr>")
 			for _, c := range splitRow(t) {
-				b.WriteString("<th>" + inline(c) + "</th>")
+				b.WriteString("<th>" + in(c) + "</th>")
 			}
 			b.WriteString("</tr></thead><tbody>\n")
 			for i += 2; i < len(lines); i++ {
@@ -218,7 +234,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 				}
 				b.WriteString("<tr>")
 				for _, c := range splitRow(row) {
-					b.WriteString("<td>" + inline(c) + "</td>")
+					b.WriteString("<td>" + in(c) + "</td>")
 				}
 				b.WriteString("</tr>\n")
 			}
@@ -235,13 +251,13 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 				id = slug(tok[1])
 				define(m[2], id)
 			}
-			writeItem(&b, id, inline(m[2]))
+			writeItem(&b, id, in(m[2]))
 			continue
 		}
 		if m := reOLItem.FindStringSubmatch(ln); m != nil {
 			flushPara()
 			b.WriteString(openList(&listStack, "ol", len(m[1])))
-			writeItem(&b, "", inline(m[2]))
+			writeItem(&b, "", in(m[2]))
 			continue
 		}
 
@@ -255,7 +271,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 		if len(listStack) > 0 && strings.HasPrefix(ln, "  ") {
 			// A continuation line under a list item: appended to the item rather than
 			// promoted to a paragraph that breaks the list open.
-			b.WriteString("<div class=\"cont\">" + inline(t) + "</div>\n")
+			b.WriteString("<div class=\"cont\">" + in(t) + "</div>\n")
 			continue
 		}
 		closeList(&listStack)
@@ -265,13 +281,7 @@ func mdToHTML(md, file string, anchor anchors, seen map[string]int) string {
 	}
 	flushPara()
 	closeList(&listStack)
-	if len(foot) > 0 {
-		// "References", because that is what the entries are — the citation layer the
-		// research protocol requires — and a reader looking for a bibliography must be able
-		// to find it by its own name.
-		b.WriteString("<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(foot, "\n") + "\n</ol></section>\n")
-	}
-	return noteIDs(numberCitations(b.String()), seen)
+	return citations(b.String(), refs, notes, seen)
 }
 
 // uniqueID is id the first time the set asks for it, and id with a count after that.
@@ -283,107 +293,157 @@ func uniqueID(seen map[string]int, id string) string {
 	return id
 }
 
-// noteIDs makes one document's footnote ids the set's: a label an earlier document also numbered
-// takes a count, in the entry's id, the marker's and every link between the two. Every document
-// with a citation has a note 1, and proofs are numbered run-wide, so the same label recurs across
-// the tabs by construction. The label a reader sees, and the title on the marker, stay as written.
-func noteIDs(html string, seen map[string]int) string {
-	suffix := map[string]string{}
-	return reNoteID.ReplaceAllStringFunc(html, func(s string) string {
-		m := reNoteID.FindStringSubmatch(s)
-		if _, ok := suffix[m[2]]; !ok {
-			suffix[m[2]] = strings.TrimPrefix(uniqueID(seen, "fn-"+m[2]), "fn-"+m[2])
-		}
-		return m[1] + "-" + m[2] + suffix[m[2]] + `"`
-	})
+// footnote is one definition as the document holds it: its label, its text rendered (reference
+// markers and all), and the scent its markers carry as a title.
+type footnote struct {
+	label, html, scent string
 }
 
-// reNoteID is a footnote id where this package writes one: an entry's id, a marker's, or a link to
-// either. A heading whose slug reads "fn-1" is not one.
-var reNoteID = regexp.MustCompile(`(<li id="fn|<a class="cite" id="fnref|href="#fn|href="#fnref)-([^"]+)"`)
+// refMarkByte brackets a reference marker. It is a control character no composer writes and inline
+// leaves alone, and the code-span placeholders use NUL, so the two cannot be read for each other.
+const refMarkByte = '\x01'
 
-// numberCitations renders the citation layer the way a reader of arXiv or PubMed expects:
-// in-text markers become bracketed NUMBERED links — [1], [2] — assigned in order of first
-// citation, and the References list is REORDERED to match, so entry 3 is the third source the
-// reader met. The slug ids stay underneath (in the anchors and as a muted tag on each entry):
-// they are the markdown tier's names, and grep must keep finding them in both tiers.
-//
-// The FIRST citation of each id also carries the anchor its entry links back to: one return
-// address per entry, and it is the earliest, which is where the claim was made. A definition
-// nothing cites keeps its place at the end, unnumbered in text but present in the list —
-// dropping it would un-say a source the author recorded.
-func numberCitations(html string) string {
-	// The number is opaque where the slug was not, so every marker carries the scent back as
-	// a title: hover (or a long-press preview) says which source this is before any tap. The
-	// text comes from the entry itself, cut short — a tooltip is a scent, not the reference.
-	scent := map[string]string{}
-	for _, li := range reFnItem.FindAllString(html, -1) {
-		id := reFnItem.FindStringSubmatch(li)[1]
-		text := li
-		if i := strings.Index(text, `<span class="fnlabel"`); i >= 0 {
-			text = text[:i]
+// refMark is the marker for the k-th reference inline met: where the cite will stand, and which
+// reference it is. The label is held in the document's refs, never re-read from the text.
+func refMark(k int) string { return fmt.Sprintf("%c%d%c", refMarkByte, k, refMarkByte) }
+
+// eachRefMark calls f with the index of every reference marker in html, in order, and returns
+// html with each marker replaced by what f returns.
+func eachRefMark(html string, f func(k int) string) string {
+	var b strings.Builder
+	for {
+		i := strings.IndexByte(html, refMarkByte)
+		if i < 0 {
+			return b.String() + html
 		}
-		text = strings.TrimSpace(reTag.ReplaceAllString(text, ""))
-		if len(text) > 140 {
-			if cut := strings.LastIndexByte(text[:140], ' '); cut > 60 {
-				text = text[:cut]
-			} else {
-				text = text[:140]
-			}
-			text += "…"
+		j := strings.IndexByte(html[i+1:], refMarkByte)
+		k := -1
+		if j >= 0 {
+			k, _ = strconv.Atoi(html[i+1 : i+1+j])
 		}
-		scent[id] = text
+		if k < 0 {
+			panic("report: a reference marker that inline did not write: " + strconv.Quote(html[i:]))
+		}
+		b.WriteString(html[:i])
+		b.WriteString(f(k))
+		html = html[i+1+j+1:]
 	}
+}
+
+// citations renders the citation layer the way a reader of arXiv or PubMed expects: in-text
+// markers become bracketed NUMBERED links — [1], [2] — assigned in order of first citation, and the
+// References list is ORDERED to match, so entry 3 is the third source the reader met. The slug ids
+// stay underneath (in the anchors and as a muted tag on each entry): they are the markdown tier's
+// names, and grep must keep finding them in both tiers.
+//
+// The FIRST citation of each id also carries the anchor its entry links back to: one return address
+// per entry, and it is the earliest, which is where the claim was made. A definition nothing cites
+// keeps its place at the end, unnumbered in text but present in the list — dropping it would un-say
+// a source the author recorded. Two definitions under one label are one entry, the later one.
+//
+// THE IDS ARE THE SET'S. The documents are tabs of one page, a fragment resolves to the first
+// element of that id on the page, and every document with a citation has a note 1, so a label an
+// earlier document also numbered takes a count — in the entry's id, the marker's and every link
+// between the two — given in the order the page shows them. The label a reader sees, and the title
+// on the marker, stay as written.
+func citations(body string, refs []string, notes []footnote, seen map[string]int) string {
+	byLabel := map[string]footnote{}
+	var authored []string
+	for _, n := range notes {
+		if _, ok := byLabel[n.label]; !ok {
+			authored = append(authored, n.label)
+		}
+		byLabel[n.label] = n
+	}
+	// Numbered in the order the citations are met: the text first, then the notes as written.
 	num := map[string]int{}
+	first := map[int]bool{}
 	var order []string
-	html = reFnrefSup.ReplaceAllStringFunc(html, func(m string) string {
-		id := reFnrefSup.FindStringSubmatch(m)[1]
-		title := id
-		if s := scent[id]; s != "" {
-			title = id + " — " + s
+	count := func(k int) string {
+		if _, ok := num[refs[k]]; !ok {
+			num[refs[k]] = len(order) + 1
+			order = append(order, refs[k])
+			first[k] = true
 		}
-		n, seen := num[id]
-		if !seen {
-			n = len(order) + 1
-			num[id] = n
-			order = append(order, id)
-			return fmt.Sprintf(`<a class="cite" id="fnref-%s" href="#fn-%s" title="%s">[%d]</a>`, id, id, title, n)
+		return ""
+	}
+	eachRefMark(body, count)
+	for _, l := range authored {
+		eachRefMark(byLabel[l].html, count)
+	}
+	for _, l := range authored {
+		if _, cited := num[l]; !cited {
+			order = append(order, l)
 		}
-		return fmt.Sprintf(`<a class="cite" href="#fn-%s" title="%s">[%d]</a>`, id, title, n)
-	})
-	if len(order) == 0 {
+	}
+	listed := slices.DeleteFunc(slices.Clone(order), func(l string) bool { _, ok := byLabel[l]; return !ok })
+
+	// The ids, in the order the page shows each label.
+	suffix := map[string]string{}
+	id := func(l string) string {
+		if _, ok := suffix[l]; !ok {
+			suffix[l] = strings.TrimPrefix(uniqueID(seen, "fn-"+l), "fn-"+l)
+		}
+		return escape(l) + suffix[l]
+	}
+	cite := func(k int) string {
+		l := refs[k]
+		title := l
+		if s := byLabel[l].scent; s != "" {
+			title = l + " — " + s
+		}
+		if first[k] {
+			return fmt.Sprintf(`<a class="cite" id="fnref-%s" href="#fn-%s" title="%s">[%d]</a>`, id(l), id(l), title, num[l])
+		}
+		return fmt.Sprintf(`<a class="cite" href="#fn-%s" title="%s">[%d]</a>`, id(l), title, num[l])
+	}
+	html := eachRefMark(body, cite)
+	if len(listed) == 0 {
 		return html
 	}
-	// Reorder the References list to citation order. The list is this package's own output —
-	// one <li id="fn-..."> per line — so the shape is known, not guessed at.
-	return reFnList.ReplaceAllStringFunc(html, func(list string) string {
-		items := reFnItem.FindAllString(list, -1)
-		byID := map[string]string{}
-		for _, li := range items {
-			byID[reFnItem.FindStringSubmatch(li)[1]] = li
-		}
-		var out []string
-		for _, id := range order {
-			if li, ok := byID[id]; ok {
-				out = append(out, li)
-				delete(byID, id)
-			}
-		}
-		for _, li := range items { // whatever nothing cited, in author order, after
-			if id := reFnItem.FindStringSubmatch(li)[1]; byID[id] != "" {
-				out = append(out, li)
-			}
-		}
-		return `<ol class="fn">` + "\n" + strings.Join(out, "\n") + "\n</ol>"
-	})
+	var items []string
+	for _, l := range listed {
+		li := `<li id="fn-` + id(l) + `">` + eachRefMark(byLabel[l].html, cite) +
+			// data-nolink: the label IS the definition of that footnote, so the id-linker must
+			// leave it alone. A label that links away reads as a reference to somewhere else.
+			// The number leads (the <ol> renders it); the slug trails as a muted tag, because
+			// it is the markdown tier's name for this entry and grep must find it here too.
+			` <span class="fnlabel" data-nolink>` + escape(l) + `</span>` +
+			` <a class="fnback" href="#fnref-` + id(l) + `" aria-label="back to the citing text">&#8617;</a></li>`
+		items = append(items, li)
+	}
+	// "References", because that is what the entries are — the citation layer the research
+	// protocol requires — and a reader looking for a bibliography must be able to find it by its
+	// own name.
+	return html + "<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(items, "\n") + "\n</ol></section>\n"
 }
 
-var (
-	reFnrefSup = regexp.MustCompile(`<sup class="fnref"><a href="#fn-([^"]+)">[^<]*</a></sup>`)
-	reFnList   = regexp.MustCompile(`(?s)<ol class="fn">\n.*?\n</ol>`)
-	reFnItem   = regexp.MustCompile(`<li id="fn-([^"]+)">.*?</li>`)
-	reTag      = regexp.MustCompile(`<[^>]*>`)
-)
+// scentOf is the tooltip a marker carries: the text of its note, cut short — a scent, not the
+// reference. html is the note's own rendering, which this package wrote and escaped, so every '<'
+// in it opens a tag.
+func scentOf(html string) string {
+	var b strings.Builder
+	for depth, r := 0, []rune(html); len(r) > 0; r = r[1:] {
+		switch {
+		case r[0] == '<':
+			depth++
+		case r[0] == '>' && depth > 0:
+			depth--
+		case depth == 0:
+			b.WriteRune(r[0])
+		}
+	}
+	text := strings.TrimSpace(b.String())
+	if len(text) > 140 {
+		if cut := strings.LastIndexByte(text[:140], ' '); cut > 60 {
+			text = text[:cut]
+		} else {
+			text = text[:140]
+		}
+		text += "…"
+	}
+	return text
+}
 
 // openList emits whatever open/close tags are needed to reach the requested kind and depth.
 func openList(stack *[]string, kind string, indent int) string {
@@ -441,9 +501,19 @@ func stripInline(s string) string {
 	return s
 }
 
-// inline renders one line's inline markdown. Code spans are lifted out FIRST and restored
-// last, so nothing inside a backtick is treated as emphasis, a link, or an id.
+// inline renders one line's inline markdown outside a document — a title — where a footnote
+// reference has no list to number it against and renders as its label.
 func inline(s string) string {
+	return renderInline(s, func(label string) string {
+		return `<sup class="fnref"><a href="#fn-` + label + `">` + label + `</a></sup>`
+	}, nil)
+}
+
+// renderInline renders one line's inline markdown, each footnote reference as ref renders it, and
+// a link to a document in files as a switch to that document's tab (siteLink).
+// Code spans are lifted out FIRST and restored last, so nothing inside a backtick is treated as
+// emphasis, a link, or an id.
+func renderInline(s string, ref func(label string) string, files map[string]bool) string {
 	var spans []string
 	s = reCodeSpan.ReplaceAllStringFunc(s, func(m string) string {
 		spans = append(spans, "<code>"+escape(strings.Trim(m, "`"))+"</code>")
@@ -453,8 +523,11 @@ func inline(s string) string {
 	// below does not read it, and restored as the two characters without their backslash.
 	s = strings.ReplaceAll(s, noteEscape, "\x00note\x00")
 	s = escape(s)
-	s = reFootRef.ReplaceAllString(s, `<sup class="fnref"><a href="#fn-$1">$1</a></sup>`)
-	s = reLink.ReplaceAllString(s, `<a href="$2">$1</a>`)
+	s = reFootRef.ReplaceAllStringFunc(s, func(m string) string { return ref(reFootRef.FindStringSubmatch(m)[1]) })
+	s = reLink.ReplaceAllStringFunc(s, func(m string) string {
+		l := reLink.FindStringSubmatch(m)
+		return siteLink(l[2], files) + l[1] + "</a>"
+	})
 	s = reAutolink.ReplaceAllString(s, `$1<a href="$2">$2</a>`)
 	s = reStrong.ReplaceAllString(s, "<strong>$1</strong>")
 	s = reEmphasis.ReplaceAllString(s, "$1<em>$2</em>$3")

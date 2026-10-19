@@ -30,7 +30,7 @@
     toc.appendChild(title);
     var ol = document.createElement('ol');
     hs.forEach(function (h, i) {
-      if (!h.id) { h.id = 's-' + (d.dataset.doc || 'doc').replace(/[^a-z0-9]/gi, '') + '-' + i; }
+      if (!h.id) { h.id = d.id + '-s' + i; }
       var li = document.createElement('li'); var a = document.createElement('a');
       a.href = '#' + h.id; a.textContent = h.textContent;
       a.addEventListener('click', closeToc);
@@ -129,7 +129,7 @@
     var kids = slice(act.children);
     var group = [], groupText = '', groups = [];
     kids.forEach(function (el) {
-      if (/^H[1-3]$/.test(el.tagName) && group.length) {
+      if (['H1', 'H2', 'H3'].indexOf(el.tagName) >= 0 && group.length) {
         groups.push({ els: group, text: groupText });
         group = []; groupText = '';
       }
