@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -34,13 +35,36 @@ func registerFor(t *testing.T, seat, agent string, occ recordpb.Occasion) *recor
 	return recordtest.Event(t, seat, reg)
 }
 
-func TestAgentIDOfTranscript(t *testing.T) {
-	cases := map[string]string{"agent-abc.jsonl": "abc", "journal.jsonl": "", "agent-x.txt": "", "agent-.jsonl": ""}
-	for in, want := range cases {
-		if got := AgentIDOfTranscript(in); got != want {
-			t.Errorf("AgentIDOfTranscript(%q) = %q, want %q", in, got, want)
-		}
+// THE AGENT A ROW IS FOR IS THE ONE THE TRANSCRIPT'S LINES NAME, whatever the file is called.
+func TestScanTranscriptTakesTheAgentFromTheLines(t *testing.T) {
+	if got := ScanTranscript(`{"agentId":"a1","message":{"id":"m","model":"claude-haiku-4-5","usage":{"input_tokens":1}}}`).AgentID; got != "a1" {
+		t.Errorf("AgentID = %q, want a1", got)
 	}
+}
+
+// transcriptsOf writes each agent's body to a file named for nothing in particular and returns the
+// list as the record would name it.
+func transcriptsOf(t *testing.T, bodies map[string]string) []record.Transcript {
+	t.Helper()
+	dir := t.TempDir()
+	var out []record.Transcript
+	for _, id := range sortedKeys(bodies) {
+		p := filepath.Join(dir, "trajectory-of-"+id+".jsonl")
+		if err := os.WriteFile(p, []byte(bodies[id]), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, record.Transcript{AgentID: id, Path: p})
+	}
+	return out
+}
+
+func sortedKeys(m map[string]string) []string {
+	var ks []string
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }
 
 // THE REPORT'S EPOCH COLUMN COMES FROM THE RECORD. Two transcripts whose heads say nothing about
@@ -59,14 +83,12 @@ func TestReportBindsEachTranscriptToItsEpochFromTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr := t.TempDir()
 	head := `{"message":{"role":"user","content":"Terminal dispute disposition. FIRST ACTION"}}` + "\n"
+	bodies := map[string]string{}
 	for _, id := range []string{"J1", "J2", "STRAY"} {
-		if err := os.WriteFile(filepath.Join(tr, "agent-"+id+".jsonl"),
-			[]byte(head+usageLine("claude-haiku-4-5", 1000000, 0, 0, 0)+"\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
+		bodies[id] = head + usageLine("claude-haiku-4-5", 1000000, 0, 0, 0) + "\n"
 	}
+	tr := transcriptsOf(t, bodies)
 	var b bytes.Buffer
 	if err := Report(tr, run, &b); err != nil {
 		t.Fatal(err)
@@ -103,11 +125,8 @@ func TestReportLeavesAnAgentWhoseLatestBracketNamesNoSeatUnbound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr := t.TempDir()
 	head := `{"message":{"role":"user","content":"Terminal dispute disposition. FIRST ACTION"}}` + "\n"
-	if err := os.WriteFile(filepath.Join(tr, "agent-E.jsonl"), []byte(head+usageLine("claude-haiku-4-5", 1000000, 0, 0, 0)+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	tr := transcriptsOf(t, map[string]string{"E": head + usageLine("claude-haiku-4-5", 1000000, 0, 0, 0) + "\n"})
 	var b bytes.Buffer
 	if err := Report(tr, run, &b); err != nil {
 		t.Fatal(err)

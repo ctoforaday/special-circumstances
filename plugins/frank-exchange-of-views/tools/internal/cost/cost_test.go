@@ -3,8 +3,6 @@ package cost
 import (
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -243,14 +241,12 @@ func TestScanTranscriptPricesEachRequestOnce(t *testing.T) {
 	}
 }
 
-// writeTranscripts puts each body in a transcript directory as agent-<n>.jsonl.
-func writeTranscripts(t *testing.T, bodies ...string) string {
+// writeTranscripts writes each body to a file and lists them as the record names them, agent a<n>.
+func writeTranscripts(t *testing.T, bodies ...string) []record.Transcript {
 	t.Helper()
-	dir := t.TempDir()
+	m := map[string]string{}
 	for i, b := range bodies {
-		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("agent-a%d.jsonl", i)), []byte(b), 0o644); err != nil {
-			t.Fatal(err)
-		}
+		m[fmt.Sprintf("a%d", i)] = b
 	}
-	return dir
+	return transcriptsOf(t, m)
 }

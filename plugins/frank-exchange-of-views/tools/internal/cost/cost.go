@@ -13,7 +13,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -167,7 +166,9 @@ func recognized(m string) bool { return modeltier.Recognized(m) }
 // also what a bookend seat (frontier, lanes, synthesis: before the first chair sitting) and an
 // agent the record never bound both carry, and the report prints it as a dash.
 type Row struct {
-	Seat string
+	// AgentID is the agent the transcript's own lines name (seatturn.Parse), never its file name.
+	AgentID string
+	Seat    string
 	// Occasion separates the BENCH's four sittings, which share one seat id. Without it the
 	// assembly's spend merges into a docket ruling's row — which happened, and which cost.go's own
 	// comment records happening once before under a different cause. Empty for every other seat.
@@ -198,14 +199,14 @@ func ScanTranscript(txt string) Row {
 		head = head[:2000]
 	}
 	c := seatclass.ClassifySeat(head)
-	_, turns := seatturn.Parse(txt)
+	agentID, turns := seatturn.Parse(txt)
 	var model string
 	for _, t := range turns {
 		if t.Model != "" && (model == "" || recognized(t.Model)) {
 			model = t.Model
 		}
 	}
-	row := Row{Seat: c.Seat, T: Tier(model), Turns: len(turns)}
+	row := Row{AgentID: agentID, Seat: c.Seat, T: Tier(model), Turns: len(turns)}
 	unpriced := map[string]bool{}
 	for _, t := range turns {
 		m := t.Model
@@ -227,19 +228,6 @@ func ScanTranscript(txt string) Row {
 	}
 	sort.Strings(row.Unpriced)
 	return row
-}
-
-// AgentIDOfTranscript is the harness handle a per-agent transcript is filed under: the harness
-// writes `agent-<id>.jsonl`, and the dashboard composes that same name forward from the journal's
-// agentId. This is the inverse of the harness's own layout, not a fact recovered from the record —
-// the record holds the id itself, on the register or the seat-naming hook bracket that binds the
-// agent, and that is what the name is joined to.
-// A name of another shape yields "", which binds nothing.
-func AgentIDOfTranscript(name string) string {
-	if !strings.HasPrefix(name, "agent-") || !strings.HasSuffix(name, ".jsonl") {
-		return ""
-	}
-	return strings.TrimSuffix(strings.TrimPrefix(name, "agent-"), ".jsonl")
 }
 
 // Bucket is a seat-epoch-tier aggregate.
@@ -381,19 +369,10 @@ func mtok(n int) string { return strconv.FormatFloat(float64(n)/1e6, 'f', 2, 64)
 
 // Report writes cost.md to out. With a run it appends the tier check, the per-seat measurements
 // and the board-telemetry join.
-func Report(transcriptDir string, run record.Run, out io.Writer) error {
-	entries, err := os.ReadDir(transcriptDir)
-	if err != nil {
-		return err
-	}
-	var files []string
-	for _, e := range entries {
-		n := e.Name()
-		if strings.HasPrefix(n, "agent-") && strings.HasSuffix(n, ".jsonl") {
-			files = append(files, n)
-		}
-	}
-	sort.Strings(files)
+//
+// transcripts are the seats' transcripts at the paths the record's sitting closes name
+// (record.TranscriptsOf), each readable here.
+func Report(transcripts []record.Transcript, run record.Run, out io.Writer) error {
 	// THE EPOCH IS THE RECORD'S TO SAY. A transcript knows its spend and, from its prompt head, its
 	// seat; which dispatch cycle it sat in is the count of the chair's stored sittings at its
 	// binding act, which only the record holds. Without a record every row is epoch 0 and the table
@@ -406,8 +385,8 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 		}
 	}
 	var rows []Row
-	for _, f := range files {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+	for _, tr := range transcripts {
+		b, err := os.ReadFile(tr.Path)
 		if err != nil {
 			return err
 		}
@@ -415,7 +394,7 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 		// THE RECORD SAYS WHAT THE SITTING WAS FOR, and the transcript no longer has to be asked.
 		// Both fields come from the same binding: the epoch it always did, and now the occasion,
 		// which used to be recovered by matching the first words of the prompt.
-		bind := bindings[AgentIDOfTranscript(f)]
+		bind := bindings[tr.AgentID]
 		row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
 		rows = append(rows, row)
 	}
@@ -423,7 +402,7 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	p := func(s string) { fmt.Fprintln(out, s) }
 
 	p("# Cost audit\n")
-	p(fmt.Sprintf("Measured from %d per-agent API transcripts in `%s`, one turn per API request. Each request is priced at its model's list rate, from feov-record's price table (the cost package's Prices).\n", len(rows), transcriptDir))
+	p(fmt.Sprintf("Measured from %d per-agent API transcripts, each at the path its agent's sitting close names on the record, one turn per API request. Each request is priced at its model's list rate, from feov-record's price table (the cost package's Prices).\n", len(rows)))
 	p("## Per seat-epoch\n")
 	p("| epoch | seat | model | agents | api-turns | input | output | cache-read | cache-write | $ |")
 	p("|---|---|---|---|---|---|---|---|---|---|")

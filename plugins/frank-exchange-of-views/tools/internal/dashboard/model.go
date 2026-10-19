@@ -299,7 +299,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 			row := cost.ScanTranscript(string(b))
 			// Both windows come from the record's binding — the epoch it always did, and the
 			// occasion, which keeps the assembly's spend out of a docket ruling's row.
-			bind := bindings[cost.AgentIDOfTranscript(f)]
+			bind := bindings[row.AgentID]
 			row.Epoch, row.Occasion = bind.Epoch, bind.Occasion
 			crows = append(crows, row)
 			apiRounds += row.Turns

@@ -22,10 +22,15 @@ func registers(t *testing.T, rows ...[3]string) record.Family {
 		reg := &recordpb.Register{}
 		// A SEAT IS "MEASURED" BY HAVING A TRAJECTORY, not by carrying a field — so a row with no
 		// served model gets a register with no agent id, which is the real shape of NOT MEASURED.
+		var stop *recordpb.SittingClose
 		if r[1] != "" {
 			reg.AgentId = proto.String(recordtest.ServedBy(t, fmt.Sprintf("agent%04d", i), r[1], r[2]))
+			stop = recordtest.StopOf(t, reg.GetAgentId())
 		}
 		evs = append(evs, recordtest.Event(t, r[0], reg))
+		if stop != nil {
+			evs = append(evs, recordtest.Event(t, record.HarnessSeat, stop))
+		}
 	}
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir, evs...)

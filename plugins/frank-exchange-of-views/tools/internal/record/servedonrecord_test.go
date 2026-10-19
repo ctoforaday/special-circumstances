@@ -8,12 +8,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
-// THE RECORD'S TURNS NAME THE SERVING MODEL WHERE NO TRAJECTORY CAN BE FOUND (smoke 07d: 13 seats
-// NOT MEASURED, 647 turn rows naming the model). The configuration directory searched holds no
-// trajectory, so the answer is the agent's first recorded turn; a seat whose agent has no turn on
-// the record stays NOT MEASURED and says the record was asked too.
+// THE RECORD'S TURNS NAME THE SERVING MODEL WHERE NO TRAJECTORY CAN BE OPENED (smoke 07d: 13 seats
+// NOT MEASURED, 647 turn rows naming the model). No stop here names a trajectory, so the answer is
+// the agent's first recorded turn; a seat whose agent has no turn on the record stays NOT MEASURED
+// and says the record was asked too.
 func TestTheRecordsTurnsNameTheServedModel(t *testing.T) {
-	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	dir, run := bracketedRun(t)
 	bracket(t, dir, lensConfig, "agent_lens_1")
 	bracket(t, dir, chairConfig, "agent_chair_1")

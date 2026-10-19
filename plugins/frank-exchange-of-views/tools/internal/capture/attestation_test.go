@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -62,7 +63,7 @@ func attestRun(t *testing.T, anchorTool, anchorTarget string, anchors ...string)
 }
 
 // transcriptWith writes one agent transcript whose tool_use inputs carry the given commands.
-func transcriptWith(t *testing.T, commands ...string) (string, []string) {
+func transcriptWith(t *testing.T, commands ...string) []record.Transcript {
 	t.Helper()
 	tr := t.TempDir()
 	var b strings.Builder
@@ -70,18 +71,19 @@ func transcriptWith(t *testing.T, commands ...string) (string, []string) {
 		b.WriteString(`{"message":{"role":"assistant","content":[{"type":"tool_use","input":{"command":` +
 			jsStringify(c) + `}}]}}` + "\n")
 	}
-	if err := os.WriteFile(filepath.Join(tr, "agent-x.jsonl"), []byte(b.String()), 0o644); err != nil {
+	p := filepath.Join(tr, "trajectory-of-x.jsonl")
+	if err := os.WriteFile(p, []byte(b.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return tr, []string{"agent-x.jsonl"}
+	return []record.Transcript{{AgentID: "x", Path: p}}
 }
 
 // A PRECISE PROSE TARGET IS NOT A VAGUE ONE. The seat did the work, anchored it to an exact line,
 // and named the anchor it read. That must reconcile.
 func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 	run := attestRun(t, "show report --anchor", "report text at line 103", attestGap)
-	tr, files := transcriptWith(t, `feov-record red-chair show report --anchor `+attestGap)
-	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
+	trs := transcriptWith(t, `feov-record red-chair show report --anchor `+attestGap)
+	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict != "PASS" {
 		t.Errorf("a closure citing an id the transcript carries must reconcile.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -95,8 +97,8 @@ func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 // AND THE DISHONEST CASE STILL FAILS, which is the half that makes the fix worth having.
 func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
 	run := attestRun(t, "show report --anchor", "report text at line 103", attestGap)
-	tr, files := transcriptWith(t, `feov-record red-chair show board`)
-	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
+	trs := transcriptWith(t, `feov-record red-chair show board`)
+	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an id in no tool call must be a finding; got %s: %s", got.Verdict, got.Detail)
 	}
@@ -108,8 +110,8 @@ func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
 // NOT MEASURED IS NOT A FINDING, and it must say so where a reader will see it.
 func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *testing.T) {
 	run := attestRun(t, "show report", "report text at line 103")
-	tr, files := transcriptWith(t, `feov-record red-chair show report`)
-	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
+	trs := transcriptWith(t, `feov-record red-chair show report`)
+	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict == "FAIL" {
 		t.Errorf("an anchor with nothing to join on is not evidence of a dishonest record.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -123,8 +125,8 @@ func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *te
 // the whole audit before, and it must not regress.
 func TestADistinctiveProseTargetStillReconciles(t *testing.T) {
 	run := attestRun(t, "show evidence", "evidence projection and report text")
-	tr, files := transcriptWith(t, `feov-record red-chair show evidence --projection full`)
-	if got := AttestationAudit(runtest.Open(t, run), tr, files, 3); got.Verdict != "PASS" {
+	trs := transcriptWith(t, `feov-record red-chair show evidence --projection full`)
+	if got := AttestationAudit(runtest.Open(t, run), trs, 3); got.Verdict != "PASS" {
 		t.Errorf("distinctive prose must still reconcile; got %s: %s", got.Verdict, got.Detail)
 	}
 }
@@ -166,8 +168,8 @@ func TestNeedlesForPrefersTheRecordsOwnIdentifiers(t *testing.T) {
 // reconciled, or accused, on an id read out of prose.
 func TestAnIDInTheToolsWordsAloneIsNoAnchor(t *testing.T) {
 	run := attestRun(t, "show report --anchor "+attestGap, "report text at line 103")
-	tr, files := transcriptWith(t, `feov-record red-chair show report --anchor `+attestGap)
-	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
+	trs := transcriptWith(t, `feov-record red-chair show report --anchor `+attestGap)
+	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict == "FAIL" || !strings.Contains(got.Detail, "NOT BE MEASURED") {
 		t.Errorf("a closure naming no anchor and no distinctive target must be counted not measured; got %s: %s", got.Verdict, got.Detail)
 	}

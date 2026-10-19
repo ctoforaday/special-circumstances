@@ -14,7 +14,7 @@ const twoTurns = `{"agentId":"AGENT","timestamp":"2026-09-03T03:00:00.000Z","mes
 {"agentId":"AGENT","timestamp":"2026-09-03T03:00:30.000Z","message":{"model":"claude-opus-4-1","content":[{"type":"tool_use"}],"usage":{"input_tokens":110,"output_tokens":50,"cache_read_input_tokens":950,"cache_creation_input_tokens":0}}}
 `
 
-func ingestFixture(t *testing.T, files map[string]string) (record.Run, string, []string) {
+func ingestFixture(t *testing.T, files map[string]string) (record.Run, string, []record.Transcript) {
 	t.Helper()
 	runDir := recordtest.TmpRun(t)
 	run, err := record.NewRun(runDir)
@@ -22,14 +22,15 @@ func ingestFixture(t *testing.T, files map[string]string) (record.Run, string, [
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	var names []string
+	var named []record.Transcript
 	for name, body := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		names = append(names, name)
+		named = append(named, record.Transcript{AgentID: name, Path: p})
 	}
-	return run, dir, names
+	return run, dir, named
 }
 
 func seatTurnRows(t *testing.T, run record.Run) int {
@@ -44,12 +45,12 @@ func seatTurnRows(t *testing.T, run record.Run) int {
 // THE TURNS LAND, AND CAPTURE SAYS HOW MANY. A silent ingest would leave an empty table that
 // reads exactly like a run whose seats took no turns.
 func TestIngestSeatTurnsWritesRowsAndReportsThem(t *testing.T) {
-	run, dir, files := ingestFixture(t, map[string]string{
+	run, _, files := ingestFixture(t, map[string]string{
 		"agent-one.jsonl": twoTurns,
 		"agent-two.jsonl": strings.ReplaceAll(twoTurns, "AGENT", "OTHER"),
 	})
 
-	line := ingestSeatTurns(run, dir, files)
+	line := ingestSeatTurns(run, files)
 	if got := seatTurnRows(t, run); got != 4 {
 		t.Errorf("two transcripts of two turns gave %d rows, want 4", got)
 	}
@@ -58,7 +59,7 @@ func TestIngestSeatTurnsWritesRowsAndReportsThem(t *testing.T) {
 	}
 
 	// Re-running capture on unchanged transcripts must not double the run's measured cost.
-	if line := ingestSeatTurns(run, dir, files); !strings.Contains(line, "0 row(s)") {
+	if line := ingestSeatTurns(run, files); !strings.Contains(line, "0 row(s)") {
 		t.Errorf("a re-run reported %q, want 0 new rows", line)
 	}
 	if got := seatTurnRows(t, run); got != 4 {
@@ -69,9 +70,9 @@ func TestIngestSeatTurnsWritesRowsAndReportsThem(t *testing.T) {
 // A TRANSCRIPT THAT COULD NOT BE INGESTED IS NAMED IN THE COUNT, because the alternative is a
 // smaller number that looks like a smaller run.
 func TestIngestSeatTurnsNamesWhatItCouldNotRead(t *testing.T) {
-	run, dir, _ := ingestFixture(t, map[string]string{"agent-one.jsonl": twoTurns})
+	run, dir, one := ingestFixture(t, map[string]string{"agent-one.jsonl": twoTurns})
 
-	line := ingestSeatTurns(run, dir, []string{"agent-one.jsonl", "agent-missing.jsonl"})
+	line := ingestSeatTurns(run, append(one, record.Transcript{AgentID: "missing", Path: filepath.Join(dir, "agent-missing.jsonl")}))
 	if !strings.Contains(line, "NOT INGESTED") {
 		t.Errorf("an unreadable transcript was swallowed: %q", line)
 	}
@@ -84,10 +85,10 @@ func TestIngestSeatTurnsNamesWhatItCouldNotRead(t *testing.T) {
 // first API round has nothing to measure, and counting it as an ingest failure would send someone
 // looking for a broken file.
 func TestIngestSeatTurnsTreatsATurnlessTranscriptAsEmptyNotBroken(t *testing.T) {
-	run, dir, files := ingestFixture(t, map[string]string{
+	run, _, files := ingestFixture(t, map[string]string{
 		"agent-quiet.jsonl": `{"agentId":"Q","type":"user","message":{"content":[{"type":"text"}]}}` + "\n",
 	})
-	line := ingestSeatTurns(run, dir, files)
+	line := ingestSeatTurns(run, files)
 	if strings.Contains(line, "NOT INGESTED") {
 		t.Errorf("a transcript with no API rounds was reported as a failure: %q", line)
 	}

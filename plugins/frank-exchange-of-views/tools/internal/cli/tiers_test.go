@@ -39,6 +39,8 @@ func tierFixture(t *testing.T) (string, record.Family) {
 		recordtest.At(t, "judge", "judge:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 		}),
+		recordtest.Event(t, record.HarnessSeat, recordtest.StopOf(t, "aaaa1111")),
+		recordtest.Event(t, record.HarnessSeat, recordtest.StopOf(t, "bbbb2222")),
 	)
 	b, err := record.FamilyOf(runtest.Open(t, run))
 	if err != nil {
