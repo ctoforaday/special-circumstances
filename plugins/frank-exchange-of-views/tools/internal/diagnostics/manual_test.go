@@ -290,3 +290,35 @@ func TestAManualWithNoReadablePageIsCounted(t *testing.T) {
 		t.Errorf("depth = %q — an unread manual supplied no page", s.FirstUses[0].Depth)
 	}
 }
+
+// THE READER ACCEPTS WHAT THE WRITER PRINTS, AND NOTHING NEAR IT. A label or marker is read with
+// the writer's own format and accepted only where the writer prints the line back, so the two
+// cannot drift apart: a reworded label changes what both sides speak.
+func TestSharedLabelsAndMarkersAreReadWithTheWritersFormat(t *testing.T) {
+	for _, c := range []struct{ id, pages int }{{1, 2}, {7, 31}, {12, 140}} {
+		if id, closes, ok := sharedLabel(ManualSharedLabel(c.id, c.pages)); !ok || id != c.id || closes {
+			t.Errorf("ManualSharedLabel(%d, %d) read as (%d, closing=%v, %v)", c.id, c.pages, id, closes, ok)
+		}
+		if id, closes, ok := sharedLabel(ManualClosingLabel(c.id, c.pages)); !ok || id != c.id || !closes {
+			t.Errorf("ManualClosingLabel(%d, %d) read as (%d, closing=%v, %v)", c.id, c.pages, id, closes, ok)
+		}
+		lead := "      --reason string   "
+		if id, got, ok := markedBlock(ManualMarker(lead, c.id)); !ok || id != c.id || got != lead {
+			t.Errorf("ManualMarker(%q, %d) read as (%d, %q, %v)", lead, c.id, id, got, ok)
+		}
+	}
+	for _, l := range []string{
+		"§3 (the last block of 4 pages — some other words):",
+		"§03 (on 2 pages):",
+		"§3 (on 2 pages): and more",
+	} {
+		if _, _, ok := sharedLabel(l); ok {
+			t.Errorf("%q was read as a SHARED label; the writer prints no such line", l)
+		}
+	}
+	for _, l := range []string{"see → SHARED §03", "see → SHARED §+3", "see → SHARED §3 "} {
+		if _, _, ok := markedBlock(l); ok {
+			t.Errorf("%q was read as a marker; the writer prints no such line", l)
+		}
+	}
+}
