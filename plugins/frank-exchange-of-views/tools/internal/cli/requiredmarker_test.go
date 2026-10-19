@@ -196,7 +196,7 @@ func TestNoUsageCarriesTwoMarkers(t *testing.T) {
 		walk(r, func(c *cobra.Command, path []string) {
 			c.LocalNonPersistentFlags().VisitAll(func(f *pflag.Flag) {
 				checked++
-				if p := markerProblem(f.Usage); p != "" {
+				if p := markerProblem(f); p != "" {
 					t.Errorf("%s: `%s --%s` %s:\n\n%s", role, strings.Join(path, " "), f.Name, p, f.Usage)
 				}
 			})
@@ -212,36 +212,66 @@ func TestNoUsageCarriesTwoMarkers(t *testing.T) {
 // REQUIRED — …" read as one marker.
 var anyMarker = regexp.MustCompile(`REQUIRED(?: unless [^—]+)? — `)
 
-// markerProblem is what is wrong with a usage's marker, or "".
-func markerProblem(usage string) string {
+// markerProblem is what is wrong with a flag's marker, or "". The flag's annotation is what every
+// gate reads (seat.IsMarked); the usage is what a seat reads. They must say the same thing: a usage
+// that opens with REQUIRED on a flag nothing annotated was hand-typed past the writers, and every
+// gate reads that flag as optional while the seat reads it as required.
+func markerProblem(f *pflag.Flag) string {
+	usage := f.Usage
 	if n := len(anyMarker.FindAllStringIndex(usage, -1)); n > 1 {
 		return fmt.Sprintf("carries the marker %d times", n)
 	}
-	if strings.HasPrefix(usage, "REQUIRED") && !seat.IsMarked(usage) {
-		return "begins with REQUIRED in a shape IsMarked does not read, so one gate counts it marked and another does not"
+	cond, marked := seat.MarkedCondition(f)
+	want := "REQUIRED — "
+	if cond != "" {
+		want = "REQUIRED " + cond + " — "
 	}
-	if seat.IsMarked(usage) && strings.TrimSpace(anyMarker.ReplaceAllString(usage, "")) == "" {
+	if strings.HasPrefix(usage, "REQUIRED") && !marked {
+		return "opens with REQUIRED and the flag carries no marker, so the help says required and every gate reads it as optional — mark it through seat.Require, seat.SaysRequired or seat.RequiredUnless"
+	}
+	if marked && !strings.HasPrefix(usage, want) {
+		return fmt.Sprintf("carries the marker and its usage does not open with %q", want)
+	}
+	if marked && strings.TrimSpace(strings.TrimPrefix(usage, want)) == "" {
 		return "says REQUIRED and nothing about what to supply"
 	}
 	return ""
 }
 
 // The marker gate's reader, on the shapes the tree does not hold today: a test of the walk above
-// passes on a clean tree whether or not the reader would notice a doubled conditional marker.
+// passes on a clean tree whether or not the reader would notice a doubled conditional marker, or a
+// marker typed into the usage that no annotation stands behind.
 func TestMarkerProblemSeesEveryShape(t *testing.T) {
-	for usage, wantProblem := range map[string]bool{
-		"REQUIRED — the gap id":                            false,
-		"REQUIRED unless --accept — the span":              false,
-		"the gap id — REQUIRED to close a computation gap": false,
-		"REQUIRED — REQUIRED — the gap id":                 true,
-		"REQUIRED unless --accept — REQUIRED — the span":   true,
-		"REQUIRED — REQUIRED unless --accept — the span":   true,
-		"REQUIRED: the gap id":                             true,
-		"REQUIRED — ":                                      true,
-		"REQUIRED unless --about names the subject — ":     true,
+	flag := func(usage string, cond ...string) *pflag.Flag {
+		f := &pflag.Flag{Name: "x", Usage: usage}
+		if len(cond) > 0 {
+			f.Annotations = map[string][]string{seat.RequiredAnnotation: cond}
+		}
+		return f
+	}
+	for _, tc := range []struct {
+		f           *pflag.Flag
+		wantProblem bool
+	}{
+		{flag("REQUIRED — the gap id", ""), false},
+		{flag("REQUIRED unless --accept — the span", "unless --accept"), false},
+		{flag("the gap id — REQUIRED to close a computation gap"), false},
+		{flag("REQUIRED — REQUIRED — the gap id", ""), true},
+		{flag("REQUIRED unless --accept — REQUIRED — the span", "unless --accept"), true},
+		{flag("REQUIRED — REQUIRED unless --accept — the span", ""), true},
+		{flag("REQUIRED: the gap id"), true},
+		{flag("REQUIRED — "), true},
+		{flag("REQUIRED — ", ""), true},
+		{flag("REQUIRED unless --about names the subject — ", "unless --about names the subject"), true},
+		// The hand-typed marker: a seat reads REQUIRED, and nothing the gates read says so.
+		{flag("REQUIRED unless --accept — the span"), true},
+		{flag("REQUIRED — the gap id"), true},
+		// The annotation with a usage that does not state it.
+		{flag("the span", "unless --accept"), true},
+		{flag("REQUIRED — the span", "unless --accept"), true},
 	} {
-		if got := markerProblem(usage) != ""; got != wantProblem {
-			t.Errorf("markerProblem(%q) found a problem: %v, want %v", usage, got, wantProblem)
+		if got := markerProblem(tc.f) != ""; got != tc.wantProblem {
+			t.Errorf("markerProblem(%q, %v) found a problem: %v, want %v", tc.f.Usage, tc.f.Annotations, got, tc.wantProblem)
 		}
 	}
 }
@@ -309,7 +339,7 @@ func TestHelpSaysRequiredExactlyWhereOmissionIsRefused(t *testing.T) {
 				if f.Name == "help" {
 					return
 				}
-				marked := seat.IsMarked(f.Usage)
+				marked := seat.IsMarked(f)
 				checked++
 				if _, present := without(full, f); !present {
 					if marked && !p.fullIsRefused {

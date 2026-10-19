@@ -1,6 +1,7 @@
 package report
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -38,7 +39,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"[^1]: the source. https://example.invalid/a",
 	}, "\n")
 
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{})
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil)
 	for _, want := range []string{
 		`<h1 id="title">Title</h1>`,
 		"<strong>bold</strong>", "<em>italic</em>", "<code>code</code>",
@@ -71,7 +72,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 // text is quoted from a repository; either can contain a tag, and a report that renders it is
 // a report that can be written into.
 func TestMarkupInProseIsEscaped(t *testing.T) {
-	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{})
+	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{}, nil)
 	if strings.Contains(got, "<script>") {
 		t.Errorf("a tag in prose reached the document unescaped:\n%s", got)
 	}
@@ -84,8 +85,8 @@ func TestMarkupInProseIsEscaped(t *testing.T) {
 // link to it. This is the join a seven-file markdown set cannot express.
 func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 	anchor := anchors{}
-	docket := mdToHTML("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor, map[string]int{})
-	report := mdToHTML("The board still carries G-00000001 at close.\n", FileReport, anchor, map[string]int{})
+	docket := mdToHTML("### G-00000001 — the gap\n\nsomething\n", FileDocket, anchor, map[string]int{}, nil)
+	report := mdToHTML("The board still carries G-00000001 at close.\n", FileReport, anchor, map[string]int{}, nil)
 
 	if anchor["G-00000001"] == "" {
 		t.Fatalf("the defining heading did not register an anchor: %v", anchor)
@@ -120,7 +121,7 @@ func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
 // Hard breaks survive. The composers use them to keep a gap's four facts on four lines; a
 // renderer that drops them re-fuses exactly what they were added to separate.
 func TestHardBreaksSurvive(t *testing.T) {
-	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{})
+	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{}, nil)
 	if strings.Count(got, "<br>") != 2 {
 		t.Errorf("hard breaks were dropped, so four facts render as one sentence:\n%s", got)
 	}
@@ -133,7 +134,7 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 	md := "First claim[^zulu]. Second claim[^alpha], and zulu again[^zulu].\n\n" +
 		"[^alpha]: A, defined first. https://example.invalid/a\n" +
 		"[^zulu]: Z, defined second. https://example.invalid/z\n"
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{})
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil)
 	for _, want := range []string{
 		`<a class="cite" id="fnref-zulu" href="#fn-zulu" title="zulu — Z, defined second. https://example.invalid/z">[1]</a>`,
 		`<a class="cite" id="fnref-alpha" href="#fn-alpha" title="alpha — A, defined first. https://example.invalid/a">[2]</a>`,
@@ -165,8 +166,8 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 		for form, md := range map[string]string{"heading": "### " + tc.definedAs + "\n\nsomething\n", "list item": "- " + tc.definedAs + "\n"} {
 			t.Run(tc.id+" in a "+form, func(t *testing.T) {
 				anchor := anchors{}
-				mdToHTML(md, FileDocket, anchor, map[string]int{})
-				report := mdToHTML("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor, map[string]int{})
+				mdToHTML(md, FileDocket, anchor, map[string]int{}, nil)
+				report := mdToHTML("Blue answered "+tc.id+" in the same round.\n", FileReport, anchor, map[string]int{}, nil)
 
 				if !strings.HasPrefix(anchor[tc.id], FileDocket+"#") {
 					t.Fatalf("%s defined no anchor — the report will not link it anywhere: %v", tc.id, anchor)
@@ -181,7 +182,7 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 	// stands in an anchor, and a word that begins like an id is a word.
 	for _, text := range []string{"C-0000aaa1 — a source", "G20 — the summit", "G-5e10a3c — seven", "G-5e10a3c2f — nine"} {
 		anchor := anchors{}
-		mdToHTML("### "+text+"\n", FileDocket, anchor, map[string]int{})
+		mdToHTML("### "+text+"\n", FileDocket, anchor, map[string]int{}, nil)
 		if len(anchor) != 0 {
 			t.Errorf("%q defined an anchor: %v", text, anchor)
 		}
@@ -192,10 +193,49 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 // composer's (evidence.md, one per proof); the same opening on a line of the report's own text
 // rendered the tag and none of the words after it.
 func TestALineOpeningWithAnAnchorTagKeepsItsText(t *testing.T) {
-	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{})
+	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil)
 	for _, want := range []string{`<a id="P-deadbeef"></a>`, `<a id="here"></a>the words after the tag.`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the rendering does not carry %q:\n%s", want, html)
 		}
+	}
+}
+
+// THE CITATION LAYER IS WHAT THE DOCUMENT HOLDS. Its markers and its list were found by matching
+// the HTML this file had just written, so anything in that shape was read as the tool's own: a raw
+// HTML line carrying a reference's markup was numbered as a citation, and a note's entry was
+// whatever matched an entry's tag. They are rendered from the references and definitions the
+// document holds; text in their shape is text.
+func TestTheCitationLayerIsRenderedFromTheDocumentNotReadBackFromIt(t *testing.T) {
+	raw := `<p>as rendered: <sup class="fnref"><a href="#fn-zz">zz</a></sup> and <li id="fn-yy">an entry</li></p>`
+	md := "A claim[^b] in prose.\n\n" + raw + "\n\n| col |\n|---|\n| a cell[^a] |\n\n" +
+		"- an item[^b]\n\n> a quote[^c]\n\nA control \x01 character.\n\n" +
+		"[^a]: The a source, which cites[^c].\n[^b]: The b source.\n[^c]: The c source.\n[^d]: Uncited.\n"
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil)
+	if !strings.Contains(got, raw) {
+		t.Errorf("a raw HTML line in the shape of the tool's markup was rewritten:\n%s", got)
+	}
+	for _, want := range []string{
+		`<a class="cite" id="fnref-b" href="#fn-b" title="b — The b source.">[1]</a>`,
+		`<a class="cite" id="fnref-a" href="#fn-a" title="a — The a source, which citesc.">[2]</a>`,
+		`<a class="cite" id="fnref-c" href="#fn-c" title="c — The c source.">[3]</a>`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	// b in prose, a in the table, b again in the list, c in the quote; d nothing cites.
+	var at []int
+	for _, l := range []string{"b", "a", "c", "d"} {
+		at = append(at, strings.Index(got, `<li id="fn-`+l+`">`))
+	}
+	if !slices.IsSorted(at) || at[0] < 0 {
+		t.Errorf("the References are not in citation order, uncited last (b a c d at %v):\n%s", at, got)
+	}
+	if n := strings.Count(got, `class="cite"`); n != 5 {
+		t.Errorf("%d cites, want 5 — four in the text and one in a note:\n%s", n, got)
+	}
+	if strings.ContainsRune(got, '\x01') || !strings.Contains(got, "A control � character.") {
+		t.Errorf("a control character in the text was not shown as the replacement character:\n%q", got)
 	}
 }

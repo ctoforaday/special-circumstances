@@ -20,7 +20,6 @@ import (
 	_ "embed"
 	"fmt"
 	"html/template"
-	"regexp"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -65,14 +64,14 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 	// where every record id is DEFINED; pass two links every mention across the whole set. A
 	// one-pass render can only link backwards, which is the half of the joins nobody needs.
 	anchor := anchors{}
-	bodies := make([]string, len(docs))
-	slugs := map[string]int{}
-	for i, d := range docs {
-		bodies[i] = mdToHTML(d.Body, d.File, anchor, slugs)
-	}
 	files := map[string]bool{}
 	for _, d := range docs {
 		files[d.File] = true
+	}
+	bodies := make([]string, len(docs))
+	slugs := map[string]int{}
+	for i, d := range docs {
+		bodies[i] = mdToHTML(d.Body, d.File, anchor, slugs, files)
 	}
 
 	page := sitePage{
@@ -86,7 +85,7 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(outcome), countBadges(fam)))
 	}
 	for i, d := range docs {
-		body := siteLinks(linkIDs(bodies[i], anchor, d.File), files)
+		body := linkIDs(bodies[i], anchor, d.File)
 		if d.File == FileRun {
 			// The trajectory opens the run document: "how did the board converge" is the
 			// first question behind the verdict, and it is a picture. Markdown cannot carry
@@ -112,25 +111,20 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 	return b.String()
 }
 
-// siteLinks rewrites the markdown set's own cross-file links — `[the board](docket.md)`,
-// `[evidence.md](evidence.md#p-deadbeef)` — into tab switches.
+// siteLink opens a link to target: the set's own cross-file links — `[the board](docket.md)`,
+// `[evidence.md](evidence.md#p-deadbeef)` — as tab switches, any other as itself.
 //
 // WITHOUT THIS THEY ARE DEAD. In the markdown tier they are exactly right: a relative link to
 // a sibling file. In one HTML file there is no sibling file, so the browser would try to open
 // a document that is already open, in a pane it cannot reach. Same links, two tiers, and only
 // one of them can follow a path.
-func siteLinks(html string, files map[string]bool) string {
-	return reHref.ReplaceAllStringFunc(html, func(m string) string {
-		target := reHref.FindStringSubmatch(m)[1]
-		file, frag, _ := strings.Cut(target, "#")
-		if !files[file] {
-			return m
-		}
-		return fmt.Sprintf(`<a class="idref" data-doc="%s" href="#%s"`, escape(file), escape(frag))
-	})
+func siteLink(target string, files map[string]bool) string {
+	file, frag, _ := strings.Cut(target, "#")
+	if !files[file] {
+		return `<a href="` + target + `">`
+	}
+	return fmt.Sprintf(`<a class="idref" data-doc="%s" href="#%s">`, escape(file), escape(frag))
 }
-
-var reHref = regexp.MustCompile(`<a href="([^"]+)"`)
 
 // slugFile turns "CHANGELOG.md" into an element id fragment.
 func slugFile(f string) string {

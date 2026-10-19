@@ -147,7 +147,7 @@ func TestADocketRulingsRequirementsAreMarkedOnItsOwnPage(t *testing.T) {
 		if f == nil {
 			t.Fatalf("motion docket rule has no --%s", name)
 		}
-		if !markedUnconditionally(f.Usage) {
+		if !markedUnconditionally(f) {
 			t.Errorf("motion docket rule --%s is required by the docket ruling's schema and its line does not say so:\n%s", name, f.Usage)
 		}
 	}
