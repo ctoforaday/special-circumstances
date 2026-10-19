@@ -327,12 +327,13 @@ func headingKey(trimmed string) (string, bool) {
 	return normalizeHeading(strings.TrimPrefix(trimmed, "## ")), true
 }
 
-// noteRef is a footnote reference, as the weave writes one where a citation or proof anchor stood.
-var noteRef = regexp.MustCompile(`\[\^[^\]]+\]`)
-
-// normalizeHeading folds a heading to its comparison key.
+// normalizeHeading folds a heading to its comparison key. The note references are read as text
+// (noteRefsIn): a heading is read one line at a time, with no definition in reach to resolve them.
 func normalizeHeading(h string) string {
-	h = noteRef.ReplaceAllString(anchor.Replace(h, func(string, string) string { return "" }), "")
+	h = anchor.Replace(h, func(string, string) string { return "" })
+	for _, sp := range slices.Backward(noteRefsIn(h)) {
+		h = h[:sp[0]] + h[sp[1]:]
+	}
 	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
 	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
 }

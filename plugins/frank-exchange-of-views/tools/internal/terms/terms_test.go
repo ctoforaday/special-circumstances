@@ -41,6 +41,8 @@ func TestTheRegistryRefusesWhatWouldMislead(t *testing.T) {
 		{"pattern not RE2", entry(`{"variant":"v","kind":"GATED","pattern":"(?=x)"}`), "not RE2"},
 		{"unknown kind", entry(`{"variant":"v","kind":"SOFT","pattern":"v"}`), "kind"},
 		{"allow without reason", entry(`{"variant":"v","kind":"GATED","pattern":"v","allow":[{"path":"README.md","reason":""}]}`), "without a reason"},
+		{"allow glob with a partial **", entry(`{"variant":"v","kind":"GATED","pattern":"v","allow":[{"path":"a/**.md","reason":"r"}]}`), "not a whole segment"},
+		{"allow glob path.Match cannot read", entry(`{"variant":"v","kind":"GATED","pattern":"v","allow":[{"path":"a/[b","reason":"r"}]}`), "not a path pattern"},
 		{"allow without path", entry(`{"variant":"v","kind":"GATED","pattern":"v","allow":[{"path":"","reason":"r"}]}`), "names no path"},
 		{"mask without reason", entry(`{"variant":"v","kind":"GATED","pattern":"round","masks":[{"phrase":"round-trip","reason":""}]}`), "mask missing"},
 		{"mask the pattern cannot match", entry(`{"variant":"v","kind":"GATED","pattern":"round","masks":[{"phrase":"trip","reason":"r"}]}`), "blanks nothing"},
@@ -77,6 +79,11 @@ func TestScanFoldsWhitespaceMasksAndAllows(t *testing.T) {
 	}
 	if hs := r.Scan("a/b/c/old.md", "a round", u); len(hs) != 1 || hs[0].AllowedBy != "a/**/old.md" {
 		t.Errorf("the allow did not cover a/b/c/old.md: %+v", hs)
+	}
+	for p, want := range map[string]bool{"a/old.md": true, "a/b/old.md": true, "b/a/old.md": false, "a/b/old.mdx": false, "a/b/new.md": false} {
+		if got := r.Entries[0].Bans[0].Allow[0].Covers(p); got != want {
+			t.Errorf("a/**/old.md covers %s = %v, want %v", p, got, want)
+		}
 	}
 	if st := r.Stale(u); len(st) != 0 {
 		t.Errorf("a mask and an allow both did work, yet Stale says %q", st)
