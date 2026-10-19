@@ -140,7 +140,6 @@ th {
 }
 td { border-bottom: 1px solid var(--rule); }
 hr { border: none; border-top: 1px solid var(--rule); margin: 2.4rem 0; }
-.cont { margin-left: 1.6rem; color: var(--muted); font-size: .93rem; }
 
 a.cite {
   font: 600 .8em var(--sans); letter-spacing: .01em; text-decoration: none;

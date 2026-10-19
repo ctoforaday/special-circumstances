@@ -68,7 +68,7 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 	for _, d := range docs {
 		files[d.File] = true
 	}
-	bodies := make([]string, len(docs))
+	bodies := make([]rendered, len(docs))
 	slugs := map[string]int{}
 	for i, d := range docs {
 		bodies[i] = mdToHTML(d.Body, d.File, anchor, slugs, files)

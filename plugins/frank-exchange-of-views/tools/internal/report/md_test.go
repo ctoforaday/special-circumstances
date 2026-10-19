@@ -27,6 +27,12 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"1. one",
 		"2. two",
 		"",
+		"Then the list goes on:",
+		"",
+		"3. three",
+		"",
+		"A [script link](javascript:alert(1)) does nothing.",
+		"",
 		"```bash",
 		"## not a heading",
 		"echo 'x' > y",
@@ -39,7 +45,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"[^1]: the source. https://example.invalid/a",
 	}, "\n")
 
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil)
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
 	for _, want := range []string{
 		`<h1 id="title">Title</h1>`,
 		"<strong>bold</strong>", "<em>italic</em>", "<code>code</code>",
@@ -47,6 +53,10 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		"<blockquote>a quotation</blockquote>",
 		"<table><thead><tr><th>a</th><th>b</th>", "<td>1</td>",
 		"<ul><li>first</li>", "<ol><li>one</li>",
+		// A list that starts at 3 shows 3: the number is the list's start, not a count of the items.
+		`<ol start="3"><li>three</li>`,
+		// A destination that would run script links nowhere.
+		`<a href="">script link</a>`,
 		`<pre><code class="language-bash">## not a heading`,
 		"echo &#39;x&#39; &gt; y", // escaped, and NOT parsed as a heading or a quote
 		"<hr>",
@@ -72,7 +82,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 // text is quoted from a repository; either can contain a tag, and a report that renders it is
 // a report that can be written into.
 func TestMarkupInProseIsEscaped(t *testing.T) {
-	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{}, nil)
+	got := mdToHTML("A finding about <script>alert(1)</script> in the parser.\n", FileReport, anchors{}, map[string]int{}, nil).html
 	if strings.Contains(got, "<script>") {
 		t.Errorf("a tag in prose reached the document unescaped:\n%s", got)
 	}
@@ -107,13 +117,13 @@ func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 // HTML rewrites hrefs and produces a document that links every id to itself.
 func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
 	anchor := anchors{"G-00000001": "docket.md#r1-1"}
-	got := linkIDs("<p><code>grep G-00000001</code> and <a href=\"x\">G-00000001</a></p>", anchor, FileReport)
+	got := linkIDs(mdToHTML("`grep G-00000001` and [G-00000001](x)\n", FileReport, anchor, map[string]int{}, nil), anchor, FileReport)
 	if strings.Count(got, "idref") != 0 {
 		t.Errorf("an id was rewritten inside code or an existing link:\n%s", got)
 	}
 	// THE SAME ID IN PLAIN TEXT IS LINKED, so the zero above is the code span and the link holding
 	// it back and not an id the pattern does not read.
-	if got := linkIDs("<p>see G-00000001</p>", anchor, FileReport); strings.Count(got, "idref") != 1 {
+	if got := linkIDs(mdToHTML("see G-00000001\n", FileReport, anchor, map[string]int{}, nil), anchor, FileReport); strings.Count(got, "idref") != 1 {
 		t.Errorf("the id in plain text was not linked:\n%s", got)
 	}
 }
@@ -121,7 +131,7 @@ func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
 // Hard breaks survive. The composers use them to keep a gap's four facts on four lines; a
 // renderer that drops them re-fuses exactly what they were added to separate.
 func TestHardBreaksSurvive(t *testing.T) {
-	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{}, nil)
+	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{}, map[string]int{}, nil).html
 	if strings.Count(got, "<br>") != 2 {
 		t.Errorf("hard breaks were dropped, so four facts render as one sentence:\n%s", got)
 	}
@@ -134,7 +144,7 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 	md := "First claim[^zulu]. Second claim[^alpha], and zulu again[^zulu].\n\n" +
 		"[^alpha]: A, defined first. https://example.invalid/a\n" +
 		"[^zulu]: Z, defined second. https://example.invalid/z\n"
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil)
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
 	for _, want := range []string{
 		`<a class="cite" id="fnref-zulu" href="#fn-zulu" title="zulu — Z, defined second. https://example.invalid/z">[1]</a>`,
 		`<a class="cite" id="fnref-alpha" href="#fn-alpha" title="alpha — A, defined first. https://example.invalid/a">[2]</a>`,
@@ -189,12 +199,13 @@ func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 	}
 }
 
-// A LINE THAT OPENS WITH AN ANCHOR TAG AND GOES ON KEEPS WHAT FOLLOWS THE TAG. The bare tag is the
-// composer's (evidence.md, one per proof); the same opening on a line of the report's own text
-// rendered the tag and none of the words after it.
-func TestALineOpeningWithAnAnchorTagKeepsItsText(t *testing.T) {
-	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil)
-	for _, want := range []string{`<a id="P-deadbeef"></a>`, `<a id="here"></a>the words after the tag.`} {
+// HTML ALONE ON ITS LINE IS HTML; HTML IN A LINE OF PROSE IS TEXT. The bare tag is the composer's
+// (evidence.md, one per proof), and markdown reads it as inline HTML because its closing tag shares
+// the line, so it passes through as written. The same tag opening a line of the report's own prose
+// is the prose's, and is shown as typed beside the words after it.
+func TestAnAnchorTagAloneIsHTMLAndInProseIsText(t *testing.T) {
+	html := mdToHTML("<a id=\"P-deadbeef\"></a>\n\n<a id=\"here\"></a>the words after the tag.\n", "report.md", anchors{}, map[string]int{}, nil).html
+	for _, want := range []string{"<a id=\"P-deadbeef\"></a>\n", `<p>&lt;a id=&quot;here&quot;&gt;&lt;/a&gt;the words after the tag.</p>`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the rendering does not carry %q:\n%s", want, html)
 		}
@@ -211,7 +222,7 @@ func TestTheCitationLayerIsRenderedFromTheDocumentNotReadBackFromIt(t *testing.T
 	md := "A claim[^b] in prose.\n\n" + raw + "\n\n| col |\n|---|\n| a cell[^a] |\n\n" +
 		"- an item[^b]\n\n> a quote[^c]\n\nA control \x01 character.\n\n" +
 		"[^a]: The a source, which cites[^c].\n[^b]: The b source.\n[^c]: The c source.\n[^d]: Uncited.\n"
-	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil)
+	got := mdToHTML(md, FileReport, anchors{}, map[string]int{}, nil).html
 	if !strings.Contains(got, raw) {
 		t.Errorf("a raw HTML line in the shape of the tool's markup was rewritten:\n%s", got)
 	}

@@ -1,6 +1,9 @@
 package report
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // ONLY THE WEAVE OPENS A FOOTNOTE IN WHAT ASSEMBLY COMPOSES.
 //
@@ -22,6 +25,11 @@ import "strings"
 //
 // CODE IS LEFT AS IT IS. Inside a fence or a code span nothing is a reference and a backslash is a
 // character, so an escape there would print.
+
+// reCodeSpan is a code span as the write path reads one: escaping a composed line here, and the
+// refusal of a woven label in the report's text (WovenNoteIn). The rendering reads code from the
+// markdown parser's tree (md.go).
+var reCodeSpan = regexp.MustCompile("`[^`]+`")
 
 // noteOpen is what opens a footnote reference or definition, and noteEscape is that with the
 // backslash that makes it text.

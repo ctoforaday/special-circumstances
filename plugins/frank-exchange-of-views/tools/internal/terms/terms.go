@@ -26,6 +26,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"regexp/syntax"
 	"strings"
@@ -76,13 +77,14 @@ type Mask struct {
 	Reason string `json:"reason"`
 }
 
-// Allow exempts the files a path glob names, relative to the repository root. `*` matches within
-// one path segment and `**` across segments.
+// Allow exempts the files a path glob names, relative to the repository root. `*` and `?` match
+// within one path segment, as path.Match reads them, and a segment that is `**` matches any number
+// of segments, none included.
 type Allow struct {
 	Path   string `json:"path"`
 	Reason string `json:"reason"`
 
-	re *regexp.Regexp
+	glob []string // Path's segments, checked when the registry loads
 }
 
 // Collision is a word with a second, legitimate sense, and how the two are kept apart.
@@ -205,7 +207,11 @@ func (b *Ban) compile(term string) error {
 		if strings.TrimSpace(a.Reason) == "" {
 			return fmt.Errorf("terms: %q bans %q and allows %s without a reason — an allow nobody can argue with is how a ban erodes", term, b.Variant, a.Path)
 		}
-		a.re = globRe(a.Path)
+		glob, err := globSegments(a.Path)
+		if err != nil {
+			return fmt.Errorf("terms: %q bans %q and allows %s: %w", term, b.Variant, a.Path, err)
+		}
+		a.glob = glob
 	}
 	return nil
 }
@@ -233,29 +239,45 @@ func literalHyphen(pattern string) bool {
 	return walk(re)
 }
 
-// globRe turns a path glob into an anchored regexp: `**` crosses segments, `*` and `?` do not.
-func globRe(glob string) *regexp.Regexp {
-	var b strings.Builder
-	b.WriteString("^")
-	for i := 0; i < len(glob); i++ {
-		switch c := glob[i]; {
-		case c == '*' && i+1 < len(glob) && glob[i+1] == '*':
-			b.WriteString(".*")
-			i++
-		case c == '*':
-			b.WriteString("[^/]*")
-		case c == '?':
-			b.WriteString("[^/]")
-		default:
-			b.WriteString(regexp.QuoteMeta(string(c)))
+// globSegments splits a path glob into its segments and refuses one path.Match cannot read, or a
+// `**` that is not a whole segment.
+func globSegments(glob string) ([]string, error) {
+	segs := strings.Split(glob, "/")
+	for _, s := range segs {
+		if s != "**" && strings.Contains(s, "**") {
+			return nil, fmt.Errorf("the glob's %q holds a ** that is not a whole segment", s)
+		}
+		if _, err := path.Match(s, ""); err != nil {
+			return nil, fmt.Errorf("the glob's %q is not a path pattern: %w", s, err)
 		}
 	}
-	b.WriteString("$")
-	return regexp.MustCompile(b.String())
+	return segs, nil
 }
 
 // Covers reports whether the allow exempts a repository-relative, slash-separated path.
-func (a Allow) Covers(path string) bool { return a.re != nil && a.re.MatchString(path) }
+func (a Allow) Covers(p string) bool {
+	return a.glob != nil && globMatch(a.glob, strings.Split(p, "/"))
+}
+
+// globMatch matches a path's segments against a glob's.
+func globMatch(glob, segs []string) bool {
+	if len(glob) == 0 {
+		return len(segs) == 0
+	}
+	if glob[0] == "**" {
+		for i := 0; i <= len(segs); i++ {
+			if globMatch(glob[1:], segs[i:]) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(segs) == 0 {
+		return false
+	}
+	ok, _ := path.Match(glob[0], segs[0])
+	return ok && globMatch(glob[1:], segs[1:])
+}
 
 // ForSeat returns the entries a seat's surface delivers, in registry order.
 func (r *Registry) ForSeat(role string) []Entry {

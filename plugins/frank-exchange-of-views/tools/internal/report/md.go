@@ -1,52 +1,56 @@
 package report
 
-// MARKDOWN → HTML, IN THE SUBSET THIS ASSEMBLER EMITS.
+// MARKDOWN → HTML, FROM THE TREE A MARKDOWN READER BUILDS.
 //
-// The rendering is this file, not the markdown parser go.mod carries (which reads the set's
-// footnotes, footnotes.go): a library renderer would be load-bearing for the deliverable of every
-// run, and the surface it would buy is a superset of what any composer here produces. What the assembler emits is a closed
-// set — headings, fenced code, GFM tables, lists, blockquotes, rules, footnotes and a handful
-// of inline forms — and the one open surface (the report's own prose) is written by a model
-// following the same template.
+// The documents are markdown, and what each line of one is — a heading, a list item, a fence, a
+// table, a footnote, prose — is markdown's grammar, read by a markdown parser (mdReader: the
+// dialect footnotes.go reads, CommonMark with GitHub's extensions and footnotes). This file
+// renders that tree; it reads no line of the text itself. The rendering is the reading tier's
+// own — the ids, the tab links, the numbered citations — and the tree is the one any markdown
+// reader of the .md file sees, so the two tiers cannot disagree about what a line is.
 //
 // WHAT IT DOES NOT DO IS AS IMPORTANT: it does not round-trip. The markdown files are the
 // durable tier and are written by the composers directly; this reads them ONCE, forward, into
-// a rendering. Nothing here can change what ships in a .md, which is why an unsupported
-// construct degrades to visible text rather than to a silent drop.
+// a rendering. Nothing here can change what ships in a .md.
+//
+// HTML in the text: a block of it (a composer's explicit anchor) passes through as written; HTML
+// inside a line of prose is shown as the characters typed, because the prose is a seat's.
 
 import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 var (
-	reHeading  = regexp.MustCompile(`^(#{1,6})\s+(.*)$`)
-	reFence    = regexp.MustCompile("^(```|~~~)\\s*([A-Za-z0-9_+-]*)\\s*$")
-	reULItem   = regexp.MustCompile(`^(\s*)[-*+]\s+(.*)$`)
-	reOLItem   = regexp.MustCompile(`^(\s*)\d+[.)]\s+(.*)$`)
-	reTableSep = regexp.MustCompile(`^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$`)
-	reFootnote = regexp.MustCompile(`^\[\^([A-Za-z0-9_-]+)\]:\s*(.*)$`)
-	// RE2 has no backreferences, so the three rule characters are spelled out rather than
-	// matched against the first one.
-	reHR       = regexp.MustCompile(`^\s*(?:-\s*-\s*-[-\s]*|\*\s*\*\s*\*[*\s]*|_\s*_\s*_[_\s]*)$`)
-	reCodeSpan = regexp.MustCompile("`[^`]+`")
-	reLink     = regexp.MustCompile(`\[([^\]]*)\]\(([^)\s]+)\)`)
-	reFootRef  = regexp.MustCompile(`\[\^([A-Za-z0-9_-]+)\]`)
-	reStrong   = regexp.MustCompile(`\*\*([^*]+)\*\*`)
-	reEmphasis = regexp.MustCompile(`(^|[\s(])\*([^*\n]+)\*($|[\s).,;:!?])`)
-	// Underscore emphasis, which every composer here uses for its parenthetical notes. The
-	// boundary conditions are what keep `required_fix` and `run_id` out of it: an opening
-	// underscore must follow a space or a line start, and the closing one must precede a space,
-	// a line end, or punctuation.
-	reEmphasisU = regexp.MustCompile(`(^|[\s(])_([^_\n]+)_($|[\s).,;:!?])`)
-	reAutolink  = regexp.MustCompile(`(^|[\s(])(https?://[^\s<>()\[\]]+)`)
-	reAnchorTag = regexp.MustCompile(`(?i)^<a\s+id="([^"]+)"`)
+	// mdReader is footnoteReader's dialect without the step that drops a definition nothing
+	// references: the References list keeps those (citations).
+	mdReader = goldmark.New(goldmark.WithExtensions(extension.GFM), goldmark.WithParserOptions(
+		parser.WithBlockParsers(util.Prioritized(extension.NewFootnoteBlockParser(), 999)),
+		parser.WithInlineParsers(util.Prioritized(extension.NewFootnoteParser(), 101)),
+	))
+	// lineReader reads one line of inline markdown — a title — as a paragraph, whatever it opens
+	// with: a title that starts "1." is a title, not a list.
+	lineReader = parser.NewParser(
+		parser.WithBlockParsers(util.Prioritized(parser.NewParagraphParser(), 1000)),
+		parser.WithInlineParsers(append(parser.DefaultInlineParsers(),
+			util.Prioritized(extension.NewLinkifyParser(), 999),
+			util.Prioritized(extension.NewStrikethroughParser(), 500))...),
+	)
 	// idToken matches the identifiers the record mints and every document quotes: gap, motion
 	// and finding ids, and a proof's footnote number (P1). They are the joins the single-file report
 	// made a reader scroll for. An id that matches nothing renders exactly like an id nobody else
@@ -57,6 +61,16 @@ var (
 // anchors is the map from a record id to the document and element that DEFINES it, filled as
 // each document renders and applied across the set afterwards.
 type anchors map[string]string
+
+// mention is one id the text names, where linkIDs will link it: the id, and the id of the element
+// it stands in, so an id is never linked at the site that defines it.
+type mention struct{ id, here string }
+
+// rendered is one document rendered, its id mentions held for the pass that links them.
+type rendered struct {
+	html     string
+	mentions []mention
+}
 
 // mdToHTML renders one document. It records every anchor it defines into anchor, keyed by the
 // record id, valued as "<file>#<elementID>".
@@ -69,219 +83,442 @@ type anchors map[string]string
 //
 // files is the document set: a link to one of them is a tab switch, written as one here, because
 // in a single page there is no sibling file to open.
-func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[string]bool) string {
-	// The marker byte is a control character with no rendering; one in the text is shown as the
-	// replacement character, so no text can be read as a reference.
-	md = strings.ReplaceAll(md, string(refMarkByte), "\uFFFD")
-	lines := strings.Split(md, "\n")
+func mdToHTML(md, file string, anchor anchors, seen map[string]int, files map[string]bool) rendered {
+	// The marker bytes are control characters with no rendering; one in the text is shown as the
+	// replacement character, so no text can be read as a marker. NUL is too, as CommonMark has it.
+	md = strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(md)
+	r := &mdRender{src: []byte(md), file: file, anchor: anchor, seen: seen, files: files, link: true}
+	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where the tree holds it
+	// and left in the text as a marker that holds only its index (refMark); each definition is kept
+	// as a note. citations numbers and lists them from these once the document is rendered.
+	r.ref = func(label string) string {
+		r.refs = append(r.refs, label)
+		return refMark(len(r.refs) - 1)
+	}
+	doc := mdReader.Parser().Parse(text.NewReader(r.src))
 	var b strings.Builder
-	// THE CITATION LAYER IS HELD, NOT RE-READ. Each reference is recorded where inline meets it and
-	// left in the text as a marker that holds only its index (refMark); each definition is kept as
-	// a note. citations numbers and lists them from these once the document is rendered.
-	var refs []string
-	var notes []footnote
-	in := func(s string) string {
-		return renderInline(s, func(label string) string {
-			refs = append(refs, label)
-			return refMark(len(refs) - 1)
-		}, files)
-	}
+	r.blocks(&b, doc)
+	return rendered{html: citations(b.String(), r.refs, r.notes, seen), mentions: r.mentions}
+}
 
-	slug := func(text string) string {
-		s := strings.ToLower(strings.TrimSpace(stripInline(text)))
-		s = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(s, "-")
-		s = strings.Trim(s, "-")
-		if s == "" {
-			s = "section"
-		}
-		return uniqueID(seen, s)
-	}
-	// define records "this element is where id lives", first definition winning: a heading
-	// that introduces G3 is its home, and the twenty later mentions are references to it.
-	define := func(text, elemID string) {
-		if m := idToken.FindStringSubmatch(strings.TrimSpace(stripInline(text))); m != nil && strings.HasPrefix(strings.TrimSpace(stripInline(text)), m[1]) {
-			if _, ok := anchor[m[1]]; !ok {
-				anchor[m[1]] = file + "#" + elemID
-			}
-		}
-	}
+// mdRender is one document's rendering in progress.
+type mdRender struct {
+	src    []byte
+	file   string
+	anchor anchors
+	seen   map[string]int
+	files  map[string]bool
+	ref    func(label string) string // what a footnote reference renders as
+	link   bool                      // whether the ids the text names are held for linkIDs
+	// looseRefs reads a footnote reference in the text (noteRefsIn), where no definition is in
+	// reach for the parser to resolve it to: one line of a title.
+	looseRefs bool
 
-	closeList := func(stack *[]string) {
-		for len(*stack) > 0 {
-			b.WriteString("</" + (*stack)[len(*stack)-1] + ">\n")
-			*stack = (*stack)[:len(*stack)-1]
-		}
-	}
+	refs     []string
+	notes    []footnote
+	mentions []mention
+	here     string // the id of the element being rendered
+}
 
-	var listStack []string
-	var para []string
-	flushPara := func() {
-		if len(para) == 0 {
+// blocks renders n's block children.
+func (r *mdRender) blocks(b *strings.Builder, n ast.Node) {
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		r.block(b, c)
+	}
+}
+
+func (r *mdRender) block(b *strings.Builder, n ast.Node) {
+	switch x := n.(type) {
+	case *ast.Heading:
+		text := r.plain(x)
+		id := r.slug(text)
+		r.define(text, id)
+		fmt.Fprintf(b, "<h%d id=\"%s\">%s</h%d>\n", x.Level, id, r.inlineIn(x, id), x.Level)
+	case *ast.Paragraph:
+		if htmlOnly(x) {
+			// HTML alone on its lines is HTML the writer meant: evidence.md's anchor per proof is
+			// one, and markdown reads it as inline HTML because the line holds a closing tag after
+			// the opening one. HTML that shares a line with prose is shown as typed (inlines).
+			b.WriteString(strings.TrimRight(r.lines(x), "\n") + "\n")
 			return
 		}
-		// A line ending in two spaces is a markdown hard break, and the composers use it to
-		// keep a gap's location, grades, demanded fix and acceptance check on four lines
-		// instead of fusing them into one sentence.
-		b.WriteString("<p>" + in(strings.Join(para, "\n")) + "</p>\n")
-		para = nil
-	}
-
-	for i := 0; i < len(lines); i++ {
-		ln := lines[i]
-		t := strings.TrimSpace(ln)
-
-		// Fenced code: taken verbatim to its closing fence, escaped, never parsed. A "## " or
-		// a "|" inside a script is not a heading and not a table.
-		if m := reFence.FindStringSubmatch(t); m != nil {
-			flushPara()
-			closeList(&listStack)
-			lang := m[2]
-			var code []string
-			for i++; i < len(lines); i++ {
-				if reFence.MatchString(strings.TrimSpace(lines[i])) {
-					break
-				}
-				code = append(code, lines[i])
+		b.WriteString("<p>" + r.inlineIn(x, "") + "</p>\n")
+	case *ast.TextBlock:
+		b.WriteString(r.inlineIn(x, "") + "\n")
+	case *ast.ThematicBreak:
+		b.WriteString("<hr>\n")
+	case *ast.FencedCodeBlock, *ast.CodeBlock:
+		// Taken verbatim, escaped, never read: a "## " or a "|" inside a script is not a heading
+		// and not a table.
+		cls := ""
+		if f, ok := x.(*ast.FencedCodeBlock); ok {
+			if lang := f.Language(r.src); lang != nil {
+				cls = ` class="language-` + escape(string(lang)) + `"`
 			}
-			cls := ""
-			if lang != "" {
-				cls = ` class="language-` + escape(lang) + `"`
+		}
+		b.WriteString("<pre><code" + cls + ">" + escape(strings.TrimSuffix(r.lines(x), "\n")) + "</code></pre>\n")
+	case *ast.HTMLBlock:
+		// HTML the composer wrote on purpose — passed through, never escaped.
+		b.WriteString(r.lines(x))
+		if x.HasClosure() {
+			b.WriteString(string(x.ClosureLine.Value(r.src)))
+		}
+	case *ast.Blockquote:
+		if p, ok := x.FirstChild().(*ast.Paragraph); ok && x.ChildCount() == 1 {
+			b.WriteString("<blockquote>" + r.inlineIn(p, "") + "</blockquote>\n")
+			return
+		}
+		b.WriteString("<blockquote>\n")
+		r.blocks(b, x)
+		b.WriteString("</blockquote>\n")
+	case *ast.List:
+		tag := "ul"
+		if x.IsOrdered() {
+			tag = "ol"
+		}
+		b.WriteString("<" + tag)
+		if x.IsOrdered() && x.Start != 1 {
+			fmt.Fprintf(b, ` start="%d"`, x.Start)
+		}
+		b.WriteString(">")
+		for c := x.FirstChild(); c != nil; c = c.NextSibling() {
+			r.item(b, c, !x.IsOrdered())
+		}
+		b.WriteString("</" + tag + ">\n")
+	case *east.Table:
+		// The wrapper is what scrolls: a wide table inside it pans on a phone instead of
+		// stretching the whole page and dragging every paragraph with it.
+		b.WriteString("<div class=\"tblwrap\"><table>")
+		for row := x.FirstChild(); row != nil; row = row.NextSibling() {
+			cell := "td"
+			if _, head := row.(*east.TableHeader); head {
+				cell = "th"
+				b.WriteString("<thead>")
 			}
-			b.WriteString("<pre><code" + cls + ">" + escape(strings.Join(code, "\n")) + "</code></pre>\n")
-			continue
-		}
-
-		if t == "" {
-			flushPara()
-			closeList(&listStack)
-			continue
-		}
-
-		// An explicit anchor the composer placed (evidence.md does this per proof). It is a
-		// definition, so it registers, and it renders as itself. A line that opens with one and
-		// goes on is the report's own HTML, and the whole line passes through.
-		if m := reAnchorTag.FindStringSubmatch(t); m != nil {
-			flushPara()
-			if t == `<a id="`+m[1]+`"></a>` {
-				b.WriteString(`<a id="` + escape(m[1]) + `"></a>` + "\n")
+			b.WriteString("<tr>")
+			for c := row.FirstChild(); c != nil; c = c.NextSibling() {
+				b.WriteString("<" + cell + ">" + r.inlineIn(c, "") + "</" + cell + ">")
+			}
+			if cell == "th" {
+				b.WriteString("</tr></thead><tbody>\n")
 			} else {
-				b.WriteString(ln + "\n")
-			}
-			if _, ok := anchor[m[1]]; !ok {
-				anchor[m[1]] = file + "#" + m[1]
-			}
-			continue
-		}
-
-		if m := reFootnote.FindStringSubmatch(t); m != nil {
-			flushPara()
-			closeList(&listStack)
-			// data-nolink: the label IS the definition of that footnote, so the id-linker must
-			// leave it alone. A label that links away reads as a reference to somewhere else.
-			// The number leads (the <ol> renders it); the slug trails as a muted tag, because
-			// it is the markdown tier's name for this entry and grep must find it here too.
-			notes = append(notes, footnote{label: m[1], html: in(m[2]), scent: scentOf(inline(m[2]))})
-			continue
-		}
-
-		if m := reHeading.FindStringSubmatch(t); m != nil {
-			flushPara()
-			closeList(&listStack)
-			level := len(m[1])
-			id := slug(m[2])
-			define(m[2], id)
-			fmt.Fprintf(&b, "<h%d id=\"%s\">%s</h%d>\n", level, id, in(m[2]), level)
-			continue
-		}
-
-		if reHR.MatchString(t) {
-			flushPara()
-			closeList(&listStack)
-			b.WriteString("<hr>\n")
-			continue
-		}
-
-		if strings.HasPrefix(t, ">") {
-			flushPara()
-			closeList(&listStack)
-			var quote []string
-			for i < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i]), ">") {
-				quote = append(quote, strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lines[i]), ">")), " "))
-				i++
-			}
-			i--
-			b.WriteString("<blockquote>" + in(strings.Join(quote, " ")) + "</blockquote>\n")
-			continue
-		}
-
-		// GFM table: a row followed by a delimiter row. Without the delimiter it is a
-		// paragraph that happens to contain pipes, which is what prose about a shell command
-		// looks like.
-		if strings.Contains(t, "|") && i+1 < len(lines) && reTableSep.MatchString(lines[i+1]) {
-			flushPara()
-			closeList(&listStack)
-			// The wrapper is what scrolls: a wide table inside it pans on a phone instead of
-			// stretching the whole page and dragging every paragraph with it.
-			b.WriteString("<div class=\"tblwrap\"><table><thead><tr>")
-			for _, c := range splitRow(t) {
-				b.WriteString("<th>" + in(c) + "</th>")
-			}
-			b.WriteString("</tr></thead><tbody>\n")
-			for i += 2; i < len(lines); i++ {
-				row := strings.TrimSpace(lines[i])
-				if row == "" || !strings.Contains(row, "|") {
-					break
-				}
-				b.WriteString("<tr>")
-				for _, c := range splitRow(row) {
-					b.WriteString("<td>" + in(c) + "</td>")
-				}
 				b.WriteString("</tr>\n")
 			}
-			i--
-			b.WriteString("</tbody></table></div>\n")
-			continue
 		}
-
-		if m := reULItem.FindStringSubmatch(ln); m != nil {
-			flushPara()
-			b.WriteString(openList(&listStack, "ul", len(m[1])))
-			id := ""
-			if tok := idToken.FindStringSubmatch(stripInline(m[2])); tok != nil && strings.HasPrefix(stripInline(m[2]), tok[1]) {
-				id = slug(tok[1])
-				define(m[2], id)
-			}
-			writeItem(&b, id, in(m[2]))
-			continue
+		b.WriteString("</tbody></table></div>\n")
+	case *east.FootnoteList:
+		// The definitions, which citations lists at the document's end, each under its label.
+		for c := x.FirstChild(); c != nil; c = c.NextSibling() {
+			fn := c.(*east.Footnote)
+			note := footnote{label: string(fn.Ref), html: r.noteBody(fn)}
+			title := *r
+			title.ref, title.link = supRef, false
+			note.scent = scentOf(title.noteBody(fn))
+			r.notes = append(r.notes, note)
 		}
-		if m := reOLItem.FindStringSubmatch(ln); m != nil {
-			flushPara()
-			b.WriteString(openList(&listStack, "ol", len(m[1])))
-			writeItem(&b, "", in(m[2]))
-			continue
-		}
-
-		// Raw HTML the composer wrote on purpose — passed through, never escaped.
-		if strings.HasPrefix(t, "<") {
-			flushPara()
-			b.WriteString(ln + "\n")
-			continue
-		}
-
-		if len(listStack) > 0 && strings.HasPrefix(ln, "  ") {
-			// A continuation line under a list item: appended to the item rather than
-			// promoted to a paragraph that breaks the list open.
-			b.WriteString("<div class=\"cont\">" + in(t) + "</div>\n")
-			continue
-		}
-		closeList(&listStack)
-		// LEFT-trimmed only: a trailing double space is markdown's hard break and TrimSpace
-		// eats it, which silently un-does the composer's line breaks one layer down.
-		para = append(para, strings.TrimLeft(ln, " \t"))
+	default:
+		// A block this renderer has no element for is shown as its text, never dropped.
+		b.WriteString("<p>" + escape(r.lines(n)) + "</p>\n")
 	}
-	flushPara()
-	closeList(&listStack)
-	return citations(b.String(), refs, notes, seen)
+}
+
+// item renders one list item. An item of a bullet list that opens with a record id is where that
+// id is defined, and carries the element id.
+func (r *mdRender) item(b *strings.Builder, n ast.Node, bullet bool) {
+	id := ""
+	if first := n.FirstChild(); bullet && first != nil {
+		if tok := leadingID(r.plain(first)); tok != "" {
+			id = r.slug(tok)
+			r.define(tok, id)
+		}
+	}
+	if id != "" {
+		b.WriteString(`<li id="` + id + `">`)
+	} else {
+		b.WriteString("<li>")
+	}
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		switch c.(type) {
+		case *ast.TextBlock:
+			b.WriteString(r.inlineIn(c, id))
+		case *ast.Paragraph:
+			if c == n.FirstChild() {
+				b.WriteString(r.inlineIn(c, id))
+			} else {
+				b.WriteString("<p>" + r.inlineIn(c, id) + "</p>")
+			}
+		default:
+			r.block(b, c)
+		}
+	}
+	b.WriteString("</li>\n")
+}
+
+// htmlOnly reports whether a paragraph holds nothing but inline HTML.
+func htmlOnly(p *ast.Paragraph) bool {
+	for c := p.FirstChild(); c != nil; c = c.NextSibling() {
+		if _, ok := c.(*ast.RawHTML); !ok {
+			return false
+		}
+	}
+	return p.HasChildren()
+}
+
+// noteBody renders a footnote definition's content: its one paragraph as a line, or its blocks.
+func (r *mdRender) noteBody(fn *east.Footnote) string {
+	if p, ok := fn.FirstChild().(*ast.Paragraph); ok && fn.ChildCount() == 1 {
+		return r.inlineIn(p, "")
+	}
+	var b strings.Builder
+	r.blocks(&b, fn)
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
+// lines is a block's source lines, as written.
+func (r *mdRender) lines(n ast.Node) string {
+	var b strings.Builder
+	for i := 0; i < n.Lines().Len(); i++ {
+		seg := n.Lines().At(i)
+		b.Write(seg.Value(r.src))
+	}
+	return b.String()
+}
+
+// define records "this element is where id lives", first definition winning: a heading that
+// introduces G3 is its home, and the twenty later mentions are references to it.
+func (r *mdRender) define(text, elemID string) {
+	if tok := leadingID(text); tok != "" {
+		if _, ok := r.anchor[tok]; !ok {
+			r.anchor[tok] = r.file + "#" + elemID
+		}
+	}
+}
+
+// leadingID is the record id text opens with, or "".
+func leadingID(text string) string {
+	text = strings.TrimSpace(text)
+	if loc := idToken.FindStringIndex(text); loc != nil && loc[0] == 0 {
+		return text[:loc[1]]
+	}
+	return ""
+}
+
+// slug is an element id for text: its letters and digits, lower-cased, each other run one hyphen.
+func (r *mdRender) slug(text string) string {
+	var b strings.Builder
+	hyphen := false
+	for _, c := range strings.ToLower(text) {
+		if c >= 'a' && c <= 'z' || c >= '0' && c <= '9' {
+			if hyphen && b.Len() > 0 {
+				b.WriteByte('-')
+			}
+			b.WriteRune(c)
+			hyphen = false
+		} else {
+			hyphen = true
+		}
+	}
+	s := b.String()
+	if s == "" {
+		s = "section"
+	}
+	return uniqueID(r.seen, s)
+}
+
+// plain is the text n shows: what a heading id and an id at an element's start are read from.
+func (r *mdRender) plain(n ast.Node) string {
+	var b strings.Builder
+	_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch x := c.(type) {
+		case *ast.Text:
+			b.Write(textValue(x.Segment.Value(r.src)))
+			if x.SoftLineBreak() || x.HardLineBreak() {
+				b.WriteByte(' ')
+			}
+		case *ast.String:
+			b.Write(x.Value)
+		case *ast.AutoLink:
+			b.Write(x.Label(r.src))
+		case *ast.RawHTML:
+			for i := 0; i < x.Segments.Len(); i++ {
+				seg := x.Segments.At(i)
+				b.Write(seg.Value(r.src))
+			}
+		case *east.FootnoteLink:
+			// The reference reads as written, which is what a heading's id has always been made of.
+			b.WriteString(noteOpen + r.footnoteLabel(x) + "]")
+		}
+		return ast.WalkContinue, nil
+	})
+	return b.String()
+}
+
+// inlineIn renders n's inline content, as the element whose id is here.
+func (r *mdRender) inlineIn(n ast.Node, here string) string {
+	was := r.here
+	r.here = here
+	defer func() { r.here = was }()
+	var b strings.Builder
+	r.inlines(&b, n, r.link)
+	return b.String()
+}
+
+// inlines renders n's inline children. Runs of adjacent text are read as one, so an id the text
+// names is found whole wherever the parser cut the run; link is whether those ids are held for
+// linkIDs, which inside a link or code they are not.
+func (r *mdRender) inlines(b *strings.Builder, n ast.Node, link bool) {
+	var run strings.Builder // the run's source, escapes and all
+	flush := func() {
+		s := run.String()
+		run.Reset()
+		if !r.looseRefs {
+			r.text(b, string(textValue([]byte(s))), link)
+			return
+		}
+		last := 0
+		for _, sp := range noteRefsIn(s) {
+			r.text(b, string(textValue([]byte(s[last:sp[0]]))), link)
+			b.WriteString(r.ref(s[sp[0]+len(noteOpen) : sp[1]-1]))
+			last = sp[1]
+		}
+		r.text(b, string(textValue([]byte(s[last:]))), link)
+	}
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if t, ok := c.(*ast.Text); ok {
+			run.Write(t.Segment.Value(r.src))
+			switch {
+			case t.HardLineBreak():
+				flush()
+				b.WriteString("<br> ")
+			case t.SoftLineBreak():
+				run.WriteByte(' ')
+			}
+			continue
+		}
+		flush()
+		switch x := c.(type) {
+		case *ast.String:
+			r.text(b, string(x.Value), link)
+		case *ast.CodeSpan:
+			var code strings.Builder
+			for t := x.FirstChild(); t != nil; t = t.NextSibling() {
+				v := t.(*ast.Text).Segment.Value(r.src)
+				code.Write(v)
+				if t.(*ast.Text).SoftLineBreak() {
+					code.WriteByte(' ')
+				}
+			}
+			b.WriteString("<code>" + escape(strings.ReplaceAll(code.String(), "\n", " ")) + "</code>")
+		case *ast.Emphasis:
+			tag := "em"
+			if x.Level >= 2 {
+				tag = "strong"
+			}
+			b.WriteString("<" + tag + ">")
+			r.inlines(b, x, link)
+			b.WriteString("</" + tag + ">")
+		case *east.Strikethrough:
+			b.WriteString("<del>")
+			r.inlines(b, x, link)
+			b.WriteString("</del>")
+		case *ast.Link:
+			b.WriteString(siteLink(safeURL(x.Destination), r.files))
+			r.inlines(b, x, false)
+			b.WriteString("</a>")
+		case *ast.AutoLink:
+			url := x.URL(r.src)
+			if x.AutoLinkType == ast.AutoLinkEmail {
+				url = append([]byte("mailto:"), url...)
+			}
+			b.WriteString(`<a href="` + safeURL(url) + `">` + escape(string(x.Label(r.src))) + `</a>`)
+		case *ast.Image:
+			// An image is shown as a link to it: the page loads nothing the text names.
+			b.WriteString(`<a href="` + safeURL(x.Destination) + `">`)
+			r.inlines(b, x, false)
+			b.WriteString("</a>")
+		case *ast.RawHTML:
+			var raw strings.Builder
+			for i := 0; i < x.Segments.Len(); i++ {
+				seg := x.Segments.At(i)
+				raw.Write(seg.Value(r.src))
+			}
+			r.text(b, raw.String(), link)
+		case *east.FootnoteLink:
+			b.WriteString(r.ref(r.footnoteLabel(x)))
+		case *east.TaskCheckBox:
+			if x.IsChecked {
+				b.WriteString("[x] ")
+			} else {
+				b.WriteString("[ ] ")
+			}
+		default:
+			r.inlines(b, c, link)
+		}
+	}
+	flush()
+}
+
+// footnoteLabel is the label of the definition a reference resolved to.
+func (r *mdRender) footnoteLabel(l *east.FootnoteLink) string {
+	for p := ast.Node(l); p != nil; p = p.Parent() {
+		if _, ok := p.(*ast.Document); ok {
+			for c := p.FirstChild(); c != nil; c = c.NextSibling() {
+				if list, ok := c.(*east.FootnoteList); ok {
+					for fn := list.FirstChild(); fn != nil; fn = fn.NextSibling() {
+						if f := fn.(*east.Footnote); f.Index == l.Index {
+							return string(f.Ref)
+						}
+					}
+				}
+			}
+		}
+	}
+	panic("report: a footnote reference the parser resolved to no definition")
+}
+
+// text writes a run of prose, escaped, each record id it names held as a mention when link is set.
+func (r *mdRender) text(b *strings.Builder, s string, link bool) {
+	if !link {
+		b.WriteString(escape(s))
+		return
+	}
+	last := 0
+	for _, loc := range idToken.FindAllStringIndex(s, -1) {
+		b.WriteString(escape(s[last:loc[0]]))
+		r.mentions = append(r.mentions, mention{id: s[loc[0]:loc[1]], here: r.here})
+		b.WriteString(mark(mentionMarkByte, len(r.mentions)-1))
+		last = loc[1]
+	}
+	b.WriteString(escape(s[last:]))
+}
+
+// textValue is a text node's characters as a reader sees them: backslash escapes taken out and
+// character references resolved.
+func textValue(v []byte) []byte {
+	v = util.UnescapePunctuations(v)
+	v = util.ResolveNumericReferences(v)
+	v = util.ResolveEntityNames(v)
+	if !utf8.Valid(v) {
+		v = []byte(strings.ToValidUTF8(string(v), "\uFFFD"))
+	}
+	return v
+}
+
+// safeURL is a destination for an href: escaped, and empty when it would run script.
+func safeURL(u []byte) string {
+	if html.IsDangerousURL(u) {
+		return ""
+	}
+	return escape(string(u))
+}
+
+// supRef is a footnote reference outside a document's citation layer — a title, a note's scent —
+// where it renders as its label.
+func supRef(label string) string {
+	return `<sup class="fnref"><a href="#fn-` + label + `">` + label + `</a></sup>`
 }
 
 // uniqueID is id the first time the set asks for it, and id with a count after that.
@@ -299,30 +536,39 @@ type footnote struct {
 	label, html, scent string
 }
 
-// refMarkByte brackets a reference marker. It is a control character no composer writes and inline
-// leaves alone, and the code-span placeholders use NUL, so the two cannot be read for each other.
-const refMarkByte = '\x01'
+// refMarkByte brackets a reference marker and mentionMarkByte an id mention's (mention). Each is a
+// control character no composer writes; one in a document's text is shown as the replacement
+// character (mdToHTML), so no text can be read as a marker.
+const (
+	refMarkByte     = '\x01'
+	mentionMarkByte = '\x02'
+)
 
 // refMark is the marker for the k-th reference inline met: where the cite will stand, and which
 // reference it is. The label is held in the document's refs, never re-read from the text.
-func refMark(k int) string { return fmt.Sprintf("%c%d%c", refMarkByte, k, refMarkByte) }
+func refMark(k int) string { return mark(refMarkByte, k) }
+
+func mark(c byte, k int) string { return fmt.Sprintf("%c%d%c", c, k, c) }
 
 // eachRefMark calls f with the index of every reference marker in html, in order, and returns
 // html with each marker replaced by what f returns.
-func eachRefMark(html string, f func(k int) string) string {
+func eachRefMark(html string, f func(k int) string) string { return eachMark(html, refMarkByte, f) }
+
+// eachMark is eachRefMark for the markers c brackets.
+func eachMark(html string, c byte, f func(k int) string) string {
 	var b strings.Builder
 	for {
-		i := strings.IndexByte(html, refMarkByte)
+		i := strings.IndexByte(html, c)
 		if i < 0 {
 			return b.String() + html
 		}
-		j := strings.IndexByte(html[i+1:], refMarkByte)
+		j := strings.IndexByte(html[i+1:], c)
 		k := -1
 		if j >= 0 {
 			k, _ = strconv.Atoi(html[i+1 : i+1+j])
 		}
 		if k < 0 {
-			panic("report: a reference marker that inline did not write: " + strconv.Quote(html[i:]))
+			panic("report: a marker the renderer did not write: " + strconv.Quote(html[i:]))
 		}
 		b.WriteString(html[:i])
 		b.WriteString(f(k))
@@ -445,40 +691,6 @@ func scentOf(html string) string {
 	return text
 }
 
-// openList emits whatever open/close tags are needed to reach the requested kind and depth.
-func openList(stack *[]string, kind string, indent int) string {
-	depth := indent/2 + 1
-	var out strings.Builder
-	for len(*stack) > depth {
-		out.WriteString("</" + (*stack)[len(*stack)-1] + ">")
-		*stack = (*stack)[:len(*stack)-1]
-	}
-	for len(*stack) < depth {
-		out.WriteString("<" + kind + ">")
-		*stack = append(*stack, kind)
-	}
-	return out.String()
-}
-
-func writeItem(b *strings.Builder, id, html string) {
-	if id != "" {
-		b.WriteString(`<li id="` + id + `">` + html + "</li>\n")
-		return
-	}
-	b.WriteString("<li>" + html + "</li>\n")
-}
-
-func splitRow(row string) []string {
-	row = strings.TrimSpace(row)
-	row = strings.TrimPrefix(row, "|")
-	row = strings.TrimSuffix(row, "|")
-	cells := strings.Split(row, "|")
-	for i := range cells {
-		cells[i] = strings.TrimSpace(cells[i])
-	}
-	return cells
-}
-
 // escape is deliberately attribute-safe as well as text-safe: the same helper builds a <title>
 // and a tab's title="…", and a run whose topic contains a quotation mark must not be able to
 // terminate an attribute. Model-written prose and repository-quoted findings both reach here.
@@ -491,142 +703,38 @@ func escape(s string) string {
 	return s
 }
 
-// stripInline reduces markdown to the text a heading id and an id-token scan should see.
-func stripInline(s string) string {
-	s = reCodeSpan.ReplaceAllStringFunc(s, func(m string) string { return strings.Trim(m, "`") })
-	s = reLink.ReplaceAllString(s, "$1")
-	s = strings.ReplaceAll(s, "**", "")
-	s = strings.ReplaceAll(s, "*", "")
-	s = strings.ReplaceAll(s, "_", "")
-	return s
-}
-
 // inline renders one line's inline markdown outside a document — a title — where a footnote
 // reference has no list to number it against and renders as its label.
 func inline(s string) string {
-	return renderInline(s, func(label string) string {
-		return `<sup class="fnref"><a href="#fn-` + label + `">` + label + `</a></sup>`
-	}, nil)
-}
-
-// renderInline renders one line's inline markdown, each footnote reference as ref renders it, and
-// a link to a document in files as a switch to that document's tab (siteLink).
-// Code spans are lifted out FIRST and restored last, so nothing inside a backtick is treated as
-// emphasis, a link, or an id.
-func renderInline(s string, ref func(label string) string, files map[string]bool) string {
-	var spans []string
-	s = reCodeSpan.ReplaceAllStringFunc(s, func(m string) string {
-		spans = append(spans, "<code>"+escape(strings.Trim(m, "`"))+"</code>")
-		return fmt.Sprintf("\x00%d\x00", len(spans)-1)
-	})
-	// AN ESCAPED `[^` IS TEXT (notes.go): lifted out as a code span is, so the reference pattern
-	// below does not read it, and restored as the two characters without their backslash.
-	s = strings.ReplaceAll(s, noteEscape, "\x00note\x00")
-	s = escape(s)
-	s = reFootRef.ReplaceAllStringFunc(s, func(m string) string { return ref(reFootRef.FindStringSubmatch(m)[1]) })
-	s = reLink.ReplaceAllStringFunc(s, func(m string) string {
-		l := reLink.FindStringSubmatch(m)
-		return siteLink(l[2], files) + l[1] + "</a>"
-	})
-	s = reAutolink.ReplaceAllString(s, `$1<a href="$2">$2</a>`)
-	s = reStrong.ReplaceAllString(s, "<strong>$1</strong>")
-	s = reEmphasis.ReplaceAllString(s, "$1<em>$2</em>$3")
-	s = reEmphasisU.ReplaceAllString(s, "$1<em>$2</em>$3")
-	s = reHardBreak.ReplaceAllString(s, "<br>\n")
-	s = strings.ReplaceAll(s, "\n", " ")
-	for i, span := range spans {
-		s = strings.ReplaceAll(s, fmt.Sprintf("\x00%d\x00", i), span)
-	}
-	return strings.ReplaceAll(s, "\x00note\x00", noteOpen)
-}
-
-// reHardBreak is markdown's two-trailing-spaces line break, applied after escaping so it
-// cannot be confused with anything inside a code span.
-var reHardBreak = regexp.MustCompile(`  +\n`)
-
-// linkIDs turns every mention of a record id into a link to the element that defines it —
-// the join a multi-document set can express and a markdown file cannot.
-//
-// IT WALKS TAGS, not text. A blind replace over rendered HTML would rewrite ids inside an
-// href, inside a heading's own id attribute, and inside the anchor that defines them, which
-// produces a document that links every id to itself.
-func linkIDs(html string, anchor anchors, self string) string {
-	if len(anchor) == 0 {
-		return html
-	}
-	ids := make([]string, 0, len(anchor))
-	for id := range anchor {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-
+	s = strings.NewReplacer(string(refMarkByte), "\uFFFD", string(mentionMarkByte), "\uFFFD", "\x00", "\uFFFD").Replace(s)
+	r := &mdRender{src: []byte(s), seen: map[string]int{}, ref: supRef, looseRefs: true}
 	var b strings.Builder
-	depthA, inCode := 0, 0
-	// here is the id of the element currently being rendered, so an id is never linked at the
-	// site that DEFINES it: a heading linking to itself is the shape a naive replace produces,
-	// and it makes every definition look like a reference to somewhere else.
-	here := ""
-	noLink := false
-	for len(html) > 0 {
-		lt := strings.IndexByte(html, '<')
-		if lt < 0 {
-			b.WriteString(linkText(html, anchor, self, here, noLink || depthA > 0 || inCode > 0))
-			break
-		}
-		b.WriteString(linkText(html[:lt], anchor, self, here, noLink || depthA > 0 || inCode > 0))
-		gt := strings.IndexByte(html[lt:], '>')
-		if gt < 0 {
-			b.WriteString(html[lt:])
-			break
-		}
-		tag := html[lt : lt+gt+1]
-		b.WriteString(tag)
-		switch {
-		case strings.HasPrefix(tag, "<a"):
-			depthA++
-		case strings.HasPrefix(tag, "</a"):
-			depthA--
-		case strings.HasPrefix(tag, "<code"), strings.HasPrefix(tag, "<pre"):
-			inCode++
-		case strings.HasPrefix(tag, "</code"), strings.HasPrefix(tag, "</pre"):
-			inCode--
-		}
-		switch {
-		case strings.Contains(tag, "data-nolink"):
-			noLink = true
-		case strings.HasPrefix(tag, "</"):
-			noLink = false
-		}
-		if m := reIDAttr.FindStringSubmatch(tag); m != nil {
-			here = m[1]
-		} else if strings.HasPrefix(tag, "</") {
-			here = ""
-		}
-		html = html[lt+gt+1:]
+	doc := lineReader.Parse(text.NewReader(r.src))
+	for c := doc.FirstChild(); c != nil; c = c.NextSibling() {
+		r.inlines(&b, c, false)
 	}
 	return b.String()
 }
 
-var reIDAttr = regexp.MustCompile(`(?i)^<[a-z0-9]+[^>]*\sid="([^"]+)"`)
-
-// linkText rewrites the ids in one run of plain text. `self` is the document being rendered:
-// a link into the same file stays a fragment, so the tab does not reload itself.
-func linkText(text string, anchor anchors, self, here string, skip bool) string {
-	if skip || text == "" {
-		return text
-	}
-	return idToken.ReplaceAllStringFunc(text, func(tok string) string {
-		target, ok := anchor[tok]
+// linkIDs turns every mention of a record id into a link to the element that defines it —
+// the join a multi-document set can express and a markdown file cannot. An id is never linked at
+// the element that defines it: a heading linking to itself makes every definition look like a
+// reference to somewhere else. `self` is the document being rendered: a link into the same file
+// stays a fragment, so the tab does not reload itself.
+func linkIDs(doc rendered, anchor anchors, self string) string {
+	return eachMark(doc.html, mentionMarkByte, func(k int) string {
+		m := doc.mentions[k]
+		target, ok := anchor[m.id]
 		if !ok {
-			return tok
+			return m.id
 		}
 		file, frag, _ := strings.Cut(target, "#")
-		if frag == here && file == self {
-			return tok
+		if frag == m.here && file == self {
+			return m.id
 		}
 		if file == self {
-			return `<a class="idref" href="#` + frag + `">` + tok + `</a>`
+			return `<a class="idref" href="#` + frag + `">` + m.id + `</a>`
 		}
-		return `<a class="idref" href="#` + frag + `" data-doc="` + file + `">` + tok + `</a>`
+		return `<a class="idref" href="#` + frag + `" data-doc="` + file + `">` + m.id + `</a>`
 	})
 }

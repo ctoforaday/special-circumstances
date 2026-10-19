@@ -104,7 +104,7 @@ func TestSiblingLinksBecomeTabSwitches(t *testing.T) {
 		t.Errorf("a sibling link survived as a file path — it opens nothing in a single-file site:\n%s", html)
 	}
 	files := map[string]bool{FileEvidence: true}
-	got := mdToHTML("[P](evidence.md#P-00000001) and [out](https://example.invalid/x)\n", FileReport, anchors{}, map[string]int{}, files)
+	got := mdToHTML("[P](evidence.md#P-00000001) and [out](https://example.invalid/x)\n", FileReport, anchors{}, map[string]int{}, files).html
 	if !strings.Contains(got, `<a class="idref" data-doc="evidence.md" href="#P-00000001"`) {
 		t.Errorf("a fragment link into a sibling document was not rewritten: %s", got)
 	}
@@ -178,7 +178,7 @@ func TestFootnoteIdsAreTheSetsNotTheDocuments(t *testing.T) {
 // AN ID WITH A COUNT IS AN ID TOO: the second "A" is "a-2", and a heading that reads "A 2" is not
 // given that id again.
 func TestACountedIdIsNotGivenOutTwice(t *testing.T) {
-	html := mdToHTML("## A\n\n## A\n\n## A 2\n\n## A\n", FileReport, anchors{}, map[string]int{}, nil)
+	html := mdToHTML("## A\n\n## A\n\n## A 2\n\n## A\n", FileReport, anchors{}, map[string]int{}, nil).html
 	for _, id := range []string{"a", "a-2", "a-2-2", "a-3"} {
 		if n := strings.Count(html, `<h2 id="`+id+`">`); n != 1 {
 			t.Errorf("%d heading(s) carry id %q, want one:\n%s", n, id, html)
