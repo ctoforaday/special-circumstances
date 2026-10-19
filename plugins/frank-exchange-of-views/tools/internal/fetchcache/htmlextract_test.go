@@ -113,7 +113,7 @@ func TestEveryCorpusPageYieldsTextWithoutMarkup(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		text := htmlText(body)
+		text := htmlText(parseHTML(body))
 		if len(text) < 100 {
 			t.Errorf("%s: %d characters of text from %d bytes", filepath.Base(f), len(text), len(body))
 		}

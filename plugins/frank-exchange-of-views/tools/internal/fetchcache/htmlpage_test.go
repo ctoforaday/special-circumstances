@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"bytes"
 	"net/url"
 	"strings"
 	"testing"
@@ -37,7 +38,7 @@ func TestALinkElementIsReadByItsOwnAttributes(t *testing.T) {
 		`<link data-rel="item" rel="stylesheet" href="/style.css">` +
 		`<link title="a > b" rel="item" href="/paper.pdf" type="application/pdf">` +
 		`</head></html>`)
-	if got := linkElements(page); got != `</paper.pdf>; rel="item"` {
+	if got := linkElements(parseHTML(page)); got != `</paper.pdf>; rel="item"` {
 		t.Errorf("linkElements = %q, want only the item link", got)
 	}
 }
@@ -52,7 +53,7 @@ func TestThePageTextIsWhatAReaderSees(t *testing.T) {
 		`<svg><title>Just a moment</title></svg>` +
 		`<math><mi>x</mi></math>` +
 		`<p>line one<br>line two</p><p>last -->paragraph</p></body></html>`)
-	text := htmlText(page)
+	text := htmlText(parseHTML(page))
 	for _, want := range []string{"first paragraph", "a < n is prime when gcd(n, a!) = 1", "x", "line one\nline two", "last -->paragraph"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the text lost %q:\n%s", want, text)
@@ -64,7 +65,7 @@ func TestThePageTextIsWhatAReaderSees(t *testing.T) {
 		}
 	}
 	// A title the page put in its body is still its title, not its text.
-	if text := htmlText([]byte(`<html><body><p>body prose</p><title>Stray Title</title></body></html>`)); strings.Contains(text, "Stray Title") {
+	if text := htmlText(parseHTML([]byte(`<html><body><p>body prose</p><title>Stray Title</title></body></html>`))); strings.Contains(text, "Stray Title") {
 		t.Errorf("a title outside the head was read as text:\n%s", text)
 	}
 	if ex := extractHTML(page); ex.Title != "The Title" {
@@ -83,28 +84,57 @@ func TestThePageTextIsWhatAReaderSees(t *testing.T) {
 func TestABodyBetweenTwoScriptsIsNotAMountPoint(t *testing.T) {
 	doc := []byte(`<html><body><script>var a=1;</script><main>` + strings.Repeat("<p>The article's own prose, sentence after sentence.</p>", 60) +
 		`</main><script src="/app.js"></script></body></html>`)
-	if p := readHTML(doc); p.mount {
+	if p := parseHTML(doc); p.mount {
 		t.Error("a body carrying an article between two scripts was read as a mount point")
 	}
 	if r := ShellReason("text/html", doc); r != "" {
 		t.Errorf("an article was refused: %s", r)
 	}
 	shell := []byte(`<html><body><div id="root"></div><noscript>You need to enable JavaScript to run this app.</noscript><script src="/app.js"></script></body></html>`)
-	if p := readHTML(shell); !p.mount {
+	if p := parseHTML(shell); !p.mount {
 		t.Error("an empty mount point was not recognised")
 	}
 }
 
-// ONE PARSE PER PAGE: the same bytes asked twice are parsed once, and different bytes of the same
-// length are not mistaken for them.
-func TestAPageIsParsedOnceWhileInUse(t *testing.T) {
-	a := []byte(`<html><head><title>A</title></head></html>`)
-	b := []byte(`<html><head><title>B</title></head></html>`)
-	if readHTML(a) != readHTML(a) {
-		t.Error("the same body was parsed twice")
+// A PAGE'S FACTS ARE READ FROM ITS BYTES, NOT FROM WHERE THEY SIT. A buffer reset and refilled
+// with another page of the same length holds that page at the same address; its rights tags,
+// wall verdict and completeness are the new page's.
+func TestAReusedBufferIsReadAsItsNewContent(t *testing.T) {
+	reserved := `<html><head><meta name="tdm-reservation" content="1"></head><body></body></html>`
+	open := `<html><head><meta name="tdm-reservation" content="0"></head><body></body></html>`
+	if len(reserved) != len(open) {
+		t.Fatal("the fixtures must be one length, or the buffer is not reused in place")
 	}
-	if readHTML(b).title != "B" || readHTML(a).title != "A" {
-		t.Error("two bodies of one length shared a parse")
+	var buf bytes.Buffer
+	buf.WriteString(reserved)
+	first := buf.Bytes()
+	if r, _ := TDMReservation("text/html", first); !r {
+		t.Fatal("the first page's reservation was not read")
+	}
+	buf.Reset()
+	buf.WriteString(open)
+	second := buf.Bytes()
+	if &first[0] != &second[0] {
+		t.Fatal("the buffer moved, so this test does not exercise reuse in place")
+	}
+	if r, _ := TDMReservation("text/html", second); r {
+		t.Error("the refilled buffer was read as the previous page: reserved")
+	}
+
+	abstract := `<html><head><meta name="citation_title" content="T"><meta property="og:type" content="book"></head></html>`
+	article := `<html><head><meta name="citation_title" content="T"><meta property="og:type" content="text"></head></html>`
+	if len(abstract) != len(article) {
+		t.Fatal("the completeness fixtures must be one length")
+	}
+	buf.Reset()
+	buf.WriteString(abstract)
+	if v, _ := Completeness("text/html", buf.Bytes(), true); v != CompletenessNotTheWork {
+		t.Fatalf("the book page read as %q", v)
+	}
+	buf.Reset()
+	buf.WriteString(article)
+	if v, _ := Completeness("text/html", buf.Bytes(), true); v == CompletenessNotTheWork {
+		t.Error("the refilled buffer was read as the previous page: not the work")
 	}
 }
 
@@ -126,7 +156,7 @@ func TestARefreshDirectiveIsReadByTheStandardsSteps(t *testing.T) {
 	}
 	base, _ := url.Parse("https://ex.org/a")
 	page := []byte(`<html><head><meta content="0; url=/next" http-equiv="Refresh"></head><body></body></html>`)
-	if got := metaRefreshTarget("text/html", page, base); got != "https://ex.org/next" {
+	if got := metaRefreshTarget(htmlOf("text/html", page), base); got != "https://ex.org/next" {
 		t.Errorf("a content-first refresh read as %q", got)
 	}
 }

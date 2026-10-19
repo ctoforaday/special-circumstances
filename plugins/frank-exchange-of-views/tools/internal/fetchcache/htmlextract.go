@@ -27,9 +27,9 @@ const htmlExtractorID = "feov-html-text@2"
 // extractHTML is the HTML arm of the cache's extraction.
 func extractHTML(body []byte) Extraction {
 	out := Extraction{Attempted: true, ExtractorID: htmlExtractorID}
-	p := readHTML(body)
+	p := parseHTML(body)
 	out.Title = p.title
-	out.Text = htmlText(body)
+	out.Text = htmlText(p)
 	if out.Text == "" {
 		// A REASON, because an empty extraction of a page reads exactly like a page with nothing
 		// to say: the absence and its cause are the record, and no .txt is written.
@@ -40,6 +40,6 @@ func extractHTML(body []byte) Extraction {
 }
 
 // htmlText is the readable text of an HTML page: see this file's header for what it keeps.
-func htmlText(body []byte) string {
-	return normalizeExtracted(readHTML(body).text + "\n")
+func htmlText(p *htmlPage) string {
+	return normalizeExtracted(p.text + "\n")
 }

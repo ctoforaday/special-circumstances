@@ -162,7 +162,7 @@ func withoutSpringerWall(page []byte) []byte {
 func TestAMissingReferenceMarkerIsUnverifiedNotFull(t *testing.T) {
 	page := withoutSpringerWall(loadBody(t, "nature-paywalled.html.gz"))
 	page = bytes.ReplaceAll(page, []byte(`id="Bib1"`), []byte(`id="x"`))
-	if readHTML(page).snSections == 0 {
+	if parseHTML(page).snSections == 0 {
 		t.Fatal("the fixture lost the stray section this test is about: no h2 id=\"Sec<n>\" counts inside its article body")
 	}
 	got, reason := Completeness("text/html", page, true)

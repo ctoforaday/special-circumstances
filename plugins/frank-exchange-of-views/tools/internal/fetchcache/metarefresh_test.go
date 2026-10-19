@@ -28,7 +28,7 @@ const elsevierBouncer = `<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transition
 
 func TestAMarkupRedirectIsFollowedWhereTheHeadersHaveNone(t *testing.T) {
 	base := mustURL(t, "https://www.sciencedirect.com/science/article/pii/0043135482902494")
-	got := metaRefreshTarget("text/html; charset=utf-8", []byte(elsevierBouncer), base)
+	got := metaRefreshTarget(htmlOf("text/html; charset=utf-8", []byte(elsevierBouncer)), base)
 	// RESOLVED AGAINST THE URL AFTER THE HEADER REDIRECTS, not the one the seat typed. These
 	// urls arrive via doi.org, so resolving a relative target against the original would build
 	// it on doi.org — a host that has never heard of the path.
@@ -44,7 +44,7 @@ func TestAMarkupRedirectIsNotFollowedAwayFromARealDocument(t *testing.T) {
 	// manufactures an absence.
 	doc := `<html><head><meta http-equiv="refresh" content="600"></head><body><article><p>` +
 		strings.Repeat("This is a real sentence of the paper. ", 30) + `</p></article></html>`
-	if got := metaRefreshTarget("text/html", []byte(doc), mustURL(t, "https://ex.org/a")); got != "" {
+	if got := metaRefreshTarget(htmlOf("text/html", []byte(doc)), mustURL(t, "https://ex.org/a")); got != "" {
 		t.Errorf("a document that refreshes was abandoned for %q", got)
 	}
 }
@@ -57,7 +57,7 @@ func TestAMarkupRedirectIsRefusedWhereItLeavesTheWeb(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := `<html><head><meta http-equiv="refresh" content="0; url=` + tc.target + `"></head><body>x</body></html>`
-			if got := metaRefreshTarget("text/html", []byte(b), mustURL(t, "https://ex.org/a")); got != "" {
+			if got := metaRefreshTarget(htmlOf("text/html", []byte(b)), mustURL(t, "https://ex.org/a")); got != "" {
 				t.Errorf("followed a refresh out of http(s) to %q", got)
 			}
 		})
@@ -72,7 +72,7 @@ func TestANonBouncerYieldsNoTarget(t *testing.T) {
 		{"not html", "application/pdf", `%PDF-1.7 <meta http-equiv="refresh" content="0; url=/x">`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := metaRefreshTarget(tc.ct, []byte(tc.body), base); got != "" {
+			if got := metaRefreshTarget(htmlOf(tc.ct, []byte(tc.body)), base); got != "" {
 				t.Errorf("target = %q, want none", got)
 			}
 		})

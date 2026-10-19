@@ -47,10 +47,14 @@ const (
 // confused with, and asking the question there would send every ordinary page looking for a
 // "better copy" that does not exist.
 func Completeness(contentType string, body []byte, reachedForAWork bool) (verdict, reason string) {
-	if !strings.Contains(contentType, "html") || len(body) == 0 {
+	return completeness(htmlOf(contentType, body), reachedForAWork)
+}
+
+// completeness is Completeness over a parsed page; nil is not HTML.
+func completeness(p *htmlPage, reachedForAWork bool) (verdict, reason string) {
+	if p == nil {
 		return "", ""
 	}
-	p := readHTML(body)
 	_, declared := p.meta("name", "citation_title")
 	if !reachedForAWork && !declared {
 		return "", ""

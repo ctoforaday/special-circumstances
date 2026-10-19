@@ -143,7 +143,8 @@ func LandingPageFullText(contentType string, body []byte, linkHeader string, bas
 	// AND IN THE DOCUMENT, where a platform that does not send the header often puts the same
 	// statement. DSpace and EPrints emit `<link rel="item">`; publishers emit
 	// `<link rel="alternate" type="application/pdf">` beside the citation tags.
-	if bodyRel := signpostItem(linkElements(body)); bodyRel != "" {
+	p := parseHTML(body)
+	if bodyRel := signpostItem(linkElements(p)); bodyRel != "" {
 		if u := resolveWeb(base, bodyRel); u != "" && u != base.String() {
 			return u
 		}
@@ -162,12 +163,12 @@ func LandingPageFullText(contentType string, body []byte, linkHeader string, bas
 	//
 	// So the self-pointer is not skipped, it is DECISIVE: we are already on the full text.
 	for _, name := range []string{"citation_fulltext_html_url", "citation_full_html_url"} {
-		if u := metaURL(name, body, base); u != "" && samePage(u, base) {
+		if u := metaURL(name, p, base); u != "" && samePage(u, base) {
 			return ""
 		}
 	}
 	for _, name := range fullTextMetaNames {
-		u := metaURL(name, body, base)
+		u := metaURL(name, p, base)
 		// A pointer at the page we are already on is not a lead — handled above for the full-text
 		// names, and for the rest it is simply nothing to follow.
 		if u == "" || samePage(u, base) {
@@ -179,8 +180,8 @@ func LandingPageFullText(contentType string, body []byte, linkHeader string, bas
 }
 
 // metaURL reads one citation meta tag and resolves it against the page it was found on.
-func metaURL(name string, body []byte, base *url.URL) string {
-	raw, _ := readHTML(body).meta("name", name)
+func metaURL(name string, p *htmlPage, base *url.URL) string {
+	raw, _ := p.meta("name", name)
 	return resolveWeb(base, strings.TrimSpace(raw))
 }
 
@@ -388,9 +389,9 @@ func looksLikePDF(u string) bool {
 // parser serves both — a Signposting statement made in the markup is read the same way as one
 // made in the header. A page that states where its full text is has said the same thing whether
 // it said it in a header or in its head, and reading only one of the two was reading half.
-func linkElements(body []byte) string {
+func linkElements(p *htmlPage) string {
 	var out []string
-	for _, el := range readHTML(body).links {
+	for _, el := range p.links {
 		href, hok := el["href"]
 		rel, rok := el["rel"]
 		if !hok || !rok {
