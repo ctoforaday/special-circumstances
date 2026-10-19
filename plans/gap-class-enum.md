@@ -1,9 +1,9 @@
 # The gap class is a record enum (#1134)
 
-Written against `be6c110d`. Implements gblock's ruling of 2026-10-18 on #1134 (the issue's last
-comment); absorbs #1131 (definitions) and #1132 (truncated registry sample). Replaces the
-superseded draft `plans/class-registry-ships.md`, which planned to ship the JSON registry inside
-the binary.
+Written against `be6c110d`; the census (§III.14) re-run at `61107ba4`. Implements gblock's ruling of
+2026-10-18 on #1134 (the issue's last comment); absorbs #1131 (definitions) and #1132 (truncated
+registry sample). Replaces the superseded design that shipped the JSON registry inside the binary
+(never committed as a plan).
 
 ## I. Summary & Goals
 
@@ -23,8 +23,9 @@ The class becomes an ordinary record enum, `GapClass`, declared in `record.proto
 closed set: each value carries its definition (`(means)`), its materiality, its nearest neighbour and
 the question that tells them apart, and `mint --help` prints all four. A catch-all value takes a gap
 no value fits. Coining (`class new`), the class list (`class list`), the registry file, its per-run
-staging, its generator and its harvest are deleted. The event-schema epoch moves 31 → 32 and
-`migrate` carries every archived run onto the enum.
+staging, its generator and its harvest are deleted. The event-schema epoch moves to **E**, the next
+epoch after the one Slim-fast's `fix/cut-orphan-fields` takes (§II), and `migrate` carries every
+archived run onto the enum.
 
 **Rulings this plan implements (settled — #1134 last comment).**
 
@@ -45,16 +46,30 @@ staging, its generator and its harvest are deleted. The event-schema epoch moves
    and `inquest telemetry` reports `unclassified_rate` for that epoch (§V.2 tests, §V.4, §V.6).
 3. `mint --help` (rendered, not grepped) lists every `GapClass` value with its materiality,
    definition, neighbour and distinguisher; the seven `red-lens-*` constitutions carry the same block
-   via `agentgen` (§V.3).
-4. All 27 archived run tarballs (26 with mints) migrate with zero refusals; a named test on
+   via `agentgen`; a wrong `--class` word is refused with the near miss and the 30 words only (§V.3).
+4. `inquest telemetry --help`'s OUTPUT tree and an emitted line agree at every depth, `by_severity`
+   included, and every enum-valued leaf is a word (§V.2 `TestTelemetryHelpTreeMatchesAnEmittedLine`).
+5. Every fixture keeps the materiality it had: a placeholder class is a `by_grade` value (§III.10).
+6. All 27 archived run tarballs (26 with mints) migrate with zero refusals; a named test on
    `2026-10-18_is-91-prime-m28` and `2026-08-23_sleeper-service-plan` asserts every mint lands on a
    `GapClass` value, every recorded `class_material` is unchanged, no `class_new` event and no
-   `records/class-registry.json` survives, and the manifest lists each class translation (§V.5).
-5. A universe smoke with no `feov-memory` staged mints ≥1 gap, and one mint uses `unclassified`
+   `records/class-registry.json` survives, and the manifest lists each class translation; on m28,
+   all 20 stored plans migrate, the 9 naming events the dropped `class_new` rows renumber carry the
+   migrated numbers and a re-computed key (§III.8a); on `2026-09-11_is-91-prime-b6`, the pre-field
+   mint `G2` takes `always` from its nearest value and the PASS records it as admitted (§III.8, F9)
+   (§V.5).
+7. A universe smoke with no `feov-memory` staged mints ≥1 gap, and one mint uses `unclassified`
    (§V.7).
-6. `git grep -n -E 'class-registry\.json|classgen|ShippedClasses|ShippedMaterialDefaults|StageClassRegistry|ValidateClassRegistry|loadRegistry|StageForRun|ClassRoster|HarvestClasses|ClassNew|class_new|class new|class list'`
-   over `plugins/ scripts/ .github/ docs/` returns nothing (§V.8).
-7. `go -C scripts run ./check` green at `-count=1` with the fail count read; release-gate fuzz green.
+8. `git grep -n -E 'class-registry\.json|classgen|ShippedClasses|ShippedMaterialDefaults|StageClassRegistry|ValidateClassRegistry|loadRegistry|StageForRun|ClassRoster|HarvestClasses|ClassNew|class_new|\bclass (new|list)\b' -- plugins scripts .github docs ':!scripts/rulesweep' ':!plugins/frank-exchange-of-views/tools/internal/record/migrate' ':!*.pb.go' | grep -v 'reserved "'`
+   returns nothing, and `git grep -n -E 'ShippedMaterialDefaults|shippedDefault|byGradeFillWhy|translateStagedRegistry|StageForRun|ClassNew\b|planRenumbered|revisionEntry|TestARefusalNamesToNotTheBuild' -- plugins/frank-exchange-of-views/tools/internal/record/migrate`
+   and `git grep -n -E '\bkeyed\(|debatejs\.Keyed|\bKeyed\(' -- plugins/frank-exchange-of-views/tools` return nothing (§V.8). `\b` keeps "by-class listing" (`debate.test.mjs:397`, `record/available.go:122`)
+   out; `scripts/rulesweep` is excluded because its "class list" (`sweep_test.go:94`) is the PROTOCOL
+   class registry's, another concept (§III.14 C1/C2), and nothing else in that directory names the gap class.
+   `migrate/` is excluded from the first grep because it MUST keep the archived words — the `class_new`
+   `Entries()` row, the `drops{"class_new": …}` column, `copyChannels`' skip of `records/class-registry.json`
+   — and gets the second, narrower grep; `record.proto`'s `reserved "class_new"` / `reserved "EVENT_TYPE_CLASS_NEW"`
+   lines and the descriptor `record.pb.go` embeds carry the reserved names by design.
+9. `go -C scripts run ./check` green at `-count=1` with the fail count read; release-gate fuzz green.
 
 **Value case.** Against the superseded design (embed the JSON, keep coining), the enum: removes the
 class of defect rather than relocating it — a vocabulary the binary owns cannot be missing from a
@@ -101,12 +116,14 @@ sentence and every merge is a migrate translation. One PR, as ruled.
 - **Materiality is the only behaviour that depends on class** (ruling's measurement; confirmed: no
   Go reader branches on a slug — `git grep` for each of the 41 slugs in non-test Go returns comments
   only, §III.14 C12). Readers of the class word are display and telemetry: `view.go` (`by_class`,
-  `class_repeat_rate`), `report/assemble.go:863`, `graph/graph.go:223`, `record/viewjson.go`,
-  `capture.go`.
-- **Event-schema epoch** `record.EventSchema` = 31, generated from
+  `class_repeat_rate`, the ledger row at `:326`), `report/assemble.go:863`, `graph/graph.go:223`,
+  `record/viewjson.go` (reads the SQL column, a word), `capture.go:2128`. `record/motion.go:353` reads
+  the PETITION's class (`PetitionClass`), not a mint's.
+- **Event-schema epoch** `record.EventSchema` = 31 on `main` at `61107ba4`, generated from
   `plugins/frank-exchange-of-views/requirements.json` `eventSchema` by `scripts/schemagen`. Changing
   `Mint.class`'s type, deleting `EVENT_TYPE_CLASS_NEW`/`ClassNew`, and deleting Mint fields 4–7 change
-  the event shape: **epoch 32**.
+  the event shape: **epoch E**, the next after Slim-fast's `fix/cut-orphan-fields` (which takes 32 and
+  is ahead of this branch); the number is read off `main` at rebase, not written here.
 - **migrate** (`internal/record/migrate`): re-drives an archived record's events through the live
   write path. Old words translate through `Entries()` (a `Registry` of event words → `Translate`, or
   `Loss`); an archived enum word resolves through `valueRenames[<enum full name>]` then the schema's
@@ -117,7 +134,15 @@ sentence and every merge is a migrate translation. One PR, as ruled.
   the 27 run tarballs): 210 mints; 26 of 41 registry classes used; 38 mints under 30 coined slugs (33 coined
   in all). 16 runs (2026-08-22 … 2026-09-11) record **no** `class_material` on any of their 123 mints
   and their staged registries carry no `material_default`; the 10 runs with mints from 2026-10-09 record it on
-  every mint.
+  every mint. Today those 123 take `ShippedMaterialDefaults[slug]`, else `by_grade` (`migrate/replay.go:55–61`
+  `shippedDefault`), so every coined slug lands `by_grade`; under F9 each takes its nearest value's default, and
+  17 of them, in 8 runs, move `by_grade` → `always` (§III.8, measured from `coined.jsonl` against Tables A and C;
+  `~/.claude/scratch/relocations/audit3/rev3/flip.py`).
+- **Stored plans and event ids** (measured, `~/.claude/scratch/relocations/audit3/rev3/`): a record stores
+  plans from epoch 31; of the 27 archives, 3 do (`final` 3, `n1` 3, `m28` 20), and only m28 also holds
+  `class_new` events (564, 572). 9 of m28's 20 plans name an id ≥ 564 — in `head`, a `stale_areas[].pin`, and
+  the `why` lines that print them (`head 579`, `pin 507`, `changed at edit 579 … last check is event 390`).
+  m23's single `class_new` (373) precedes no stored plan.
 - **Import graph.** The superseded design fought a `record`/`recordtest` cycle over a shipped Go
   table. An enum in `recordpb` is imported by both already; the constraint disappears.
 - **How a lens sees a closed set today** (rendered from the built binary at `be6c110d`, scratch
@@ -134,17 +159,18 @@ sentence and every merge is a migrate translation. One PR, as ruled.
 
 | # | Question | Options weighed | Decision and reason |
 |---|---|---|---|
-| D1 | Proto enum or string? | (a) keep `string` + a Go table + a Go validator; (b) **proto enum `GapClass`**; (c) a separate SQL vocabulary table outside the proto | **(b).** It is the pattern every other closed set uses, so the vocabulary table, the FK refusal, `EnumFields` validation, `--help` and `migrate`'s word translation come with it; (a) rebuilds `loadRegistryIn` in Go — the second validator the ruling deletes; (c) is a hand-kept second schema. The type change also makes the Go compiler the census of every `Mint.GetClass()` reader. |
+| D1 | Proto enum or string? | (a) keep `string` + a Go table + a Go validator; (b) **proto enum `GapClass`**; (c) a separate SQL vocabulary table outside the proto | **(b).** It is the pattern every other closed set uses, so the vocabulary table, the FK refusal, `EnumFields` validation, `--help` and `migrate`'s word translation come with it; (a) rebuilds `loadRegistryIn` in Go — the second validator the ruling deletes; (c) is a hand-kept second schema. The type change makes the compiler the census of every TYPED reader (a `string` comparison, map key or assignment) and of NO untyped one: a value passed to an `any` parameter or a `fmt` verb compiles and renders wrong in silence. Two exist (§III.5): `report/assemble.go:863` (`grade(v any)` asserts `string`, so a `GapClass` prints `—`) and `graph/graph.go:223` (`%s` prints `GAP_CLASS_FALSE_UNIVERSAL`). Each converts with `recordpb.Word` and gets a test asserting the rendered class word. |
 | D2 | Spelling | (a) **underscores** (`report_voice`), the schema's spelling; (b) hyphen join like the retired grade spelling | **(a).** `Spelling` derives underscores and the grade hyphen exception no longer exists; a seat that types `report-voice` gets the existing `SameWord` near-miss refusal, and migrate reads hyphenated archives through the same fold with no authored row. Disclosed: prose naming `report-voice` changes (§III.12). |
 | D3 | Where materiality lives | (a) string facet holding a word; (b) **an enum-typed value option `(material_default)` of type `ClassMaterial`**; (c) a Go map | **(b).** `protoc` refuses a misspelt word at generation; the name is the existing concept's (`material_default` on registry rows and `ClassNew`), not a rival term. It is a FACET (the stamp reads it): `facets.go` gains a third facet kind (enum-valued) and `enumTable` emits `"material_default" TEXT NOT NULL REFERENCES "enum_class_material"("value")`. Partly-annotated is refused as for every facet, so a value cannot be added without answering it. |
 | D4 | Neighbour and distinguisher | (a) facets (table columns); (b) **value options read by help and a test, not facets**; (c) folded into `(means)` prose | **(b).** The catch-all has no neighbour, and a facet cannot be declared on all-but-one value; nothing in the machinery switches on them (precedent: `ruled_by` is an option read directly, not a facet). `TestEveryGapClassNamesItsNeighbour` requires both on every value but `unclassified` and requires `neighbor` to be another value's word. (c) would compose a checkable reference into prose. Names are the existing ones (`--neighbor`, `--distinguisher`). |
-| D5 | `Mint.class_material` | (a) **keep stored, stamped from the value's `material_default`**; (b) delete and derive by join on `enum_gap_class` | **(a).** Merges and drops move archived gaps to values with a different default (e.g. `audited-artifact-sibling-halo` `by_grade` → `verification_scope_blindspot` `always`; anything → `unclassified` `by_grade`); CLAUDE.md requires the migrated record to hold the equivalent state, and a stored stamp is the gate's materiality at the act. The stamp is a different fact from the class's current default, so this is not two writers of one fact. |
+| D5 | `Mint.class_material` | (a) **keep stored, stamped from the value's `material_default`**; (b) delete and derive by join on `enum_gap_class` | **(a).** Merges and drops move archived gaps to values with a different default (e.g. `audited-artifact-sibling-halo` `by_grade` → `verification_scope_blindspot` `always`; anything → `unclassified` `by_grade`); CLAUDE.md requires the migrated record to hold the equivalent state, and a stored stamp is the gate's materiality at the act. The stamp is a different fact from the class's current default, so this is not two writers of one fact. A mint whose source records no stamp (16 pre-field runs) has no act-time materiality to keep, and takes its translated value's default by the live rule (F9, §III.8). |
 | D6 | Catch-all name | `unclassified` (ruled) | Grep found `Unclassified` in `diagnostics/survey.go` (`Traversal.Unclassified`, JSON `unclassified`: invocations the traversal could not place in a group) and `migrate/manifest.go` (`unclassified_tables`: old tables no rule could place). Same sense — "could not be placed" — in namespaces no reader joins with a gap's class. **Kept**; the telemetry key is `unclassified_rate`, which collides with nothing (0 hits). |
-| D7 | "`unclassified` requires `--reason`" | (a) Go `if` in validate; (b) **a message `(check)` on `Mint`** | **(b)**, precedent `DocketRuling`'s remand-direction check: `"class" <> 'unclassified' OR coalesce(trim("mint_reason", …), '') <> ''`, `why:` "a gap no class fits says why in --reason: the nearest class and what it does not cover — the rate of these is how a release learns which class is missing". The database refuses it, so no route writes around it. `--reason` (`mint_reason`) carries it, as ruled; its help line gains the duty. Alternative noted, not proposed: a refusable `--nearest <class>` enum flag would make "which value was nearly right" a field rather than prose. |
-| D8 | Telemetry | by_class map vs repeated; where the rate goes | `NewMint.by_class` was a map "because the registry is extended at runtime by `class-new`" (its own comment) — the premise is gone, so it becomes `repeated ClassTally by_class` in schema order, the `by_severity` precedent (deterministic by construction). New `optional double unclassified_rate` (absent when nothing was minted, as `class_repeat_rate`). `class_repeat_rate` counts an `unclassified` mint in the denominator and never as a repeat: "no class fits" recurring is not one kind recurring, and counting it would raise the bench's stopping signal on noise. Per-epoch only; a cross-run rate belongs to #1454's archive-derived scorecards (F4). |
-| D9 | How a lens sees the definitions | `mint --help`; the constitution; the refusal | `mint --help`'s "Enumerated values" block gains `--class`, one entry per value: `word  [material_default] definition` and, indented, `nearest: <word> — <distinguisher>`. `agentgen` inlines it into every `red-lens-*.md` (the lens's manual), so a lens reads it at sitting start without a call. A wrong word is refused with the same block (as `--check-kind banana` is today). Cost stated in F3. |
+| D7 | "`unclassified` requires `--reason`" | (a) Go `if` in validate; (b) **a message `(check)` on `Mint`** | **(b)**, precedent `DocketRuling`'s remand-direction check: `"class" <> 'unclassified' OR coalesce(trim("mint_reason", …), '') <> ''`, `why:` "a gap no class fits says why in --reason: the nearest class and what it does not cover — the rate of these is how a release learns which class is missing". The database refuses it, so no route writes around it. `--reason` (`mint_reason`) carries it, as ruled; its help line gains the duty. The check requires a non-empty reason and nothing more: that the reason names the nearest value is prose no write can refuse — **accepted residue (F5)**; no `--nearest` field. |
+| D8 | Telemetry | by_class map vs repeated; where the rate goes; help/wire agreement | `NewMint.by_class` was a map "because the registry is extended at runtime by `class-new`" (its own comment) — the premise is gone, so it becomes `repeated ClassTally by_class` in schema order, the `by_severity` precedent (deterministic by construction). New `optional double unclassified_rate` (unset — the wire's `null` — when nothing was minted, as `class_repeat_rate`). `class_repeat_rate` counts an `unclassified` mint in the denominator and never as a repeat: "no class fits" recurring is not one kind recurring, and counting it would raise the bench's stopping signal on noise. Per-epoch only; a cross-run rate belongs to #1454's archive-derived scorecards (F4). **The wire is hand-written, not the proto:** help renders `jsonshape.Tree(view.TelemetryLineShape())` (`view.go:827`) over the hand-written `telemetryLineJSON`, filled by `telemetryWire`, and `by_severity` already disagrees — help says `[{grade,count}]`, `severityObject.MarshalJSON` (`view.go:864`, the tree's only custom marshaller) emits an object keyed by grade word. Options: (a) **both tallies become arrays of plain structs (`{grade,count}`, `{class,count}`) with word-valued fields, and `severityObject` is deleted** — the reflected type IS the marshalled shape, so tree and bytes cannot diverge; (b) keep the object and teach `jsonshape` an override interface — a second hand-written shape, the defect itself; (c) keep the object and hand-write the help — prose describing a struct. **(a)**, ruled with the test (F6): `TestTelemetryHelpTreeMatchesAnEmittedLine` (§III.9). An EMPTY tally is `[]`, never `null` (F10): on this wire `null` means "not measured" (`view.go:147–160`), and an epoch with no mints measured zero of each — today's `severityObject` writes `{}` for it. |
+| D9 | How a lens sees the definitions | `mint --help`; the constitution; the refusal | **Help:** `mint --help`'s "Enumerated values" block (`enumhelp.Section`) gains `--class`, one entry per value: `word  [material_default] definition` and, indented, `nearest: <word> — <distinguisher>`. `agentgen` inlines it into every `red-lens-*.md` (the lens's manual), so a lens reads it at sitting start without a call. **Refusal (F7):** a wrong word is refused through `record.Refuse` with the near miss and the 30 words (`takes one of a\|b\|…`) and the field's `why`, and WITHOUT the `Menu` block — `Refuse` appends `Menu(vs)` only for an enum whose values carry no long form (`Material`/`Neighbor` empty), so every other enum's refusal is byte-identical. The two need not share a block. Tests: `TestMintHelpListsEveryGapClass` (rendered `mint --help`: every value's two lines) and `TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly` (rendered refusal of `--class report-voice`: names `report_voice` as the punctuation near miss, holds each of the 30 words, holds no value's `(means)` and no `nearest:`); `--check-kind banana`'s refusal golden unchanged. Cost stated in F3. |
+| D10 | A stored plan naming events a dropped event renumbers (F8) | (a) **translate inside migrate: every events.id the printed plan names — `head`, `stale_areas[].pin`, a `contradiction` blocker's `subject`, and the ids its `why` lines print — through `newID`, then re-key and re-print**; (b) re-compute the plan with the live verb at that place in the replay; (c) refuse, as today (`planRenumbered`); (d) keep a `class_new`-shaped event so nothing renumbers | **(a)**, ruled (F8), general over any event that writes none. (b) replaces the decision the chair relayed with what this binary's rules would decide, which can differ; (c) fails criterion 6 on m28; (d) is a live-record mechanism kept so something survives migration, which CLAUDE.md forbids. The `why` lines are prose the verb composed from those ids and from seat words (§III.8a's producer census), so the translation reads them through a closed table of the verb's id-introducing phrases, carries every seat-authored span as written (a `%q` span, and the remand's direction after its fixed prefix — F12), and makes every other miss LOUD (§III.8a). The key rule is exported from `record` rather than copied into migrate: one rule, one home. Its name is `Plan.WithKey()`, not `Keyed` — `record.Answer.Keyed` (`supersede.go:112`) already means "the key field a supersede row is for", another sense in the same package — and `debatejs.Keyed`, the same concept over a stub map, is renamed `debatejs.WithKey` with it, so one term names a plan carrying its key. |
 
-### III.2 Membership (FOR HUMAN REVIEW — fork F1)
+### III.2 Membership (fork F1 — ruled as proposed)
 
 Sources: the 41 registry rows (2 with definitions: `structure-noncompliance`, `self-defeating-mitigation`),
 `feov-memory/class-registry-seed.md` (original intent, tie-break triplets), every archived mint's
@@ -232,7 +258,7 @@ No archived mint uses a dropped class, so DROP costs no archived gap its class.
 | assertion-without-inquiry (1; sleeper) | `unsourced_claim` | | | |
 | citation-support-mismatch (1; sleeper) | `citation_figure_misattribution` | | | |
 
-**The calls I am least sure of** (fold into F1):
+**The calls marked ⚑** (ruled as proposed under F1):
 
 1. **The inquiry-* family → `claim_contradicts_own_record`** (4 slugs, 5 mints). The alternative is a
    new value `inquiry_record_mismatch`; I merged because the distinguisher the coiners wrote ("the
@@ -255,25 +281,32 @@ No archived mint uses a dropped class, so DROP costs no archived gap its class.
 
 ```
 plugins/frank-exchange-of-views/
-  requirements.json                                   [MODIFY] eventSchema 31 → 32
+  requirements.json                                   [MODIFY] eventSchema → E
   docs/seat-command-triggers.md                       [MODIFY] rows `lens class list`, `lens class new` deleted
   docs/seat-surface-naming.md                         [MODIFY] `class new` dropped from the merge row
   docs/vocabulary.md                                  [MODIFY] regenerated (vocabdoc)
   agents/red-lens-*.md (7), lead-judge.md, red-chair.md [MODIFY] regenerated (agentgen)
   skills/adversarial-audit/SKILL.md                   [MODIFY] regenerated (agentgen)
   skills/research-protocol/scripts/debate.js          [MODIFY] authored lens prompt line (~990)
-  tests/simulator/debate.test.mjs                     [MODIFY] `class new` leaves the command-path regex
+  tests/simulator/debate.test.mjs                     [MODIFY] `class new` leaves the command-path regex (:517–518); :408's prompt phrase; :1033 comment
   tests/simulator/testdata/prompt-red-lens-*.golden (4) [MODIFY] regenerated
   tools/internal/record/recordpb/record.proto         [MODIFY] GapClass, options, Mint, Event, NewMint
   tools/internal/record/recordpb/{record.pb.go,record.proto.sha256} [MODIFY] protogen
-  tools/internal/record/recordpb/schema_gen.go        [MODIFY] schemagen (epoch 32)
+  tools/internal/record/recordpb/schema_gen.go        [MODIFY] schemagen (epoch E)
   tools/internal/record/recordpb/facets.go            [MODIFY] enum-valued facet kind
   tools/internal/record/recordpb/gapclass.go          [NEW]    MaterialDefault(GapClass), Neighbor, Distinguisher
   tools/internal/record/recordpb/gapclass_test.go     [NEW]
   tools/internal/record/recordpb/testdata/payload-keys.txt [MODIFY]
-  tools/internal/record/recordsql/schema.go           [MODIFY] enum-valued facet column
+  tools/internal/record/recordsql/schema.go           [MODIFY] enum-valued facet column; referenced vocabulary first
+  tools/internal/record/recordsql/schema_test.go      [MODIFY] TestAVocabularyFollowsTheVocabulariesItReferences
   tools/internal/record/recordsql/testdata/schema.sql [MODIFY] regenerated
   tools/internal/record/{replay.go,record.go,enums.go,enumvalue.go,enumof.go,writeview.go,viewjson.go} [MODIFY]
+  tools/internal/record/{planstore.go,planstore_test.go,dispatch.go,dispatchnext.go} [MODIFY] `keyed` exported as the method `Plan.WithKey` (migrate re-keys a translated plan, D10)
+  tools/internal/record/remand_test.go                [MODIFY] TestARemandLineCarriesItsDirectionAsWritten (§III.8a)
+  tools/internal/debatejs/{debatejs.go,petition_test.go}, seatprobe/production.go, integration/surface/fragmentdispatch_test.go, releasegate/fuzz/{fuzz_test.go,termination_test.go} [MODIFY] `debatejs.Keyed` → `debatejs.WithKey` (D10)
+  tools/internal/record/recordtest/recordtest.go      [MODIFY] ClassFor(ClassMaterial); coining default deleted
+  tools/internal/report/assemble.go (+ test)          [MODIFY] class word through recordpb.Word
+  tools/internal/graph/graph.go (+ test)              [MODIFY] class word through recordpb.Word
   tools/internal/record/classroster.go (+_test)       [DELETE]
   tools/internal/record/shippedclasses_gen.go         [DELETE]
   tools/internal/record/recordtest/classes_gen.go     [DELETE]
@@ -281,30 +314,38 @@ plugins/frank-exchange-of-views/
   tools/internal/record/migrate/gapclass.go           [NEW]    the archived-slug → GapClass table
   tools/internal/record/migrate/gapclass_test.go      [NEW]    (replaces classmaterial_test.go)
   tools/internal/record/migrate/{migrate.go,replay.go,entries.go,remap.go,manifest.go,valuerenames.go} [MODIFY]
+  tools/internal/record/migrate/planids.go            [NEW]    a stored plan's event ids through newID (§III.8a)
+  tools/internal/record/migrate/planrenumbered_internal_test.go → planids_internal_test.go [MODIFY]
+  tools/internal/record/migrate/{storedplan_test.go,publish_test.go} [MODIFY] storedplan's prose (C15); TestARefusalNamesToNotTheBuild deleted (F11)
   tools/internal/cli/lens/class.go                    [DELETE]
+  tools/internal/cli/seat/help/{list,new}.md          [DELETE] class list / class new pages (help_test.go's bijection fails an orphan)
+  tools/internal/cli/seat/help/mint.md                [MODIFY] the reason's `unclassified` duty
+  tools/internal/cli/seat/help.go                     [MODIFY] comment example
   tools/internal/cli/lens/mint.go                     [MODIFY]
   tools/internal/cli/enumhelp/enumhelp.go             [MODIFY] render material/neighbour/distinguisher
-  tools/internal/flags/names.go                       [MODIFY] Definition, Neighbor, Distinguisher, MaterialDefault removed
+  tools/internal/flags/names.go                       [MODIFY] Definition, Neighbor, Distinguisher, MaterialDefault removed; `Class` comment
   tools/internal/setup/{setup.go,run.go,run_test.go}  [MODIFY]
   tools/internal/capture/capture.go                   [MODIFY] HarvestClasses + call deleted
   tools/internal/capture/classharvest_test.go         [DELETE]
-  tools/internal/view/view.go (+_test)                [MODIFY] by_class tally, unclassified_rate
-  tools/internal/seatprobe/{build.go,boards.go,seatprobe.go,boardclasses_test.go} [MODIFY]
+  tools/internal/view/view.go (+_test)                [MODIFY] by_class tally, unclassified_rate, telemetry wire, ledger class
+  tools/internal/cli/telemetryshape_test.go           [NEW]    TestTelemetryHelpTreeMatchesAnEmittedLine
+  tools/internal/seatprobe/{build.go,boards.go,seatprobe.go} [MODIFY]; boardclasses_test.go [DELETE] (C16)
   tools/internal/terms/terms.json                     [MODIFY] `cross-section-contradiction` → `cross_section_contradiction`
   tools/internal/difftest/testdata/*.golden (18), class_registry.golden [MODIFY / DELETE scenario]
   tools/releasegate/fuzz/{fuzz_test.go,registerbeforeappend_test.go} [MODIFY]
   tools/integration/surface/{chairrefusal,promptverbs,vocabulary_prose}_test.go [MODIFY]
-  ~128 test files minting placeholder classes        [MODIFY] mechanical (§III.10)
+  ~110 test files minting placeholder classes        [MODIFY] mechanical (§III.10)
+  test comments and fixtures naming the registry      [MODIFY] the §III.5 widened sweep's list (C16)
 feov-memory/class-registry.json                       [DELETE]
 feov-memory/class-registry-seed.md                    [MODIFY] one line: the vocabulary now lives in record.proto (seed kept as design record)
-law/proposed/class-*.md (14)                          [DELETE]
+law/proposed/class-*.md (14)                          [DELETE] — the directory's only files; law/proposed/ leaves the tree
 scripts/classgen/                                     [DELETE]
 scripts/check/gates.go                                [MODIFY] classgen gate removed
 scripts/agentgen/src/{fragments/lens-audit-and-mint.md,red-lens-voice.md,skills/adversarial-audit/SKILL.md} [MODIFY]
 scripts/universe.sh                                   [MODIFY] feov-memory staging block removed
+scripts/universe-stream.py                            [MODIFY] `class` leaves INTERESTING (the verb is gone)
 .github/workflows/hooks.yml                           [MODIFY] classgen step removed
 docs/local-development.md                             [MODIFY] `report-voice` → `report_voice`
-plans/class-registry-ships.md                         [DELETE] (superseded draft, untracked)
 ```
 
 ### III.4 Schema — `record.proto` and `recordpb` [MODIFY]/[NEW] (contract: event schema — census C1–C8)
@@ -337,16 +378,35 @@ plans/class-registry-ships.md                         [DELETE] (superseded draft
   optional int32 count = 2; }`. Name check: `ClassTally` 0 hits.
 - `recordpb/facets.go`: an enum-valued facet kind (`enumFacets = {"material_default":
   ClassMaterial}`), read with a new `EnumFacet(vd, name) (protoreflect.EnumNumber, declared, err)`,
-  same declared/undeclared split and refusals as `Facet`/`Number`.
+  same declared/undeclared split and refusals as `Facet`/`Number`. `material_default` lives in its own
+  map `enumFacets = map[string]protoreflect.ExtensionType{"material_default": E_MaterialDefault}`, never
+  in `facets`: every caller that ranges over `facets` and calls `Facet` gets the option asserted `.(bool)`
+  (`facets.go:69–89`; `numericFacets` is the flag that keeps `mass` out of that path), and a third
+  kind behind a second flag is one more caller to forget. `FacetNames()` returns the union (the
+  refusal's "have …" list and `enumTable`'s column walk read it), `Facet`/`Number` refuse an
+  `enumFacets` name with "read it with EnumFacet"; and `EnumFacetTargets(ed)`, the
+  enums an enum's enum-valued facets reference, which `enumTables` visits first.
 - `recordpb/gapclass.go` [NEW]: `MaterialDefault(GapClass) ClassMaterial` (via `EnumFacet`),
   `Neighbor(GapClass) (GapClass, bool)`, `Distinguisher(GapClass) string`. `gapclass_test.go`:
   `TestEveryGapClassDeclaresItsMaterialDefault`, `TestEveryGapClassNamesItsNeighbour` (every value but
   `unclassified` declares both options; `neighbor` resolves by `BySpelling` to a different value),
   `TestTheCatchAllIsByGradeAndHasNoNeighbour`.
 - `recordsql/schema.go` `enumTable`: emits an enum-valued facet as `TEXT NOT NULL REFERENCES
-  "enum_<enum>"("value")`; `enumTables` orders `enum_class_material` before `enum_gap_class` (a
-  referenced table first). `schema.sql` golden regenerated; every changed line read.
-- `requirements.json` `eventSchema` 32; `go -C scripts run ./schemagen`; `go -C scripts run ./protogen`.
+  "enum_<enum>"("value")`.
+- **Vocabulary order.** `enumTables` (`schema.go:753`) emits tables in first-reach order of a field
+  walk, and each table's `INSERT`s follow its `CREATE` with foreign keys on (`store.go:80`). The walk
+  reaches `Mint.class` (field 3) before `Mint.class_material` (field 25), and once `ClassNew` is
+  deleted nothing reaches `ClassMaterial` earlier — so first-reach order would emit
+  `enum_gap_class` and insert rows referencing `enum_class_material` before that table exists. The
+  walk's append becomes a dependency-first visit: before appending an enum, it appends every enum
+  its enum-valued facets reference (`recordpb.EnumFacetTargets(ed)`, read off `facets.go`'s table).
+  The order then holds whatever the field numbering. Wrong order fails loudly — every record open
+  fails at the `INSERT` with "no such table" — and is pinned by
+  `TestAVocabularyFollowsTheVocabulariesItReferences` (`recordsql/schema_test.go`: in the built DDL,
+  every `REFERENCES "enum_x"` inside `CREATE TABLE "enum_y"` has `enum_x`'s `CREATE` earlier). The
+  `schema.sql` golden shows the position (`enum_class_material` ahead of `enum_gap_class`); it is
+  regenerated and every changed line read.
+- `requirements.json` `eventSchema` E; `go -C scripts run ./schemagen`; `go -C scripts run ./protogen`.
 
 ### III.5 The record [MODIFY]/[DELETE]
 
@@ -365,17 +425,72 @@ plans/class-registry-ships.md                         [DELETE] (superseded draft
   path's word → value, as `GradeOf`).
 - `writeview.go:49` `registry()` deleted; `runFiles` loses the records-dir read if nothing else uses it.
 - `classroster.go`, `classroster_test.go`, `shippedclasses_gen.go`, `recordtest/classes_gen.go`,
-  `fixtureclasses_test.go` deleted. `recordtest/recordtest.go:123–130` (seeded coining default)
-  deleted.
-- Every `GetClass()` reader (compiler-enumerated; C1–C2 hits `viewjson.go`, `graph.go:223`,
-  `report/assemble.go:863`, `view.go:507–527`, `capture.go:2128`, `motion.go:353`) reads
-  `recordpb.Word(m.GetClass())`; JSON keeps the key `class` holding the word.
+  `fixtureclasses_test.go` deleted. `recordtest/recordtest.go:127–130` (seeded coining default)
+  deleted; `:121–126` (a seeded mint without a class material gets `by_grade`) STAYS, its comment
+  rewritten to "`by_grade` is the default of every placeholder class (§III.10), so a seeded fixture
+  and a written one agree". New `recordtest.ClassFor(cm ClassMaterial) GapClass` returns the
+  fixture value for each materiality (`spec_underspecification`, `false_universal`,
+  `structure_noncompliance`), with `TestClassForHasTheMaterialityItNames` (`MaterialDefault(ClassFor(cm)) == cm`
+  for all three).
+- **The mint-class readers** (census C13, §III.14): `git grep -n -E 'GetClass\(\)|\b(m|p|mint)\.Class\b'`
+  over non-test, non-generated Go, each hit read for which class it is.
+  - Typed — the compiler refuses them once the type changes: `view.go:507,517,527` (map keys) read
+    `recordpb.Word(...)`; `view.go:326` (`class, check = m.Class, m.AcceptanceCheck` into
+    `undefStr(*string)`) becomes `undefStr` of the word when `m.Class != nil`, so an absent class still
+    prints `undefined`; `capture.go:2128`, `mint.go:93,95` and `replay.go:537–697` are deleted or
+    rewritten (§III.5, §III.6, §III.11).
+  - Untyped — compile and render wrong (D1): `report/assemble.go:863` passes
+    `recordpb.Word(g.Mint.GetClass())` to `grade`; `graph/graph.go:223` formats
+    `recordpb.Word(g.Mint.GetClass())`. Tests driven through the shipped renderers:
+    `TestTheOpenGapRowNamesItsClassWord` (`report`: assemble a board holding one open
+    `false_universal` gap; the row carries `class false_universal`, not `class —`),
+    `TestTheGapNodeNamesItsClassWord` (`graph`: the label carries `false_universal` and no `GAP_CLASS_`),
+    and `TestTheLedgerRowNamesItsClassWord` (`view`: `class false_universal`; a mint with no class
+    prints `class undefined`). Deleting the `recordpb.Word` at each site fails its test.
+  - Not a mint's class: `record/motion.go:353` (`fil.Petition.GetClass()`, a `PetitionClass`) — unchanged;
+    `seatprobe/build.go:260` (`"--class", m.Class` of a probe board's petition motion) — unchanged.
+  - A mint's class as a flag word, not a typed read: `seatprobe/build.go:166` (`"--class", g.Class`,
+    the string field of `boards.go`'s gaps passed to `mint`) — found by the wider
+    `git grep -n -E '\.Class\b'` (audit4's `dotclass.txt`; the C13 pattern names `m|p|mint` only);
+    its words are respelled under §III.10 rule 4, and the probe's own mint refuses one that is not a value.
+  - `record/viewjson.go` reads the SQL column, which holds the word; unchanged. JSON keeps the key
+    `class` holding the word.
+- **Comments that describe the registry or coining**, rewritten present-tense to the enum:
+  `record.go:743` ("class registry" → "the gap class's enum check"), `record.go:788` ("an unstaged
+  registry" dropped), `report/assemble.go:854` ("a registry SLUG" → "a `GapClass` word"),
+  `view/view.go:504` ("validated against the registry" → "a closed enum"), `cli/seat/help.go:22`
+  (the example "coin the class first" → "name the nearest class when none fits"),
+  `seatprobe/build.go:127,135,149` (the staging block goes; the comment with it) and `:419`
+  (`BoardClasses` are `GapClass` values), `seatprobe/seatprobe.go:81` (the two-word subgroup example
+  becomes `blue inquiry propose` alone) and `:150` (the `class-new` entry goes), `flags/names.go:158–163`
+  (`Class`: "a gap's class from the closed `GapClass` set, a petition's from a fixed four"), and
+  `record.proto:332–333` (§III.4). The sweep that finds them, re-run after the change (§V.8):
+  `git grep -n -i -E 'registry|coin(ed|ing|s)?\b' -- plugins/frank-exchange-of-views/tools ':!*_test.go' ':!*.pb.go' ':!*/internal/terms/*'`
+  prints only the terms registry (`cli/manual.go:173`, `flags/names.go:238`, `recordpb/descriptions.go`,
+  `record.proto:74–76`), `migrate`'s translation `Registry` (`migrate/*`, `cli/migrate.go`, `flags/names.go:313`),
+  `tessocr/testdata` ("AWS Registry"), `record.proto:1835` ("coin" flip), and the tracked `tools/research/` fixture.
+- **The same sweep over tests and non-Go carriers.** The non-test sweep above cannot see a test comment,
+  a `.mjs` comment or a Python verb list, and five such carriers still spoke the deleted surface after
+  round 2 (`universe-stream.py:25`, `debate.test.mjs:1033`, `boardbuild_test.go:47`,
+  `m23contradiction_test.go:100`, `reopenedm19_test.go:44`). Two commands, each hit read for which
+  concept it names (§III.14 C16 holds the classified list and the replacement for every hit that changes):
+  `git grep -n -i -E 'class registry|gap-class registry|\bclass\b.*verb|"class"' -- scripts '*.py' '*.mjs' '*_test.go'`
+  and `git grep -n -i -E 'registry|\bcoin(ed|ing|s)?\b' -- 'plugins/frank-exchange-of-views/tools/**_test.go' plugins/frank-exchange-of-views/tests scripts '*.py' '*.mjs' ':!scripts/rulesweep' ':!scripts/classgen'`.
+  After the change both print only C16's no-change hits (another concept: petition `class`, the
+  protocol, terms and migrate registries, the regenerated prompt goldens' other lines).
 - `castcoverage.go:20`, `duplicatescreen.go:38`, `record.go:828,1414`: comments respelled to the
   underscore word where they name a value.
 
 ### III.6 The lens surface [MODIFY]/[DELETE] (contract: CLI flag set — census C4, C5, C8)
 
-- `cli/lens/class.go` deleted (the `class` group, `class list`, `class new`).
+- `cli/lens/class.go` deleted (the `class` group, `class list`, `class new`), and with it the two help
+  documents it claims, `cli/seat/help/list.md` and `cli/seat/help/new.md`: `help_test.go:73–92`
+  fails a document no verb claims. (`list`/`new` are claimed by no other verb — `git grep -n
+  'NewRead("list"\|New("new"'` hits only `class.go`; re-checked at implementation by that test.)
+- `cli/seat/help/mint.md`: "The run's part of the finding goes in your reason for the gap, which the
+  report never prints and nothing checks." → "The run's part of the finding goes in your reason for
+  the gap, which the report never prints. Under `unclassified` the reason is required — name the
+  nearest class and what it does not cover." (the database refuses an empty one, D7).
 - `cli/lens/mint.go`: `--class` registered through `enumhelp.Flag(c, flags.Class,
   record.MustEnum("mint", "class"), "REQUIRED — the KIND of defect, from the values below; its
   material default is recorded with the gap. `unclassified` only when none fits, and then --reason
@@ -385,15 +500,26 @@ plans/class-registry-ships.md                         [DELETE] (superseded draft
 - `cli/enumhelp/enumhelp.go` `Section`: a value with `Material` renders `word  [material] means`, and
   with `Neighbor` a second indented line `nearest: <word> — <distinguisher>`. Other enums render
   byte-identically (goldens prove it).
+- `record/enumvalue.go` `Refuse` (D9, F7): unchanged sentence — near miss, `takes one of <30 words>`,
+  the `why` — and `Menu(vs)` appended only when no value carries `Material` or `Neighbor`. Tests
+  `TestMintHelpListsEveryGapClass` and `TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly`
+  (`cli/`, driven through `run(t, …)` as a seat); appending the `Menu` unconditionally fails the
+  second, dropping the long form from `Section` fails the first.
 - `flags/names.go:166–168` `Definition`, `Neighbor`, `Distinguisher` and `MaterialDefault` deleted
   (each has no other user — re-check with the compiler).
 - `cli/` tests: `unknownclass_test.go` rewritten to the enum refusal (a near-miss `report-voice` names
   `report_voice`); `verbguardrace_test.go:225–242` (coin race) deleted; `cli_test.go:825–866`
   (coining) deleted; `badvalue_test.go:115`, `help_test.go:149`, `requiredmarker_test.go:96`,
-  `referencechecks_test.go:121–153,265`, `projectionshape_test.go:288` updated to the new surface;
-  `fixtureclasses_test.go` deleted (fixtures mint enum words, §III.10). New
+  `referencechecks_test.go:25,45–60,119–165,231–234,265` (the `--class` row checks against the enum;
+  `stageClassRegistry` and `TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored` deleted),
+  `refusalshape_test.go:230` (its row names the deleted `replay.go:696`), `projectionshape_test.go:288`
+  updated to the new surface; `fixtureclasses_test.go` deleted (fixtures mint enum words, §III.10) and
+  the `newRun` it defines moves, unstaged, into `cli_test.go`, which its callers already share (C16). New
   `TestUnclassifiedRequiresAReason` (refused without `--reason`, recorded with it, `class_material` =
-  `by_grade`).
+  `by_grade`); new `TestAMintTakesItsClassMaterialDefault` (one `mint` per materiality through the
+  verb — `false_universal`, `structure_noncompliance`, `spec_underspecification` — each stored with
+  its value's default); new `TestALowGradePlaceholderMintDoesNotHoldTheGate` (a lens mints
+  `spec_underspecification` at `low` through the verb; the chair's PASS is accepted).
 
 ### III.7 setup [MODIFY]
 
@@ -401,9 +527,15 @@ plans/class-registry-ships.md                         [DELETE] (superseded draft
 - `run.go:230–237`: the pre-state registry check deleted. `run.go:280` staging and `:341–346` summary
   lines deleted — there is no class line in setup's output.
 - `run_test.go:260–341`: `TestClassRegistryIsStagedIntoTheRun`, `TestSetupRefusesRegistryWithoutMaterialDefault`,
-  `TestAbsentRegistryIsAnnounced` deleted; new `TestSetupReadsNoFeovMemory` — a run set up from a
-  directory with no `feov-memory/` and one with a garbage `feov-memory/class-registry.json` produce
-  byte-identical stdout and an identical records directory listing.
+  `TestAbsentRegistryIsAnnounced` deleted; new `TestSetupReadsNoFeovMemory` — two `runCfg` fixtures,
+  one with no `feov-memory/` and one with a garbage `feov-memory/class-registry.json`, each run
+  through `Run(cfg, &out, &errb)`, exit 0 both. Stdout differs by the fixtures' own paths (`run-setup:
+  <runDir>`, `record binary:`, `run-live marker:`, the wrapper `binDir`). `runCfg` roots all of them
+  in one `t.TempDir()` (`Cwd` = `Home` = it; `RunDir` and `BinDir` beneath it), so each stdout is
+  normalised by `strings.ReplaceAll(out, cfg.Cwd, "<cwd>")` and the two compared byte for byte;
+  stderr likewise. The records directories compare as sorted lists of names relative to
+  `RunDir/records` (no sizes, no times). The billing line reads the same environment in both. The test fails if setup reads anything in `feov-memory/` that changes its
+  output or its records.
 - `unresolvablerun_test.go:27` comment only. After the change `git grep -n feov-memory --
   plugins/frank-exchange-of-views/tools/internal/setup` prints only `run.go:362` (the scorecard
   comment, #1454's).
@@ -415,28 +547,63 @@ The translation, in `migrate/gapclass.go`, registered in `valueRenames["feov.rec
 - **A kept registry slug** resolves with no row: `enumNumberOf`'s `SameWord` fold reads
   `report-voice` as `report_voice`.
 - **A merged or dropped registry slug, and every coined slug** has an authored row (Table B + C:
-  14 + 31 rows; `structure-noncompliance` and `invalid-inference` resolve by fold). `TestEveryArchivedClassLandsOnAValue`:
-  every key is NOT a current word (else the row is dead), every value IS one.
+  14 + 31 rows; `structure-noncompliance` and `invalid-inference` resolve by fold and have none). `TestEveryArchivedClassLandsOnAValue`:
+  every key is NOT a current word under `SameWord` (else the row is dead, and the manifest would list a
+  fold), every value IS one.
 - **`mint`** gets an `Entries()` row, `mapped("mint", nil, drops{"class_new": …, "definition": …,
   "neighbor": …, "distinguisher": …}, nil)`: the four columns are dropped with the reason "a class is a
   value of the closed set; whether a run coined it, and the coiner's definition, are not carried — the
   value's own definition is". (The jsonl era's mint-carried trio and the sqlite era's `class_new`
   column both arrive here.)
 - **`class_new`** (and the jsonl spelling the era table already folds to it) → `{Translate:
-  noEvent}`, the `revision` precedent; the manifest counts each in `events_in` and none in
-  `events_out`. No archived reference points at a `class_new` event id (C4: nothing reads one), so the
-  renumbering this causes is absorbed by replay's existing id translation.
-- **Materiality.** A mint the source records with `class_material` keeps it (`stampClassMaterial`
+  toNoEvent}`: `revisionEntry` (`migrate/entries.go:226`) renamed `toNoEvent` ("translates an archived
+  event to none, whatever its era's columns"), the one function both the `revision` and `class_new` rows
+  name; the manifest counts each in `events_in` and none in
+  `events_out`. No reference names a `class_new` event itself (a pin names a report head, a
+  contradiction a source reading, a plan a head, pin, edit or check), but every event after one is
+  written one number lower. Every reference migrate carries by events.id is translated through
+  `newID` (§III.8a); on m28 that is 9 stored plans, which `planRenumbered` refuses today.
+- **Materiality (F9).** A mint the source records with `class_material` keeps it (`stampClassMaterial`
   under `Migrating`, unchanged) — all 10 runs from 2026-10-09. A mint the source records without one
-  (the 16 earlier runs, 123 mints, whose staged registries carry no default) is stamped by the live
-  rule from its translated value — the same result today's fill gives (`ShippedMaterialDefaults` IS
-  that table), recorded as a `StatedFill` only where the archived slug was translated to a different
-  value (`Why`: "the source predates material_default; the gap takes the default of the class its
-  archived slug now maps to").
-- **The manifest** gains `class_translations: [{from, to, mints}]`, one row per archived slug that is
-  not a kept value's spelling — a merge is visible, not silent.
+  (the 16 earlier runs, 123 mints) is stamped by the live rule: its translated value's
+  `material_default`, the same `stampClassMaterial` path a live mint takes. There is no second table
+  and no special fill — `shippedDefault`, `byGradeFillWhy` and `record.ShippedMaterialDefaults` are
+  deleted. Each such mint is a `StatedFill` (`Where: "mint <gap_id>"`, `Slug`: the archived slug,
+  `Value`: the stamped word, `Why`: "the source predates class_material; the gap takes the material
+  default of the value its archived slug translates to"), every one of the 123 and not only those
+  whose result moved: which moved can be computed only against the deleted table.
+  **Residue, accepted (F9):** 17 archived gaps in 8 runs move `by_grade` → `always` against today's
+  fill (the ruling's "9 runs" names the same 17 gaps; the list holds 8 run names):
+
+  | run | archived slug (mints) → value |
+  |---|---|
+  | `2026-08-22_is-7-prime` | `research-protocol-violation` (2) → `self_attestation` |
+  | `2026-08-22_is-7-prime-run2` | `contradictory-framing` (1) → `cross_section_contradiction`; `unsettled-inquiry` (1) → `claim_contradicts_own_record` |
+  | `2026-08-22_record-store-authority` | `silent-no-match-probe` (1) → `verification_scope_blindspot` |
+  | `2026-08-23_research-loop-counterparts` | `risk-taxonomy-conflation` (1) → `metric_conflation` |
+  | `2026-08-23_sleeper-service-plan` | `unflagged-inferential-transfer` (1), `model-scope-overclaim` (1) → `within_source_condition_misattribution`; `citation-support-mismatch` (1) → `citation_figure_misattribution` |
+  | `2026-09-02_quadratic-formula` | `graded-warrant-contradicts-record` (2) → `cross_section_contradiction`; `unrecorded-report-edit` (1) → `claim_contradicts_own_record`; `misplaced-citation-anchor` (1) → `citation_figure_misattribution` |
+  | `2026-09-11_is-91-prime-b6` | `inquiry-fate-mismatch` (G2), `record-status-erasure` (G7) → `claim_contradicts_own_record` |
+  | `2026-09-11_is-91-prime-b8` | `inquiry-reason-record-mismatch` (G1, G2) → `claim_contradicts_own_record` |
+
+  What it changes downstream: six of the eight runs end FAIL or CEILING, where a gap's materiality
+  moves only derived views (the board, the dispatch readiness a reader re-folds). **b6** ended
+  VERIFIED on a PASS (event 189) over open `G2` and `G7` (`low_medium`, `by_grade`, not material
+  then); as `always` they are material, the PASS gate is exempt under `Migrating`
+  (`passblockers.go:551`), and `stampMigrationAdmission` records both on the migrated PASS's
+  `migration_admitted_gap_ids`, which `verify` reports — the residue is visible, not silent. b8 also
+  ended VERIFIED, and its two were closed `repaired` before its PASS (event 199). No mapping moves a gap to `never`
+  (`structure-noncompliance` was `never` in the shipped table already).
+- **The manifest** gains `class_translations: [{from, to, mints}]`: one row per archived slug that some
+  mint carries and that resolves through an AUTHORED row of `migrate/gapclass.go` — a merge, a drop or
+  a coined slug onto a different word. A slug that resolves by the `SameWord` fold (a kept registry
+  class, and the two coined slugs that became values, `invalid-inference` and the sleeper run's
+  `structure-noncompliance`) gets no row: it is the same word respelled, which the fold already
+  states. So the rows are exactly the authored-table rows a mint used; a merge is visible, not
+  silent.
 - **The staged registry**: `copyChannels` skips `records/class-registry.json`; `translateStagedRegistry`,
-  `shippedDefault`, `byGradeFillWhy` deleted; the `migrate.go:89–95` call removed.
+  `shippedDefault`, `byGradeFillWhy` and the `ClassNew` fill arm (`migrate/replay.go:314–325`) deleted;
+  the `migrate.go:89–95` call removed.
 - `remap.go`: `Mint.definition Mint.neighbor Mint.distinguisher ClassNew.*` leave `argumentFields`,
   `ClassNew.slug` and `Mint.class` leave `dataFields` (an enum, not a string — `TestEveryStringFieldIsInOneList`
   holds the lists to the schema).
@@ -444,42 +611,340 @@ The translation, in `migrate/gapclass.go`, registered in `valueRenames["feov.rec
 - Tests: `classmaterial_test.go` → `gapclass_test.go` with
   `TestTheGapClassMigratesOntoTheEnum` on `2026-10-18_is-91-prime-m28` (current epoch, two
   `class_new` events, two `invalid-inference` mints) and `2026-08-23_sleeper-service-plan` (jsonl era,
-  mint-carried coinings, no `class_material`): every mint's class is a `GapClass` value; m28's
-  `class_material` per `gap_id` equals the source's; sleeper's three `guardrail-scope-overclaim` mints
-  are `partial_control_coverage` with `by_grade` and a stated fill each; zero `class_new` events; no
-  `records/class-registry.json` in the destination; `class_translations` lists
-  `invalid-inference → invalid_inference (2)`. `publish_test.go:429,455`, `gapplace_test.go:42`,
+  mint-carried coinings, no `class_material`), each driven as the shipped path runs — `migrate.Migrate`
+  on the extracted tarball (`recordtest.RequireArchive`), the archive's channels and all, not a
+  hand-built `Source`: every mint's class is a `GapClass` value; m28's `class_material` per `gap_id`
+  equals the source's and m28 has zero refusals; sleeper's `citation-support-mismatch` mint is
+  `citation_figure_misattribution` stamped `always` (today's fill gives it `by_grade`, so this row
+  fails if the special fill survives) and its three `guardrail-scope-overclaim` mints
+  `partial_control_coverage` `by_grade`, each of the four with a `StatedFill`; zero `class_new` events; no
+  `records/class-registry.json` in the destination. m28's stored plans are `TestAStoredPlanCrossesARenumbering`'s
+  (§III.8a). `TestAPreFieldMintTakesItsNearestValuesDefault` (F9's named test) on
+  `2026-09-11_is-91-prime-b6`: `G2` (`inquiry-fate-mismatch`, `low_medium`, no recorded stamp) migrates
+  as `claim_contradicts_own_record` stamped `always`, a `StatedFill` names it, and the migrated PASS's
+  `migration_admitted_gap_ids` holds `G2`'s and `G7`'s migrated ids and nothing else; restoring
+  `shippedDefault` fails all three assertions. This INVERTS today's
+  `TestMigratedPassOverOnlyNonMaterialGapsCarriesNoAdmission` (`migrate/classmaterial_test.go:365–`),
+  which asserts b6's PASS admits nothing because its two gaps stayed `by_grade`: under F9 that b6 case
+  is the named test above, and the no-admission rule it pinned keeps a test of its own on a seeded
+  source (a lens mint `spec_underspecification` at `low`, open under a PASS, migrated → an empty
+  `migration_admitted_gap_ids`). The file's other PASS-admission tests
+  (`TestMigratingAdmitsArchivedPassOverNowAlwaysGap`, `TestLivePassOverOpenAlwaysGapRefused`,
+  `TestMigrationRecordsAdmittedPassOnArchives`, `TestMigrateRunWrittenByThisBinaryKeepsNewFields` with
+  `thisBinaryRun`, its `ClassNew` dropped and its slugs → `false_universal`/`structure_noncompliance`)
+  move to `gapclass_test.go` unchanged in subject; `:275–284`'s registry byte-compare becomes "no
+  `records/class-registry.json` at `--to`". **F11:** `publish_test.go`'s `TestARefusalNamesToNotTheBuild`
+  (`:427–491`, the file's only registry staging, `:429,455` included) triggered its refusal by
+  corrupting the staged registry, which no longer exists; it is deleted, and with it the refusal
+  rewrite in `migrate.go:170–176` (the comment and the `b.atTo(m.Refusals[i].Err)` loop).
+  `build.atTo` stays: the warnings (`migrate.go:69`) and `atToError` (`publish.go:293`) call it.
+  **Residue, accepted (F11):** no refusal names a run path once the registry goes; a later one that
+  does publishes the build path into `inputs/migration.json`, and nothing fails — no lens reads the
+  manifest, and migrate runs outside a debate. `:213`'s `files < 4` floor is re-measured without the registry. `class_translations`: m28's is exactly
+  `[audited-artifact-sibling-halo → verification_scope_blindspot (1)]` (its mints, measured on the
+  archive: 11 slugs, of which `invalid-inference` (2) folds and carries no row); sleeper's holds
+  `guardrail-scope-overclaim → partial_control_coverage (3)` and no `structure-noncompliance` row. `gapplace_test.go:42`,
   `reproduceanchor_test.go:158` drop their registry staging. `TestEveryArchivedRunMigrates` is the
   census over all 27 tarballs.
+
+### III.8a migrate — event ids across a renumbering (F8) [NEW]/[MODIFY] (census C15)
+
+An event that translates to none (`class_new` here, `revision` already — both through `toNoEvent`)
+moves every later events.id down. Every place an archived record names an event by number, and what
+migrate does with it:
+
+| reference | today | decision |
+|---|---|---|
+| `Dispatch.pin` (`migrate/replay.go:283–290`) | through `newID`; unlanded → refusal | unchanged |
+| `Finding.about_ref` on a `contradiction` (`contradictionRef`, `:303–313,527`) | through `newID` | unchanged |
+| stored `Plan`: `head`, each `stale_areas[].pin` | refused when moved (`planRenumbered`, `:292–301,507–525`) | through `newID` |
+| stored `Plan`: a `contradiction` blocker's `subject` (`passblockers.go:434`, `c.idWord()` — an events.id as a word) | not read; carried as printed | through `newID` |
+| stored `Plan`: the ids its `why` lines print — `never sat — audits the report at head N`, `head N moved past its last sitting's pin N`, `sat at the head (pin N)`, `retired (pin N)` (`retirement.go:206–216`); `contradiction N` among a lens's debts (`retirement.go:133`, through `retiresWhy`); `changed at edit N … its last check is event N` (`reopenedFact`, `passblockers.go:124`, through the reopened why `:237`); `contradiction N` (`contradictionFact`, `:118`, through the contradiction why `:203` and `dispatch.go:394,398`) | carried as printed | through `newID`, by the phrase table below |
+| stored `Plan`: the seat words its `why` lines carry — a `%q` claim (`dispatch.go:394,398`, `passblockers.go:203`), the bench ruling's direction (`dispatch.go:365`, bare `%s`) — and `remand_owed[].direction` | carried as printed | **carried as written (F12)** — neither translated nor refused |
+| stored `Plan`: `key` | over every field above but `epoch`/`final_sitting` | recomputed (`Plan.WithKey`) |
+| stored `Plan`: other `subject`s, `parties[].gap_ids`, `docket`, `remand_owed[].gap_id`, `exchanges`; `Gate.migration_admitted_gap_ids` | content ids (gap, motion, anchor, seat), current shape at epoch ≥ 31, which `remap.id` keeps (`remap.go:173–176`) | unaffected |
+| `events.key`, `events.sitting_id` | `seat:slug:#ordinal`; the sitting is the write's own derivation | unaffected |
+| seat prose on the event tables that names an event by number | carried as written | **residue, accepted** (below) |
+
+**The `why` producers, every operand classified** (census C15): each `%s`, `%q`, `%d` and
+concatenated operand of a line that reaches `Plan.Why`.
+
+| producer | operands | class |
+|---|---|---|
+| `dispatch.go:284` `f.why` | the lens fold's line | → `retirement.go:206–216` |
+| `retirement.go:206–216` | `seat`; `head`, `f.pin` (`%d`); `f.barren` (`%d`); `retiresWhy()` | seat id; **ids**; count; → `:67–75` |
+| `retirement.go:67–75` `retiresWhy` | `retiresAfter` (`%d`); `f.owes` joined — `lensOwesOf`'s items `:110,114,125,129,133,138`: `blue's answer to <gap>`, `the accepted grade motion on <gap>`, `the bench's remand of <gap> in <motion>`, `<seat>'s finding <finding> about <gap>`, `<blocker kind> <subject>`, `unjudged proof <anchor>` | count; verb text over content ids, seat ids and a kind word — the one events.id is `contradiction <subject>` (`:133`) |
+| `dispatch.go:322` | `g.id`, `g.supersededBy` | content ids |
+| `dispatch.go:337,341,369` | `g.id`, `g.unruledMotion` | content ids |
+| `dispatch.go:346` | `g.id`; `notMaterialBecause` (`:1192`) | content id; verb text over a severity enum word |
+| `dispatch.go:350,352,359,361` | `g.id`; `x.Counted()` (`impasse.go:60`) | content id; verb text over `%d` counts |
+| `dispatch.go:365` | `g.id`; `x.Counted()`; **`g.direction`** | content id; counts; **seat prose, bare `%s`** — the bench ruling's direction, after the fixed `on the ruling's direction: ` |
+| `dispatch.go:391` `benchReadiness` (`:1036–1054`) | `b.Subject`, `b.About`; `b.motionSubject` | content ids; enum word |
+| `dispatch.go:394,398` | `b.Owner`; `b.Detail` (`%q`); `contradictionFact(b)` | seat id; **seat prose, `%q`** (the contradicted claim); `contradiction <events.id>` |
+| `dispatch.go:416` → `passblockers.go:203` | `contradictionFact(b)`; `ownerOr`; `b.Detail` (`%q`); `planHold` | `contradiction <events.id>`; seat id or fixed text; **seat prose, `%q`**; fixed text |
+| `dispatch.go:416` → `passblockers.go:237` | `reopenedFact(b)` (`:124`: `b.Subject`, `edit %d`, `event %d`); `planHold`; `reopenedOwed` | anchor id, **ids**; fixed text; seat id or fixed text |
+| `dispatch.go:416` → `passblockers.go:297` | `b.Subject`; `b.Detail` (the gavel's `phrase`, `:463–469`); `planHold` | motion id; verb text (the gavel table's phrase, or a schema error's); fixed text |
+| `dispatch.go:416` → `passblockers.go:328` | `planHold` | fixed text |
+| `dispatch.go:431` | `params.MaxEpochs`, `len(plan.Parties)` (`%d`) | counts |
+
+Not why producers: `passblockers.go:268,273` are `BlockerStaleArea`'s item and refusal wordings
+(`pin %s` of `b.Detail`); the kind has no `why` func, so a stale area reaches the plan only as
+`StaleAreas[].Pin` and the lens fold's `retired (pin N)`. So a `why` line carries seat words in
+exactly two shapes — a `%q` span, and the remand's direction, the one bare `%s` of seat prose, which
+the verb always prints last on its line. Content ids (`G-bc663c4b`) and seat ids (`red-lens-logic-2`)
+are words holding digits, never numerals under step 4's definition.
+
+- **`migrate/planids.go`** [NEW] `translatePlanIDs(pl *recordpb.Plan, newID map[int64]int64) error`,
+  replacing `planRenumbered` at the same call site:
+  1. `record.ReadPlan` the printed bytes (a refusal as today if they do not read).
+  2. `to(n)`: `0` stays `0`; a landed id maps through `newID`; an id that wrote no event is a refusal
+     ("this stored plan names event N, which wrote no event on the migrated record before it").
+  3. `Head`, each `StaleAreas[].Pin`, and each `Blockers[]` of kind `contradiction`'s `Subject`
+     (parsed as an integer; not one → refusal) through `to`. `RemandOwed[].Direction` is not read.
+  4. Each `Why` line, scanned left to right:
+     - **A numeral** is a maximal run of `0-9` bounded on each side by the line's end or a character
+       outside `[A-Za-z0-9_-]` — Go's `\b`, with `-` joining the word class. Implemented by splitting
+       the line into maximal `[A-Za-z0-9_-]+` tokens: a numeral is an all-digit token. So `663` in
+       `G-bc663c4b`, `7` in `G-7b637cca` and `2` in `red-lens-logic-2` are not numerals.
+     - **A `"`** opens a Go-quoted span, read with `strconv.QuotedPrefix` — a `%q` claim: the seat's
+       words, skipped whole, neither translated nor checked. A `"` that opens no valid span is a
+       refusal naming the line ("a quote that does not close — the translation cannot tell the seat's
+       words from the verb's").
+     - **The first `remandDirectionPrefix` (`"on the ruling's direction: "`, `dispatch.go:365`'s
+       wording) outside a quoted span ends the scan (F12):** the rest of the line is the bench
+       ruling's direction, carried as written — its quotes, numerals and phrases included. Searched
+       outside quoted spans, so a claim quoting the prefix does not hide the `(contradiction N)` after
+       it (`dispatch.go:394,398` print the id after the claim).
+     - Outside those spans, a numeral immediately after one of the verb's id-introducing phrases —
+       `planIDPhrases = {"head ", "pin ", "edit ", "event ", "contradiction "}`, the comment naming
+       each format string in the table above — is an id and goes through `to`.
+     - **Any other numeral whose value is a MOVED id** (`newID[n]` landed and `≠ n`) is a refusal
+       naming the line — "prints N, a moved event's number, outside every id phrase; the translation
+       cannot tell whether it names that event". So a phrase the table lacks fails LOUD the first time
+       an id it prints moves, never silently; a count that happens to equal a moved id fails loud
+       too, and is ruled in review like any refusal.
+
+     `planIDPhrases` and `remandDirectionPrefix` describe ARCHIVED bytes, so they are migrate's own
+     copy of the verb's wording, not a constant shared with it: a later rewording is a change migrate
+     carries for the records printed before it. The live wording is pinned to that copy by
+     `TestARemandLineCarriesItsDirectionAsWritten` (below) and, for the id phrases, by the m28 test.
+
+     Measured on the three plan-storing archives (`final` 3 plans, `n1` 3, `m28` 20;
+     `~/.claude/scratch/relocations/audit4-rev/py/{scan,quotes}.py`): no stored line holds a quoted
+     span or the remand prefix; m28's lines hold 223 numerals after an id phrase, and the largest
+     numeral outside every phrase is 7, against moved ids > 564 — so none is refused. Read as bare
+     digit runs instead, the hex inside `G-bc663c4b` and `G-7b637cca` would refuse 14 lines in 7 plans
+     (527, 530, 604, 608, 723, 726, 745; `~/.claude/scratch/relocations/audit4/m28-numerals.txt`):
+     the token rule is what stops it.
+  5. Nothing changed → `pl` untouched (a record that keeps its numbering migrates byte for byte,
+     `TestAStoredPlanMigratesAsPrinted`). Changed → `p = p.WithKey()`, `pl.Printed = p.Printed()`.
+     The write's `requirePrintedPlan` (`planstore.go:69`) then admits it: a printing, its own key,
+     relayable.
+- **`record/planstore.go`**: `keyed` → the method `Plan.WithKey()` (exported; `dispatch.go:195`,
+  `dispatchnext.go:134`, `requirePrintedPlan` (`planstore.go:77`) and `planstore_test.go:272,295,299,311`
+  call it), and `debatejs.Keyed` → `debatejs.WithKey` (D10). Exporting the live key rule keeps one rule;
+  it adds no field, id or mechanism to the record.
+- **`migrate/manifest.go`**: `EventsDropped []DroppedEvent` `json:"events_dropped"` (`{source_id, word}`;
+  `source_id` is `OldEvent.ID` — the events.id of a sqlite source, the reader's ordinal of a jsonl
+  one), one row wherever `Translate` returns no body, in source order. No `omitempty`, and `NewManifest`
+  starts it at `[]DroppedEvent{}`: a migration that drops nothing writes `"events_dropped": []` (the F10
+  rule — an empty list is `[]`, never absent or `null`), so "dropped nothing" and "not recorded" are
+  different bytes. m28: `[{564, class_new}, {572, class_new}]`.
+- **Prose that says migrate keeps a plan-storing record's numbering** (census C15,
+  `git grep -n -i -E 'numbering|renumber|carried as printed|migrates as printed' -- plugins/frank-exchange-of-views/tools/internal/record/migrate/`,
+  every hit read):
+  - `storedplan_test.go:16–18` [MODIFY]: "A STORED PLAN MIGRATES AS PRINTED WHERE NOTHING RENUMBERS
+    IT. A seeded run drops no event, so each plan's head and pins name the same events after migrate
+    and the bytes migrated are the bytes stored; a record whose replay drops an event has its plans
+    translated through `newID` (`TestAStoredPlanCrossesARenumbering`)." `:52`'s message keeps "as
+    printed" — it states this test's case.
+  - `replay.go:292–296` [MODIFY]: the comment states the translation — "a stored plan names events by
+    events.id inside bytes a relay is compared with, and its key is over them; `translatePlanIDs`
+    carries each through `newID` and re-keys the plan, and refuses an id it cannot place".
+  - `replay.go:504–525` (`planRenumbered`, "carried as printed") and `planrenumbered_internal_test.go`
+    [DELETE] with the function.
+  - Already true, unchanged: `dispatchpin_test.go:12,20` (every archive renumbers; a seeded run shifts
+    nothing), `reproduceanchor_test.go:125,190`, `reopenedm19_test.go:15` (a migration renumbers rows),
+    `replay.go:74` (dispatch numbering — the key ordinal, another sense).
+  Outside `migrate/` the sweep's hits are other senses (proto field numbers, proof and citation
+  numbering, validation-loop labels; audit4's `c15-prose.txt`), and `record.proto:1018` already says
+  `migrate` translates `about_ref`.
+- **Residue, accepted: seat prose naming an event by number.** Dropping `class_new` renumbers every
+  archive that holds one — sqlite era: `b` (79, 117), `b3` (85, 149), `b6` (85, 162), `b8` (124), `b9`
+  (138), `quadratic-formula` (187, 349, 355, 532), `m23` (373), `m28` (564, 572); jsonl era (`class-new`):
+  `is-7-prime` (1), `is-7-prime-run2` (5), `record-store-authority` (1), `research-loop-counterparts`
+  (1), `sleeper-service-plan` (10). Of these only `m28` stores plans; every dispatch pin and
+  contradiction ref in all of them goes through `newID`, as `revision` drops already make it. Their
+  seat prose is carried as written: the words are the seat's, and migrate re-authors no prose.
+  Measured (`~/.claude/scratch/relocations/audit4-rev/py/prose.py`: every text column of every body
+  table, `(head|pin|edit|event|contradiction) N` with `N` above the run's first dropped id): `m28` 23
+  (`position.text` 6, `close.anchor_target` 4, `close.prose` 3, `spot_check.reason` 3,
+  `inquiry_review.reason` 3, `mint.acceptance_check`, `closing.text`, `regrade.basis`,
+  `reproduce.note` 1 each), `m23` 8, `quadratic-formula` 3, `b8` 2, `b`, `b3`, `b9` 1 each (`log.text`),
+  `b6` 0. A jsonl source carries no events.id — each shard's `seq` is its own — so its prose names no
+  number the replay assigns: not measured, and nothing to measure. Each such number can name the event
+  one or more places later; `events_dropped` states every shift, and the source tarball under
+  `run-archive/` keeps the original numbering.
+- **Residue, accepted: a translated plan no longer equals its relay.** `capture/dispatchparity.go`'s
+  `relayDepartures` (`:248`) compares the workflow journal's relays byte for byte with the stored plans
+  when a journal is present (`:209–217`); a migrated m28's 9 translated plans would each report a
+  departure. No archive carries `trajectories/` (every `run-archive/*.tar.gz` listed), so no audit
+  of a migrated run compares relays, and the relays were of the source numbering by construction (R15).
+- **Tests.**
+  - `TestAStoredPlanCrossesARenumbering` [NEW, `migrate`], on the real m28 through `migrate.Migrate`
+    on the extracted tarball: zero refusals; 20 stored plans out, in stream order beside the source's
+    20; the 11 that name no id > 564 byte-identical; for the 9 others, an oracle that does not use
+    `planIDPhrases`, numerals by step 4's token rule: (i) source and migrated printings with every
+    numeral and the key masked are equal — only numbers changed; (ii) for `head`, each `pin`, and every
+    numeral position where the two printings differ, the migrated event at the migrated number is the
+    source event at the source number — same `type`, `seat_id`, `key` and `ts`, read from both
+    databases (`file:` URI, `mode=ro`), not from `newID`; (iii) no numeral position outside a seat span
+    keeps a source number > 564 unchanged (each such source event sits at another number on the
+    migrated record); (iv) the key equals `WithKey()` of the decoded migrated plan; (v) the manifest's
+    `events_dropped` is exactly `[{564, class_new}, {572, class_new}]`; (vi) every seat span — a
+    Go-quoted span, the tail after the remand prefix, `remand_owed[].direction` — is byte-identical
+    between the two printings (vacuous on m28, which holds none; the two tests below carry it).
+    Deleting the `why` translation fails (iii) at event 604's `head 579`; deleting the pin translation
+    fails (ii); deleting the re-key makes the write refuse each of the 9 (a refusal count of 9);
+    reading numerals as bare digit runs refuses 14 lines in 7 plans.
+  - `planids_internal_test.go` (replaces `TestAStoredPlanWhoseEventsWereRenumberedIsRefused`):
+    `TestAStoredPlanNamingMovedEventsIsTranslated` on a built `record.Plan`, `newID` moving 412 → 411
+    as a dropped event before it would — head, a pin, a `contradiction` blocker `"412"`, and one `why`
+    line per phrase move; a quoted claim `"head 412"` stays; a line `red-lens-evidence read a source
+    contradicting "x on the ruling's direction: pin 412" (contradiction 412) …` comes back with the
+    claim unchanged and `(contradiction 411)`; **a remand line `G-1: at impasse (2 exchange(s) (0
+    stalled)) and remanded by the bench — … on the ruling's direction: re-read pin 412 and the claim
+    "head 412` (an unclosed quote in the tail), and `remand_owed[0].direction` holding the same words,
+    come back unchanged**; a line `G-7b637cca: open, material, …` with 637 moved comes back unchanged
+    and unrefused; a line printing a moved id after no phrase is refused; a `"` outside the remand
+    tail that does not close is refused; an unlanded head is refused; a plan naming no moved id comes
+    back with the same bytes. Dropping the remand rule fails the remand line (`pin 412` becomes `pin
+    411`, or the tail's unclosed quote is refused); searching the prefix inside quoted spans leaves
+    `(contradiction 412)` untranslated; reading bare digit runs refuses the `G-7b637cca` line.
+  - `TestARemandLineCarriesItsDirectionAsWritten` [NEW, `record/remand_test.go`], driven through the
+    shipped verb: `remandedAtImpasse`'s stage with the bench ruling's direction `re-read pin 412 and
+    the claim "head 412`, then `DispatchNext` as the chair; the stored plan's line for `G1` ends with
+    `on the ruling's direction: ` + the direction, byte for byte, and `remand_owed[0].direction` is the
+    direction. Its expected prefix is the literal migrate's `remandDirectionPrefix` holds, its comment
+    naming that constant (an internal `record` test cannot import `migrate`, which imports `record`), so
+    rewording `dispatch.go:365` fails it, and the rewording is then a change migrate carries (step 4).
+  - `TestAMigrationThatDropsNothingStatesAnEmptyList` [NEW, `migrate`] on
+    `2026-10-17_is-91-prime-final` (no `revision`, no `class_new`; 3 stored plans) through
+    `migrate.Migrate`: the published `inputs/migration.json` holds `"events_dropped": []`, and the 3
+    stored plans are byte-identical — the archived twin of `TestAStoredPlanMigratesAsPrinted`. Starting
+    the field at `nil` writes `null` and fails it.
+  The m28 test proves the verb's real id phrasings; the internal test proves `contradiction`, which no
+  archived plan carries, and the seat spans, which none holds.
 
 ### III.9 Telemetry [MODIFY]
 
 - `view/view.go:500–565`: `byClass` becomes `[]*recordpb.ClassTally` in `GapClass` schema order
-  (zero counts omitted); `unclassified_rate` = unclassified mints / mints this epoch, absent when none;
+  (zero counts omitted; no mints → an empty list); `unclassified_rate` = unclassified mints / mints this epoch, unset when none (the wire's `null`, as `class_repeat_rate`);
   `class_repeat_rate` excludes `unclassified` from the repeat numerator (D8). `view_test.go:504–521`
-  updated; new `TestUnclassifiedRateIsAbsentWhenNothingWasMinted` and `…CountsOnlyTheCatchAll`.
-- `inquest telemetry --help`'s OUTPUT shape is generated from the proto, so it changes to
-  `by_class:[{class,count}]` and gains `unclassified_rate` with no hand edit; `lead-judge.md:91,330`
-  and `red-chair.md:255` follow through `agentgen`. `scripts/agentgen/src/lead-judge.md:73` ("`new_mint.by_class`
-  moving, and `class_repeat_rate` rising") stays true and is not edited.
+  updated — its `one["by_class"].(map[string]any)` assertion (`:504`) becomes a decode of `[]{class,count}` in schema order, and `:505`'s slugs become `false_universal`/`spec_underspecification`; new `TestUnclassifiedRateIsUnsetWhenNothingWasMinted` and `…CountsOnlyTheCatchAll`.
+- **The wire (D8, F6).** `inquest telemetry`'s bytes and its help come from the hand-written
+  `telemetryLineJSON`/`newMintJSON` (`view.go:829–846`), filled by `telemetryWire` (`:885`); the help
+  tree is `jsonshape.Tree(view.TelemetryLineShape())` (`:827`, registered at `cli/seat/verbs.go:301`).
+  Nothing is generated from the proto. Edits:
+  - `newMintJSON.BySeverity` → `[]severityTallyJSON` (`{Grade string "grade"; Count *int32 "count"}`,
+    `Grade` = `gradeText(t.GetGrade())`); `severityObject` and its `MarshalJSON` (`:859–881`) deleted.
+    The wire becomes `by_severity:[{"grade":"high","count":2}]`, which is what the help has always said.
+  - `newMintJSON.ByClass` → `[]classTallyJSON` (`{Class string "class"; Count *int32 "count"}`,
+    `Class` = `recordpb.Word(t.GetClass())`), in schema order.
+  - `newMintJSON.UnclassifiedRate *float64 "unclassified_rate"`, filled from `nm.UnclassifiedRate`.
+  - **An empty tally is `[]` (F10).** The slice-typed fields of the wire — swept by reflecting over
+    `telemetryLineJSON` and every struct it holds: `new_mint.by_severity` and `new_mint.by_class`, and
+    no other (`repair_regression`, `edge_deltas` hold pointers only) — are filled by
+    `make([]…, 0, len(src))` in `telemetryWire`, unconditionally, including when the row carries no
+    `new_mint` at all, so `encoding/json` never sees a nil slice and never writes `null` for them.
+    `null` stays what it means on this wire: a pointer field nobody measured.
+  - The boundary comment (`view.go:147–160`) loses its `by_severity`-is-an-object property and states
+    the rule instead: the wire types carry no custom marshaller, so the reflected tree is the bytes;
+    an unmeasured scalar is `null`, a tally is a list and an empty one is `[]`.
+    `severityObject` was the tree's only `MarshalJSON` (`git grep -n 'MarshalJSON()' -- '*.go' ':!*_test.go'`
+    prints it alone), so the class has one instance.
+  - Help renders `new_mint:{count,by_severity:[{grade,count}],by_class:[{class,count}],class_repeat_rate,unclassified_rate}`;
+    `lead-judge.md:91,330` and `red-chair.md:255` follow through `agentgen`.
+    `scripts/agentgen/src/lead-judge.md:73` ("`new_mint.by_class` moving, and `class_repeat_rate`
+    rising") stays true and is not edited.
+  - `dashboard/render.go:192` reads the typed `TelemetryLine`, not the JSON — unchanged.
+- **`TestTelemetryHelpTreeMatchesAnEmittedLine`** [NEW, `cli/telemetryshape_test.go`], driven as the
+  bench reads it: a run where one epoch mints at `high` and `medium` under `false_universal` and
+  `unclassified` (with `--reason`), then `inquest telemetry --seat-id judge` and `inquest telemetry
+  --help`. It parses the help's OUTPUT tree into nodes (object / array-of-object / leaf) and decodes
+  the epoch's line, and asserts at every depth: the same keys, an array where the tree says `[…]`, an
+  object where it says `{…}`. For every field with a custom marshaller or a proto-enum source —
+  `max_severity`, `by_severity[].grade`, `by_class[].class` — the value is a JSON string that is a
+  word of its enum (`recordpb.BySpelling` resolves it; never a number, never `GAP_CLASS_*`/`GRADE_*`).
+  `unclassified_rate` is present and equals 0.5. The run also holds a SECOND epoch with no mint
+  (a chair sitting opened over an unchanged board), and the test decodes that line too and asserts,
+  at every node the tree marks `[…]`, a JSON array — `[]` here, never `null` — while
+  `class_repeat_rate` and `unclassified_rate` are `null`. It fails if `severityObject` is restored, if
+  `Class` is filled with the number, if `UnclassifiedRate` is dropped from `newMintJSON`, or if either
+  tally is filled by plain assignment from a nil getter.
+  `TestProjectionShapeMatchesEmittedKeys` checks top-level keys only and missed `by_severity`; this
+  test is the deep check for the one JSONL view.
 
 ### III.10 Harnesses and fixtures [MODIFY]
 
-- **Fixtures mint enum words.** 349 lines in 128 test files mint with placeholder slugs (`x` 67,
-  `scope-creep` 53, `overclaim` 39, `self-attestation` 33, `safety` 18, …; measured by
-  `git grep -h -o -E '"--class", "[^"]+"|--class [a-z0-9_-]+|Class: *proto\.String\("[^"]+"\)'`).
-  One mechanical pass: a placeholder that only says "some class" → `false_universal` (`always`, the
-  common case); a test whose subject is materiality picks the value with the materiality it asserts
-  (`structure_noncompliance` for `never`, `report_voice` for `by_grade`); a test proving an unknown
-  class is refused keeps an unknown word. `Class: proto.String("x")` → `Class:
-  recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum()`. The 25 files calling `StageForRun*` (C1) lose
-  the call.
-- **Fuzz** (`releasegate/fuzz/fuzz_test.go`): the coining path (`:1681–1730`), `classMu`/`classMade`
-  (`:343`), `fuzzClasses` (`:6086`) and the three `StageForRun` calls deleted; `class_new` leaves the
-  event-type list (`:4460`) and the coverage table (`:4660`). Each mint draws its class from the enum
-  so every materiality is exercised every run, and ~10% of mints use `unclassified` — half of those
-  first without `--reason`, asserting the refusal, then with it. `registerbeforeappend_test.go:47`
-  drops its staging.
+- **Fixtures mint enum words, and each keeps its materiality.** Today every placeholder is
+  `by_grade`: `StageForRun` stages each slug `CLASS_MATERIAL_BY_GRADE` (`replay.go:599–620`) and
+  `recordtest.Seed` defaults a seeded mint to `by_grade` (`recordtest.go:121–126`). The pass keeps
+  that. **Census at `61107ba4`** (C14, §III.14):
+  - literal words — `git grep -h -o -E '"--class", "[^"]+"|--class [a-z0-9_-]+|Class: *proto\.String\("[^"]+"\)' -- '*.go'`:
+    304 lines in 109 Go files (`x` 67, `scope-creep` 53, `overclaim` 39, `self-attestation` 33,
+    `safety` 18, `c` 13, …; 42 words; some hits are prose such as `--class would`, read and left);
+  - helper-carried words the literal regex misses — `git grep -n -E '^func [a-zA-Z]+\([^)]*\bclass\b[^)]*\)'`
+    and their call sites: `cli.mintGap(t, runDir, key, class)` (72 calls: `overclaim` 16,
+    `read-surface` 9, `G1` 6, …), `capture.mintEvent` (deleted with `classharvest_test.go`),
+    `record.liveMint`, `migrate`'s mint builder, the stage builders' fixed `"x"`
+    (`dispatch_test.go:48`, `worklist_test.go:29` `cmMint`), `view_test.go:464`, the word list
+    `difftest/fuzz_test.go:282`, and the two fixed `--class fuzzcls` mint sites `releasegate/fuzz/fuzz_test.go:1730,1871`
+    (`fuzzClasses` at `:6086` is staging-only — read by `StageForRun` alone, here and in
+    `registerbeforeappend_test.go:47` — and goes with its staging);
+  - generated carriers (18 difftest goldens, the agents) regenerate and are read, not edited.
+
+  The rule, one pass:
+  1. **A placeholder** — a word that only says "some class" — becomes **`spec_underspecification`**
+     (`by_grade`; its definition, "a term, rule, procedure or recommendation the report relies on is
+     not specified enough for a reader to apply or check it", fits any fixture's "the defect"). A
+     test that needs two or three distinct classes (`by_class`, `class_repeat_rate`, id-distinctness)
+     adds `policy_without_mechanism`, then `risk_coverage_omission` — both `by_grade`. This holds for
+     placeholders that happen to spell a registry class (`self-attestation`, `metric-conflation`):
+     they were staged `by_grade`, and `self_attestation`/`metric_conflation` are `always`.
+  2. **A test whose subject is materiality** picks the value with the materiality it asserts:
+     `false_universal` (`always`), `structure_noncompliance` (`never`), `spec_underspecification`
+     (`by_grade`). A seeded mint that sets `ClassMaterial` by hand (`cmMint`, `liveMint`,
+     `verify/classmaterial_test.go`) takes its class from `recordtest.ClassFor(cm)` (§III.5), so the
+     class and the stamp agree.
+  3. **A test proving an unknown class is refused** keeps an unknown word (`no-such-class-slug`,
+     `banana`, difftest's `propagation-incomplete`).
+  4. **A fixture standing in for a real sitting** keeps real words with their real defaults:
+     `seatprobe.BoardClasses` and `boards.go`'s gaps (respelled — the merged slug at `boards.go:262`,
+     `citation-status-drift`, becomes `live_source_drift`, Table B's target; the staged default came from
+     `ShippedMaterialDefaults`, which equals Table A's `md` for every kept class and for
+     `citation-status-drift` → `live_source_drift`, both `always`).
+
+  `Class: proto.String("x")` → `Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum()`.
+  `recordtest.Seed`'s default stays `by_grade`. The 13 test files calling `StageForRun*` and
+  `seatprobe/build.go` (C1) lose the call; `recordtest.go:123` names it only in the comment rewritten above.
+  Re-running both census commands after the pass prints only enum words, rule-3 unknown words, and
+  prose hits.
+- **Fuzz** (`releasegate/fuzz/fuzz_test.go`): the coining path (`:1681–1729`), `classMu`/`classMade`
+  and their comment (`:343–349`; `:213` drops `classMu` from the guarded-fields list) and the three
+  `StageForRun` calls (`:3560`, `:4545`, `:6133`, with `:6126–6127`'s "without the class registry every
+  `mint` is refused" comment) deleted, with `classDefaultTurn` (`:115–117`, the always/never coining alternation); `class_new` leaves
+  the event-type list (`:4458–4460`, "these three" → "these two") and the coverage table (`:4660`). The class a fuzz mint carries is set at the TWO mint sites, not by `fuzzClasses`:
+  `:1730` (`args = append(args, "--class", "fuzzcls")`, every drive's mint) and the estoppel probe
+  `:1871`. Both become `spec_underspecification`, rule 1 above — the fuzz keeps every mint `by_grade` on
+  purpose (`:1713–1717`: an `always` or `never` class "would move every gap's materiality, and with it
+  the boards, the epochs and the terminal verdicts the sweep's other gates count on"), so the stamp's
+  `always`/`never` arms are covered by `TestAMintTakesItsClassMaterialDefault`, not here. Left as
+  `fuzzcls`, every mint is refused as an unknown word, the estoppel probe never lands, and
+  `estoppels == 0` fails the gate (`:5300`) — the loud form of the miss. At `:1730`, ~10% of mints use
+  `unclassified` (also `by_grade`): half of those first without `--reason`, asserting the D7 refusal,
+  then with it. `fuzzClasses` (`:6082–6086`) was read only by the three staging calls and is deleted
+  with them. `registerbeforeappend_test.go:47` drops its staging.
 - **seatprobe**: `build.go:89,146–150,419–427` read `recordpb.MaterialDefault` for `BoardClasses`
   (now `[]recordpb.GapClass`); `boards.go` class fields respelled (C12); the two `class list`/`class
   new` duty rows (`:536–537`) deleted and `:371` comment updated; `seatprobe.go:150–156` drops
@@ -489,7 +954,9 @@ The translation, in `migrate/gapclass.go`, registered in `valueRenames["feov.rec
   deleted (the list is gone).
 - **difftest**: the `class_registry` scenario (`scenarios_test.go`, `class_registry.golden`) is
   rewritten as `gap_class_enum` (mint each materiality, the catch-all with and without a reason, a
-  near-miss word); `contract_test.go:94`, `golden_test.go:174,190` drop staging. The other 17 goldens
+  near-miss word); `contract_test.go:94`, `golden_test.go:174,190` drop staging, and `goldenClasses` (`golden_test.go:233–242`,
+  read only by that `StageForRun`) is deleted with it; `contract_test.go:308` drops `"class"` from
+  `defaultSeat`'s lens-verb list (the verb is gone). The other 17 goldens
   in C4/C12 regenerate.
 
 ### III.11 Dev tooling, CI, universe [DELETE]/[MODIFY]
@@ -499,6 +966,9 @@ The translation, in `migrate/gapclass.go`, registered in `valueRenames["feov.rec
 - `scripts/universe.sh:519–539` deleted. Nothing else in the universe needs `feov-memory`: `setup`
   read only the class registry from it (C10), and `universe.sh` does not run `capture`, whose
   `WriteScorecards` is the only other reader and already returns a reason on a missing directory.
+- `scripts/universe-stream.py:25`: `"class"` leaves `INTERESTING`, the verbs the stream prints (the
+  verb is gone). `universe-board.py:68` (`SELECT "gap_id", "class" FROM "mint"`) reads the column,
+  which holds the word — unchanged.
 - `feov-memory/class-registry.json` deleted. `feov-memory/class-registry-seed.md` stays (design
   record) with one present-tense line naming `record.proto`'s `GapClass` as where the vocabulary
   lives; its move to `plans/historical` is separate.
@@ -521,7 +991,14 @@ is read before and after (CLAUDE.md).
   first where the registry lacks one" → "under the class that fits, or the catch-all with the reason
   none does". Names an act, no command path (`TestTheSeatPromptsNameNoVerb`).
 - `tests/simulator/debate.test.mjs:517–518`: `class new` leaves the command-path regex (the path no
-  longer exists; a ban list of a deleted word is the archaeology the repo refuses).
+  longer exists; a ban list of a deleted word is the archaeology the repo refuses). `:408` asserts the
+  evidence lens's prompt holds `'registering a new class first'`, the phrase the `debate.js:990` edit
+  above removes: it becomes `'or the catch-all with the reason none does'`, so the test still pins the
+  prompt's class duty and fails if the edit is reverted. `:1033`'s comment ("the class registry is the
+  vocabulary, it is enforced at mint") → "the gap class's closed set is the vocabulary, enforced at mint".
+- `difftest/testdata/help_contracts.golden:100` and `role_boundaries_and_help_contracts.golden:180`
+  render the lens group list's `class       the gap-class registry: what KINDS of defect this run
+  recognises`; with the group deleted the row leaves both on regeneration, and each is read.
 - `tools/internal/terms/terms.json:727`: "the defect class `cross-section-contradiction`" →
   `cross_section_contradiction`; `go -C scripts run ./vocabdoc`.
 - `go -C scripts run ./agentgen`: the seven lens constitutions lose the `class` group, `class list`
@@ -542,8 +1019,13 @@ is read before and after (CLAUDE.md).
 
 ### III.14 Consumer census
 
-Commands run at `be6c110d` from the worktree root with `-- ':!run-archive' ':!plans/historical'
-':!research'`. Full output: `~/.claude/scratch/relocations/gapenum/census/c*.txt`; the compact form
+Commands run at `be6c110d` and re-run at `61107ba4` from the worktree root with `-- ':!run-archive'
+':!plans/historical' ':!research'`. `be6c110d..61107ba4` touched `record/available.go`,
+`seatprobe/boards.go`, `report/assemble.go` and `releasegate/fuzz/fuzz_test.go`; every cited line in
+them (`available.go:122`, `boards.go:371,536,537`, `assemble.go:854,863`, `fuzz_test.go:343,1681–1730,
+3560,4460,4545,4660,6086,6133`) and every other compact line below is unchanged at `61107ba4`. Full
+output: `~/.claude/scratch/relocations/gapenum/census/c*.txt` (`be6c110d`) and
+`~/.claude/scratch/relocations/audit2/c*.txt` (`61107ba4`); the compact form
 below is `file lines` (I/ = `plugins/frank-exchange-of-views/tools/internal/`, F/ =
 `plugins/frank-exchange-of-views/`). `plans/` and `law/` hits are counted, not listed: plans are design
 records (no change); `law/proposed/class-*.md` (14) are deleted (III.11).
@@ -748,9 +1230,11 @@ plans: 2
 </details>
 
 No change: `debate.test.mjs:397` ("…NOT MATERIAL, BY CLASS…" — the chair's by-class listing of
-non-material gaps, which survives), `record/available.go:122` (same listing), `fetchcache/testdata`,
+non-material gaps, which survives), `record/available.go:122` (same listing) — both out of
+criterion 8's grep by its `\b`, `fetchcache/testdata`,
 `report/site.js` (CSS `classList`), `vocabulary_prose_test.go:265` (removed with III.10),
-`rulesweep/sweep_test.go:94` (protocol registry). The rest change (III.6, III.10).
+`rulesweep/sweep_test.go:94` (protocol registry; out of criterion 8's grep by path). The rest change
+(III.6, III.10).
 
 <details><summary>C6 — <code>git grep -nE 'by_class|class_repeat_rate|ByClass|ClassRepeat'</code></summary>
 
@@ -850,20 +1334,111 @@ Non-test, non-generated: `seatprobe/{boards,build}.go` (change), `record/{castco
 fuzz) — respelled by the fixture pass (III.10).
 </details>
 
+<details><summary>C13 — mint-class readers: <code>git grep -n -E 'GetClass\(\)|\b(m|p|mint)\.Class\b' -- '*.go' ':!*_test.go' ':!*.pb.go'</code></summary>
+
+```
+I/capture/capture.go 2128            (deleted, III.11)
+I/cli/lens/mint.go 93,95             (rewritten / deleted, III.6)
+I/graph/graph.go 223                 (untyped %s — Word + test, III.5)
+I/record/motion.go 353               (PETITION class — no change)
+I/seatprobe/build.go 166             (g.Class, boards.go gap word as --class — III.10 rule 4; wider .Class sweep)
+I/seatprobe/build.go 260             (m.Class, a petition's class — no change)
+I/record/replay.go 537,540,689,697   (deleted / rewritten, III.5)
+I/report/assemble.go 863             (untyped grade(any) — Word + test, III.5)
+I/view/view.go 326,507,517,527       (typed — compiler; 326 keeps `undefined`, III.5)
+```
+</details>
+
+<details><summary>C14 — fixture class words (§III.10)</summary>
+
+Literal: `git grep -h -o -E '"--class", "[^"]+"|--class [a-z0-9_-]+|Class: *proto\.String\("[^"]+"\)' -- '*.go'`
+→ 304 lines, 109 files, 42 words (`~/.claude/scratch/relocations/audit2/fixtureclasses.txt`).
+Helper-carried: `git grep -n -E '^func [a-zA-Z]+\([^)]*\bclass\b[^)]*\)' -- '*.go'` → `mintGap`,
+`mintEvent`, `liveMint`, `migrate`'s builder; `git grep -h -o -E 'mintGap\(t, [^,]+, [^,]+, "[^"]+"'` →
+72 calls, 22 words; fixed `"x"` in `dispatch_test.go:48`, `worklist_test.go:29`; word list
+`difftest/fuzz_test.go:282`; fixed `--class fuzzcls` at `releasegate/fuzz/fuzz_test.go:1730,1871` (`fuzzClasses`, `:6086`, is staging-only); `Class: proto.String(class)` at
+`view_test.go:464`. Seed's default: `recordtest.go:121–126`.
+</details>
+
+<details><summary>C15 — event ids migrate carries: <code>git grep -n -i 'events\.id' -- '*.proto'</code>, every <code>int64</code> field of <code>record.proto</code> and of <code>record.Plan</code> and its parts, every operand of a line that reaches <code>Plan.Why</code>, and the prose that says how migrate treats the numbering (<code>git grep -n -i -E 'numbering|renumber|carried as printed|migrates as printed'</code>)</summary>
+
+The two tables in §III.8a are this census: `Dispatch.pin` (the proto's one `int64`), `Finding.about_ref`
+(`record.proto:1016–1018`), `Plan.head`, `StaleArea.pin`, `PlanBlocker.subject` of kind
+`contradiction`, `RemandOwed.direction` (seat prose); the `why` producers, every operand classified —
+`dispatch.go:284–431` (its inline `Sprintf`s at `:322,337,341,346,350,352,359,361,365,369,394,398,431`,
+`benchReadiness` `:1036–1054` through `:391`, the blocker `why` funcs through `:416`),
+`retirement.go:67–75,110–138,206–216`, `passblockers.go:118,124,203,237,297,328`, `impasse.go:60`,
+`dispatch.go:1192`; one bare `%s` of seat prose (`dispatch.go:365`), every other seat word `%q`.
+`passblockers.go:268,273` are item and refusal wordings, not why producers. The prose carriers in
+`migrate/` are listed in §III.8a; the hits outside it are other senses (audit4's `c15-prose.txt`).
+Measured on the 27 archives: stored plans in `final` (3), `n1` (3), `m28` (20); `class_new` events in
+b, b3, b6, b8, b9, quadratic-formula, m23 (373, before any plan) and m28 (564, 572), and `class-new` in
+five jsonl runs; 9 plans move; no stored line holds a quoted span or a remand line.
+</details>
+
+<details><summary>C16 — tests and non-Go carriers of the registry and coining (§III.5's two commands) — 62 + 442 lines</summary>
+
+Every hit classified in `~/.claude/scratch/relocations/audit3/rev3/widesweep-classified.txt` (D deleted
+182, C changes 97, N another concept 159, G regenerated 4) and `g4.txt`. Changes (I/ = `…/tools/internal/`,
+Z/ = `…/tools/releasegate/fuzz/`):
+
+```
+F/tests/simulator/debate.test.mjs 408,1033          (§III.12)
+scripts/universe-stream.py 25                       ("class" leaves INTERESTING)
+scripts/universe.sh 519–539                         (block deleted)
+scripts/agentgen/src/{fragments/lens-audit-and-mint.md 8, red-lens-voice.md 13, skills/adversarial-audit/SKILL.md 28} (§III.12)
+I/cli/blue/edit_fuzz_test.go 18                     ("the class the registry calls silent-no-match-probe" → "a verification_scope_blindspot")
+I/cli/boardbuild_test.go 47                         (the "Staging a class registry here…" sentences go; the bare-directory rule stays)
+I/cli/cli_test.go 609, 823–866                      (staging comment; TestClassNewCoinsTheSlugInClass deleted); newRun moves here from the deleted fixtureclasses_test.go, unstaged
+I/cli/m23contradiction_test.go 100, I/record/reopenedm19_test.go 44  ("inputs and class registry" → "inputs")
+I/cli/referencechecks_test.go 25,45–46,56–60,119–165,231–234  (the --class row checks against the GapClass enum; needsRegistry, stageClassRegistry and TestAnUnreadableClassRegistryIsRefusedRatherThanIgnored deleted)
+I/cli/refusalshape_test.go 230                      (the "use a registry slug" row names deleted replay.go:696 → the enum refusal's head)
+I/cli/seatprobe_fixture_test.go 104–108, I/reportproj/mintbudget_test.go 46–48, Z/registerbeforeappend_test.go 47–49  (staging dropped)
+I/cli/unknownclass_test.go 13–55                    (§III.6: the near miss and the 30 words)
+I/cli/verbguardrace_test.go 224–244                 (coin race deleted)
+I/diagnostics/manual_test.go 22,28,33,121–127       (the class group → a two-word path that stays, e.g. `show changes`)
+I/difftest/{contract_test.go 94,308; golden_test.go 164,169–176,190,233–242; harness_test.go 63; scenarios_test.go 19,58–59}  (§III.10)
+I/record/classmaterial_test.go 16–18,83–106,208–226 (MODIFY: liveRegistryRun → a lens run with no registry; slugs → ClassFor; its four registry/coining tests deleted)
+I/record/redvoice_test.go 15,34,50,69,85,102         (the same helper, spec_underspecification)
+I/record/replay_test.go 59,605–775                  (TestValidateClassRegistry deleted; class-registry.json leaves the non-shard example list)
+I/record/legacyformat_test.go 75                    (the same example list)
+I/record/writelookups_parity_test.go 122–123        (the ClassCoinedInRun assertion goes)
+I/record/writerace_test.go 70–71,225                (coin racer deleted)
+I/record/migrate/classmaterial_test.go → gapclass_test.go 180–211,241,275–284,367  (§III.8)
+I/record/migrate/publish_test.go 30,214,425–457     (§III.8)
+I/record/migrate/reproduceanchor_test.go 153,158–160 (translateStagedRegistry call and comment)
+I/seatprobe/boardclasses_test.go 11–34              (deleted: BoardClasses is []GapClass and ShippedClasses is gone, so it asserts what the type guarantees)
+I/seatprobe/separatedbuild_test.go 35               (the staged-registry item leaves the MEASURED block)
+I/setup/unresolvablerun_test.go 27                  (comment: a "cannot resolve the record directory" reason)
+Z/fuzz_test.go 115–117,213,343–349,1681–1730,1871,3551–3562,4458–4460,4545–4547,6082–6086,6126–6135  (§III.10)
+```
+No change (N): petition `class` (`promptverbs_test.go:958`, `debatejs/petition_test.go`, `enums_test.go`,
+`termination_test.go`, `fuzz_test.go:884–962`, `replay_test.go:934`), the terms registry (`vocabulary_prose_test.go`,
+`manualwords_test.go`, `descriptions_test.go:68–112`, `terms_test.go`, `scripts/vocabdoc`, `check/gates.go:260`),
+the protocol registry (`dashboard_serve_test.go:112`, `promptverbs_test.go:744`, `archaeology`, `check/gates.go:215`,
+`pluginparity/main.go:308`), migrate's `Registry`, `protoregistry`, the narrowed-view map, the SQL driver
+registry, agentgen's fragment registry, `r.coin` and other coin flips, `cli_test.go:1067` (mint without `--class`
+stays refused), `universe-board.py:68` (reads the column's word).
+</details>
+
 **Rendered, not grepped.** `mint --help`, `class --help`, `class new --help`, `class list --help` and
 the `mint --class nope` refusal were rendered from the built `be6c110d` binary into
 `~/.claude/scratch/relocations/gapenum/help-*.txt` (quoted in §I and §II). §V.3 renders them again
 after the change.
 
-**Census size:** 12 queries; ≈ 300 tracked files hit outside `plans/`; ≈ 200 change (≈ 128 by the
-mechanical fixture pass, ~35 regenerated, the rest by hand), 14 law files and 9 code/tool files deleted, the
+**Census size:** 16 queries; ≈ 300 tracked files hit outside `plans/`; ≈ 200 change (≈ 110 by the
+mechanical fixture pass, ~35 regenerated, the rest by hand), 14 law files, 9 code/tool files and 2 help documents deleted, the
 remainder verified no-change above.
 
 ### III.15 Interactions
 
 - **#1452 (law retired).** This PR deletes `HarvestClasses`, its capture output lines and the 14
-  `law/proposed/class-*.md`; `HarvestPrecedents` and `law/proposed/` itself stay for #1452, as do
-  setup's `<cwd>/law` mirror and its `law:` summary line. Either order merges cleanly; if #1452 lands
+  `law/proposed/class-*.md` — the directory's only files, so `law/proposed/` leaves the tree (git
+  tracks no empty directory). Both readers handle that with no change: `scripts/lawqueue/main.go:96–99`
+  reads a missing `law/proposed/` as "nothing has been harvested yet" and returns (its `check` gate
+  stays green), and `HarvestPrecedents` creates it on write (`capture.go`, `os.MkdirAll` before its
+  first file). `HarvestPrecedents` stays for #1452, as do setup's `<cwd>/law` mirror and its `law:`
+  summary line. Either order merges cleanly; if #1452 lands
   first, its deletion of `capture.go`'s harvest block makes III.11's capture edit a no-op.
 - **#1454 (scorecards from the archive).** Untouched: `WriteScorecards` and `feov-memory/*-scorecard.md`
   stay. A cross-run `unclassified` rate (F4) is #1454's to add, reading the archived telemetry.
@@ -874,16 +1449,20 @@ remainder verified no-change above.
 | # | Risk | L | I | Mitigation cost | Mitigation (step) |
 |---|---|---|---|---|---|
 | R1 | An archived run fails to migrate (an unmapped slug, a dropped column, the D7 check on a catch-all mint without a reason) | Med | High — the census test is red | Low | `TestEveryArchivedRunMigrates` over 27 tarballs; `TestEveryArchivedClassLandsOnAValue`; measured: the one catch-all mint carries a `mint_reason` (III.8, §V.5) |
-| R2 | A migrated gap changes materiality | Med (merges move defaults) | High — an archived board reads differently | Low | D5 keeps every recorded stamp; m28 test compares `class_material` per `gap_id`; pre-field fills are stated (III.8) |
+| R2 | A migrated gap changes materiality | Certain for 17 pre-field gaps (F9) | High — an archived board reads differently | Low | D5 keeps every recorded stamp (m28 test compares `class_material` per `gap_id`); the 17 moves are ruled residue, listed per run in §III.8, each pre-field mint a `StatedFill`, b6's PASS records its two as `migration_admitted_gap_ids`; `TestAPreFieldMintTakesItsNearestValuesDefault` pins one |
 | R3 | The enum-valued facet breaks the schema build (FK order inside the DDL transaction) | Med | Build/test break, loud | Low | `enumTables` orders the referenced table first; `schema.sql` golden (III.4) |
 | R4 | `enumhelp` change alters other enums' help | Low | Golden churn misread as intended | Low | other enums render byte-identically; `manual` golden diff read line by line (§V.3) |
-| R5 | Help/constitution size: ~30 values × ~450 chars ≈ 13 KB added to `mint --help` and to each of 7 lens constitutions (~100 KB each today), and to every wrong-word refusal | High (certain) | Medium — per-sitting context | Low to state, a fork to reduce | F3; definitions held to one sentence; the near-miss refusal names the word |
+| R5 | Help/constitution size: ~30 values × ~450 chars ≈ 13 KB added to `mint --help` and to each of 7 lens constitutions (~100 KB each today) | High (certain) | Medium — per-sitting context | Low | F3 accepts it; definitions held to one sentence; the refusal carries the near miss and the 30 words only (F7) |
 | R6 | Definitions trip the vocabulary gate (`TestVocabularyProse` bans variants such as "the debate") | Med | Gate red | Low | run the gate early; Table A already avoids run-voice words |
-| R7 | The fixture pass changes what a test asserts (a materiality test silently picks an `always` class) | Med | A test passes for the wrong reason | Med | rule in III.10; delete-the-row checks in §V.9 |
+| R7 | The fixture pass changes what a test asserts (a placeholder becomes an `always` class and masks severity) | Med | A test passes for the wrong reason | Med | III.10's rule keeps every placeholder `by_grade`; `ClassFor` ties a hand-set stamp to its class; §V.9's "stamp `always` unconditionally" mutation |
 | R8 | A carrier still teaches coining (agent prose, prompt, docs) | Med | Seats look for a verb that is gone | Low | §V.8 sweep; C4/C5/C11 re-run; rendered constitutions grepped |
-| R9 | The universe carries published content, not this checkout | Med (it has happened) | False pass of §V.7 | Low | §V.7 greps the installed binary's `mint --help` for `unclassified` and the epoch for 32 |
+| R9 | The universe carries published content, not this checkout | Med (it has happened) | False pass of §V.7 | Low | §V.7 checks the installed binary's `--schema` equals this branch's E, an epoch no published release carries; the installed `red-lens-logic.md` is grepped for the deleted verb |
 | R10 | Seat environment leaks into tests | High in an agent session | Reads as a code defect | Low | every §V step starts with the `FEOV_*` unset |
-| R11 | Smoke lenses never choose `unclassified` | High | Criterion 5 unmet by the run alone | Low | §V.7 drives one catch-all mint by hand on a copy of the finished run |
+| R11 | Smoke lenses never choose `unclassified` | High | Criterion 7 unmet by the run alone | Low | §V.7 drives one catch-all mint by hand on a copy of the finished run |
+| R12 | `by_severity` changes from an object keyed by grade to `[{grade,count}]` (D8) — a seat reading the object breaks | Low (the help has always documented the array; `dashboard` reads the typed row) | A bench `jq` returns null | Low | the constitutions inline the regenerated help; `TestTelemetryHelpTreeMatchesAnEmittedLine` pins help = bytes |
+| R13 | The stored-plan translation misses an id a `why` line prints, or mistakes a count for one | Med | High — a migrated plan names the wrong event, or a run fails to migrate | Low | A moved id outside every id phrase is a refusal, so a miss is loud (§III.8a step 4); `TestAStoredPlanCrossesARenumbering` checks each translated number against the event both databases hold there, not against `newID` |
+| R14 | Seat prose names an event by a number the replay moved (m28 23, m23 8, quadratic-formula 3, b8 2, b, b3, b9 1 each; jsonl runs number no event) | Certain on those runs | Low — a reader following "head 579" lands one event later | Low | Accepted residue (§III.8a); the manifest's `events_dropped` gives every shift; the source tarball keeps the original numbering; a bench direction and a quoted claim in a stored plan are carried as written too (F12) |
+| R15 | A translated plan differs from the relay the workflow journal recorded, so `capture/dispatchparity.go`'s `relayDepartures` (`:248`) would report a departure per translated plan | None today: no `run-archive/*.tar.gz` carries `trajectories/`, so no migrated run has a journal to compare | Low — a dispatch-parity FAIL on an archived run whose relays name the source numbering | Low | Accepted residue (§III.8a); the relay was of the source numbering, the source tarball keeps both |
 
 ## V. Verification Plan
 
@@ -894,33 +1473,46 @@ goes to a file; read the fail count, not the exit code. Check the box load befor
 timing.
 
 1. **Generators.** `go -C $W/scripts run ./protogen && go -C $W/scripts run ./schemagen && go -C $W/scripts run ./agentgen && go -C $W/scripts run ./vocabdoc`
-   then the `check` gates covering them (`agentgen -check`, `schemagen -check`, the protogen sha, `TestVocabularyProse`) → green. `feov-record --schema` → `32`. · re-armed by: `record.proto`,
+   then the `check` gates covering them (`agentgen -check`, `schemagen -check`, the protogen sha, `TestVocabularyProse`) → green. `feov-record --schema` → E (`requirements.json`'s `eventSchema`, one above `main`'s at rebase). · re-armed by: `record.proto`,
    `requirements.json`, `agentgen/src/**`, `terms.json`.
 2. **FEOV tests, uncached.** `go -C $T vet ./... && go -C $T test -count=1 ./... > ~/.claude/scratch/relocations/gapenum/test.out 2>&1; grep -c -- '--- FAIL' …/test.out`
    → 0; `grep -c '^ok' …/test.out` equals the package count. Includes `recordpb/gapclass_test.go`,
-   `TestUnclassifiedRequiresAReason`, the telemetry tests, `TestSetupReadsNoFeovMemory`, the migrate
-   tests. · re-armed by: anything under `$T`.
+   `TestAVocabularyFollowsTheVocabulariesItReferences`, `TestClassForHasTheMaterialityItNames`,
+   `TestUnclassifiedRequiresAReason`, `TestAMintTakesItsClassMaterialDefault`,
+   `TestALowGradePlaceholderMintDoesNotHoldTheGate`, `TestMintHelpListsEveryGapClass`,
+   `TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly`, `TestTelemetryHelpTreeMatchesAnEmittedLine`,
+   the three class-word renderer tests (§III.5), the telemetry tests, `TestSetupReadsNoFeovMemory`,
+   the migrate tests (`TestAStoredPlanCrossesARenumbering`, `TestAStoredPlanNamingMovedEventsIsTranslated`,
+   `TestAPreFieldMintTakesItsNearestValuesDefault`), the zero-mint epoch case of
+   `TestTelemetryHelpTreeMatchesAnEmittedLine`. · re-armed by: anything under `$T`.
 3. **Goldens, read.** `UPDATE_GOLDENS=1 go test -count=1 ./internal/difftest/... ./internal/record/recordsql/... ./internal/record/recordpb/...`
    in `$T`, and `go -C $W/scripts run ./golden -review` for the prompt goldens; then `git -C $W diff --stat -- '*.golden' '*.sql' '*testdata*'`
    and READ every changed line: the only changes are the `class` group's disappearance, `--class`'s
    enumerated block, underscore class words, the telemetry shape, `schema.sql`'s `enum_gap_class`/`mint`
    FK/check and `class_new` removal. Render, before and after, one at a time: `mint --help`,
-   `inquest telemetry --help`, the lens top-level `--help`, `mint --class report-voice …` (near-miss)
-   and `mint --class unclassified …` without `--reason`. · re-armed by: any help string, enum, golden.
+   `inquest telemetry --help`, the lens top-level `--help`, `mint --class report-voice …` (near-miss:
+   names `report_voice`, lists the 30 words, carries no definition) and `mint --class unclassified …`
+   without `--reason`; and one `inquest telemetry` line beside its help tree (`by_severity`/`by_class`
+   arrays of words). · re-armed by: any help string, enum, golden, `view.go`'s wire types.
 4. **Setup from an empty project, built binary (driveable).** In `~/.claude/scratch/relocations/gapenum/proj`
    (fresh `git init`, no `feov-memory/`), with the binary under `bin/` and `requirements.json` beside it:
    `feov-record --seat-id operator setup <proj>/research/probe --model haiku --judgment-model haiku`
    → exit 0, no `class registry` line; then as `red-lens-logic`: `register`, a `finding`, and `mint
    --class false_universal …` → recorded with `class_material: always`; `mint --class unclassified …`
    without `--reason` → refused naming the check's `why`; with `--reason` → recorded `by_grade`;
-   `inquest telemetry` as `red-chair` → the epoch's `unclassified_rate` equals the catch-all's share of that epoch's mints, and `by_class` lists both values. · re-armed by: setup,
+   `inquest telemetry` as `judge` (an `inquest` verb) → the epoch's `unclassified_rate` equals the catch-all's share of that epoch's mints, and `by_class` lists both values. · re-armed by: setup,
    mint, view.
-5. **migrate on archived runs.** `go -C $T test -count=1 -run 'TestTheGapClassMigratesOntoTheEnum|TestEveryArchivedClassLandsOnAValue|TestEveryArchivedRunMigrates' ./internal/record/migrate/`
-   → ok, 27 subtests in the census. Then driveable on the real archive: extract
+5. **migrate on archived runs.** `go -C $T test -count=1 -run 'TestTheGapClassMigratesOntoTheEnum|TestEveryArchivedClassLandsOnAValue|TestEveryArchivedRunMigrates|TestAStoredPlanCrossesARenumbering|TestAPreFieldMintTakesItsNearestValuesDefault|TestAStoredPlanNamingMovedEventsIsTranslated|TestAMigrationThatDropsNothingStatesAnEmptyList|TestAStoredPlanMigratesAsPrinted' ./internal/record/migrate/` and `go -C $T test -count=1 -run 'TestARemandLineCarriesItsDirectionAsWritten' ./internal/record/`
+   → ok, 27 subtests in the census, zero refusals in each. Then driveable on the real archive: extract
    `run-archive/2026-10-18_is-91-prime-m28.tar.gz` into scratch, `feov-record migrate` it with the built
    binary, and read the manifest's `class_translations` and `stated_fills` and `SELECT class,
    class_material, count(*) FROM mint GROUP BY 1,2` on the result (`file:` URI, `mode=ro`) against the
-   same query on the source. · re-armed by: `migrate/**`, `record.proto`.
+   same query on the source; then `SELECT e.id, p.printed FROM plan p JOIN events e ON e.id = p.event_id`
+   on both, and read event 604's pair by eye: `head 579` → `head 578`, `pin 507` kept, `edit 579` →
+   `edit 578`, a new key; the manifest's `events_dropped` names 564 and 572. The same on
+   `2026-09-11_is-91-prime-b6`: `G2`/`G7` `always`, the PASS's `migration_admitted_gap_ids` holding
+   both, a `stated_fills` row per mint. · re-armed by: `migrate/**`, `record.proto`, `record/planstore.go`,
+   the `why` producers (`retirement.go`, `passblockers.go`, `dispatch.go:284–431,1036–1054`, `impasse.go`).
 6. **Release-gate fuzz.** `cd $T && FEOV_RELEASE_GATE=1 go test -count=1 ./releasegate/fuzz/` → ok;
    the fuzz's own coverage table shows `unclassified` minted and refused-without-reason at least once.
    If red, run the same on `origin/main` before blaming the branch.
@@ -928,44 +1520,110 @@ timing.
    ```
    $W/scripts/universe.sh build
    U=~/.claude/scratch/universe/plugins/cache/special-circumstances/frank-exchange-of-views
-   ls $U/*/bin/feov-record && $U/*/bin/feov-record --schema            # → 32
-   grep -c 'GAP_CLASS_UNCLASSIFIED\|unclassified' $U/*/bin/feov-record    # ≥1: this checkout
+   ls $U/*/bin/feov-record && $U/*/bin/feov-record --schema            # → E: no published release carries it, so this is the checkout
    grep -c 'class new' $U/*/agents/red-lens-logic.md                        # 0
    MODEL=haiku JUDGMENT_MODEL=haiku LANES=1 $W/scripts/universe.sh run "is 91 prime" --mint-budget 3 --k-max 2
    ```
    (stream-json via `universe.sh`, never `--output-format json`; `universe.sh watch` read-only; confirm
    the universe bills the subscription before launching — memory "universe billed API credits".)
-   Then: `test ! -e ~/.claude/scratch/universe/src/feov-memory`; the run log has no `staged feov-memory`
+   `universe.sh` keeps `$WORKDIR/src` between runs, so a `feov-memory/` an earlier build staged
+   survives the deletion of the staging block: BEFORE `run`, `rm -rf ~/.claude/scratch/universe/src/feov-memory`
+   (scratch, inside the universe's own work directory). Then: `test ! -e ~/.claude/scratch/universe/src/feov-memory`; the run log has no `staged feov-memory`
    line; the run's own `.bin/feov-record` (not a PATH lookup) reports ≥1 `mint` and zero class
    refusals in the transcripts. If no lens chose `unclassified`, copy the finished run directory and,
    with its `.bin/feov-record` as `red-lens-logic`, `register` and mint once with `--class
    unclassified` without and then with `--reason`; record which path satisfied the criterion.
    · re-armed by: `universe.sh`, setup, mint, agentgen output.
-8. **Carrier sweep.** Success criterion 6's `git grep` over `plugins/ scripts/ .github/ docs/` → nothing;
+8. **Carrier sweep.** Success criterion 8's `git grep` (with its `\b` and its `scripts/rulesweep` exclusion) → nothing;
    `git -C $W grep -n -E "\b($(cat ~/.claude/scratch/relocations/gapenum/slugs.re))\b" -- plugins/frank-exchange-of-views/agents plugins/frank-exchange-of-views/skills scripts/agentgen/src plugins/frank-exchange-of-views/tools/internal/terms`
-   → nothing (hyphenated class words are gone from seat-facing text). Re-run C1–C12 and compare to
-   the no-change lists in III.14.
+   → nothing (hyphenated class words are gone from seat-facing text). The comment sweep of §III.5 →
+   only its listed no-change hits; the two test/non-Go sweeps of §III.5 → only C16's N hits. Re-run
+   C1–C16 and compare to the no-change lists in III.14.
+   · re-armed by: any edit to a carrier, prompt, constitution source, doc or comment.
 9. **Delete-the-row / delete-the-call** (each restored after): delete one `GapClass` value's
    `(material_default)` → schema build refuses (partly annotated); delete one `(neighbor)` →
    `TestEveryGapClassNamesItsNeighbour` fails; delete one row of `migrate/gapclass.go` →
    `TestEveryArchivedRunMigrates` fails for that run; delete the `Mint` `(check)` →
    `TestUnclassifiedRequiresAReason` fails; make `stampClassMaterial` stamp `by_grade` unconditionally →
-   the m28 migrate test and a cli materiality test fail; exclude-nothing in `class_repeat_rate` →
-   `…CountsOnlyTheCatchAll` fails. Any that stays green is a gap closed before done.
+   the m28 migrate test and `TestAMintTakesItsClassMaterialDefault` fail; **make it stamp `always`
+   unconditionally → `TestALowGradePlaceholderMintDoesNotHoldTheGate` (a `by_grade` fixture) fails**;
+   exclude-nothing in `class_repeat_rate` → `…CountsOnlyTheCatchAll` fails; drop the dependency-first
+   visit in `enumTables` → `TestAVocabularyFollowsTheVocabulariesItReferences` fails (and record opens
+   fail at the `INSERT`); restore `severityObject` on `by_severity`, or fill `by_class[].class` with the
+   number → `TestTelemetryHelpTreeMatchesAnEmittedLine` fails; delete `UnclassifiedRate` from
+   `newMintJSON` → the same; pass `g.Mint.GetClass()` unconverted at `assemble.go:863` or
+   `graph.go:223` → `TestTheOpenGapRowNamesItsClassWord` / `TestTheGapNodeNamesItsClassWord` fails;
+   make `Refuse` append the `Menu` unconditionally → `TestAWrongClassIsRefusedWithTheNearMissAndTheWordsOnly`
+   fails; return `ClassFor(cm)` = `spec_underspecification` for every `cm` →
+   `TestClassForHasTheMaterialityItNames` fails; drop the `why` translation in `translatePlanIDs` →
+   `TestAStoredPlanCrossesARenumbering` fails at event 604; drop the pin translation → the same; drop
+   the re-key → 9 refusals on m28; drop the moved-id-outside-a-phrase refusal →
+   `TestAStoredPlanNamingMovedEventsIsTranslated` fails; drop the remand-tail rule, or search the
+   remand prefix inside quoted spans, or read numerals as bare digit runs → the same test fails (the
+   remand line, the `(contradiction 412)` line, the `G-7b637cca` line), and bare digit runs also refuse
+   14 m28 lines; reword `dispatch.go:365`'s prefix → `TestARemandLineCarriesItsDirectionAsWritten`
+   fails; start `events_dropped` at `nil` → `TestAMigrationThatDropsNothingStatesAnEmptyList` fails; restore `shippedDefault` →
+   `TestAPreFieldMintTakesItsNearestValuesDefault` and sleeper's `citation-support-mismatch` row fail;
+   fill `by_class` by plain assignment from the nil getter → the zero-mint case of
+   `TestTelemetryHelpTreeMatchesAnEmittedLine` fails. Any that stays green is a gap closed before done.
+   · re-armed by: each named mechanism.
 10. **All local gates.** `go -C $W/scripts run ./check > …/check.out 2>&1` → every gate PASS, fail count
     read; `-list` no longer lists `classgen`. A workflow edit (`hooks.yml`) needs CI's `actionlint`
     before a green claim.
-11. **Auditor gate.** `/prosthetic-conscience:plan-audit plans/gap-class-enum.md` → PASS, after F1–F4
-    are ruled.
+11. **Auditor gate.** `/prosthetic-conscience:plan-audit plans/gap-class-enum.md` → PASS; F1–F12 are
+    ruled.
 
 ## Forks — rulings (gblock, 2026-10-18)
 
-- **F1 — Membership (§III.2): PENDING the human's review of Tables A–C** (gblock reviews before the gate).
+- **F1 — Membership (§III.2): RULED, Tables A–C as proposed, the ⚑ calls included** (gblock, 2026-10-18: "wholly agreed").
 - **F2 — Add both `unsourced_claim` and `invalid_inference`, `by_grade`: RULED, add both.**
 - **F3 — Render all four fields (value, materiality, definition, nearest neighbour + distinguisher) in `mint --help` and, through `agentgen`, in every lens constitution: RULED, full.** The ≈ 13 KB per lens constitution (R5) is accepted.
 - **F4 — `unclassified` rate per epoch now (D8); the cross-run rate goes with #1454: RULED.**
+- **F5 — D7's residue: RULED, accepted.** The nearest value lives in `--reason` prose; the check
+  requires only a non-empty reason. No `--nearest` field.
+- **F6 — D8's help/wire mismatch: RULED, fix both in this PR.** `by_severity` and `by_class` alike;
+  one test (`TestTelemetryHelpTreeMatchesAnEmittedLine`: the rendered help tree against an emitted
+  telemetry line) covers every `telemetryLineJSON` field with a custom `MarshalJSON` or a proto enum.
+- **F7 — R5's refusal: RULED, near miss + the 30 words only.** Full definitions stay in `mint --help`
+  and the constitutions; the refusal and the help need not share the block (D9).
+- **F8 — Stored plans across a renumbering: RULED, translate inside migrate** (round 2). Each stored
+  plan whose printed head or pins a dropped event renumbers is rewritten to the new ids with its key
+  recomputed, so the migrated record holds the equivalent state; general over any event that writes
+  none, not class-specific; no field added to the live record (D10, §III.8a).
+- **F9 — Pre-field coined mints: RULED, "clean up implementation and choose nearest for historical."**
+  Each historical slug takes its nearest value (Table C's target) and that value's `material_default` by
+  the live rule; `shippedDefault` / `ShippedMaterialDefaults`' fill path is deleted. Residue stated: 17
+  archived gaps move `by_grade` → `always` (§III.8 lists them — 8 runs by measurement; the ruling's
+  "9 runs" covers the same 17); `TestAPreFieldMintTakesItsNearestValuesDefault` asserts one (b6 `G2`).
+- **F10 — The empty tally: RULED, `[]`, never `null`**; the help-agreement test also decodes a
+  zero-mint epoch line (§III.9).
+- **F11 — The refusal path rewrite: RULED, delete.** `migrate.go:170–176`'s `b.atTo` over refusal
+  text and `TestARefusalNamesToNotTheBuild` go; `build.atTo` stays for the warnings (`migrate.go:69`)
+  and `atToError` (`publish.go:293`). Residue stated: no refusal names a run path today; a later one
+  that does publishes the build path into `inputs/migration.json` and nothing fails — no lens reads
+  the manifest, and migrate runs outside a debate (§III.8).
+- **F12 — The remand direction in a stored plan's `why`: RULED, carry as written.** The span after
+  the fixed `on the ruling's direction: ` prefix is seat prose, neither translated nor refused, as a
+  `%q` span is (§III.8a step 4).
+- Decided and disclosed (reversible, in scope), round 4: a numeral is an all-digit
+  `[A-Za-z0-9_-]+` token, so a content id's hex digits are never read as an id (§III.8a step 4);
+  `planIDPhrases` and `remandDirectionPrefix` are migrate's own copy of the verb's wording, pinned to
+  the live verb by `TestARemandLineCarriesItsDirectionAsWritten`, because they describe archived bytes;
+  a `"` that opens no Go-quoted span outside the remand tail is a refusal; the exported key rule is
+  `Plan.WithKey` (not `Keyed`, which `Answer.Keyed` already means otherwise), and `debatejs.Keyed`
+  takes the same name; `revisionEntry` becomes the shared `toNoEvent`; `events_dropped` starts `[]`;
+  `TestAMigrationThatDropsNothingStatesAnEmptyList` on `final` is added.
+- Decided and disclosed (reversible, in scope), round 3: the plan's `why` ids are read through a closed
+  phrase table with every miss a refusal, and a quoted claim is left as prose (§III.8a step 4);
+  `record.keyed` exported for migrate's re-key (named `Plan.WithKey` in round 4); seat prose naming a moved event number is
+  accepted residue, stated by the manifest's new `events_dropped` (§III.8a); every pre-field mint, not
+  only the 17 whose default moved, is a `StatedFill` (which moved is computable only against the deleted
+  table); b6's no-admission test is inverted by F9 and its rule moves to a seeded source (§III.8);
+  `seatprobe/boardclasses_test.go` is deleted rather than reduced to what the type guarantees.
 - Decided and disclosed (reversible, in scope): underscore spelling (D2); `material_default` as an
   enum-typed facet, `neighbor`/`distinguisher` as help-only options (D3, D4); `Mint.class_material`
   stays stored (D5); `unclassified` kept despite two same-sense hits (D6); the reason requirement as a
   database check (D7); `by_class` becomes a tally list and `class_repeat_rate` excludes the catch-all
-  (D8); `class-registry-seed.md` stays as a design record.
+  (D8); both tallies as arrays of plain structs rather than an override in `jsonshape` (D8 (a));
+  `spec_underspecification` as the fixture placeholder (§III.10); `class-registry-seed.md` stays as a
+  design record.
