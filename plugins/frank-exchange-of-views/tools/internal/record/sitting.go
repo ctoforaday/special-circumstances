@@ -130,7 +130,7 @@ func SittingOf(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, 
 	if s.LastSitting != nil {
 		switch s.LastSitting.Kind {
 		case "first":
-			may("audit the report in full — this is your first sitting on it, so nothing of it is yet yours to have read")
+			may("audit the report in full — you have sat through no sitting on it before this one, so nothing of it is yet yours to have read")
 		case "behind":
 			// THE PINS ARE NAVIGATION, NOT THE AUDIT SURFACE, and this item said the opposite.
 			//

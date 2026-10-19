@@ -38,6 +38,10 @@ import (
 //   - A SITTING is the first opening after a dispatch naming the lens (sittingFor) — the hook's
 //     bracket, or a register no bracket preceded — including the sittings it is engaged for on its
 //     own gaps. Its PIN is the head that dispatch recorded.
+//   - IT COUNTS WHEN THE LENS SAT THROUGH IT (satThrough). A sitting stopped at the per-sitting call
+//     limit, or one that never closed, is neither sat nor barren: it moves no pin and adds nothing
+//     to the count. Opening a sitting is not auditing the report, and a lens cut off at the final
+//     head would otherwise read as having audited it.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
 //   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW.
 //     A productive sitting returns the count to zero, a retired lens's included.
@@ -51,8 +55,8 @@ const retiresAfter = 3
 type lensFold struct {
 	seat     string
 	barren   int      // trailing sittings with no fresh material mint
-	sittings int      // sittings on the record
-	pin      int64    // pin of the last dispatch it sat for; 0 when it never sat
+	sittings int      // sittings it sat through
+	pin      int64    // pin of the last dispatch it sat through (satThrough); 0 when it has sat through none
 	owes     []string // what it owes (lensOwesOf), each named
 	ready    bool
 	why      string
@@ -81,7 +85,8 @@ func (f lensFold) retiresWhy() string {
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
 //     (blueAnswersOf), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
 //     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
-//     opens a sitting after it arrived, whether or not that sitting acts on it. A gap it holds with
+//     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
+//     on it. A sitting stopped at the call limit, or one that never closed, does not end the debt. A gap it holds with
 //     nothing new on it owes nothing: every act a lens has on its own gap waits on another seat's act,
 //     or is a judgement it could make at mint, so a later sitting with nothing new gives it nothing to
 //     act on. universe-m28's architecture and voice lenses held their own gaps that are not material,
@@ -94,13 +99,14 @@ func (f lensFold) retiresWhy() string {
 func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, events []Blocker) map[string][]string {
 	out := map[string][]string{}
 	_, openings := dispatchLedger(evs, ids, win)
+	ends := satThroughOf(evs, ids, win, openings)
 	open, minted := map[string]bool{}, map[string]string{}
 	for _, g := range gaps {
 		open[g.id], minted[g.id] = true, g.mintedBy
 	}
-	// owe names item for lens while it has opened no sitting since at.
+	// owe names item for lens while it has sat through no sitting that opened since at.
 	owe := func(lens string, at int64, item string) {
-		if _, sat := firstAfter(openings[lens], at); lens != "" && !sat {
+		if _, sat := firstAfter(ends.through[lens], at); lens != "" && !sat {
 			out[lens] = append(out[lens], item)
 		}
 	}
@@ -155,6 +161,7 @@ type StaleArea struct {
 func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh map[string]bool, owes map[string][]string) []lensFold {
 	cast := castOfEvents(evs)
 	ds, openings := dispatchLedger(evs, ids, win)
+	ends := satThroughOf(evs, ids, win, openings)
 	var out []lensFold
 	for _, seat := range cast {
 		if seatclass.RoleOfSeat(seat) != "lens" {
@@ -163,6 +170,7 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 		f := lensFold{seat: seat, owes: owes[seat]}
 		sat := map[int64]bool{}
 		var sittings []int64
+		var short string // why the sitting of its latest dispatch is not one it sat through; "" when it is
 		for _, d := range ds {
 			if d.seat != seat {
 				continue
@@ -171,7 +179,12 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			if !ok {
 				continue
 			}
-			f.pin = d.pin
+			short = ""
+			if ends.sat(seat, r) {
+				f.pin = d.pin
+			} else {
+				short = fmt.Sprintf("its sitting opened at %d %s, so it counts neither as sat nor toward retirement", r, ends.short[r])
+			}
 			if !sat[r] {
 				sat[r] = true
 				sittings = append(sittings, r)
@@ -193,11 +206,18 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 				productive[sittings[k]] = true
 			}
 		}
+		// A SITTING IT DID NOT SIT THROUGH IS NEITHER SAT NOR BARREN (satThrough): it is skipped, so
+		// the count runs on as if it had not been dispatched. A fresh material mint it made is on the
+		// record all the same, and resets the count.
 		for _, s := range sittings {
-			f.sittings++
-			if productive[s] {
+			through := ends.sat(seat, s)
+			if through {
+				f.sittings++
+			}
+			switch {
+			case productive[s]:
 				f.barren = 0
-			} else {
+			case through:
 				f.barren++
 			}
 		}
@@ -206,10 +226,15 @@ func lensStates(evs []*Event, ids []int64, win WindowIndex, head int64, fresh ma
 			f.why = fmt.Sprintf("%s: not ready, no report has been ingested", seat)
 		case f.retired():
 			f.why = fmt.Sprintf("%s: retired (pin %d) — its last %d sittings minted no fresh material; not ready", seat, f.pin, f.barren)
+		case f.sittings == 0 && short != "":
+			f.ready, f.why = true, fmt.Sprintf("%s: has sat through no sitting — %s — audits the report at head %d", seat, short, head)
 		case f.sittings == 0:
 			f.ready, f.why = true, fmt.Sprintf("%s: never sat — audits the report at head %d", seat, head)
 		case head > f.pin:
 			f.ready, f.why = true, fmt.Sprintf("%s: head %d moved past its last sitting's pin %d — audits the report (%d sitting(s) in a row with no fresh material mint; %s)", seat, head, f.pin, f.barren, f.retiresWhy())
+			if short != "" {
+				f.why += "; " + short
+			}
 		case f.barren >= retiresAfter:
 			f.why = fmt.Sprintf("%s: sat at the head (pin %d) — ready when the head moves; %s", seat, f.pin, f.retiresWhy())
 		default:
@@ -356,8 +381,9 @@ func passLensGateOfRun(run Run) (passLensGate, bool, error) {
 	return passLensGateOf(r.evs, ids, r.win, r.fresh, owes), true, nil
 }
 
-// LastSittingJSON is a lens's last sitting, as its work view carries it: the latest sitting STRICTLY
-// BEFORE the dispatch it is now sitting for. Kind is first | behind | unchanged | undispatched.
+// LastSittingJSON is a lens's last sitting, as its work view carries it: the latest sitting it SAT
+// THROUGH strictly before the dispatch it is now sitting for. Kind is first | behind | unchanged |
+// undispatched; first is a lens that has sat through none.
 type LastSittingJSON struct {
 	Kind string `json:"kind"`
 	Pin  int64  `json:"pin"`
@@ -368,8 +394,9 @@ type LastSittingJSON struct {
 // sitting has opened — at the hook's bracket or at its register — and sittingFor counts that
 // opening as having sat, so the sitting for the latest dispatch is the current one, and every lens
 // would read `unchanged`. D is the latest dispatch naming the seat (the one it sits for, or owes);
-// a prior sitting is a dispatch d before D whose sitting opened before D, so an unsat earlier
-// dispatch cannot borrow the current opening.
+// a prior sitting is a dispatch d before D whose sitting opened before D and that it sat through
+// (satThrough), so an unsat earlier dispatch cannot borrow the current opening, and a sitting
+// stopped at the call limit or never closed is not a read of the report it was pinned to.
 func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string) LastSittingJSON {
 	ds, openings := dispatchLedger(evs, ids, win)
 	var cur *dispatchRow
@@ -382,13 +409,14 @@ func lastSittingBefore(evs []*Event, ids []int64, win WindowIndex, seatID string
 	if cur == nil {
 		return LastSittingJSON{Kind: "undispatched"}
 	}
+	ends := satThroughOf(evs, ids, win, openings)
 	var prior *dispatchRow
 	for i := range ds {
 		d := ds[i]
 		if d.seat != seatID || d.at >= cur.at {
 			continue
 		}
-		if r, ok := sittingFor(openings[seatID], d); ok && r < cur.at {
+		if r, ok := sittingFor(openings[seatID], d); ok && r < cur.at && ends.sat(seatID, r) {
 			prior = &ds[i]
 		}
 	}

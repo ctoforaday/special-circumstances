@@ -140,8 +140,10 @@ func TestAWokenLensWithNothingToDoOwesNothingAndRunsNoCommands(t *testing.T) {
 	// would be re-dispatched for the same unsat dispatch forever.
 	//
 	// THE LENS IS NOT READIED AGAIN: it sat at the head (retirement.go), and the fold that says so
-	// reads the hook-opened sitting through the same ledger the work list does.
-	plan, err := PlanDispatch(hookOpened().seed())
+	// reads the hook-opened sitting through the same ledger the work list does. The chair plans
+	// after the lens returned, so its agent's stop is on the record: a sitting still open is not
+	// one it sat through (satThrough).
+	plan, err := PlanDispatch(hookOpened().stop("agent-lens-1").seed())
 	if err != nil {
 		t.Fatal(err)
 	}
