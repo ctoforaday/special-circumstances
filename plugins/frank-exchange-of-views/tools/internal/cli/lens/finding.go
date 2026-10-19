@@ -122,7 +122,8 @@ func newFinding() *cobra.Command {
 	c.Flags().Var(&impact, flags.Impact, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT))
 	// A finding anchors by --quote OR by --about-kind/--about, and the handler refuses one with
 	// neither — so the marker states the condition, not the bare word.
-	flags.Text(c, flags.Quote, "REQUIRED unless --about-kind/--about name the subject — "+flags.DescQuote+". The finding anchor is placed there")
+	flags.Text(c, flags.Quote, flags.DescQuote+". The finding anchor is placed there")
+	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
 	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
 		"anchor this finding to something that is NOT report text — a section for what is missing from it, an inquiry, a gap already on the board, or a contradiction red recorded; use instead of --quote. A finding about a gap reaches the seat that minted it, the one seat that can act on it. A finding about an inquiry reaches no seat's work list; a gap anchors to an inquiry the same way, and a material one is on blue's. A finding about a contradiction raises it, and answers it whether or not the report still holds the sentence")
 	flags.Text(c, flags.About, "the reference --about-kind names: a section heading, an inquiry id, a gap id, or a contradiction's id, which show evidence lists under unanswered_contradictions. It is CHECKED against the record")

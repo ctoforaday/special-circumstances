@@ -42,8 +42,8 @@ import (
 // --fix` reads "the required fix, as prose" — where "required" is part of the FIELD NAME
 // (required_fix) and claims nothing about the flag. A gate that fires on prose trains its reader
 // to skim.
-func markedUnconditionally(usage string) bool {
-	cond, ok := seat.MarkedCondition(usage)
+func markedUnconditionally(f *pflag.Flag) bool {
+	cond, ok := seat.MarkedCondition(f)
 	return ok && cond == ""
 }
 
@@ -103,7 +103,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 				return
 			}
 			c.Flags().VisitAll(func(f *pflag.Flag) {
-				if !markedUnconditionally(f.Usage) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
+				if !markedUnconditionally(f) || notEnforcedAtTheFlag[f.Name] != "" || satisfiedByAnother[f.Name] != "" {
 					return
 				}
 				checked++
@@ -117,7 +117,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					}
 					// Supply every OTHER required flag, so the refusal under test is this one's.
 					c.Flags().VisitAll(func(o *pflag.Flag) {
-						if o.Name == f.Name || !markedUnconditionally(o.Usage) {
+						if o.Name == f.Name || !markedUnconditionally(o) {
 							return
 						}
 						args = append(args, "--"+o.Name, placeholderFor(c, o, path))
