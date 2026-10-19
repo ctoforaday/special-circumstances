@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
 )
 
 // WHAT THIS RUN IS BILLED TO, recorded because the run had no way to say.
@@ -58,12 +60,10 @@ type BillingIdentity struct {
 // says so, not one that refuses to start.
 func ReadBillingIdentity() BillingIdentity {
 	b := BillingIdentity{}
-	cfg := os.Getenv("CLAUDE_CONFIG_DIR")
 	home, _ := os.UserHomeDir()
-	if cfg != "" {
-		b.ConfigDir, b.Isolated = cfg, cfg != filepath.Join(home, ".claude")
-	} else {
-		cfg = filepath.Join(home, ".claude")
+	cfg := claudedir.ConfigDir(os.Getenv, home)
+	if os.Getenv("CLAUDE_CONFIG_DIR") != "" {
+		b.ConfigDir, b.Isolated = cfg, cfg != claudedir.ConfigDir(func(string) string { return "" }, home)
 	}
 
 	// The credential says which PLAN is in force. Only the non-secret fields are read.

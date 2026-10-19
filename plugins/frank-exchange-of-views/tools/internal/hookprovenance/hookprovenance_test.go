@@ -13,9 +13,9 @@ import (
 
 // cachePlugin writes a plugin cache entry: a version directory with the given bin/ contents and
 // a hooks.json registering the given hook binaries.
-func cachePlugin(t *testing.T, home, marketplace, plugin, version string, bins, registers []string) {
+func cachePlugin(t *testing.T, cache, marketplace, plugin, version string, bins, registers []string) {
 	t.Helper()
-	dir := filepath.Join(home, ".claude", "plugins", "cache", marketplace, plugin, version)
+	dir := filepath.Join(cache, marketplace, plugin, version)
 	if err := os.MkdirAll(filepath.Join(dir, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -73,11 +73,11 @@ func TestNoCachedPluginIsRecordedAsAnObservationNotAnEmptyField(t *testing.T) {
 // version that REGISTERS a hook binary it does not ship. The entry fires, the guard finds no
 // binary, and the run proceeds with no identity injection while the fetch runs.
 func TestAVersionThatRegistersAHookItDoesNotShipIsReported(t *testing.T) {
-	home := t.TempDir()
-	cachePlugin(t, home, "sc", "frank-exchange-of-views", "1.58.0",
+	cache := t.TempDir()
+	cachePlugin(t, cache, "sc", "frank-exchange-of-views", "1.58.0",
 		[]string{"feov-record"}, []string{"feov-record", "feov-pretooluse"})
 
-	p := Observe(home, "frank-exchange-of-views")
+	p := Observe(cache, "frank-exchange-of-views")
 	if p.State != "installed" {
 		t.Fatalf("state = %q, want installed", p.State)
 	}
@@ -101,12 +101,12 @@ func TestAVersionThatRegistersAHookItDoesNotShipIsReported(t *testing.T) {
 // TWO CACHED VERSIONS IS ITSELF THE FINDING. The harness picks one and nothing here can say
 // which, so a run with two is ambiguous and a reader should see both rather than one.
 func TestEveryCachedVersionIsRecordedBecauseNothingHereKnowsWhichRan(t *testing.T) {
-	home := t.TempDir()
-	cachePlugin(t, home, "sc", "frank-exchange-of-views", "1.58.0", []string{"feov-record"}, nil)
-	cachePlugin(t, home, "sc", "frank-exchange-of-views", "1.63.0",
+	cache := t.TempDir()
+	cachePlugin(t, cache, "sc", "frank-exchange-of-views", "1.58.0", []string{"feov-record"}, nil)
+	cachePlugin(t, cache, "sc", "frank-exchange-of-views", "1.63.0",
 		[]string{"feov-record", "feov-pretooluse"}, nil)
 
-	p := Observe(home, "frank-exchange-of-views")
+	p := Observe(cache, "frank-exchange-of-views")
 	if len(p.Versions) != 2 {
 		t.Fatalf("versions = %v, want both cached versions — recording one would state a choice this binary did not make", p.Versions)
 	}
@@ -167,10 +167,10 @@ func TestAnUnreadableHooksFileIsStatedNotAnEmptyList(t *testing.T) {
 		"another form":    `{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"exec \"$CLAUDE_PLUGIN_ROOT/bin/feov-pretooluse\""}]}]}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			home := t.TempDir()
-			cachePlugin(t, home, "sc", "frank-exchange-of-views", "1.58.0", []string{"feov-record"}, nil)
+			cache := t.TempDir()
+			cachePlugin(t, cache, "sc", "frank-exchange-of-views", "1.58.0", []string{"feov-record"}, nil)
 			if hooks != "" {
-				dir := filepath.Join(home, ".claude", "plugins", "cache", "sc", "frank-exchange-of-views", "1.58.0", "hooks")
+				dir := filepath.Join(cache, "sc", "frank-exchange-of-views", "1.58.0", "hooks")
 				if err := os.MkdirAll(dir, 0o755); err != nil {
 					t.Fatal(err)
 				}
@@ -178,7 +178,7 @@ func TestAnUnreadableHooksFileIsStatedNotAnEmptyList(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			p := Observe(home, "frank-exchange-of-views")
+			p := Observe(cache, "frank-exchange-of-views")
 			if p.State != "unreadable" || !strings.Contains(p.Why, "1.58.0") {
 				t.Fatalf("state = %q, why = %q; want unreadable, naming the version", p.State, p.Why)
 			}
@@ -202,16 +202,16 @@ func TestTheShippedHooksFileRegistersItsBinaries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	home := t.TempDir()
-	cachePlugin(t, home, "sc", "frank-exchange-of-views", "9.9.9", nil, nil)
-	dir := filepath.Join(home, ".claude", "plugins", "cache", "sc", "frank-exchange-of-views", "9.9.9", "hooks")
+	cache := t.TempDir()
+	cachePlugin(t, cache, "sc", "frank-exchange-of-views", "9.9.9", nil, nil)
+	dir := filepath.Join(cache, "sc", "frank-exchange-of-views", "9.9.9", "hooks")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "hooks.json"), shipped, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	p := Observe(home, "frank-exchange-of-views")
+	p := Observe(cache, "frank-exchange-of-views")
 	if p.State != "installed" {
 		t.Fatalf("state = %q (%s), want installed", p.State, p.Why)
 	}

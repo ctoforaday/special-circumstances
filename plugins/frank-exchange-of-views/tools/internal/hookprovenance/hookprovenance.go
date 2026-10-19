@@ -81,15 +81,14 @@ type hooksFile struct {
 	} `json:"hooks"`
 }
 
-// Observe inspects the plugin install cache under the given home directory.
+// Observe inspects the plugin install cache at cache — the directory claudedir.PluginCache resolves,
+// holding `<marketplace>/<plugin>/<version>`.
 //
-// The path convention is Claude Code's, not ours — `.claude/plugins/cache/<marketplace>/<plugin>/
-// <version>` — and prosthetic-conscience's doctor reads the same layout from its own module.
-// Two readers of an EXTERNAL convention is not two copies of one of our facts; there is no record
-// here that either could be bypassing, and the modules cannot share code across the boundary.
-func Observe(home, plugin string) Provenance {
+// The layout is Claude Code's, not ours, and prosthetic-conscience's doctor reads it from its own
+// module. Two readers of an EXTERNAL convention is not two copies of one of our facts; there is no
+// record here that either could be bypassing, and the modules cannot share code across the boundary.
+func Observe(cache, plugin string) Provenance {
 	p := Provenance{State: "absent", Versions: []string{}, Binaries: map[string][]string{}, Missing: map[string][]string{}}
-	cache := filepath.Join(home, ".claude", "plugins", "cache")
 	matches, err := filepath.Glob(filepath.Join(cache, "*", plugin, "*"))
 	if err != nil {
 		p.State, p.Why = "unreadable", "the plugin cache could not be searched: "+err.Error()
