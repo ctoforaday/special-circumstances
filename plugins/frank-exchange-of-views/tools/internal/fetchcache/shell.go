@@ -158,10 +158,14 @@ func (p *htmlPage) prose() string {
 // (TextExtracted / TextReason), and folding the two would make "we could not read this scan" and
 // "this page needs a browser" the same sentence to a seat who has to act differently on each.
 func ShellReason(contentType string, body []byte) string {
-	if !strings.Contains(contentType, "html") || len(body) == 0 {
+	return shellReason(htmlOf(contentType, body), body)
+}
+
+// shellReason is ShellReason over a page already parsed from body; nil is not HTML.
+func shellReason(p *htmlPage, body []byte) string {
+	if p == nil {
 		return ""
 	}
-	p := readHTML(body)
 	text := p.prose()
 	lower := bytes.ToLower(body)
 
@@ -225,12 +229,15 @@ func ShellReason(contentType string, body []byte) string {
 // Discarding a machine-readable rights signal because today's use does not engage it leaves the
 // question unanswerable on the day something does, and the cost of carrying it is two fields.
 func TDMReservation(contentType string, body []byte) (reserved bool, policy string) {
-	if !strings.Contains(strings.ToLower(contentType), "html") {
+	return tdmReservation(htmlOf(contentType, body))
+}
+
+// tdmReservation reads the W3C TDM Reservation Protocol's two meta tags: tdm-reservation (1
+// reserves) and tdm-policy (where the policy is stated). nil is not HTML.
+func tdmReservation(p *htmlPage) (reserved bool, policy string) {
+	if p == nil {
 		return false, ""
 	}
-	// The W3C TDM Reservation Protocol's two meta tags: tdm-reservation (1 reserves) and
-	// tdm-policy (where the policy is stated).
-	p := readHTML(body)
 	r, _ := p.meta("name", "tdm-reservation")
 	policy, _ = p.meta("name", "tdm-policy")
 	return strings.TrimSpace(r) == "1", strings.TrimSpace(policy)

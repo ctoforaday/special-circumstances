@@ -3,13 +3,12 @@ package fetchcache
 import (
 	"bytes"
 	"strings"
-	"sync"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
-// AN HTML PAGE IS PARSED ONCE, AND EVERY QUESTION THIS PACKAGE ASKS OF IT READS THE RESULT.
+// AN HTML PAGE IS PARSED, AND EVERY QUESTION THIS PACKAGE ASKS OF IT READS THE PARSE.
 //
 // The wall detector, the completeness verdict, the rights tags, the landing page's pointers to its
 // own full text, the markup redirect and the page's readable text all ask about the same bytes.
@@ -66,44 +65,18 @@ func (p *htmlPage) meta(key, value string) (string, bool) {
 	return "", false
 }
 
-// readHTML returns the parse of an HTML page, parsing it at most once while it is in use.
+// htmlOf parses body when contentType names HTML, and is nil for any other type and for an empty
+// body. Every reader of a *htmlPage answers nothing for nil.
 //
-// ONE PARSE PER PAGE. The fetch path asks about the same bytes from several places — the fetcher
-// reads the rights tags and the markup redirect, the store reads the pointers, the text, the wall
-// and the completeness — and each would otherwise parse the page again. The cache is keyed on the
-// slice itself (its first byte's address and its length) and holds a reference to it, so the
-// address cannot be reused by another body while the entry lives. Bodies are never written after
-// they are read off the wire; a caller that changed one in place would read a stale parse.
-func readHTML(b []byte) *htmlPage {
-	if len(b) == 0 {
-		return parseHTML(b)
+// ONE PARSE PER QUESTION SITE, HANDED DOWN. The fetcher reads the rights tags and the markup
+// redirect from one parse; the store's pointer walk, the extractor and Classify each parse once and
+// pass the page to every reader below them. The page travels as a value beside its bytes, so no
+// reader looks a parse up by where the bytes sit — a buffer refilled in place is a new page.
+func htmlOf(contentType string, body []byte) *htmlPage {
+	if !strings.Contains(strings.ToLower(contentType), "html") || len(body) == 0 {
+		return nil
 	}
-	parsed.Lock()
-	for _, e := range parsed.ring {
-		if len(e.body) == len(b) && &e.body[0] == &b[0] {
-			parsed.Unlock()
-			return e.page
-		}
-	}
-	parsed.Unlock()
-	p := parseHTML(b)
-	parsed.Lock()
-	parsed.ring[parsed.next] = parsedEntry{body: b, page: p}
-	parsed.next = (parsed.next + 1) % len(parsed.ring)
-	parsed.Unlock()
-	return p
-}
-
-type parsedEntry struct {
-	body []byte
-	page *htmlPage
-}
-
-// parsed holds the last few pages parsed: enough for the fetches a run makes concurrently.
-var parsed struct {
-	sync.Mutex
-	ring [8]parsedEntry
-	next int
+	return parseHTML(body)
 }
 
 func parseHTML(b []byte) *htmlPage {

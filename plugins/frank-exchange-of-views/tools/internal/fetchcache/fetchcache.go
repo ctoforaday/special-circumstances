@@ -308,13 +308,14 @@ func Classify(entry *Entry, body []byte) {
 	// fact that makes the flag's ABSENCE mean something. It reads the raw page rather than the
 	// extraction: a wall is decided by markup the extraction drops (a challenge title, a mount
 	// point, a script marker).
-	if strings.Contains(entry.ContentType, "html") {
-		shell := ShellReason(entry.ContentType, body)
+	p := htmlOf(entry.ContentType, body)
+	if strings.Contains(strings.ToLower(entry.ContentType), "html") {
+		shell := shellReason(p, body)
 		notRenderable := shell != ""
 		entry.NotRenderable = &notRenderable
 		entry.NotRenderableReason = shell
 	}
-	entry.Completeness, entry.CompletenessReason = Completeness(entry.ContentType, body, entry.DOI != "")
+	entry.Completeness, entry.CompletenessReason = completeness(p, entry.DOI != "")
 	if MediaType(entry.ContentType) == "application/pdf" && entry.Work != nil {
 		entry.Completeness, entry.CompletenessReason = pdfCompleteness(entry.Pages, entry.Work.DeclaredPages, entry.Work.WorkType)
 	}

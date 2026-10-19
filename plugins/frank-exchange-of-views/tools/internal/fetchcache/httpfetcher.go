@@ -170,14 +170,17 @@ func (h *httpFetcher) FetchSameRetrieval(rawURL string, chain map[string]bool) (
 		if err != nil {
 			return nil, err
 		}
+		// One parse answers both questions this hop asks of the page: its rights tags and its
+		// markup redirect.
+		page := htmlOf(out.ContentType, out.Body)
 		// A RESERVATION SURVIVES THE HOP THAT DECLARED IT. Keep the first one seen, because the
 		// page that states it is usually the one being redirected away from.
-		if out.TDMReserved {
-			reserved, policy = true, out.TDMPolicy
+		if r, pol := tdmReservation(page); r {
+			reserved, policy = true, pol
 		}
 		out.TDMReserved, out.TDMPolicy = reserved, policy
 		out.Retrieval = chain
-		next := metaRefreshTarget(out.ContentType, out.Body, final)
+		next := metaRefreshTarget(page, final)
 		// THE LAST HOP RETURNS WHAT IT HAS rather than failing: a bouncer is still a fact about
 		// the source, and ShellReason will say so. Refusing here would turn a describable page
 		// into no answer at all.
@@ -484,7 +487,6 @@ func (h *httpFetcher) fetchOnceRetry(rawURL string, attempt int, skipRobots bool
 			rawURL, h.maxBytes>>20, h.maxBytes)
 	}
 	out.Body = b
-	out.TDMReserved, out.TDMPolicy = TDMReservation(out.ContentType, b)
 	// resp.Request.URL is the url AFTER any header redirects, which is what a relative refresh
 	// target must resolve against — resolving against the ORIGINAL would build a url on the
 	// wrong host the moment a doi.org link is involved, which is most of them.
@@ -566,11 +568,10 @@ func proxyEnv() string {
 // document that happens to refresh and following it would discard the answer. And the target must
 // resolve to http or https, so a `data:` or `javascript:` refresh cannot move the fetch somewhere
 // the scheme check at the top of fetchOnce exists to forbid.
-func metaRefreshTarget(contentType string, body []byte, base *url.URL) string {
-	if !strings.Contains(strings.ToLower(contentType), "html") || base == nil {
+func metaRefreshTarget(p *htmlPage, base *url.URL) string {
+	if p == nil || base == nil {
 		return ""
 	}
-	p := readHTML(body)
 	if len(p.prose()) >= shellProseFloor {
 		return ""
 	}
