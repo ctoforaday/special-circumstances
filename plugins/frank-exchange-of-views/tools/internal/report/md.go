@@ -65,7 +65,7 @@ type anchors map[string]string
 // resolves to the first element of that id on the page, and a hidden tab's element is no place
 // to scroll to. The report's own "## Proofs" and evidence.md's are "proofs" and "proofs-2", and
 // the note each of two documents numbers 1 is "fn-1" in the first and "fn-1-2" in the second
-// (noteIDs).
+// (citations).
 //
 // files is the document set: a link to one of them is a tab switch, written as one here, because
 // in a single page there is no sibling file to open.
