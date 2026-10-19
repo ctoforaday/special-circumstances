@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
@@ -667,39 +666,67 @@ func markRequired(c *cobra.Command, verb string) {
 // requiredMarker is the ONE spelling of the word a seat reads, at the head of a usage line.
 const requiredMarker = "REQUIRED — "
 
-// markedUsage is how the marker is READ: at the head of the usage, bare ("REQUIRED — …") or with
-// its condition between the word and the dash ("REQUIRED unless --accept — …"). Anywhere else
-// the word is prose — `mint --fix`'s "the required fix" is a field name, `prove --answers`'s
-// "REQUIRED to close a gap whose check kind is computation" is a condition on a flag that is
-// optional on its own — and prose claims nothing about the flag.
-var markedUsage = regexp.MustCompile(`^REQUIRED(?: unless [^—]+)? — `)
+// RequiredAnnotation holds on the flag what the marker says in its usage: present when the flag is
+// marked, its one value the condition the marker states ("unless --accept"), "" for a bare marker.
+// The usage is what a seat reads; this is what the tool and its gates read, so a marker reworded in
+// prose cannot drop a flag from a gate, and a usage that says REQUIRED with no annotation is a
+// writer that bypassed the two below, which requiredmarker_test refuses.
+const RequiredAnnotation = "feov_required"
 
-// IsMarked says whether a usage line carries the marker, conditional or not. It is the one reader
-// of the marker's shape: the writers below skip a usage it accepts, and the gates that hold the
-// help to the enforcement (requiredmarker_test, helpcontract_test) read it through this and not
-// through a regex of their own.
-func IsMarked(usage string) bool { return markedUsage.MatchString(usage) }
+// IsMarked says whether a flag carries the marker, conditional or not. It is the one reader of the
+// marker: the writers below skip a flag it accepts, and the gates that hold the help to the
+// enforcement (requiredmarker_test, helpcontract_test) read it through this.
+func IsMarked(f *pflag.Flag) bool {
+	_, ok := f.Annotations[RequiredAnnotation]
+	return ok
+}
 
 // MarkedCondition is the condition a marker states — "unless --accept" — or "" for an
-// unconditional one; ok is false when the usage carries no marker at all. A conditional marker is
+// unconditional one; ok is false when the flag carries no marker at all. A conditional marker is
 // a promise about ONE case, so the gate that invokes a verb without a marked flag and demands a
 // refusal holds the unconditional markers and leaves the conditional ones to the probes, which
 // drive the condition.
-func MarkedCondition(usage string) (cond string, ok bool) {
-	if !IsMarked(usage) {
+func MarkedCondition(f *pflag.Flag) (cond string, ok bool) {
+	v, ok := f.Annotations[RequiredAnnotation]
+	if !ok {
 		return "", false
 	}
-	head := usage[:strings.Index(usage, " — ")]
-	return strings.TrimSpace(strings.TrimPrefix(head, "REQUIRED")), true
+	return v[0], true
 }
 
 // mark writes the marker ONCE. Every writer of the word goes through here, so a flag the schema
 // requires and a verb also hand-marks renders one marker rather than "REQUIRED — REQUIRED — …",
 // whichever writer ran first.
 func mark(f *pflag.Flag) {
-	if !IsMarked(f.Usage) {
+	if !IsMarked(f) {
 		f.Usage = requiredMarker + f.Usage
+		setMarked(f, "")
 	}
+}
+
+func setMarked(f *pflag.Flag, cond string) {
+	if f.Annotations == nil {
+		f.Annotations = map[string][]string{}
+	}
+	f.Annotations[RequiredAnnotation] = []string{cond}
+}
+
+// RequiredUnless marks a flag the verb refuses when it is absent EXCEPT under cond — "unless
+// --accept" — which the marker states between the word and the dash: "REQUIRED unless --accept — …".
+// Marked, not enforced at the parse: the handler holds the condition, and the probes in
+// requiredmarker_test drive it. A flag the verb never registered, or one already marked, is a
+// programming error.
+func RequiredUnless(c *cobra.Command, name, cond string) *cobra.Command {
+	f := c.Flags().Lookup(name)
+	if f == nil {
+		panic("seat.RequiredUnless: `" + c.Name() + "` has no flag --" + name)
+	}
+	if IsMarked(f) || !strings.HasPrefix(cond, "unless ") {
+		panic("seat.RequiredUnless: `" + c.Name() + " --" + name + "` is already marked, or its condition does not open with \"unless \"")
+	}
+	f.Usage = "REQUIRED " + cond + " — " + f.Usage
+	setMarked(f, cond)
+	return c
 }
 
 // Require is what a verb calls for a flag it cannot run without: the marker at the head of the

@@ -222,7 +222,7 @@ func TestAnInquiryRowOfSeveralParagraphsStaysOneRow(t *testing.T) {
 	if !strings.Contains(got, want) {
 		t.Fatalf("want the row\n%s\ngot\n%s", want, got)
 	}
-	html := mdToHTML(got, FileReport, anchors{}, map[string]int{})
+	html := mdToHTML(got, FileReport, anchors{}, map[string]int{}, nil)
 	if n := strings.Count(html, "<ul>"); n != 2 {
 		t.Errorf("the row opens %d lists on the site; one row is one item holding one nested list:\n%s", n, html)
 	}

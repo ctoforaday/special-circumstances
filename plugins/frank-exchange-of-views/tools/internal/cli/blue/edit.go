@@ -232,7 +232,8 @@ func newEdit() *cobra.Command {
 	// --quote is refused when absent UNLESS --accept supplies it, so its marker states the
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
-	flags.Text(c, flags.Quote, "REQUIRED unless --accept — "+flags.DescQuote+". An anchor standing at its end stays where it is unless the quote carries it")
+	flags.Text(c, flags.Quote, flags.DescQuote+". An anchor standing at its end stays where it is unless the quote carries it")
+	seat.RequiredUnless(c, flags.Quote, "unless --accept")
 	flags.Text(c, flags.New, "the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
 	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
