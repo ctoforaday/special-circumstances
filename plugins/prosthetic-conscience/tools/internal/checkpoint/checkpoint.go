@@ -872,8 +872,7 @@ func (l rearmLock) release() {
 // nothing had earned: sibling plugin frank-exchange-of-views already locks with
 // github.com/gofrs/flock (its fetchcache/pace.go: LockFileEx on Windows, flock(2) on Unix), and
 // this repo's hooks workflow runs windows-latest. The real reason is narrower and worth
-// keeping: this module has NO third-party dependencies at all (see go.mod), and the hook
-// binaries it produces are built in environments where that is the cheap property.
+// keeping: O_EXCL takes no third-party lock package into every hook binary this module builds.
 //
 // The trade is real and points the other way, so record it rather than dress it up: flock is
 // released by the KERNEL when the holder dies, so it needs no stale-break. O_EXCL leaves a
