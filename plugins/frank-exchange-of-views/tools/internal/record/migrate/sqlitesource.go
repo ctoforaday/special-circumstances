@@ -35,6 +35,8 @@ type SQLiteSource struct {
 	// (a body table of a word no event used reads identically); one holding rows is refused
 	// at read, because rows nobody can attribute are events nobody replays.
 	unclassified []string
+	// lists are the list tables the schema has, as "word.field" (HoldsList).
+	lists map[string]bool
 }
 
 // OpenSQLite copies the record's file set from recordsDir into scratchDir and opens the copy.
@@ -281,6 +283,10 @@ func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[in
 		return err
 	}
 	if isListShape(cols) {
+		if s.lists == nil {
+			s.lists = map[string]bool{}
+		}
+		s.lists[owner+"."+field] = true
 		return s.readList(t, owner, field, byID)
 	}
 	return s.readArm(t, owner, field, byID)
@@ -423,6 +429,10 @@ func (s *SQLiteSource) Unclassified() []string {
 	sort.Strings(out)
 	return out
 }
+
+// HoldsList is whether the source's schema has the table of word's list field, empty or not: a
+// source without it predates the field, and one with it states the field's value, none included.
+func (s *SQLiteSource) HoldsList(word, field string) bool { return s.lists[word+"."+field] }
 
 // SourceEpoch is the event-schema epoch the source record states, and whether it states one.
 //

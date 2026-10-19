@@ -1,9 +1,8 @@
 package record
 
 import (
-	"regexp"
+	"fmt"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
@@ -24,13 +23,10 @@ import (
 // status in prose when the bench writes it, and the prose does not move when the gap does: on run
 // m25 "G-a0cfb606 open … ruled before any PASS" stayed in front of every seat after the gap closed,
 // and a chair acting on a declaration's "G-7199a24f remains open" after that gap closed ended a run
-// at CEILING. Nothing here reads a status out of the prose. The gap IDS a declaration names are read
-// from its text — the id shape is minted by the tool and recovered by anchor.IDPattern, the one id
-// matcher — and each id's status comes off the same gap-view rows the work list's `open` and
-// `estopped` are built from, so the list cannot state a gap one way here and another way there.
-//
-// A NAMED ID THE BOARD DOES NOT HOLD IS SAID, never dropped: a declaration naming a gap that does not
-// exist is a fact a seat needs as much as a stale status, and silence would read as "names no gap".
+// at CEILING. Nothing here reads the prose. The gaps a declaration is about are its gap_ids — a
+// field the write refuses unless the board holds each — and each id's status comes off the same
+// gap-view rows the work list's `open` and `estopped` are built from, so the list cannot state a
+// gap one way here and another way there.
 
 // DeclarationJSON is one bench declaration as the work list carries it.
 type DeclarationJSON struct {
@@ -39,15 +35,16 @@ type DeclarationJSON struct {
 	// Epoch is the epoch the bench declared it in, so a seat can set the prose against when the
 	// gaps it names last moved.
 	Epoch int `json:"epoch"`
-	// Gaps is each gap id the holding's text names, in order of first mention, with where the board
-	// says that gap stands as the list is read. NOT omitempty: a holding that names no gap renders
-	// `[]`, which is "names none", where an absent key would be "not computed".
+	// Gaps is each gap the declaration is about (Declare.gap_ids), in the order the bench named
+	// them, with where the board says that gap stands as the list is read. NOT omitempty: a
+	// declaration about no gap renders `[]`, which is "names none", where an absent key would be
+	// "not computed".
 	Gaps []DeclaredGapJSON `json:"gaps"`
 }
 
 // DeclaredGapJSON is one gap a declaration names, and the board's answer for it now. Its words are
 // the near-match screen's: `status` open | closed, and on a closed gap `closed_by` bench | red with
-// the `fate` that closed it — and `not_on_board` where the id names no gap the board holds.
+// the `fate` that closed it.
 type DeclaredGapJSON struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
@@ -60,17 +57,13 @@ type DeclaredGapJSON struct {
 
 // The words of DeclaredGapJSON.Status.
 const (
-	declaredGapOpen       = "open"
-	declaredGapClosed     = "closed"
-	declaredGapNotOnBoard = "not_on_board"
+	declaredGapOpen   = "open"
+	declaredGapClosed = "closed"
 )
-
-// gapIDInText is a gap id standing as a word in prose.
-var gapIDInText = regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
 
 // declarationsOf is every declaration in evs, in record order, each gap it names stated as gaps —
 // the work list's own gap states — hold it.
-func declarationsOf(evs []*Event, win WindowIndex, gaps []WorkGapState) []DeclarationJSON {
+func declarationsOf(evs []*Event, win WindowIndex, gaps []WorkGapState) ([]DeclarationJSON, error) {
 	byID := make(map[string]WorkGapState, len(gaps))
 	for _, g := range gaps {
 		byID[g.ID] = g
@@ -83,25 +76,27 @@ func declarationsOf(evs []*Event, win WindowIndex, gaps []WorkGapState) []Declar
 		}
 		dj := DeclarationJSON{Holding: d.GetHolding(), Epoch: win.Of(e).Epoch, Gaps: []DeclaredGapJSON{}}
 		seen := map[string]bool{}
-		for _, id := range gapIDInText.FindAllString(dj.Holding, -1) {
+		for _, id := range d.GetGapIds() {
 			if seen[id] {
 				continue
 			}
 			seen[id] = true
-			dj.Gaps = append(dj.Gaps, declaredGapOf(id, byID))
+			g, ok := byID[id]
+			if !ok {
+				// The write refuses a gap the board does not hold, and the board drops none.
+				return nil, fmt.Errorf("a declaration of %s names gap %s, which the board does not hold", e.GetTs(), id)
+			}
+			dj.Gaps = append(dj.Gaps, declaredGapOf(g))
 		}
 		out = append(out, dj)
 	}
-	return out
+	return out, nil
 }
 
-// declaredGapOf is the board's answer for one named id.
-func declaredGapOf(id string, byID map[string]WorkGapState) DeclaredGapJSON {
-	g, ok := byID[id]
-	switch {
-	case !ok:
-		return DeclaredGapJSON{ID: id, Status: declaredGapNotOnBoard}
-	case g.Open:
+// declaredGapOf is the board's answer for one named gap.
+func declaredGapOf(g WorkGapState) DeclaredGapJSON {
+	id := g.ID
+	if g.Open {
 		return DeclaredGapJSON{ID: id, Status: declaredGapOpen}
 	}
 	by := "red"
