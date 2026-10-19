@@ -75,7 +75,7 @@ if ! command -v go >/dev/null; then
   exit 0
 fi
 
-cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-$HOME/.claude/plugins}/cache/$MARKETPLACE_NAME"
+cache_root="${CLAUDE_CODE_PLUGIN_CACHE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins}/cache/$MARKETPLACE_NAME"
 [ -d "$cache_root" ] || give_up "plugin cache not found at $cache_root"
 
 # Warm the module cache once, serially. Left to the parallel loop below, every

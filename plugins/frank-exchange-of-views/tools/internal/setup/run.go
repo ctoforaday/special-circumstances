@@ -2,6 +2,7 @@ package setup
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claudedir"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookprovenance"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -304,7 +305,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction, MaxEpochs: terms.MaxEpochs,
 		LensAreas: cfg.LensAreas, LensAreaReason: cfg.LensAreaReason,
 		MaxSittingCalls: maxCalls,
-		Hooks:           hookprovenance.Observe(homeDir(), "frank-exchange-of-views"),
+		Hooks:           hookprovenance.Observe(claudedir.PluginCache(os.Getenv, homeDir()), "frank-exchange-of-views"),
 		Billing:         ReadBillingIdentity()}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
@@ -520,10 +521,10 @@ func orUnknown(s string) string {
 	return s
 }
 
-// homeDir is where the plugin cache lives. It reads $HOME rather than os.UserHomeDir so the
-// suite's own HOME sandbox (testbuild) redirects it, which is what makes this testable at all —
-// and what stops a test reading the developer's real plugin cache and reporting a different
-// answer on every machine.
+// homeDir is the home the plugin cache resolves against when neither CLAUDE_CODE_PLUGIN_CACHE_DIR nor
+// CLAUDE_CONFIG_DIR names it. It reads $HOME rather than os.UserHomeDir so the suite's own HOME
+// sandbox (testbuild) redirects it, which is what makes this testable at all — and what stops a test
+// reading the developer's real plugin cache and reporting a different answer on every machine.
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
