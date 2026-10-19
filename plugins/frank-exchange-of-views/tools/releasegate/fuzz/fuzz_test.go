@@ -2187,8 +2187,18 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		mootPending.Store(true)
 	}
 	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
-	_, _ = r.exec("close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
-		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec")
+	args := []string{"close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as " + as,
+		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"}
+	// THE GAP'S OWN ANCHOR IS ONE THE RECORD HOLDS, so a closure naming it is admitted; one naming an
+	// anchor nobody placed is refused at the write, and the gap stays open for another close.
+	if r.coin(40) {
+		named := id
+		if r.coin(15) {
+			named = "C-ffffffff"
+		}
+		args = append(args, "--anchor", named)
+	}
+	_, _ = r.exec(args...)
 }
 
 // carryPrior is the CHAIR's one closure act (roundless §III.B.3): restating a closure the archive
@@ -2616,21 +2626,30 @@ func (r *runner) extras(role, seatID string, open []string) {
 		r.maybe(45, func() {
 			r.do("certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
 		})
-		// A DECLARATION MOVES NO GAP, which is why it takes no --id and why the coverage walk
-		// would otherwise never reach it: every other bench act names something. It NAMES an open
-		// gap most of the time, in the prose a bench writes — bare, or as the report's anchor token
-		// — so every later work list states that gap's board status beside it as the gap moves, and
-		// the declarations oracle in runOne holds each list to the board.
+		// A DECLARATION MOVES NO GAP, which is why the coverage walk would otherwise never reach it:
+		// every other bench act names something. It is ABOUT an open gap most of the time, declared
+		// with --ids — the gap's id bare, or as the report's anchor token in the holding's prose,
+		// which is never read for one — so every later work list states that gap's board status
+		// beside it as the gap moves, and the declarations oracle in runOne holds each list to the
+		// board. Now and then it names a gap nobody minted, which the write refuses.
 		r.maybe(35, func() {
 			holding := "fuzz holding: a term is construed this way for the rest of the run"
+			c := r.do("declare", seatID)
 			if len(open) > 0 && r.coin(70) {
 				id := pick(r.rng, open)
+				named := id
 				if r.coin(50) {
-					id = anchor.Token(id)
+					named = anchor.Token(id)
 				}
-				holding = id + " remains open; " + holding
+				holding = named + " remains open; " + holding
+				about := id
+				if r.coin(10) {
+					about = "G-ffffffff"
+				}
+				c = c.set("--ids", about)
 			}
-			if _, err := r.do("declare", seatID).set("--reason", holding).run(); err == nil {
+			c = c.set("--reason", holding)
+			if _, err := c.run(); err == nil {
 				r.mu.Lock()
 				r.declared++
 				r.mu.Unlock()
@@ -6547,11 +6566,11 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 		for _, d := range w.Declarations {
 			for _, dg := range d.Gaps {
 				g, onBoard := board[dg.ID]
-				want := record.DeclaredGapJSON{ID: dg.ID, Status: "not_on_board"}
-				switch {
-				case onBoard && g.Open:
-					want.Status = "open"
-				case onBoard:
+				if !onBoard {
+					return fmt.Sprintf("declarations oracle: %s's list names gap %s, which the board does not hold — the write admits only a held gap", rs[1], dg.ID)
+				}
+				want := record.DeclaredGapJSON{ID: dg.ID, Status: "open"}
+				if !g.Open {
 					want = record.DeclaredGapJSON{ID: dg.ID, Status: "closed", Fate: dg.Fate, ClosedBy: "red", ClosedEpoch: g.ClosedEpoch}
 					if g.ClosedByBench {
 						want.ClosedBy = "bench"

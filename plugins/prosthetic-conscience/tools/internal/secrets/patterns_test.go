@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
@@ -293,33 +294,41 @@ func escapeRune(r rune) string {
 	})
 }
 
-// BenchmarkScanPayload measures the gate on 1 MiB payloads with no secret in them, the worst
-// case for a row, which then runs to the end of the input. "ordinary" holds none of the
-// rows' literals, as most payloads do; "literal-dense" puts every row's every literal on
-// every line, so each prefilter passes and every regex runs.
+// BenchmarkScanPayload measures the gate on payloads with no secret in them, the worst case
+// for a row, which then runs to the end of the input. "ordinary" holds none of the rows'
+// literals, as most payloads do; "literal-dense" puts every row's every literal on every line,
+// so each prefilter passes and every regex runs. The sizes are the 99th percentile (6 KiB)
+// and the maximum (56 KiB) of the Bash, WebFetch, WebSearch and MCP inputs in this box's
+// transcripts on 2026-10-18, and 1 MiB.
 func BenchmarkScanPayload(b *testing.B) {
 	var lits []string
 	for _, p := range Patterns {
-		lits = append(lits, p.Literals...)
+		for _, l := range p.Literals {
+			if len(Scan(l)) == 0 { // a literal that is itself a match (a fixed marker) is no prefilter load
+				lits = append(lits, l)
+			}
+		}
 	}
-	for _, c := range []struct{ name, line string }{
-		{"ordinary", `git -C /home/u/p log --oneline -n 20 && go test -count=1 ./internal/... # a token, a key, a secret\n`},
-		{"literal-dense", `git log -n 20 # ` + strings.Join(lits, " ") + `\n`},
-	} {
-		b.Run(c.name, func(b *testing.B) {
-			var body strings.Builder
-			for body.Len() < 1<<20 {
-				body.WriteString(c.line)
-			}
-			payload := []byte(`{"command":"` + body.String() + `"}`)
-			b.SetBytes(int64(len(payload)))
-			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				if got := ScanPayload(payload); len(got) != 0 {
-					b.Fatalf("payload with no secret matched %v", got)
+	for _, size := range []int{6 << 10, 56 << 10, 1 << 20} {
+		for _, c := range []struct{ name, line string }{
+			{"ordinary", `git -C /home/u/p log --oneline -n 20 && go test -count=1 ./internal/... # a token, a key, a secret\n`},
+			{"literal-dense", `git log -n 20 # ` + strings.Join(lits, " ") + `\n`},
+		} {
+			b.Run(fmt.Sprintf("%s/%dKiB", c.name, size>>10), func(b *testing.B) {
+				var body strings.Builder
+				for body.Len() < size {
+					body.WriteString(c.line)
 				}
-			}
-		})
+				payload := []byte(`{"command":"` + body.String() + `"}`)
+				b.SetBytes(int64(len(payload)))
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					if got := ScanPayload(payload); len(got) != 0 {
+						b.Fatalf("payload with no secret matched %v", got)
+					}
+				}
+			})
+		}
 	}
 }

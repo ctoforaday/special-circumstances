@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -37,7 +38,37 @@ type remap struct {
 	ids        map[string]string // archived id -> the id the migrated record carries
 	words      *regexp.Regexp    // every archived id in ids, at word boundaries
 	wordsOf    int               // len(ids) when words was built
+	// prose is every archived id rewritten inside a seat's wording, in the order rewritten. A
+	// word in a seat's prose that equals an archived id — "Q1 revenue", "the G2 summit" — is
+	// rewritten as a reference; nothing can tell the two apart, so each rewrite is kept where a
+	// reader can judge it (the manifest's per-field count, and the archive's golden list).
+	prose []ProseRewrite
 }
+
+// ProseRewrite is one archived id rewritten inside a seat's own wording: the field, the id as
+// archived, the id it became, and the text around it as the source wrote it.
+type ProseRewrite struct {
+	Field   string `json:"field"`
+	Old     string `json:"old"`
+	New     string `json:"new"`
+	Context string `json:"context"`
+}
+
+// around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
+// whole characters.
+func around(v string, from, to int) string {
+	a, z := max(0, from-proseContext), min(len(v), to+proseContext)
+	for a > 0 && !utf8.RuneStart(v[a]) {
+		a--
+	}
+	for z < len(v) && !utf8.RuneStart(v[z]) {
+		z++
+	}
+	return v[a:z]
+}
+
+// proseContext is how many bytes of the source text either side of a rewritten id the context keeps.
+const proseContext = 40
 
 func newRemap(sourceHash string) *remap {
 	return &remap{sourceHash: sourceHash, ids: map[string]string{}}
@@ -79,7 +110,7 @@ var (
 		Proof.answers Proof.cites Reproduce.proof_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened Retire.anchors
 		ManifestRow.gap_id Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
 		InquiryMotion.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Gate.migration_admitted_gap_ids`)
+		Gate.migration_admitted_gap_ids Declare.gap_ids Close.anchors`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check Mint.definition
 		Mint.neighbor Mint.distinguisher Mint.mint_reason ClassNew.definition ClassNew.neighbor
 		ClassNew.distinguisher Close.prose Close.anchor_tool Close.anchor_target Closing.text
@@ -249,7 +280,18 @@ func (r *remap) respell(field, v string) string {
 			})
 			r.words, r.wordsOf = regexp.MustCompile(`\b(?:`+strings.Join(olds, "|")+`)\b`), len(r.ids)
 		}
-		return r.words.ReplaceAllStringFunc(v, func(old string) string { return r.ids[old] })
+		var b strings.Builder
+		last := 0
+		for _, loc := range r.words.FindAllStringIndex(v, -1) {
+			old := v[loc[0]:loc[1]]
+			b.WriteString(v[last:loc[0]])
+			b.WriteString(r.ids[old])
+			last = loc[1]
+			r.prose = append(r.prose, ProseRewrite{Field: field, Old: old, New: r.ids[old],
+				Context: around(v, loc[0], loc[1])})
+		}
+		b.WriteString(v[last:])
+		return b.String()
 	}
 	return v
 }

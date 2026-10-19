@@ -912,6 +912,13 @@ message Close {
     flag: "reason"
     why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
   }, (feov.record.v1.prose) = true];
+
+  // anchors are the report's anchors the closure was verified with — each the id of an anchor the
+  // record holds, refused at the write otherwise. Capture's attestation audit joins each to the tool
+  // calls of the closing seat's trajectory: a closure naming an anchor it never read is the
+  // dishonesty that audit exists to find. Empty is "verified with no anchor", and the audit then
+  // reads anchor_target's prose.
+  repeated string anchors = 9;
 }
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
@@ -2215,5 +2222,9 @@ message Certify {
 
 message Declare {
   optional string holding = 1 [(sql) = { flag: "reason" }, (prose) = true];
+  // gap_ids are the gaps the holding is about, each a gap the board holds, refused at the write
+  // otherwise. Every seat's work list sets each beside where the board says it stands now, so a
+  // status the holding's prose states cannot outlive the gap's move. Empty is "names none".
+  repeated string gap_ids = 2;
 }
 

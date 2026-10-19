@@ -101,7 +101,7 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 		{name: "a flag nothing takes", seat: "red-lens-evidence",
 			args: []string{"close", "--nonesuch", "x"},
 			verb: "close", role: "lens", writes: "close",
-			says: []string{"unknown flag: --nonesuch", "no verb on this surface takes it", "This verb's flags: --as, --id,", "`" + InvokedAs() + " close --help`"}},
+			says: []string{"unknown flag: --nonesuch", "no verb on this surface takes it", "This verb's flags: --anchor, --as, --id,", "`" + InvokedAs() + " close --help`"}},
 		{name: "the operator's surface", seat: "operator",
 			args: []string{"graph", "--nonesuch", "x"},
 			verb: "graph", role: "",

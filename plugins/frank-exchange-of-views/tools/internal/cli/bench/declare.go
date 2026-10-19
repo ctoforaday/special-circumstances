@@ -38,11 +38,14 @@ import (
 //     fed by a harvest that reads DISPOSITIONS, so a holding nobody disposed of is a holding the
 //     harvest cannot see. It was offered in prose and went nowhere.
 //
-// # Why no --id, and why that is the point rather than an omission
+// # Why --ids and not --id
 //
-// A declaration that named a gap would be a disposition, and `motion docket rule` already does
-// that. The absence of the flag is the verb's whole content: this act is about the record as a whole, and forcing
-// it to name one gap would either falsify what it says or send the bench back to prose.
+// A declaration that DISPOSED of a gap would be a ruling, and `motion docket rule` already does
+// that, with --id. A holding moves no fate, and is often about the record as a whole — but when it
+// is about gaps, the gaps it is about are a fact the work list needs: it sets each beside where the
+// board says that gap stands now, so a status the holding's prose states cannot outlive the gap's
+// move. --ids carries them as a field the write checks, each a gap the board holds; prose that names
+// a gap is still prose, and nothing is read out of it.
 //
 // It reaches every seat on its work list (record.DeclarationJSON), the read a seat holds before its
 // first act, with the board's status beside each gap it names; and it renders into `inquest debate`
@@ -52,7 +55,8 @@ import (
 // compliance, and nothing reports that it was not delivered.
 func newDeclare() *cobra.Command {
 	// The handler above refuses an empty holding; the marker says so where the seat reads.
-	return seat.SaysRequired(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	var ids flags.CSV
+	c := seat.SaysRequired(seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -60,9 +64,17 @@ func newDeclare() *cobra.Command {
 		if text == "" {
 			return nil, feov.Errorf(feov.MissingField, "requires --reason: the declaration IS the reasoning. A holding with no stated content binds nothing and teaches nobody, and this verb exists because the alternative was prose on a channel nothing reads")
 		}
-		if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
+		gaps := ids.Value()
+		for _, id := range gaps {
+			if err := flags.GapID().Set(id); err != nil {
+				return nil, feov.Errorf(feov.Validation, "--%s: %v", flags.IDs, err)
+			}
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text), GapIds: gaps}); err != nil {
 			return nil, err
 		}
-		return seat.Msg{Message: "declaration recorded — every seat's work list carries it, with the board's status beside each gap it names, and it renders under ### LEAD in `inquest debate`"}, nil
+		return seat.Msg{Message: "declaration recorded — every seat's work list carries it, with the board's status beside each gap --ids names, and it renders under ### LEAD in `inquest debate`"}, nil
 	})), flags.Reason)
+	c.Flags().Var(&ids, flags.IDs, "the `gap-ids` of the gaps this holding is about, comma-separated — each a gap the board holds (`show board` lists them). Every seat's work list sets each beside where the board says it stands now; a gap named only in --reason is not one of them")
+	return c
 }

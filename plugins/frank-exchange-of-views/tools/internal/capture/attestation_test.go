@@ -25,18 +25,21 @@ import (
 //
 // AttestationAudit had no test of any kind, which is how it shipped.
 
-// attestRun writes a run whose board holds one gap, minted at r1 and closed at r2 with the given
-// anchor fields.
+// attestGap is the one gap attestRun's board holds, and the anchor a closure of it can name.
+const attestGap = "G-0dd40334"
+
+// attestRun writes a run whose board holds one gap, minted and then closed with the given
+// verification and the report anchors the closure names.
 //
 // SEEDED THROUGH THE STORE, not by hand-writing shard files. This wrote `events-<seat>-<nonce>.jsonl`
 // with record.MarshalEvent; there are no shards and no nonce, and a fixture that builds the record
 // by a route production cannot take is testing a shape rather than the system.
-func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
+func attestRun(t *testing.T, anchorTool, anchorTarget string, anchors ...string) string {
 	t.Helper()
 	dir := t.TempDir()
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
-			GapId:           proto.String("G1"),
+			GapId:           proto.String(attestGap),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
 			AcceptanceCheck: proto.String("the check runs"),
@@ -47,11 +50,12 @@ func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
 		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
-			GapId:        proto.String("G1"),
+			GapId:        proto.String(attestGap),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   proto.String("red-chair"),
 			AnchorTool:   proto.String(anchorTool),
 			AnchorTarget: proto.String(anchorTarget),
+			Anchors:      anchors,
 			Prose:        proto.String("verified at the leaf"),
 		}),
 	)
@@ -75,10 +79,10 @@ func transcriptWith(t *testing.T, commands ...string) []record.Transcript {
 }
 
 // A PRECISE PROSE TARGET IS NOT A VAGUE ONE. The seat did the work, anchored it to an exact line,
-// and named the id in the tool it ran. That must reconcile.
+// and named the anchor it read. That must reconcile.
 func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
-	run := attestRun(t, "show report --anchor F-0dd40334", "report text at line 103")
-	trs := transcriptWith(t, `feov-record red-chair show report --anchor F-0dd40334`)
+	run := attestRun(t, "show report --anchor", "report text at line 103", attestGap)
+	trs := transcriptWith(t, `feov-record red-chair show report --anchor `+attestGap)
 	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict != "PASS" {
 		t.Errorf("a closure citing an id the transcript carries must reconcile.\ngot %s: %s", got.Verdict, got.Detail)
@@ -92,13 +96,13 @@ func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 
 // AND THE DISHONEST CASE STILL FAILS, which is the half that makes the fix worth having.
 func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
-	run := attestRun(t, "show report --anchor F-0dd40334", "report text at line 103")
+	run := attestRun(t, "show report --anchor", "report text at line 103", attestGap)
 	trs := transcriptWith(t, `feov-record red-chair show board`)
 	got := AttestationAudit(runtest.Open(t, run), trs, 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an id in no tool call must be a finding; got %s: %s", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "F-0dd40334") {
+	if !strings.Contains(got.Detail, attestGap) {
 		t.Errorf("the refusal must name the id it could not find:\n%s", got.Detail)
 	}
 }
@@ -139,32 +143,34 @@ func TestTheProseFloorStillRefusesAWordThatWouldMatchEverything(t *testing.T) {
 }
 
 func TestNeedlesForPrefersTheRecordsOwnIdentifiers(t *testing.T) {
-	ns, byID := needlesFor(Claim{Tool: "show evidence; show report --anchor C-5058e9f8", Target: "evidence projection"})
+	ns, byID := needlesFor(Claim{Tool: "show evidence", Target: "evidence projection", Anchors: []string{"C-5058e9f8"}})
 	if !byID || len(ns) != 1 || ns[0] != "C-5058e9f8" {
-		t.Errorf("an id in the tool must win over prose in the target; got %v byID=%v", ns, byID)
+		t.Errorf("a named anchor must win over prose in the target; got %v byID=%v", ns, byID)
 	}
-	// EVERY ANCHOR KIND IS A NEEDLE, a gap id with them, and every id in the tool is one.
-	for tool, want := range map[string][]string{
-		"show report --anchor F-0dd40334":                      {"F-0dd40334"},
-		"show report --anchor G-5e10a3c2":                      {"G-5e10a3c2"},
-		"show report --anchor P-abd56845":                      {"P-abd56845"},
-		"show report --anchor F-0dd40334; show gap G-5e10a3c2": {"F-0dd40334", "G-5e10a3c2"},
-	} {
-		if ns, byID := needlesFor(Claim{Tool: tool, Target: "evidence projection"}); !byID || !slices.Equal(ns, want) {
-			t.Errorf("needlesFor(%q) = %v byID=%v, want %v by id", tool, ns, byID, want)
-		}
+	// EVERY NAMED ANCHOR IS A NEEDLE.
+	want := []string{"F-0dd40334", "G-5e10a3c2"}
+	if ns, byID := needlesFor(Claim{Tool: "show report", Target: "evidence projection", Anchors: want}); !byID || !slices.Equal(ns, want) {
+		t.Errorf("needlesFor = %v byID=%v, want %v by id", ns, byID, want)
 	}
-	// AN ID IS EXACTLY THE SHAPE: a longer hex run or another letter is prose, and falls to the target.
-	for _, tool := range []string{"show report --anchor F-0dd403345", "show report --anchor X-0dd40334", "show report --anchor f-0dd40334"} {
-		if ns, byID := needlesFor(Claim{Tool: tool, Target: "evidence projection"}); byID || !slices.Equal(ns, []string{"projection"}) {
-			t.Errorf("needlesFor(%q) = %v byID=%v; it carries no id and must fall back to prose", tool, ns, byID)
-		}
-	}
-	ns, byID = needlesFor(Claim{Tool: "show report", Target: "evidence projection"})
-	if byID || len(ns) != 1 || ns[0] != "projection" {
-		t.Errorf("with no id, fall back to prose; got %v byID=%v", ns, byID)
+	// THE TOOL'S WORDS ARE NOT READ FOR AN ID. The anchors are a field the write checked; an id typed
+	// into --verified-with is prose, and the target's prose is what is left to join on.
+	ns, byID = needlesFor(Claim{Tool: "show report --anchor F-0dd40334", Target: "evidence projection"})
+	if byID || !slices.Equal(ns, []string{"projection"}) {
+		t.Errorf("with no anchor named, fall back to prose; got %v byID=%v", ns, byID)
 	}
 	if ns, _ := needlesFor(Claim{Tool: "show report", Target: "report text at line 103"}); len(ns) != 0 {
 		t.Errorf("nothing to join on must be empty, not a guess; got %v", ns)
+	}
+}
+
+// THE AUDIT READS THE CLOSURE'S ANCHORS FROM THE RECORD. An id in --verified-with's words alone is no
+// anchor named, so a closure whose target has no distinctive fragment is not measured — rather than
+// reconciled, or accused, on an id read out of prose.
+func TestAnIDInTheToolsWordsAloneIsNoAnchor(t *testing.T) {
+	run := attestRun(t, "show report --anchor "+attestGap, "report text at line 103")
+	trs := transcriptWith(t, `feov-record red-chair show report --anchor `+attestGap)
+	got := AttestationAudit(runtest.Open(t, run), trs, 3)
+	if got.Verdict == "FAIL" || !strings.Contains(got.Detail, "NOT BE MEASURED") {
+		t.Errorf("a closure naming no anchor and no distinctive target must be counted not measured; got %s: %s", got.Verdict, got.Detail)
 	}
 }

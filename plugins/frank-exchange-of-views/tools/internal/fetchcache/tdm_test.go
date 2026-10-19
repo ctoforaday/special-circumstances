@@ -1,6 +1,11 @@
 package fetchcache
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
 
 // THE SHAPE ELSEVIER SENDS, from a live capture. Their own policy document, read the same day,
 // carries `prohibition: null` and permits tdm:mine for EU DSM Article 3 — scientific research,
@@ -62,5 +67,23 @@ func TestAGenericContentTypeIsSniffedFromTheBytes(t *testing.T) {
 	// AND AN UNRECOGNISED BODY KEEPS THE DECLARED TYPE rather than being guessed at.
 	if got := SniffedMediaType("binary/octet-stream", []byte("\x00\x01\x02 not a format we know")); got != "binary/octet-stream" {
 		t.Errorf("an unknown body was given a type: %q", got)
+	}
+}
+
+// THE CALL, NOT THE FUNCTION: a page fetched through the fetcher carries its reservation on the
+// response, which is where the entry reads it from.
+func TestAFetchedPageCarriesItsReservation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><head><meta content="1" name="tdm-reservation"><meta name="tdm-policy" content="https://pub.example/tdm.json"></head><body>` +
+			strings.Repeat("<p>The article's prose.</p>", 40) + `</body></html>`))
+	}))
+	defer srv.Close()
+	resp, err := NewHTTPFetcher().Fetch(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.TDMReserved || resp.TDMPolicy != "https://pub.example/tdm.json" {
+		t.Errorf("the fetched page's reservation was not carried: reserved=%v policy=%q", resp.TDMReserved, resp.TDMPolicy)
 	}
 }

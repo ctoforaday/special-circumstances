@@ -2,9 +2,9 @@ package report
 
 // MARKDOWN → HTML, IN THE SUBSET THIS ASSEMBLER EMITS.
 //
-// go.mod carries no markdown library and does not get one for a rendering convenience: the
-// dependency would be load-bearing for the deliverable of every run, and the surface it would
-// buy is a superset of what any composer here produces. What the assembler emits is a closed
+// The rendering is this file, not the markdown parser go.mod carries (which reads the set's
+// footnotes, footnotes.go): a library renderer would be load-bearing for the deliverable of every
+// run, and the surface it would buy is a superset of what any composer here produces. What the assembler emits is a closed
 // set — headings, fenced code, GFM tables, lists, blockquotes, rules, footnotes and a handful
 // of inline forms — and the one open surface (the report's own prose) is written by a model
 // following the same template.
