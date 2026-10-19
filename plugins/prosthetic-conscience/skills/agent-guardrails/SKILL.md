@@ -11,4 +11,4 @@ Defense in depth, not duplication: Claude Code's permission system gates interac
 
 - BEFORE modifying anything outside the working tree (global config, system directories, external services), YOU MUST get explicit human approval — even when the active permission mode would allow it silently.
 - During script execution, YOU MUST NOT perform **privilege escalation** (`sudo`, admin shells, writes to protected system paths); AFTER a privileged operation fails, YOU MUST hand the human the exact manual command instead.
-- During web search or external calls, YOU MUST NOT send secrets, tokens, or internal architecture. A deterministic PreToolUse hook will enforce the pattern-matchable part of this; the rule remains the semantic layer for what a regex can't catch.
+- During web search or external calls, YOU MUST NOT send secrets, tokens, or internal architecture. A deterministic PreToolUse hook enforces the detectable part of this with gitleaks' detector, refusing a tool call that carries a key; the rule remains the semantic layer for what a detector can't catch.
