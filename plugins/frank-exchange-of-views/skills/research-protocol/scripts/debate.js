@@ -132,7 +132,15 @@ const dispatchAs = (id) => {
 }
 const laneSeat = (n) => `${LANE.prefix}${n}`
 const laneDispatch = () => ({ ...TIER[LANE.tier], agentType: LANE.agentType })
-const slug = String(runDir).replace(/[\/]+$/, '').split(/[\/]/).pop().replace(/^[0-9-]+_/, '')
+// A seat's label names the run by its directory, `<date>_<slug>`, without the date: the last
+// path element, and the part after the first `_` where everything before it is the date's digits
+// and hyphens.
+const slug = (() => {
+  const name = String(runDir).split('/').filter((part) => part !== '').pop() || ''
+  const cut = name.indexOf('_')
+  const dated = cut > 0 && [...name.slice(0, cut)].every((c) => c === '-' || (c >= '0' && c <= '9'))
+  return dated ? name.slice(cut + 1) : name
+})()
 log(`researching: ${topic.length > 160 ? topic.slice(0, 157) + '...' : topic}`)
 log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
