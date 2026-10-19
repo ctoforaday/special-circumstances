@@ -8,8 +8,9 @@ import (
 
 // WHAT THE RUN WAS ACTUALLY ANSWERED BY, read back.
 //
-// THE TRAJECTORY IS THE STATEMENT OF RECORD, and this reads it. `register` records the seat's
-// AGENT ID, which names the trajectory; the model is resolved from that here, when a reader asks.
+// THE TRAJECTORY IS THE STATEMENT OF RECORD, and this reads it. The event opening a seat's sitting
+// carries its AGENT ID, the agent's stop names its trajectory (TranscriptOf), and the model is
+// resolved from that here, when a reader asks.
 //
 // It used to be a field written at register, and it was empty every time: register is the seat's
 // FIRST act, a fresh trajectory opens with `user` turns, and the model appears on the first
@@ -83,15 +84,22 @@ func SeatModels(run Run, f Family) []SeatModel {
 				"the event that opened this seat's sitting carries no agent id, so the seat's trajectory cannot be named"
 			continue
 		}
-		obs, err := servedmodel.Observe(agent)
+		// THE TRAJECTORY IS THE ONE THE AGENT'S STOP NAMES. A seat still sitting has no stop, so
+		// the record names no trajectory for it yet: the bench assembling inside its own sitting
+		// reads its own row NOT MEASURED, saying so, and capture re-assembles the documents after
+		// every stop is on the record.
+		path, err := TranscriptOf(f, agent)
+		var obs servedmodel.Observation
+		if err == nil {
+			obs, err = servedmodel.Observe(path)
+		}
 		if err != nil {
-			// THE RECORD'S OWN TURNS ANSWER WHERE THE TRAJECTORY CANNOT BE FOUND. Capture ingests
-			// every seat transcript into seat_turn, each row naming the model that served it, and a
-			// reader in another configuration directory — the operator after a universe run, the
-			// record copied off the box — finds no trajectory to open. Smoke 07d reported 13 seats
-			// NOT MEASURED while all 647 of their turn rows named claude-haiku-5-5. A
-			// declared substitution is the trajectory's alone, so this answers the model and not
-			// the declaration.
+			// THE RECORD'S OWN TURNS ANSWER WHERE THE TRAJECTORY CANNOT BE OPENED. The stop ingests
+			// the seat's transcript into seat_turn, each row naming the model that served it, and a
+			// reader on another box — the record copied off it, an archived run — has no trajectory
+			// at the path the stop names. Smoke 07d reported 13 seats NOT MEASURED while all 647 of
+			// their turn rows named claude-haiku-5-5. A declared substitution is the trajectory's
+			// alone, so this answers the model and not the declaration.
 			if onRecord == nil {
 				onRecord = servedOnRecord(run)
 			}

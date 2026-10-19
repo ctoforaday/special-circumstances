@@ -118,33 +118,42 @@ func TestTelemetryAudit(t *testing.T) {
 	}
 }
 
+// named lists dir's agent-<id>.jsonl files as the record's sitting closes would name them.
+func named(dir string, ids ...string) []record.Transcript {
+	var out []record.Transcript
+	for _, id := range ids {
+		out = append(out, record.Transcript{AgentID: id, Path: filepath.Join(dir, "agent-"+id+".jsonl")})
+	}
+	return out
+}
+
 func TestContextUse(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "agent-big.jsonl"),
 		`{"message":{"role":"assistant","model":"claude-haiku-4-5","usage":{"input_tokens":1000,"cache_read_input_tokens":150000,"cache_creation_input_tokens":0,"output_tokens":10}}}`+"\n")
 	write(t, filepath.Join(dir, "agent-small.jsonl"),
 		`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":1000,"cache_read_input_tokens":150000,"cache_creation_input_tokens":0,"output_tokens":10}}}`+"\n")
-	got := ContextUse(dir, []string{"agent-big.jsonl", "agent-small.jsonl"})
+	got := ContextUse(named(dir, "big", "small"))
 	if got.Verdict != "WARN" {
 		t.Errorf("haiku 4.5 over 50%% of its 200k window: want WARN, got %s (%s)", got.Verdict, got.Detail)
 	}
 	if !strings.Contains(got.Detail, "big") || !strings.Contains(got.Detail, "50% tripwire") {
 		t.Errorf("the breaching seat must be named: %s", got.Detail)
 	}
-	if got := ContextUse(dir, []string{"agent-small.jsonl"}).Verdict; got != "PASS" {
+	if got := ContextUse(named(dir, "small")).Verdict; got != "PASS" {
 		t.Errorf("same tokens on a 1M window is 15%%: want PASS, got %s", got)
 	}
 	// THE WINDOW IS THE MODEL'S, NOT THE TIER'S: the same prompt on Haiku 5.5, whose window is 1M, is
 	// 15% of it. The 2026-10-17 smoke's 118K Haiku 5.5 seat was reported at 59% of a 200K window.
 	write(t, filepath.Join(dir, "agent-newhaiku.jsonl"),
 		`{"message":{"role":"assistant","model":"claude-haiku-5-5","usage":{"input_tokens":1000,"cache_read_input_tokens":150000,"cache_creation_input_tokens":0,"output_tokens":10}}}`+"\n")
-	if got := ContextUse(dir, []string{"agent-newhaiku.jsonl"}); got.Verdict != "PASS" {
+	if got := ContextUse(named(dir, "newhaiku")); got.Verdict != "PASS" {
 		t.Errorf("151K of Haiku 5.5's 1M window: want PASS, got %s (%s)", got.Verdict, got.Detail)
 	}
 	// No usage records → SKIP.
 	empty := t.TempDir()
 	write(t, filepath.Join(empty, "agent-none.jsonl"), `{"message":{"role":"assistant"}}`+"\n")
-	if got := ContextUse(empty, []string{"agent-none.jsonl"}).Verdict; got != "SKIP" {
+	if got := ContextUse(named(empty, "none")).Verdict; got != "SKIP" {
 		t.Errorf("no usage records: want SKIP, got %s", got)
 	}
 }
@@ -406,14 +415,14 @@ func TestModelTierAudit(t *testing.T) {
 	write(t, filepath.Join(tr, "agent-m.jsonl"),
 		`{"prompt":"Red chair, round 1"}`+"\n"+
 			`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":10,"output_tokens":5}}}`+"\n")
-	got := ModelTierAudit(runtest.Open(t, run), tr, []string{"agent-m.jsonl"})
+	got := ModelTierAudit(runtest.Open(t, run), named(tr, "m"))
 	if got.Verdict != "FAIL" {
 		t.Errorf("judgment seat dearer than configured: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
 	// No models in run-config → SKIP.
 	bare := t.TempDir()
 	write(t, filepath.Join(bare, "inputs", "run-config.json"), `{}`)
-	if got := ModelTierAudit(runtest.Open(t, bare), tr, []string{"agent-m.jsonl"}).Verdict; got != "SKIP" {
+	if got := ModelTierAudit(runtest.Open(t, bare), named(tr, "m")).Verdict; got != "SKIP" {
 		t.Errorf("no run-config models: want SKIP, got %s", got)
 	}
 }
@@ -1373,7 +1382,7 @@ func TestAnAbsentScorecardIsStillCreated(t *testing.T) {
 // records what actually answered each seat, so the audit reads a declared substitution instead of
 // deducing a tier from a price — and a substitution fails in either direction.
 func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
-	run, tr := t.TempDir(), t.TempDir()
+	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
 		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
 	recordtest.Seed(t, run,
@@ -1386,8 +1395,10 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
+		recordtest.Event(t, record.HarnessSeat, recordtest.StopOf(t, "aaaa1111")),
+		recordtest.Event(t, record.HarnessSeat, recordtest.StopOf(t, "bbbb2222")),
 	)
-	got := ModelTierAudit(runtest.Open(t, run), tr, nil)
+	got := ModelTierAudit(runtest.Open(t, run), nil)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("a declared substitution must FAIL (capture exits 2 on FAIL, and this one exited 0 for real): got %s — %s", got.Verdict, got.Detail)
 	}
@@ -1405,7 +1416,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 // A RUN WHERE NOTHING LOOKED MUST NOT READ AS A RUN THAT MATCHED. This is the plausible zero the
 // whole thread is about, one level up: the audit's own summary line.
 func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
-	run, tr := t.TempDir(), t.TempDir()
+	run := t.TempDir()
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
 		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
 	recordtest.Seed(t, run,
@@ -1413,7 +1424,7 @@ func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
 		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
 			&recordpb.Register{ToolVersion: proto.String("test")}),
 	)
-	got := ModelTierAudit(runtest.Open(t, run), tr, nil)
+	got := ModelTierAudit(runtest.Open(t, run), nil)
 	if !strings.Contains(got.Detail, "NOT MEASURED") {
 		t.Errorf("an unmeasured run must say so, not claim its seats matched; got:\n%s", got.Detail)
 	}

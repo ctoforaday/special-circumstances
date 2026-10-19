@@ -77,13 +77,11 @@ func newShowDiagnostics() *cobra.Command {
 			}
 			traj := trajectory
 			if traj == "" {
-				traj = inferTrajectory(run)
+				if traj, err = inferTrajectory(run, sitting); err != nil {
+					return err
+				}
 			}
-			if traj == "" {
-				return feov.Errorf(feov.NotFound,
-					"no trajectory found for %s, and it is what carries the help a seat RECEIVED — "+
-						"the record says what a seat wrote, never what it was shown. Pass --trajectory <path>", run.Dir())
-			}
+			// NO TRAJECTORY HERE MEANS NO --sitting, which diagnose refuses before it reads one.
 			report, err := diagnose(run, traj, sitting)
 			if err != nil {
 				return err
@@ -113,7 +111,7 @@ func newShowDiagnostics() *cobra.Command {
 	// be the two-contracts-one-verb shape, and it would mean the operator could only ever
 	// diagnose itself.
 	d.Flags().StringVar(&sitting, flags.Sitting, "", "the seat whose sitting this trajectory is (REQUIRED: one trajectory is one sitting, and the record cannot say which of the registered seats it belongs to)")
-	d.Flags().StringVar(&trajectory, flags.Trajectory, "", "path to the captured trajectory JSONL; inferred from the run when omitted")
+	d.Flags().StringVar(&trajectory, flags.Trajectory, "", "path to the captured trajectory JSONL; when omitted, the one the record names for the --sitting seat's one sitting (a probe run's own, where it has one)")
 	d.Flags().StringVar(&format, flags.Format, "json", "json (the form a reader joins on) | markdown")
 	show.AddCommand(d)
 	// THE SECOND OPERATOR PROJECTION ON THIS GROUP: what the run asked its models for, beside
@@ -334,18 +332,61 @@ func keys(m map[string]bool) []string {
 	return out
 }
 
-// inferTrajectory looks where a probe puts one, then where a run does. Empty when neither is
-// there — a MISSING trajectory must refuse rather than report a run in which no seat saw anything.
-func inferTrajectory(run record.Run) string {
+// inferTrajectory is the trajectory of seat's sitting: a probe's own, where the probe harness wrote
+// one beside the run, else the one the record names. A MISSING trajectory refuses, saying why,
+// rather than report a run in which no seat saw anything.
+//
+// THE PROBE'S IS FIRST because a probe seat runs as a `claude -p` main session, which fires no
+// SubagentStop: its record has no stop to name a trajectory, and the harness puts it where it does.
+//
+// THE RECORD'S IS THE STOP'S PATH for the seat's one bound agent. A seat that sat more than once has
+// one trajectory per sitting, and which sitting is the caller's to say, so several refuse with each
+// listed. The run's journal is not a candidate: it holds the seats' returns, never a tool call.
+func inferTrajectory(run record.Run, seat string) (string, error) {
 	probe := filepath.Join(filepath.Dir(run.Dir()), ".probe", filepath.Base(run.Dir())+".jsonl")
 	if st, err := os.Stat(probe); err == nil && !st.IsDir() {
-		return probe
+		return probe, nil
 	}
-	inRun := filepath.Join(run.Dir(), "trajectories", "journal.jsonl")
-	if st, err := os.Stat(inRun); err == nil && !st.IsDir() {
-		return inRun
+	if seat == "" {
+		return "", nil // diagnose refuses the missing --sitting, naming the seats that sat
 	}
-	return ""
+	fam, err := record.FamilyOf(run)
+	if err != nil {
+		return "", err
+	}
+	bindings, err := record.SeatBindings(run)
+	if err != nil {
+		return "", err
+	}
+	var agents []string
+	for a, b := range bindings {
+		if b.SeatID == seat {
+			agents = append(agents, a)
+		}
+	}
+	sort.Strings(agents)
+	switch len(agents) {
+	case 0:
+		return "", feov.Errorf(feov.NotFound,
+			"no agent on the record is bound to %q, so the record names no trajectory of its sitting. Pass --%s <path>", seat, flags.Trajectory)
+	case 1:
+		p, err := record.TranscriptOf(fam, agents[0])
+		if err != nil {
+			return "", feov.Errorf(feov.NotFound, "%s's trajectory: %v. Pass --%s <path>", seat, err, flags.Trajectory)
+		}
+		return p, nil
+	}
+	var each []string
+	for _, a := range agents {
+		if p, err := record.TranscriptOf(fam, a); err == nil {
+			each = append(each, p)
+		} else {
+			each = append(each, err.Error())
+		}
+	}
+	return "", feov.Errorf(feov.Validation,
+		"%q sat %d times, and one trajectory is one sitting — pass --%s with the one to report:\n  %s",
+		seat, len(agents), flags.Trajectory, strings.Join(each, "\n  "))
 }
 
 func renderDiagnostics(r RunDiagnostic) string {

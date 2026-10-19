@@ -38,7 +38,7 @@ func TestSeatsAreLabelledFromTheRecordsRegisters(t *testing.T) {
 			head = `{"message":{"role":"user","content":"Final assembly"}}` + "\n"
 		}
 		if err := os.WriteFile(filepath.Join(tr, "agent-"+id+".jsonl"), []byte(head+
-			`{"message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644); err != nil {
+			`{"agentId":"`+id+`","message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -97,7 +97,7 @@ func TestAnAgentWhoseLatestBracketNamesNoSeatKeepsItsClassLabel(t *testing.T) {
 	recordtest.Seed(t, runDir, registered(t, "red-chair", "C1"), bracket("red-lens-voice"), bracket(""))
 	tr := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tr, "agent-E.jsonl"), []byte(`{"message":{"role":"user","content":"Final assembly"}}`+"\n"+
-		`{"message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644); err != nil {
+		`{"agentId":"E","message":{"model":"claude-haiku-4-5","usage":{"input_tokens":1000,"output_tokens":500}}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(tr, "journal.jsonl"), []byte(`{"agentId":"E"}`+"\n"), 0o644); err != nil {

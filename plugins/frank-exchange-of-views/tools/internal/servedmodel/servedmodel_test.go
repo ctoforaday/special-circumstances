@@ -68,138 +68,30 @@ func TestAHalfWrittenFinalLineDoesNotLoseTheMeasurement(t *testing.T) {
 	}
 }
 
-// THE ID IS COMPARED WITH A FILE'S NAME, NEVER EXPANDED, so an id carrying a wildcard or a
-// separator finds nothing beside the files it would match as a pattern — answering about SOME
-// OTHER SEAT is worse than measuring nothing. And an id of an unexpected shape is SEARCHED FOR and
-// honestly not found, never refused for its shape: a matcher narrowed to the ids measured so far
-// would refuse every one of them, silently, the day the harness changed the format.
-func TestAnIDMatchesOnlyAFileOfExactlyThatName(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("CLAUDE_CONFIG_DIR", root)
-	dir := filepath.Join(root, "projects", "proj", "sess", "subagents", "workflows", "wf_1")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+// OBSERVE READS THE PATH IT IS HANDED — the one the record names — and every no-answer is an error
+// that says which, never a served model.
+func TestObserveReadsThePathItIsHanded(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "agent-a8b246fd3eed5bf64.jsonl")
+	if err := os.WriteFile(p, []byte(declared+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "agent-abc.jsonl"), []byte(declared+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for _, id := range []string{"*", "a*", "a?c", "[a]bc", "../wf_1/agent-abc", "wf_1/agent-abc", `..\..\etc`,
-		"agent_01H9XKQ7", "AAAA1111", "a-b-c", "17-chars-of-other"} {
-		p, err := Locate(id)
-		if err == nil {
-			t.Errorf("Locate(%q) = %q; only agent-abc.jsonl exists, and only the id abc names it", id, p)
-			continue
-		}
-		if !strings.Contains(err.Error(), "NOT MEASURED") {
-			t.Errorf("Locate(%q) must report a MISS: %v", id, err)
-		}
-	}
-	if _, err := Locate(""); err == nil {
-		t.Error("an empty id names no trajectory")
-	}
-}
-
-// The three no-answer cases are three different errors, and none of them is a served model.
-func TestLocateNamesWhyItFoundNothing(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("CLAUDE_CONFIG_DIR", root)
-
-	_, err := Locate("abcdef123456")
-	if err == nil || !strings.Contains(err.Error(), "NOT MEASURED") {
-		t.Fatalf("a miss must say NOT MEASURED, got %v", err)
-	}
-
-	// Two files with one id is a search that has stopped discriminating; it is refused, never
-	// resolved by picking one.
-	for _, proj := range []string{"p1", "p2"} {
-		dir := filepath.Join(root, "projects", proj, "sess", "subagents")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "agent-abcdef123456.jsonl"), []byte(declared+"\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := Locate("abcdef123456"); err == nil || !strings.Contains(err.Error(), "stopped discriminating") {
-		t.Fatalf("two hits must refuse, got %v", err)
-	}
-}
-
-// A SEAT THE WORKFLOW TOOL DISPATCHED is filed one directory deeper, under the workflow's own id —
-// the layout of every seat in a research run.
-func TestLocateFindsAWorkflowSeat(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("CLAUDE_CONFIG_DIR", root)
-	dir := filepath.Join(root, "projects", "proj", "sess", "subagents", "workflows", "wf_0772e7ef-6db")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	want := filepath.Join(dir, "agent-a2cebc9f3dfad4d0f.jsonl")
-	if err := os.WriteFile(want, []byte(declared+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := Locate("a2cebc9f3dfad4d0f")
-	if err != nil {
-		t.Fatalf("a Workflow seat's trajectory was not found: %v", err)
-	}
-	if got != want {
-		t.Errorf("Locate = %s, want %s", got, want)
-	}
-}
-
-func TestObserveReadsTheOneTrajectoryTheIDNames(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("CLAUDE_CONFIG_DIR", root)
-	dir := filepath.Join(root, "projects", "proj", "sess", "subagents")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// A decoy under the SAME session, whose id differs by one character.
-	for name, body := range map[string]string{
-		"agent-a8b246fd3eed5bf64.jsonl": declared,
-		"agent-a8b246fd3eed5bf65.jsonl": `{"message":{"model":"claude-haiku-4-5","role":"assistant"}}`,
-	} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body+"\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	o, err := Observe("a8b246fd3eed5bf64")
+	o, err := Observe(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.Served != "claude-opus-4-8" || o.Requested != "claude-fable-5" {
+	if o.Served != "claude-opus-4-8" || o.Requested != "claude-fable-5" || o.Path != p {
 		t.Fatalf("got %+v", o)
 	}
-	if filepath.Base(o.Path) != "agent-a8b246fd3eed5bf64.jsonl" {
-		t.Errorf("Path must name what was read, got %s", o.Path)
-	}
-}
 
-// THE CLIENT WRITES A SEAT'S TRANSCRIPT UNDER ITS SESSION'S `subagents/` DIRECTORY, AT WHATEVER
-// DEPTH ITS DISPATCHER CHOSE: a plain subagent directly in it, a Workflow seat two levels down in
-// `workflows/wf_<id>/`. Every seat of a research run is a Workflow seat, and the search that knew
-// only the first layout and one level below it found none of them — so the seat assembling the
-// report, whose turns are not yet on the record, printed NOT MEASURED in every run.md.
-func TestLocateFindsATranscriptAtEitherLayout(t *testing.T) {
-	for name, rel := range map[string]string{
-		"plain subagent": filepath.Join("subagents"),
-		"workflow seat":  filepath.Join("subagents", "workflows", "wf_df2a329c-37c"),
-	} {
-		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
-			t.Setenv("CLAUDE_CONFIG_DIR", root)
-			dir := filepath.Join(root, "projects", "proj", "sess", rel)
-			if err := os.MkdirAll(dir, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			want := filepath.Join(dir, "agent-aeddcab47039ae33c.jsonl")
-			if err := os.WriteFile(want, []byte(declared+"\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			got, err := Locate("aeddcab47039ae33c")
-			if err != nil || got != want {
-				t.Fatalf("Locate = %q, %v; want %q", got, err, want)
-			}
-		})
+	if _, err := Observe(filepath.Join(dir, "gone.jsonl")); err == nil {
+		t.Error("a path that does not open is not a measurement")
+	}
+	empty := filepath.Join(dir, "empty.jsonl")
+	if err := os.WriteFile(empty, []byte(`{"type":"user","message":{"role":"user"}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Observe(empty); err == nil || !strings.Contains(err.Error(), "NOT MEASURED") {
+		t.Errorf("a trajectory naming no model must say NOT MEASURED, got %v", err)
 	}
 }

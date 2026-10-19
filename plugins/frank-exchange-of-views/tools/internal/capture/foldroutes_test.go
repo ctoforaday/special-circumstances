@@ -46,7 +46,7 @@ func TestEveryCostSectionIsRouted(t *testing.T) {
 	}
 
 	var rendered bytes.Buffer
-	if err := cost.Report(transcripts, run, &rendered); err != nil {
+	if err := cost.Report([]record.Transcript{{AgentID: "AG", Path: filepath.Join(transcripts, "agent-AG.jsonl")}}, run, &rendered); err != nil {
 		t.Fatalf("rendering cost.md: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestEveryCostSectionIsRoutedOnARunThatMintedAGap(t *testing.T) {
 	}
 
 	var rendered bytes.Buffer
-	if err := cost.Report(t.TempDir(), run, &rendered); err != nil {
+	if err := cost.Report(nil, run, &rendered); err != nil {
 		t.Fatalf("rendering cost.md: %v", err)
 	}
 	sections := splitSections(rendered.String())

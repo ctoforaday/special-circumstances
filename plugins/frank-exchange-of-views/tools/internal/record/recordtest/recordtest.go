@@ -290,7 +290,8 @@ func CheckOrphanedHandles() error {
 }
 
 // ServedBy writes a seat's TRAJECTORY so a reader can resolve which model answered it, and
-// returns the agent id to put on its register.
+// returns the agent id to put on the event that opens its sitting. StopOf is the stop that names
+// the file: without it the seat is still sitting, and the record names no trajectory for it.
 //
 // THE TRAJECTORY IS THE STATEMENT OF RECORD for the serving model, so a fixture that wants a
 // seat to have been answered by something has to say it where the reader looks. It used to be a
@@ -298,33 +299,41 @@ func CheckOrphanedHandles() error {
 // the reader and nothing proved the write, and the write could not have worked: register is the
 // seat's first act and the model appears on the first assistant turn.
 //
+// THE FILE IS NOT NAMED agent-<id>.jsonl, as the harness names it, so a reader that composes that
+// name, or searches a directory for it, finds nothing here: the path the stop carries is the only
+// way in.
+//
 // requested is optional: pass it to declare a substitution the way the harness does, with a
-// `fallback` block naming both ends. Callers share one CLAUDE_CONFIG_DIR per test, so several
-// seats can be given trajectories in the same run.
+// `fallback` block naming both ends.
 func ServedBy(t *testing.T, agentID, served, requested string) string {
 	t.Helper()
-	root := os.Getenv("CLAUDE_CONFIG_DIR")
-	if root == "" {
-		root = t.TempDir()
-		t.Setenv("CLAUDE_CONFIG_DIR", root)
-	}
 	content := `[{"type":"text","text":"hi"}]`
 	if requested != "" {
 		content = `[{"from":{"model":"` + requested + `"},"to":{"model":"` + served + `"},"type":"fallback"}]`
 	}
 	line := `{"agentId":"` + agentID + `","type":"assistant","message":{"model":"` + served +
 		`","role":"assistant","content":` + content + `}}` + "\n"
-	// THE LAYOUT IS THE HARNESS'S, and the fixture has to use it: Locate searches each
-	// `projects/<project>/<session>/subagents/` directory, so a file dropped at the root is honestly
-	// not found — which is the same answer a seat with no trajectory gets, and would make this helper
-	// a fixture that silently measures nothing. It is the Workflow tool's layout because every seat
-	// of a research run is a Workflow seat.
-	dir := filepath.Join(root, "projects", "p", "s", "subagents", "workflows", "wf_test")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "agent-"+agentID+".jsonl"), []byte(line), 0o644); err != nil {
+	if err := os.WriteFile(trajectoryPath(t, agentID), []byte(line), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return agentID
+}
+
+// StopOf is the sitting_close the SubagentStop hook writes when agentID returns, naming the
+// trajectory ServedBy wrote for it. Write it under the harness seat.
+func StopOf(t *testing.T, agentID string) *recordpb.SittingClose {
+	t.Helper()
+	return &recordpb.SittingClose{AgentId: proto.String(agentID), AgentTranscriptPath: proto.String(trajectoryPath(t, agentID))}
+}
+
+var trajectoryRoots sync.Map // *testing.T -> its directory of fixture trajectories
+
+func trajectoryPath(t *testing.T, agentID string) string {
+	t.Helper()
+	root, ok := trajectoryRoots.Load(t)
+	if !ok {
+		root, _ = trajectoryRoots.LoadOrStore(t, t.TempDir())
+		t.Cleanup(func() { trajectoryRoots.Delete(t) })
+	}
+	return filepath.Join(root.(string), "trajectory-of-"+agentID+".jsonl")
 }

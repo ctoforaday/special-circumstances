@@ -232,10 +232,10 @@ type peak struct {
 // REQUEST's — read by seatturn.Parse, the reader seat_turn and cost.md share — and the window is the
 // model's own, from the cost package's model table: Haiku 5.5's is 1M where Haiku 4.5's was 200K, and
 // a window guessed from the tier name put a 118K Haiku 5.5 seat at 59% of a window it does not have.
-func ContextUse(transcriptDir string, agentFiles []string) Audit {
+func ContextUse(transcripts []record.Transcript) Audit {
 	var peaks []peak
-	for _, f := range agentFiles {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+	for _, tr := range transcripts {
+		b, err := os.ReadFile(tr.Path)
 		if err != nil {
 			continue
 		}
@@ -250,7 +250,7 @@ func ContextUse(transcriptDir string, agentFiles []string) Audit {
 			}
 		}
 		if pk > 0 {
-			peaks = append(peaks, peak{agent: stripAgent(f), peak: pk, window: cost.WindowOf(model)})
+			peaks = append(peaks, peak{agent: tr.AgentID, peak: pk, window: cost.WindowOf(model)})
 		}
 	}
 	if len(peaks) == 0 {
@@ -281,10 +281,6 @@ func ContextUse(transcriptDir string, agentFiles []string) Audit {
 		len(peaks), len(flagged), tail)
 	return Audit{Check: "context-use", Verdict: v, Detail: detail}
 }
-
-var reAgentStrip = regexp.MustCompile(`^agent-|\.jsonl$`)
-
-func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 
 // ---- AUDIT 5: assembly regression screen ----
 
@@ -830,7 +826,7 @@ type Claim struct {
 // and anchor_target as FIELDS; archiveMD concatenates them into a pipe-delimited line; and this
 // function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
 // Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
-func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string, sampleFloor int) Audit {
+func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
@@ -854,8 +850,8 @@ func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string,
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "no anchored closures (all carried, or anchors absent)"}
 	}
 	var calls []string // JSON.stringify(input) of every tool call
-	for _, f := range agentFiles {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+	for _, tr := range transcripts {
+		b, err := os.ReadFile(tr.Path)
 		if err != nil {
 			continue
 		}
@@ -1079,12 +1075,12 @@ func recordTierFindings(run record.Run, model, judgmentModel string) (findings [
 	return findings, measured, total
 }
 
-func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) Audit {
+func ModelTierAudit(run record.Run, transcripts []record.Transcript) Audit {
 	model, judgmentModel := cost.TierConfig(run)
 	if model == "" && judgmentModel == "" {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "the run config names no models, so there is no configured tier to check the served one against"}
 	}
-	// THE EPOCH COMES FROM THE RECORD, per transcript: the agent id in the file name joins to the
+	// THE EPOCH COMES FROM THE RECORD, per transcript: the agent whose stop named it joins to the
 	// act that bound it to its seat (record.SeatBindings), and that act's window says which chair
 	// sitting it sat in. Without it every sitting of a seat folds into epoch 0 and DedupTierFindings
 	// reports one finding for what may be several — so a record that cannot be read is a FAIL, not
@@ -1094,13 +1090,13 @@ func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) A
 		return Audit{Check: "model-tier", Verdict: "FAIL", Detail: "the record could not be read: " + err.Error()}
 	}
 	var rows []cost.Row
-	for _, f := range agentFiles {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+	for _, tr := range transcripts {
+		b, err := os.ReadFile(tr.Path)
 		if err != nil {
 			continue
 		}
 		row := cost.ScanTranscript(string(b))
-		row.Epoch = bindings[cost.AgentIDOfTranscript(f)].Epoch
+		row.Epoch = bindings[tr.AgentID].Epoch
 		rows = append(rows, row)
 	}
 	findings := cost.DedupTierFindings(cost.TierMismatch(rows, model, judgmentModel))
@@ -1595,9 +1591,64 @@ func labelOf(run record.Run) string {
 	return "run"
 }
 
+// ---- the seats' transcripts ----
+
+// seatTranscripts is every seat transcript the record names that is readable here, and the line
+// capture prints about the census.
+//
+// THE RECORD SAYS WHICH FILES ARE THE RUN'S SEATS. Each agent's stop names its transcript, so
+// capture reads those paths and lists no directory: a directory's `agent-*.jsonl` is whatever the
+// harness left there, and a resumed run's seats sit in more than one.
+//
+// EVERY SEAT IT CANNOT READ IS NAMED, with why — a path gone from this box, a stop that named no
+// path, an agent with no stop at all. Each is a seat whose spend and turns are missing from what
+// follows, and a smaller count with nothing said reads as a smaller run.
+func seatTranscripts(run record.Run, fam *record.Family) ([]record.Transcript, string) {
+	if fam == nil {
+		return nil, "transcripts: NONE READ — the record could not be read, and it is what names each seat's transcript"
+	}
+	census := record.TranscriptsOf(*fam)
+	bindings, _ := record.SeatBindings(run)
+	who := func(agent string) string {
+		if b, ok := bindings[agent]; ok && b.SeatID != "" {
+			return b.SeatID + " (agent " + agent + ")"
+		}
+		return "agent " + agent + " (bound to no seat)"
+	}
+	var present []record.Transcript
+	var gone []string
+	for _, tr := range census.Named {
+		if err := tr.Missing(); err != nil {
+			gone = append(gone, who(tr.AgentID)+": "+tr.Path)
+			continue
+		}
+		present = append(present, tr)
+	}
+	line := fmt.Sprintf("transcripts: %d named by the record's sitting closes, %d readable here", len(census.Named), len(present))
+	if len(gone) > 0 {
+		line += fmt.Sprintf("; %d NOT ON THIS BOX (transcripts are not archived with the record): %s", len(gone), strings.Join(gone, "; "))
+	}
+	if len(census.Unnamed) > 0 {
+		var ws []string
+		for _, a := range census.Unnamed {
+			ws = append(ws, who(a))
+		}
+		line += fmt.Sprintf("; %d stopped with NO PATH on the stop: %s", len(ws), strings.Join(ws, "; "))
+	}
+	if len(census.Sitting) > 0 {
+		var ws []string
+		for _, a := range census.Sitting {
+			ws = append(ws, who(a))
+		}
+		line += fmt.Sprintf("; %d opened a sitting with NO STOP on the record (killed mid-sitting, or run as a main session, which fires no SubagentStop), so no transcript is named: %s", len(ws), strings.Join(ws, "; "))
+	}
+	return present, line
+}
+
 // ---- tarball ----
 
-func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
+// writeTarball packs each transcript under its own file name; an agent's id makes the name unique.
+func writeTarball(outPath string, transcripts []record.Transcript) error {
 	f, err := os.Create(outPath)
 	if err != nil {
 		return err
@@ -1605,14 +1656,12 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 	defer f.Close()
 	gz := gzip.NewWriter(f)
 	tw := tar.NewWriter(gz)
-	sorted := append([]string(nil), agentFiles...)
-	sort.Strings(sorted)
-	for _, name := range sorted {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, name))
+	for _, tr := range transcripts {
+		b, err := os.ReadFile(tr.Path)
 		if err != nil {
 			return err
 		}
-		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(b))}); err != nil {
+		if err := tw.WriteHeader(&tar.Header{Name: filepath.Base(tr.Path), Mode: 0o644, Size: int64(len(b))}); err != nil {
 			return err
 		}
 		if _, err := tw.Write(b); err != nil {
@@ -1627,23 +1676,17 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 
 // ---- orchestration ----
 
-// Run executes capture: mechanics + the nine audits, writes run-record-audit.md, and returns the
-// audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
-// (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
-// process.cwd().
-// `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
-// is controllable in a test, the same way WriteRunLiveMarker takes its clock.
 // ingestSeatTurns reads each seat transcript into per-turn rows on the record and returns the
 // line capture prints about it.
 //
 // IDENTITY IS NOT COPIED IN HERE. A row carries the harness agent id and nothing else; which seat
 // that agent is bound to is already on the record — its latest register, else a bracket that names
 // a seat — so the views join to seat_of_agent rather than this function restating it. The agent id comes off the transcript
-// LINE rather than the filename for the same reason — see seatturn.Parse.
-func ingestSeatTurns(run record.Run, transcriptDir string, agentFiles []string) string {
+// LINE, which states which agent produced it — see seatturn.Parse.
+func ingestSeatTurns(run record.Run, transcripts []record.Transcript) string {
 	seats, rows, failed := 0, 0, 0
-	for _, f := range agentFiles {
-		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+	for _, tr := range transcripts {
+		b, err := os.ReadFile(tr.Path)
 		if err != nil {
 			failed++
 			continue
@@ -1668,6 +1711,15 @@ func ingestSeatTurns(run record.Run, transcriptDir string, agentFiles []string) 
 	return line
 }
 
+// Run executes capture: mechanics + the nine audits, writes run-record-audit.md, and returns the
+// audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
+// (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
+// process.cwd().
+// `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
+// is controllable in a test, the same way WriteRunLiveMarker takes its clock.
+//
+// transcriptDir is the Workflow's directory, read for its journal alone: the seats' transcripts
+// are the ones the record names (seatTranscripts).
 func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
@@ -1691,15 +1743,17 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	} else if err = copyFile(src, filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
 		return nil, "", false, err
 	}
-	agentFiles, err := listAgentFiles(transcriptDir)
-	if err != nil {
-		return nil, "", false, err
+	var onRecord *record.Family
+	if f, ferr := record.FamilyOf(run); ferr == nil {
+		onRecord = &f
 	}
+	transcripts, census := seatTranscripts(run, onRecord)
+	lines = append(lines, census)
 	tarPath := filepath.Join(run.Dir(), "trajectories", "agent-transcripts.tar.gz")
-	if terr := writeTarball(transcriptDir, tarPath, agentFiles); terr != nil {
+	if terr := writeTarball(tarPath, transcripts); terr != nil {
 		lines = append(lines, "tarball: FAILED — "+jsSlice(terr.Error(), 200))
 	} else {
-		lines = append(lines, fmt.Sprintf("tarball: %d transcript(s)", len(agentFiles)))
+		lines = append(lines, fmt.Sprintf("tarball: %d transcript(s)", len(transcripts)))
 	}
 	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
 	// archive that silently did not happen is a run whose evidence is gone the next time the
@@ -1739,13 +1793,13 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// REPORTED, NEVER FATAL. Capture's job is the audits, and a run whose telemetry could not be
 	// read is still a run whose integrity must be checked — but a silent skip would leave an
 	// empty table that reads exactly like a run with no turns, so the count is always stated.
-	lines = append(lines, ingestSeatTurns(run, transcriptDir, agentFiles))
+	lines = append(lines, ingestSeatTurns(run, transcripts))
 
 	costF, cerr := os.Create(filepath.Join(run.Dir(), "cost.md"))
 	if cerr != nil {
 		return nil, "", false, cerr
 	}
-	if rerr := cost.Report(transcriptDir, run, costF); rerr != nil {
+	if rerr := cost.Report(transcripts, run, costF); rerr != nil {
 		costF.Close()
 		lines = append(lines, "cost.md: FAILED — "+jsSlice(rerr.Error(), 200))
 	} else {
@@ -1754,9 +1808,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	}
 
 	// THE DOCUMENTS ARE RE-ASSEMBLED FROM THE RECORD AS IT STANDS AT THE CLOSE. The bench assembles
-	// inside its own sitting, and the run document's tier table reads each seat's turns: the bench's
-	// own are not on the record until its sitting stops, and a seat whose trajectory cannot be opened
-	// from where capture runs is measured from those turns alone. Re-assembling here, after the turns
+	// inside its own sitting, and the run document's tier table reads each seat's trajectory at the
+	// path its stop names: the bench's own stop, and its turns, are not on the record until its
+	// sitting stops, and a seat whose trajectory cannot be opened from where capture runs is measured
+	// from its turns alone. Re-assembling here, after the turns
 	// are ingested, is what makes that table the run's and not the moment's. The audits below then
 	// screen the documents that ship. A run that never reached assembly has no run.md and is not
 	// assembled here: the bench's act is what makes a run's documents exist.
@@ -1790,7 +1845,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	audits = []Audit{
 		LivenessAudit(run, now),
 		TelemetryAudit(run, redEpochs),
-		ContextUse(transcriptDir, agentFiles),
+		ContextUse(transcripts),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),
 		StrayRecordsAudit(repoRootOf(run), run.Dir()),
@@ -1799,8 +1854,8 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// Which sittings the hook stopped at the per-sitting tool-call limit. See sittinglimit.go.
 		SittingLimitAudit(run),
 		BackfillAudit(run),
-		AttestationAudit(run, transcriptDir, agentFiles, 5),
-		ModelTierAudit(run, transcriptDir, agentFiles),
+		AttestationAudit(run, transcripts, 5),
+		ModelTierAudit(run, transcripts),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
 		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
@@ -1887,22 +1942,6 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, b, 0o644)
-}
-
-func listAgentFiles(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	var files []string
-	for _, e := range entries {
-		n := e.Name()
-		if strings.HasPrefix(n, "agent-") && strings.HasSuffix(n, ".jsonl") {
-			files = append(files, n)
-		}
-	}
-	sort.Strings(files)
-	return files, nil
 }
 
 // ---- record archive ----
