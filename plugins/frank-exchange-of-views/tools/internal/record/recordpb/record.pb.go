@@ -3381,11 +3381,11 @@ type Close struct {
 	// An annotation cannot say "unless this other field is set", which is the split validate's
 	// header states: unconditional requirements on the field, everything conditional below.
 	Prose *string `protobuf:"bytes,8,opt,name=prose,proto3,oneof" json:"prose,omitempty"`
-	// anchors are the report's anchors the closure was verified with — each the id of an anchor the
-	// record holds, refused at the write otherwise. Capture's attestation audit joins each to the tool
-	// calls of the closing seat's trajectory: a closure naming an anchor it never read is the
-	// dishonesty that audit exists to find. Empty is "verified with no anchor", and the audit then
-	// reads anchor_target's prose.
+	// anchors are the ids the closure was verified with — each a report anchor or an inquiry the
+	// record holds, and never the gap being closed, refused at the write otherwise. Capture's
+	// attestation audit joins each to the other tool calls of the closer's sitting: a closure naming an
+	// anchor it never read is the dishonesty that audit exists to find. Empty is "verified with no
+	// anchor", and the audit then reads anchor_target's prose.
 	Anchors       []string `protobuf:"bytes,9,rep,name=anchors,proto3" json:"anchors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

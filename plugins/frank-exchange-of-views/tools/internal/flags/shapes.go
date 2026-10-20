@@ -155,6 +155,13 @@ func AnchorID() *ShapedValue {
 		hint: "an anchor is a `" + anchor.Token("C-…") + "`, `" + anchor.Token("F-…") + "`, `" + anchor.Token("P-…") + "` or `" + anchor.Token("G-…") + "` token in the report, or the id inside one — paste either; `show evidence`, `show findings` and `show board` resolve them"}
 }
 
+// ClosureAnchorID refuses anything that is not what a closure rests on: an anchor of any class, or an
+// inquiry's id — an inquiry's fate is a record act a closure can be verified with.
+func ClosureAnchorID() *ShapedValue {
+	return &ShapedValue{kind: "anchor", re: regexp.MustCompile(`^(?:` + anchor.IDPattern() + `|` + anchor.IDPattern("inquiry") + `)$`), unwrapsAnchor: true,
+		hint: "an anchor is a `" + anchor.Token("C-…") + "`, `" + anchor.Token("F-…") + "`, `" + anchor.Token("P-…") + "` or `" + anchor.Token("G-…") + "` token in the report, or the id inside one — paste either — or an inquiry's Q- id; `show evidence`, `show findings`, `show board` and `show inquiries` resolve them"}
+}
+
 // CitationAnchor refuses an anchor of the wrong CLASS, not merely the wrong form.
 //
 // `blue prove --cites` and `lens verify --anchor` both name a source, and the general anchor

@@ -379,52 +379,43 @@ func AssemblyScreen(run record.Run) Audit {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
 
-	// THE WHOLE SET, not report.md. A refuted source cited in the debate transcript points the
-	// reader at rejected evidence exactly as one in the analysis does, and a screen that reads
-	// a seventh of the deliverable reports the other six as clean.
-	var assembled strings.Builder
+	// THE SCREEN NEEDS THE DELIVERABLE: before assembly there is nothing a reader is pointed at,
+	// and saying so beats a PASS that means "the file I was looking for was not there".
+	assembled := false
 	for _, name := range reportdoc.Files() {
-		body, rerr := os.ReadFile(filepath.Join(run.Dir(), name))
-		if rerr != nil {
-			continue
+		if body, rerr := os.ReadFile(filepath.Join(run.Dir(), name)); rerr == nil && len(body) > 0 {
+			assembled = true
+			break
 		}
-		assembled.Write(body)
 	}
-	if assembled.Len() == 0 {
-		// Before assembly there is nothing to screen, and saying so beats a PASS that means
-		// "the file I was looking for was not there".
+	if !assembled {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP",
 			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled document yet — the screen runs against the assembled artifact", ev.Counts.Sources)}
 	}
 
-	var carried []string
+	// EACH CITATION BY ITS STANDING, KEYED BY ITS ANCHOR. The assembled report weaves every anchor
+	// the report carries into a footnote, so a citation still cited is one the record has not
+	// retired — and the ledger that says so is the one that says whether a check of its sentence
+	// stands. A refutation of a sentence blue has since rewritten, and then checked again, is
+	// answered; one standing against the sentence the report carries is not. The url is no key:
+	// two citations of one url back two sentences, and a screen keyed by it failed the run whose
+	// refuted sentence had been fixed and re-verified (m30, C-4f4b8cfa).
+	urlOf := map[string]string{}
 	for _, s := range ev.Sources {
-		found := false
-		for _, v := range s.Verified {
-			if v.Refuted() {
-				found = true
-				break
-			}
-		}
-		if !found {
-			continue
-		}
-		// The assembled report has had its anchors woven into visible footnotes, so the c- id is
-		// screened against the PRE-assembly anchor AND the source's own url, which survives into
-		// the composed bibliography. Either surviving means the reader is still being pointed at
-		// a source red found against.
-		if s.URL != "" && strings.Contains(assembled.String(), s.URL) {
-			carried = append(carried, fmt.Sprintf("%s (%s)", s.Anchor, s.URL))
-		}
+		urlOf[s.Anchor] = s.URL
+	}
+	var carried []string
+	for _, a := range record.CitationsFoundAgainst(fam.Events, fam.At) {
+		carried = append(carried, fmt.Sprintf("%s (%s)", a, urlOf[a]))
 	}
 
 	if len(carried) > 0 {
 		return Audit{Check: "assembly-screen", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d source(s) red found AGAINST are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
+			Detail: fmt.Sprintf("%d source(s) red finds AGAINST the sentence the report carries are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, ", "))}
 	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d citation(s), %d found against by red (refutes|absent), none still cited in the assembled report; %d cited source(s) nobody has checked",
+		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) nobody has checked",
 			ev.Counts.Sources, ev.Counts.SourcesRefuted, ev.Counts.SourcesUnverified)}
 }
 
@@ -748,14 +739,21 @@ func BackfillAudit(run record.Run) Audit {
 
 // ---- AUDIT 8: attestation integrity ----
 
-// Claim is one anchored closure (seat|tool|target) spot-checked against tool calls.
+// Claim is one anchored closure (seat|tool|target) spot-checked against the closer's own tool calls.
 type Claim struct {
 	ID, Seat, Tool, Target, Why string
-	// Anchors are the report anchors the closure names as verified with (Close.anchors).
+	// Anchors are the ids the closure names as verified with (Close.anchors).
 	Anchors []string
+	// Agent is the harness id of the agent whose sitting recorded the closure — the agent that opened
+	// the sitting the close event is stored in. "" when the close is in no sitting, or its opening
+	// names no agent.
+	Agent string
+	// Closes are the stamps of every close the closer's sitting recorded: each is a call the audit
+	// does not count, because naming an id in a close is the claim, not the read behind it.
+	Closes []time.Time
 }
 
-// AttestationAudit spot-checks anchored closures against actual tool-call inputs.
+// AttestationAudit holds each anchored closure to the acts of the sitting that made it.
 //
 // IT READS THE RECORD, not red/archive.md. The file was the source until the archive became a
 // rendered projection, and `setup` stopped creating it — so this audit had been reading "" and
@@ -766,10 +764,33 @@ type Claim struct {
 // and anchor_target as FIELDS; archiveMD concatenates them into a pipe-delimited line; and this
 // function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
 // Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
+//
+// THE CLOSER'S SITTING, AND NOT THE CLOSE. Each anchor must appear in a call of the closer's own
+// sitting — the transcript of the agent that opened the sitting the close is stored in — that READ
+// it (it came back in the call's result) or NAMED it (it is in the call's input), other than the
+// calls that recorded the sitting's closes. The audit searched every call of every transcript, and
+// the close itself carries every anchor it names, so no anchored closure could fail: m30's
+// G-968365ad named two proofs and reconciled on its own `close --anchor`. A close is located in its
+// sitting's transcript by its stamp, inside the window from the call to its result; a close no
+// call's window holds cannot be told apart from the reads, and its closure is NOT MEASURED.
 func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFloor int) Audit {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
+	}
+	byID := map[int64]*record.Event{}
+	closesIn := map[int64][]time.Time{} // sitting → the stamps of the closes recorded in it
+	closeEvent := map[*recordpb.Close]*record.Event{}
+	for _, e := range fam.Events {
+		w := fam.At.Of(e)
+		byID[w.ID] = e
+		if c := e.GetClose(); c != nil {
+			closeEvent[c] = e
+			// An unreadable stamp is kept as the zero time, which sittingReads refuses to measure:
+			// dropped, its close would go uncounted and the close would reconcile itself again.
+			ts, _ := record.ParseStamp(e.GetTs())
+			closesIn[w.SittingID] = append(closesIn[w.SittingID], ts)
+		}
 	}
 	var claims []Claim
 	for _, g := range fam.Gaps {
@@ -782,47 +803,25 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 			continue
 		}
 		seat, tool, target := g.Closure.GetAnchorSeat(), g.Closure.GetAnchorTool(), g.Closure.GetAnchorTarget()
-		if seat != "" && tool != "" && target != "" {
-			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target, Anchors: g.Closure.GetAnchors()})
+		if seat == "" || tool == "" || target == "" {
+			continue
 		}
+		c := Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target, Anchors: g.Closure.GetAnchors()}
+		if e := closeEvent[g.Closure]; e != nil {
+			sitting := fam.At.Of(e).SittingID
+			if opener := byID[sitting]; opener != nil {
+				c.Agent = recordpb.AgentOpening(opener)
+			}
+			c.Closes = closesIn[sitting]
+		}
+		claims = append(claims, c)
 	}
 	if len(claims) == 0 {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "no anchored closures (all carried, or anchors absent)"}
 	}
-	var calls []string // JSON.stringify(input) of every tool call
+	pathOf := map[string]string{}
 	for _, tr := range transcripts {
-		b, err := os.ReadFile(tr.Path)
-		if err != nil {
-			continue
-		}
-		for _, l := range strings.Split(string(b), "\n") {
-			if strings.TrimSpace(l) == "" {
-				continue
-			}
-			var j map[string]any
-			if json.Unmarshal([]byte(l), &j) != nil {
-				continue
-			}
-			m, _ := j["message"].(map[string]any)
-			if m == nil {
-				continue
-			}
-			content, ok := m["content"].([]any)
-			if !ok {
-				continue
-			}
-			for _, ci := range content {
-				c, ok := ci.(map[string]any)
-				if !ok || strOf(c["type"]) != "tool_use" {
-					continue
-				}
-				input := c["input"]
-				if input == nil {
-					input = map[string]any{}
-				}
-				calls = append(calls, jsStringify(input))
-			}
-		}
+		pathOf[tr.AgentID] = tr.Path
 	}
 	sampled := sampleClaims(claims, sampleFloor)
 	var unreconciled, unmeasured []Claim
@@ -835,10 +834,16 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 			unmeasured = append(unmeasured, c)
 			continue
 		}
+		reads, why := sittingReads(c, pathOf)
+		if why != "" {
+			c.Why = why
+			unmeasured = append(unmeasured, c)
+			continue
+		}
 		missing := ""
 		for _, n := range needles {
 			found := false
-			for _, k := range calls {
+			for _, k := range reads {
 				if strings.Contains(k, n) {
 					found = true
 					break
@@ -851,9 +856,9 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 		}
 		if missing != "" {
 			if byID {
-				c.Why = "the closure cites " + missing + " but no tool call in any transcript carries it"
+				c.Why = "the closure cites " + missing + " but no call of the closer's sitting, other than its closes, read or named it"
 			} else {
-				c.Why = "no tool call in any transcript touches " + missing
+				c.Why = "no call of the closer's sitting, other than its closes, touches " + missing
 			}
 			unreconciled = append(unreconciled, c)
 		}
@@ -875,13 +880,122 @@ func AttestationAudit(run record.Run, transcripts []record.Transcript, sampleFlo
 		for i, u := range unreconciled {
 			ul[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
 		}
-		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
+		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the closer's sitting — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
 			len(unreconciled), len(sampled), strings.Join(ul, "\n"), note)
 		return Audit{Check: "attestation-integrity", Verdict: "FAIL", Detail: detail, Unreconciled: unreconciled}
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls%s",
+		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against the closer's own tool calls%s",
 			len(sampled)-len(unmeasured), len(claims), note)}
+}
+
+// sittingReads is the text of every call of c's sitting other than its closes — each call's input
+// and its result — or why the sitting cannot be read: no agent to name it, no transcript of it
+// readable here, or a close of the sitting no call's window holds.
+func sittingReads(c Claim, pathOf map[string]string) (reads []string, why string) {
+	if c.Agent == "" {
+		return nil, "the close is in no sitting whose opening names an agent, so no transcript is the closer's"
+	}
+	path, ok := pathOf[c.Agent]
+	if !ok {
+		return nil, "the closer's sitting (agent " + c.Agent + ") has no transcript readable here"
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, "the closer's transcript (agent " + c.Agent + ") is not readable: " + err.Error()
+	}
+	calls := callsOf(string(b))
+	closing := make([]bool, len(calls))
+	for _, ts := range c.Closes {
+		if ts.IsZero() {
+			return nil, "a close the sitting recorded carries no readable stamp, so its closes cannot be told from its reads"
+		}
+		held := false
+		for i, k := range calls {
+			if k.holds(ts) {
+				closing[i], held = true, true
+			}
+		}
+		if !held {
+			return nil, fmt.Sprintf("a close the sitting recorded at %s is in no call of agent %s's transcript, so its closes cannot be told from its reads", ts.Format(time.RFC3339Nano), c.Agent)
+		}
+	}
+	for i, k := range calls {
+		if !closing[i] {
+			reads = append(reads, k.input, k.result)
+		}
+	}
+	return reads, ""
+}
+
+// toolCall is one tool call of a transcript: its input and its result as JSON text, and the window
+// from the line that made the call to the line that carried its result.
+type toolCall struct {
+	input, result string
+	// from is the stamp of the call's line; to is its result's, zero while no result line names
+	// the call — a call still running holds every later moment.
+	from, to time.Time
+}
+
+// holds reports whether ts falls inside the call's window.
+func (k toolCall) holds(ts time.Time) bool {
+	if k.from.IsZero() || ts.Before(k.from) {
+		return false
+	}
+	return k.to.IsZero() || !ts.After(k.to)
+}
+
+// callsOf reads a transcript's tool calls, in the order it made them, each joined to its result by
+// the result's tool_use_id. A line with no timestamp leaves its stamp zero: a call so stamped holds
+// no moment, and a result so stamped leaves its call's window open.
+func callsOf(transcript string) []toolCall {
+	var calls []toolCall
+	at := map[string]int{}
+	for _, l := range strings.Split(transcript, "\n") {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		var j map[string]any
+		if json.Unmarshal([]byte(l), &j) != nil {
+			continue
+		}
+		m, _ := j["message"].(map[string]any)
+		if m == nil {
+			continue
+		}
+		content, ok := m["content"].([]any)
+		if !ok {
+			continue
+		}
+		stamp, _ := time.Parse(time.RFC3339Nano, strOf(j["timestamp"]))
+		for _, ci := range content {
+			c, ok := ci.(map[string]any)
+			if !ok {
+				continue
+			}
+			switch strOf(c["type"]) {
+			case "tool_use":
+				// ONE CALL PER ID. The harness writes each request's payload into the transcript again
+				// (an `api-request-blob` line, with no timestamp), so a call and its result recur;
+				// the first line carrying the call is the one that made it.
+				id := strOf(c["id"])
+				if _, seen := at[id]; seen && id != "" {
+					continue
+				}
+				input := c["input"]
+				if input == nil {
+					input = map[string]any{}
+				}
+				at[id] = len(calls)
+				calls = append(calls, toolCall{input: jsStringify(input), from: stamp})
+			case "tool_result":
+				if i, ok := at[strOf(c["tool_use_id"])]; ok && calls[i].to.IsZero() {
+					calls[i].result, calls[i].to = jsStringify(c["content"]), stamp
+				}
+			}
+		}
+	}
+	return calls
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.

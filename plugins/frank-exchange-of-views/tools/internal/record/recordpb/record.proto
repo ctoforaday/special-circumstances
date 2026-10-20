@@ -913,11 +913,11 @@ message Close {
     why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
   }, (feov.record.v1.prose) = true];
 
-  // anchors are the report's anchors the closure was verified with — each the id of an anchor the
-  // record holds, refused at the write otherwise. Capture's attestation audit joins each to the tool
-  // calls of the closing seat's trajectory: a closure naming an anchor it never read is the
-  // dishonesty that audit exists to find. Empty is "verified with no anchor", and the audit then
-  // reads anchor_target's prose.
+  // anchors are the ids the closure was verified with — each a report anchor or an inquiry the
+  // record holds, and never the gap being closed, refused at the write otherwise. Capture's
+  // attestation audit joins each to the other tool calls of the closer's sitting: a closure naming an
+  // anchor it never read is the dishonesty that audit exists to find. Empty is "verified with no
+  // anchor", and the audit then reads anchor_target's prose.
   repeated string anchors = 9;
 }
 
