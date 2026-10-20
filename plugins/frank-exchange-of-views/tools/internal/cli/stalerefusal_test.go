@@ -59,12 +59,12 @@ func regrade(t *testing.T, runDir, seat, gap, severity string) error {
 	return err
 }
 
-// lastEventID is the events.id of the newest event on the record.
-func lastEventID(t *testing.T, runDir string) int64 {
+// lastCloseID is the events.id of the newest close on the record.
+func lastCloseID(t *testing.T, runDir string) int64 {
 	t.Helper()
-	evs, win, err := record.EventsOf(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
+	evs, win, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_CLOSE)
+	if err != nil || len(evs) == 0 {
+		t.Fatalf("no close on the record: %v", err)
 	}
 	return win.Of(evs[len(evs)-1]).ID
 }
@@ -77,7 +77,7 @@ func TestAFindingAboutAGapClosedSinceTheSittingOpenedIsRefusedAndRefilesOnce(t *
 	gap := mintGap(t, runDir, "closed-under", "carry-vs-close")
 	sit(t, runDir, staleLens)
 	closeRepaired(t, runDir, gap)
-	closedAt := lastEventID(t, runDir)
+	closedAt := lastCloseID(t, runDir)
 
 	err := findingAbout(t, runDir, staleLens, "F1", gap)
 	if err == nil {
@@ -118,6 +118,8 @@ func TestAnotherSeatsFindingSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain
 	if err == nil || !strings.Contains(err.Error(), "red-lens-logic's finding") {
 		t.Fatalf("a finding about a gap another lens argued after this sitting opened was not refused naming that finding: %v", err)
 	}
+	// The minting lens answers the logic finding at a sitting opened after it.
+	sit(t, runDir, lensSeat)
 	if err := regrade(t, runDir, lensSeat, gap, "high"); err != nil {
 		t.Fatalf("the minting lens's regrade after the logic finding: %v", err)
 	}
@@ -275,7 +277,8 @@ func TestConcurrentLensesFileNoFindingAgainstAGapThatMovedUnderThem(t *testing.T
 // finding on that gap after the filer's read point.
 func staleFindingsOn(t *testing.T, runDir string) []string {
 	t.Helper()
-	evs, win, err := record.EventsOf(runtest.Open(t, runDir))
+	evs, win, err := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_CLOSE,
+		recordpb.EventType_EVENT_TYPE_REGRADE, recordpb.EventType_EVENT_TYPE_FINDING, recordpb.EventType_EVENT_TYPE_STALE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,6 +288,7 @@ func staleFindingsOn(t *testing.T, runDir string) []string {
 	}
 	on := map[string][]act{}
 	var bad []string
+	findings := 0
 	for _, e := range evs {
 		id := win.Of(e).ID
 		gap := ""
@@ -295,9 +299,11 @@ func staleFindingsOn(t *testing.T, runDir string) []string {
 			gap = e.GetRegrade().GetGapId()
 		case e.GetFinding() != nil && e.GetFinding().GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP:
 			gap = e.GetFinding().GetAboutRef()
-			read := win.Of(e).SittingID
+			findings++
+			sitting := win.Of(e).SittingID
+			read := sitting
 			for _, p := range evs {
-				if s := p.GetStale(); s != nil && s.GetGapId() == gap && p.GetSeatId() == e.GetSeatId() && win.Of(p).SittingID == read && win.Of(p).ID < id {
+				if s := p.GetStale(); s != nil && s.GetGapId() == gap && p.GetSeatId() == e.GetSeatId() && win.Of(p).SittingID == sitting && win.Of(p).ID < id {
 					read = max(read, s.GetThrough())
 				}
 			}
@@ -310,6 +316,9 @@ func staleFindingsOn(t *testing.T, runDir string) []string {
 		if gap != "" {
 			on[gap] = append(on[gap], act{id, e.GetSeatId()})
 		}
+	}
+	if findings == 0 {
+		t.Fatal("the oracle read no finding about a gap — it measured nothing")
 	}
 	return bad
 }
