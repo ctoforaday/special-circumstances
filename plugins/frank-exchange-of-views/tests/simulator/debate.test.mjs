@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, keyed, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
+import { loadDebateScript, makeWorld, makeResponder, blueEnv, chairEnv, passChair, plan, exchanges, passPlan, ceilingPlan, party, petitionBench, blocker, withKey, judgeEnv, petitionRulingEnv, schemaAccepts, strictTypesWarnings } from './harness.mjs'
 
 // THE SIMULATOR DRIVES debate.js WITH STUBBED SEATS. There are no rounds (plans/roundless.md
 // §III.B.1): the chair sits, its envelope relays the plan `dispatch next` recorded, the loop
@@ -1086,7 +1086,7 @@ test('m16: chair sitting 6\'s relay — an empty occasions list on each lens and
   assert.deepEqual(relayed.plan.parties.map((p) => p.occasions), [[], [], []], 'the fixture is the relay that ended the run')
   assert.deepEqual([relayed.plan.blockers, relayed.plan.pass_permitted], [[], false], 'the fixture dropped every blocker')
   assert.ok(!schemaAccepts(await chairSchema(), relayed), 'the schema refuses a plan that permits no PASS and names nothing holding it')
-  const env = { ...relayed, plan: keyed({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }) }
+  const env = { ...relayed, plan: withKey({ ...relayed.plan, blockers: ['G14', 'G15', 'G16', 'G17'].map((g) => blocker(g, 'red-lens-adversary', 'material_gap')) }) }
   assert.ok(schemaAccepts(await chairSchema(), env), 'the schema accepts the empty occasions lists')
   const { world, out } = await relayEnds(env)
   assert.deepEqual(world.calls.map((c) => c.opts.label).filter((l) => / #1 /.test(l) && !l.startsWith('red-chair')),

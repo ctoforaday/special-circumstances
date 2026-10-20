@@ -269,7 +269,7 @@ func TestTheWriteRefusesAPlanNoPrintingWrites(t *testing.T) {
 		{"a key the plan does not declare", strings.Replace(good, `{"key"`, `{"extra":1,"key"`, 1), "not a plan"},
 		{"bytes its printing would not write", strings.Replace(good, `,"parties"`, `, "parties"`, 1), "not as the verb prints it"},
 		{"a key that is not the plan's", strings.Replace(good, plan.Key, "0000000000000000", 1), "key is"},
-		{"a plan its rules refuse", keyed(emptied).Printed(), "empty only when"},
+		{"a plan its rules refuse", emptied.WithKey().Printed(), "empty only when"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if _, err := Append(sit(t, run, "red-chair"), &recordpb.Plan{Printed: proto.String(c.printed)}); err == nil || !strings.Contains(err.Error(), c.want) {
@@ -292,11 +292,11 @@ func TestThePlanKeyLeavesOutOnlyWhenThePlanWasAsked(t *testing.T) {
 	if strings.Join(unkeyed, ",") != "epoch,final_sitting" {
 		t.Fatalf("the key leaves out %v, want epoch and final_sitting", unkeyed)
 	}
-	base := keyed(Plan{Head: 4, Parties: []Party{{SeatID: evLens, GapIDs: []string{}}}, Epoch: 2,
-		Blockers: []PlanBlocker{{Kind: BlockerLensReady, Subject: evLens, Owner: evLens}}, Why: []string{"ready"}})
+	base := Plan{Head: 4, Parties: []Party{{SeatID: evLens, GapIDs: []string{}}}, Epoch: 2,
+		Blockers: []PlanBlocker{{Kind: BlockerLensReady, Subject: evLens, Owner: evLens}}, Why: []string{"ready"}}.WithKey()
 	later := base
 	later.Epoch, later.FinalSitting = 5, true
-	if keyed(later).Key != base.Key {
+	if later.WithKey().Key != base.Key {
 		t.Errorf("the key moved with the epoch")
 	}
 	for name, change := range map[string]func(*Plan){
@@ -308,7 +308,7 @@ func TestThePlanKeyLeavesOutOnlyWhenThePlanWasAsked(t *testing.T) {
 	} {
 		p := base
 		change(&p)
-		if keyed(p).Key == base.Key {
+		if p.WithKey().Key == base.Key {
 			t.Errorf("the key did not move with %s", name)
 		}
 	}

@@ -163,11 +163,11 @@ func HeldBy(parties []any) []any {
 	return out
 }
 
-// Keyed is a stubbed plan carrying its key, as `dispatch next` prints one: the first sixteen hex of
+// WithKey is a stubbed plan carrying its key, as `dispatch next` prints one: the first sixteen hex of
 // the sha256 of the stub's own encoding without it, so two stubs equal in every field carry one key.
 // A stub's epoch is fixed whatever sitting relays it, so its key repeats exactly when the record's
 // would. A stub that states its key keeps it.
-func Keyed(plan map[string]any) map[string]any {
+func WithKey(plan map[string]any) map[string]any {
 	if _, ok := plan["key"]; ok {
 		return plan
 	}

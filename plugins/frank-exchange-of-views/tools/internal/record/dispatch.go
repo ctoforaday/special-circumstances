@@ -68,7 +68,7 @@ func exchangeCountOf(gapID string, x *GapExchanges) ExchangeCount {
 // The record stores it as printed (recordpb.Plan), and capture compares every relay with that.
 type Plan struct {
 	// Key is the plan's identity: two plans carry one key when they decide the same — every field
-	// but those tagged `key:"-"`, which say when the plan was asked (keyed). The engine's no-progress
+	// but those tagged `key:"-"`, which say when the plan was asked (Plan.WithKey). The engine's no-progress
 	// valve compares keys across chair sittings, so a plan the record computes the same sitting after
 	// sitting is one key repeating.
 	Key string `json:"key" pattern:"^[0-9a-f]{16}$" desc:"the plan's identity: the same in two chair sittings whose plans decide the same — everything here but epoch and final_sitting"`
@@ -192,7 +192,7 @@ func planFrom(r planReads, files runFiles) (Plan, error) {
 	if err != nil {
 		return emptyPlan(), err
 	}
-	plan := keyed(foldPlan(params, r))
+	plan := foldPlan(params, r).WithKey()
 	if err := relayable(plan); err != nil {
 		return emptyPlan(), err
 	}
@@ -363,7 +363,7 @@ func foldPlan(params Params, r planReads) Plan {
 		case routeRemandOwed:
 			debate(g)
 			plan.RemandOwed = append(plan.RemandOwed, RemandOwed{GapID: g.id, Direction: g.direction})
-			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, on the ruling's direction: %s",
+			plan.Why = append(plan.Why, fmt.Sprintf("%s: at impasse (%s) and remanded by the bench — its minting lens and blue are ready for the one more exchange the remand grants, "+RemandDirectionPrefix+"%s",
 				g.id, x.Counted(), g.direction))
 		case routeAtLimit:
 			materialSettled++
@@ -946,6 +946,12 @@ func openedBetween(openings []int64, a, b int64) bool {
 }
 
 // chairSeat is the seat whose sittings are the record's epochs.
+// RemandDirectionPrefix is what a plan's line for a remanded gap prints before the bench ruling's
+// direction. The direction is the bench's own words, printed as written and last on its line, so
+// everything after the prefix is seat prose: migrate carries that tail of an archived plan as
+// written, and compares its own copy of the prefix with this one.
+const RemandDirectionPrefix = "on the ruling's direction: "
+
 const chairSeat = "red-chair"
 
 // benchSeat is the bench's seat — the one that holds the gavel for the subjects the schema gives

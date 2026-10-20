@@ -18,7 +18,7 @@ import (
 // WHAT A GO TYPE CANNOT SAY IS A TAG ON THE FIELD: `desc` is the sentence the schema hands the
 // relaying seat, `bench` the sentence for the same field of the bench's party, `min` an integer's
 // floor and `pattern` a string's, `emptyonlywith` names the boolean of the same struct that is
-// true whenever a list is empty, and `key:"-"` leaves a field out of the plan's key (keyed). A tag
+// true whenever a list is empty, and `key:"-"` leaves a field out of the plan's key (Plan.WithKey). A tag
 // absent leaves the schema looser, never wrong.
 type PlanField struct {
 	Name string // the Go field
