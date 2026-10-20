@@ -58,7 +58,7 @@ func TestAClosuresAnchorsAreHeldToTheRecord(t *testing.T) {
 func TestAClosureMayRestOnAnInquiry(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	mintGap(t, runDir, "G1", "scope-creep")
+	mintGap(t, runDir, "G1", "spec_underspecification")
 	registerBlue(t, runDir)
 	out, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", blueSeat, "--question", "whether trial division to 3 settles it")
 	if err != nil {
