@@ -285,14 +285,12 @@ func replay(src Source, reg Registry, batch *record.Batch, dst record.Run, opt O
 				}
 				d.Pin = proto.Int64(to)
 			}
-			// A STORED PLAN NAMES EVENTS BY events.id — its head and each stale area's pin — inside
-			// bytes a relay is compared with, and its key is over them. A record stores plans only
-			// from epoch 31, and migrate keeps every such record's numbering, so the plan is carried
-			// as printed; one whose events the replay renumbered is refused here rather than carried
-			// naming whatever the migrated record holds at those numbers.
+			// A STORED PLAN NAMES EVENTS BY events.id inside bytes a relay is compared with, and its
+			// key is over them. translatePlanIDs carries each through newID and re-keys the plan, and
+			// refuses an id it cannot place.
 			if pl, ok := body.(*recordpb.Plan); ok {
-				if moved := planRenumbered(pl, newID); moved != "" {
-					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: moved})
+				if err := translatePlanIDs(pl, newID); err != nil {
+					res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 					continue
 				}
 			}
@@ -504,29 +502,6 @@ func reproduceAnchors(bodies []proto.Message, proofAnchors map[string][]string) 
 // contradictionRef translates a finding's contradiction reference — a source events.id — to the
 // events.id the reading it names was written as. A reference the replay wrote nothing for is a
 // refusal: left as it was, it would name whatever the migrated record holds at that number.
-// planRenumbered is why a stored plan cannot be carried as printed — an event it names by events.id
-// that wrote no event on the migrated record, or one written there under another number — and ""
-// when it can.
-func planRenumbered(pl *recordpb.Plan, newID map[int64]int64) string {
-	p, _, err := record.ReadPlan([]byte(pl.GetPrinted()))
-	if err != nil {
-		return fmt.Sprintf("this stored plan does not read as a plan: %v", err)
-	}
-	refs := []int64{p.Head}
-	for _, a := range p.StaleAreas {
-		refs = append(refs, a.Pin)
-	}
-	for _, n := range refs {
-		if n == 0 {
-			continue
-		}
-		if to, landed := newID[n]; !landed || to != n {
-			return fmt.Sprintf("this stored plan names event %d, which the migrated record does not hold under that number — the plan is carried as printed, and printed it would name another event", n)
-		}
-	}
-	return ""
-}
-
 func contradictionRef(ref string, newID map[int64]int64) (string, error) {
 	n, err := strconv.ParseInt(strings.TrimSpace(ref), 10, 64)
 	if err != nil {

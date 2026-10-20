@@ -13,9 +13,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
-// A STORED PLAN MIGRATES AS PRINTED. A record that stores its plans keeps its numbering through
-// migrate, so each plan's head and pins name the same events there and the bytes a relay is
-// compared with are the bytes migrated: the write admits each again, key and all.
+// A STORED PLAN MIGRATES AS PRINTED WHERE NOTHING RENUMBERS IT. A seeded run drops no event, so
+// each plan's head and pins name the same events after migrate and the bytes migrated are the bytes
+// stored: the write admits each again, key and all. A record whose replay drops an event has its
+// plans translated through newID (TestAStoredPlanCrossesARenumbering).
 func TestAStoredPlanMigratesAsPrinted(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	at := func(seat, key string, body proto.Message) *recordpb.Event {
