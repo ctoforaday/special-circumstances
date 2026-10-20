@@ -1176,6 +1176,7 @@ func debate(fam record.Family) string {
 	// it lives, and recovering it a second way is how two renderers come to disagree.
 	docketGapOf := record.DocketGapByMotion(fam.Events)
 	archive := record.ArchiveOf(fam.Gaps)
+	kept := record.KeptGrades(fam.Events, fam.At)
 
 	var parts []string
 	for _, r := range order {
@@ -1237,6 +1238,10 @@ func debate(fam record.Family) string {
 			// sitting looks for it.
 			if sc, ok := record.SpotCheckOf(e, fam.At, archive); ok {
 				epoch = append(epoch, "### RED SPOT-CHECK\n"+sc.Describe())
+			}
+			// A LENS THAT KEPT ITS GRADE: red's argument on that gap after its re-audit.
+			if kept[e] {
+				epoch = append(epoch, record.KeptGradeHeading(e)+"\n"+e.GetRegrade().GetBasis())
 			}
 		}
 

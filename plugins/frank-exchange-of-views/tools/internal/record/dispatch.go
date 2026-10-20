@@ -259,6 +259,7 @@ func foldPlan(params Params, r planReads) Plan {
 	// stays ready.
 	ids := win.IDs(evs)
 	dispatches, openings := dispatchLedger(evs, ids, win)
+	ends := satThroughOf(evs, ids, win, openings)
 	benchOn := benchOccasionSittings(evs, ids, win)
 	folds := lensStates(evs, ids, win, plan.Head, fresh, lensOwesOf(evs, ids, win, blockerGapsOfOpen(r.gaps), eventBlockersOf(evs, ids, win)))
 	plan.StaleAreas = staleAreasOf(folds, plan.Head)
@@ -374,7 +375,8 @@ func foldPlan(params Params, r planReads) Plan {
 	// a contradiction no finding raises — holds the PASS until its owner acts, and an owner nobody
 	// readies never acts: the run ended UNVERIFIED with the one seat that could clear it never asked
 	// (#1202, #1203). Each owner is readied ONCE PER CAUSE: an owner that has sat since the blocker
-	// arose and left it is not readied again, the reason says so, and the blocker still holds the
+	// arose and left it is not readied again — for a lens, sat through (satThrough), so a sitting
+	// stopped at the call limit or never closed readies it again, the reason says so, and the blocker still holds the
 	// PASS — the precedent benchSatFor set for the docket.
 	//
 	// A CITATION OR PROOF UNCHECKED SINCE ITS SENTENCE CHANGED NEEDS NO ARM HERE. Its owner owes the
@@ -390,7 +392,7 @@ func foldPlan(params Params, r planReads) Plan {
 			statedMotion[b.Subject] = true
 			plan.Why = append(plan.Why, benchReadiness(b, dispatches, benchOn, engage))
 		case b.Kind == BlockerContradiction && seatclass.RoleOfSeat(b.Owner) == "lens":
-			if _, sat := firstAfter(openings[b.Owner], b.since); sat {
+			if _, sat := firstAfter(ends.through[b.Owner], b.since); sat {
 				plan.Why = append(plan.Why, fmt.Sprintf("%s has sat since it read a source contradicting %q (%s), and it is unanswered — readied once per contradiction, so not again", b.Owner, b.Detail, contradictionFact(b)))
 				continue
 			}
@@ -605,6 +607,90 @@ func firstAfter(xs []int64, at int64) (int64, bool) {
 // bench never sat for would read as heard and never be readied again.
 func sittingFor(openings []int64, d dispatchRow) (int64, bool) {
 	return firstAfter(openings, d.at)
+}
+
+// satThrough IS THE ONE ANSWER TO "DID THIS LENS SIT THROUGH THAT SITTING", which is a different
+// question from sittingFor's. A sitting OPENS when the hook brackets it or the seat registers, and
+// that satisfies the dispatch: the seat sitting now is not owed its own sitting. Whether the seat
+// then did what it was dispatched for is decided at the sitting's END, and two ends say it did not:
+//
+//   - STOPPED AT THE CALL LIMIT: a sitting_limit names it — by the seat and the sitting number the
+//     hook's count was keyed by, which is the opening's stored sitting ordinal (sittingcap). The
+//     seat was refused every further call, so what it was dispatched for stopped where the limit
+//     fell, not where its judgement did.
+//   - NEVER CLOSED: its opening carries an agent, no sitting_close of that agent follows it, and the
+//     seat has opened a later sitting. The SubagentStop hook writes the close when the agent
+//     returns, so a sitting without one ended some other way.
+//
+// A SITTING STILL OPEN IS NOT ONE IT SAT THROUGH, AND NOT ONE IT FAILED. The seat's latest sitting
+// with no close may be in flight — a lens reading its own work list is in one — so it is reported
+// as not closed yet, never as failed. Neither counts as sat: a reader that needs the sitting over
+// (the pin, the retirement count, the lapse of a debt) waits for its close.
+//
+// AN OPENING WITH NO AGENT CLOSES BY ITS NEXT OPENING ALONE (sittingCloser): no stop can join it,
+// so the record can never hold more about it than that it opened, and it is sat through there.
+// A register outside any subagent — a headless seat, a run no hook reached — is that case.
+//
+// The readers of "has this lens sat" ask it here: the lens fold's pin, never-sat and retirement
+// count (lensStates), its last sitting (lastSittingBefore), the lapse of what it owes
+// (lensOwesOf) and the once-per-contradiction readiness (foldPlan). The plan, the work lists,
+// the PASS gate and retirement reach it through passBlockersOf, so they agree at every state.
+type satThrough struct {
+	through map[string][]int64 // seat -> the openings of the sittings it sat through, ascending
+	short   map[int64]string   // opening -> why the seat did not sit through that sitting
+}
+
+// satThroughOf reads the stream once for every fact that ends a sitting. seq and openings are
+// dispatchLedger's, so the places compare with the dispatches and the openings it read.
+func satThroughOf(evs []*Event, seq []int64, win WindowIndex, openings map[string][]int64) satThrough {
+	agentOf := map[int64]string{} // an opening's place -> the agent it carries
+	ordinal := map[int64]int{}    // an opening's place -> its stored sitting ordinal for its seat
+	stops := map[string][]int64{} // agent -> the places of its sitting_close events, ascending
+	type limited struct {
+		seat    string
+		sitting int
+	}
+	limits := map[limited]bool{}
+	for i, e := range evs {
+		if _, opens := win.Opens(e); opens {
+			agentOf[seq[i]] = recordpb.AgentOpening(e)
+			ordinal[seq[i]] = win.Of(e).Sitting
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.SittingClose](e); ok && b.GetAgentId() != "" {
+			stops[b.GetAgentId()] = append(stops[b.GetAgentId()], seq[i])
+		}
+		if b, ok := recordpb.BodyAs[*recordpb.SittingLimit](e); ok {
+			limits[limited{b.GetSeatId(), int(b.GetSitting())}] = true
+		}
+	}
+	out := satThrough{through: map[string][]int64{}, short: map[int64]string{}}
+	for seat, os := range openings {
+		for k, o := range os {
+			next, later := int64(0), k+1 < len(os)
+			if later {
+				next = os[k+1]
+			}
+			agent := agentOf[o]
+			stop, stopped := firstAfter(stops[agent], o)
+			switch {
+			case limits[limited{seat, ordinal[o]}]:
+				out.short[o] = "was stopped at the per-sitting tool-call limit"
+			case agent == "" || (stopped && (!later || stop < next)):
+				out.through[seat] = append(out.through[seat], o)
+			case later:
+				out.short[o] = "never closed — its agent's stop is not on the record"
+			default:
+				out.short[o] = "has not closed yet"
+			}
+		}
+	}
+	return out
+}
+
+// sat reports whether the seat sat through the sitting that opened at place o.
+func (s satThrough) sat(seat string, o int64) bool {
+	_, in := slices.BinarySearch(s.through[seat], o)
+	return in
 }
 
 // benchOccasionSittings is the bench's sittings, by the occasion each one's register states, in stream

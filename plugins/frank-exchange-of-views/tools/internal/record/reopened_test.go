@@ -444,7 +444,7 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	}
 
 	b := board().register("red-chair")
-	b.dispatch(b.at(), evLens).bracket(evLens, "agent-1").register("red-chair")
+	b.dispatch(b.at(), evLens).bracket(evLens, "agent-1").stop("agent-1").register("red-chair")
 	run := b.seed()
 	second, err := PlanDispatch(run)
 	if err != nil {
@@ -458,7 +458,7 @@ func TestTheEvidenceLensIsReadiedOncePerReopening(t *testing.T) {
 	}
 
 	c := board().register("red-chair")
-	c.dispatch(c.at(), evLens).bracket(evLens, "agent-1").reopen("C-1").register("red-chair")
+	c.dispatch(c.at(), evLens).bracket(evLens, "agent-1").stop("agent-1").reopen("C-1").register("red-chair")
 	if third := planOf(t, c); !lensReady(third) {
 		t.Errorf("the plan after a second edit of the sentence does not ready the lens: why %q", third.Why)
 	}

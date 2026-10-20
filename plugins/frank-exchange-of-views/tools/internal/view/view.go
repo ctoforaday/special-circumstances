@@ -601,6 +601,7 @@ func debateMD(in Input) []byte {
 	// (DebateJSONOf) builds the same map for the same reason.
 	docketGapOf := record.DocketGapByMotion(in.Events)
 	archive := record.ArchiveOf(in.Gaps)
+	kept := record.KeptGrades(in.Events, in.At)
 
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
@@ -637,6 +638,13 @@ func debateMD(in Input) []byte {
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_SPOT_CHECK, "chair") {
 			if sc, ok := record.SpotCheckOf(l, in.At, archive); ok {
 				parts = append(parts, "### RED SPOT-CHECK\n"+sc.Describe())
+			}
+		}
+		// A LENS THAT KEPT ITS GRADE said, after its re-audit, that its gap stands and what its check
+		// still finds failing — red's argument on that gap, which the bench reads with the closings.
+		for _, l := range sec(recordpb.EventType_EVENT_TYPE_REGRADE, "lens") {
+			if kept[l] {
+				parts = append(parts, record.KeptGradeHeading(l)+"\n"+l.GetRegrade().GetBasis())
 			}
 		}
 		for _, l := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
