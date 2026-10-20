@@ -26,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -414,9 +415,17 @@ func AssemblyScreen(run record.Run) Audit {
 			Detail: fmt.Sprintf("%d source(s) red finds AGAINST the sentence the report carries are still cited in the assembled report: %s. A refuted or absent source in the bibliography points a reader at evidence the audit rejected",
 				len(carried), strings.Join(carried, ", "))}
 	}
+	// EVER FOUND AGAINST is this audit's own count, read off the verification rows: sources_refuted
+	// is the standing set, which a PASS here has just shown empty.
+	ever := 0
+	for _, s := range ev.Sources {
+		if slices.ContainsFunc(s.Verified, record.EvidenceVerificationJSON.Refuted) {
+			ever++
+		}
+	}
 	return Audit{Check: "assembly-screen", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d citation(s), none with a standing check against the sentence it backs (refutes|absent); %d ever found against by red, each since re-checked, reopened by an edit, or retired; %d cited source(s) nobody has checked",
-			ev.Counts.Sources, ev.Counts.SourcesRefuted, ev.Counts.SourcesUnverified)}
+			ev.Counts.Sources, ever, ev.Counts.SourcesUnverified)}
 }
 
 // ---- AUDIT 6: record parity ----
