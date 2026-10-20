@@ -114,7 +114,7 @@ func TestACiteKeyNamesOneCitation(t *testing.T) {
 		t.Errorf("an identical keyed retry was refused: %v", err)
 	}
 	for name, args := range map[string][]string{
-		"url":       base("https://y", "The measured latency is bounded."),
+		"url":         base("https://y", "The measured latency is bounded."),
 		"source-span": base("https://x", "The measured latency is bounded.", "--source-span", "src"),
 	} {
 		if _, err := run(t, args...); err == nil || feov.CodeOf(err) != string(feov.Conflict) {
