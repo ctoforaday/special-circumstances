@@ -114,6 +114,85 @@ var (
 	mootSpent   atomic.Bool
 )
 
+// mintPoolClasses are the GapClass words a random mint draws from: every value whose
+// material_default is `by_grade`, bar the catch-all, which has its own drive (r.mint). Read off the
+// enum, so a value added to the closed set joins the pool or the deliberate drive by its facet.
+var mintPoolClasses, mintDrivenClasses = gapClassesByMateriality()
+
+// gapClassesByMateriality splits the GapClass vocabulary by its material_default facet: the
+// `by_grade` words (the catch-all excepted) and the `always`/`never` words.
+func gapClassesByMateriality() (byGrade, fixed []string) {
+	vals := recordpb.GapClass(0).Descriptor().Values()
+	for i := 0; i < vals.Len(); i++ {
+		c := recordpb.GapClass(vals.Get(i).Number())
+		if c == recordpb.GapClass_GAP_CLASS_UNSPECIFIED || c == recordpb.GapClass_GAP_CLASS_UNCLASSIFIED {
+			continue
+		}
+		switch recordpb.MaterialDefault(c) {
+		case recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE:
+			byGrade = append(byGrade, recordpb.Word(c))
+		case recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS, recordpb.ClassMaterial_CLASS_MATERIAL_NEVER:
+			fixed = append(fixed, recordpb.Word(c))
+		}
+	}
+	return byGrade, fixed
+}
+
+// classDrive carries the sweep's deliberate mints: each `always`/`never` class is minted ONCE per
+// sweep, as closeGap closes as `moot`. Sweep-wide for the same reason, and reset by TestFuzzDebate.
+// pending is what is still owed; landed is what a mint landed under.
+var classDrive struct {
+	mu      sync.Mutex
+	pending []string
+	landed  map[string]bool
+}
+
+// resetClassDrive arms the sweep's deliberate class mints.
+func resetClassDrive() {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	classDrive.pending = slices.Clone(mintDrivenClasses)
+	classDrive.landed = map[string]bool{}
+}
+
+// takeClassDrive hands out one owed class, or false when none is owed.
+func takeClassDrive() (string, bool) {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	if len(classDrive.pending) == 0 {
+		return "", false
+	}
+	c := classDrive.pending[0]
+	classDrive.pending = classDrive.pending[1:]
+	return c, true
+}
+
+// settleClassDrive records a deliberate class's mint: landed spends it; a refusal puts it back,
+// because the word's whole coverage is this one drive.
+func settleClassDrive(c string, landed bool) {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	if landed {
+		classDrive.landed[c] = true
+		return
+	}
+	classDrive.pending = append(classDrive.pending, c)
+}
+
+// unlandedClassDrive is the deliberate classes no mint landed under, sorted.
+func unlandedClassDrive() []string {
+	classDrive.mu.Lock()
+	defer classDrive.mu.Unlock()
+	var out []string
+	for _, c := range mintDrivenClasses {
+		if !classDrive.landed[c] {
+			out = append(out, c)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // lockedRand is the seed's generator, safe for the concurrent seats phase 3 introduces.
 //
 // A WRAPPER RATHER THAN A MUTEX AT EVERY CALL SITE: there are 23 draws across this file, all
@@ -1856,17 +1935,29 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	} else if !proposing {
 		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	}
-	// THE CLASS IS A WORD OF THE CLOSED SET, and every mint is `by_grade` on purpose: an `always` or
-	// `never` class would move every gap's materiality, and with it the boards, the epochs and the
-	// terminal verdicts the sweep's other gates count on — a coverage drive that displaces the
-	// sweep's other coverage is a trade (see closeGap's `moot`). The stamp's other two arms are
-	// TestAMintTakesItsClassMaterialDefault's. ONE MINT IN TEN takes the catch-all `unclassified`
-	// (also `by_grade`), and half of those first try it without --reason, which the record refuses.
+	// THE CLASS IS A WORD OF THE CLOSED SET, and the pool is `by_grade` on purpose: an `always` or
+	// `never` class in the pool would move a share of every run's gaps out of grade, and with them
+	// the boards, the epochs and the terminal verdicts the sweep's other gates count on — a
+	// coverage drive that displaces the sweep's other coverage is a trade (see closeGap's `moot`).
+	// So each `always`/`never` class is minted ONCE per sweep, deliberately, outside the forced
+	// runs, whose verdicts are their drive. ONE MINT IN TEN takes the catch-all `unclassified` (also
+	// `by_grade`), and half of those first try it without --reason, which the record refuses.
 	unclassified := r.coin(10)
-	if unclassified {
+	driven := ""
+	if !unclassified && !r.forceUnverified && !r.forceEstoppel && !r.forceVerified {
+		driven, _ = takeClassDrive()
+	}
+	switch {
+	case unclassified:
 		args = append(args, "--class", "unclassified")
-	} else {
-		args = append(args, "--class", "spec_underspecification")
+	case driven != "":
+		args = append(args, "--class", driven)
+	default:
+		args = append(args, "--class", pick(r.rng, mintPoolClasses))
+	}
+	landed := false
+	if driven != "" {
+		defer func() { settleClassDrive(driven, landed) }()
 	}
 	if r.coin(40) {
 		// --key is mint's crash-retry idempotency handle: a retried mint under the same key
@@ -1965,6 +2056,7 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		return ""
 	}
 	if env.Result.GapID != "" {
+		landed = true
 		r.noteMint(seatID, env.Result.GapID)
 		if unclassified {
 			r.mu.Lock()
@@ -5199,6 +5291,7 @@ func TestFuzzDebate(t *testing.T) {
 	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.
 	mootPending.Store(true)
 	mootSpent.Store(false)
+	resetClassDrive()
 
 	n := surfaceQuorum
 	if testing.Short() {
@@ -5385,6 +5478,7 @@ func TestFuzzDebate(t *testing.T) {
 	t.Logf("reopened readied: %d plan(s) readied the owner of every reopened blocker (of %d holding one); reopened proofs whose owner a plan readied: %v", reopenedReadied, reopenedPlans, proofReopenedReadied)
 	t.Logf("owed kept: %d lens fold(s) kept from retiring by a debt (three or more barren sittings), %d of them by an unjudged proof; by kind %v", owedKept, proofOwedKept, owedKeptBy)
 	t.Logf("catch-all: %d unclassified mint(s) landed, %d refused for want of a reason", unclassifiedMinted, unclassifiedRefused)
+	t.Logf("classes: %d by_grade in the mint pool; %d always/never minted once each, %d landed", len(mintPoolClasses), len(mintDrivenClasses), len(mintDrivenClasses)-len(unlandedClassDrive()))
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -5638,6 +5732,12 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if !mootSpent.Load() {
 			t.Error("the sweep's single `close --as moot` drive never fired: no run reached closeGap with it pending, or every attempt was refused. The word's whole coverage is that one drive")
+		}
+		// AND THE DELIBERATE CLASS MINTS, for the same reason: each `always`/`never` class is one
+		// drive per sweep (r.mint), and the census above counts a refused attempt as driven.
+		if un := unlandedClassDrive(); len(un) > 0 {
+			t.Errorf("the sweep's deliberate class mints landed no gap under %d of %d `always`/`never` class(es): %s — no run minted with them owed, or every attempt was refused. Each word's whole coverage is that one drive",
+				len(un), len(mintDrivenClasses), strings.Join(un, ", "))
 		}
 		// AND THE FLAGS INHERITED ONTO EVERY COMMAND, which this gate could not see at all until
 		// PersistentFlagNames existed: CommandFlags reports local flags only, so `--json`,

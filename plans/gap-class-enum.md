@@ -1013,10 +1013,13 @@ and their other numerals are counts (`retires at %d`, `%d claim(s)`).
   `mint` is refused" comment) deleted, with `classDefaultTurn` (`:117–119`, the always/never coining alternation); `class_new` leaves
   the event-type list (`:4603–4605`, "these three" → "these two") and the coverage table (`:4795`). The class a fuzz mint carries is set at the TWO mint sites, not by `fuzzClasses`:
   `:1851` (`args = append(args, "--class", "fuzzcls")`, every drive's mint) and the estoppel probe
-  `:1992`. Both become `spec_underspecification`, rule 1 above — the fuzz keeps every mint `by_grade` on
-  purpose (`:1834–1838`: an `always` or `never` class "would move every gap's materiality, and with it
-  the boards, the epochs and the terminal verdicts the sweep's other gates count on"), so the stamp's
-  `always`/`never` arms are covered by `TestAMintTakesItsClassMaterialDefault`, not here. Left as
+  `:1992`. The estoppel probe becomes `spec_underspecification`; every drive's mint draws from the
+  `by_grade` values (the catch-all excepted) and each `always`/`never` value is minted ONCE per sweep,
+  deliberately, as closeGap's `moot` (F16) — both lists read off the enum's `material_default` facet,
+  never hand-listed; the forced runs take no deliberate mint, and `TestFuzzDebate` fails naming any
+  deliberate value no mint landed under. A pooled `always`/`never` class "would move every gap's
+  materiality, and with it the boards, the epochs and the terminal verdicts the sweep's other gates
+  count on", and the release gate's enum-coverage census requires every `mint --class` value. Left as
   `fuzzcls`, every mint is refused as an unknown word, the estoppel probe never lands, and
   `estoppels == 0` fails the gate (`:5435`) — the loud form of the miss. At `:1851`, ~10% of mints use
   `unclassified` (also `by_grade`): half of those first without `--reason`, asserting the D7 refusal,
@@ -1618,7 +1621,9 @@ timing.
    both, a `stated_fills` row per mint. · re-armed by: `migrate/**`, `record.proto`, `record/planstore.go`,
    the `why` producers (`retirement.go`, `passblockers.go`, `dispatch.go:284–431,1036–1054`, `impasse.go`).
 6. **Release-gate fuzz.** `cd $T && FEOV_RELEASE_GATE=1 go test -count=1 ./releasegate/fuzz/` → ok;
-   the fuzz's own coverage table shows `unclassified` minted and refused-without-reason at least once.
+   the fuzz's own coverage table shows `unclassified` minted and refused-without-reason at least once,
+   and its `classes:` line every `always`/`never` value landed (F16). · mutation: drop one value from
+   the deliberate drive → the enum census and the named-drive gate both fail.
    If red, run the same on `origin/main` before blaming the branch.
 7. **Universe smoke — mints with no feov-memory, one catch-all.**
    ```
@@ -1715,6 +1720,11 @@ timing.
   (`RemandDirectionPrefix`); `TestMigrateKnowsTheVerbsRemandPrefix` asserts migrate's copy equals it,
   failing with "keep the old wording for archived bytes and add the new one" (§III.8a step 4).
 - **F15 — m29's coined `summary-scope-omission` → `reader_channel_mismatch`: RULED** (gblock, 2026-10-19).
+- **F16 — Fuzz class coverage: RULED** (gblock, 2026-10-20): random mints draw from the `by_grade`
+  GapClass values (materiality unchanged); each `always`/`never` value is minted once per sweep,
+  deliberately, as closeGap's `moot`; `unclassified` keeps its landed/refused drive. The enum splits 14
+  `by_grade` (the catch-all excepted) and 15 `always`/`never` (14 `always`, `structure_noncompliance`
+  `never`), read off the enum; the ruling stated 15 and 14 (§III.10).
 - Decided and disclosed (reversible, in scope), round 5: m29's coined `summary-scope-omission` →
   `reader_channel_mismatch` (Table C; a membership call F1 did not cover, because m29 was archived after
   it — its recorded `by_grade` stamp is kept, so the call moves no materiality); an id phrase word counts
