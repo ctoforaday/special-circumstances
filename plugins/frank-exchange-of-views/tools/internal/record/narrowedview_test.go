@@ -202,6 +202,7 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 			Claim: str("claim B"), Title: str("t"), Text: str("not there"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A")}),
+		recordtest.Event(t, "red-lens-r1-logic", raisingGap("G-00000001", "F-00000001")),
 		recordtest.Event(t, "blue-respond", &recordpb.Cite{Label: str("C-00000001"), Url: str("https://example.org/c"), Sha256: str("abc"), Text: str("t"), Location: str("claim C")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Verify{Anchor: str("C-00000001"), Claim: str("claim C"), Text: str("it says so"),
 			Outcome: recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS.Enum(), Confidence: recordpb.Confidence_CONFIDENCE_HIGH.Enum()}),
@@ -217,10 +218,10 @@ func TestEvidenceJSONBytesReadsTheAnswersAndTheReopenings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ej.UnansweredContradictions) != 1 || ej.UnansweredContradictions[0].Claim != "claim B" {
-		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding at it", ej.UnansweredContradictions)
+		t.Errorf("unanswered_contradictions = %q, want only [claim B] — claim A has a finding at it and a gap minted from that finding", ej.UnansweredContradictions)
 	}
-	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 6, LastCheck: 5}) {
-		t.Errorf("reopened = %+v, want C-00000001 at edit 6, last check 5 — a recorded edit reopened it after its check", ej.Reopened)
+	if len(ej.Reopened) != 1 || ej.Reopened[0] != (EvidenceReopenedJSON{Anchor: "C-00000001", Edit: 7, LastCheck: 6}) {
+		t.Errorf("reopened = %+v, want C-00000001 at edit 7, last check 6 — a recorded edit reopened it after its check", ej.Reopened)
 	}
 }
 

@@ -40,6 +40,11 @@ func SoundnessOf(word string) (recordpb.Soundness, bool) {
 	return enumOf[recordpb.Soundness](recordpb.Soundness(0).Descriptor(), word)
 }
 
+// BridgeKindOf resolves what a supports_with_bridge reading bridged.
+func BridgeKindOf(word string) (recordpb.BridgeKind, bool) {
+	return enumOf[recordpb.BridgeKind](recordpb.BridgeKind(0).Descriptor(), word)
+}
+
 // SourceOutcomeOf resolves a citation verdict. Its negative half is load-bearing: `refutes` means
 // the source contradicts the claim and `absent` means it is simply not there, and collapsing either
 // into a weaker word is what the axis was widened to prevent.

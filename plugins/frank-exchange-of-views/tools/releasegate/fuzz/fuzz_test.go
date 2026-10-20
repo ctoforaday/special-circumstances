@@ -306,6 +306,11 @@ type runner struct {
 	// is; it fails the run.
 	quotesRefused    int
 	quoteAdmittedErr string
+	// bridgesRefused counts the supports_with_bridge readings refused for naming no --bridge;
+	// bridgesNamed the ones recorded with one; bridgeAdmittedErr is the first kindless one the tool
+	// recorded. The sweep gates both counts at zero and the error at set.
+	bridgesRefused, bridgesNamed int
+	bridgeAdmittedErr            string
 	// quoteDrives counts the lens drives that reached sourceQuoteRefused, which fires on every seventh.
 	quoteDrives int
 	// positionAdmittedErr is the first position the tool ADMITTED from a seat that owes none. It
@@ -580,9 +585,9 @@ func (r *runner) sourceQuoteRefused(seatID string) {
 	}
 	n /= 7
 	outcome := verifyOutcomes[n%len(verifyOutcomes)]
-	out, err := r.exec("corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/"+seatID, "--title", "fuzz source quoted for "+seatID,
-		"--quote", "The fuzz source states this in its own words, and the report does not.",
-		"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim")
+	out, err := r.exec(append([]string{"corroborate", "--seat-id", seatID, "--url", "https://fuzz.invalid/quoted/" + seatID, "--title", "fuzz source quoted for " + seatID,
+		"--quote", "The fuzz source states this in its own words, and the report does not."},
+		append([]string{"--as", outcome, "--confidence", "high", "--reason", "fuzz: the source's sentence, quoted as the claim"}, bridgeFor(outcome, n)...)...)...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
@@ -1349,6 +1354,38 @@ func (r *runner) gradeOtherThan(cur string) string {
 // leave that whole path unexercised while the coverage gate read green.
 var verifyOutcomes = []string{"supports", "supports_with_bridge", "weak", "refutes", "absent", "unreachable"}
 
+// bridgeKinds is the value space of `--bridge`: what a supports_with_bridge reading bridged.
+var bridgeKinds = []string{"summary", "secondary_citation", "near_restatement"}
+
+// bridgeFor is the --bridge a supports_with_bridge drive names, drawn from n so the drive takes
+// nothing from the run's RNG; every other outcome names none.
+func bridgeFor(outcome string, n int) []string {
+	if outcome != "supports_with_bridge" {
+		return nil
+	}
+	return []string{"--bridge", bridgeKinds[n%len(bridgeKinds)]}
+}
+
+// noteBridge records what the write did with a supports_with_bridge reading: a kindless one must be
+// refused for naming no bridge, and one naming a kind that the record took counts as named.
+func (r *runner) noteBridge(seatID, outcome string, kindless bool, out string, err error) {
+	if outcome != "supports_with_bridge" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch {
+	case kindless && err == nil:
+		if r.bridgeAdmittedErr == "" {
+			r.bridgeAdmittedErr = seatID + " recorded supports_with_bridge with no --bridge: " + firstLine(out)
+		}
+	case kindless && strings.Contains(out, "requires --bridge"):
+		r.bridgesRefused++
+	case !kindless && err == nil:
+		r.bridgesNamed++
+	}
+}
+
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
 // Driven independently of the outcome, because the pairs that matter most — `refutes` at low
 // confidence, `supports` at low confidence — only exist if the two are drawn apart.
@@ -1384,9 +1421,34 @@ func (r *runner) answerContradictions(seatID string) {
 		if c.Reader != seatID {
 			continue
 		}
-		_, _ = r.exec("finding", "--seat-id", seatID, "--about-kind", "contradiction", "--about", c.ID,
-			"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise")
+		if c.RaisedBy != "" {
+			r.mintFrom(seatID, c.RaisedBy)
+			continue
+		}
+		r.raiseAndMint(seatID, "--about-kind", "contradiction", "--about", c.ID)
 	}
+}
+
+// raiseAndMint raises a contradiction with a finding anchored by anchorArgs and answers it with the
+// gap minted from that finding: a finding alone answers nothing, because a source the report
+// misstates is material by its class. A mint the budget refuses leaves the contradiction raised and
+// held, for the lens's next sitting (answerContradictions).
+func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
+	args := append([]string{"--json", "finding", "--seat-id", seatID,
+		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise"}, anchorArgs...)
+	out, err := r.exec(args...)
+	if err != nil {
+		return
+	}
+	var env struct {
+		Result struct {
+			FindingID string `json:"finding_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.FindingID == "" {
+		return
+	}
+	r.mintFrom(seatID, env.Result.FindingID)
 }
 
 // forcedProofs is the anchors of the proofs on the record whose script is reopenedProofScript.
@@ -1716,7 +1778,11 @@ func proofOffersAgree(run record.Run, owner string) (msg string, n int) {
 // run introduces the class; the rest reuse it. seatID is the lens that is sitting: the chair
 // has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
 // may later close or regrade the gap, which is why every landed mint is noted on r.minter.
-func (r *runner) mint(seatID string) string {
+func (r *runner) mint(seatID string) string { return r.mintFrom(seatID, "") }
+
+// mintFrom mints as mint does, crediting foundBy in --found-by when it is set: the gap that answers
+// a contradiction the finding foundBy raised.
+func (r *runner) mintFrom(seatID, foundBy string) string {
 	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
 	// computation branch — a gap that CANNOT be closed without a proof answering it — driven by
 	// nothing, which is the dead-drive class #276 measured (183/183 refusals on a verb that did
@@ -1859,7 +1925,9 @@ func (r *runner) mint(seatID string) string {
 	if r.coin(50) {
 		args = append(args, "--complexity", r.g())
 	}
-	if fl := r.someFinding(); fl != "" && r.coin(50) {
+	if fl := r.someFinding(); foundBy != "" {
+		args = append(args, "--found-by", foundBy)
+	} else if fl != "" && r.coin(50) {
 		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned id)
 	}
 	if open := r.openGaps(); len(open) > 0 && r.coin(30) {
@@ -3091,7 +3159,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.sourceQuoteRefused(seatID)
 				claim := "A § fuzz sentence to anchor findings."
 				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
+				// A BRIDGE IS NAMED, AND ONE READING IN TEN NAMES NONE: the refusal, driven.
+				kindless := outcome == "supports_with_bridge" && r.coin(10)
+				bridge := bridgeKinds[r.rng.Intn(len(bridgeKinds))]
 				axes := func(c *cmd) *cmd {
+					if outcome == "supports_with_bridge" && !kindless {
+						c = c.set("--bridge", bridge)
+					}
 					return c.set("--as", outcome).
 						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
 						set("--reason", "fuzz: what the source actually says").
@@ -3102,13 +3176,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					// --page names a page image, and no citation this sweep writes has pages, so
 					// a verify carrying one is refused: the flag and its refusal, driven.
 					// The claim is the one verify prints back, as a lens reads it.
-					if out, err := axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").bare("--json").run(); err == nil {
+					out, err := axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").bare("--json").run()
+					if err == nil {
 						read = claimOf(out)
 					}
+					r.noteBridge(seatID, outcome, kindless, out, err)
 				} else {
-					axes(r.do("corroborate", seatID)).set("--quote", claim).
+					out, err := axes(r.do("corroborate", seatID)).set("--quote", claim).
 						set("--url", "https://fuzz.invalid/"+seatID).
 						set("--title", "fuzz source for "+seatID).run()
+					r.noteBridge(seatID, outcome, kindless, out, err)
 				}
 				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
 				// saying the report asserts what its source does not, and a PASS is refused until
@@ -3126,9 +3203,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				if outcome == "refutes" || outcome == "absent" {
 					switch {
 					case r.coin(40):
-						_, _ = r.exec("finding", "--seat-id", seatID,
-							"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
-							"--quote", read, "--reason", "fuzz: the source says otherwise")
+						r.raiseAndMint(seatID, "--quote", read)
 					case r.forceVerified || r.coin(50):
 						r.answerContradictions(seatID)
 					}
@@ -3283,6 +3358,8 @@ type outcome struct {
 	// quotesRefused is the corroborations the tool refused for a quote the report does not hold
 	// (runner.quotesRefused).
 	quotesRefused int
+	// bridgesRefused and bridgesNamed are runner's.
+	bridgesRefused, bridgesNamed int
 	// reopenedReadied is the plans that readied the owner of every reopened blocker they held
 	// (runner.reopenedReadied), and reopenedPlans the plans that held one at all.
 	// proofReopenedReadied, owedKept, proofOwedKept and owedKeptBy are the runner's.
@@ -3807,6 +3884,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.quoteAdmittedErr != "" {
 		res.err = "quote the report does not hold: " + r.quoteAdmittedErr
+		return res
+	}
+	if r.bridgeAdmittedErr != "" {
+		res.err = "bridge: " + r.bridgeAdmittedErr
 		return res
 	}
 	if r.orderAdmittedErr != "" {
@@ -4455,6 +4536,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.positionsRefused = r.positionsRefused
 	res.ordersRefused = r.ordersRefused
 	res.quotesRefused = r.quotesRefused
+	res.bridgesRefused, res.bridgesNamed = r.bridgesRefused, r.bridgesNamed
 	res.reopenedReadied, res.reopenedPlans = r.reopenedReadied, r.reopenedPlans
 	res.proofReopenedReadied, res.owedKept, res.proofOwedKept, res.owedKeptBy = r.proofReopenedReadied, r.owedKept, r.proofOwedKept, r.owedKeptBy
 	if r.reopenedOwnerErr != "" && res.err == "" {
@@ -5159,6 +5241,7 @@ func TestFuzzDebate(t *testing.T) {
 	estoppels := 0                                // the TOOL's own refusals of a mint against text blue applied verbatim
 	inquiryRecords := 0                           // fates accepted on an inquiry id read from a propose result
 	quotesRefused := 0                            // corroborations refused for a quote the report does not hold
+	bridgesRefused, bridgesNamed := 0, 0          // supports_with_bridge refused for no --bridge / recorded with one
 	ordersRefused := 0                            // edits refused for a section out of the order the report ships in
 	positionsRefused := 0                         // positions refused a lane, the frontier or the synthesizer
 	reopenedReadied, reopenedPlans := 0, 0        // plans that readied every reopened blocker's owner, of those holding one
@@ -5241,6 +5324,8 @@ func TestFuzzDebate(t *testing.T) {
 			positionsRefused += o.positionsRefused
 			ordersRefused += o.ordersRefused
 			quotesRefused += o.quotesRefused
+			bridgesRefused += o.bridgesRefused
+			bridgesNamed += o.bridgesNamed
 			reopenedReadied += o.reopenedReadied
 			reopenedPlans += o.reopenedPlans
 			for k, v := range o.proofReopenedReadied {
@@ -5405,6 +5490,11 @@ func TestFuzzDebate(t *testing.T) {
 		// that quotes the source's sentence.
 		if quotesRefused == 0 {
 			t.Errorf("fuzz drove ZERO corroborations refused for a quote the report does not hold across %d runs — no lens quoted its source's sentence, so the refusal that keeps a contradiction clearable is unexercised (false green)", completed)
+		}
+		// THE BRIDGE GATE. supports_with_bridge names what it bridged; a reading naming none is
+		// refused. Both halves must run, or the required value is unexercised behind a green sweep.
+		if bridgesRefused == 0 || bridgesNamed == 0 {
+			t.Errorf("fuzz drove %d supports_with_bridge readings refused for no --bridge and %d recorded with one across %d runs — both must be non-zero, or the required bridge kind is unexercised (false green)", bridgesRefused, bridgesNamed, completed)
 		}
 		// THE REPEATED-ACT GATE. A seat that got an act wrong meets the
 		// refusal of its second, and that refusal names the act that answers the first. A drive
