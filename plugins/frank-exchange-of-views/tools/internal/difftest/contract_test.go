@@ -127,7 +127,8 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// and its Anchor leaves, brought forward by migrate — at a location the report does not hold, for
 	// the retry row below.
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:seeded:F-00000ded", &recordpb.Finding{
-		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t")}))
+		Id: proto.String("F-00000ded"), FindingKey: proto.String("F-owed"), Location: proto.String("A sentence the report held."), Text: proto.String("t"),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Likelihood: recordpb.Grade_GRADE_LOW.Enum(), Impact: recordpb.Grade_GRADE_LOW.Enum()}))
 
 	// THE IDS THAT NAME NOTHING: noSuchGap, and a motion id of the same kind. Neither is minted, so a
 	// row that prints one prints it as written and it takes no placeholder.
@@ -216,6 +217,8 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// the --quote the retry carries.
 		{"a retry whose stored location the report no longer holds", []string{"finding", "--key", "F-owed", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "somewhere", "--reason", "t"}},
+		{"a retry stating the act otherwise", []string{"finding", "--key", "F-owed", "--severity", "high", "--likelihood", "low", "--impact", "low",
+			"--quote", "somewhere", "--reason", "t"}},
 
 		// An anchor an edit leaves out goes back only onto its sentence kept word for word, once;
 		// otherwise the refusal names that sentence and the replacement's nearest one.
@@ -262,7 +265,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"bunch target: a second finding on it", []string{"finding", "--key", "FB2", "--severity", "low", "--likelihood", "low", "--impact", "low",
 			"--quote", "Plain two.", "--reason", "the count two is not shown"}},
 		{"an edit carrying a run of anchors to the end of a longer replacement", []string{"edit", "--seat-id", "blue-respond",
-			"--quote", "Plain two<!--fx:FINDING003--><!--fx:FINDING004-->.", "--new", "Plain it is. Two it is<!--fx:FINDING003--><!--fx:FINDING004-->.", "--reason", "r"}},
+			"--quote", "Plain two<!--fx:FINDING004--><!--fx:FINDING005-->.", "--new", "Plain it is. Two it is<!--fx:FINDING004--><!--fx:FINDING005-->.", "--reason", "r"}},
 	}
 
 	var b strings.Builder

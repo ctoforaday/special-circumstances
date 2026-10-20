@@ -100,7 +100,8 @@ func TestAnOwedAnchorIsPlacedOnTheReportItLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	id := record.NewID("finding")
 	recordtest.Seed(t, runDir, recordtest.At(t, lensSeat, lensSeat+":finding:"+id, &recordpb.Finding{
-		Id: proto.String(id), FindingKey: proto.String("F"), Location: proto.String(raceSentence), Text: proto.String("the rise is not sourced")}))
+		Id: proto.String(id), FindingKey: proto.String("F"), Location: proto.String(raceSentence), Text: proto.String("the rise is not sourced"),
+		Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}))
 	edit := blueEditBy(t, "blue-lane-1", "race:edit", raceSentence, "Costs rose only modestly in the first quarter")
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{edit}, func() error {
 		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F", "--quote", raceSentence,

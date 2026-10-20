@@ -123,6 +123,16 @@ func EventsOfTypes(db Querier, words ...string) ([]*recordpb.Event, []Window, er
 	return eventsWhere(db, true, ` WHERE e."type" IN (`+marks+`)`, args...)
 }
 
+// EventAt is the event stored at row id, with its body, and nil where no row has that id. It reads
+// no window: a read by one row prints no sitting.
+func EventAt(db Querier, id int64) (*recordpb.Event, error) {
+	evs, _, err := eventsWhere(db, false, ` WHERE e."id" = ?`, id)
+	if err != nil || len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], nil
+}
+
 // eventsWhere is the one read path. withWindows reads each row's Window beside it, off events_w
 // joined to the stored sitting_id and the `sittings` view's owner, in one statement; without it the
 // read is the events table alone. events_w ranks every sitting on the record, so a windowed read

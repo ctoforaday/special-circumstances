@@ -113,12 +113,15 @@ func TestACiteKeyNamesOneCitation(t *testing.T) {
 	if _, err := run(t, base("https://x", "The measured latency is bounded.")...); err != nil {
 		t.Errorf("an identical keyed retry was refused: %v", err)
 	}
-	for name, args := range map[string][]string{
-		"url":         base("https://y", "The measured latency is bounded."),
-		"source-span": base("https://x", "The measured latency is bounded.", "--source-span", "src"),
+	for name, c := range map[string]struct {
+		args  []string
+		names string
+	}{
+		"url":         {base("https://y", "The measured latency is bounded."), `--url "https://x"`},
+		"source-span": {base("https://x", "The measured latency is bounded.", "--source-span", "src"), "no --source-span"},
 	} {
-		if _, err := run(t, args...); err == nil || feov.CodeOf(err) != string(feov.Conflict) {
-			t.Errorf("%s: a keyed cite differing from the stored one answered %v; want a conflict", name, err)
+		if _, err := run(t, c.args...); err == nil || feov.CodeOf(err) != string(feov.Conflict) || !strings.Contains(err.Error(), c.names) {
+			t.Errorf("%s: a keyed cite differing from the stored one answered %v; want a conflict naming %s", name, err, c.names)
 		}
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 1 {

@@ -3,8 +3,10 @@ package record
 import (
 	"crypto/rand"
 	"database/sql"
+	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
@@ -29,18 +31,35 @@ func NewID(kind string) string {
 // The id says nothing of who found it, and a reader weighing a credit needs that beside it.
 func FindingRef(id, area string) string { return id + " (" + area + ")" }
 
-// FindingByKey is the id of the finding this seat recorded under its --key, or "": a retried
-// `lens finding` returns the finding it already made instead of minting a second.
-func FindingByKey(run Run, seatID, key string) (string, error) {
-	var id sql.NullString
+// FindingByKey is the finding this seat recorded under its --key, nil for none: a retried
+// `lens finding` returns the finding it already made instead of minting a second, and is held to
+// what that finding states.
+func FindingByKey(run Run, seatID, key string) (*recordpb.Finding, error) {
+	ev, err := keyedAct(run, `SELECT f."event_id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id"
+		  WHERE e."seat_id" = ? AND f."finding_key" = ? ORDER BY f."event_id" LIMIT 1`, seatID, key)
+	return ev.GetFinding(), err
+}
+
+// keyedAct is the event the keyed lookup q (seat, key -> event id) finds, with its body, nil for an
+// empty key or none. The body is what a keyed retry is held to: the act it claims to repeat, as the
+// record stores it.
+func keyedAct(run Run, q, seatID, key string) (*recordpb.Event, error) {
 	if key == "" {
-		return "", nil
+		return nil, nil
 	}
-	_, err := queryRow(run, []any{&id},
-		`SELECT f."id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id"
-		  WHERE e."seat_id" = ? AND f."finding_key" = ? ORDER BY f."event_id" LIMIT 1`,
-		seatID, key)
-	return id.String, err
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	var id int64
+	if found, err := queryRowAt(db, []any{&id}, q, seatID, key); err != nil || !found {
+		return nil, err
+	}
+	ev, err := recordsql.EventAt(db, id)
+	if err == nil && ev == nil {
+		err = fmt.Errorf("event %d holds the act keyed %q and was not there to read", id, key)
+	}
+	return ev, err
 }
 
 // UnplacedLocation is the location a placing act stored for its anchor while no Anchor event places

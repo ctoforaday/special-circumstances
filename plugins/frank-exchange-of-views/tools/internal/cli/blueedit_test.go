@@ -195,8 +195,8 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	// Simulate the crash window: the intent event exists, the write never happened.
 	intent := &recordpb.BlueEdit{
 		EditKey: proto.String("E1"),
-		Old:     proto.String("rising fast"),
-		New:     proto.String("climbing fast"),
+		Old:     proto.String("rising fast."),
+		New:     proto.String("climbing fast."),
 		Text:    proto.String("r"),
 	}
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, intent); err != nil {

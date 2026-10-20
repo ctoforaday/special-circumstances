@@ -2072,11 +2072,9 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	if driven != "" {
 		defer func() { settleClassDrive(driven, landed) }()
 	}
-	if r.coin(40) {
-		// --key is mint's crash-retry idempotency handle: a retried mint under the same key
-		// returns the first id rather than minting twice. Never driven.
-		args = append(args, "--key", fmt.Sprintf("K%d", r.rng.Intn(3)))
-	}
+	// --key is mint's crash-retry idempotency handle, keyed on the gap it names (contentKey) once
+	// every flag is drawn: a key is one gap's name, and a repeat stating another gap is refused.
+	keyed := r.coin(40)
 	// optional grade/lineage flags — exercised so mint's full flag surface runs, not the minimum.
 	if r.coin(50) {
 		args = append(args, "--severity", r.g())
@@ -2125,6 +2123,9 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		}
 		return a
 	}
+	if keyed {
+		args = append(args, "--key", contentKey("K", args))
+	}
 	first := args
 	if !r.coin(10) {
 		first = distinct(args)
@@ -2149,9 +2150,11 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 		}
 	}
 	own := foundBy != "" && r.ownUnansweredRaise(seatID, foundBy)
+	landedArgs := first
 	out, err := r.exec(first...)
 	if err != nil && strings.Contains(out, "already holds an open gap") {
-		out, err = r.exec(distinct(args)...)
+		landedArgs = distinct(args)
+		out, err = r.exec(landedArgs...)
 	}
 	if err != nil {
 		if strings.Contains(out, "its mint budget admits no more") {
@@ -2179,6 +2182,9 @@ func (r *runner) mintFrom(seatID, foundBy string) string {
 	}
 	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil {
 		return ""
+	}
+	if env.Result.GapID != "" && keyed && r.coin(30) {
+		r.retryKeyed(landedArgs, "--check", "acc, restated")
 	}
 	if env.Result.GapID != "" {
 		landed = true
@@ -2846,12 +2852,17 @@ func (r *runner) extras(role, seatID string, open []string) {
 			// Answering a gap is blueRespondTo's job, one decision per gap, from the directive.
 			// What remains is an UNATTRIBUTED edit: blue sharpening its own prose, which is real
 			// and must stay legal (--answers' own help says to omit it when no gap is answered).
-			r.do("edit", seatID).
+			edit := r.do("edit", seatID).
 				set("--quote", oldSpan+run).
 				set("--new", newSpan+run).
-				set("--reason", "fuzz edit: sharper phrasing, answering no gap").
-				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2))).
-				admit()
+				set("--reason", "fuzz edit: sharper phrasing, answering no gap")
+			keyed := r.coin(40)
+			if keyed {
+				edit.set("--key", contentKey("E", []string{oldSpan + run, newSpan + run}))
+			}
+			if _, ok := edit.admit(); ok && keyed && r.coin(30) {
+				r.retryKeyed(edit.args, "--new", newSpan+" again"+run)
+			}
 		})
 		// #277: settle a claim by COMPUTING it. The script is written into the run dir and the
 		// tool runs it twice — so this drives the real interpreter, the cache, the anchor
@@ -3499,8 +3510,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// missing something, an inquiry whose stated reason is being argued against, a
 				// gap already on the docket — none of which has a sentence to quote, and all of
 				// which used to borrow an innocent one (#742).
-				findArgs := []string{"finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
-					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
+				severity := r.g()
+				findArgs := []string{"finding", "--seat-id", seatID,
+					"--severity", severity, "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
 				aboutGap := ""
 				if k, ref := r.aboutAnchor(); k != "" && r.coin(30) {
 					findArgs = append(findArgs, "--about-kind", k, "--about", ref)
@@ -3510,10 +3522,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				} else {
 					findArgs = append(findArgs, "--quote", "§ fuzz sentence")
 				}
+				// keyed on what the finding states, so a repeat is a retry of it (contentKey).
+				findArgs = append(findArgs, "--key", contentKey("F", findArgs[3:]))
+				var landed bool
 				if aboutGap != "" {
-					r.admitFresh(aboutGap, findArgs...)
+					_, landed = r.admitFresh(aboutGap, findArgs...)
 				} else {
-					r.admit(findArgs...)
+					_, landed = r.admit(findArgs...)
+				}
+				if landed && r.coin(20) {
+					r.retryKeyed(findArgs, "--severity", otherGrade(severity))
 				}
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,

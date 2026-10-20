@@ -1,6 +1,8 @@
 package fuzz
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -249,4 +251,37 @@ func (r *runner) staleReads(seatID, gapID string) int {
 		}
 	}
 	return n
+}
+
+// contentKey is a --key drawn from what the act states, so two acts under one key state the same
+// thing: a key is one act's name, and a repeat stating anything else is refused (retryKeyed).
+func contentKey(prefix string, stated []string) string {
+	sum := sha256.Sum256([]byte(strings.Join(stated, "\x00")))
+	return prefix + "-" + hex.EncodeToString(sum[:6])
+}
+
+// retryKeyed repeats a keyed act that landed. As it was, the tool answers with the act on the record;
+// with flag set to other, an asserted field the stored act holds otherwise, it is refused as a
+// conflict.
+func (r *runner) retryKeyed(args []string, flag, other string) {
+	if out, ok := r.admit(args...); ok && !strings.Contains(out, "idempotent") {
+		r.noteActErr(strings.Join(args, " ") + ": an identical keyed repeat was not answered with the stored act: " + firstLine(out))
+	}
+	changed := append([]string(nil), args...)
+	for i := 0; i+1 < len(changed); i++ {
+		if changed[i] == flag {
+			changed[i+1] = other
+			r.refuse(feov.Conflict, changed...)
+			return
+		}
+	}
+	r.noteActErr(strings.Join(args, " ") + ": the keyed repeat drive names " + flag + ", which the act does not carry")
+}
+
+// otherGrade is a grade other than g.
+func otherGrade(g string) string {
+	if g == grades[0] {
+		return grades[len(grades)-1]
+	}
+	return grades[0]
 }

@@ -205,14 +205,14 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
   )
   … "$X"
 
-§5 (on 2 pages):
-NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: `[^1]`, `[^2]` … for citations and `[^P1]`, `[^P2]` … for proofs. A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded. Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word. Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there.
+§5 (on 3 pages):
+Only cite, edit and prove take a handle: no other verb on this surface has this flag
 
 §6 (on 2 pages):
-WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.
+NO NOTE THE TOOL NUMBERS. Assembly writes the report's notes and numbers them: `[^1]`, `[^2]` … for citations and `[^P1]`, `[^P2]` … for proofs. A footnote reference or definition typed into the report's text under a label of that shape — digits, or P and digits — is refused and nothing is recorded. Blue's `cite` places a citation on the sentence its source backs, and blue's `prove` a proof on the sentence it establishes. No note is typed by hand under a number, or under P and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word. Where such a label is the subject's own text — a character class in a regular expression — it goes in a code span or a fenced block, and is no footnote there.
 
 §7 (on 2 pages):
-your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. Only cite, edit and prove take a handle: no other verb on this surface has this flag
+WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.
 
 §8 (on 5 pages):
 REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
@@ -296,7 +296,7 @@ THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography en
 IF WHAT YOU RECORDED WAS WRONG, say so in a new citation.
 
 Flags:
-      --key string           your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. A repeat under the handle with another --url or --source-span is refused: a handle names one citation. Only cite, edit and prove take a handle: no other verb on this surface has this flag
+      --key string           your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice; the TOOL mints the citation's id. A repeat under the handle with another --url or --source-span is refused: a handle names one citation. → SHARED §5
       --quote string         REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. A mis-quote is rejected rather than guessed at
       --reason string        why this source backs the sentence — kept on the record and shown beside the source in the evidence view, never printed in the report
       --source-span string   required for every source whose text the tool holds: the words you rely on, copied from the source's cached text (not the report, and not your own wording of it). The tool finds them there once — runs of whitespace (non-breaking and thin spaces included) compare as one space; a line-end hyphen may be typed joined or kept; curly quotes ‘ ’ “ ” compare as ' and ", en and em dashes – — as -, an ellipsis … as ..., the ligatures ﬀ ﬁ ﬂ ﬃ ﬄ as their letters, and a soft hyphen as nothing; case, letters and every other punctuation mark must match — and records where, the source's text around them, and for OCR-derived text the PDF page. A lens reads that text, not your reason, against the sentence. A source the tool holds no text for is cited without it
@@ -353,13 +353,13 @@ AN EDIT THAT CHANGES NOTHING IS REFUSED, and nothing is recorded: the refusal sa
 
 NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. An edit that adds one of them to the report as a `## ` heading, or an `**Outcome:**` line above the first heading, is refused and nothing is recorded; a heading the edit completes from parts is one it adds. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: a section of that name in the report's text is the report's own, and ships whole in report.md among the report's own sections. `show report` has an assembled form that gives the same for every section before you write.
 
-(NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §5
+(NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §6
 
 ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`. A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections.
 
 A SECTION MOVES IN ONE EDIT. Quote the section together with everything that stands between it and its place, as `show report` prints them, and write the same text as the replacement with the section where it belongs: every anchor in the span stays on its sentence and no sentence changes, so nothing is reopened. Taking a section out in one edit to write it back in a second is refused when the section holds an anchor, because the first edit would drop it.
 
-(WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
+(WHAT MAY BE IN THE REPORT: resea…) → SHARED §7
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -368,7 +368,7 @@ A SECTION MOVES IN ONE EDIT. Quote the section together with everything that sta
 Flags:
       --accept           take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text
       --answers gap-id   the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap
-      --key string       → SHARED §7
+      --key string       your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. A repeat under the handle with another --quote, --new, --answers or --accept is refused: a handle names one edit. → SHARED §5
       --new string       the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused
       --quote string     REQUIRED unless --accept — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing. Name the section in --reason, where prose belongs. An anchor standing at its end stays where it is unless the quote carries it
       --reason string    → SHARED §8
@@ -401,11 +401,11 @@ IF THE PROOF FAILS, the file is KEPT and you are told to STOP and report it with
 
 NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: Outcome, Risk matrix, Research areas, Future research directions, Alternatives considered, Bibliography, The board, The debate, Citations, How this run was conducted, The verdict's basis, Log (what the run told the operator), Record verification, Claims retired, Superseded bench statements, Edits to the report. A report that carries one of them as a `## ` heading, or an `**Outcome:**` line above its first heading, is refused and nothing is frozen: the file stands for you to fix, and the one ingest a run gets is unspent. The refusal names the section, what assembly composes it from, and how content reaches it: the act that puts such content on the record, or that no act of yours does and whose does. Assembly also composes Motions in judgments.md and Proofs in evidence.md, and those names are not refused: a section of that name in the report's text is the report's own, and ships whole in report.md among the report's own sections. `show report` has an assembled form that gives the same for every section before you write.
 
-(NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §5
+(NO NOTE THE TOOL NUMBERS. Assemb…) → SHARED §6
 
 ONE ORDER, THE ONE THE REPORT SHIPS IN. The report's text ships in the order it is written, and it stands in this order: the title line (`# …`); `## TL;DR`; `## The Catechism`; the report's own sections, in the order their author chooses; `## Open questions`. A text that holds one of those out of its place is refused and nothing is recorded; the refusal names the line, what it stands on the wrong side of, and where it belongs. A section the report does not carry leaves no place open: what is refused is a section out of place, never one that is absent. A second section under one of those names is out of place, and so is one of them after text that stands before the first heading: that text is one of the report's own sections. The file stands for you to move the lines, and the one ingest a run gets is unspent.
 
-(WHAT MAY BE IN THE REPORT: resea…) → SHARED §6
+(WHAT MAY BE IN THE REPORT: resea…) → SHARED §7
 
 (If you need a verb or a flag tha…) → SHARED §1
 ========
@@ -628,7 +628,7 @@ Flags:
       --answers gap-id          the gap id this computation settles — REQUIRED to close a gap whose check kind is computation, which prose cannot answer
       --cites citation-anchor   the citation id of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed
       --expect-error            this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it
-      --key string              → SHARED §7
+      --key string              your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice. → SHARED §5
       --quote string            REQUIRED — the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing
       --reason string           the proof note — printed in the report as this computation's footnote, so say what it SHOWS about the subject, not what happened while you ran it
       --script string           REQUIRED — path of the program that settles it (.py, .js, .mjs, .sh or .go). A relative path is read from the run directory, so a script drafted in the run's scratch/ is passed as scratch/<name>; an absolute path is read where it lies. The tool keeps its own copy with the proof, so the proof does not depend on the draft

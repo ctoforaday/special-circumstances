@@ -56,11 +56,11 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id != "G2" {
-		t.Errorf("ExistingMintByKey = (%q, %v)", id, err)
+	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id.GetGapId() != "G2" {
+		t.Errorf("ExistingMintByKey = (%q, %v)", id.GetGapId(), err)
 	}
-	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id != "" {
-		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id, err)
+	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id.GetGapId() != "" {
+		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id.GetGapId(), err)
 	}
 	if ids, err := allGapIDs(recordOf(t, run)); err != nil || len(ids) != 2 || !ids["G1"] || !ids["G2"] {
 		t.Errorf("allGapIDs = (%v, %v)", ids, err)
@@ -103,11 +103,11 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || id != "F-0a0a0a0a" {
-		t.Errorf("FindingByKey = (%q, %v)", id, err)
+	if id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || id.GetId() != "F-0a0a0a0a" {
+		t.Errorf("FindingByKey = (%q, %v)", id.GetId(), err)
 	}
-	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id != "" {
-		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id, err)
+	if id, err := FindingByKey(run, "red-lens-logic", "fk-1"); err != nil || id.GetId() != "" {
+		t.Errorf("FindingByKey must scope to the seat: got (%q, %v)", id.GetId(), err)
 	}
 	if err := requireFindings(recordOf(t, run), []string{"F-0a0a0a0a"}, "--found-by"); err != nil {
 		t.Errorf("requireFindings on a recorded id = %v", err)
