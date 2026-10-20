@@ -43,7 +43,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	// Ingest the round-0 report so mint's --quote check can render it (#709): blue-synthesize freezes
 	// the base and the file is deleted. blue-respond stays unregistered — this is a different seat.
 	r.register("blue", "blue-synthesize")
-	if _, err := r.do("ingest", "blue-synthesize").run(); err != nil {
+	if _, err := r.do("ingest", "blue-synthesize").result(); err != nil {
 		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 
@@ -74,8 +74,13 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	}
 
 	r.closeGap("red-chair", gapID, false)
+	if r.actErr != "" {
+		t.Fatalf("closeGap: %s", r.actErr)
+	}
 
-	out, _ := r.exec("verify", "--seat-id", "operator")
+	// verify's exit status is every invariant's verdict, and this test owns one of them: the
+	// status is reported beside the one this test reads, never read as that one.
+	out, verr := r.exec("verify", "--seat-id", "operator")
 	// THE VERDICT, NOT THE LABEL. `verify` lists every invariant by name whether it passed or
 	// failed, so `Contains(out, "register-before-append")` matches a CLEAN run too — it read as
 	// a failure on the first attempt at this test, against a fix that was working. A check keyed
@@ -86,7 +91,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	ok := strings.Contains(out, "[ok  ] register-before-append")
 	failed := strings.Contains(out, "[FAIL] register-before-append")
 	if !ok && !failed {
-		t.Fatalf("verify did not EVALUATE register-before-append on this run, so this test proved nothing:\n%s", out)
+		t.Fatalf("verify did not EVALUATE register-before-append on this run, so this test proved nothing (exit: %v):\n%s", verr, out)
 	}
 	if failed {
 		t.Errorf("verify reports register-before-append after closing a computation gap:\n%s\n\n"+

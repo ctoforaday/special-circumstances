@@ -37,6 +37,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
@@ -427,6 +428,14 @@ type runner struct {
 	// rulerFilingErr is the first such filing the tool admitted, or refused for another reason
 	// than the gavel. It fails the run: a motion its own ruler filed is one no other seat can rule.
 	rulerFilingErr string
+	// actErr is the run's first act the tool answered otherwise than the drive expects
+	// (acts_test.go): an admitted act refused, or a refused act admitted or refused for another
+	// reason. driveDebate fails the run on it ahead of every oracle downstream of the act.
+	actErr string
+	// judged is, by seat, the anchors the seat has verified or reproduced in its sitting in
+	// progress: the record keeps one such act per anchor per sitting, so a drive picking an anchor
+	// for one asks here first (firstThisSitting). sit() clears a seat's set.
+	judged map[string]map[string]bool
 	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
 	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED. The gaps a lens holds open are bounded by a budget
@@ -598,7 +607,6 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 	}
 	return c
 }
-func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
 
 // noteInquiry remembers a tool-assigned inquiry id so the --about drive can name a real one.
 func (r *runner) noteInquiry(id string) {
@@ -1037,7 +1045,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 		// that told a real judge to record a halt through petition-rule, where the enum refuses
 		// it. The fuzz stayed green over a production path that could not work.
 		haltOpinion := "fuzz judicial halt — safety boundary"
-		_, _ = r.exec("halt", "--seat-id", seatID, "--reason", haltOpinion)
+		r.admit("halt", "--seat-id", seatID, "--reason", haltOpinion)
 		env["halt"] = map[string]any{"opinion": haltOpinion}
 	}
 	return env
@@ -1249,6 +1257,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	done := make(chan struct{})
 	r.registering[seatID] = done
 	r.registered[seatID] = true
+	delete(r.judged, seatID)
 	if strings.HasPrefix(seatID, "red-lens-") {
 		if r.lensSittings == nil {
 			r.lensSittings = map[string]int{}
@@ -1259,7 +1268,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 		r.chairRegisters++
 	}
 	r.mu.Unlock()
-	_, _ = r.exec(registerArgs(seatID, occ)...)
+	r.admit(registerArgs(seatID, occ)...)
 	close(done)
 }
 
@@ -1305,7 +1314,7 @@ func (r *runner) register(role, seatID string) {
 	//
 	// No occasion: this path registers the concurrent LANES, which are blue and whose seat ids
 	// already say what their sittings are for.
-	_, _ = r.exec(registerArgs(seatID, "")...)
+	r.admit(registerArgs(seatID, "")...)
 	close(done)
 }
 
@@ -1565,6 +1574,18 @@ func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
 	args := append([]string{"--json", "finding", "--seat-id", seatID,
 		"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the source says otherwise"}, anchorArgs...)
 	out, err := r.exec(args...)
+	// THE LENSES SIT CONCURRENTLY, and any lens's finding quoting a claim raises its
+	// contradiction, so another lens can raise one between this lens's board read and its write.
+	// A refusal of a raise BY ID is admissible only when the record now holds that contradiction
+	// raised or answered; every other refusal fails the run.
+	if id := contradictionAbout(anchorArgs); id != "" {
+		if err != nil && r.contradictionUnraised(id) {
+			r.noteActErr("refused a raise of a contradiction the record holds unraised: " + err.Error())
+		}
+		noteEither([]string{"finding"}, "raising a contradiction a concurrent lens may answer first", err == nil)
+	} else if err != nil {
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+	}
 	if err != nil {
 		return
 	}
@@ -1574,9 +1595,42 @@ func (r *runner) raiseAndMint(seatID string, anchorArgs ...string) {
 		} `json:"result"`
 	}
 	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil || env.Result.FindingID == "" {
+		r.noteActErr("an admitted finding's --json result names no finding_id: " + firstLine(out))
 		return
 	}
 	r.mintFrom(seatID, env.Result.FindingID)
+}
+
+// contradictionAbout is the contradiction id a finding's anchor arguments name, "" for none.
+func contradictionAbout(anchorArgs []string) string {
+	kind, ref := "", ""
+	for i := 0; i+1 < len(anchorArgs); i++ {
+		switch anchorArgs[i] {
+		case "--about-kind":
+			kind = anchorArgs[i+1]
+		case "--about":
+			ref = anchorArgs[i+1]
+		}
+	}
+	if kind != "contradiction" {
+		return ""
+	}
+	return ref
+}
+
+// contradictionUnraised reports whether the record lists contradiction id as unanswered with no
+// finding raising it.
+func (r *runner) contradictionUnraised(id string) bool {
+	b, ok := r.board()
+	if !ok {
+		return true
+	}
+	for _, c := range record.EvidenceJSONOf(b.Events, b.At).UnansweredContradictions {
+		if c.ID == id {
+			return c.RaisedBy == ""
+		}
+	}
+	return false
 }
 
 // forcedProofs is the anchors of the proofs on the record whose script is reopenedProofScript.
@@ -1658,7 +1712,7 @@ func (r *runner) proveToReopen(seatID string) {
 		}
 		run := r.edgeRun(cur, oldSpan)
 		if _, err := r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
-			set("--reason", "fuzz: rewording the sentence a judged proof backs").run(); err != nil {
+			set("--reason", "fuzz: rewording the sentence a judged proof backs").result(); err != nil {
 			r.reachedStage("edit refused: " + firstLine(err.Error()))
 			return
 		}
@@ -1681,8 +1735,11 @@ func (r *runner) judgeToReopen(seatID string) {
 		if !slices.Contains(offered, a) {
 			continue
 		}
+		if !r.firstThisSitting(seatID, a) {
+			continue
+		}
 		if _, err := r.do("reproduce", seatID).set("--anchor", a).set("--as", "sound").
-			set("--reason", "fuzz: read the script against the sentence it backs").run(); err != nil {
+			set("--reason", "fuzz: read the script against the sentence it backs").result(); err != nil {
 			r.reachedStage("reproduce refused: " + firstLine(err.Error()))
 			return
 		}
@@ -2194,16 +2251,16 @@ func (r *runner) mintEstopped(seatID string) {
 			"the 40-char overlap the guard requires")
 		return
 	}
-	_, err := r.exec("mint", "--seat-id", seatID, "--class", "spec_underspecification",
+	r.refuse(feov.Conflict, "mint", "--seat-id", seatID, "--class", "spec_underspecification",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
 		"--check", "acc", "--fix", "reword it", "--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 		"--quote", sentence,
 		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on "+gapID)
+	// REFUSED, AND AS A CONFLICT WITH THE RECORD: an admitted mint here is the guard gone.
 	// THE REFUSAL IS NOT COUNTED HERE. `estoppels` is read off the RECORD in the walk below,
 	// where the tool's own `log --type estoppel` entry either exists or does not — a driver that
 	// counted its own error would report the guard as firing on any refusal at all, including one
 	// for a quote that simply was not on the page.
-	_ = err
 }
 
 // someFinding returns the id of a random lens finding on the record, or "" if none — feeds mint's
@@ -2293,8 +2350,8 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		// every later round and the ordering it needs on the first.
 		r.register("blue", "blue-respond")
 		name := "fuzz-answer-" + id + ".js"
-		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
-			_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+		if err := r.writeScript(name, "console.log('answers "+id+"');"); err == nil {
+			r.admit("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
 		}
 		// A PROOF WHOSE FAILURE IS THE RESULT, once per run. `prove` refuses a script that exits
@@ -2310,8 +2367,8 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		if first {
 			absent := "fuzz-absent-" + id + ".js"
 			body := "console.error('no such path: the thing this proof shows is missing'); process.exit(3);"
-			if err := os.WriteFile(filepath.Join(r.runDir, absent), []byte(body), 0o644); err == nil {
-				_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
+			if err := r.writeScript(absent, body); err == nil {
+				r.admit("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz sentence",
 					"--script", absent, "--expect-error",
 					"--reason", "fuzz: the absence IS the result, recorded as such")
 			}
@@ -2407,22 +2464,22 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 				held = append(held, g)
 			}
 		}
-		named := ""
+		// THE TWO REFUSED ANCHORS ARE PINNED BY DIFFERENCE. The record codes neither refusal (each
+		// renders as "error"), so the code alone would pass a refusal for any reason; the close that
+		// follows is the same act without the anchor, and it is ADMITTED — which leaves the anchor
+		// as the one thing the record refused.
 		switch {
 		case r.coin(15):
-			named = "C-ffffffff"
+			r.refuse(feov.Internal, append(args, "--anchor", "C-ffffffff")...)
 		case r.coin(15):
-			named = id
+			r.refuse(feov.Internal, append(args, "--anchor", id)...)
 		case len(held) > 0:
-			named = held[r.rng.Intn(len(held))]
-		}
-		if named != "" {
-			if _, err := r.exec(append(args, "--anchor", named)...); err == nil {
+			if _, ok := r.admit(append(args, "--anchor", held[r.rng.Intn(len(held))])...); ok {
 				return
 			}
 		}
 	}
-	_, _ = r.exec(args...)
+	r.admit(args...)
 }
 
 // carryPrior is the CHAIR's one closure act (roundless §III.B.3): restating a closure the archive
@@ -2470,7 +2527,7 @@ func (r *runner) carryPrior(seatID string) {
 		if open := r.openGaps(); len(open) > 0 && r.coin(50) {
 			carry = append(carry, "--superseded-by", open[r.rng.Intn(len(open))])
 		}
-		_, _ = r.exec(carry...)
+		r.admit(carry...)
 	}
 }
 
@@ -2552,8 +2609,9 @@ var disputeDims = []string{"severity", "likelihood", "impact", "complexity"}
 // petitionClasses is the full petition-class domain (debate.js PETITIONS enum).
 var petitionClasses = []string{"ethical", "safety", "integrity", "constitutional"}
 
-// regradeDims are the grade axes a regrade can move (each maps to its flag below).
-var regradeDims = []string{"severity", "likelihood", "impact", "cx"}
+// regradeDims are the grade axes a regrade draws one of, each spelled as its flag; --complexity is
+// passed on every regrade beside it, so every axis is driven.
+var regradeDims = []string{"severity", "likelihood", "impact"}
 
 func pick[T any](rng *lockedRand, xs []T) T { return xs[rng.Intn(len(xs))] }
 
@@ -2585,13 +2643,13 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// where it is actually produced — see the estoppel scenario in blueRespondTo/mint.
 	switch pick(r.rng, []string{"defect", "defect", "defect", "request", "request", "friction", "friction"}) {
 	case "defect":
-		r.do("log", seatID).set("--type", "defect").set("--reason", "fuzz defect from "+seatID).run()
+		r.do("log", seatID).set("--type", "defect").set("--reason", "fuzz defect from "+seatID).admit()
 	case "request":
-		r.do("log", seatID).set("--type", "request").set("--reason", "fuzz: "+seatID+" wanted an act that is on no surface").run()
+		r.do("log", seatID).set("--type", "request").set("--reason", "fuzz: "+seatID+" wanted an act that is on no surface").admit()
 	case "friction":
-		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").run()
+		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").admit()
 	default:
-		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").run()
+		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: something cost "+seatID+" a call, noted without a claim that it is actionable").admit()
 	}
 	// A recorded fate carries an optional --method; feed it sometimes so that flag is exercised too.
 	// An inquiry has an id and a LIFECYCLE: propose it, then record its fate.
@@ -2613,12 +2671,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// PROPOSE AND RECORD ARE TWO VERBS. A proposal is born `proposed` — the tool supplies it,
 		// so there is no status to pass — and any other fate is reached by RECORDING it on the
 		// inquiry proposed, which is the cycle red rules on and the oracle reads.
-		out, err := r.do("inquiry propose", seatID).set("--question", line).
-			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").run()
+		out, ok := r.do("inquiry propose", seatID).set("--question", line).
+			set("--hypothesis", "fuzz: what would be true if "+seatID+" paid off").admit()
 		// RECORDING `proposed` AGAIN IS A REAL STATE — the inquiry is still open and the seat is
 		// saying so rather than settling it — so the fate is drawn from the whole set, not from
 		// the set minus its default.
-		if err == nil {
+		if ok {
 			// A PROPOSAL THAT LANDED AND NAMED NO ID IS A FAILURE, NOT A SKIP. The tool minted an
 			// id and printed it; a reader that finds none there has stopped reading the tool.
 			id := inquiryIDOf(out)
@@ -2630,7 +2688,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			r.noteInquiry(id)
 			if _, merr := r.do("inquiry record", seatID).set("--id", id).set("--as", st).
 				set("--reason", "fuzz: what changed this inquiry's fate").
-				on(50, "--method", "fuzz-method").run(); merr == nil {
+				on(50, "--method", "fuzz-method").result(); merr == nil {
 				r.noteInquiryRecord()
 			}
 		}
@@ -2655,7 +2713,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// A coin is the wrong shape for a duty. What varies between runs is what the review FINDS,
 		// not whether the read happened.
 		r.do("inquiry review", seatID).
-			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
+			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").admit()
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
 		// The additive stage added a blue-files/merge-rules pair here beside the `blue dispute`
@@ -2684,9 +2742,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 			}
 			if closed := r.closedGapIDs(); len(closed) > 0 {
 				sc.set("--ids", closed[r.rng.Intn(len(closed))]).
-					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
+					set("--reason", "fuzz: re-read the closure record; the anchor still resolves").admit()
 			} else {
-				sc.set("--reason", "fuzz: the archive was empty at round start").run()
+				sc.set("--reason", "fuzz: the archive was empty at round start").admit()
 			}
 		}
 		// RED RULES EVERY UNRULED INQUIRY, and the ruling follows the question it was proposed
@@ -2720,14 +2778,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 			cite := r.do("cite", seatID).
 				set("--quote", "§ fuzz sentence").
 				set("--url", url).
-				set("--title", "fuzz source "+seatID).
-				on(50, "--quote", "fuzz cited claim "+seatID).
+				set("--title", sourceTitle).
 				// SOME CITATIONS BACK THE SENTENCE THE EDIT DRIVE REWRITES. Anchored only in the
 				// seeded sentence no edit touches, no checked citation is ever reopened, and the
 				// plan's reopened arm and the gate behind it are unreached. One cite in four: universe-m19
 				// reopened a checked anchor on 9 of its 35 edits, and the sweep's share is held near that.
 				on(25, "--quote", "across the whole sampled corpus").
-				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
 				on(50, "--reason", "fuzz: why this source backs the claim")
 			// EVERY CITE OF A SOURCE WITH TEXT QUOTES WORDS THE TOOL FINDS IN IT. The sweep's sources
 			// are synthetic text, each holding sourceBody once; 15 cites in 100 type a span it
@@ -2737,9 +2793,13 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(15) {
 				span, held = "fuzz words the source does not hold", false
 			}
-			out, err := cite.set("--source-span", span).run()
 			if !held {
+				out, err := cite.set("--source-span", span).result()
 				r.citeSpanRefused(seatID, out, err)
+			} else {
+				// THE KEY NAMES THE CITATION'S SOURCE, as a key names one citation: a retry of the
+				// same source under it is idempotent, and the record refuses a key naming another.
+				cite.set("--source-span", span).on(40, "--key", fmt.Sprintf("C-%x", sha256.Sum256([]byte(url)))[:12]).admit()
 			}
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
@@ -2748,8 +2808,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 			r.do("cite", seatID).
 				set("--quote", "§ fuzz sentence").
 				set("--url", "http://127.0.0.1:1/unreachable").
-				set("--title", "unreachable "+seatID).
-				run()
+				set("--title", sourceTitle).
+				refuse(feov.Internal)
 		})
 		// A SECTION OUT OF ORDER IS REFUSED: some sittings write one, and the tool refuses each.
 		r.maybe(20, func() { r.orderRefused(seatID) })
@@ -2791,7 +2851,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 				set("--new", newSpan+run).
 				set("--reason", "fuzz edit: sharper phrasing, answering no gap").
 				on(40, "--key", fmt.Sprintf("E%d", 1+r.rng.Intn(2))).
-				run()
+				admit()
 		})
 		// #277: settle a claim by COMPUTING it. The script is written into the run dir and the
 		// tool runs it twice — so this drives the real interpreter, the cache, the anchor
@@ -2802,7 +2862,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(25) {
 				body = "console.log(Math.random());" // exercises the OBSERVED grade
 			}
-			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err != nil {
+			if err := r.writeScript(name, body); err != nil {
 				return
 			}
 			// SOME PROOFS BACK THE SENTENCE THE EDIT DRIVE REWRITES, as some citations do: anchored
@@ -2813,13 +2873,15 @@ func (r *runner) extras(role, seatID string, open []string) {
 				on(25, "--quote", "across the whole sampled corpus").
 				set("--script", name).
 				set("--reason", "fuzz: computing rather than arguing").
-				on(40, "--key", fmt.Sprintf("P%d", 1+r.rng.Intn(2)))
+				// THE KEY NAMES THE PROGRAM, as a key does: a retry of the same script under it is
+				// idempotent, and the record refuses a key that already names another program.
+				on(40, "--key", fmt.Sprintf("P-%x", sha256.Sum256([]byte(body)))[:12])
 			// ANSWER a real gap most of the time: a computation check closes only on a proof
 			// that names it, so without this the guard would only ever be seen refusing.
 			if len(open) > 0 && r.coin(70) {
 				pv = pv.set("--answers", pick(r.rng, open))
 			}
-			pv.run()
+			pv.admit()
 		})
 		r.maybe(30, func() {
 			// RETIRE WHAT WAS ACTUALLY REMOVED. This used to retire "fuzz claim <seat>" — a
@@ -2835,10 +2897,24 @@ func (r *runner) extras(role, seatID string, open []string) {
 					on(50, "--new", "fuzz replacement claim")
 				// A MARKER THE CUT LEFT INSIDE A SENTENCE is named, so --anchor runs through its
 				// validation — accepted when the edit left that marker alone, refused otherwise.
-				if id := r.anchorsLeftFor(claim); id != "" {
-					rt = rt.on(60, "--anchor", id)
+				id, left := r.anchorsLeftFor(claim)
+				switch {
+				case id == "" || !r.coin(60):
+					rt.admit()
+				case left:
+					rt.set("--anchor", id).admit()
+				default:
+					// A MARKER DRAWN FROM THE WHOLE REPORT is admitted where it stands bare where the
+					// claim was and refused elsewhere, which is the draw's call; a refused one is
+					// followed by the same retire without it, which is admitted.
+					bare := append([]string(nil), rt.args...)
+					if _, err := rt.set("--anchor", id).result(); err != nil {
+						r.admit(bare...)
+						noteEither([]string{"retire"}, "a marker drawn from the whole report", false)
+					} else {
+						noteEither([]string{"retire"}, "a marker drawn from the whole report", true)
+					}
 				}
-				rt.run()
 			}
 		})
 		// THE CORRECTNESS MANIFEST: one row per repaired gap, on the record (#318).
@@ -2851,12 +2927,12 @@ func (r *runner) extras(role, seatID string, open []string) {
 		for _, id := range open {
 			r.do("manifest-row", seatID).set("--id", id).
 				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
-				on(50, "--reason", "fuzz: the receipt's argument").run()
+				on(50, "--reason", "fuzz: the receipt's argument").admit()
 		}
 	case "bench":
 		// run-end certification statement — the bench's, additive (a recorded opinion).
 		r.maybe(45, func() {
-			r.do("certify", seatID).set("--reason", "fuzz certification statement from "+seatID).run()
+			r.do("certify", seatID).set("--reason", "fuzz certification statement from "+seatID).admit()
 		})
 		// A DECLARATION MOVES NO GAP, which is why the coverage walk would otherwise never reach it:
 		// every other bench act names something. It is ABOUT an open gap most of the time, declared
@@ -2881,7 +2957,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 				c = c.set("--ids", about)
 			}
 			c = c.set("--reason", holding)
-			if _, err := c.run(); err == nil {
+			if _, err := c.result(); err == nil {
 				r.mu.Lock()
 				r.declared++
 				r.mu.Unlock()
@@ -3002,7 +3078,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// path a seat actually takes.
 		if len(open) > 0 && r.coin(15) {
 			id := open[r.rng.Intn(len(open))]
-			_, _ = r.exec("motion", "docket", "file", "--seat-id", seatID, "--id", id,
+			r.admitFresh(id, "motion", "docket", "file", "--seat-id", seatID, "--id", id,
 				"--reason", "fuzz: "+id+" is not converging in the exchange and is the bench's to settle")
 		}
 		r.extras("blue", seatID, open)
@@ -3138,11 +3214,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if !r.forceHalt {
 			r.rulePending(seatID, "assemble")
 		}
-		_, _ = r.exec(oargs...)
+		r.admit(oargs...)
 		// THE ASSEMBLY IS THE BENCH. `--seat-id assemble` was the seat that ran this verb; the bench
 		// is one seat now and `assemble` is refused at the surface, so the call recorded nothing and
 		// every fuzzed run failed on the missing assembly.
-		_, _ = r.exec("assemble", "--seat-id", "judge")
+		r.admit("assemble", "--seat-id", "judge")
 		open := len(r.openGaps())
 		return map[string]any{"open_gaps": open}
 
@@ -3179,7 +3255,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// AXIS, not three of four: --complexity is spelled by its flag here.
 				r.maybe(30, func() {
 					dim := pick(r.rng, regradeDims)
-					_, _ = r.exec("regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
+					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
 						"--"+dim, r.g(), "--complexity", r.g())
 				})
 			}
@@ -3268,13 +3344,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						owed = owed[r.rng.Intn(len(owed)):][:r.rng.Intn(2)]
 					}
 					for _, it := range owed {
+						if !r.firstThisSitting(seatID, it.Anchor) {
+							continue
+						}
 						if it.Sha != "" {
 							r.do("reproduce", seatID).set("--anchor", it.Anchor).set("--as", pick(r.rng, []string{"sound", "unsound"})).
-								set("--reason", "fuzz: read the script against the sentence as it now stands").run()
+								set("--reason", "fuzz: read the script against the sentence as it now stands").admit()
 						} else {
 							r.do("verify", seatID).set("--anchor", it.Anchor).
 								set("--as", pick(r.rng, results)).set("--confidence", pick(r.rng, verifyConfidence)).
-								set("--reason", "fuzz: read the sentence as it now stands against its source").run()
+								set("--reason", "fuzz: read the sentence as it now stands against its source").admit()
 						}
 					}
 				}
@@ -3285,8 +3364,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.judgeToReopen(seatID)
 				if seatID == r.proofOwner && r.coin(35) {
 					if offered, err := proofItemsOn(r.run(), seatID); err == nil && len(offered) > 0 {
-						r.do("reproduce", seatID).set("--anchor", pick(r.rng, offered)).set("--as", pick(r.rng, []string{"sound", "unsound"})).
-							set("--reason", "fuzz: read the script against the sentence it backs").run()
+						if a := pick(r.rng, offered); r.firstThisSitting(seatID, a) {
+							r.do("reproduce", seatID).set("--anchor", a).set("--as", pick(r.rng, []string{"sound", "unsound"})).
+								set("--reason", "fuzz: read the script against the sentence it backs").admit()
+						}
 					}
 				}
 				// BOTH CASES, and the anchored one uses a REAL citation off the record: red
@@ -3307,18 +3388,23 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// unread and draws page 1, or asks for a page the one-page document does not have and
 				// is refused. It records nothing either way.
 				r.maybe(10, func() {
-					out, err := r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/scan.pdf"), "--ocr=false", "--json")
+					out, ok := r.admit("fetch", "--seat-id", seatID, "--url", sourceURL("/scan.pdf"), "--ocr=false", "--json")
 					var sum struct {
 						Sha256 string `json:"sha256"`
 					}
-					if err != nil || json.Unmarshal([]byte(out), &sum) != nil || sum.Sha256 == "" {
+					if !ok {
 						return
 					}
-					page := "1"
-					if r.coin(25) {
-						page = "2"
+					if json.Unmarshal([]byte(out), &sum) != nil || sum.Sha256 == "" {
+						r.noteActErr("fetch --json of the scan names no sha256: " + firstLine(out))
+						return
 					}
-					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", page).run()
+					// PAGE 2 OF A ONE-PAGE SCAN IS REFUSED, uncoded, so the refusal is pinned by
+					// difference: the same render of page 1 follows it and is admitted.
+					if r.coin(25) {
+						r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "2").refuse(feov.Internal)
+					}
+					r.do("render-page", seatID).set("--sha", sum.Sha256).set("--page", "1").admit()
 				})
 				r.sourceQuoteRefused(seatID)
 				claim := "A § fuzz sentence to anchor findings."
@@ -3342,20 +3428,47 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						on(60, "--access-date", "2026-07-24")
 				}
 				read := claim // the sentence the reading recorded, which the finding below quotes
-				if anchor := r.someCitation(); anchor != "" && r.coin(70) {
+				if anchor := r.someCitation(); anchor != "" && r.coin(70) && r.firstThisSitting(seatID, anchor) {
 					// --page names a page image, and no citation this sweep writes has pages, so
 					// a verify carrying one is refused: the flag and its refusal, driven.
 					// The claim is the one verify prints back, as a lens reads it.
-					out, err := axes(r.do("verify", seatID)).set("--anchor", anchor).on(10, "--page", "1").bare("--json").run()
+					paged := r.coin(10)
+					v := axes(r.do("verify", seatID)).set("--anchor", anchor).bare("--json")
+					if paged {
+						v = v.set("--page", "1")
+					}
+					out, err := v.result()
 					if err == nil {
 						read = claimOf(out)
 					}
 					r.noteBridge(seatID, outcome, kindless, out, err)
+					// A READING THE DRIVE DOES NOT DRIVE TO BE REFUSED IS ADMITTED: the kindless
+					// bridge is noteBridge's to hold, and a --page is refused as a validation — no
+					// citation this sweep writes has pages, and a corroboration holds none.
+					switch {
+					case paged && err == nil:
+						r.noteActErr("verify --page on a source with no pages was admitted: " + firstLine(out))
+					case paged:
+						if env, ok := refusalEnvelopeIn(out); !ok || env.Code != string(feov.Validation) {
+							r.noteActErr("verify --page refused without a validation envelope: " + firstLine(out))
+						}
+					case !kindless && err != nil:
+						r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+					}
 				} else {
-					out, err := axes(r.do("corroborate", seatID)).set("--quote", claim).
-						set("--url", "https://fuzz.invalid/"+seatID).
-						set("--title", "fuzz source for "+seatID).run()
+					// A FRESH SOURCE EACH TIME: a corroboration is one per source and claim, so the
+					// drive's own retry below is the only repeat it makes.
+					c := axes(r.do("corroborate", seatID)).set("--quote", claim).
+						set("--url", fmt.Sprintf("https://fuzz.invalid/%s/%d", seatID, corroborations.Add(1))).
+						set("--title", sourceTitle).bare("--json")
+					out, err := c.result()
 					r.noteBridge(seatID, outcome, kindless, out, err)
+					if !kindless && err != nil {
+						r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+					}
+					if err == nil && backsTheClaim(outcome) {
+						r.retryCorroboration(c.args, out)
+					}
 				}
 				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
 				// saying the report asserts what its source does not, and a PASS is refused until
@@ -3388,12 +3501,20 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// which used to borrow an innocent one (#742).
 				findArgs := []string{"finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
 					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
+				aboutGap := ""
 				if k, ref := r.aboutAnchor(); k != "" && r.coin(30) {
 					findArgs = append(findArgs, "--about-kind", k, "--about", ref)
+					if k == "gap" {
+						aboutGap = ref
+					}
 				} else {
 					findArgs = append(findArgs, "--quote", "§ fuzz sentence")
 				}
-				_, _ = r.exec(findArgs...)
+				if aboutGap != "" {
+					r.admitFresh(aboutGap, findArgs...)
+				} else {
+					r.admit(findArgs...)
+				}
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
@@ -3419,14 +3540,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				if r.coin(40) {
 					fetchArgs = append(fetchArgs, "--via", "live")
 				}
-				_, _ = r.exec(fetchArgs...)
+				r.admit(fetchArgs...)
 				// --at DRIVES ITS REFUSAL, which is the only honest way to drive it here: it is
 				// read on the non-live path alone, so a hermetic sweep cannot reach its success
 				// case at all. It used to be a SILENT NO-OP on a live fetch — the date dropped,
 				// today's page returned, success reported — and that is now a refusal, so this
 				// exercises a path a seat will actually hit rather than standing in for one.
 				r.maybe(20, func() {
-					_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID),
+					r.refuse(feov.Validation, "fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID),
 						"--ocr=false", "--at", "20190101")
 				})
 				r.extras("lens", seatID, nil)
@@ -3653,6 +3774,20 @@ const stallAfter = 3 * time.Minute
 // preamble error, rejection, hang, or panic. Shared by the sweep (runOne) and the halt test — the
 // one place the goja event loop and __result promise are driven.
 func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr string) {
+	// THE ACT FIRST: an act answered otherwise than expected is the cause of whatever the run did
+	// next, so it leads the failure and what followed from it trails.
+	defer func() {
+		r.mu.Lock()
+		act := r.actErr
+		r.mu.Unlock()
+		if act == "" {
+			return
+		}
+		if settledErr != "" {
+			act += "\n  and then: " + settledErr
+		}
+		settledErr = "an act the drive issued: " + act
+	}()
 	defer func() {
 		if p := recover(); p != nil {
 			settledErr = fmt.Sprintf("panic: %v", p)
@@ -3680,10 +3815,11 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	if r.maxEpochs > 0 {
 		maxEpochs = r.maxEpochs
 	}
-	_ = os.MkdirAll(filepath.Join(r.runDir, "inputs"), 0o755)
-	_ = os.WriteFile(filepath.Join(r.runDir, "inputs", "run-config.json"),
+	if err := writeSetup(filepath.Join(r.runDir, "inputs", "run-config.json"),
 		fmt.Appendf(nil, `{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","lanes":3,"k":1,"kMax":2,"mintBudget":1,"convergenceFraction":0.25,"maxEpochs":%d}`,
-			maxEpochs), 0o644)
+			maxEpochs)); err != nil {
+		return nil, err.Error()
+	}
 
 	// STARTED, NOT Run(). `loop.Run` returns once the JS job queue drains, which was correct
 	// while agent() resolved inline — the whole debate settled inside one call. Phase 3 (#630)
@@ -3947,11 +4083,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// A lens finding anchors into blue/report.md and is rejected unless its --location
 	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
 	// ("§ fuzz") so findings are accepted and the coverage gate sees them.
-	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	// The trailing sentence is the EDIT TARGET: `blue edit` swaps it between two fixed
 	// phrasings, so every round has a valid unique span to replace whichever way the last
 	// edit left it, while the anchor quote above stays untouched for findings and cites.
-	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport), 0o644)
+	if err := writeSetup(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport)); err != nil {
+		return outcome{seed: seed, runDir: runDir, err: err.Error()}
+	}
 	// THE RUN DECLARES ITS CLASS VOCABULARY, because a real run does. The fuzz used to be exempt
 	// by accident: no registry staged meant `validateClass` accepted every slug, so the fuzz drove
 	// `mint` for its whole life without ever exercising the check the flag's help describes. When
@@ -4396,7 +4533,10 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
+			if out, err := drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
+				res.err = role + " show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
+				return res
+			}
 		}
 	}
 	// THE SET IS DERIVED, because this exclusion was four names written here by hand and two of
@@ -4960,9 +5100,9 @@ func TestFuzzHaltPath(t *testing.T) {
 	// next` reads: the cast setup writes, and the report blue freezes. Without them the chair's
 	// dispatch is refused ("the record holds no cast"), the plan is empty, and the run ends
 	// UNVERIFIED with the petition never heard.
-	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
-	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte(seedReport), 0o644)
+	if err := writeSetup(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport)); err != nil {
+		t.Fatal(err)
+	}
 	r := newRunner(bin, runDir, newLockedRand(1))
 	haltCast, haltLanes := record.CastFor(nil, 3)
 	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: haltCast, LaneSeatIds: haltLanes}); err != nil {
@@ -5861,6 +6001,7 @@ func TestFuzzDebate(t *testing.T) {
 	// most likely to need it. And a path that never succeeded is a coverage hole at ANY N — it
 	// needs no quorum, because one refusal per invocation is not a sampling accident.
 	t.Log(execReport())
+	t.Log(eitherReport())
 	// THE SAME SWEEP, READ AS A GRAPH (#535 step 1). Emitted here rather than from a test of its
 	// own for the reason #635 was filed about: a second test reading this package-level tally
 	// would run at whatever point its declaration order put it, and a gate that reads a tally
@@ -6034,14 +6175,16 @@ func (r *runner) recentlyEditedOut() string {
 // anchorsLeftFor names a marker for a retire's --anchor: one the edit that took claim out left in
 // its place, when it still stands; else any marker the report holds, so the flag is driven through
 // its validation on every retire the sweep makes — accepted or refused, never unpassed.
-func (r *runner) anchorsLeftFor(claim string) string {
+//
+// left says which: true for a marker the edit left, false for one drawn from the whole report.
+func (r *runner) anchorsLeftFor(claim string) (id string, left bool) {
 	b, err := record.FamilyOf(r.run())
 	if err != nil {
-		return ""
+		return "", false
 	}
 	cur, err := reportproj.RenderFromRecord(r.run())
 	if err != nil {
-		return ""
+		return "", false
 	}
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
@@ -6050,14 +6193,14 @@ func (r *runner) anchorsLeftFor(claim string) string {
 		}
 		for _, id := range anchor.IDs(be.GetNew()) {
 			if strings.Contains(string(cur), anchor.Token(id)) {
-				return id
+				return id, true
 			}
 		}
 	}
 	if ids := anchor.IDs(string(cur)); len(ids) > 0 {
-		return ids[r.rng.Intn(len(ids))]
+		return ids[r.rng.Intn(len(ids))], false
 	}
-	return ""
+	return "", false
 }
 
 // inquiryFates are the scenarios an inquiry is proposed under. The question itself carries it, the
@@ -6107,7 +6250,7 @@ func (r *runner) ruleOpenInquiries(seatID string) {
 		if ruling, ok := r.inquiryRuling(a.ID); !ok || ruling != "" {
 			continue
 		}
-		_, _ = r.exec("motion", "inquiry", "rule", "--seat-id", seatID, "--id", a.ID,
+		r.admit("motion", "inquiry", "rule", "--seat-id", seatID, "--id", a.ID,
 			"--as", rulingFor(a.Question), "--reason", "fuzz: ruling as the line was proposed")
 	}
 }
@@ -6144,13 +6287,13 @@ func (r *runner) answerInquiryRulings(seatID string) {
 		case strings.HasPrefix(a.Question, avContest):
 			// THE CONTEST IS THE FATE RECORDED: the ruling binds none, so blue takes the inquiry up against it.
 			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "underway").
-				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
+				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").admit()
 		case ruling == "endorsed":
 			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "underway").
-				set("--reason", "fuzz: endorsed, taking it up").run()
+				set("--reason", "fuzz: endorsed, taking it up").admit()
 		default:
 			r.do("inquiry record", seatID).set("--id", a.ID).set("--as", "declined").
-				set("--reason", "fuzz: accepting the ruling").run()
+				set("--reason", "fuzz: accepting the ruling").admit()
 		}
 	}
 }
@@ -6276,7 +6419,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 						edit = edit.set("--quote", fo).set("--new", fn).
 							set("--reason", "fuzz: applying red's proposed text verbatim")
 					}
-					if _, err := edit.run(); err != nil {
+					if _, err := edit.result(); err != nil {
 						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()))
 						break
 					}
@@ -6327,7 +6470,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			if r.scenarioOf(id) == dirProveDrifts {
 				body = "console.log(Math.random());" // graded `observed`, and it will not re-run the same
 			}
-			if err := os.WriteFile(filepath.Join(r.runDir, name), []byte(body), 0o644); err == nil {
+			if err := r.writeScript(name, body); err == nil {
 				prove := r.do("prove", seatID).
 					set("--quote", "§ fuzz sentence").
 					set("--script", name).
@@ -6342,7 +6485,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				if anchor := r.someCitation(); anchor != "" && r.coin(50) {
 					prove.set("--cites", anchor)
 				}
-				prove.run()
+				prove.admit()
 			}
 		case dirIgnore:
 			// Deliberately nothing. The oracle asserts NO edit answers this gap, which is what
@@ -6366,7 +6509,7 @@ func (r *runner) counterEdit(seatID, gapID string) {
 	}
 	run := r.edgeRun(cur, oldSpan)
 	r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
-		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").run()
+		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").admit()
 }
 
 // proposalFor returns the concrete pair for ONE gap over the report cur, when it carries one — the
@@ -6420,7 +6563,7 @@ func abuttingRun(cur, span string) string {
 // `frontier` registration were both found.
 func (r *runner) readOnly(verb, seatID string, extra ...string) {
 	args := append([]string{verb, "--seat-id", seatID}, extra...)
-	_, _ = r.exec(args...)
+	r.admit(args...)
 }
 
 // readOnlySurfaces is the CENSUS, not a sample: every record-nothing surface a seat or the
@@ -6584,9 +6727,9 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// which is correct and is not this path. And without INGESTING the report (#709) every verb that
 	// reads it is refused with "no base has been ingested". runOne does both before it drives; so
 	// does this.
-	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
-	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte(seedReport), 0o644)
+	if err := writeSetup(filepath.Join(runDir, "blue", "report.md"), []byte(seedReport)); err != nil {
+		t.Fatal(err)
+	}
 	r := newRunner(bin, runDir, newLockedRand(1))
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
@@ -6764,7 +6907,7 @@ const settledByFuzzBench = "the proposition this ruling bars"
 // gap, so the disposition joined to nothing and nothing could ask whether a gap that reached the
 // bench was ever answered. A ruling names the MOTION; the gap rides the filing.
 //
-// THE FILING'S RESULT IS READ RATHER THAN DISCARDED. Both halves used to be `_, _ = r.exec(...)`.
+// THE FILING'S RESULT IS READ RATHER THAN DISCARDED. Both halves used to be `r.admit(...)`.
 // noteExec records a refusal either way, so the run was not blind — but the id is needed here, and
 // a filing that failed would otherwise be followed by a ruling naming an empty motion, which
 // refuses for a second reason and buries the first. Returning early leaves ONE refusal in
@@ -6802,7 +6945,7 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
 		"--as", disposition, "--principle", "correctness", "--tension", "cost",
 		"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
-	_, _ = r.exec(args...)
+	r.admit(args...)
 }
 
 // ruleStandingDockets is the terminal bench ruling every docket motion that stands unruled at the
@@ -6828,7 +6971,7 @@ func (r *runner) ruleStandingDockets(seatID string) {
 			continue
 		}
 		disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
-		_, _ = r.exec("motion", "docket", "rule", "--seat-id", seatID, "--id", m.ID,
+		r.admit("motion", "docket", "rule", "--seat-id", seatID, "--id", m.ID,
 			"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
 			"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
 			"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
