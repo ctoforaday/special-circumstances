@@ -113,12 +113,6 @@ func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }
 
-// ClassMaterialOf resolves a materiality word — `always`, `never` or `by_grade` — as a gap's
-// class_material and its class's material default spell it.
-func ClassMaterialOf(word string) (recordpb.ClassMaterial, bool) {
-	return enumOf[recordpb.ClassMaterial](recordpb.ClassMaterial(0).Descriptor(), word)
-}
-
 // GapClassOf resolves a gap class word, as `mint --class` spells it.
 func GapClassOf(word string) (recordpb.GapClass, bool) {
 	return enumOf[recordpb.GapClass](recordpb.GapClass(0).Descriptor(), word)
