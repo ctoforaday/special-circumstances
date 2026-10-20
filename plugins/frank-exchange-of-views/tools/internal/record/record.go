@@ -35,6 +35,7 @@ package record
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -135,11 +136,17 @@ type Identity struct {
 	SeatID string
 }
 
-// RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
-// SEQUENTIAL retries (measured: 8/50 in run 5, all crash re-runs), so register
-// ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
-// instance's shard stays inert. Two registers for one seatId are themselves an
-// event, visible to the join audit and the render anomaly footer.
+// RegisterSeat is every seat's FIRST record action, and it returns the dispatch number: the rank of
+// the sitting this register belongs to among its seat's sittings.
+//
+// ONCE PER DISPATCH. An agent id names one dispatch (a resumed dispatch arrives under a new one), so
+// a second register by the same agent as the same seat is the same registration asked again: it
+// answers with the stored one and writes nothing. Measured on universe-m31: every repeat was a seat
+// whose first act had already registered it (requireBound's autoRegister) calling `register`
+// itself, and each repeat advanced the dispatch count — a chair's 12th sitting printed
+// "dispatch 13". A register with no agent id cannot be tied to a dispatch, so each one opens a
+// sitting as before.
+//
 // runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
@@ -261,11 +268,39 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
-	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
+	//
+	// THE REPEAT CHECK, THE WRITE AND THE COUNT ARE ONE TRANSACTION, which holds the write lock from
+	// its BEGIN: two registers by one agent racing each other resolve to one row and one answer.
+	WriteBegins()
+	tx, err := db.Begin()
+	if err != nil {
 		return 0, "", err
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
-		seatID).Scan(&dispatch); err != nil {
+	defer tx.Rollback() //nolint:errcheck // the commit below is what matters; a rollback after it is a no-op
+	sitting, found, err := registeredSitting(tx, reg.GetAgentId(), seatID, occ)
+	if err != nil {
+		return 0, "", err
+	}
+	if !found {
+		if err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil); err != nil {
+			return 0, "", err
+		}
+		// The row just written is the newest: the transaction holds the write lock.
+		if err := tx.QueryRow(`SELECT "sitting_id" FROM "events" WHERE "id" = (SELECT max("id") FROM "events")`).Scan(&sitting); err != nil {
+			return 0, "", err
+		}
+	}
+	// THE DISPATCH NUMBER IS THE SITTING'S RANK, NOT A COUNT OF REGISTERS. A sitting the bracket
+	// opened that the seat never registered in is still a dispatch of it, and a register that joined
+	// its bracket's sitting is not a second one — the same rows events_w ranks "sitting" from.
+	if err := tx.QueryRow(`SELECT count(*) FROM "sittings" WHERE "seat_id" = ? AND "id" <= ?`,
+		seatID, sitting).Scan(&dispatch); err != nil {
+		return 0, "", err
+	}
+	if found {
+		return dispatch, dbName, nil
+	}
+	if err := tx.Commit(); err != nil {
 		return 0, "", err
 	}
 	// THE TIER GATE FIRES AFTER THE WRITE, AND THAT ORDER IS THE POINT.
@@ -280,6 +315,39 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
 	// — there is no shard, so it is the record's location.
 	return dispatch, dbName, nil
+}
+
+// registeredSitting is the sitting this agent's earlier register as seatID belongs to, if it made
+// one. No agent id finds nothing: such a register cannot be tied to a dispatch.
+//
+// A REPEAT THAT NAMES A DIFFERENT OCCASION IS REFUSED, not answered. The bench states what its
+// sitting was convened for once, and a second word for the same dispatch contradicts the record.
+func registeredSitting(tx *sql.Tx, agentID, seatID string, occ *recordpb.Occasion) (int64, bool, error) {
+	if agentID == "" {
+		return 0, false, nil
+	}
+	var sitting int64
+	var stored string
+	err := tx.QueryRow(
+		`SELECT e."sitting_id", COALESCE(r."occasion", '') FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		  WHERE r."agent_id" = ? AND e."seat_id" = ? ORDER BY e."id" DESC LIMIT 1`,
+		agentID, seatID).Scan(&sitting, &stored)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("asking whether this agent already registered as %s: %w", seatID, err)
+	}
+	asked := ""
+	if occ != nil {
+		asked = recordpb.Word(*occ)
+	}
+	if asked != stored {
+		return 0, false, feov.Errorf(feov.Validation,
+			"%s is already registered for this dispatch with occasion %q; a dispatch is convened for one occasion, so %q is refused",
+			seatID, stored, asked)
+	}
+	return sitting, true, nil
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.

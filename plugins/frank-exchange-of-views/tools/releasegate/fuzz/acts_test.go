@@ -44,8 +44,11 @@ func (r *runner) noteActErr(msg string) {
 
 // admit runs an act the drive expects the tool to admit. ok is false when it was refused, and the
 // run then fails on it.
-func (r *runner) admit(args ...string) (out string, ok bool) {
-	out, err := r.exec(args...)
+func (r *runner) admit(args ...string) (out string, ok bool) { return r.admitAs("", args...) }
+
+// admitAs is admit under a harness agent id (execAs).
+func (r *runner) admitAs(agent string, args ...string) (out string, ok bool) {
+	out, err := r.execAs(agent, args...)
 	if err != nil {
 		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 		return out, false
@@ -55,9 +58,12 @@ func (r *runner) admit(args ...string) (out string, ok bool) {
 
 // refuse runs an act the drive drives to be refused with code. --json is added so the code is the
 // envelope's field rather than a reading of the sentence.
-func (r *runner) refuse(code feov.Code, args ...string) {
+func (r *runner) refuse(code feov.Code, args ...string) { r.refuseAs("", code, args...) }
+
+// refuseAs is refuse under a harness agent id (execAs).
+func (r *runner) refuseAs(agent string, code feov.Code, args ...string) {
 	args = append(args, "--json")
-	out, err := r.exec(args...)
+	out, err := r.execAs(agent, args...)
 	argv := strings.Join(args, " ")
 	if err == nil {
 		r.noteActErr(argv + ": admitted, and the drive drives it to be refused (" + string(code) + "): " + firstLine(out))
