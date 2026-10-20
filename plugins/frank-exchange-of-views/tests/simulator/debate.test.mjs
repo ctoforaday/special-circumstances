@@ -405,7 +405,7 @@ test('the lens mints its own gaps, screens first, spends a budget, and closes as
   const world = makeWorld(makeResponder({ chair: [chairEnv({ plan: plan([party('red-lens-evidence'), party('red-lens-logic'), party('red-lens-dark-side')]) }), passChair()] }))
   await world.run(script, ARGS)
   const evidence = firstPrompt(world, 'red-lens-evidence')
-  for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'registering a new class first', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
+  for (const want of ['YOU MINT YOUR OWN GAPS', 'for a near match', 'then mint', 'or the catch-all with the reason none does', 'mintBudget', 'names the gaps it supersedes', "says so in the check's kind", 'THE ORIGINATOR CLOSES', 'LINEAGE IS NEVER DROPPED',
     'ASK FOR THE ANSWER TO BE PRODUCED, NOT ASSERTED', 'DOCUMENT-PROBE', 'LIVE-PROBE', 'BELIEVE NO BYTES', 'PRESCRIBE TEXT ONLY WHERE THE DEFECT IS TEXTUAL',
     // A FIX BLUE CANNOT MAKE HOLDS THE GATE ON NOTHING.
     'A REQUIRED FIX AND ITS ACCEPTANCE CHECK NAME ONLY WHAT THE ANSWERING SEAT CAN CHANGE', 'close as a defect owed elsewhere, and log',
@@ -514,8 +514,8 @@ test('no seat prompt names a command path or spells a flag — the help page is 
   for (const c of world.calls) {
     const body = c.prompt.replace(/--help\b|--seat-id\b|--run\b|--reason(-file)?\b|--comments\b/g, '')
     assert.ok(!/--[a-z][a-z-]+\b/.test(body), `${c.opts.label} spells a flag: ${(body.match(/.{40}--[a-z][a-z-]+.{20}/) || [''])[0]}`)
-    assert.ok(!/\b(show (board|work|motions|closings|changes)|class new|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
-      `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|class new|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
+    assert.ok(!/\b(show (board|work|motions|closings|changes)|dispatch next|motion (grade|inquiry|docket|petition) (file|rule|appeal)|near-match)\b/.test(body),
+      `${c.opts.label} names a command path: ${(body.match(/.{40}(show \w+|dispatch next|motion \w+ \w+|near-match).{20}/) || [''])[0]}`)
   }
 })
 
@@ -1030,8 +1030,8 @@ test('the default cast is every lens area', async () => {
 // repairing seat at all. `grep -rl 'PATTERN DUTY' --include='*.golden'` returned nothing, because a
 // clause that never renders cannot move a golden — the same plausible zero this engine keeps
 // finding, here in the delivery path of a duty both constitutions advertise as the one that works.
-// NO SEAT IS SENT TO A PATTERN CORPUS. The promoted corpus is retired: the class registry is the
-// vocabulary, it is enforced at mint, and a seat reads its situation from the record. Measured
+// NO SEAT IS SENT TO A PATTERN CORPUS. The promoted corpus is retired: the gap class's closed set is
+// the vocabulary, enforced at mint, and a seat reads its situation from the record. Measured
 // before the removal: all three repairing seats carried the duty and none opened the file.
 test('no prompt sends a repairing seat to a gap-pattern corpus', async () => {
   const world = makeWorld(makeResponder({

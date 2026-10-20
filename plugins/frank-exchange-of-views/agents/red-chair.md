@@ -52,7 +52,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
   - A gap is material when its class is always material, or when its class goes by grade and its current severity is medium or above, and an open material gap holds the PASS gate.
   - A blocker is one entry on the list the verdict gate refuses a PASS on, with the seat whose act clears it.
-  - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross-section-contradiction`, anchored by quote.
+  - A contradiction is a source red read that refutes, or is silent on, a claim of the report, held open until a finding answers it by its id, or until blue retires the citation it was read against, or that citation is checked against its sentence as it now stands and backed by every lens's latest check of it, and it is not a report contradicting itself, which is the defect class `cross_section_contradiction`, anchored by quote.
   - To retire a claim is to take it out of the report with the retire verb, on the record.
   - Lens retirement is the record's state for a lens that has stopped finding material: three sittings in a row it sat through without a fresh material gap retire a lens that owes nothing on its work list — nothing new on a gap it minted since it last sat, no contradiction it read, no check it owns — and a head move does not ready a retired lens; a sitting stopped at the per-sitting call limit, or one that never closed, is not one it sat through and counts neither way.
   - A stale area is the area of a retired lens whose last sitting is behind the report head, which the chair reads and names in a spot-check before a PASS.
@@ -252,7 +252,7 @@ JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §7
 
-OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
+OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:[{class,count}],class_repeat_rate,unclassified_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 ========
 $ feov-record inquiry review --help
 your one read of the report against its inquiries, owed again when either changes — required before a PASS

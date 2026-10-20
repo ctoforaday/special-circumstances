@@ -328,7 +328,7 @@ JSONL, one line per epoch (chair sitting): the trend the STOPPING judgment reads
 
 (THIS PROJECTION IS ALREADY THE J…) → SHARED §7
 
-OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:{<key>:number},class_repeat_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
+OUTPUT (JSONL — one such line PER EPOCH, not one document): {epoch,mapping_version,open_count,max_severity,new_mint:{count,by_severity:[{grade,count}],by_class:[{class,count}],class_repeat_rate,unclassified_rate},mass,realized_open,repair_regression:{closures,lineage_mints,ratio},edge_deltas:{down_mass,up_mass}}
 ========
 $ feov-record log --help
 an entry for the operator who can retool you — what it asserts, said in the positive
