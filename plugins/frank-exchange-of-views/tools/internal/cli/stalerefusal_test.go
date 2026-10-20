@@ -74,7 +74,7 @@ func lastCloseID(t *testing.T, runDir string) int64 {
 // call, which reads from the refusal.
 func TestAFindingAboutAGapClosedSinceTheSittingOpenedIsRefusedAndRefilesOnce(t *testing.T) {
 	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "closed-under", "carry-vs-close")
+	gap := mintGap(t, runDir, "closed-under", "false_universal")
 	sit(t, runDir, staleLens)
 	closeRepaired(t, runDir, gap)
 	closedAt := lastCloseID(t, runDir)
@@ -108,7 +108,7 @@ func TestAFindingAboutAGapClosedSinceTheSittingOpenedIsRefusedAndRefilesOnce(t *
 // was shown and no further.
 func TestAnotherSeatsFindingSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain(t *testing.T) {
 	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "argued-under", "cross-seat-visibility")
+	gap := mintGap(t, runDir, "argued-under", "false_universal")
 	sit(t, runDir, staleLens)
 	sit(t, runDir, "red-lens-logic")
 	if err := findingAbout(t, runDir, "red-lens-logic", "L1", gap); err != nil {
@@ -134,7 +134,7 @@ func TestAnotherSeatsFindingSinceTheSittingOpenedRefusesAndALaterOneRefusesAgain
 // An unchanged gap files on the first call, and a sitting that opened after the change has read it.
 func TestAFindingAboutAGapUnchangedSinceTheSittingOpenedFiles(t *testing.T) {
 	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "unchanged", "cross-seat-visibility")
+	gap := mintGap(t, runDir, "unchanged", "false_universal")
 	closeRepaired(t, runDir, gap)
 	sit(t, runDir, staleLens)
 	if err := findingAbout(t, runDir, staleLens, "U1", gap); err != nil {
@@ -148,7 +148,7 @@ func TestAFindingAboutAGapUnchangedSinceTheSittingOpenedFiles(t *testing.T) {
 // A seat's own acts are never news to it: a lens files two findings about one gap in one sitting.
 func TestASeatsOwnActsOnAGapNeverRefuseIt(t *testing.T) {
 	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "own", "dispute-to-regrade")
+	gap := mintGap(t, runDir, "own", "false_universal")
 	sit(t, runDir, staleLens)
 	for _, key := range []string{"O1", "O2"} {
 		if err := findingAbout(t, runDir, staleLens, key, gap); err != nil {
@@ -179,7 +179,7 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := seatRun(t)
-			gap := mintGap(t, runDir, "moved-"+strings.ReplaceAll(c.name, " ", "-"), "grade-dispute-visibility")
+			gap := mintGap(t, runDir, "moved-"+strings.ReplaceAll(c.name, " ", "-"), "false_universal")
 			sit(t, runDir, c.seat)
 			sit(t, runDir, "red-lens-logic")
 			if err := findingAbout(t, runDir, "red-lens-logic", "M1", gap); err != nil {
@@ -201,7 +201,7 @@ func TestEveryActThatNamesAGapIsRefusedWhileTheGapMovedUnderIt(t *testing.T) {
 // write opens its transaction is a change the guard reads, as if it had come first.
 func TestACloseLandingAsTheFindingWritesIsSeen(t *testing.T) {
 	runDir := seatRun(t)
-	gap := mintGap(t, runDir, "raced", "carry-vs-close")
+	gap := mintGap(t, runDir, "raced", "false_universal")
 	sit(t, runDir, staleLens)
 	closeAct := recordtest.At(t, lensSeat, "", &recordpb.Close{GapId: proto.String(gap),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(), AnchorSeat: proto.String("L1"),
@@ -228,7 +228,7 @@ func TestConcurrentLensesFileNoFindingAgainstAGapThatMovedUnderThem(t *testing.T
 			runDir := seatRun(t)
 			var gaps []string
 			for i := 0; i < 3; i++ {
-				gaps = append(gaps, mintGap(t, runDir, fmt.Sprintf("fz%d", i), "cross-seat-visibility"))
+				gaps = append(gaps, mintGap(t, runDir, fmt.Sprintf("fz%d", i), "false_universal"))
 			}
 			closed := map[string]bool{}
 			for _, l := range lenses {
